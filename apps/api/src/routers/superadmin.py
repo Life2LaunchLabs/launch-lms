@@ -12,6 +12,7 @@ from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services.email.utils import get_base_url_from_request
+from src.services.badges.awards import org_badge_plans
 from src.services.orgs.usage import get_org_usage_and_limits
 from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
@@ -227,30 +228,7 @@ async def get_org_badges(
     limit: int = 20,
     db_session: Session = Depends(get_db_session),
 ):
-    """The organization's plans that earn a badge (live or draft), with how many times each was awarded."""
-    from sqlmodel import func, select
-    from src.db.badges import BadgeAward
-    from src.db.goals import GoalTemplate, GoalTemplateVersion
-    from src.services.badges.definition import summary
-
-    plans = []
-    for template in db_session.exec(select(GoalTemplate).where(GoalTemplate.org_id == org_id).order_by(GoalTemplate.creation_date.desc())).all():  # type: ignore[union-attr]
-        live = db_session.get(GoalTemplateVersion, template.published_version_id) if template.published_version_id else None
-        badge = summary(template, live.document) if live else None
-        if badge is None and summary(template, template.document) is None:
-            continue
-        plans.append((template, badge or summary(template, template.document), live is not None and badge is not None))
-    total = len(plans)
-    shown = plans[(page - 1) * limit:page * limit]
-    awarded = dict(db_session.exec(select(BadgeAward.template_id, func.count()).where(
-        BadgeAward.template_id.in_([int(template.id) for template, _, _ in shown] or [0])).group_by(BadgeAward.template_id)).all())  # type: ignore[union-attr]
-    return {
-        "items": [{"template_uuid": template.template_uuid, "title": template.title, "badge": badge, "live": live,
-                   "award_count": int(awarded.get(template.id, 0)), "creation_date": template.creation_date} for template, badge, live in shown],
-        "total": total,
-        "page": page,
-        "limit": limit,
-    }
+    return org_badge_plans(db_session, org_id, page, limit)
 
 
 @router.get("/organizations/{org_id}/users")

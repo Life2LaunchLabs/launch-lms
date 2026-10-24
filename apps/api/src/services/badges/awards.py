@@ -12,13 +12,13 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import uuid4
 
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, func, select
 
 from src.db.badges import AwardSource, BadgeAward
-from src.db.goals import Goal, GoalTemplate, GoalTemplateVersion
+from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStatus, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.organizations import Organization
 from src.db.users import User
-from src.services.badges.definition import achievement
+from src.services.badges.definition import achievement, goal_badge, summary
 
 
 def _now() -> str:
@@ -100,3 +100,61 @@ def award_dict(db: Session, award: BadgeAward) -> dict:
 
 def awards_of(db: Session, user_id: int) -> list[BadgeAward]:
     return list(db.exec(select(BadgeAward).where(BadgeAward.user_id == user_id).order_by(col(BadgeAward.earned_on).desc(), col(BadgeAward.id).desc())).all())
+
+
+def org_badge_plans(db_session: Session, org_id: int, page: int, limit: int) -> dict:
+    """An organization's plans that earn a badge (live or draft), with how many times each was awarded."""
+    plans = []
+    for template in db_session.exec(select(GoalTemplate).where(GoalTemplate.org_id == org_id).order_by(GoalTemplate.creation_date.desc())).all():  # type: ignore[union-attr]
+        live = db_session.get(GoalTemplateVersion, template.published_version_id) if template.published_version_id else None
+        badge = summary(template, live.document) if live else None
+        draft = summary(template, template.document)
+        if badge is None and draft is None:
+            continue
+        plans.append((template, badge or draft, live is not None and badge is not None))
+    shown = plans[(page - 1) * limit:page * limit]
+    awarded = dict(db_session.exec(select(BadgeAward.template_id, func.count()).where(
+        BadgeAward.template_id.in_([int(template.id) for template, _, _ in shown] or [0])).group_by(BadgeAward.template_id)).all())  # type: ignore[union-attr]
+    return {
+        "items": [{"template_uuid": template.template_uuid, "title": template.title, "badge": badge, "live": live,
+                   "award_count": int(awarded.get(template.id, 0)), "creation_date": template.creation_date} for template, badge, live in shown],
+        "total": len(plans),
+        "page": page,
+        "limit": limit,
+    }
+
+
+def award_card(db_session: Session, award: BadgeAward) -> dict:
+    """An award as the portfolio shows it: the badge as it was earned, and who awarded it."""
+    earned = award.achievement or {}
+    issuer = db_session.get(Organization, award.issuing_org_id) if award.issuing_org_id else None
+    return {
+        "award_uuid": award.award_uuid,
+        "template_uuid": earned.get("template_uuid"),
+        "name": earned.get("name") or "",
+        "description": earned.get("description") or "",
+        "image_url": earned.get("image_url") or "",
+        "icon": earned.get("icon"),
+        "color": earned.get("color"),
+        "kind": earned.get("kind") or "Badge",
+        "skills": earned.get("skills") or [],
+        "earned_on": award.earned_on.isoformat(),
+        "issuer": {"name": issuer.name, "slug": issuer.slug} if issuer else None,
+    }
+
+
+def badges_in_progress(db_session: Session, user_id: int) -> list[dict]:
+    """The learner's open plans whose release earns a badge they don't hold yet, with progress."""
+    earned = {item.template_id for item in awards_of(db_session, user_id)}
+    goals = db_session.exec(select(Goal).where(Goal.subject_user_id == user_id, Goal.status.in_([GoalStatus.PENDING, GoalStatus.ACTIVE]))  # type: ignore[attr-defined]
+                            .order_by(Goal.id)).all()  # type: ignore[arg-type]
+    result = []
+    for goal in goals:
+        badge = goal_badge(db_session, goal) if goal.template_id not in earned else None
+        if badge is None:
+            continue
+        statuses = db_session.exec(select(StepProgress.status).join(GoalStep, GoalStep.id == StepProgress.step_id).where(GoalStep.goal_id == goal.id)).all()
+        total = len(db_session.exec(select(GoalStep.id).where(GoalStep.goal_id == goal.id)).all())
+        done = sum(getattr(status, "value", status) in DONE_STEP_STATUSES for status in statuses)
+        result.append({**badge, "goal_uuid": goal.goal_uuid, "plan_title": goal.title, "done": done, "total": total})
+    return result

@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 from sqlalchemy import inspect
 from sqlmodel import Session, select
-from src.db.badges import BadgeAward
+from src.services.badges.awards import award_card, awards_of, badges_in_progress
 from src.db.media import MediaAsset
 from src.db.portfolio import (
     Portfolio,
@@ -442,8 +442,8 @@ def portfolio_shell(
         else None
     )
     # Badges earned (each award once), and, for the learner themselves, the plans that will earn one.
-    earned_badges = [_award_dto(db_session, item) for item in _awards(db_session, portfolio.user_id)]
-    working_toward = [] if public_only else _working_toward(db_session, portfolio.user_id)
+    earned_badges = [award_card(db_session, item) for item in awards_of(db_session, portfolio.user_id)]
+    working_toward = [] if public_only else badges_in_progress(db_session, portfolio.user_id)
     hidden_award_uuids = set(
         (portfolio.theme_settings or {}).get("hidden_award_uuids") or []
     )
@@ -581,54 +581,8 @@ def portfolio_shell(
     }
 
 
-def _awards(db_session: Session, user_id: int) -> list[BadgeAward]:
-    from src.services.badges.awards import awards_of
-
-    return awards_of(db_session, user_id)
-
-
-def _award_dto(db_session: Session, award: BadgeAward) -> dict:
-    from src.db.organizations import Organization
-
-    earned = award.achievement or {}
-    issuer = db_session.get(Organization, award.issuing_org_id) if award.issuing_org_id else None
-    return {
-        "award_uuid": award.award_uuid,
-        "template_uuid": earned.get("template_uuid"),
-        "name": earned.get("name") or "",
-        "description": earned.get("description") or "",
-        "image_url": earned.get("image_url") or "",
-        "icon": earned.get("icon"),
-        "color": earned.get("color"),
-        "kind": earned.get("kind") or "Badge",
-        "skills": earned.get("skills") or [],
-        "earned_on": award.earned_on.isoformat(),
-        "issuer": {"name": issuer.name, "slug": issuer.slug} if issuer else None,
-    }
-
-
-def _working_toward(db_session: Session, user_id: int) -> list[dict]:
-    """The learner's open plans whose release earns a badge they don't hold yet, with progress."""
-    from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStatus, GoalStep, StepProgress
-    from src.services.badges.definition import goal_badge
-
-    held = {item.template_id for item in _awards(db_session, user_id)}
-    goals = db_session.exec(select(Goal).where(Goal.subject_user_id == user_id, Goal.status.in_([GoalStatus.PENDING, GoalStatus.ACTIVE]))  # type: ignore[attr-defined]
-                            .order_by(Goal.id)).all()  # type: ignore[arg-type]
-    result = []
-    for goal in goals:
-        badge = goal_badge(db_session, goal) if goal.template_id not in held else None
-        if badge is None:
-            continue
-        statuses = db_session.exec(select(StepProgress.status).join(GoalStep, GoalStep.id == StepProgress.step_id).where(GoalStep.goal_id == goal.id)).all()
-        total = len(db_session.exec(select(GoalStep.id).where(GoalStep.goal_id == goal.id)).all())
-        done = sum(getattr(status, "value", status) in DONE_STEP_STATUSES for status in statuses)
-        result.append({**badge, "goal_uuid": goal.goal_uuid, "plan_title": goal.title, "done": done, "total": total})
-    return result
-
-
 def _award_uuids(db_session: Session, user_id: int) -> set[str]:
-    return {item.award_uuid for item in _awards(db_session, user_id)}
+    return {item.award_uuid for item in awards_of(db_session, user_id)}
 
 
 def update_featured_badges(
