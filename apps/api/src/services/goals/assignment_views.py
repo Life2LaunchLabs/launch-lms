@@ -52,11 +52,12 @@ def _plan(db: Session, assignment: GoalAssignment) -> dict:
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
     badge = db.get(LearningBadge, assignment.badge_id) if assignment.badge_id else None
+    live = db.get(GoalTemplateVersion, template.published_version_id) if template and template.published_version_id else None
     return {
         "template_uuid": template.template_uuid if template else "", "title": template.title if template else "Deleted plan",
         "thumbnail_image": template.thumbnail_image if template else "", "icon": template.icon if template else None,
         "color": template.color if template else None, "version": version.number if version else None,
-        "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name} if badge else None,
+        "live_version": live.number if live else None, "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name} if badge else None,
     }
 
 
@@ -121,6 +122,7 @@ def _stage_rows(assignment: GoalAssignment, board: assignment_status.Board, staf
                 "reviewer_guidance": (spec.get("reviewer_guidance") or "") if staff else "",
                 # When it opens and closes for this assignment; own says staff set dates on the step itself.
                 "start_date": plan.get("start_date"), "due_date": plan.get("due_date") or ends, "own": bool(own),
+                "own_dates": {field: own[field] for field in ("start_date", "due_date", "open_early", "allow_late") if field in own},
                 "open_early": plan.get("open_early", True), "allow_late": plan.get("allow_late", True),
                 **board.step(spec["key"]),
             })

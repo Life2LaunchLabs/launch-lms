@@ -42,6 +42,8 @@ export interface AssignmentPlan {
   icon?: GoalIcon | null
   color?: string | null
   version: number | null
+  /** The version new assignments get, when the plan has one. */
+  live_version?: number | null
   /** The badge learners earn by finishing it. */
   badge?: { badge_uuid: string; name: string } | null
 }
@@ -84,6 +86,8 @@ export interface AssignmentStep {
   due_date: string | null
   /** Staff set dates on this step itself, rather than it following its stage. */
   own: boolean
+  /** Just the dates and switches staff set on the step, as the schedule saves them. */
+  own_dates: { start_date?: string | null; due_date?: string | null; open_early?: boolean; allow_late?: boolean }
   open_early: boolean
   allow_late: boolean
   counts: StatusCounts
@@ -132,7 +136,7 @@ export interface StepQuestion { person: AssignmentPerson | null; goal_uuid: stri
 export interface PastDueLine { kind: 'past_due'; step_key: string; step_uuid: string; title: string; due_date: string | null }
 
 export type AssignmentThread = Chat & { assignment_uuid: string; step_key: string | null; questions: StepQuestion[] }
-export type LearnerThread = Chat & { assignment_uuid: string; goal_uuid: string; learner: AssignmentPerson | null; step_key: string | null; past_due: PastDueLine[] }
+export type LearnerThread = Chat & { assignment_uuid: string; goal_uuid: string; learner: AssignmentPerson | null; step_key: string | null; step_uuid: string | null; past_due: PastDueLine[] }
 
 export interface MessagesFilter { step?: string | null; audience?: MessageAudience | null }
 
@@ -167,6 +171,8 @@ export const assignmentApi = {
   thread: (orgId: number, uuid: string, token?: string, filter: MessagesFilter = {}) => request<AssignmentThread>(assignmentKeys.thread(orgId, uuid, filter), token),
   learnerThread: (orgId: number, uuid: string, userUuid: string, token?: string, filter: MessagesFilter = {}) =>
     request<LearnerThread>(assignmentKeys.learnerThread(orgId, uuid, userUuid, filter), token),
+  /** Send the assignment's waiting email invitations again. */
+  resend: (orgId: number, uuid: string, token?: string) => request<{ sent: number }>(`${base(`/${q(uuid)}/resend`)}?org_id=${orgId}`, token, 'POST'),
   saveSchedule: (orgId: number, uuid: string, schedule: ScheduleSave, token?: string) =>
     request(`${getAPIUrl()}goal-admin/assignments/${q(uuid)}/schedule?org_id=${orgId}`, token, 'PUT', schedule),
 }

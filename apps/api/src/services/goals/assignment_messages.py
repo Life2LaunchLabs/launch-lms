@@ -98,4 +98,5 @@ def learner_thread(db: Session, current_user: PublicUser, org_id: int, assignmen
         raise HTTPException(status_code=404, detail="Step not found in this plan")
     thread = _thread(db, current_user, conversation, before, goal.goal_uuid, step.step_uuid if step else None, audience)
     lines = [] if audience == "staff" else [line for line in _past_due(db, assignment, goal, int(current_user.id)) if not step_key or line["step_key"] == step_key]
-    return {**thread, "assignment_uuid": assignment.assignment_uuid, "goal_uuid": goal.goal_uuid, "learner": person(user), "step_key": step_key, "past_due": lines}
+    return {**thread, "assignment_uuid": assignment.assignment_uuid, "goal_uuid": goal.goal_uuid, "learner": person(user), "step_key": step_key,
+            "step_uuid": step.step_uuid if step else None, "past_due": lines}

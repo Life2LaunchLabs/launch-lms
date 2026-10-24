@@ -162,6 +162,10 @@ def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_lea
         # Syncing again issues nothing more.
         assignment = db.exec(select(assignments.GoalAssignment)).one()
         assert assignments.sync_assignment(db, assignment) == []
+        # Staff can send it again; every resend is a new message.
+        from src.services.goals import assignment_invites
+        assert assignment_invites.resend(db, _user(ADMIN), 1, result["assignment_uuid"]) == {"sent": 1}
+        assert len(db.exec(select(InboxMessage)).all()) == 2
 
 
 def test_assigning_by_email_to_someone_with_an_account_issues_their_goal():

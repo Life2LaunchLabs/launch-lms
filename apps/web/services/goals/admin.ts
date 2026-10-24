@@ -265,7 +265,7 @@ export const goalAdminApi = {
   assignmentReviews: (orgId: number, assignmentUuid: string, token?: string) => request<ReviewList & { assignment_uuid: string }>(assignmentReviewsKey(assignmentUuid, orgId), token),
 
   // Running an assignment (admins): only the fields sent change.
-  updateAssignment: (orgId: number, assignmentUuid: string, data: { start_date?: string | null; due_date?: string | null; welcome_message?: string }, token?: string) =>
+  updateAssignment: (orgId: number, assignmentUuid: string, data: { start_date?: string | null; due_date?: string | null; welcome_message?: string; collaborators?: Array<{ user_id: number; role_key: string }> }, token?: string) =>
     request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}`, orgId), token, 'PATCH', data),
   pause: (orgId: number, assignmentUuid: string, token?: string) => request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/pause`, orgId), token, 'POST'),
   resume: (orgId: number, assignmentUuid: string, token?: string) => request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/resume`, orgId), token, 'POST'),

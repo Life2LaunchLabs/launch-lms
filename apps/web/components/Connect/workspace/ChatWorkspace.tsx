@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import { ArrowUpRight, ChevronRight, Flag, Lock, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatAudience, type ChatFilter, type ChatMessage, type ChatTopic, type MessageRef } from '@services/connect/connect'
+import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatAudience, type ChatFilter, type ChatMessage, type ChatTopic, type MessageAudience, type MessageRef } from '@services/connect/connect'
 import { isGoalsKey } from '@services/goals/goals'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
@@ -48,11 +48,13 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, audience, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer }: {
   source: ChatSource
   orgslug: string
   token?: string
   initialFilter?: ChatFilter
+  /** Whose messages to show: all, what learners see, or staff only. It stays as the plan and step filters change. */
+  audience?: MessageAudience
   /** Above the filters, given the chat once it loads. */
   // eslint-disable-next-line no-unused-vars
   header?: (chat: Chat | undefined, mutate: KeyedMutator<Chat>) => React.ReactNode
@@ -72,9 +74,14 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   onChat?: (chat: Chat) => void
   /** Cards between the messages, by time, in the unfiltered feed. */
   timeline?: TimelineItem[]
+  /** The timeline already fits what the chat is filtered to, so it shows under any filter. */
+  timelineFiltered?: boolean
+  /** After the messages, inside the scrolling feed. */
+  footer?: React.ReactNode
 }) {
   const [filter, setFilter] = React.useState<ChatFilter>(initialFilter)
-  const { data: chat, error, mutate } = useWorkspaceChat(source, filter, token)
+  const fetched = React.useMemo(() => audience && audience !== 'all' ? { ...filter, audience } : filter, [filter, audience])
+  const { data: chat, error, mutate } = useWorkspaceChat(source, fetched, token)
   const { data: list } = useChatList()
   const { mutate: mutateGlobal } = useSWRConfig()
   const router = useRouter()
@@ -91,8 +98,10 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   // Staff write here for everyone, or for staff alone.
   const [mode, setMode] = React.useState<ComposeMode>('message')
   const staffOnly = Boolean(chat?.can_post_staff_only) && mode === 'staff'
+  // Reading staff-only messages, you're most likely writing one.
+  React.useEffect(() => { if (audience === 'staff') setMode('staff') }, [audience])
 
-  const shownTimeline = React.useMemo(() => filter.goal_uuid ? [] : timeline || [], [filter.goal_uuid, timeline])
+  const shownTimeline = React.useMemo(() => filter.goal_uuid && !timelineFiltered ? [] : timeline || [], [filter.goal_uuid, timeline, timelineFiltered])
   const lastStamp = chat?.messages.at(-1)?.update_date
   const cards = shownTimeline.map((item) => item.key).join()
   React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, cards, filter.goal_uuid, filter.step_uuid])
@@ -121,8 +130,9 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   }
   const send = async (body: string, share?: Record<string, string[]>) => {
     if (!chat) return false
+    const scope = { goal_uuid: filter.goal_uuid, step_uuid: filter.step_uuid }
     try {
-      const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope: filter, share, staffOnly })
+      const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope, share, staffOnly })
       for (const outcome of sent.mentions || []) {
         if (outcome.status === 'invited') toast.success(`Invited ${outcome.user.name} as a commenter`)
         else if (outcome.status === 'requested') toast.success(`Asked the plan’s admins to add ${outcome.user.name}`)
@@ -167,6 +177,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
           })}
         </ol>
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
+      {footer}
     </div>
     {chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
