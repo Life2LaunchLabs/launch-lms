@@ -291,7 +291,6 @@ async def api_list_public_offers(
     db_session: Session = Depends(get_db_session),
 ):
     """Public endpoint — lists all publicly listed offers for an org, enriched with resource metadata."""
-    from src.db.learning import LearningBadge
     from src.db.organizations import Organization
     from src.db.payments.payments_offers import PaymentsOffer
 
@@ -320,20 +319,6 @@ async def api_list_public_offers(
 
         enriched = []
         for uuid in uuids:
-            if uuid.startswith("badge_"):
-                badge = db_session.exec(
-                    select(LearningBadge).where(LearningBadge.badge_uuid == uuid)
-                ).first()
-                if badge:
-                    enriched.append({
-                        "resource_uuid": uuid,
-                        "resource_type": "badge",
-                        "name": badge.name,
-                        "description": badge.description or "",
-                        "thumbnail_image": badge.thumbnail_image or "",
-                        "org_uuid": org_uuid,
-                    })
-                    continue
             enriched.append({
                 "resource_uuid": uuid,
                 "resource_type": uuid.split("_")[0] if "_" in uuid else "resource",
@@ -438,7 +423,6 @@ async def api_get_public_offer(
 ):
     """Public endpoint — offer metadata with generic resource details."""
     from fastapi import HTTPException
-    from src.db.learning import LearningBadge
     from src.db.organizations import Organization
     from src.db.payments.payments_offers import PaymentsOffer
 
@@ -467,18 +451,6 @@ async def api_get_public_offer(
 
     enriched = []
     for uuid in uuids:
-        if uuid.startswith("badge_"):
-            badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == uuid)).first()
-            if badge:
-                enriched.append({
-                    "resource_uuid": uuid,
-                    "resource_type": "badge",
-                    "name": badge.name,
-                    "description": badge.description or "",
-                    "thumbnail_image": badge.thumbnail_image or "",
-                    "org_uuid": org_uuid,
-                })
-                continue
         enriched.append({
             "resource_uuid": uuid,
             "resource_type": uuid.split("_")[0] if "_" in uuid else "resource",

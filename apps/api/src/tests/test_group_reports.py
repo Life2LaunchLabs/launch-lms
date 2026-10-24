@@ -6,32 +6,31 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
-from src.db.badge_routes import BadgeRoute
+from src.db.badges import BadgeAward
 from src.db.conversations import ConversationMessage, UserBlock
-from src.db.goals import GoalAssignment, GoalStep, StepStatus
-from src.db.learning import LearningBadge, LearningBadgeAward
+from src.db.goals import GoalAssignment, GoalStep, GoalTemplateVersion, StepStatus
 from src.services.connect import cards
 from src.services.goals import goals, reports
 from src.services.goals.reports import GroupReportSend
 from src.tests.test_goal_requirements import TEACHER, _goal, _submit_resume, world  # noqa: F401  (world is a fixture)
 from src.services.goals import requirements as requirement_service
-from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _status, _step, _user
+from src.tests.test_goals import ADMIN, LEARNER, OTHER, _status, _step, _user
 
 
 @pytest.fixture(autouse=True)
-def _badge_routes(world):  # noqa: F811
-    for model in (BadgeRoute, UserBlock):
+def _tables(world):  # noqa: F811
+    for model in (BadgeAward, UserBlock):
         model.__table__.create(world[0].get_bind(), checkfirst=True)  # type: ignore[attr-defined]
 
 
-def _badge(db, assignment_uuid: str) -> LearningBadge:
-    badge = LearningBadge(id=7, badge_uuid="badge_7", org_id=1, name="College Ready", creation_date=NOW, update_date=NOW)
-    db.add(badge)
+def _badge(db, assignment_uuid: str) -> GoalAssignment:
+    """The assignment's release earns the College Ready badge."""
     row = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == assignment_uuid)).one()
-    row.badge_id = 7
-    db.add(row)
+    version = db.get(GoalTemplateVersion, row.version_id)
+    version.document = {**version.document, "badge": {"kind": "Badge", "name": "College Ready"}}
+    db.add(version)
     db.commit()
-    return badge
+    return row
 
 
 def _overdue(db, user_id: int, title: str) -> None:
@@ -49,11 +48,11 @@ def _finish(db, user_id: int, title: str) -> None:
 
 def test_report_shows_plans_badges_and_who_is_behind(world):  # noqa: F811
     db, assignment, _, _, _ = world
-    _badge(db, assignment["assignment_uuid"])
+    badged = _badge(db, assignment["assignment_uuid"])
     _submit_resume(db, LEARNER, "https://example.org/lee")
     _finish(db, LEARNER, "Career Fair")
     _overdue(db, OTHER, "Your first resume")
-    db.add(LearningBadgeAward(award_uuid="award_1", badge_id=7, org_id=1, user_id=LEARNER, creation_date=NOW, update_date=NOW))
+    db.add(BadgeAward(award_uuid="award_1", template_id=badged.template_id, user_id=LEARNER, issuing_org_id=1, earned_on=date.today(), achievement={"name": "College Ready"}))
     db.commit()
 
     report = reports.group_report(db, _user(ADMIN), 1, 1)

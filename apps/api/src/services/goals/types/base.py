@@ -68,7 +68,7 @@ class StepType:
             raise HTTPException(status_code=422, detail=f"{self.label} step: {_validation_message(error)}") from error
 
     def resolve(self, db: Session, config: dict, org_id: int | None) -> dict:
-        """Check what the config points at and return the step's reference columns (activity_id, badge_id)."""
+        """Check what the config points at and return the step's reference columns (activity_id, badge_template_id)."""
         return {}
 
     def validate_submission(self, data: dict | None) -> dict:

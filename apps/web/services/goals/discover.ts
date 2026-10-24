@@ -53,7 +53,7 @@ export interface AddedPlan extends PlanCover {
   org_id: number
   owner_org: MarketplaceTemplate['creator_org']
   step_count: number
-  badges: MarketplaceTemplate['badges']
+  badge: MarketplaceTemplate['badge']
   live_version: { semver: string | null; number: number } | null
   published_version: number | null
   requested: boolean
@@ -66,7 +66,7 @@ export function addedAsListItems(added: AddedPlan[]): TemplateListItem[] {
   return added.map((plan) => ({
     template_uuid: plan.template_uuid, title: plan.title, description: plan.description, thumbnail_image: plan.thumbnail_image, icon: plan.icon, color: plan.color, org_id: plan.org_id,
     status: 'active', system_type: null, etag: '', has_unpublished_changes: false, update_date: '', read_only: true, requested: plan.requested,
-    step_count: plan.step_count, badges: plan.badges as any, collections: plan.collections, published_version: plan.published_version,
+    step_count: plan.step_count, badge: plan.badge, collections: plan.collections, published_version: plan.published_version,
     live_version: plan.live_version as any,
   } as unknown as TemplateListItem))
 }

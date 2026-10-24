@@ -1965,7 +1965,7 @@
     "activity": {
      "activity_uuid": "learning_activity_starter_badges",
      "title": "Choose badges to project toward",
-     "description": "Start a few badge plans that match where you want to grow.",
+     "description": "Start a few plans that earn badges where you want to grow.",
      "icon": "sparkles",
      "thumbnail_image": "/images/launch-ready/traits.png",
      "settings": {
@@ -1973,13 +1973,13 @@
       "outcomes": {
        "actions": [
         {
-         "badge_uuids": {
+         "template_uuids": {
           "$source": "answer",
           "default": [],
           "path": "learning_page_starter_badges_pick.answer.questions.blk_launch_badges_pick.option_ids"
          },
          "id": "enroll-starting-badges",
-         "type": "start_badge_plans"
+         "type": "start_plans"
         }
        ],
        "version": 1
@@ -2018,7 +2018,7 @@
           "node": {
            "content": [
             {
-             "text": "A badge is evidence of something you can do—not just a completion mark. Each badge plan helps you practice, create evidence, and make your progress easier to share.",
+             "text": "A badge is evidence of something you can do—not just a completion mark. Each plan that earns one helps you practice, create evidence, and make your progress easier to share.",
              "type": "text"
             }
            ],
@@ -2056,7 +2056,7 @@
       "title": "Pick your starting badges",
       "required": true,
       "content": {
-       "action_label": "Start these badges",
+       "action_label": "Start these plans",
        "blocks": [
         {
          "content": {
@@ -2085,7 +2085,7 @@
          "content": {
           "label": "Choose up to three. You can always start more later.",
           "options_binding": {
-           "path": "learning.available_badge_options",
+           "path": "learning.available_plan_options",
            "source": "variable"
           }
          },

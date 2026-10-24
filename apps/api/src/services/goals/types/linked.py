@@ -8,7 +8,8 @@ from fastapi import HTTPException
 from pydantic import Field
 from sqlmodel import Session, select
 
-from src.db.learning import LearningActivity, LearningBadge
+from src.db.goals import GoalTemplate
+from src.db.learning import LearningActivity
 from src.services.goals.types.base import Config, StepState, StepType
 
 
@@ -32,14 +33,12 @@ class Activity(StepType):
 
 
 class BadgeConfig(Config):
-    badge_uuid: str = Field(min_length=1)
-    # The badge version the step was written against; earlier holders count only when accepted.
-    major_version: int | None = Field(default=None, ge=1)
-    accept_previous_major_versions: bool = False
+    # The plan whose badge the learner earns.
+    template_uuid: str = Field(min_length=1)
 
 
 class Badge(StepType):
-    """Finished when the learner is awarded the badge."""
+    """Finished when the learner holds another plan's badge (by finishing that plan, or awarded directly)."""
 
     key = "badge"
     label = "Badge"
@@ -47,10 +46,19 @@ class Badge(StepType):
     learner_can_complete = False
 
     def resolve(self, db: Session, config: dict, org_id: int | None) -> dict:
-        badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == config["badge_uuid"])).first()
-        if not badge:
-            raise HTTPException(status_code=422, detail=f"Badge not found: {config['badge_uuid']}")
-        return {"badge_id": badge.id}
+        from src.services.badges.definition import badge_block
+
+        template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == config["template_uuid"])).first()
+        if not template or not (badge_block(template.document) or _live_badge(db, template)):
+            raise HTTPException(status_code=422, detail=f"No plan with a badge: {config['template_uuid']}")
+        return {"badge_template_id": template.id}
+
+
+def _live_badge(db: Session, template: GoalTemplate) -> bool:
+    from src.db.goals import GoalTemplateVersion
+    from src.services.badges.definition import earns_badge
+
+    return earns_badge(db.get(GoalTemplateVersion, template.published_version_id) if template.published_version_id else None)
 
 
 PORTFOLIO_CHECKS = ("welcome", "timeline", "project", "traits", "launch", "badges")

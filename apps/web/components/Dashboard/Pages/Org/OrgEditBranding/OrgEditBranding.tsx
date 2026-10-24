@@ -8,7 +8,7 @@ import { getOrgLogoMediaDirectory, getOrgPreviewMediaDirectory, getOrgThumbnailM
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs"
 import { toast } from 'react-hot-toast'
 import { constructAcceptValue } from '@/lib/constants'
-import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, updateOrgDarkColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig } from '@services/settings/org'
+import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, updateOrgDarkColorConfig, uploadOrganizationFavicon } from '@services/settings/org'
 import { cn } from '@/lib/utils'
 import { Input } from "@components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@components/ui/dialog"
@@ -131,11 +131,6 @@ export default function OrgEditBranding() {
   const [primaryColor, setPrimaryColor] = useState<string>(org?.config?.config?.customization?.general?.color || org?.config?.config?.general?.color || '')
   const [darkColor, setDarkColor] = useState<string>(org?.config?.config?.customization?.general?.dark_color || org?.config?.config?.general?.dark_color || '')
   const [isThemeSaving, setIsThemeSaving] = useState(false)
-  const [issuerName, setIssuerName] = useState<string>(org?.config?.config?.customization?.badge_issuer?.name || org?.name || '')
-  const [issuerUrl, setIssuerUrl] = useState<string>(org?.config?.config?.customization?.badge_issuer?.url || '')
-  const [issuerEmail, setIssuerEmail] = useState<string>(org?.config?.config?.customization?.badge_issuer?.email || org?.email || '')
-  const [issuerDescription, setIssuerDescription] = useState<string>(org?.config?.config?.customization?.badge_issuer?.description || org?.description || '')
-  const [issuerImageUrl, setIssuerImageUrl] = useState<string>(org?.config?.config?.customization?.badge_issuer?.image_url || '')
 
   // Socials initial values
   const initialValues: OrganizationValues = {
@@ -453,13 +448,6 @@ export default function OrgEditBranding() {
     try {
       await updateOrgColorConfig(org.id, primaryColor, access_token)
       await updateOrgDarkColorConfig(org.id, darkColor, access_token)
-      await updateOrgBadgeIssuerConfig(org.id, {
-        name: issuerName,
-        url: issuerUrl,
-        email: issuerEmail,
-        description: issuerDescription,
-        image_url: issuerImageUrl,
-      }, access_token)
       await revalidateTags(['organizations'], org.slug)
       mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
       toast.success(t('dashboard.organization.settings.update_success'), { id: loadingToast })
@@ -944,43 +932,6 @@ export default function OrgEditBranding() {
         {/* Theme Tab */}
         <TabsContent value="theme" className="mt-4">
           <div className="flex flex-col gap-6">
-            <div className="bg-gray-50/50 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-800 mb-4">Open Badges issuer</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer name</Label>
-                  <Input value={issuerName} onChange={(e) => setIssuerName(e.target.value)} className="bg-white" />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer email</Label>
-                  <Input value={issuerEmail} onChange={(e) => setIssuerEmail(e.target.value)} type="email" className="bg-white" />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer URL</Label>
-                  <Input value={issuerUrl} onChange={(e) => setIssuerUrl(e.target.value)} placeholder="https://example.com" className="bg-white" />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer image URL</Label>
-                  <div className="flex gap-2">
-                    <Input value={issuerImageUrl} onChange={(e) => setIssuerImageUrl(e.target.value)} placeholder="Optional override for the issuer image" className="bg-white" />
-                    <ImageMediaPicker
-                      owner={{ type: 'org', id: Number(org.id) }}
-                      title="Choose issuer image"
-                      buttonText="Choose"
-                      onSelect={(url) => setIssuerImageUrl(url)}
-                    />
-                  </div>
-                </div>
-                <div className="lg:col-span-2">
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer description</Label>
-                  <Input value={issuerDescription} onChange={(e) => setIssuerDescription(e.target.value)} className="bg-white" />
-                </div>
-              </div>
-              <p className="text-xs text-gray-400 mt-3">
-                Leave fields blank to fall back to your organization name, email, description, and logo.
-              </p>
-            </div>
-
             <div className="flex flex-col lg:flex-row gap-6">
             {/* Color Picker */}
             <div className="flex-1 bg-gray-50/50 rounded-xl p-5">

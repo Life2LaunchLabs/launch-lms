@@ -3,7 +3,6 @@ from fastapi import HTTPException
 from sqlalchemy import event
 from sqlmodel import select
 
-from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
 from src.db.goal_admin import StepProgressBulk
 from src.db.goals import GoalAssignmentCreate, GoalTemplateVersion, StepCreate, StepStatus, StepSubmission
 from src.db.requirements import RequirementFramework, RequirementFrameworkVersion, RequirementNode
@@ -134,7 +133,7 @@ TEACHER = 4
 
 def _plans_world(db) -> None:
     """Tables the plan stack reads, a teacher (staff, not admin) and a framework with two requirements."""
-    for model in (BadgeRoute, BadgeRouteOffer, RequirementFramework, RequirementFrameworkVersion, RequirementNode):
+    for model in (RequirementFramework, RequirementFrameworkVersion, RequirementNode):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
     db.add(User(id=TEACHER, user_uuid="user_4", username="tina", email="tina@example.com", first_name="Tina", last_name="Teach", creation_date=NOW, update_date=NOW))
@@ -189,7 +188,7 @@ def test_plans_stack_one_card_per_template_with_its_assignments_progress_and_req
                                     "stage_count": 1, "step_count": 2, "owner_org": {"id": 1, "name": "Studio", "slug": "studio"},
                                     "own": True, "run_with_permission": False}
         assert card["frameworks"] == [{"framework_uuid": "framework_1", "name": "Readiness", "org_id": 1, "node_count": 2}]
-        assert card["badges"] == [] and card["authorized_orgs"] == []
+        assert card["badge"] is None and card["authorized_orgs"] == []
         row = card["assignments"][0]
         assert [item["assignment_uuid"] for item in card["assignments"]] == [assignment["assignment_uuid"]]
         # Progress, counted in one grouped query: Lee finished the fair (1 of 2), Sam nothing.
@@ -215,26 +214,26 @@ def test_plans_stack_one_card_per_template_with_its_assignments_progress_and_req
         assert _count_queries(db, lambda: plan_cards.list_plans(db, _user(ADMIN), 1)) == before
 
 
-def test_plans_show_badge_templates_run_with_permission_and_their_creator_sees_counts_only():
-    from src.tests.test_goal_badge_authority import PARTNER, _assign, _world
+def test_plans_show_templates_run_with_permission_and_their_creator_sees_counts_only():
+    from src.tests.plan_world import PARTNER, _assign, _world
 
     db, (first, second) = _world()
     with db:
         for model in (RequirementFramework, RequirementFrameworkVersion, RequirementNode):
             model.__table__.create(db.get_bind(), checkfirst=True)
-        _assign(db, PARTNER, first.template_uuid, badge_uuid="badge_adapt")
+        _assign(db, PARTNER, first.template_uuid)
 
         partner = {plan["template"]["template_uuid"]: plan for plan in plan_cards.list_plans(db, _user(ADMIN), PARTNER)["plans"]}
         assert set(partner) == {first.template_uuid, second.template_uuid}
         card = partner[first.template_uuid]
         assert card["template"]["own"] is False and card["template"]["run_with_permission"] is True and card["template"]["owner_org"]["name"] == "Studio"
-        assert [badge["name"] for badge in card["badges"]] == ["Adaptability"] and card["authorized_orgs"] == []
-        assert [row["badge"]["name"] for row in card["assignments"]] == ["Adaptability"] and card["assignments"][0]["version_eligible"] is True
+        assert card["badge"]["name"] == "Adaptability" and card["authorized_orgs"] == []
+        assert [row["badge"]["name"] for row in card["assignments"]] == ["Adaptability"]
 
         # The creator sees who runs its plan and how many learners, never their assignments or learners.
         creator = plan_cards.list_plans(db, _user(ADMIN), 1)
         own = next(plan for plan in creator["plans"] if plan["template"]["template_uuid"] == first.template_uuid)
-        assert own["assignments"] == [] and [badge["name"] for badge in own["badges"]] == ["Adaptability"]
+        assert own["assignments"] == [] and own["badge"]["name"] == "Adaptability"
         assert [(item["org"]["name"], item["assignment_count"], item["learner_count"]) for item in own["authorized_orgs"]] == [("Partner", 1, 1)]
         assert creator["learners"] == []
 

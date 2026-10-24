@@ -2,7 +2,7 @@
 
 When the owner changes a template's live version, the owner's own active
 assignments move to it (``drafts.move_assignments``). Organizations running
-another's badge template review what a version changes and decide per
+another's plan review what a version changes and decide per
 assignment whether to apply it. Applying rewrites only the steps nobody has started in each
 learner's plan (see ``versions``) and records the version on the assignment;
 learners' answers and started steps stay as they are.
@@ -17,7 +17,8 @@ from sqlmodel import Session, col, select
 
 from src.db.goals import AssignmentStatus, Goal, GoalAssignment, GoalStatus, GoalStep, GoalTemplate, GoalTemplateVersion
 from src.db.users import PublicUser
-from src.services.goals import badge_authority, templates, versions
+from src.services.badges.definition import badge_summary
+from src.services.goals import templates, versions
 from src.services.goals.assignment_summary import assignment_dict
 
 # Plans still being worked on; finished and archived plans keep the version they finished on.
@@ -72,15 +73,14 @@ def version_changes(db: Session, current_user: PublicUser, org_id: int, assignme
         for step in stage["steps"]:
             # Learners who started a step the new version changes or removes keep their own copy of it.
             step["started_count"] = started.get(step["step_key"], 0) if step["change"] != "added" else 0
-    status = badge_authority.version_status(db, assignment)
-    route = badge_authority.route_for(db, assignment.badge_id, assignment.template_id)
-    latest = status["latest_version"]
+    template = db.get(GoalTemplate, assignment.template_id)
     return {
         "assignment_uuid": assignment.assignment_uuid,
         "current": {"version_uuid": current.version_uuid, "number": current.number, "published_at": current.published_at} if current else None,
         "target": {"version_uuid": target.version_uuid, "number": target.number, "note": target.note, "published_at": target.published_at,
-                   "eligible": badge_authority.eligible(route, target.number, latest) if assignment.badge_id else None},
-        "badge": status["badge"], "current_eligible": status["version_eligible"],
+                   # The badge finishing the target version earns (None: it earns none).
+                   "badge": badge_summary(db, template, target) if template else None},
+        "badge": badge_summary(db, template, current) if template and current else None,
         "open_plans": len(goals), "stages": stages,
         "has_changes": any(stage["change"] != "same" for stage in stages),
     }

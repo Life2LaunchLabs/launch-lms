@@ -1,21 +1,9 @@
-import io
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
-from fastapi.responses import StreamingResponse
 from src.core.events.database import get_db_session
 from src.db.learning import (
-    BadgeCollectionCreate,
-    BadgeCollectionRead,
-    BadgeCollectionUpdate,
     LearningActivityRead,
     LearningActivityUpdate,
-    LearningBadgeCreate,
-    LearningBadgeRead,
-    LearningBadgeUpdate,
-    LearningBadgeVersionCreate,
-    LearningBadgeVersionPublish,
-    LearningBadgeVersionUpdate,
     LearningPageCreate,
     LearningPageRead,
     LearningPageUpdate,
@@ -23,239 +11,17 @@ from src.db.learning import (
     LearningVariableCreate,
     LearningVariableRead,
     LearningVariableUpdate,
-    OpenBadgeImport,
 )
-from src.db.learning_requests import LearningAwardCreate, LearningPageComplete, LearningResponseGrade, LearningResponseSubmit
+from src.db.learning_requests import LearningPageComplete, LearningResponseGrade, LearningResponseSubmit
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
 from src.services import learning as learning_service
-from src.services import learning_transfer as learning_transfer_service
 
-badges_router = APIRouter()
-collections_router = APIRouter()
 activities_router = APIRouter()
 pages_router = APIRouter()
 runs_router = APIRouter()
 responses_router = APIRouter()
-awards_router = APIRouter()
-imports_router = APIRouter()
 variables_router = APIRouter()
-
-
-@badges_router.post("/")
-async def api_create_badge(
-    request: Request,
-    badge: LearningBadgeCreate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningBadgeRead:
-    return await learning_service.create_badge(request, badge, current_user, db_session)
-
-
-@badges_router.post("/import-open-badge")
-async def api_import_open_badge(
-    request: Request,
-    payload: OpenBadgeImport,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    from src.services.open_badges import import_open_badge
-
-    return await import_open_badge(request, payload, current_user, db_session)
-
-
-@badges_router.get("/")
-async def api_list_badges(
-    request: Request,
-    org_id: int | None = Query(None),
-    admin: bool = Query(False),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> list[LearningBadgeRead]:
-    return await learning_service.list_badges(request, org_id, current_user, db_session, admin=admin)
-
-
-@badges_router.get("/trash/")
-async def api_list_deleted_badges(
-    request: Request,
-    org_id: int = Query(...),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> list[LearningBadgeRead]:
-    return await learning_service.list_deleted_badges(request, org_id, current_user, db_session)
-
-
-@badges_router.get("/{badge_uuid}")
-async def api_get_badge(
-    request: Request,
-    badge_uuid: str,
-    version: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningBadgeRead:
-    return await learning_service.get_badge(request, badge_uuid, current_user, db_session, version_uuid=version)
-
-
-@badges_router.put("/{badge_uuid}")
-async def api_update_badge(
-    request: Request,
-    badge_uuid: str,
-    badge: LearningBadgeUpdate,
-    version: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningBadgeRead:
-    return await learning_service.update_badge(request, badge_uuid, badge, current_user, db_session, version_uuid=version)
-
-
-@badges_router.get("/{badge_uuid}/versions")
-async def api_list_badge_versions(request: Request, badge_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> list[dict]:
-    return await learning_service.list_badge_versions(request, badge_uuid, current_user, db_session)
-
-
-@badges_router.post("/{badge_uuid}/versions")
-async def api_create_badge_version(request: Request, badge_uuid: str, payload: LearningBadgeVersionCreate, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.create_badge_version_draft(request, badge_uuid, payload, current_user, db_session)
-
-
-@badges_router.put("/{badge_uuid}/versions/{version_uuid}")
-async def api_update_badge_version(request: Request, badge_uuid: str, version_uuid: str, payload: LearningBadgeVersionUpdate, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.update_badge_version_draft(request, badge_uuid, version_uuid, payload, current_user, db_session)
-
-
-@badges_router.get("/{badge_uuid}/versions/{version_uuid}/diff")
-async def api_get_badge_version_diff(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.get_badge_version_diff(request, badge_uuid, version_uuid, current_user, db_session)
-
-
-@badges_router.post("/{badge_uuid}/versions/{version_uuid}/publish")
-async def api_publish_badge_version(request: Request, badge_uuid: str, version_uuid: str, payload: LearningBadgeVersionPublish, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.publish_badge_version(request, badge_uuid, version_uuid, payload, current_user, db_session)
-
-
-@badges_router.post("/{badge_uuid}/versions/{version_uuid}/activate")
-async def api_activate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.activate_badge_version(request, badge_uuid, version_uuid, current_user, db_session)
-
-
-@badges_router.post("/{badge_uuid}/versions/{version_uuid}/deactivate")
-async def api_deactivate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.deactivate_badge_version(request, badge_uuid, version_uuid, current_user, db_session)
-
-
-@badges_router.delete("/{badge_uuid}/versions/{version_uuid}")
-async def api_delete_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    return await learning_service.delete_badge_version_draft(request, badge_uuid, version_uuid, current_user, db_session)
-
-
-@badges_router.delete("/{badge_uuid}")
-async def api_delete_badge(
-    request: Request,
-    badge_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_service.delete_badge(request, badge_uuid, current_user, db_session)
-
-
-@badges_router.post("/{badge_uuid}/restore")
-async def api_restore_badge(
-    request: Request,
-    badge_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningBadgeRead:
-    return await learning_service.restore_badge(request, badge_uuid, current_user, db_session)
-
-
-@collections_router.post("/")
-async def api_create_collection(
-    request: Request,
-    collection: BadgeCollectionCreate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeCollectionRead:
-    return await learning_service.create_collection(request, collection, current_user, db_session)
-
-
-@collections_router.get("/")
-async def api_list_collections(
-    request: Request,
-    org_id: int | None = Query(None),
-    admin: bool = Query(False),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> list[BadgeCollectionRead]:
-    return await learning_service.list_collections(request, org_id, current_user, db_session, admin=admin)
-
-
-@collections_router.get("/trash/")
-async def api_list_deleted_collections(
-    request: Request,
-    org_id: int = Query(...),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> list[BadgeCollectionRead]:
-    return await learning_service.list_deleted_collections(request, org_id, current_user, db_session)
-
-
-@collections_router.put("/{collection_uuid}")
-async def api_update_collection(
-    request: Request,
-    collection_uuid: str,
-    collection: BadgeCollectionUpdate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeCollectionRead:
-    return await learning_service.update_collection(request, collection_uuid, collection, current_user, db_session)
-
-
-@collections_router.put("/{collection_uuid}/thumbnail")
-async def api_update_collection_thumbnail(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-    thumbnail: UploadFile = File(...),
-) -> BadgeCollectionRead:
-    return await learning_service.update_collection_thumbnail(request, collection_uuid, current_user, db_session, thumbnail)
-
-
-@collections_router.delete("/{collection_uuid}")
-async def api_delete_collection(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_service.delete_collection(request, collection_uuid, current_user, db_session)
-
-
-@collections_router.post("/{collection_uuid}/restore")
-async def api_restore_collection(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeCollectionRead:
-    return await learning_service.restore_collection(request, collection_uuid, current_user, db_session)
-
-
-@collections_router.get("/{collection_uuid}/export")
-async def api_export_collection(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-):
-    zip_content = await learning_transfer_service.export_badge_collection(request, collection_uuid, current_user, db_session)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"launch-lms-badge-collection-{timestamp}.zip"
-    return StreamingResponse(
-        io.BytesIO(zip_content),
-        media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
 
 
 @activities_router.put("/{activity_uuid}")
@@ -376,7 +142,6 @@ async def api_submit_response(
 async def api_list_learning_responses(
     request: Request,
     org_id: int = Query(...),
-    badge_uuid: str | None = Query(None),
     activity_uuid: str | None = Query(None),
     page_uuid: str | None = Query(None),
     grading_status: str | None = Query("pending"),
@@ -388,7 +153,6 @@ async def api_list_learning_responses(
         current_user,
         db_session,
         org_id=org_id,
-        badge_uuid=badge_uuid,
         activity_uuid=activity_uuid,
         page_uuid=page_uuid,
         grading_status=grading_status,
@@ -411,134 +175,3 @@ async def api_grade_learning_response(
         db_session,
     )
 
-
-@awards_router.post("/confer")
-async def api_confer_award(
-    request: Request,
-    payload: LearningAwardCreate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_service.confer_award(request, payload, current_user, db_session)
-
-
-@awards_router.get("/")
-async def api_list_awards(
-    request: Request,
-    org_id: int | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> list[dict]:
-    return await learning_service.list_user_awards(request, current_user, db_session, org_id=org_id)
-
-
-@awards_router.get("/assertion/{award_uuid}")
-async def api_get_award_assertion(
-    request: Request,
-    award_uuid: str,
-    db_session=Depends(get_db_session),
-) -> dict:
-    award = await learning_service.get_award(request, award_uuid, db_session)
-    return award["badge_assertion"]
-
-
-@awards_router.get("/badge-class/{badge_uuid}")
-async def api_get_badge_class(
-    request: Request,
-    badge_uuid: str,
-    db_session=Depends(get_db_session),
-) -> dict:
-    from sqlmodel import select
-    from src.db.learning import LearningBadge
-
-    badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == (badge_uuid if badge_uuid.startswith("badge_") else f"badge_{badge_uuid}"))).first()
-    if not badge:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Badge not found")
-    from src.services.learning import (
-        _get_org,
-        _get_org_config,
-        build_learning_badge_class_payload,
-    )
-
-    return build_learning_badge_class_payload(request, _get_org(db_session, badge.org_id), badge, _get_org_config(db_session, badge.org_id))
-
-
-@awards_router.get("/credential/{award_uuid}")
-async def api_get_award_credential(
-    request: Request,
-    award_uuid: str,
-    db_session=Depends(get_db_session),
-) -> dict:
-    """Open Badges 3.0 AchievementCredential for an award."""
-    award = await learning_service.get_award(request, award_uuid, db_session)
-    return award["open_badges"]["credential"]
-
-
-@awards_router.get("/achievement/{badge_uuid}")
-async def api_get_achievement(
-    request: Request,
-    badge_uuid: str,
-    db_session=Depends(get_db_session),
-) -> dict:
-    """Open Badges 3.0 Achievement (includes the creator org profile)."""
-    from fastapi import HTTPException
-    from sqlmodel import select
-    from src.db.learning import LearningBadge
-
-    badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == (badge_uuid if badge_uuid.startswith("badge_") else f"badge_{badge_uuid}"))).first()
-    if not badge:
-        raise HTTPException(status_code=404, detail="Badge not found")
-    from src.services.learning import _get_org, _get_org_config, build_ob3_achievement
-
-    return build_ob3_achievement(request, _get_org(db_session, badge.org_id), badge, _get_org_config(db_session, badge.org_id))
-
-
-@awards_router.get("/issuer/{org_uuid}")
-async def api_get_issuer_profile(
-    request: Request,
-    org_uuid: str,
-    db_session=Depends(get_db_session),
-) -> dict:
-    """Open Badges 3.0 Profile for an issuing or creator organization."""
-    from fastapi import HTTPException
-    from sqlmodel import select
-    from src.db.organizations import Organization
-
-    org = db_session.exec(select(Organization).where(Organization.org_uuid == org_uuid)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    from src.services.learning import _get_org_config, build_ob3_profile
-
-    return build_ob3_profile(request, org, _get_org_config(db_session, org.id or 0))
-
-
-@awards_router.get("/{award_uuid}")
-async def api_get_award(
-    request: Request,
-    award_uuid: str,
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_service.get_award(request, award_uuid, db_session)
-
-
-@imports_router.post("/analyze")
-async def api_analyze_badge_import(
-    request: Request,
-    org_id: int = Query(...),
-    zip_file: UploadFile = File(...),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_transfer_service.analyze_badge_import_package(request, zip_file, org_id, current_user, db_session)
-
-
-@imports_router.post("/")
-async def api_import_badge_package(
-    request: Request,
-    payload: dict,
-    org_id: int = Query(...),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_transfer_service.import_badge_package(request, org_id, payload, current_user, db_session)

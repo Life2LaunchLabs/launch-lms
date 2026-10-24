@@ -12,7 +12,6 @@ import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/actions'
 import type { TemplateDocument, TemplateStage, TemplateStep } from '@services/goals/types'
 import { cn } from '@/lib/utils'
-import BadgeVersionNotice from './BadgeVersionNotice'
 import PlanDialog from './PlanDialog'
 import StepModal, { type StepTarget } from './StepModal'
 import { plural } from './planVersions'
@@ -84,7 +83,6 @@ export default function PlanSteps({ orgslug, orgId, token, editing, document, ed
       <h2 id="plan-steps" className="text-xl font-bold">Steps</h2>
       <span className="text-[13px] text-muted-foreground">{count ? `${plural(count, 'step')}${staged ? ` · ${plural(stages.length, 'stage')}` : ''}` : ''}{editMode && count ? ' · Click a step to edit it' : ''}</span>
     </div>
-    {editMode ? <BadgeVersionNotice orgId={orgId} token={token} editing={editing} outdated={editing.template?.outdated_badge_steps || []} /> : null}
     {body}
     <StepModal target={target} setTarget={setTarget} orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} frameworks={frameworks} readOnly={!editMode} />
   </section>

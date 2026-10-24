@@ -1,3 +1,4 @@
+import type { BadgeSummary } from '@services/badges/badges'
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { goalAdminUrl } from './admin'
@@ -20,7 +21,7 @@ export interface GroupReportPlan {
   progress_percent: number
   finished_count: number
   behind_count: number
-  badge: { badge_uuid: string; name: string; thumbnail_image?: string | null; earned_count: number } | null
+  badge: (BadgeSummary & { earned_count: number }) | null
 }
 
 export interface GroupReportLearner extends Person {

@@ -212,7 +212,7 @@ def test_group_goals_refuse_individual_sharing_changes_and_staff_see_a_group_row
         mine = goals.list_my_goals(db, _user(LEARNER))
         assert len(mine) == 1 and mine[0]["target_kind"] == "individual"
         assert mine[0]["organization"]["slug"] == "studio" and mine[0]["subject"]["id"] == LEARNER and mine[0]["is_subject"]
-        assert mine[0]["progress"] == {"done": 0, "total": 1} and mine[0]["source_badge"] is None
+        assert mine[0]["progress"] == {"done": 0, "total": 1} and mine[0]["badge"] is None
 
 
 def test_custom_organization_roles_are_reused_across_organization_goals():

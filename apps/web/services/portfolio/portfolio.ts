@@ -52,10 +52,10 @@ async function mutate(path: string, method: string, payload: unknown, token: str
 
 export const updateMyPortfolio = (payload: unknown, token: string) => mutate('me', 'PATCH', payload, token)
 export const updateMyPortfolioTraits = (payload: { trait_type: 'strength' | 'value'; labels: string[] }, token: string) => mutate('me/traits', 'PUT', payload, token)
-export const updateMyPortfolioFeaturedBadges = (payload: { badge_uuids: string[] }, token: string) => mutate('me/featured-badges', 'PUT', payload, token)
+export const updateMyPortfolioFeaturedBadges = (payload: { award_uuids: string[] }, token: string) => mutate('me/featured-badges', 'PUT', payload, token)
 export const updateMyPortfolioFeaturedProject = (payload: { project_uuid?: string | null; project_uuids?: string[] }, token: string) => mutate('me/featured-projects', 'PUT', payload, token)
 export const updateMyPortfolioFeaturedTimeline = (payload: { timeline_uuids: string[] }, token: string) => mutate('me/featured-timeline', 'PUT', payload, token)
-export const updateMyPortfolioBadgeVisibility = (payload: { hidden_badge_uuids: string[]; revision: number }, token: string) => mutate('me/badge-visibility', 'PUT', payload, token)
+export const updateMyPortfolioBadgeVisibility = (payload: { hidden_award_uuids: string[]; revision: number }, token: string) => mutate('me/badge-visibility', 'PUT', payload, token)
 export const updateMyPortfolioSections = (payload: { sections: Array<{ section_uuid: string; enabled: boolean }>; revision: number }, token: string) => mutate('me/sections', 'PUT', payload, token)
 export const createPortfolioProject = (payload: unknown, token: string) => mutate('me/projects', 'POST', payload, token)
 export const updatePortfolioProject = (uuid: string, payload: unknown, token: string) => mutate(`me/projects/${uuid}`, 'PATCH', payload, token)

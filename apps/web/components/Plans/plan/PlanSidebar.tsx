@@ -14,16 +14,18 @@ import { leafNodes, useRequirementFrameworks } from '@components/Plans/editor/St
 import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { smallActionClass, smallPrimaryClass } from '@components/Plans/shared/actions'
 import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
+import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { AsideCard, Tag } from './AsideCard'
 import PlanBadgeCard from './PlanBadgeCard'
 import { plural } from './planVersions'
 
-type Props = { orgslug: string; orgId: number; token?: string; template: TemplateDetail; document: TemplateDocument; canAssign: boolean; canEdit: boolean }
+type Props = { orgslug: string; orgId: number; token?: string; editing: TemplateEditing; document: TemplateDocument; canAssign: boolean; canEdit: boolean }
 
 /** What the plan does for learners: the badge it earns, the requirements it counts toward, and who has it. */
-export default function PlanSidebar({ orgslug, orgId, token, template, document, canAssign, canEdit }: Props) {
+export default function PlanSidebar({ orgslug, orgId, token, editing, document, canAssign, canEdit }: Props) {
+  const template = editing.template!
   return <aside className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-5">
-    <PlanBadgeCard orgslug={orgslug} orgId={orgId} token={token} template={template} canEdit={canEdit} />
+    <PlanBadgeCard orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} canEdit={canEdit} />
     <RequirementsCard orgslug={orgslug} orgId={orgId} token={token} document={document} canEdit={canEdit} />
     <AssignmentsCard orgslug={orgslug} orgId={orgId} token={token} template={template} canAssign={canAssign} />
   </aside>

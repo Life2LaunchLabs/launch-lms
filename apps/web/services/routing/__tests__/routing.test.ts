@@ -163,8 +163,6 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.people.chat('chat_1'), '/admin/users/chat/chat_1')
   assert.equal(admin.learnerFeed('plan_1'), '/admin/plans/live/plan_1?chat=plan')
   assert.equal(admin.template('template 1'), '/admin/plans/template%201')
-  assert.equal(admin.badge('badge_abc'), '/admin/plans/badge/abc')
-  assert.equal(admin.badge('badge_abc', 'routes'), '/admin/plans/badge/abc/routes')
   assert.equal(admin.insights(), '/admin/insights')
   assert.equal(admin.insightsEvidence(), '/admin/insights/evidence')
   assert.equal(admin.insightsEvidence(3), '/admin/insights/evidence?group=3')
@@ -193,7 +191,7 @@ test('route manifest builds admin tab and owner routes', () => {
 
 test('dead dashboard builders are gone with the dash namespace', () => {
   assert.equal('dash' in routePaths.org, false)
-  for (const name of ['analytics', 'feedback', 'boards', 'communities', 'communitySettings', 'programs']) {
+  for (const name of ['analytics', 'feedback', 'boards', 'communities', 'communitySettings', 'programs', 'badge']) {
     assert.equal(name in routePaths.org.admin, false, name)
   }
   for (const name of ['roles', 'userPage', 'groupPlans']) assert.equal(name in routePaths.org.admin.people, false, name)
@@ -222,7 +220,10 @@ test('route manifest builds auth, account, and public org paths used by navigati
 
   assert.equal(routePaths.org.portfolioBadges(), '/portfolio/badges')
   assert.equal(routePaths.org.discover(), '/discover')
-  assert.equal(routePaths.org.badgeDetail('badge-slug'), '/badges/badge-slug')
+  assert.equal(routePaths.org.badgeAward('award_1'), '/badges/award_1')
+  assert.equal(routePaths.org.discoverPlan('goal_template_1'), '/discover/plans/goal_template_1')
+  assert.equal(routePaths.org.discoverCollection('c 1'), '/discover/collections/c%201')
+  assert.equal('badgeDetail' in routePaths.org, false)
   assert.equal('profile' in routePaths.org, false)
   assert.equal('welcome' in routePaths.org, false)
 })
@@ -374,8 +375,9 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/users/groups/3/members', '', '/admin/users/groups/3'],
     ['/admin/users/groups/3/programs/assignment_1/learners', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
     ['/admin/badges/marketplace', '', '/admin/plans/discover'],
-    ['/admin/badges/badge/abc', '', '/admin/plans/badge/abc'],
-    ['/admin/badges/badge/abc/routes', '', '/admin/plans/badge/abc/routes'],
+    ['/admin/badges/badge/abc', '', '/admin/plans'],
+    ['/admin/badges/badge/abc/routes', '', '/admin/plans'],
+    ['/admin/plans/badge/abc/routes', '', '/admin/plans'],
     ['/admin/badges/collection/c1/badges', '', '/admin/plans'],
     ['/admin/resources/channel_1', '', '/admin/resources/channel_1/general'],
     ['/plans/groups/assignment_1', '', '/plans'],
@@ -397,7 +399,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
 })
 
 test('live admin pages are not caught by the legacy redirects', () => {
-  for (const pathname of ['/admin', '/admin/plans', '/admin/plans/template_1', '/admin/plans/assignments', '/admin/plans/assignments/a_1/learners', '/admin/plans/live/p_1/overview', '/admin/insights', '/admin/insights/evidence', '/admin/plans/requirements', '/admin/plans/requirements/fw_1/spec', '/admin/plans/discover', '/admin/plans/discover/plan/goal_template_1', '/admin/plans/badge/abc/routes', '/admin/resources/tags', '/admin/users/groups/3', '/admin/users/user/jane', '/admin/users/chat/chat_1', '/plans/sb3']) {
+  for (const pathname of ['/admin', '/admin/plans', '/admin/plans/template_1', '/admin/plans/assignments', '/admin/plans/assignments/a_1/learners', '/admin/plans/live/p_1/overview', '/admin/insights', '/admin/insights/evidence', '/admin/plans/requirements', '/admin/plans/requirements/fw_1/spec', '/admin/plans/discover', '/admin/plans/discover/plan/goal_template_1', '/admin/resources/tags', '/admin/users/groups/3', '/admin/users/user/jane', '/admin/users/chat/chat_1', '/plans/sb3']) {
     const decision = resolveRequestRouting({
       requestUrl: `https://acme.launchlms.test${pathname}`,
       pathname,
@@ -590,6 +592,13 @@ test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/').kind, 'public')
   assert.equal(classifyRoute('/welcome').kind, 'public')
   assert.equal(classifyRoute('/for-organizations').kind, 'public')
+})
+
+test('route access exposes badge awards and the plan pages their badges point to', () => {
+  assert.equal(classifyRoute('/badges/award_1').kind, 'public')
+  assert.equal(classifyRoute('/discover/plans/goal_template_1').kind, 'public')
+  assert.equal(classifyRoute('/discover/collections/c1').kind, 'public')
+  assert.equal(classifyRoute('/discover').kind, 'protected')
 })
 
 test('route access exposes only the new public portfolio surfaces', () => {

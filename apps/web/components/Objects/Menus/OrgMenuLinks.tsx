@@ -25,7 +25,7 @@ export function getPrimaryOrgMenuItems({
   connectWaiting?: boolean
 }): OrgMenuNavItem[] {
   const isOnPortfolio = Boolean(pathname?.includes('/portfolio'))
-  const isOnDiscover = !isOnPortfolio && Boolean(pathname?.includes('/discover') || pathname?.includes('/badges'))
+  const isOnDiscover = !isOnPortfolio && Boolean(pathname?.includes('/discover'))
   return [
     { href: '/plans', label: 'Goals', icon: <ClipboardText size={22} weight="fill" />, active: Boolean(pathname?.includes('/plans')) && !hubOpen, show: true },
     { href: '/discover', label: 'Discover', icon: <Compass size={22} weight="fill" />, active: isOnDiscover && !hubOpen, show: true },

@@ -126,7 +126,7 @@ def _milestones(db: Session, goal: Goal) -> list[str]:
 
 def write_slides(db: Session, goal: Goal, words: dict | None = None) -> list[dict]:
     """The story as slides: data only, worded by ``words`` ({open, close}) or fixed lines."""
-    from src.services.goals.badges import badge_summary
+    from src.services.badges.definition import goal_badge
 
     words = words or {}
     stats = goal_stats(db, goal)
@@ -154,10 +154,10 @@ def write_slides(db: Session, goal: Goal, words: dict | None = None) -> list[dic
         slides.append({"kind": "quote", "text": what_happened[:600], "attribution": "What happened, in your words"})
     elif (goal.description or "").strip():
         slides.append({"kind": "quote", "text": goal.description.strip()[:600], "attribution": "Why you started"})
-    badge = badge_summary(db, goal.badge_id)
+    badge = goal_badge(db, goal)
     slides.append({
         "kind": "medal", "title": (badge or {}).get("name") or goal.title, "subtitle": "Badge earned" if badge else "Goal complete",
-        "image": (badge or {}).get("thumbnail_image") or "",
+        "image": (badge or {}).get("image_url") or "",
         "line": words.get("close") or (f"You finished {_plural(stats['steps_done'], 'step')} over {weeks}. That was all you." if stats["steps_done"] else "You set out to do this, and you saw it through."),
     })
     return slides

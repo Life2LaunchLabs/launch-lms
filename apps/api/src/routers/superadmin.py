@@ -12,6 +12,7 @@ from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services.email.utils import get_base_url_from_request
+from src.services.badges.awards import org_badge_plans
 from src.services.orgs.usage import get_org_usage_and_limits
 from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
@@ -95,14 +96,14 @@ async def list_global_roles(db_session: Session = Depends(get_db_session)):
 @router.get("/overview")
 async def platform_overview(db_session: Session = Depends(get_db_session)):
     from sqlmodel import func, select
-    from src.db.learning import LearningBadge
+    from src.db.badges import BadgeAward
     from src.db.organizations import Organization
     from src.db.plan_requests import PlanRequest
     from src.db.users import User
 
     org_count = db_session.exec(select(func.count()).select_from(Organization)).one()
     user_count = db_session.exec(select(func.count()).select_from(User)).one()
-    badge_count = db_session.exec(select(func.count()).select_from(LearningBadge)).one()
+    badge_count = db_session.exec(select(func.count()).select_from(BadgeAward)).one()
     pending_requests = db_session.exec(
         select(func.count()).where(PlanRequest.status == "pending")
     ).one()
@@ -116,8 +117,6 @@ async def platform_overview(db_session: Session = Depends(get_db_session)):
         "org_count": org_count,
         "user_count": user_count,
         "badge_count": badge_count,
-        # Backward-compatible alias for older platform clients.
-        "course_count": badge_count,
         "pending_request_count": pending_requests,
         "recent_users": [
             {
@@ -229,20 +228,7 @@ async def get_org_badges(
     limit: int = 20,
     db_session: Session = Depends(get_db_session),
 ):
-    from sqlmodel import func, select
-    from src.db.learning import LearningBadge
-
-    statement = select(LearningBadge).where(LearningBadge.org_id == org_id).order_by(
-        LearningBadge.creation_date.desc()  # type: ignore[union-attr]
-    )
-    total = db_session.exec(select(func.count()).select_from(statement.subquery())).one()
-    items = db_session.exec(statement.offset((page - 1) * limit).limit(limit)).all()
-    return {
-        "items": [item.model_dump() for item in items],
-        "total": total,
-        "page": page,
-        "limit": limit,
-    }
+    return org_badge_plans(db_session, org_id, page, limit)
 
 
 @router.get("/organizations/{org_id}/users")

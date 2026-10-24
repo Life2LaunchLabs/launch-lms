@@ -7,7 +7,7 @@ from src.db.goal_templates import TemplateCover
 from src.db.plan_collections import PlanCollectionCreate, PlanCollectionUpdate
 from src.services.goals import collections, starters, templates
 from src.tests.test_discover import _world
-from src.tests.test_goal_badge_authority import PARTNER, STEPS
+from src.tests.plan_world import PARTNER, STEPS
 from src.tests.test_goals import ADMIN, _published, _user
 
 

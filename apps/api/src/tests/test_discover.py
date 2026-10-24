@@ -8,7 +8,7 @@ from src.db.plan_collections import PlanCollection, PlanCollectionCreate, PlanCo
 from src.db.template_marketplace import TemplateListingUpdate
 from src.db.users import User
 from src.services.goals import collections, discover, template_marketplace as market, templates
-from src.tests.test_goal_badge_authority import PARTNER, STEPS
+from src.tests.plan_world import PARTNER, STEPS
 from src.tests.test_goals import ADMIN, NOW, _published, _user
 from src.tests.test_template_marketplace import _market
 

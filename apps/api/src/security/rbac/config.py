@@ -11,25 +11,6 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
     # ============================================
     # PRIMARY RESOURCES (have their own access rules)
     # ============================================
-    "badges": ResourceConfig(
-        resource_type="badges",
-        uuid_prefix="badge_",
-        has_published_field=True,
-        supports_usergroups=True,
-        supports_authorship=True,
-        model_name="LearningBadge",
-        uuid_field="badge_uuid",
-    ),
-    "badge_collections": ResourceConfig(
-        resource_type="badge_collections",
-        uuid_prefix="badge_collection_",
-        has_published_field=False,  # Collections use only public flag
-        supports_usergroups=False,
-        supports_authorship=False,
-        model_name="BadgeCollection",
-        uuid_field="collection_uuid",
-    ),
-
     "resources": ResourceConfig(
         resource_type="resources",
         uuid_prefix="resource_",
@@ -56,12 +37,10 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
         resource_type="learning_activities",
         uuid_prefix="learning_activity_",
         has_published_field=True,
-        supports_usergroups=False,  # Access via course
-        supports_authorship=False,  # Authorship on course level
+        supports_usergroups=False,
+        supports_authorship=False,
         model_name="LearningActivity",
         uuid_field="activity_uuid",
-        parent_resource_type="badges",
-        parent_id_field="badge_id",
     ),
 }
 

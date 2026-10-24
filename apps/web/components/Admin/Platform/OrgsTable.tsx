@@ -57,7 +57,6 @@ interface OrgRow {
   tier: string
   user_count: number
   badge_count: number
-  course_count: number
   pending_request_count: number
   custom_domains: string[]
   admin_users: { username: string }[]
@@ -263,7 +262,7 @@ export default function OrgsTable() {
                         <TierBadge tier={row.tier} />
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.user_count}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{row.badge_count ?? row.course_count}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{row.badge_count}</td>
                       <td className="px-4 py-3">
                         <Sparkline
                           values={visitsByOrg.map[row.id]}

@@ -7,10 +7,10 @@ Each widget is built from the service that already owns its data:
   read from each assignment's matrix (``staff_views.assignment_matrix``).
 - ``messages``: the viewer's latest chats in this org (``connect.chats``).
 - ``attention``: assignments with learners behind or work waiting on staff, from the same matrices.
-- ``creator``: starts and completions of the org's own templates and badges (``admin_home_creator``).
+- ``creator``: starts and completions of the org's own templates and the badges they earn (``admin_home_creator``).
 
 Which widgets a viewer gets follows their role: staff work for anyone who staffs an assignment or
-administers the org, creator metrics for admins of an org that makes templates or badges. Each
+administers the org, creator metrics for admins of an org that makes templates. Each
 member orders and hides widgets for themselves; the layout lives on their membership row.
 """
 

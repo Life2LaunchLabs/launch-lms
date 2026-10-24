@@ -14,14 +14,14 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, col, select
 
-from src.db.badge_routes import BadgeRoute
-from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, DONE_STEP_STATUSES, GoalAssignment
-from src.db.learning import LearningBadge, LearningBadgeAward
+from src.db.badges import BadgeAward
+from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, DONE_STEP_STATUSES, GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.organizations import Organization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import get_user_org, is_org_admin, require_org_admin, require_org_membership
+from src.services.badges.definition import badge_summary
 from src.services.goals import requirements as goal_requirements
 from src.services.goals import staff_views
 
@@ -54,14 +54,11 @@ def _group_or_404(db: Session, org_id: int, usergroup_id: int) -> UserGroup:
     return group
 
 
-def _badge_of(db: Session, assignment: GoalAssignment) -> LearningBadge | None:
-    """The badge an assignment's learners earn: the one it runs, else the template's badge route."""
-    badge_id = assignment.badge_id
-    if not badge_id and assignment.template_id:
-        badge_id = db.exec(select(BadgeRoute.badge_id).where(BadgeRoute.goal_template_id == assignment.template_id)
-                           .order_by(col(BadgeRoute.recommended).desc(), BadgeRoute.position, BadgeRoute.id)).first()
-    badge = db.get(LearningBadge, badge_id) if badge_id else None
-    return badge if badge and not badge.deleted_at else None
+def _badge_of(db: Session, assignment: GoalAssignment) -> dict | None:
+    """The badge an assignment's learners earn: its version's badge."""
+    template = db.get(GoalTemplate, assignment.template_id)
+    version = db.get(GoalTemplateVersion, assignment.version_id)
+    return badge_summary(db, template, version) if template and version else None
 
 
 def _learner_row(matrix: dict, learner: dict, today: date) -> dict:
@@ -143,8 +140,8 @@ def group_report(db: Session, current_user: PublicUser, org_id: int, usergroup_i
         on_plan = [_learner_row(matrix, learner, today) for learner in matrix["learners"]]
         badge = _badge_of(db, assignment)
         user_ids = [row["id"] for row in on_plan if row["id"] and row["id"] > 0]
-        earned = len(set(db.exec(select(LearningBadgeAward.user_id).where(
-            LearningBadgeAward.badge_id == badge.id, col(LearningBadgeAward.user_id).in_(user_ids or [-1]),  # type: ignore[union-attr]
+        earned = len(set(db.exec(select(BadgeAward.user_id).where(
+            BadgeAward.template_id == assignment.template_id, col(BadgeAward.user_id).in_(user_ids or [-1]),
         )).all())) if badge else 0
         summary = matrix["assignment"]
         plans.append({
@@ -152,7 +149,7 @@ def group_report(db: Session, current_user: PublicUser, org_id: int, usergroup_i
             "version": summary["version"], "status": summary["status"], "due_date": summary["due_date"], "learner_count": len(on_plan),
             "progress_percent": round(sum(row["done"] * 100 / row["total"] for row in on_plan if row["total"]) / len(on_plan)) if on_plan else 0,
             "finished_count": sum(row["status"] == "finished" for row in on_plan), "behind_count": sum(row["behind"] for row in on_plan),
-            "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image, "earned_count": earned} if badge else None,
+            "badge": {**badge, "earned_count": earned} if badge else None,
         })
         learners.extend(on_plan)
     if not admin and not plans:

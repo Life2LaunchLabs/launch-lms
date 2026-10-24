@@ -1,7 +1,7 @@
 """Plans › Assignments: the organization's plan templates as a stack of cards, each with its assignments here.
 
 Admins get every plan they can hand out (their own published templates, and other organizations'
-badge templates they're authorized to run) plus any plan that has assignments here; on their own
+plans they're approved to run) plus any plan that has assignments here; on their own
 plans they also see which other organizations run them, as counts only. Staff get only the plans
 of assignments they staff. The whole stack loads in a fixed number of queries: assignments are
 summarized together (``assignment_summaries``) and progress is counted per goal in one grouped
@@ -14,17 +14,14 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from src.db.badge_routes import BadgeRoute
 from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion, TemplateStatus
-from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.requirements import RequirementFramework, RequirementFrameworkVersion, RequirementNode
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_membership
-from src.services.goals import badge_authority
+from src.services.badges.definition import summary
 from src.services.goals.assignment_summary import _person, assignment_summaries
-from src.services.goals.badges import badge_routes
-from src.services.goals.plan_issuers import issued_badge_ids
+from src.services.goals.plan_issuers import runnable_ids
 from src.services.goals.document import iter_steps
 from src.services.school.roles import is_staff
 
@@ -35,35 +32,6 @@ def _value(item) -> str:
 
 def _org_ref(org: Organization | None) -> dict | None:
     return {"id": org.id, "name": org.name, "slug": org.slug} if org else None
-
-
-def _runnable(db: Session, org_id: int) -> dict[int, list[LearningBadge]]:
-    """Other organizations' templates this one may run, by template id, with the badges they earn
-    (the routes ``badge_templates.issuer_routes`` lists)."""
-    badges = db.exec(
-        select(LearningBadge).where(col(LearningBadge.id).in_(issued_badge_ids(db, [org_id]) or {0}), col(LearningBadge.deleted_at).is_(None))
-        .order_by(LearningBadge.name)
-    ).all()
-    result: dict[int, list[LearningBadge]] = {}
-    for badge in badges:
-        for route, template in badge_routes(db, badge):
-            if badge_authority.may_run(db, badge, org_id, route):
-                result.setdefault(int(template.id), []).append(badge)  # type: ignore[arg-type]
-    return result
-
-
-def _route_badges(db: Session, template_ids: list[int]) -> dict[int, list[LearningBadge]]:
-    """The live badges each template is a way to earn."""
-    if not template_ids:
-        return {}
-    result: dict[int, list[LearningBadge]] = {}
-    for template_id, badge in db.exec(
-        select(BadgeRoute.goal_template_id, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
-        .where(col(BadgeRoute.goal_template_id).in_(template_ids), col(LearningBadge.deleted_at).is_(None))
-        .order_by(BadgeRoute.position, BadgeRoute.id)  # type: ignore[arg-type]
-    ).all():
-        result.setdefault(int(template_id), []).append(badge)
-    return result
 
 
 def _frameworks(db: Session, documents: dict[int, dict]) -> dict[int, list[dict]]:
@@ -115,11 +83,6 @@ def _authorized_orgs(db: Session, org_id: int, template_ids: list[int]) -> dict[
     return result
 
 
-def _badge(badge: LearningBadge, owners: dict[int, Organization]) -> dict:
-    return {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or "",
-            "org_id": badge.org_id, "owner_org": _org_ref(owners.get(int(badge.org_id)))}
-
-
 def list_plans(db: Session, current_user: PublicUser, org_id: int) -> dict:
     """The Assignments tab: ``{"plans": [...], "learners": [...]}``, one plan per template, each with its
     assignments here (ended ones too), newest first; ``learners`` names everyone on them, for filters."""
@@ -134,12 +97,12 @@ def list_plans(db: Session, current_user: PublicUser, org_id: int) -> dict:
     summaries = assignment_summaries(db, rows)
 
     template_ids = list(dict.fromkeys(int(row.template_id) for row in rows))
-    runnable: dict[int, list[LearningBadge]] = {}
+    runnable: list[int] = []
     if admin:
         # The org's own templates it can hand out: published, not archived, not the platform's starter plan.
         own = db.exec(select(GoalTemplate.id).where(GoalTemplate.org_id == org_id, GoalTemplate.status != TemplateStatus.ARCHIVED,
                                                    col(GoalTemplate.published_version_id).is_not(None), col(GoalTemplate.system_type).is_(None))).all()
-        runnable = _runnable(db, org_id)
+        runnable = runnable_ids(db, org_id)
         template_ids = list(dict.fromkeys([*template_ids, *(int(item) for item in own), *runnable]))
     templates = {int(row.id): row for row in db.exec(select(GoalTemplate).where(col(GoalTemplate.id).in_(template_ids))).all()} if template_ids else {}  # type: ignore[arg-type]
     live_ids = [row.published_version_id for row in templates.values() if row.published_version_id]
@@ -147,15 +110,10 @@ def list_plans(db: Session, current_user: PublicUser, org_id: int) -> dict:
     # What a card describes: the published version, else (for the org's own draft-only template) the draft.
     documents = {template_id: (live[int(row.published_version_id)].document if row.published_version_id and int(row.published_version_id) in live
                                else (row.document if row.org_id == org_id else {})) or {} for template_id, row in templates.items()}
-    route_badges = _route_badges(db, [template_id for template_id, row in templates.items() if row.org_id == org_id])
     frameworks = _frameworks(db, documents)
     authorized_orgs = _authorized_orgs(db, org_id, [template_id for template_id, row in templates.items() if row.org_id == org_id]) if admin else {}
-    badges_of: dict[int, list[LearningBadge]] = {}
-    for template_id, row in templates.items():
-        found = route_badges.get(template_id, []) if row.org_id == org_id else list(runnable.get(template_id, []))
-        badges_of[template_id] = list({int(badge.id): badge for badge in found}.values())  # type: ignore[arg-type]
     owners = {int(org.id): org for org in db.exec(select(Organization).where(col(Organization.id).in_(
-        {int(row.org_id) for row in templates.values()} | {int(badge.org_id) for items in badges_of.values() for badge in items}))).all()} if templates else {}
+        {int(row.org_id) for row in templates.values()}))).all()} if templates else {}
 
     by_template: dict[int, list[dict]] = {}
     for row in rows:
@@ -173,7 +131,7 @@ def list_plans(db: Session, current_user: PublicUser, org_id: int) -> dict:
                 "step_count": sum(1 for _ in iter_steps(document)), "owner_org": _org_ref(owners.get(int(template.org_id))),
                 "own": own, "run_with_permission": not own and template_id in runnable,
             },
-            "badges": [_badge(badge, owners) for badge in badges_of.get(template_id, [])],
+            "badge": summary(template, document),
             "frameworks": frameworks.get(template_id, []),
             "assignments": assignments,
             "authorized_orgs": authorized_orgs.get(template_id, []) if own and admin else [],

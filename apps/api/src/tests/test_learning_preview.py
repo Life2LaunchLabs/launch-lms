@@ -11,7 +11,7 @@ from src.db.learning_previews import LearningActivityPreview
 from src.services.learning_documents import store
 from src.services.learning_preview import engine, sessions
 from src.tests.test_learning_documents import P1, P2, P3, _world
-from src.tests.test_badge_marketplace import _request
+from src.tests.plan_world import _request
 
 
 def _answer(option: str) -> dict:

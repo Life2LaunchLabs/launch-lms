@@ -48,27 +48,6 @@ def _summary(name: str, result: dict) -> str:
             f"{verb} requirement framework \"{document['framework']['name']}\" version {context['version']} ({context['status']}, {len(document['nodes'])} requirements). "
             f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
         )
-    if name in {"create_badge", "save_badge", "publish_badge", "set_badge_routes"}:
-        document, context = result["document"], result["context"]
-        working = context["working_version"]
-        if name == "publish_badge":
-            verb = f"Published version {result['published_semantic_version']} of"
-        elif name == "set_badge_routes":
-            verb = "Updated the ways to earn"
-        elif name == "create_badge":
-            verb = "Created"
-        else:
-            verb = ("Saved (started a new draft)" if result.get("started_draft") else "Saved") if result.get("changed") else "No changes to"
-        live = context["live_version"]
-        state = f"live version {live['semantic_version']}" if live else "not published yet"
-        if context["has_unpublished_draft"]:
-            state += ", unpublished draft waiting"
-        routes = ", ".join(f"{route['name']}{' (recommended)' if route['recommended'] else ''}" for route in context["routes"]) or "none yet"
-        warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
-        return (
-            f"{verb} badge \"{document['badge']['name']}\" ({state}; working version: {working['state']}). Ways to earn: {routes}. "
-            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
-        )
     return json.dumps(result, ensure_ascii=False, default=str)
 
 

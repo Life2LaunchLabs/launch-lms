@@ -34,7 +34,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   return <div className="min-w-[96px]"><p className="text-2xl font-black text-gray-900">{value.toLocaleString()}</p><p className="text-xs text-gray-500">{label}</p></div>
 }
 
-/** How what the org makes is doing: template and badge starts, completions and awards, and the latest edits. */
+/** How what the org makes is doing: plan starts and completions, badges awarded, and the latest edits. */
 export function CreatorWidget({ data, orgslug, title }: { data: HomeCreator; orgslug: string; title: string }) {
   const { templates, badges } = data
   return (
@@ -62,7 +62,7 @@ export function CreatorWidget({ data, orgslug, title }: { data: HomeCreator; org
         <p className="border-t border-gray-100 px-5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Recently edited</p>
         <WidgetList>
           {data.recent_edits.map((item) => <WidgetRow key={`${item.kind}:${item.uuid}`} href={getUriWithOrg(orgslug, homeLinks.edit(item))}
-            title={item.title} detail={item.kind === 'template' ? 'Plan template' : 'Badge'}
+            title={item.title} detail="Plan template"
             trailing={<Chip tone={item.status === 'draft' ? 'amber' : 'green'}>{item.status}</Chip>} />)}
         </WidgetList>
       </> : null}

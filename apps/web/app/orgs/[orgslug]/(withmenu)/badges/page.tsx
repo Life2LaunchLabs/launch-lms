@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
-import { withQuery } from '@services/routing/paths'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
-/** Discover moved from /badges to /discover; badge and collection pages stay under /badges. */
-export default async function BadgesIndexPage(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const query = Object.fromEntries(Object.entries(await props.searchParams).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]))
-  redirect(withQuery('/discover', query))
+/** Old badge catalog links: badges are earned through plans, which learners find on Discover. */
+export default async function BadgesRedirect({ params }: { params: Promise<{ orgslug: string }> }) {
+  const { orgslug } = await params
+  redirect(getUriWithOrg(orgslug, routePaths.org.discover({ type: 'plans' })))
 }

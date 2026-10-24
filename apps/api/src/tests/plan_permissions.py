@@ -1,32 +1,16 @@
-"""Test helpers: permission to issue a badge is approval on its plans (``GoalTemplateAuthorization``)."""
-
-import importlib.util
-from pathlib import Path
+"""Test helpers: permission to run another organization's plan (``GoalTemplateAuthorization``)."""
 
 from sqlmodel import select
 
-from src.db.badge_routes import BadgeRoute
 from src.db.goals import GoalTemplate
 from src.db.template_marketplace import GoalTemplateAuthorization
 
-MIGRATION = Path(__file__).resolve().parents[2] / "migrations" / "versions" / "a8c4e1f7d2b9_plan_permission_issues_badges.py"
 
-
-def migration():
-    spec = importlib.util.spec_from_file_location("plan_permission_issues_badges_migration", MIGRATION)
-    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
-
-
-def approve_on_plans(db, org_id: int, badge_id: int | None = None, now: str = "2026-01-01T00:00:00") -> int:
-    """Approve the organization on every plan route (of one badge, or all), committed; returns how many."""
+def approve_on_plans(db, org_id: int, template_ids: list[int], now: str = "2026-01-01T00:00:00") -> int:
+    """Approve the organization on these plans, committed; returns how many approvals were written."""
     GoalTemplateAuthorization.__table__.create(db.get_bind(), checkfirst=True)
-    statement = select(BadgeRoute, GoalTemplate).join(GoalTemplate, GoalTemplate.id == BadgeRoute.goal_template_id)
-    if badge_id is not None:
-        statement = statement.where(BadgeRoute.badge_id == badge_id)
     written = 0
-    for route, template in db.exec(statement).all():
+    for template in db.exec(select(GoalTemplate).where(GoalTemplate.id.in_(template_ids))).all():  # type: ignore[union-attr]
         if int(template.org_id) == int(org_id) or db.exec(select(GoalTemplateAuthorization).where(
                 GoalTemplateAuthorization.template_id == template.id, GoalTemplateAuthorization.issuer_org_id == org_id)).first():
             continue

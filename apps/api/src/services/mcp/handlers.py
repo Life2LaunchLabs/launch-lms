@@ -26,10 +26,6 @@ from src.services.learning_preview import sessions
 from src.services.requirement_documents import store as requirement_store
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
-from src.services.badge_documents import collections as badge_collections
-from src.services.badge_documents import store as badge_store
-from src.services.badge_documents.models import authoring_guide as badge_authoring_guide
-from src.services.badge_documents.models import badge_json_schema
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext, admin_orgs
 
@@ -226,64 +222,3 @@ async def list_organizations(request: Request, db_session: Session, ctx: AccessC
         "current_org": learning._get_org(db_session, ctx.org_id).slug,
         "organizations": [{"slug": org.slug, "name": org.name} for org in sorted(admin_orgs(db_session, ctx.user), key=lambda item: item.name.lower())],
     }
-
-
-# Badges -----------------------------------------------------------------------
-
-
-def _badge_editor_url(db_session: Session, ctx: AccessContext, badge_uuid: str, tab: str = "definition") -> str:
-    org = learning._get_org(db_session, ctx.org_id)
-    return f"{frontend_url()}/orgs/{org.slug}/admin/badges/badge/{quote(badge_uuid.removeprefix('badge_'))}/{tab}"
-
-
-def _with_badge_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:
-    badge_uuid = envelope["context"]["badge_uuid"]
-    return {**envelope, "editor_url": _badge_editor_url(db_session, ctx, badge_uuid), "routes_url": _badge_editor_url(db_session, ctx, badge_uuid, "routes")}
-
-
-async def list_badges(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    items = badge_store.list_badges(db_session, ctx.user, ctx.org_id, str(args.get("query") or ""))
-    return {"badges": [{**item, "editor_url": _badge_editor_url(db_session, ctx, item["badge_uuid"])} for item in items]}
-
-
-async def get_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return _with_badge_url(db_session, ctx, badge_store.get_badge_document(db_session, ctx.user, ctx.org_id, args["badge_uuid"]))
-
-
-async def get_badge_schema(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return {"guide": badge_authoring_guide(), "schema": badge_json_schema()}
-
-
-async def validate_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return badge_store.validate_badge_document(db_session, ctx.user, ctx.org_id, args["document"])
-
-
-async def create_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return _with_badge_url(db_session, ctx, await badge_store.create_badge_from_document(db_session, ctx.user, ctx.org_id, args["document"]))
-
-
-async def save_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    envelope = badge_store.save_badge_document(db_session, ctx.user, ctx.org_id, args["badge_uuid"], args["document"], args["base_etag"])
-    return _with_badge_url(db_session, ctx, envelope)
-
-
-async def publish_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    envelope = await badge_store.publish_badge(
-        db_session, ctx.user, ctx.org_id, args["badge_uuid"], args.get("semantic_version"), args.get("release_title"), args.get("release_notes"),
-    )
-    return _with_badge_url(db_session, ctx, envelope)
-
-
-async def set_badge_routes(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    routes = args.get("routes")
-    if not isinstance(routes, list):
-        raise HTTPException(status_code=422, detail="routes must be a list of {template_uuid, recommended}")
-    return _with_badge_url(db_session, ctx, badge_store.set_badge_routes(db_session, ctx.user, ctx.org_id, args["badge_uuid"], routes))
-
-
-async def list_badge_collections(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return {"collections": badge_collections.list_collections(db_session, ctx.user, ctx.org_id)}
-
-
-async def save_badge_collection(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return {"collection": badge_collections.save_collection(db_session, ctx.user, ctx.org_id, args)}

@@ -17,21 +17,16 @@ import { CollectionCard, NewCollectionCard, NewCollectionModal, PlanCard, Sectio
 export type PlanLibraryData = { plans: TemplateListItem[]; collections: PlanCollection[] }
 
 /**
- * Every plan the org has: its own, other organizations' badge plans it runs, and plans added (or
- * requested) from Discover. `null` while loading.
+ * Every plan the org has: its own, and other organizations' plans it runs or asked for (from Discover
+ * or by the owner's invitation). `null` while loading.
  */
 export function usePlanLibrary(orgId: number, token?: string): PlanLibraryData | null {
   const ready = Boolean(orgId && token)
   const { data: plans } = useSWR(ready ? templateKeys.list(orgId) : null, () => templatesApi.list(orgId, token))
   const { data: collectionList } = useSWR(ready ? collectionKeys.list(orgId) : null, () => collectionsApi.list(orgId, token))
-  const { data: routes } = useSWR(ready ? templateKeys.badgeRoutes(orgId) : null, () => templatesApi.badgeRoutes(orgId, token))
   const { data: added } = useSWR(ready ? discoverKeys.added(orgId) : null, () => discoverApi.added(orgId, token).catch(() => []))
   if (!plans || !collectionList) return null
-  const runs: TemplateListItem[] = (routes || []).filter((route, index, all) => all.findIndex((other) => other.template.template_uuid === route.template.template_uuid) === index)
-    .map((route) => ({ ...route.template, thumbnail_image: route.template.thumbnail_image || '', org_id: route.badge.owner_org?.id ?? 0, status: 'active', system_type: null, etag: '',
-      has_unpublished_changes: false, update_date: '', read_only: true, badges: [route.badge] } as TemplateListItem))
-  const fromOthers = addedAsListItems(added || []).filter((plan) => !runs.some((run) => run.template_uuid === plan.template_uuid))
-  return { plans: [...plans.filter((plan) => !plan.system_type), ...runs, ...fromOthers], collections: collectionList.collections }
+  return { plans: [...plans.filter((plan) => !plan.system_type), ...addedAsListItems(added || [])], collections: collectionList.collections }
 }
 
 export function LibraryLoading() {
@@ -44,7 +39,7 @@ const FILTERS: Array<[Filter, string]> = [['all', 'All plans'], ['badge', 'Earns
 const matches = (plan: TemplateListItem, filter: Filter, orgId: number) => {
   const live = !!plan.live_version || !!plan.published_version
   return filter === 'all' ? true
-    : filter === 'badge' ? !!plan.badges?.length
+    : filter === 'badge' ? !!plan.badge
       : filter === 'published' ? !!plan.listed
         : filter === 'others' ? Number(plan.org_id) !== orgId
           : filter === 'requested' ? !!plan.requested

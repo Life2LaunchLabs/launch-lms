@@ -196,15 +196,6 @@ def install_default_elements(db_session: Session):
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_admin",
         rights=Rights(
-            badges=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=True,
-                action_update_own=True,
-                action_delete=True,
-                action_delete_own=True,
-            ),
             users=Permission(
                 action_create=True,
                 action_read=True,
@@ -212,12 +203,6 @@ def install_default_elements(db_session: Session):
                 action_delete=True,
             ),
             usergroups=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=True,
-                action_delete=True,
-            ),
-            badge_collections=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=True,
@@ -313,15 +298,6 @@ def install_default_elements(db_session: Session):
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_maintainer",
         rights=Rights(
-            badges=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=True,
-                action_update_own=True,
-                action_delete=True,
-                action_delete_own=True,
-            ),
             users=Permission(
                 action_create=True,
                 action_read=True,
@@ -329,12 +305,6 @@ def install_default_elements(db_session: Session):
                 action_delete=False,
             ),
             usergroups=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=True,
-                action_delete=True,
-            ),
-            badge_collections=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=True,
@@ -430,15 +400,6 @@ def install_default_elements(db_session: Session):
         role_uuid="role_global_user",
         id=4,
         rights=Rights(
-            badges=PermissionsWithOwn(
-                action_create=False,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=False,
-                action_delete=True,
-                action_delete_own=True,
-            ),
             users=Permission(
                 action_create=False,
                 action_read=False,
@@ -446,12 +407,6 @@ def install_default_elements(db_session: Session):
                 action_delete=False,
             ),
             usergroups=Permission(
-                action_create=False,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            badge_collections=Permission(
                 action_create=False,
                 action_read=True,
                 action_update=False,

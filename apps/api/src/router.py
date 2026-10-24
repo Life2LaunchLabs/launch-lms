@@ -48,12 +48,12 @@ from src.routers import (
     users,
 )
 from src.routers import learning as learning_router_module
-from src.routers import badge_discover as badge_discover_router_module
-from src.routers import badge_routes as badge_routes_router_module
+from src.routers import badges as badges_router_module
 from src.routers import learning_documents as learning_documents_router_module
 from src.routers import oauth as oauth_router_module
 from src.routers import mcp as mcp_router_module
 from src.routers import marketplace as marketplace_router_module
+from src.routers import plan_joining as plan_joining_router_module
 from src.routers import payments as payments_router_module
 from src.routers import resources as resources_router_module
 from src.routers import sso as sso_router_module
@@ -204,23 +204,19 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user), Depends(require_feature("api_tokens"))]
 )
 v1_router.include_router(search.router, prefix="/search", tags=["search"])
-v1_router.include_router(badge_discover_router_module.router, prefix="/badges", tags=["learning-badges"])
-v1_router.include_router(badge_routes_router_module.router, prefix="/badges", tags=["learning-badges"])
-v1_router.include_router(learning_router_module.badges_router, prefix="/badges", tags=["learning-badges"])
-v1_router.include_router(learning_router_module.collections_router, prefix="/badge-collections", tags=["learning-badge-collections"])
 v1_router.include_router(learning_router_module.activities_router, prefix="/learning-activities", tags=["learning-activities"])
 v1_router.include_router(learning_router_module.pages_router, prefix="/learning-pages", tags=["learning-pages"])
 v1_router.include_router(learning_router_module.runs_router, prefix="/learning-runs", tags=["learning-runs"])
 v1_router.include_router(learning_router_module.responses_router, prefix="/learning-responses", tags=["learning-responses"])
-v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
-v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
+v1_router.include_router(badges_router_module.router, prefix="/badge-awards", tags=["badges"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
 v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
 v1_router.include_router(learning_documents_router_module.content_router, prefix="/learning-content", tags=["learning-content"])
 v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
 v1_router.include_router(mcp_router_module.router, prefix="/mcp", tags=["mcp"])
-v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
+v1_router.include_router(marketplace_router_module.router, prefix="/plan-marketplace", tags=["plan-marketplace"])
+v1_router.include_router(plan_joining_router_module.router, prefix="/plan-joining", tags=["goals"])
 v1_router.include_router(
     resources_router_module.router,
     prefix="/resources",

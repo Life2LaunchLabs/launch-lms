@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from sqlmodel import Session, select
-from src.db.learning import LearningBadge, LearningBadgeStatus
 from src.db.media import MediaAsset
 from src.db.portfolio import (
     Portfolio,
@@ -43,7 +42,7 @@ ACTION_TYPES = {
     "confirm_privacy",
     "publish_portfolio",
     "emit_event",
-    "start_badge_plans",
+    "start_plans",
 }
 PORTFOLIO_FIELDS = {"display_name", "headline", "short_bio", "location_label"}
 WORK_FIELDS = {
@@ -189,25 +188,25 @@ def _portfolio(db: Session, user: User, now: str) -> Portfolio:
     return portfolio
 
 
-def _start_badge_plans(db: Session, user: User, badge_uuids: list) -> list[str]:
-    """Start up to three picked badges the learner can start now, each as a goal on its recommended route (not committed)."""
+def _start_plans(db: Session, user: User, template_uuids: list) -> list[str]:
+    """Join up to three picked plans from Discover, each with the organization offering it (not committed)."""
     from fastapi import HTTPException
-    from src.services.goals.badges import badge_routes, start_badge_goal
-    from src.services.learning_issuers import issuer_options
+    from src.db.plan_joining import PlanJoin
+    from src.services.goals import plan_joining
 
+    offered = {}
+    for offer in plan_joining.offers(db):
+        offered.setdefault(offer.template.template_uuid, offer)
     started: list[str] = []
-    for badge_uuid in list(dict.fromkeys(str(item) for item in badge_uuids))[:3]:
-        badge = db.exec(select(LearningBadge).where(
-            LearningBadge.badge_uuid == badge_uuid, LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-            LearningBadge.public == True, LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]  # noqa: E712
-        )).first()
-        issuer_org_id = issuer_options(db, badge, int(user.id))["startable_issuer_org_id"] if badge and badge_routes(db, badge) else None  # type: ignore[arg-type]
-        if badge and issuer_org_id is not None:
-            try:
-                start_badge_goal(db, user, badge, None, None, commit=False)  # type: ignore[arg-type]
-                started.append(badge.badge_uuid)
-            except HTTPException:
-                pass
+    for template_uuid in list(dict.fromkeys(str(item) for item in template_uuids))[:3]:
+        offer = offered.get(template_uuid)
+        if offer is None:
+            continue
+        try:
+            plan_joining.join(db, user, template_uuid, PlanJoin(org_id=offer.org_id), commit=False)  # type: ignore[arg-type]
+            started.append(template_uuid)
+        except HTTPException:
+            pass
     return started
 
 
@@ -231,8 +230,8 @@ def apply_portfolio_outcomes(
         if kind == "set_portfolio_fields":
             for key, value in _mapped(action, local, PORTFOLIO_FIELDS).items():
                 setattr(portfolio, key, str(value or "").strip())
-        elif kind == "start_badge_plans":
-            receipts[action_id] = {"type": kind, "badge_uuids": _start_badge_plans(db, user, _resolve(action.get("badge_uuids"), local) or [])}
+        elif kind == "start_plans":
+            receipts[action_id] = {"type": kind, "template_uuids": _start_plans(db, user, _resolve(action.get("template_uuids"), local) or [])}
         elif kind == "create_project_item":
             values = _mapped(action, local, WORK_FIELDS)
             title = str(values.pop("title", "") or "").strip()

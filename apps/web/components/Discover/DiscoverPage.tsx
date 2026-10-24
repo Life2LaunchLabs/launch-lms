@@ -10,7 +10,7 @@ import DiscoverResults from './DiscoverResults'
 import DiscoverSearchBar, { filtersApplied, type DiscoverFilters } from './DiscoverSearchBar'
 
 /**
- * Discover: badges to earn and resources to use, searchable from the top. With no search
+ * Discover: plans to join (many earn a badge) and resources to use, searchable from the top. With no search
  * or filters it's a feed; otherwise it's a results view. The URL holds both.
  */
 export default function DiscoverPage({ orgslug }: { orgslug: string }) {
@@ -19,12 +19,13 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  // Badges and resources are open to every learner; only publishing them is gated.
-  const showBadges = true
+  // Plans organizations offer and resources are open to every learner.
+  const showPlans = true
   const showResources = Boolean(org)
   const query = params.get('q') || ''
   const filters: DiscoverFilters = React.useMemo(() => ({
-    type: params.get('type') === 'badges' || params.get('type') === 'resources' ? params.get('type') as DiscoverFilters['type'] : '',
+    // Old links ask for badges: badges are earned through plans.
+    type: params.get('type') === 'badges' ? 'plans' : params.get('type') === 'plans' || params.get('type') === 'resources' ? params.get('type') as DiscoverFilters['type'] : '',
     resourceTypes: (params.get('resource_types') || '').split(',').filter(Boolean),
     saved: params.get('saved') === '1',
   }), [params])
@@ -41,10 +42,10 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const content = <GeneralWrapper wide>
     <main className="flex flex-col gap-6 pb-16 pt-2 text-foreground">
       <h1 className="sr-only">Discover</h1>
-      <DiscoverSearchBar query={query} onQuery={onQuery} filters={filters} onFilters={onFilters} showBadges={showBadges} showResources={showResources} signedIn={Boolean(session?.data?.tokens?.access_token)} />
+      <DiscoverSearchBar query={query} onQuery={onQuery} filters={filters} onFilters={onFilters} showPlans={showPlans} showResources={showResources} signedIn={Boolean(session?.data?.tokens?.access_token)} />
       {searching
-        ? <DiscoverResults orgslug={orgslug} query={query} filters={filters} showBadges={showBadges} showResources={showResources} />
-        : <DiscoverFeed orgslug={orgslug} showBadges={showBadges} showResources={showResources} />}
+        ? <DiscoverResults orgslug={orgslug} query={query} filters={filters} showPlans={showPlans} showResources={showResources} />
+        : <DiscoverFeed orgslug={orgslug} showPlans={showPlans} showResources={showResources} />}
     </main>
   </GeneralWrapper>
   return content

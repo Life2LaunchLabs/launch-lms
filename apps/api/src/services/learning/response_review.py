@@ -5,7 +5,6 @@ from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 from src.db.learning import (
     LearningActivity,
-    LearningBadge,
     LearningPage,
     LearningPageProgress,
     LearningResponseAttempt,
@@ -30,7 +29,7 @@ def _grading_org_id(db_session: Session, goal: Goal, user: PublicUser) -> int | 
     org_id = goal.org_id
     if org_id is None:
         return None
-    if "review_badge_submissions" in access.capabilities(db_session, goal, user.id) or is_user_superadmin(user.id, db_session):
+    if "review_submissions" in access.capabilities(db_session, goal, user.id) or is_user_superadmin(user.id, db_session):
         return org_id
     try:
         access_rules._require_org_admin(db_session, user, org_id, "review_work")
@@ -44,7 +43,6 @@ async def list_learning_responses(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
     org_id: int,
-    badge_uuid: str | None = None,
     activity_uuid: str | None = None,
     page_uuid: str | None = None,
     grading_status: str | None = "pending",
@@ -59,8 +57,6 @@ async def list_learning_responses(
         .where(Goal.org_id == org_id)
         .order_by(LearningResponseAttempt.submitted_at.desc())  # type: ignore
     )
-    if badge_uuid:
-        statement = statement.where(Goal.badge_id == lookups._get_badge(db_session, badge_uuid).id)
     if activity_uuid:
         activity = lookups._get_activity(db_session, activity_uuid)
         statement = statement.where(LearningPage.activity_id == activity.id)
@@ -112,8 +108,6 @@ async def list_learning_responses(
         else {}
     )
     goals = {goal.id: goal for goal in db_session.exec(select(Goal).where(Goal.id.in_({run.goal_id for run in runs.values()}))).all()} if runs else {}  # type: ignore[union-attr]
-    badge_ids = {goal.badge_id for goal in goals.values() if goal.badge_id}
-    badge_by_id = {item.id: item for item in db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()} if badge_ids else {}  # type: ignore[union-attr]
     users = (
         {
             user.id or 0: user
@@ -123,25 +117,12 @@ async def list_learning_responses(
         else {}
     )
 
-    def badge_summary(run: LearningRun | None) -> dict | None:
-        goal = goals.get(run.goal_id) if run else None
-        badge = badge_by_id.get(goal.badge_id) if goal else None
-        if not badge:
-            return None
-        return {
-            "id": badge.id,
-            "badge_uuid": badge.badge_uuid,
-            "name": badge.name,
-            "org_id": badge.org_id,
-        }
-
     return [
         {
             **attempt.model_dump(),
             "page": page_by_id.get(attempt.page_id).model_dump()
             if page_by_id.get(attempt.page_id)
             else None,
-            "badge": badge_summary(runs.get(attempt.run_id)),
             "goal": {"goal_uuid": goals[runs[attempt.run_id].goal_id].goal_uuid, "title": goals[runs[attempt.run_id].goal_id].title}
             if runs.get(attempt.run_id) and goals.get(runs[attempt.run_id].goal_id) else None,
             "activity": activities.get(page_by_id[attempt.page_id].activity_id).model_dump()

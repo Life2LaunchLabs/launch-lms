@@ -10,7 +10,7 @@ from src.db.goals import TemplateCreate, TemplatePublish, TemplateSave, Template
 from src.db.template_marketplace import TemplateLearnerAccessUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import assignments, badge_templates, badge_versions, drafts, library, starters, template_learners, template_marketplace, templates
+from src.services.goals import assignments, drafts, library, plan_issuers, starters, template_learners, template_marketplace, templates
 from src.services.goals.document import json_schema
 
 router = APIRouter()
@@ -51,12 +51,6 @@ def api_org_assignments(org_id: int, db: Session = Depends(get_db_session), user
     return assignments.list_org_assignments(db, user, org_id)
 
 
-@router.get("/badge-routes")
-def api_issuer_badge_routes(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """Other organizations' badge templates this one is authorized to run, with its assignments of each."""
-    return badge_templates.issuer_routes(db, user, org_id)
-
-
 @router.get("/starters")
 def api_starters(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """The New plan picker's starter plans, by category."""
@@ -73,13 +67,12 @@ def api_use_starter(template_uuid: str, org_id: int, db: Session = Depends(get_d
 
 @router.get("/{template_uuid}")
 def api_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    if not badge_templates.owns(db, org_id, template_uuid):
-        # Another organization's badge template this one runs: its published version, read-only.
-        view = badge_templates.template_view(db, user, org_id, template_uuid)
-        return {**view, "owner_org": template_marketplace.owner_org(db, template_uuid)}
+    if not plan_issuers.owns(db, org_id, template_uuid):
+        # Another organization's plan this one runs: its live release, read-only.
+        return plan_issuers.template_view(db, user, org_id, template_uuid)
     result = templates.get_template(db, user, org_id, template_uuid)
     template = templates.template_or_404(db, org_id, template_uuid)
-    return {**result, **library.library_status(db, template), "outdated_badge_steps": badge_versions.outdated_badge_steps(db, template),
+    return {**result, **library.library_status(db, template),
             "based_on": template_marketplace.provenance(db, template)}
 
 
@@ -139,12 +132,6 @@ def api_publish_to_library(template_uuid: str, org_id: int, db: Session = Depend
     return library.publish_to_library(db, user, org_id, template_uuid)
 
 
-@router.post("/{template_uuid}/update-badge-versions")
-def api_update_badge_versions(template_uuid: str, org_id: int, accept_previous_major_versions: bool = False, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """Move the draft's badge steps to each badge's latest major version."""
-    return badge_versions.update_badge_versions(db, user, org_id, template_uuid, accept_previous_major_versions)
-
-
 @router.get("/{template_uuid}/activities/{activity_uuid}")
 def api_template_activity(template_uuid: str, activity_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """A template's activity with its pages, for the activity editor."""
@@ -179,7 +166,7 @@ def api_assign_template(template_uuid: str, org_id: int, payload: GoalAssignment
 
 @router.get("/{template_uuid}/learners")
 def api_template_learners(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """The badges this template earns and who may start it in this organization."""
+    """Who may start this plan in this organization, and the badge it earns here."""
     return template_learners.template_learners(db, user, org_id, template_uuid)
 
 

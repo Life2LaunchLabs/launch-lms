@@ -18,8 +18,7 @@ export function useVisibility(orgId: number, token: string | undefined, template
   const publishes = owned && !template.read_only && !template.system_type && (features.has('plan_publishing') || features.has('badge_publishing'))
   const { data: learners } = useTemplateLearners(orgId, template.template_uuid, token)
   const { data: listing } = useSWR(publishes && token ? [MARKETPLACE_KEY, 'listing', orgId, template.template_uuid, token] : null, () => templateMarketplaceApi.listing(orgId, template.template_uuid, token))
-  // Nothing to show: not a publisher, and learners can't start it here anyway.
-  return { publishes, learners, listing, shown: publishes || !!learners?.earns_badge }
+  return { publishes, learners, listing, shown: publishes || !!learners }
 }
 
 /**
@@ -31,7 +30,7 @@ export default function VisibilityChip({ orgId, token, template, open, setOpen }
   orgId: number; token?: string; template: TemplateDetail; open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>>
 }) {
   const { publishes, learners, listing, shown } = useVisibility(orgId, token, template)
-  const learnersStart = !!learners?.earns_badge && learners.access !== 'invite'
+  const learnersStart = !!learners && learners.access !== 'invite'
   if (!shown) return null
   const orgs = !!listing?.listed
   const live = !!template.live_version

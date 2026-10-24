@@ -26,7 +26,7 @@ import { Label } from '@components/ui/label';
 import Modal from '@components/Objects/StyledElements/Modal/Modal';
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal';
 import toast from 'react-hot-toast';
-import { getLearningBadges } from '@services/learning/learning';
+import { templatesApi } from '@services/goals/templates';
 import { usePaymentsEnabled } from '@hooks/usePaymentsEnabled';
 import UnconfiguredPaymentsDisclaimer from '@components/Pages/Payments/UnconfiguredPaymentsDisclaimer';
 
@@ -43,10 +43,9 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
   const { data: resources } = useSWR(swrKey, () => getGroupResources(orgId, group.id, token));
 
   const { data: coursesData } = useSWR(
-    org ? [`/badges/org`, org.id, token] : null,
+    org ? [`/payments/plans`, org.id, token] : null,
     async ([, orgId, t]: any) => {
-      const response = await getLearningBadges(orgId, t, true)
-      return Array.isArray(response) ? response : response?.data || []
+      return (await templatesApi.list(orgId, t)).filter((plan) => !plan.system_type)
     }
   );
 
@@ -56,13 +55,13 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
   // Build a name map from courses
   const nameMap: Record<string, string> = {};
   courses.forEach((c: any) => {
-    const uuid = c.badge_uuid;
-    nameMap[uuid] = c.name;
+    const uuid = c.template_uuid;
+    nameMap[uuid] = c.title;
   });
 
   const linkedSet = new Set(rawList);
   const available = courses.filter((c: any) => {
-    const uuid = c.badge_uuid;
+    const uuid = c.template_uuid;
     return !linkedSet.has(uuid);
   });
 
@@ -70,19 +69,19 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
     await addGroupResource(orgId, group.id, resourceUuid, token);
     mutate(swrKey);
     setPickerOpen(false);
-    toast.success('Course added to group');
+    toast.success('Plan added to group');
   };
 
   const handleRemove = async (resourceUuid: string) => {
     await removeGroupResource(orgId, group.id, resourceUuid, token);
     mutate(swrKey);
-    toast.success('Course removed');
+    toast.success('Plan removed');
   };
 
   return (
     <div className="space-y-2">
       {rawList.length === 0 ? (
-        <p className="text-xs text-gray-400 italic py-1">No badges yet — add one below.</p>
+        <p className="text-xs text-gray-400 italic py-1">No plans yet — add one below.</p>
       ) : (
         <ul className="space-y-1">
           {rawList.map((uuid: string) => (
@@ -111,12 +110,12 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
           onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors py-1"
         >
-          <Plus size={12} /> Add course
+          <Plus size={12} /> Add plan
         </button>
       ) : (
         <div className="border border-gray-200 rounded-lg bg-white shadow-sm">
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-            <span className="text-xs font-semibold text-gray-600">Select a course to add</span>
+            <span className="text-xs font-semibold text-gray-600">Select a plan to add</span>
             <button onClick={() => setPickerOpen(false)} className="text-gray-400 hover:text-gray-600">
               <X size={13} />
             </button>
@@ -124,11 +123,11 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
           {!coursesData ? (
             <p className="text-xs text-gray-400 px-3 py-2">Loading…</p>
           ) : available.length === 0 ? (
-            <p className="text-xs text-gray-400 px-3 py-2 italic">All badges are already in this group.</p>
+            <p className="text-xs text-gray-400 px-3 py-2 italic">All plans are already in this group.</p>
           ) : (
             <ul className="max-h-40 overflow-y-auto divide-y divide-gray-50">
               {available.map((c: any) => {
-                const uuid = c.badge_uuid;
+                const uuid = c.template_uuid;
                 return (
                   <li key={uuid}>
                     <button
@@ -136,7 +135,7 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
                       className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
                     >
                       <BookOpen size={13} className="text-indigo-400 shrink-0" />
-                      <span className="truncate">{c.name}</span>
+                      <span className="truncate">{c.title}</span>
                     </button>
                   </li>
                 );
@@ -416,7 +415,7 @@ export default function PaymentsGroupsPage() {
         isDialogOpen={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         dialogTitle="Create Payment Group"
-        dialogDescription="Group badges together for subscriptions or bundles"
+        dialogDescription="Group plans together for subscriptions or bundles"
         dialogContent={
           <GroupForm onSubmit={handleCreate} onCancel={() => setIsCreateOpen(false)} />
         }
@@ -441,7 +440,7 @@ export default function PaymentsGroupsPage() {
       <div className="flex items-center justify-between bg-gray-50 px-5 py-3 rounded-md mb-5">
         <div className="-space-y-0.5">
           <h1 className="font-bold text-xl text-gray-800">Payment Groups</h1>
-          <p className="text-gray-500 text-sm">Bundle badges together for subscriptions or offers.</p>
+          <p className="text-gray-500 text-sm">Bundle plans together for subscriptions or offers.</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} size="sm">
           <Plus size={14} className="mr-1.5" /> New Group
@@ -455,7 +454,7 @@ export default function PaymentsGroupsPage() {
           </div>
           <p className="font-semibold text-gray-600 mb-1">No groups yet</p>
           <p className="text-sm text-gray-400 mb-4 max-w-xs mx-auto">
-            Groups let you attach multiple badges to a single offer — perfect for subscriptions or bundles.
+            Groups let you attach multiple plans to a single offer — perfect for subscriptions or bundles.
           </p>
           <Button onClick={() => setIsCreateOpen(true)} variant="outline" size="sm">
             <Plus size={13} className="mr-1.5" /> Create your first group

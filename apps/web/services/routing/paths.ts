@@ -137,9 +137,8 @@ export const routePaths = {
     portfolioResume: () => '/portfolio/resume',
     portfolioTimeline: () => '/portfolio/timeline',
     portfolioBadges: () => '/portfolio/badges',
-    portfolioAchievements: () => '/portfolio/achievements',
-    portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
-    badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
+    /** One badge a learner earned: the badge, who earned it, and its certificate. */
+    badgeAward: (awardUuid: string) => `/badges/${encodeURIComponent(awardUuid)}`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
     search: (query?: string) => withQuery('/discover', { q: query }),
@@ -147,7 +146,10 @@ export const routePaths = {
     resources: () => '/resources',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
-    badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
+    /** A plan learners can join, as Discover shows it; also the criteria page of the badge it earns. */
+    discoverPlan: (templateUuid: string) => `/discover/plans/${encodeURIComponent(templateUuid)}`,
+    /** A collection of plans an organization offers learners. */
+    discoverCollection: (collectionUuid: string) => `/discover/collections/${encodeURIComponent(collectionUuid)}`,
     resource: (resourceUuid: string) => `/discover/resources/${encodeURIComponent(resourceUuid.replace(/^resource_/, ''))}`,
     user: (username: string) => `/user/${username}`,
     userProjects: (username: string) => `/user/${username}/projects`,
@@ -155,8 +157,6 @@ export const routePaths = {
     userResume: (username: string) => `/user/${username}/resume`,
     userPortfolioPost: (username: string, slug: string) => `/user/${username}/portfolio/${slug}`,
     userTimeline: (username: string) => `/user/${username}/timeline`,
-    userAchievements: (username: string) => `/user/${username}/achievements`,
-    userAchievementDetail: (username: string, achievementId: string) => `/user/${username}/achievements/${achievementId}`,
     store: {
       root: () => '/store',
       offer: (offerId: string) => `/store/offers/${offerId}`,
@@ -202,8 +202,6 @@ export const routePaths = {
       requirements: () => PLANS_TAB_PATHS.requirements,
       /** One framework under Plans › Requirements: details, levels, spec, or coverage by plan. */
       requirementFrameworkPlans: frameworkPage,
-      /** The badge a plan earns: its credential, reached from the plan's Badge card. */
-      badge: (badgeUuid: string, subpage?: string | null) => `/admin/plans/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}${subpage ? `/${encodeURIComponent(subpage)}` : ''}`,
       // Insights: reports by group (optionally against requirement frameworks), and learners' evidence by group.
       insights: () => '/admin/insights',
       /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */

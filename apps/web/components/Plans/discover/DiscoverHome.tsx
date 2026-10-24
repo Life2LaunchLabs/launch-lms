@@ -2,14 +2,13 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import useSWR, { mutate } from 'swr'
+import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { ListChecks, Loader2, Medal, Search, Star } from 'lucide-react'
-import { BadgeMarketplaceActions } from '@components/Plans/requests/BadgeIssuing'
+import { ListChecks, Loader2, Search, Star } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { discoverApi, discoverKeys, type DiscoverPlan } from '@services/goals/discover'
 import { requirementsApi } from '@services/goals/requirements'
-import { browseMarketplaceBadges, isMarketplaceKey, MARKETPLACE_KEY } from '@services/learning/marketplace'
+import { MARKETPLACE_KEY } from '@services/learning/marketplace'
 import { CoverGrid } from '@components/Plans/shared/PlanCover'
 import { primaryActionClass, smallActionClass } from '@components/Plans/shared/actions'
 import { SectionHeader, planGridClass } from '@components/Plans/library/PlanCards'
@@ -87,7 +86,6 @@ function Browse({ orgslug, page }: { orgslug: string; page: Awaited<ReturnType<t
       <p className="font-bold">Nothing shared yet</p>
       <p className="mt-1 text-sm text-muted-foreground">When organizations share plans and collections, they show up here.</p>
     </div> : null}
-    <Badges />
   </>
 }
 
@@ -132,23 +130,5 @@ function Frameworks({ orgslug }: { orgslug: string }) {
       <span className="min-w-0 flex-1"><b className="block text-[14.5px] leading-snug">{framework.name}</b><span className="block text-[12.5px] text-muted-foreground">{framework.owner_org_name || 'Life2Launch'} · {plural(framework.node_count || 0, 'requirement')}</span></span>
       {canAdd ? <button type="button" className={smallActionClass} disabled={busy === framework.framework_uuid} onClick={() => void copy(framework.framework_uuid)}>Track</button> : null}
     </div>)}</div>
-  </Section>
-}
-
-/** Badges other organizations list: issue one by running one of its plans, once its creator approves. */
-function Badges() {
-  const { orgId, token, ready, canAdd } = useDiscoverContext()
-  const { data: badges = [] } = useSWR(ready ? [MARKETPLACE_KEY, 'badges', orgId, token] : null, async () => {
-    const response: any = await browseMarketplaceBadges(orgId, undefined, token)
-    const list = response?.success !== undefined ? response.data : response
-    return (Array.isArray(list) ? list : []).filter((item: any) => !item.is_own_badge)
-  })
-  if (!badges.length) return null
-  return <Section title="Badges">
-    <Row>{badges.map((item: any) => <div key={item.badge.badge_uuid} className="flex w-72 shrink-0 snap-start flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <span className="flex items-center gap-2"><Medal size={18} className="shrink-0 text-[hsl(38_85%_42%)]" aria-hidden="true" /><b className="truncate text-sm">{item.badge.name}</b></span>
-      <span className="truncate text-xs text-muted-foreground">{item.creator_org?.name}</span>
-      <div className="mt-auto pt-1"><BadgeMarketplaceActions item={item} orgId={orgId} admin={canAdd} onChange={() => void mutate(isMarketplaceKey)} /></div>
-    </div>)}</Row>
   </Section>
 }

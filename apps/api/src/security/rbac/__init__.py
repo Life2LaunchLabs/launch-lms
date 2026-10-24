@@ -1,7 +1,7 @@
 """
 RBAC (Role-Based Access Control) Module
 
-This module provides a unified access control system for badges, badge collections and resources.
+This module provides a unified access control system for resources.
 
 Usage:
     from src.security.rbac import (
@@ -53,7 +53,6 @@ from src.security.rbac.constants import (
 
 # New unified RBAC system - FastAPI Dependencies
 from src.security.rbac.dependencies import (
-    BadgeAccess,
     require_create_access,
     require_dashboard_access,
     require_read_access,
@@ -67,7 +66,6 @@ from src.security.rbac.rbac import (
     authorization_verify_based_on_org_admin_status,
     authorization_verify_based_on_roles,
     authorization_verify_based_on_roles_and_authorship,
-    authorization_verify_if_element_is_public,
     authorization_verify_if_user_is_anon,
     authorization_verify_if_user_is_author,
     check_usergroup_access,
@@ -110,10 +108,8 @@ __all__ = [
     "require_write_access",
     "require_create_access",
     "require_dashboard_access",
-    "BadgeAccess",
     # Low-level functions
     "check_usergroup_access",
-    "authorization_verify_if_element_is_public",
     "authorization_verify_if_user_is_author",
     "authorization_verify_based_on_roles",
     "authorization_verify_based_on_org_admin_status",

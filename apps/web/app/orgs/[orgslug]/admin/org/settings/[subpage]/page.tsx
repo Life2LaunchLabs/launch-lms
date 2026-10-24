@@ -9,7 +9,7 @@ import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/Org
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditMessaging from '@components/Dashboard/Pages/Org/OrgEditMessaging/OrgEditMessaging'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
-import DiscoverSettingsPanel from '@components/Badges/discover/DiscoverSettingsPanel'
+import DiscoverSettingsPanel from '@components/Discover/DiscoverSettingsPanel'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { ADMIN_NAV_ICONS } from '@components/Admin/adminNavIcons'

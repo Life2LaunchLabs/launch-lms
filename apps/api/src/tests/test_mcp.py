@@ -22,7 +22,7 @@ from src.services.oauth import server
 from src.services.oauth.config import ACCESS_PREFIX, frontend_url, hash_secret, mcp_resource
 from src.tests import test_learning_documents as documents_world
 from src.tests.test_learning_documents import _goal_template
-from src.tests.test_badge_marketplace import _create_org
+from src.tests.plan_world import _create_org
 
 
 def _token(session: Session, user_id: int, org_id: int, scope: str = "activities:read activities:write") -> str:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalStep
-from src.db.learning import LearningActivity, LearningBadge, LearningPage, LearningResponseAttempt, LearningRun
+from src.db.learning import LearningActivity, LearningPage, LearningResponseAttempt, LearningRun
 from src.db.users import User
 
 
@@ -50,7 +50,6 @@ def activity_reviews(db: Session, goals: list[Goal]) -> list[dict]:
         user = db.get(User, run.user_id)
         if not user:
             continue
-        badge = db.get(LearningBadge, goal.badge_id) if goal.badge_id else None
         step = steps.get(run.goal_step_id)
         history = [(pages[attempt.page_id], attempt) for attempt in attempts
                    if attempt.run_id == run_id and attempt.page_id in pages and pages[attempt.page_id].activity_id == activity_id]
@@ -58,7 +57,6 @@ def activity_reviews(db: Session, goals: list[Goal]) -> list[dict]:
             "review_type": "activity", "review_id": f"{run.run_uuid}:{activity.activity_uuid}", "run_uuid": run.run_uuid,
             "goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid if step else None,
             "user": {"id": user.id, "username": user.username, "first_name": user.first_name, "last_name": user.last_name, "avatar_image": user.avatar_image},
-            "badge": {"id": badge.id, "badge_uuid": badge.badge_uuid, "name": badge.name} if badge else None,
             "activity": activity.model_dump(),
             "attempts": [{**attempt.model_dump(), "page": page.model_dump()} for page, attempt in rows],
             "attempt_history": [{**attempt.model_dump(), "page": page.model_dump()} for page, attempt in history],

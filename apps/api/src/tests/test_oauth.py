@@ -18,7 +18,7 @@ from src.routers import oauth as oauth_router
 from src.security.auth import get_current_user
 from src.services.oauth import server
 from src.services.oauth.config import mcp_resource
-from src.tests.test_badge_marketplace import _create_tables, _setup
+from src.tests.plan_world import _create_tables, _setup
 
 REDIRECT = "https://claude.ai/api/mcp/auth_callback"
 

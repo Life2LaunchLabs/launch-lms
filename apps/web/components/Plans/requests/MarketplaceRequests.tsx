@@ -8,19 +8,23 @@ import { Check, Medal } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useStaff } from '@components/Goals/admin/assignments/shared'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import {
-  getCreatorIssuanceMetrics,
-  isMarketplaceKey,
-  MARKETPLACE_KEY,
-  templateMarketplaceApi,
-  type MarketplaceOrg,
-  type PlanBadge,
-  type TemplateAuthorization,
-} from '@services/learning/marketplace'
+import { isMarketplaceKey, MARKETPLACE_KEY, templateMarketplaceApi, type MarketplaceOrg, type TemplateAuthorization } from '@services/learning/marketplace'
+import { JOIN_REQUESTS_KEY, planJoiningApi, type JoinRequest } from '@services/goals/planJoining'
+import type { BadgeSummary } from '@services/badges/badges'
 import { cn } from '@/lib/utils'
-import { IssuedBadgesPanel, StatusPill } from './BadgeIssuing'
 
-/** A plan request or permission. A plan that earns badges is how an organization issues them. */
+const STATUS_STYLES: Record<string, string> = {
+  requested: 'bg-amber-100 text-amber-800',
+  approved: 'bg-lime-100 text-lime-800',
+  rejected: 'bg-red-100 text-red-700',
+  revoked: 'bg-gray-200 text-gray-600',
+}
+
+export function StatusPill({ status }: { status: string }) {
+  return <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>
+}
+
+/** A plan request or permission. Running a plan that earns a badge is how an organization awards it. */
 type Row = {
   key: string
   org: MarketplaceOrg | null
@@ -29,11 +33,11 @@ type Row = {
   status: string
   message?: string
   detail: string
-  badges: PlanBadge[]
+  badge: BadgeSummary | null
   authorizationUuid: string
 }
 
-function planRow(item: TemplateAuthorization, side: 'creator' | 'issuer', orgslug: string, awards?: number): Row {
+function planRow(item: TemplateAuthorization, side: 'creator' | 'issuer', orgslug: string): Row {
   const mode = item.template?.mode === 'open' ? 'open: copy and edit' : item.template?.mode === 'locked' ? 'locked: run as-is' : 'run as-is'
   // The owner manages who runs its plan on the plan's Publish tab; the issuer opens the plan (or its copy).
   const href = side === 'issuer' && item.status === 'approved' && item.template
@@ -41,19 +45,19 @@ function planRow(item: TemplateAuthorization, side: 'creator' | 'issuer', orgslu
     : side === 'creator' && item.template ? getUriWithOrg(orgslug, routePaths.org.admin.template(item.template.template_uuid)) : undefined
   const counts = [
     side === 'creator' && item.learner_count !== undefined ? `${item.learner_count} learner plan${item.learner_count === 1 ? '' : 's'}` : '',
-    awards ? `${awards} badge${awards === 1 ? '' : 's'} awarded` : '',
     item.copied_template_uuid ? 'copied into your templates' : '',
   ].filter(Boolean)
   return {
     key: item.authorization_uuid, org: side === 'creator' ? item.issuer_org : item.creator_org, title: item.template?.title || 'Plan', href,
-    status: item.status, message: item.message, authorizationUuid: item.authorization_uuid, badges: item.badges || [],
+    status: item.status, message: item.message, authorizationUuid: item.authorization_uuid, badge: item.badge || null,
     detail: [`Plan (${mode})`, ...counts].join(' · '),
   }
 }
 
 /**
  * Requests: who's asking to run your plans, what you asked for, what you run from other orgs and who
- * runs yours. Approval on a plan that earns a badge is permission to issue that badge. Admins only.
+ * runs yours, and learners asking to join your plans from Discover. Running a plan that earns a badge
+ * is permission to award it. Admins only.
  */
 export default function MarketplaceRequests() {
   const { orgId, token, admin } = useStaff()
@@ -63,17 +67,25 @@ export default function MarketplaceRequests() {
   const key = (name: string) => (ready ? [MARKETPLACE_KEY, name, orgId, token] : null)
   const { data: creatorPlans = [] } = useSWR(key('template-auth-creator'), () => templateMarketplaceApi.authorizations(orgId, 'creator', token))
   const { data: issuerPlans = [] } = useSWR(key('template-auth-issuer'), () => templateMarketplaceApi.authorizations(orgId, 'issuer', token))
-  const { data: metrics } = useSWR(key('creator-metrics'), async () => { const response: any = await getCreatorIssuanceMetrics(orgId, token); return response?.success ? response.data : null })
+  const { data: joinRequests = [], mutate: mutateJoins } = useSWR(ready ? [JOIN_REQUESTS_KEY, orgId, token] : null, () => planJoiningApi.requests(orgId, token!))
   const { mutate } = useSWRConfig()
   const [busy, setBusy] = React.useState('')
 
   if (!admin) return <p className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Only admins see and answer marketplace requests.</p>
 
-  // Badges an issuer awarded, summed over the badges a plan earns.
-  const awardsBy = (item: TemplateAuthorization) => (item.badges || []).reduce((total, badge) => {
-    const entry = (metrics?.badges || []).find((row: any) => row.badge?.badge_uuid === badge.badge_uuid)
-    return total + (entry?.by_issuer?.find((row: any) => row.org?.id === item.issuer_org?.id)?.awards ?? 0)
-  }, 0)
+  const answer = async (request: JoinRequest, accept: boolean) => {
+    setBusy(request.request_uuid)
+    try {
+      if (accept) await planJoiningApi.accept(request.request_uuid, token!)
+      else await planJoiningApi.reject(request.request_uuid, token!)
+      toast.success(accept ? 'Accepted. The plan is in their Plans now.' : 'Request declined.')
+      await mutateJoins()
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not answer the request.')
+    } finally {
+      setBusy('')
+    }
+  }
   const act = async (row: Row, action: 'approve' | 'reject' | 'revoke', done: string) => {
     setBusy(row.key)
     try {
@@ -92,13 +104,19 @@ export default function MarketplaceRequests() {
   const incoming = creatorPlans.filter((item) => item.status === 'requested').map((item) => planRow(item, 'creator', orgslug))
   const outgoing = issuerPlans.filter((item) => item.status === 'requested').map((item) => planRow(item, 'issuer', orgslug))
   const added = issuerPlans.filter((item) => item.status === 'approved').map((item) => planRow(item, 'issuer', orgslug))
-  const running = creatorPlans.filter((item) => item.status === 'approved').map((item) => planRow(item, 'creator', orgslug, awardsBy(item)))
+  const running = creatorPlans.filter((item) => item.status === 'approved').map((item) => planRow(item, 'creator', orgslug))
   const button = (row: Row, label: React.ReactNode, action: 'approve' | 'reject' | 'revoke', done: string, primary = false) =>
     <button type="button" disabled={busy === row.key} onClick={() => void act(row, action, done)}
       className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold disabled:opacity-50', primary ? 'bg-black text-white hover:bg-black/85' : 'border border-gray-200 bg-white hover:bg-gray-50')}>{label}</button>
 
   return <div className="space-y-8">
-    <p className="max-w-[70ch] text-sm text-gray-600">Requests to run plans, in both directions, and who runs what. Running a plan that earns a badge is how an organization issues that badge.</p>
+    <p className="max-w-[70ch] text-sm text-gray-600">Learners asking to join your plans, requests to run plans in both directions, and who runs what. Running a plan that earns a badge is how an organization awards it.</p>
+    <Section title="Learners asking to join" count={joinRequests.length} empty="No learner is waiting on an answer." testId="join-requests">
+      {joinRequests.map((request) => <JoinRow key={request.request_uuid} request={request}>
+        <button type="button" disabled={busy === request.request_uuid} onClick={() => void answer(request, false)} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">Decline</button>
+        <button type="button" disabled={busy === request.request_uuid} onClick={() => void answer(request, true)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-black px-3.5 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"><Check size={14} />Accept</button>
+      </JoinRow>)}
+    </Section>
     <Section title="Asking to run yours" count={incoming.length} empty="Nobody is asking right now." testId="marketplace-incoming">
       {incoming.map((row) => <RequestRow key={row.key} row={row} lead={<><b>{row.org?.name || 'An organization'}</b> wants to run </>}>
         {button(row, 'Decline', 'reject', 'Request declined.')}
@@ -113,10 +131,9 @@ export default function MarketplaceRequests() {
     </Section>
     <Section title="Added from other orgs" count={added.length} empty="Nothing added from other orgs yet.">
       {added.map((row) => <RequestRow key={row.key} row={row} lead={<>From <b>{row.org?.name || 'another org'}</b>: </>}>
-        {button(row, row.badges.length ? 'Leave plan' : 'Stop using', 'revoke', row.badges.length ? 'You left the plan and no longer issue its badges through it.' : 'You no longer use this template.')}
+        {button(row, row.badge ? 'Leave plan' : 'Stop using', 'revoke', row.badge ? 'You left the plan and no longer award its badge.' : 'You no longer use this template.')}
       </RequestRow>)}
     </Section>
-    <IssuedBadgesPanel orgId={orgId} />
     <Section title="Orgs running yours" count={running.length} empty="No other org runs your plans yet.">
       {running.map((row) => <RequestRow key={row.key} row={row} lead={<><b>{row.org?.name || 'An organization'}</b> runs </>}>
         {button(row, 'Revoke', 'revoke', 'Permission revoked.')}
@@ -140,8 +157,22 @@ function RequestRow({ row, lead, children }: { row: Row; lead: React.ReactNode; 
     <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs font-bold text-gray-700 sm:inline-grid">{initials}</span>
     <div className="min-w-0 flex-1 text-sm">
       {lead}{row.href ? <Link className="font-semibold underline-offset-2 hover:underline" href={row.href}>{row.title}</Link> : <b>{row.title}</b>}
-      {row.badges.length ? <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs font-semibold text-amber-800">{row.badges.map((badge) => <span key={badge.route_uuid} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5"><Medal size={12} />Earns {badge.name}</span>)}</p> : null}
+      {row.badge ? <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs font-semibold text-amber-800"><span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5"><Medal size={12} />Earns {row.badge.name}</span></p> : null}
       <p className="text-xs text-gray-500">{row.detail}{row.message ? ` · “${row.message}”` : ''}</p>
+    </div>
+    <div className="flex flex-wrap items-center gap-2">{children}</div>
+  </div>
+}
+
+/** A learner who asked to join one of the organization's plans from Discover. */
+function JoinRow({ request, children }: { request: JoinRequest; children: React.ReactNode }) {
+  const name = request.user ? [request.user.first_name, request.user.last_name].filter(Boolean).join(' ') || request.user.username : 'A learner'
+  const initials = name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
+  return <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center" data-testid="join-request-row">
+    <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-xs font-bold text-gray-700 sm:inline-grid">{initials}</span>
+    <div className="min-w-0 flex-1 text-sm">
+      <b>{name}</b> wants to join <b>{request.plan?.title || 'a plan'}</b>
+      <p className="text-xs text-gray-500">Asked {new Date(request.creation_date).toLocaleDateString()}{request.message ? ` · “${request.message}”` : ''}</p>
     </div>
     <div className="flex flex-wrap items-center gap-2">{children}</div>
   </div>

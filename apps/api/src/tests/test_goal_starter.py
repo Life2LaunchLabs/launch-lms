@@ -141,7 +141,7 @@ def test_ensure_starter_goal_checks_off_steps_already_done_in_the_portfolio():
         assert checklist["items"][0]["label"] == "Welcome" and checklist["nextIncomplete"] == checklist["items"][3]
 
         db.add(ProfileTrait(trait_uuid="trt_2", portfolio_id=portfolio.id, trait_type="value", label="Kindness", creation_date="", update_date=""))
-        db.add(Goal(goal_uuid="goal_badge", owner_user_id=LEARNER, subject_user_id=LEARNER, ownership="external", source="badge", title="Badge", creation_date="", update_date=""))
+        db.add(Goal(goal_uuid="goal_joined", owner_user_id=LEARNER, subject_user_id=LEARNER, ownership="external", source="joined", title="Joined from Discover", creation_date="", update_date=""))
         portfolio.visibility = PortfolioVisibility.PUBLIC
         db.add(portfolio)
         db.commit()

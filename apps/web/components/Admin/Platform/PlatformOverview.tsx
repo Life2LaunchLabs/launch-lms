@@ -35,7 +35,7 @@ export default function PlatformOverview() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Organizations" value={data?.org_count ?? '—'} />
         <StatCard label="Users" value={data?.user_count ?? '—'} />
-        <StatCard label="Badges" value={data?.badge_count ?? data?.course_count ?? '—'} />
+        <StatCard label="Badges awarded" value={data?.badge_count ?? '—'} />
         <StatCard
           label="Pending requests"
           value={data?.pending_request_count ?? '—'}

@@ -20,7 +20,7 @@ def safe_presentation_url(value: str) -> str:
 
 
 class DiscoverSlide(BaseModel):
-    kind: Literal["badge", "collection", "link", "challenges"]
+    kind: Literal["plan", "collection", "link", "challenges"]
     target: str = Field(min_length=1, max_length=2048)
     title: str = Field(default="", max_length=160)
     description: str = Field(default="", max_length=500)
@@ -46,7 +46,7 @@ class DiscoverSlide(BaseModel):
         elif self.kind == "challenges" and self.target != "challenges":
             raise ValueError("Choose the challenges announcement")
         elif not all(char.isalnum() or char in "_-" for char in self.target):
-            raise ValueError("Choose a badge or collection identifier")
+            raise ValueError("Choose a plan or collection identifier")
         return self
 
 

@@ -7,7 +7,8 @@ import { Award, BriefcaseBusiness, Play } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getLearningBadges } from '@services/learning/learning'
+import { templateKeys, templatesApi } from '@services/goals/templates'
+import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import type { PortfolioConfig, Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
@@ -50,39 +51,33 @@ export const activity: StepDefinition<'activity'> = {
 
 function BadgeCard(props: StepCardProps<'badge'>) {
   const { step, orgslug } = props
-  const badge = step.reference
+  const plan = step.reference
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
     <div className="flex items-center gap-3">
-      {badge?.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="h-12 w-12 rounded-full object-cover" /> : <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-[var(--plan-accent)]"><Award size={22} /></span>}
+      {plan?.badge ? <BadgeMedal badge={plan.badge} size={48} /> : <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-[var(--plan-accent)]"><Award size={22} /></span>}
       <div className="min-w-0">
-        <p className="truncate font-bold">{badge?.title || 'Badge'}</p>
-        <CardNote>{step.status === 'completed' ? 'Awarded' : 'Done when the badge is awarded'}</CardNote>
+        <p className="truncate font-bold">{plan?.badge?.name || plan?.title || 'Badge'}</p>
+        <CardNote>{step.status === 'completed' ? 'Awarded' : `Done when you earn it${plan?.title ? ` by finishing ${plan.title}` : ''}`}</CardNote>
       </div>
     </div>
-    {step.config.badge_uuid && step.status !== 'completed' ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, `/badges/${step.config.badge_uuid}`)}>Open the badge</Link></Button> : null}
+    {step.config.template_uuid && step.status !== 'completed' ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(step.config.template_uuid))}>See the plan</Link></Button> : null}
     {props.staff ? <FinishControls {...props} finishesItself /> : null}
   </div>
 }
 
-type BadgeChoice = { badge_uuid: string; name?: string; title?: string; thumbnail_image?: string | null }
-
+/** Pick the plan whose badge counts: one of the organization's plans that earns a badge. */
 function BadgeConfigPanel({ config, onChange, orgId, token }: ConfigPanelProps<'badge'>) {
-  const { data: badges = [], isLoading } = useSWR<BadgeChoice[]>(token ? ['goal-step-badges', orgId ?? '', token] : null, async () => {
-    const response = await getLearningBadges(orgId ?? undefined, token)
-    return Array.isArray(response) ? response : response?.data || []
-  }, { revalidateOnFocus: false })
-  const known = badges.some((item) => item.badge_uuid === config.badge_uuid)
-  return <div className="flex flex-col gap-2">
-    <div className="flex flex-col gap-1">
-      <Label htmlFor="step-badge">Badge</Label>
-      <select id="step-badge" value={config.badge_uuid || ''} disabled={isLoading} onChange={(event) => onChange({ ...config, badge_uuid: event.target.value })} className="h-9 rounded-xl border-2 border-border bg-background px-2 text-sm font-semibold">
-        <option value="">{isLoading ? 'Loading badges…' : 'Choose a badge'}</option>
-        {config.badge_uuid && !known && !isLoading ? <option value={config.badge_uuid}>A badge this organization can’t see</option> : null}
-        {badges.map((item) => <option key={item.badge_uuid} value={item.badge_uuid}>{item.name || item.title || 'Untitled badge'}</option>)}
-      </select>
-    </div>
-    <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.accept_previous_major_versions} onChange={(event) => onChange({ ...config, accept_previous_major_versions: event.target.checked })} />Earlier versions of the badge count</label>
+  const { data: plans = [], isLoading } = useSWR(token && orgId ? templateKeys.list(orgId) : null, () => templatesApi.list(orgId as number, token), { revalidateOnFocus: false })
+  const choices = plans.filter((plan) => plan.badge)
+  const known = choices.some((plan) => plan.template_uuid === config.template_uuid)
+  return <div className="flex flex-col gap-1">
+    <Label htmlFor="step-badge">Badge</Label>
+    <select id="step-badge" value={config.template_uuid || ''} disabled={isLoading} onChange={(event) => onChange({ ...config, template_uuid: event.target.value })} className="h-9 rounded-xl border-2 border-border bg-background px-2 text-sm font-semibold">
+      <option value="">{isLoading ? 'Loading plans…' : 'Choose a plan that earns a badge'}</option>
+      {config.template_uuid && !known && !isLoading ? <option value={config.template_uuid}>Another organization’s plan</option> : null}
+      {choices.map((plan) => <option key={plan.template_uuid} value={plan.template_uuid}>{plan.badge?.name || plan.title}{plan.badge?.name && plan.badge.name !== plan.title ? ` (${plan.title})` : ''}</option>)}
+    </select>
   </div>
 }
 
@@ -90,12 +85,12 @@ export const badge: StepDefinition<'badge'> = {
   type: 'badge',
   label: 'Badge',
   color: '#A47100',
-  hint: 'Earning another badge counts as this step.',
+  hint: 'Earning the badge of another plan counts as this step.',
   example: 'Earn the Workplace Ready badge',
   icon: Award,
   CardBody: BadgeCard,
   ConfigPanel: BadgeConfigPanel,
-  defaultConfig: () => ({ badge_uuid: '' }),
+  defaultConfig: () => ({ template_uuid: '' }),
   finishesItself: true,
 }
 

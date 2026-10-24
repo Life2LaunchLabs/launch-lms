@@ -38,7 +38,7 @@ export interface HomeCreator {
   recent_days: number
   templates: GoalCounts & { orgs_using: number }
   badges: GoalCounts & { awards: number; recent_awards: number }
-  recent_edits: Array<{ kind: 'template' | 'badge'; uuid: string; title: string; status: string; update_date: string }>
+  recent_edits: Array<{ kind: 'template'; uuid: string; title: string; status: string; update_date: string }>
 }
 
 export interface AdminHome {
