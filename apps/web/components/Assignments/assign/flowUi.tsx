@@ -60,8 +60,8 @@ export function PreviewCaption({ children }: { children: React.ReactNode }) {
 }
 
 /** How far along the flow is: one bar per step. */
-export function FlowProgress({ step }: { step: number }) {
-  return <div className="flex gap-1 px-6" aria-hidden="true">{FLOW_STEPS.map((label, index) => <i key={label} className="relative h-1 flex-1 overflow-hidden rounded bg-muted">
+export function FlowProgress({ step, steps = FLOW_STEPS }: { step: number; steps?: readonly string[] }) {
+  return <div className="flex gap-1 px-6" aria-hidden="true">{steps.map((label, index) => <i key={label} className="relative h-1 flex-1 overflow-hidden rounded bg-muted">
     <span className={cn('absolute inset-0 origin-left transition-transform duration-500', index < step ? 'scale-x-100 bg-foreground' : index === step ? 'scale-x-100 bg-brand' : 'scale-x-0')} />
   </i>)}</div>
 }

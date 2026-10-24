@@ -1,4 +1,4 @@
-"""Badge awards: a learner's own, one award (public), and its Open Badges JSON."""
+"""Badge awards: a learner's own, one award (public), its Open Badges JSON, and awarding directly."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
@@ -9,7 +9,7 @@ from src.db.goals import GoalTemplate
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.badges import awards, definition, open_badges
+from src.services.badges import awards, definition, direct, open_badges
 
 router = APIRouter()
 
@@ -25,6 +25,38 @@ def _award(db: Session, award_uuid: str) -> BadgeAward:
 def api_my_awards(db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> list[dict]:
     """The signed-in learner's badges, newest first."""
     return [awards.award_dict(db, award) for award in awards.awards_of(db, int(current_user.id))]
+
+
+@router.get("/awardable")
+def api_awardable(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> list[dict]:
+    """The released plans with a badge this organization may award directly."""
+    return direct.awardable(db, current_user, org_id)
+
+
+@router.get("/holders")
+def api_holders(org_id: int, template_uuid: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> list[int]:
+    """The organization's members who already hold a plan's badge."""
+    return direct.holder_ids(db, current_user, org_id, template_uuid)
+
+
+@router.post("/direct/preview")
+def api_award_preview(org_id: int, payload: direct.DirectAward, db: Session = Depends(get_db_session),
+                      current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """Who a direct award would reach and who it would skip, without awarding."""
+    return direct.preview(db, current_user, org_id, payload)
+
+
+@router.post("/direct")
+def api_award_directly(org_id: int, payload: direct.DirectAward, db: Session = Depends(get_db_session),
+                       current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """Award a plan's badge to learners and groups for equivalent work, with the awarder's sign-off."""
+    return direct.award_directly(db, current_user, org_id, payload)
+
+
+@router.get("/learner/{user_id}")
+def api_learner_awards(user_id: int, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """A learner's badges, for staff."""
+    return direct.learner_awards(db, current_user, org_id, user_id)
 
 
 @router.get("/issuer/{org_uuid}")

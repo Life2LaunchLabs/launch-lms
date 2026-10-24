@@ -2,14 +2,15 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { CalendarDays, ChevronRight, MessageSquareText, MoreVertical, Pause, Play, Repeat, Square, Users } from 'lucide-react'
+import { CalendarDays, ChevronRight, Medal, MessageSquareText, MoreVertical, Pause, Play, Repeat, Square, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { coverPalette } from '@components/Plans/shared/PlanCover'
 import { AssignmentStory, PersonTile } from '@components/Assignments/Pair'
-import type { AssignmentDetail } from '@services/assignments/assignments'
+import { AwardBadgeButton } from '@components/Badges/award/AwardFlow'
+import type { AssignmentDetail, AssignmentPerson } from '@services/assignments/assignments'
 import { dateRange, statusPill, type PillTone } from '@services/assignments/page'
-import { firstName, plural } from '@services/assignments/status'
+import { firstName, personLabel, plural } from '@services/assignments/status'
 
 const PILL: Record<PillTone, string> = {
   running: 'bg-good-soft text-good',
@@ -28,6 +29,8 @@ export interface HeaderActions {
   onResume: () => void
   onEnd: () => void
 }
+
+const awardee = (person: AssignmentPerson) => ({ id: person.id, name: personLabel(person), username: person.username || '', avatar_image: person.avatar_image, user_uuid: person.user_uuid })
 
 /** A plan's color, faintly, behind the assignment's header. */
 export const heroTint = (detail: AssignmentDetail) => ({ background: `color-mix(in srgb, ${coverPalette(detail.plan).deep} 9%, hsl(var(--background)))` })
@@ -77,6 +80,8 @@ export default function Header({ detail, tab, links, invited, people, unread, ac
           {leads.map((member) => firstName(member.person)).join(', ')}
         </span> : null}
         <span>{detail.plan.version ? `v${detail.plan.version}` : ''}{detail.plan.badge ? ` · earns ${detail.plan.badge.name}` : ''}</span>
+        {detail.plan.badge ? <AwardBadgeButton templateUuid={detail.plan.template_uuid} people={detail.target.type === 'person' && detail.target.person ? [awardee(detail.target.person)] : undefined}
+          className="inline-flex h-[30px] items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[12.5px] font-bold text-foreground hover:bg-muted"><Medal size={14} aria-hidden="true" />Award directly</AwardBadgeButton> : null}
       </div>
       <nav aria-label="Assignment" className="mt-5 flex gap-1">
         {([['steps', 'Steps'], ['people', 'People']] as const).map(([id, label]) => <Link key={id} href={links.tab(id)} aria-current={tab === id ? 'page' : undefined}
