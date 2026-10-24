@@ -390,7 +390,7 @@ def test_staff_steps_in_a_stage_still_to_come_dont_wait_on_staff():
         templates.publish(db, _user(ADMIN), 1, created["template_uuid"], "First")
         schedule = AssignmentSchedule(stages=[StageSchedule(stage_key="now", start_date=date.today() - timedelta(days=7)),
                                               StageSchedule(stage_key="later", start_date=date.today() + timedelta(days=30))])
-        result = assignments.assign(db, _user(ADMIN), 1, created["template_uuid"], GoalAssignmentRequest(usergroup_id=1, staff_user_ids=[ADMIN], schedule=schedule))
+        result = assignments.assign(db, _user(ADMIN), 1, created["template_uuid"], GoalAssignmentRequest(usergroup_id=1, staff_user_ids=[ADMIN], schedule=schedule, due_date=date.today() + timedelta(days=90)))
         for learner in (LEARNER, OTHER):
             goals.respond(db, _user(learner), _goal(db, learner, result["assignment_uuid"]).goal_uuid, True)
         confirm = [group for group in review.inbox(db, _user(ADMIN), 1)["groups"] if group["kind"] == "confirm"]

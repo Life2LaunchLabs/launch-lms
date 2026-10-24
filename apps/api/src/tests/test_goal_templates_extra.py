@@ -208,7 +208,7 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
         assert result["due_date"] == date(2026, 12, 20) and result["learner_count"] == 2
         # With nobody else leading, the person assigning leads.
         assert result["collaborators"] == [{"user_id": ADMIN, "role_key": "lead"}, {"user_id": OTHER, "role_key": "comment"}]
-        assert result["schedule"]["steps"] == [{"step_key": "essay", "due_date": "2026-12-10"}]
+        assert result["schedule"]["steps"] == [{"step_key": "essay", "start_date": None, "due_date": "2026-12-10", "open_early": True, "allow_late": True}]
         assert {item["stage_key"] for item in result["schedule"]["stages"]} == {"explore", "apply"}
 
         goal = db.exec(select(Goal).where(Goal.subject_user_id == LEARNER)).one()

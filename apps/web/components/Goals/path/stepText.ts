@@ -17,6 +17,7 @@ export function lockedSentence(step: Step) {
   const reason = step.locked_reason
   if (!reason) return ''
   if (reason.kind === 'opens') return `This opens on ${shortDate(reason.date)}.`
+  if (reason.kind === 'closed') return `This closed on ${shortDate(reason.date)}. Message your staff if you still need to hand it in.`
   if (reason.kind === 'after') return `Finish ${reason.title} first, then this opens.`
   if (reason.kind === 'stage') return reason.date ? `This opens when ${reason.title} starts on ${shortDate(reason.date)}.` : `This opens when the goal moves on to ${reason.title}.`
   return 'Someone helping with this goal has put this step on hold.'
@@ -27,6 +28,7 @@ export function statusLine(step: Step) {
   if (step.state === 'locked') {
     const reason = step.locked_reason
     if (reason?.kind === 'opens') return `Opens ${shortDate(reason.date)}`
+    if (reason?.kind === 'closed') return `Closed ${shortDate(reason.date)}`
     if (reason?.kind === 'after') return `After ${reason.title}`
     if (reason?.kind === 'stage') return reason.date ? `Opens ${shortDate(reason.date)}` : `Opens with ${reason.title}`
     return reason?.kind === 'held' ? 'On hold for now' : 'Not open yet'

@@ -77,6 +77,7 @@ export interface StepEntry {
 
 export type LockReason =
   | { kind: 'after'; step_uuid: string; title: string }
+  | { kind: 'closed'; date: string }
   | { kind: 'held' }
   | { kind: 'opens'; date: string }
   | { kind: 'stage'; title: string; date: string | null }

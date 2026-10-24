@@ -11,7 +11,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, false as sa_false, true as sa_true
 from sqlmodel import Field, SQLModel
 
 
@@ -256,6 +256,9 @@ class GoalStep(SQLModel, table=True):
     # Opens and closes with its stage unless these are set (or it waits on other steps).
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True, index=True))
+    # open_early: the start date only suggests (open with its stage). allow_late off: closes at its due date.
+    open_early: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=sa_false()))
+    allow_late: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default=sa_true()))
     # Staff put the step on hold.
     held: bool = False
     after_step_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))

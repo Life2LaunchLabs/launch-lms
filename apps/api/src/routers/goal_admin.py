@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
 from src.db.goal_admin import AdminHomeLayout, StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
-from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepDue, StepRemind, StepSettle
+from src.db.goal_templates import ApplyVersion, AssignmentScheduleSave, GoalAssignmentUpdate, StepDue, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
@@ -132,6 +132,14 @@ def api_assignment_apply_version(assignment_uuid: str, org_id: int, payload: App
                                  db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Move the assignment to the version: only steps nobody has started change in its learners' plans."""
     return assignment_versions.apply_version(db, user, org_id, assignment_uuid, payload.version_uuid)
+
+
+@router.put("/assignments/{assignment_uuid}/schedule")
+def api_assignment_schedule(assignment_uuid: str, org_id: int, payload: AssignmentScheduleSave,
+                            db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Replace the assignment's whole schedule: start, end, stage starts, and steps' own dates and switches."""
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.save_schedule(db, user, org_id, assignment_uuid, payload)
 
 
 @router.put("/assignments/{assignment_uuid}/steps/{step_key}/due")
