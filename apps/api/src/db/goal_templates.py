@@ -12,7 +12,7 @@ from src.db.goals import GOAL_ICONS, PLAN_COLORS, GoalAssignmentCreate
 
 class AssignmentCollaborator(SQLModel):
     user_id: int
-    # A role of the template; defaults to its staff role.
+    # lead, review or comment; unset reviews (or leads, when nobody else does).
     role_key: str | None = None
 
 

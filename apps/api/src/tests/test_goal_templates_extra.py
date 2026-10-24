@@ -199,14 +199,15 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
                 StageSchedule(stage_key="explore", start_date=date(2026, 12, 1)), StageSchedule(stage_key="apply", start_date=date(2026, 11, 1))])))
 
         result = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(
-            usergroup_id=1, due_date=date(2026, 12, 20), collaborators=[AssignmentCollaborator(user_id=OTHER, role_key="viewer")],
+            usergroup_id=1, due_date=date(2026, 12, 20), collaborators=[AssignmentCollaborator(user_id=OTHER, role_key="comment")],
             schedule=AssignmentSchedule(
                 stages=[StageSchedule(stage_key="explore", start_date=date(2026, 10, 1)), StageSchedule(stage_key="apply", start_date=date(2026, 11, 16))],
                 steps=[StepSchedule(step_key="essay", due_date=date(2026, 12, 10))],
             ),
         ))
         assert result["due_date"] == date(2026, 12, 20) and result["learner_count"] == 2
-        assert result["collaborators"] == [{"user_id": ADMIN, "role_key": "plan_admin"}, {"user_id": OTHER, "role_key": "viewer"}]
+        # With nobody else leading, the person assigning leads.
+        assert result["collaborators"] == [{"user_id": ADMIN, "role_key": "lead"}, {"user_id": OTHER, "role_key": "comment"}]
         assert result["schedule"]["steps"] == [{"step_key": "essay", "due_date": "2026-12-10"}]
         assert {item["stage_key"] for item in result["schedule"]["stages"]} == {"explore", "apply"}
 
@@ -216,7 +217,7 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
         essay = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.template_key == "essay")).one()
         assert essay.due_date == date(2026, 12, 10)
         member = db.exec(select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id).where(PlanCollaborator.goal_id == goal.id, PlanCollaborator.user_id == OTHER)).one()
-        assert member[1].key == "viewer"
+        assert member[1].key == "commenter"
 
         visit = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.template_key == "visit")).one()
         goals.change_status(db, _user(LEARNER), goal.goal_uuid, visit.step_uuid, StepStatusChange(status=StepStatus.COMPLETED))
