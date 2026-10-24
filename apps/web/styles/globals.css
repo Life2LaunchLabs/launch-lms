@@ -172,6 +172,16 @@
   --color-brand-soft: hsl(var(--brand-soft));
   --color-brand-ink: hsl(var(--brand-ink));
 
+  /* Where learners are on a step (components/Assignments/StatusBar.tsx): complete, behind, open; review is brand. */
+  --color-good: hsl(var(--good));
+  --color-good-soft: hsl(var(--good-soft));
+  --color-late: hsl(var(--late));
+  --color-late-soft: hsl(var(--late-soft));
+  --color-open: hsl(var(--open));
+  /* Questions from learners. */
+  --color-ask: hsl(var(--ask));
+  --color-ask-soft: hsl(var(--ask-soft));
+
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
 
@@ -420,6 +430,13 @@
     --brand: 222 82% 52%;
     --brand-soft: 222 90% 95%;
     --brand-ink: 222 70% 38%;
+    --good: 152 60% 36%;
+    --good-soft: 152 55% 93%;
+    --late: 4 70% 48%;
+    --late-soft: 4 85% 95%;
+    --open: 205 30% 72%;
+    --ask: 270 55% 45%;
+    --ask-soft: 270 80% 95%;
     --shell: 200 20% 89%;
     --raised: 200 22% 93%;
     --edge: 200 16% 78%;
@@ -479,6 +496,13 @@
     --brand: 218 95% 64%;
     --brand-soft: 222 50% 20%;
     --brand-ink: 218 100% 80%;
+    --good: 152 55% 55%;
+    --good-soft: 152 35% 16%;
+    --late: 4 80% 66%;
+    --late-soft: 4 40% 18%;
+    --open: 205 22% 42%;
+    --ask: 270 90% 82%;
+    --ask-soft: 270 35% 22%;
     --shell: 196 36% 6%;
     --raised: 199 26% 18%;
     --edge: 201 24% 22%;
@@ -2900,4 +2924,9 @@
 .learning-scene-still .learning-confetti { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .learning-star, .learning-aurora, .learning-drift, .learning-confetti { animation: none; }
+}
+
+/* A step that isn't open yet, in status bars and their legend. */
+.status-locked {
+  background: repeating-linear-gradient(-45deg, hsl(var(--muted)) 0 4px, color-mix(in srgb, hsl(var(--border)) 70%, hsl(var(--muted))) 4px 6px);
 }

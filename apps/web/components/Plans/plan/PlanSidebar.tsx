@@ -11,7 +11,7 @@ import type { TemplateDocument } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import { documentSteps } from '@components/Plans/editor/documentOps'
 import { leafNodes, useRequirementFrameworks } from '@components/Plans/editor/StepRequirementLinks'
-import GoalAssignmentModal from '@components/Plans/editor/GoalAssignmentModal'
+import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { smallActionClass, smallPrimaryClass } from '@components/Plans/shared/actions'
 import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import { AsideCard, Tag } from './AsideCard'
@@ -70,7 +70,7 @@ function AssignmentsCard({ orgslug, orgId, token, template, canAssign }: { orgsl
         <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground"><span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted sm:w-[72px]"><span className="block h-full rounded-full bg-emerald-600" style={{ width: `${progress}%` }} /></span>{progress}%</span>
       </Link></li>
     })}</ul> : <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">{live ? 'No one has this plan yet. Assign it to a group or to learners one by one.' : 'Publish a live version to start assigning it.'}</p>}
-    {canAssign ? live ? <GoalAssignmentModal initialTemplateUuid={template.template_uuid} onAssigned={async () => { await mutate() }}
+    {canAssign ? live ? <AssignFlow initialTemplateUuid={template.template_uuid} onAssigned={async () => { await mutate() }}
       trigger={<button type="button" className={cn(active.length ? smallActionClass : smallPrimaryClass, 'mt-3')}><Plus />Assign</button>} />
       : <button type="button" disabled title="No live version" className={smallActionClass + ' mt-3'}><Plus />Assign</button> : null}
   </AsideCard>

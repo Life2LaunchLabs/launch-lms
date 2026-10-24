@@ -2,7 +2,7 @@
 
 import React from 'react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
-import { OrgAssignments } from '@components/Goals/admin/assignments/AssignmentsList'
+import AssignmentsList from '@components/Assignments/list/AssignmentsList'
 import { RequirementFrameworkDetail } from '@components/Goals/admin/insights/RequirementFrameworkEditor'
 import FrameworkList from '@components/Goals/admin/requirements/FrameworkList'
 import { useStaff } from '@components/Goals/admin/assignments/shared'
@@ -27,7 +27,7 @@ export function DiscoverTab({ orgslug }: { orgslug: string }) {
 }
 
 export function AssignmentsTab({ orgslug }: { orgslug: string }) {
-  return <PlansPage tab="assignments"><OrgAssignments orgslug={orgslug} /></PlansPage>
+  return <PlansPage tab="assignments"><AssignmentsList orgslug={orgslug} /></PlansPage>
 }
 
 export function RequirementsTab({ orgslug }: { orgslug: string }) {

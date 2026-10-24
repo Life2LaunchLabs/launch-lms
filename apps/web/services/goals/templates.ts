@@ -131,7 +131,7 @@ export interface GoalAssignmentRequest {
   due_date?: string | null
   schedule?: {
     stages: Array<{ stage_key: string; start_date?: string | null }>
-    steps: Array<{ step_key: string; due_date?: string | null }>
+    steps: Array<{ step_key: string; start_date?: string | null; due_date?: string | null; open_early?: boolean; allow_late?: boolean }>
   } | null
   /** The badge its learners earn; needed only to pick between badges that share a template. */
   badge_uuid?: string | null

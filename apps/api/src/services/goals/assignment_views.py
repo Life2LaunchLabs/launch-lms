@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
+from src.db.learning import LearningBadge
 from src.db.goals import Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
@@ -50,10 +51,12 @@ def _target(db: Session, assignment: GoalAssignment) -> dict:
 def _plan(db: Session, assignment: GoalAssignment) -> dict:
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
+    badge = db.get(LearningBadge, assignment.badge_id) if assignment.badge_id else None
     return {
         "template_uuid": template.template_uuid if template else "", "title": template.title if template else "Deleted plan",
         "thumbnail_image": template.thumbnail_image if template else "", "icon": template.icon if template else None,
         "color": template.color if template else None, "version": version.number if version else None,
+        "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name} if badge else None,
     }
 
 
@@ -64,11 +67,25 @@ def _staff(db: Session, assignment: GoalAssignment) -> list[dict]:
             if int(item["user_id"]) in users]
 
 
+def _current_stage(assignment: GoalAssignment, board: assignment_status.Board) -> dict | None:
+    """The stage running today on a scheduled assignment: the last one that has started."""
+    stages = board.document.get("stages") or []
+    if not scheduled(assignment) or not stages:
+        return None
+    dates = stage_schedule(board.document, assignment.start_date, assignment.stage_dates)
+    today = date.today()
+    started = [position for position, stage in enumerate(stages) if (start := dates.get(stage["key"], (None, None))[0]) and start <= today]
+    if not started:
+        return None
+    position = started[-1]
+    return {"position": position, "title": stages[position].get("title") or "", "of": len(stages)}
+
+
 def _summary(db: Session, user: PublicUser, assignment: GoalAssignment, board: assignment_status.Board) -> dict:
     return {
         "assignment_uuid": assignment.assignment_uuid, "target": _target(db, assignment), "plan": _plan(db, assignment),
         "start_date": assignment.start_date, "due_date": assignment.due_date, "scheduled": scheduled(assignment),
-        **status_fields(assignment), "creation_date": assignment.creation_date,
+        "stage": _current_stage(assignment, board), **status_fields(assignment), "creation_date": assignment.creation_date,
         "learner_count": len(board.learners), "step_count": len(board.step_keys()),
         "counts": board.counts(), "needs": board.needs(),
     }

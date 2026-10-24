@@ -6,7 +6,7 @@ import { Loader2, Plus, Users } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import FilterBar from '@components/Admin/Filters/FilterBar'
 import { useFilters } from '@components/Admin/Filters/useFilters'
-import GoalAssignmentModal from '@components/Plans/editor/GoalAssignmentModal'
+import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { goalAdminApi, inboxKey, plansKey, type Cohort, type Inbox } from '@services/goals/admin'
 import PageWelcome from '@components/Admin/PageWelcome'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -131,6 +131,6 @@ export function GroupAssignments({ orgslug, groupId, cohort, refresh }: { orgslu
   return <div className="px-4 pb-10 sm:px-10"><div className="mx-auto max-w-5xl">
     <AssignmentsList rows={rows} orgslug={orgslug} needs={needs} showTemplate onChanged={refresh}
       empty="No plan templates are assigned to this group yet."
-      assign={admin ? <GoalAssignmentModal initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<Button type="button" size="sm"><Plus size={14} />Assign a template</Button>} /> : null} />
+      assign={admin ? <AssignFlow initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<Button type="button" size="sm"><Plus size={14} />Assign a template</Button>} /> : null} />
   </div></div>
 }

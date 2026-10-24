@@ -8,7 +8,7 @@ import { ArrowUpRight, Layers3, Loader2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AssignmentLearners from '@components/Goals/admin/assignments/AssignmentLearners'
 import { assignmentHref, datesLine } from '@components/Goals/admin/assignments/shared'
-import GoalAssignmentModal from '@components/Plans/editor/GoalAssignmentModal'
+import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { cohortKey, goalAdminApi, matrixKey, type Cohort } from '@services/goals/admin'
 import { usePeopleContext } from './usePeople'
@@ -38,7 +38,7 @@ function GroupPlans({ orgslug, groupId, cohort, refresh }: { orgslug: string; gr
   const current = all.find((item) => item.assignment_uuid === requested) || all[0]
   const { data: matrix, error } = useSWR(current && orgId && token ? matrixKey(current.assignment_uuid, orgId) : null,
     () => goalAdminApi.matrix(orgId, current!.assignment_uuid, token), { revalidateOnFocus: false })
-  const assign = <GoalAssignmentModal initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium hover:bg-muted"><Plus size={15} />Assign a plan</button>} />
+  const assign = <AssignFlow initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium hover:bg-muted"><Plus size={15} />Assign a plan</button>} />
   if (!current) return <div className="px-4 md:px-10"><div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">No plans are assigned to this group yet.</p><div className="mt-4 flex justify-center">{assign}</div></div></div>
   return <div className="space-y-4 px-4 md:px-10">
     <div className="flex flex-wrap items-center gap-2">

@@ -9,7 +9,7 @@ import { Input } from '@components/ui/input'
 import { isTemplatesKey, templatesApi, type DraftChanges } from '@services/goals/templates'
 import type { StepTypeKey } from '@services/goals/types'
 import { cn } from '@/lib/utils'
-import GoalAssignmentModal from '@components/Plans/editor/GoalAssignmentModal'
+import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/actions'
 import PlanDialog, { ToggleRow } from './PlanDialog'
@@ -124,7 +124,7 @@ function Celebration({ open, setOpen, title, done, canAssign, templateUuid, onVi
       <h2 className="mt-[18px] text-[28px] font-extrabold leading-tight tracking-tight">{done.live ? `${title} v${done.semver} is live!` : `v${done.semver} is published`}</h2>
       <p className="mt-2 text-[15px] leading-normal text-muted-foreground">{detail}</p>
       {done.live && (canAssign || onVisibility) ? <div className="relative mt-[22px] flex flex-col gap-2 text-left">
-        {canAssign ? <GoalAssignmentModal initialTemplateUuid={templateUuid} trigger={<button type="button" className="flex items-center gap-3.5 rounded-2xl border border-brand bg-brand-soft p-3.5 text-left">
+        {canAssign ? <AssignFlow initialTemplateUuid={templateUuid} trigger={<button type="button" className="flex items-center gap-3.5 rounded-2xl border border-brand bg-brand-soft p-3.5 text-left">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white"><Users size={20} aria-hidden="true" /></span>
           <span><b className="block text-[14.5px]">{done.first ? 'Assign it to your first learners' : 'Assign it'}</b><span className="text-[13px] text-muted-foreground">To a group, or to learners one by one</span></span>
         </button>} /> : null}
