@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goal_templates import AssignmentCollaborator, AssignmentScheduleSave, GoalAssignmentUpdate, StepSchedule
+from src.db.goals import GoalAssignment
 from src.db.user_organizations import UserOrganization
 from src.services.goals import assignments, goals
 from src.services.goals.availability import availability
@@ -89,3 +90,15 @@ def test_a_lead_saves_the_schedule_and_the_old_step_due_route_still_works():
         result = assignments.set_step_due(db, _user(COACH), 1, uuid, "visit", TODAY + timedelta(days=5))
         assert result["schedule"]["steps"][0]["due_date"] == (TODAY + timedelta(days=5)).isoformat()
         assert _goal_step(db, _goal(db, LEARNER, uuid), "visit").due_date == TODAY + timedelta(days=5)
+
+
+def test_the_group_chat_topic_shows_each_steps_due_date():
+    from src.services.connect import cohort
+
+    with _session() as db:
+        uuid = _assign(db, ESSAY, VISIT)["assignment_uuid"]
+        assignments.save_schedule(db, _user(ADMIN), 1, uuid, AssignmentScheduleSave(
+            start_date=TODAY, due_date=TODAY + timedelta(days=30), steps=[StepSchedule(step_key="essay", due_date=TODAY + timedelta(days=7))]))
+        assignment = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == uuid)).one()
+        steps = {step["step_uuid"]: step for step in cohort.topic(db, cohort.chat(db, assignment, cohort.GROUP))["steps"]}
+        assert steps["essay"]["due_date"] == TODAY + timedelta(days=7)

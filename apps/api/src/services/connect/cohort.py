@@ -221,7 +221,7 @@ def topic(db: Session, conversation: Conversation) -> dict | None:
     document = _document(db, assignment)
     due = _planned(assignment, document)["steps"]
     by_step, total = counts(db, conversation)
-    steps = [{"step_uuid": key, "title": title, "status": StepStatus.NOT_STARTED.value, "due_date": due.get(key), "behind": False, "count": by_step.get(key, 0)}
+    steps = [{"step_uuid": key, "title": title, "status": StepStatus.NOT_STARTED.value, "due_date": (due.get(key) or {}).get("due_date"), "behind": False, "count": by_step.get(key, 0)}
              for key, title in _steps(document).items()]
     ended = _value(assignment.status) == AssignmentStatus.ENDED.value
     return {
