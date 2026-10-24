@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useGoalEditing } from '@components/Goals/edit/GoalEditing'
 import GoalShareDialog from '@components/Goals/share/GoalShareDialog'
 import { GoalChatChip } from '@components/Goals/chat/GoalChat'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalUrl, isGoalsKey } from '@services/goals/goals'
 import { goalLifecycleApi } from '@services/goals/lifecycle'
 import { can, type Goal, type PersonSummary } from '@services/goals/types'
@@ -69,11 +69,11 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       {onEndCoach ? <button type="button" onClick={onEndCoach} aria-label="End Coach’s session" className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg bg-black/15 hover:bg-black/25"><X size={13} aria-hidden="true" /></button> : null}
     </span> : null}
     {onSettings ? <button type="button" onClick={onSettings} aria-label="Goal settings" className={chip}><Settings2 size={16} aria-hidden="true" /></button> : null}
-    {badge?.badge_uuid || canReopen || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
+    {badge || canReopen || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
       <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {onPlanWithCoach ? <DropdownMenuItem onSelect={onPlanWithCoach}><Sparkles size={14} className="mr-2" />Plan with Coach</DropdownMenuItem> : null}
-        {badge?.badge_uuid ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/badges/${String(badge.badge_uuid).replace(/^badge_/, '')}`)}><Award size={14} className="mr-2" />View badge</a></DropdownMenuItem> : null}
+        {badge ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(badge.template_uuid))}><Award size={14} className="mr-2" />View badge</a></DropdownMenuItem> : null}
         {goal.status === 'finished' ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)}><BookOpen size={14} className="mr-2" />Watch your story</a></DropdownMenuItem> : null}
         {canReopen ? <DropdownMenuItem onSelect={() => void reopen()}>Reopen goal</DropdownMenuItem> : null}
         {canDelete ? <DropdownMenuItem onSelect={() => void remove()} className="text-red-600">Delete goal</DropdownMenuItem> : null}

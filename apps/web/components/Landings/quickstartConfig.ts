@@ -25,7 +25,7 @@ export const QUICKSTART_FEATURES: Record<
   },
   badges: {
     label: 'Badges',
-    description: 'Discover badges to earn',
+    description: 'Discover plans and badges to earn',
     icon: ({ className }) =>
       createElement(Books, { size: 44, weight: 'fill', className }),
     href: routePaths.org.discover(),

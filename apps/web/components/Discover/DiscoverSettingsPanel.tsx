@@ -8,10 +8,10 @@ import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { Switch } from '@components/ui/switch'
-import { badgeDiscoverApi, type DiscoverSettings, type DiscoverSettingsResponse, type DiscoverSlideConfig, type DiscoverSlideKind } from '@services/learning/badgeDiscover'
+import { planJoiningApi, type DiscoverSettings, type DiscoverSettingsResponse, type DiscoverSlideConfig, type DiscoverSlideKind } from '@services/goals/planJoining'
 
 const kinds: { value: DiscoverSlideKind; label: string }[] = [
-  { value: 'badge', label: 'Featured badge' }, { value: 'collection', label: 'Badge series' },
+  { value: 'plan', label: 'Featured plan' }, { value: 'collection', label: 'Collection' },
   { value: 'link', label: 'Custom story' },
   { value: 'challenges', label: 'Challenges coming soon' },
 ]
@@ -30,7 +30,7 @@ export default function DiscoverSettingsPanel({ orgId }: { orgId: number }) {
   const load = useCallback(async (force = false) => {
     if (!token || (!force && loadedOrg.current === orgId)) return
     setError('')
-    try { const result = await badgeDiscoverApi.settings(orgId, token); setData(result); setDraft(result.settings); loadedOrg.current = orgId }
+    try { const result = await planJoiningApi.settings(orgId, token); setData(result); setDraft(result.settings); loadedOrg.current = orgId }
     catch (failure: any) { setError(failure?.message || 'Could not load Discover settings') }
   }, [orgId, token])
   useEffect(() => { void load() }, [load])
@@ -46,25 +46,25 @@ export default function DiscoverSettingsPanel({ orgId }: { orgId: number }) {
   const save = async () => {
     if (!draft || !token || saving) return
     setSaving(true); setError('')
-    try { const result = await badgeDiscoverApi.saveSettings(orgId, draft, token); setData(result); setDraft(result.settings); toast.success('Discover carousel saved') }
+    try { const result = await planJoiningApi.saveSettings(orgId, draft, token); setData(result); setDraft(result.settings); toast.success('Discover carousel saved') }
     catch (failure: any) { setError(failure?.message || 'Could not save Discover settings') }
     finally { setSaving(false) }
   }
   return <div className="min-h-full bg-background text-foreground">
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div><h1 className="text-2xl font-semibold">Discover carousel</h1><p className="mt-2 text-sm text-muted-foreground">Feature badges, series, and announcements at the top of Discover.</p></div>
+      <div><h1 className="text-2xl font-semibold">Discover carousel</h1><p className="mt-2 text-sm text-muted-foreground">Feature plans, collections and announcements at the top of Discover.</p></div>
       {error ? <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">{error}{!draft ? <Button onClick={() => void load(true)} variant="ghost">Retry</Button> : null}</div> : null}
       {!draft ? !error && <p role="status">Loading settings…</p> : <form className="space-y-6" onSubmit={event => { event.preventDefault(); void save() }}>
         <fieldset disabled={saving} className="space-y-6">
           <div className="flex items-center justify-between rounded-xl bg-card p-4"><label htmlFor="discover-enabled" className="font-medium">Show carousel</label><Switch id="discover-enabled" checked={draft.enabled} onCheckedChange={enabled => setDraft({ ...draft, enabled })} /></div>
-          <label className="grid gap-2 text-sm font-medium">Content selection<select aria-label="Content selection" className={selectClass} value={draft.mode} onChange={event => setDraft({ ...draft, mode: event.target.value as DiscoverSettings['mode'] })}><option value="automatic">Automatic</option><option value="curated">Curated</option></select><span className="font-normal text-muted-foreground">Automatic includes featured badges, a series, and the challenges announcement. Curated uses your slides in the order below.</span></label>
+          <label className="grid gap-2 text-sm font-medium">Content selection<select aria-label="Content selection" className={selectClass} value={draft.mode} onChange={event => setDraft({ ...draft, mode: event.target.value as DiscoverSettings['mode'] })}><option value="automatic">Automatic</option><option value="curated">Curated</option></select><span className="font-normal text-muted-foreground">Automatic includes featured plans, a collection and the challenges announcement. Curated uses your slides in the order below.</span></label>
           {draft.mode === 'curated' ? <div className="space-y-4">
             {draft.slides.map((slide, index) => {
-              const sources = slide.kind === 'badge' ? data?.options.badges : slide.kind === 'collection' ? data?.options.collections : undefined
+              const sources = slide.kind === 'plan' ? data?.options.plans : slide.kind === 'collection' ? data?.options.collections : undefined
               return <section key={index} className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={`Slide ${index + 1}`}>
                 <div className="flex items-center justify-between"><h2 className="font-semibold">Slide {index + 1}</h2><div className="flex gap-1"><Button type="button" size="icon" variant="ghost" disabled={index === 0} aria-label={`Move slide ${index + 1} up`} onClick={() => move(index, -1)}><ArrowUp size={16} /></Button><Button type="button" size="icon" variant="ghost" disabled={index === draft.slides.length - 1} aria-label={`Move slide ${index + 1} down`} onClick={() => move(index, 1)}><ArrowDown size={16} /></Button><Button type="button" size="icon" variant="ghost" aria-label={`Remove slide ${index + 1}`} onClick={() => setDraft({ ...draft, slides: draft.slides.filter((_, position) => position !== index) })}><Trash2 size={16} /></Button></div></div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-medium">Story type<select aria-label="Story type" className={selectClass} value={slide.kind} onChange={event => { const kind = event.target.value as DiscoverSlideKind; update(index, { kind, target: kind === 'challenges' ? 'challenges' : '', theme: kind === 'badge' ? 'blue' : 'dark' }) }}>{kinds.map(kind => <option key={kind.value} value={kind.value}>{kind.label}</option>)}</select></label>
+                  <label className="grid gap-2 text-sm font-medium">Story type<select aria-label="Story type" className={selectClass} value={slide.kind} onChange={event => { const kind = event.target.value as DiscoverSlideKind; update(index, { kind, target: kind === 'challenges' ? 'challenges' : '', theme: kind === 'plan' ? 'blue' : 'dark' }) }}>{kinds.map(kind => <option key={kind.value} value={kind.value}>{kind.label}</option>)}</select></label>
                   {slide.kind === 'link' ? <label className="grid gap-2 text-sm font-medium">Destination<Input required value={slide.target} placeholder="/plans or https://…" onChange={event => update(index, { target: event.target.value })} /></label> : slide.kind !== 'challenges' ? <label className="grid gap-2 text-sm font-medium">Published source<select aria-label="Published source" required className={selectClass} value={slide.target} onChange={event => update(index, { target: event.target.value })}><option value="">Choose a source</option>{slide.target && !sources?.some(source => source.id === slide.target) ? <option value={slide.target}>Unavailable source — choose another</option> : null}{sources?.map(source => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label> : null}
                   <label className="grid gap-2 text-sm font-medium">Title{slide.kind !== 'link' ? ' (optional)' : ''}<Input required={slide.kind === 'link'} value={slide.title} placeholder="Use source title" onChange={event => update(index, { title: event.target.value })} maxLength={160} /></label>
                   <label className="grid gap-2 text-sm font-medium">Eyebrow (optional)<Input value={slide.eyebrow} onChange={event => update(index, { eyebrow: event.target.value })} maxLength={80} /></label>

@@ -1,7 +1,7 @@
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { goalAdminUrl } from './admin'
 import type { GoalAssignmentSummary } from './templates'
-import type { AssignmentBadge } from './versionStatus'
+import type { BadgeSummary } from '@services/badges/badges'
 
 export * from './versionStatus'
 
@@ -20,9 +20,10 @@ export interface VersionStageChange { stage_key: string; title: string; change: 
 export interface VersionChanges {
   assignment_uuid: string
   current: { version_uuid: string; number: number; published_at: string | null } | null
-  target: { version_uuid: string; number: number; note: string; published_at: string | null; eligible: boolean | null }
-  badge: AssignmentBadge | null
-  current_eligible: boolean | null
+  /** ``badge``: what finishing the target version earns (null: none). */
+  target: { version_uuid: string; number: number; note: string; published_at: string | null; badge: BadgeSummary | null }
+  /** What finishing the current version earns. */
+  badge: BadgeSummary | null
   open_plans: number
   stages: VersionStageChange[]
   has_changes: boolean

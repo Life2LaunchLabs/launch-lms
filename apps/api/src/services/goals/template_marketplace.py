@@ -318,13 +318,17 @@ def _learners_running(db: Session, authorization: GoalTemplateAuthorization) -> 
 
 
 def requests_summary(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """Counts for the Marketplace tab: plan requests waiting on this organization, and its own still pending."""
+    """Counts for the Requests tab: requests waiting on this organization, and its own still pending."""
     require_org_admin(current_user.id, org_id, db)
 
     def count(*where) -> int:
         return int(db.exec(select(func.count()).select_from(GoalTemplateAuthorization).where(*where)).one() or 0)
 
-    return {"incoming_requested": count(GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED),
+    from src.db.plan_joining import PlanJoinRequest
+
+    learners = int(db.exec(select(func.count()).select_from(PlanJoinRequest).where(PlanJoinRequest.org_id == org_id, PlanJoinRequest.status == "requested")).one() or 0)
+    # Waiting on this organization: other organizations asking to run its plans, and learners asking to join them.
+    return {"incoming_requested": count(GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED) + learners,
             "outgoing_pending": count(GoalTemplateAuthorization.issuer_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED)}
 
 

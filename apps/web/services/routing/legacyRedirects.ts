@@ -48,6 +48,8 @@ function legacyAdminPath(parts: string[]): string | null {
       if (b === 'collection' && n === 4) return admin.discoverCollection(decode(c))
       return admin.discover()
     }
+    // A badge's own admin pages are gone: the badge is a card on its plan.
+    if (a === 'badge') return admin.plans()
     // A plan's old tabs are one page now.
     if (n === 3 && OLD_PLAN_TABS.has(b) && !PLANS_SECTIONS.has(a)) return admin.template(decode(a))
     return null
@@ -77,7 +79,6 @@ function legacyAdminPath(parts: string[]): string | null {
   if (area === 'badges') {
     // Badges are part of the plans that earn them; there is no Badges tab.
     if (a === 'marketplace') return admin.discover()
-    if (a === 'badge' && b) return admin.badge(decode(b), c ? decode(c) : null)
     return admin.plans()
   }
 

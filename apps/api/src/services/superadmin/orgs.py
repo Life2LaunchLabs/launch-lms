@@ -217,7 +217,6 @@ def _sort_org_items(items: list[dict], sort: str) -> list[dict]:
         "users_desc": (lambda item: (item["user_count"], item["id"]), True),
         "users_asc": (lambda item: (item["user_count"], item["id"]), False),
         "badges_desc": (lambda item: (item["badge_count"], item["id"]), True),
-        "courses_desc": (lambda item: (item["badge_count"], item["id"]), True),
         "most_admins": (lambda item: (len(item["admin_users"]), item["id"]), True),
         "recently_updated": (lambda item: _parse_datetime(item.get("update_date")), True),
     }
@@ -259,8 +258,6 @@ def list_organizations(
                 **org.model_dump(),
                 "user_count": user_counts.get(org.id, 0),
                 "badge_count": badge_counts.get(org.id, 0),
-                # Backward-compatible alias for older platform clients.
-                "course_count": badge_counts.get(org.id, 0),
                 "pending_request_count": pending_counts.get(org.id, 0),
                 "tier": org_tier,
                 "admin_users": admins_by_org.get(org.id, []),
@@ -302,8 +299,6 @@ def get_organization(db_session: Session, org_id: int) -> dict:
         "access": access_from_config(org_config.config if org_config else None, owner=is_owner).to_dict(),
         "user_count": user_count,
         "badge_count": badge_count,
-        # Backward-compatible alias for older platform clients.
-        "course_count": badge_count,
         "pending_request_count": pending_request_count,
         "admin_users": _admin_users_for_org(org.id, db_session),
         "is_owner_org": is_owner,

@@ -268,9 +268,11 @@ def add_collection(db: Session, current_user: PublicUser, org_id: int, collectio
 
 def added_template_ids(db: Session, org_id: int) -> set[int]:
     """Other organizations' plans this one runs as-is or is waiting on (collections may hold them)."""
-    rows = db.exec(select(GoalTemplateAuthorization.template_id).join(GoalTemplateListing, GoalTemplateListing.template_id == GoalTemplateAuthorization.template_id).where(
+    # Approved on a plan with no listing (its owner invited this organization) is run as-is too.
+    rows = db.exec(select(GoalTemplateAuthorization.template_id).outerjoin(GoalTemplateListing, GoalTemplateListing.template_id == GoalTemplateAuthorization.template_id).where(
         GoalTemplateAuthorization.issuer_org_id == org_id,
-        (GoalTemplateAuthorization.status == REQUESTED) | ((GoalTemplateAuthorization.status == APPROVED) & (GoalTemplateListing.mode == "locked")))).all()
+        (GoalTemplateAuthorization.status == REQUESTED)
+        | ((GoalTemplateAuthorization.status == APPROVED) & ((GoalTemplateListing.mode == "locked") | (GoalTemplateListing.id == None))))).all()  # noqa: E711
     return {int(row) for row in rows}
 
 

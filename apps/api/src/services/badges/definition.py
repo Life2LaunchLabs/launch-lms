@@ -116,8 +116,9 @@ def summary(template: GoalTemplate, document: dict | None) -> dict | None:
     block = badge_block(document)
     if block is None:
         return None
-    return {"name": block.get("name") or template.title, "kind": block.get("kind") or "Badge",
-            "image_url": block.get("image_url") or template.thumbnail_image or "", "skills": list(block.get("skills") or [])}
+    return {"template_uuid": template.template_uuid, "name": block.get("name") or template.title, "kind": block.get("kind") or "Badge",
+            "image_url": block.get("image_url") or template.thumbnail_image or "", "skills": list(block.get("skills") or []),
+            "icon": template.icon, "color": template.color}
 
 
 def goal_badge(db: Session, goal) -> dict | None:

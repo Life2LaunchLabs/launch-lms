@@ -13,7 +13,8 @@ export interface RouteAccessClassification {
 const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/start', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
 const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
-const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+$/
+// A badge award and the plan page that is its badge's criteria: both are shared outside the app.
+const PUBLIC_SHARED_PATH_RE = /^\/(?:badges\/[^/]+|discover\/(?:plans|collections)\/[^/]+)$/
 const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/work(?:\/[^/]+)?)?$/
 const SPECIAL_PREFIXES = ['/payments/stripe/connect/oauth', '/health']
 const SPECIAL_EXACT_PATHS = new Set(['/sitemap.xml', '/robots.txt', '/redirect_from_auth'])
@@ -44,7 +45,7 @@ export function classifyRoute(pathname: string): RouteAccessClassification {
 
   if (
     PUBLIC_EXACT_PATHS.has(pathname) ||
-    PUBLIC_BADGE_ENTRY_PATH_RE.test(pathname) ||
+    PUBLIC_SHARED_PATH_RE.test(pathname) ||
     PUBLIC_PORTFOLIO_PATH_RE.test(pathname)
   ) {
     return { kind: 'public' }

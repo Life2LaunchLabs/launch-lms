@@ -48,7 +48,7 @@ def test_automatic_hero_features_plans_series_and_challenges():
         assert slides[-1]["kind"] == "challenges" and slides[-1]["href"] == ""
         assert not any(slide["kind"] == "news" for slide in slides)
         plan = next(slide for slide in slides if slide["kind"] == "plan")
-        assert plan["eyebrow"] == "Earn a badge" and plan["href"].startswith("/plan/")
+        assert plan["eyebrow"] == "Earn a badge" and plan["href"].startswith("/discover/plans/")
         assert any(slide["kind"] == "collection" for slide in slides)
 
 

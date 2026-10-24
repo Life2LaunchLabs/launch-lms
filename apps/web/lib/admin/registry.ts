@@ -51,7 +51,7 @@ export const ADMIN_TABS: AdminTab[] = [
     match: [],
     requires: { right: STAFF },
     children: [
-      // Every other /admin/plans/<uuid> page is a plan (or its badge).
+      // Every other /admin/plans/<uuid> page is a plan.
       { id: 'plans', label: 'Plans', href: admin.plans('plans'), match: [admin.plans('plans'), '/admin/plans/'], requires: {} },
       { id: 'discover', label: 'Discover', href: admin.plans('discover'), match: [admin.plans('discover')], requires: {} },
       // Every org, free included, can assign its plans (a solo coach assigning to a client).
@@ -124,7 +124,7 @@ export const ADMIN_HOME_WIDGETS: AdminWidget[] = [
   { id: 'attention', label: 'Assignments needing attention', description: 'Learners behind, overdue steps and work waiting on staff.', requires: { right: STAFF } },
   {
     id: 'creator',
-    label: 'How your templates and badges do',
+    label: 'How your plans and badges do',
     description: 'Starts, completions and recent edits of what your org makes.',
     requires: { right: 'learning_activities.action_update' },
   },

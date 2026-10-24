@@ -183,7 +183,7 @@ function ActivityGrading({ orgId, token, assignment, activity, back, orgslug }: 
     void mutateGlobal(inboxKey(orgId))
   }
   return <div className="min-h-screen w-full bg-[#f8f8f8]">
-    <Header back={back} title={review?.activity?.title || 'Activity'} detail={review?.badge?.name}><span className="text-xs text-gray-600">{reviews.length} waiting</span></Header>
+    <Header back={back} title={review?.activity?.title || 'Activity'}><span className="text-xs text-gray-600">{reviews.length} waiting</span></Header>
     {!review ? <div className="p-10"><EmptyState icon={<CheckCircle2 size={36} className="text-green-500" />} title="All graded" detail={<Link href={back.href} className="font-bold text-blue-700">Back to {back.label === 'Assignments' ? 'assignments' : 'the assignment'}</Link>} /></div> : <div className="flex flex-col lg:flex-row">
       <nav aria-label="Learners" className="shrink-0 border-b border-gray-100 bg-white p-2 lg:min-h-[calc(100vh-56px)] lg:w-56 lg:border-b-0 lg:border-r">
         {reviews.map((item) => <button key={item.review_id} type="button" onClick={() => setCurrent(item.review_id)} className={cn('flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px]', item.review_id === review.review_id ? 'bg-gray-100 font-bold' : 'font-medium hover:bg-gray-50')}><span className="h-2 w-2 rounded-full bg-gray-300" />{personName(item.user)}</button>)}

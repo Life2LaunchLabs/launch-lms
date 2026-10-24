@@ -1,5 +1,6 @@
 'use client'
 import React, { useState } from 'react'
+import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import useSWR from 'swr'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -33,8 +34,6 @@ import {
   Buildings,
   ChartBar,
   CreditCard,
-  Eye,
-  EyeSlash,
   GearSix,
   Globe,
   Medal,
@@ -294,7 +293,7 @@ function OverviewTab({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Users', value: org.user_count },
-            { label: 'Badges', value: org.badge_count ?? org.course_count },
+            { label: 'Badges awarded', value: org.badge_count },
             { label: 'Admins', value: org.admin_users?.length || 0 },
             { label: 'Custom Domains', value: org.custom_domains?.length || 0 },
           ].map((s) => (
@@ -401,7 +400,7 @@ function BadgesTab({
     return (
       <EmptyState
         icon={<Medal size={40} weight="fill" />}
-        message="No badges in this organization"
+        message="No plans in this organization earn a badge"
       />
     )
   }
@@ -413,7 +412,7 @@ function BadgesTab({
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            {['Badge', 'Status', 'Visibility', 'Created'].map((h) => (
+            {['Badge', 'Status', 'Awarded', 'Created'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider"
@@ -424,60 +423,33 @@ function BadgesTab({
           </tr>
         </thead>
         <tbody>
-          {items.map((badge: any) => {
-            const badgeId = badge.badge_uuid.replace(/^badge_/, '')
-            const badgeUrl = `${protocol}//${orgSlug}.${domain}/badges/${badgeId}`
+          {items.map((item: any) => {
+            // A badge is part of its plan: the plan's public page is also the badge's criteria page.
+            const planUrl = `${protocol}//${orgSlug}.${domain}/discover/plans/${item.template_uuid}`
             return (
               <tr
-                key={badge.id}
+                key={item.template_uuid}
                 className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
-                onClick={() => window.open(badgeUrl, '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(planUrl, '_blank', 'noopener,noreferrer')}
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {badge.thumbnail_image ? (
-                      <img
-                        src={badge.thumbnail_image}
-                        alt=""
-                        className="h-8 w-12 object-cover rounded bg-gray-100"
-                        onError={(e) => {
-                          ;(e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    ) : (
-                      <div className="h-8 w-12 rounded bg-gray-100 flex items-center justify-center">
-                        <Medal size={14} weight="fill" className="text-gray-300" />
-                      </div>
-                    )}
+                    <BadgeMedal badge={item.badge} size={32} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{badge.name}</p>
-                      {badge.description && (
-                        <p className="text-xs text-gray-400 truncate max-w-xs">{badge.description}</p>
-                      )}
+                      <p className="text-sm font-medium text-gray-900">{item.badge?.name || item.title}</p>
+                      <p className="text-xs text-gray-400 truncate max-w-xs">{item.title}</p>
                     </div>
                     <ArrowSquareOut size={14} weight="bold" className="text-gray-300 ml-auto shrink-0" />
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge tone={badge.status === 'published' ? 'green' : badge.status === 'coming_soon' ? 'blue' : 'amber'}>
-                    {badge.status === 'coming_soon' ? 'Coming soon' : badge.status === 'published' ? 'Published' : 'Draft'}
-                  </StatusBadge>
+                  <StatusBadge tone={item.live ? 'green' : 'amber'}>{item.live ? 'Live' : 'Draft only'}</StatusBadge>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    {badge.public ? (
-                      <>
-                        <Eye size={14} /> Public
-                      </>
-                    ) : (
-                      <>
-                        <EyeSlash size={14} /> Private
-                      </>
-                    )}
-                  </div>
+                  <span className="text-sm text-gray-600">{item.award_count}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-sm text-gray-400">{formatDate(badge.creation_date)}</span>
+                  <span className="text-sm text-gray-400">{formatDate(item.creation_date)}</span>
                 </td>
               </tr>
             )

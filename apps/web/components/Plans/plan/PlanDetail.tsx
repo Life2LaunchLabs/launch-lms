@@ -65,7 +65,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
   const document = drafting || !template.live_document ? template.document : template.live_document
   const basedOn = template.based_on as { org?: { name?: string } | null; version?: number | null } | null | undefined
   const liveIsOriginal = !!basedOn?.org && template.live_version?.number === 1
-  const by = !owned ? { name: template.owner_org?.name || template.badge?.owner_org?.name || 'another organization' }
+  const by = !owned ? { name: template.owner_org?.name || 'another organization' }
     : liveIsOriginal ? { name: basedOn!.org!.name || 'another organization' } : { name: org?.name || 'your organization', org_uuid: org?.org_uuid, logo_image: org?.logo_image }
   const note = readOnly && !owned ? <><b className="text-foreground">{by.name} keeps this plan up to date.</b> You can assign it; your assignments move when you apply a new version.</> : null
   const archived = template.status === 'archived'
@@ -102,7 +102,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
           <StaleTemplateBanner editing={editing} />
           <PlanSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} editMode={drafting} />
         </main>
-        <PlanSidebar orgslug={orgslug} orgId={orgId} token={token} template={template} document={document} canAssign={canAssign} canEdit={canEdit} />
+        <PlanSidebar orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} canAssign={canAssign} canEdit={canEdit} />
       </div>
     </div>
     <LiveVersionModal open={versionsOpen} setOpen={setVersionsOpen} orgId={orgId} token={token} editing={editing} canSwitch={canEdit} />

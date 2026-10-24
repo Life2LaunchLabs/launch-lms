@@ -35,7 +35,7 @@ def test_finishing_awards_the_release_badge_once_and_it_reads_as_an_open_badge()
         assert credential["issuer"]["name"] == "Partner" and credential["credentialSubject"]["identifier"][0]["hashed"] is True
         earned = credential["credentialSubject"]["achievement"]
         assert (earned["name"], earned["achievementType"], earned["version"], earned["tag"]) == ("Adaptability", "Badge", "1.0.0", ["Adaptability"])
-        assert earned["creator"]["name"] == "Studio" and earned["criteria"]["id"].endswith(f"/plan/{first.template_uuid}")
+        assert earned["creator"]["name"] == "Studio" and earned["criteria"]["id"].endswith(f"/discover/plans/{first.template_uuid}")
         assert "Notice change" in earned["criteria"]["narrative"] and earned["description"] == "Handle change at work"
         assert credential["evidence"][0]["genre"] == "Plan completion"
         assert awards.award_dict(db, award)["issuing_org"]["name"] == "Partner"

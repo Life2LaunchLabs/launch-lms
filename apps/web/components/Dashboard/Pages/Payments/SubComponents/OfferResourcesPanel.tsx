@@ -5,7 +5,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext';
 import useSWR, { mutate } from 'swr';
 import toast from 'react-hot-toast';
 import { BookOpen, Mic, Puzzle, X, Plus, Loader2 } from 'lucide-react';
-import { getLearningBadges } from '@services/learning/learning';
+import { templatesApi } from '@services/goals/templates';
 import { getOfferResources, addOfferResource, removeOfferResource } from '@services/payments/groups';
 
 interface OfferResourcesPanelProps {
@@ -14,7 +14,7 @@ interface OfferResourcesPanelProps {
 }
 
 function resourceIcon(uuid: string) {
-  if (uuid.startsWith('badge_')) return <BookOpen size={14} className="text-indigo-500" />;
+  if (uuid.startsWith('goal_template_')) return <BookOpen size={14} className="text-indigo-500" />;
   if (uuid.startsWith('podcast_')) return <Mic size={14} className="text-pink-400" />;
   return <Puzzle size={14} className="text-gray-400" />;
 }
@@ -39,10 +39,9 @@ function OfferResourcesPanel({ offerId, offerName }: OfferResourcesPanelProps) {
   );
 
   const { data: coursesData } = useSWR(
-    showPicker && org && token ? [`/badges/org`, org.id, token] : null,
+    showPicker && org && token ? [`/payments/plans`, org.id, token] : null,
     async ([, orgId, t]: any) => {
-      const response = await getLearningBadges(orgId, t, true)
-      return Array.isArray(response) ? response : response?.data || []
+      return (await templatesApi.list(orgId, t)).filter((plan) => !plan.system_type)
     }
   );
 
@@ -53,7 +52,7 @@ function OfferResourcesPanel({ offerId, offerName }: OfferResourcesPanelProps) {
   const courses: any[] = coursesData ?? [];
   const linkedUuids = new Set(list);
   const availableCourses = courses.filter(
-    (c: any) => !linkedUuids.has(c.badge_uuid)
+    (c: any) => !linkedUuids.has(c.template_uuid)
   );
 
   const handleRemove = async (resourceUuid: string) => {
@@ -67,7 +66,7 @@ function OfferResourcesPanel({ offerId, offerName }: OfferResourcesPanelProps) {
   };
 
   const handleLinkCourse = async (course: any) => {
-    const courseUuid = course.badge_uuid;
+    const courseUuid = course.template_uuid;
     setIsLinking(true);
     try {
       await addOfferResource(org.id, offerId, courseUuid, token);
@@ -127,23 +126,23 @@ function OfferResourcesPanel({ offerId, offerName }: OfferResourcesPanelProps) {
           </div>
           {!coursesData ? (
             <div className="flex items-center gap-1 text-xs text-gray-500 py-1">
-              <Loader2 size={12} className="animate-spin" /> Loading badges…
+              <Loader2 size={12} className="animate-spin" /> Loading plans…
             </div>
           ) : availableCourses.length === 0 ? (
             <p className="text-xs text-gray-400 italic py-1">
-              {courses.length === 0 ? 'No badges in this org.' : 'All badges are already linked.'}
+              {courses.length === 0 ? 'No plans in this org.' : 'All plans are already linked.'}
             </p>
           ) : (
             <ul className="max-h-40 overflow-y-auto space-y-0.5">
               {availableCourses.map((course: any) => (
-                <li key={course.badge_uuid}>
+                <li key={course.template_uuid}>
                   <button
                     disabled={isLinking}
                     onClick={() => handleLinkCourse(course)}
                     className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white flex items-center gap-2 disabled:opacity-50"
                   >
                     <BookOpen size={12} className="text-indigo-500 shrink-0" />
-                    <span className="truncate">{course.name}</span>
+                    <span className="truncate">{course.title}</span>
                   </button>
                 </li>
               ))}

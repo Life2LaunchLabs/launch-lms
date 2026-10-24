@@ -598,6 +598,8 @@ def _award_dto(db_session: Session, award: BadgeAward) -> dict:
         "name": earned.get("name") or "",
         "description": earned.get("description") or "",
         "image_url": earned.get("image_url") or "",
+        "icon": earned.get("icon"),
+        "color": earned.get("color"),
         "kind": earned.get("kind") or "Badge",
         "skills": earned.get("skills") or [],
         "earned_on": award.earned_on.isoformat(),

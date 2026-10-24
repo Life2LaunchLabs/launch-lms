@@ -161,27 +161,6 @@ export interface SeoOrgConfig {
   noindex_communities: boolean
 }
 
-export interface BadgeIssuerConfig {
-  name: string
-  url: string
-  email: string
-  description: string
-  image_url: string
-}
-
-export async function updateOrgBadgeIssuerConfig(
-  org_id: string,
-  badge_issuer: BadgeIssuerConfig,
-  access_token: string
-) {
-  const result: any = await fetch(
-    `${getAPIUrl()}orgs/${org_id}/config/badge_issuer`,
-    RequestBodyWithAuthHeader('PUT', badge_issuer, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
 export async function uploadOrgAuthBackground(
   org_id: string,
   background_file: File,

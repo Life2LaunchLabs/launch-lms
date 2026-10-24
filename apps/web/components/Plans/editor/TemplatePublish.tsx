@@ -7,7 +7,7 @@ import { Check, Loader2, Plus, ShieldCheck, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import type { Features } from '@components/Hooks/useFeatures'
 import TemplateMarketplaceListing from '@components/Plans/requests/TemplateMarketplaceListing'
-import { StatusPill } from '@components/Plans/requests/BadgeIssuing'
+import { StatusPill } from '@components/Plans/requests/MarketplaceRequests'
 import type { TemplateDetail } from '@services/goals/templates'
 import { isMarketplaceKey, MARKETPLACE_KEY, templateMarketplaceApi, type TemplateAuthorization, type TemplateUsageMetrics } from '@services/learning/marketplace'
 
@@ -19,7 +19,7 @@ export function showsPublishTab(template: TemplateDetail, owned: boolean, readOn
 const ORDER: Record<string, number> = { requested: 0, approved: 1, rejected: 2, revoked: 3 }
 
 /**
- * Template › Publish: who else may run this plan, and so issue the badges it earns. The marketplace
+ * Template › Publish: who else may run this plan, and so award the badge it earns. The marketplace
  * listing, the stack of authorized organizations (requests on top), and quick usage across them.
  */
 export default function TemplatePublish({ orgId, token, template, bare = false }: { orgId: number; token?: string; template: TemplateDetail; /** No page padding, inside the plan's visibility dialog. */ bare?: boolean }) {
@@ -58,7 +58,7 @@ export default function TemplatePublish({ orgId, token, template, bare = false }
     <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     <section aria-labelledby="template-authorized-title" className="rounded-xl border border-border bg-card p-6 shadow-xs" data-testid="template-authorized-orgs">
       <h2 id="template-authorized-title" className="flex items-center gap-2 text-lg font-bold"><ShieldCheck size={18} />Authorized organizations</h2>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Organizations you authorize run this plan with their own learners, and issue the badges it earns. For a plan meant for trusted partners only, authorize only them.</p>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Organizations you authorize run this plan with their own learners, and award the badge it earns, if it has one. For a plan meant for trusted partners only, authorize only them.</p>
       <form className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); void invite() }}>
         <label className="block flex-1 text-xs font-bold uppercase text-muted-foreground">
           Authorize an organization by slug

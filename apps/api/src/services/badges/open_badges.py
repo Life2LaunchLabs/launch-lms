@@ -33,11 +33,7 @@ def org_page(org: Organization) -> str:
 
 def plan_page(org_slug: str, template_uuid: str) -> str:
     """The plan's public page: what earning its badge takes."""
-    return f"{frontend_url()}/orgs/{org_slug}/plan/{template_uuid}"
-
-
-def award_page(org_slug: str, award_uuid: str) -> str:
-    return f"{frontend_url()}/orgs/{org_slug}/badge/{award_uuid}"
+    return f"{frontend_url()}/orgs/{org_slug}/discover/plans/{template_uuid}"
 
 
 def _image(url: str) -> str:

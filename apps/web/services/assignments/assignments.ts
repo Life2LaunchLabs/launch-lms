@@ -1,3 +1,4 @@
+import type { BadgeSummary } from '@services/badges/badges'
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { Chat, MessageAudience } from '@services/connect/connect'
@@ -45,7 +46,7 @@ export interface AssignmentPlan {
   /** The version new assignments get, when the plan has one. */
   live_version?: number | null
   /** The badge learners earn by finishing it. */
-  badge?: { badge_uuid: string; name: string } | null
+  badge?: BadgeSummary | null
 }
 
 export interface AssignmentListItem {

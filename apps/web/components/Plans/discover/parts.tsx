@@ -59,7 +59,7 @@ export function DiscoverPlanCard({ orgslug, plan, tag, className }: { orgslug: s
       {tag ? <span className="min-w-0 truncate rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-semibold">{tag}</span> : null}
       <span className="ml-auto flex shrink-0 items-center gap-1">
         {plan.mode === 'locked' ? <Lock size={13} aria-label="Locked: runs as its creator publishes it" /> : null}
-        {plan.badges.length ? <Medal size={18} className="text-[hsl(38_85%_42%)]" aria-label={`Earns ${plan.badges[0].name}`} /> : null}
+        {plan.badge ? <Medal size={18} className="text-[hsl(38_85%_42%)]" aria-label={`Earns ${plan.badge.name}`} /> : null}
       </span>
     </span>
   </Link>

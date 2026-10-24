@@ -1,3 +1,4 @@
+import type { BadgeSummary } from '@services/badges/badges'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
 import type { GoalStatus, StepResult, StepStatus, StepTypeKey } from './types'
@@ -65,7 +66,6 @@ export interface ActivityReview {
   goal_uuid: string
   step_uuid: string | null
   user: StaffPerson
-  badge: { id: number; badge_uuid: string; name: string } | null
   activity: { activity_uuid: string; title: string; [key: string]: any }
   attempts: any[]
   attempt_history: any[]
@@ -161,10 +161,11 @@ export interface PlanCardData {
     owner_org: OrgRef | null
     /** Made by this organization. */
     own: boolean
-    /** Another organization's template this one runs with its permission (a badge route). */
+    /** Another organization's template this one runs with its permission. */
     run_with_permission: boolean
   }
-  badges: Array<{ badge_uuid: string; name: string; thumbnail_image: string; org_id: number; owner_org: OrgRef | null }>
+  /** The badge the plan earns (null: none). */
+  badge: BadgeSummary | null
   frameworks: Array<{ framework_uuid: string; name: string; org_id: number; node_count: number }>
   /** This organization's assignments of the plan, ended ones too, newest first. */
   assignments: PlanAssignment[]

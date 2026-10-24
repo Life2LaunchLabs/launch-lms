@@ -3,15 +3,17 @@
 import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Award, FolderOpen, Layers, ListChecks, Loader2, Lock, Medal } from 'lucide-react'
+import { FolderOpen, Layers, ListChecks, Loader2, Lock, Medal } from 'lucide-react'
 import { EmptyState } from '@components/Goals/admin/live/ui'
-import { SafeImage } from '@components/Objects/SafeImage'
 import { stepDefinition } from '@components/Goals/steps'
 import { discoverApi, discoverKeys, type DiscoverPlanDetail } from '@services/goals/discover'
 import type { TemplateStep } from '@services/goals/types'
-import { PlanCover, coverPalette } from '@components/Plans/shared/PlanCover'
+import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { smallActionClass } from '@components/Plans/shared/actions'
 import { AsideCard } from '@components/Plans/plan/AsideCard'
+import { BadgeMedal } from '@components/Badges/BadgeMedal'
+import { badgeKindLabel } from '@services/badges/badges'
+import { normalizeMediaUrl } from '@services/media/media'
 import { plural } from '@components/Plans/plan/planVersions'
 import { ByLine, OwnerCard, PlanAction, discoverCollectionHref, discoverHref, useDiscoverContext } from './parts'
 
@@ -45,7 +47,7 @@ export default function DiscoverPlanPage({ orgslug, templateUuid }: { orgslug: s
           <ByLine org={plan.creator_org} partner={plan.partner} />
           <span className="inline-flex items-center gap-1.5"><ListChecks size={16} aria-hidden="true" />{plural(steps, 'step')}</span>
           {stages.length > 1 ? <span className="inline-flex items-center gap-1.5"><Layers size={16} aria-hidden="true" />{plural(stages.length, 'stage')}</span> : null}
-          {plan.badges.length ? <span className="inline-flex items-center gap-[5px] rounded-full bg-[hsl(45_95%_90%)] px-2 py-[3px] text-[11.5px] font-bold text-[hsl(35_80%_28%)]"><Medal size={13} aria-hidden="true" />Earns a badge</span> : null}
+          {plan.badge ? <span className="inline-flex items-center gap-[5px] rounded-full bg-[hsl(45_95%_90%)] px-2 py-[3px] text-[11.5px] font-bold text-[hsl(35_80%_28%)]"><Medal size={13} aria-hidden="true" />Earns a badge</span> : null}
           {locked ? <span className="inline-flex items-center gap-[5px] rounded-full bg-muted px-2 py-[3px] text-[11.5px] font-bold"><Lock size={12} aria-hidden="true" />Locked</span> : null}
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2"><PlanAction orgslug={orgslug} plan={plan} /></div>
@@ -63,13 +65,11 @@ export default function DiscoverPlanPage({ orgslug, templateUuid }: { orgslug: s
       </main>
       <aside className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-5">
         <OwnerCard org={plan.creator_org} locked={locked} open={plan.mode === 'open'} detail={version} />
-        {plan.badges.length ? <AsideCard icon={<Medal size={16} />} title={plan.badges.length === 1 ? 'Badge' : 'Badges'}>
-          {plan.badges.map((badge) => <div key={badge.route_uuid} className="mt-3 flex items-center gap-3.5">
-            <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full text-white shadow-[inset_0_-4px_0_hsl(0_0%_0%/.18),0_6px_14px_hsl(0_0%_0%/.12)]" style={{ background: badge.thumbnail_image ? undefined : coverPalette(plan).deep }}>
-              {badge.thumbnail_image ? <SafeImage src={badge.thumbnail_image} alt="" className="h-full w-full object-contain" /> : <Award size={30} aria-hidden="true" />}
-            </span>
-            <span className="min-w-0"><b className="block truncate text-sm">{badge.name}</b><span className="block text-[12.5px] leading-snug text-muted-foreground">Learners who finish every step earn it, with a certificate.</span></span>
-          </div>)}
+        {plan.badge ? <AsideCard icon={<Medal size={16} />} title="Badge">
+          <div className="mt-3 flex items-center gap-3.5">
+            <BadgeMedal badge={{ ...plan.badge, image_url: normalizeMediaUrl(plan.badge.image_url) || '' }} size={64} />
+            <span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(plan.badge.kind)}</span><b className="block truncate text-sm">{plan.badge.name}</b><span className="block text-[12.5px] leading-snug text-muted-foreground">Learners who finish every step earn it, with a certificate. Running the plan lets you award it.</span></span>
+          </div>
         </AsideCard> : null}
         {plan.frameworks.length ? <AsideCard icon={<ListChecks size={16} />} title="Requirements">
           {plan.frameworks.map((framework) => <p key={framework.framework_uuid} className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">Steps count toward {plural(framework.node_count, 'requirement')} in <b className="text-foreground">{framework.name}</b>.</p>)}

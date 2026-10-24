@@ -65,7 +65,7 @@ def _resolve(slide: DiscoverSlide, sources: dict) -> dict | None:
     if slide.kind == "plan":
         eyebrow = "Earn a badge" if item["badge"] else "Featured plan"
         defaults = {"title": item["title"], "description": item["description"], "eyebrow": eyebrow, "action_label": "View plan",
-                    "href": f'/plan/{item["template_uuid"]}', "thumbnail_url": item["thumbnail_image"] or (item["badge"] or {}).get("image_url") or "", "plan": item}
+                    "href": f'/discover/plans/{item["template_uuid"]}', "thumbnail_url": item["thumbnail_image"] or (item["badge"] or {}).get("image_url") or "", "plan": item}
     elif slide.kind == "collection":
         first = item["plans"][0] if item["plans"] else {}
         defaults = {"title": item["name"], "description": item["description"], "eyebrow": "Collection", "action_label": "Explore collection",

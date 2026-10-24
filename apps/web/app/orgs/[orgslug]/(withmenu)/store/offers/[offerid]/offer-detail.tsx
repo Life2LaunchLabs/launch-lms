@@ -36,16 +36,10 @@ function resourceIcon(type: string, size = 14) {
   }
 }
 
-function stripTypePrefix(uuid: string): string {
-  return uuid.replace(/^[a-z]+_/, '')
-}
-
 function getResourceUrl(orgslug: string, resource: Resource): string | null {
-  const id = stripTypePrefix(resource.resource_uuid)
-  switch (resource.resource_type) {
-    case 'badge': return getUriWithOrg(orgslug, routePaths.org.badgeDetail(id))
-    default: return null
-  }
+  // Plans are the resources offers sell; a plan's page is where a buyer starts it.
+  if (resource.resource_uuid.startsWith('goal_template_')) return getUriWithOrg(orgslug, routePaths.org.discoverPlan(resource.resource_uuid))
+  return null
 }
 
 function ResourceCard({ resource, orgslug }: { resource: Resource; orgslug: string }) {

@@ -13,7 +13,6 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi } from '@services/connect/connect'
 import { goalSharingApi } from '@services/goals/sharing'
 import { ROLE_LABELS, type Profile, type ProfilePlan } from '@services/school/people'
-import IssueBadge from './IssueBadge'
 import LearnerTeam from './LearnerTeam'
 import PersonManage from './PersonManage'
 import { RoleTag } from './RoleTag'
@@ -92,7 +91,6 @@ export default function PersonProfile({ orgslug, username, tab = 'message' }: { 
       <PersonManage orgslug={orgslug} profile={profile} refresh={mutate} />
       {profile.helpers.length ? <Helpers profile={profile} refresh={mutate} /> : null}
       {learner ? <LearnerTeam orgId={orgId} userId={user.id} token={token} /> : null}
-      {profile.role !== 'helper' && profile.manage.change_role ? <div><IssueBadge user={user} orgId={orgId} token={token} /></div> : null}
     </EditSheet>
   </div>
 }
@@ -164,7 +162,7 @@ function Plans({ orgslug, plans, staff }: { orgslug: string; plans: ProfilePlan[
           <p className="text-xs text-gray-500">
             {STATUS[plan.status] || plan.status}{total ? ` · ${done} of ${total} done` : ''}{submitted ? ` · ${submitted} to review` : ''}
             {behind ? <span className="font-semibold text-red-600"> · {behind} behind</span> : null}
-            {plan.assignment_uuid ? ' · Assigned' : plan.source === 'badge' ? ' · For a badge' : ''}
+            {plan.assignment_uuid ? ' · Assigned' : plan.source === 'joined' ? ' · Joined from Discover' : ''}
           </p>
           {total ? <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${Math.round((done / total) * 100)}%` }} /></div> : null}
         </div>

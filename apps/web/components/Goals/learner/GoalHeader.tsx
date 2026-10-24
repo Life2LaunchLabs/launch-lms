@@ -2,24 +2,25 @@
 
 import React from 'react'
 import { motion, useReducedMotion } from 'motion/react'
-import { Award } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { planVars } from '@components/Goals/planColors'
 import { GoalIconMark } from '@components/Goals/goalIcons'
 import type { GoalIcon, GoalSummary } from '@services/goals/types'
+import type { BadgeSummary } from '@services/badges/badges'
+import { BadgeMedal } from '@components/Badges/BadgeMedal'
 
-export type GoalBadge = { badge_uuid?: string; name?: string; thumbnail_image?: string } | null
+export type GoalBadge = BadgeSummary | null
 /** What a goal's header needs: the goal list's summary, filled in by the full goal once it loads. */
 export type HeaderGoal = {
   goal_uuid: string; title: string; description?: string; icon?: GoalIcon | null
-  source_badge?: GoalBadge; organization?: { name?: string } | null; is_subject?: boolean; subject?: { name?: string } | null
+  badge?: GoalBadge; organization?: { name?: string } | null; is_subject?: boolean; subject?: { name?: string } | null
 }
 
 /** A summary row's badge, organization and subject, typed. */
 export function summaryHeader(summary: GoalSummary): HeaderGoal {
   return {
     goal_uuid: summary.goal_uuid, title: summary.title, icon: summary.icon, is_subject: summary.is_subject,
-    source_badge: (summary.source_badge as GoalBadge) || null, organization: (summary.organization as { name?: string } | null) || null,
+    badge: summary.badge || null, organization: (summary.organization as { name?: string } | null) || null,
     subject: (summary.subject as { name?: string } | null) || null,
   }
 }
@@ -34,7 +35,7 @@ const goalMarkId = (goalUuid: string) => `plan-mark-${goalUuid}`
 
 /** Where a goal comes from, as the small line over its title. */
 export function goalSource(goal: HeaderGoal) {
-  if (goal.source_badge) return `Earning with ${goal.organization?.name || 'your issuer'}`
+  if (goal.badge) return goal.organization?.name ? `From ${goal.organization.name} · earns a badge` : 'Earns a badge'
   if (goal.organization?.name) return `From ${goal.organization.name}`
   const forWhom = goal.is_subject === false ? goal.subject?.name : ''
   return forWhom ? `For ${forWhom}` : ''
@@ -46,11 +47,11 @@ function Settle({ className, children }: { className?: string; children: React.R
   return <motion.div className={className} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18, delay: 0.12 }}>{children}</motion.div>
 }
 
-/** A goal's badge sticker, or its own mark (a target until the learner picks one) when it has no badge. */
+/** A goal's badge medal, or its own mark (a target until the learner picks one) when it has no badge. */
 export function GoalMark({ badge, icon, size = 'md', layoutId }: { badge?: GoalBadge; icon?: GoalIcon | null; size?: 'sm' | 'md'; layoutId?: string }) {
   const box = size === 'sm' ? 'h-10 w-10 rounded-xl' : 'h-16 w-16 rounded-2xl'
   return <motion.span layoutId={layoutId} transition={GOAL_MORPH} className={cn('flex shrink-0 items-center justify-center bg-black/15', box)} aria-hidden="true">
-    {badge?.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className={cn('badge-sticker-image object-contain', size === 'sm' ? 'h-8 w-8' : 'h-14 w-14')} /> : badge ? <Award size={size === 'sm' ? 20 : 30} /> : <GoalIconMark icon={icon} size={size === 'sm' ? 20 : 30} />}
+    {badge ? <BadgeMedal badge={badge} size={size === 'sm' ? 32 : 56} /> : <GoalIconMark icon={icon} size={size === 'sm' ? 20 : 30} />}
   </motion.span>
 }
 
@@ -73,7 +74,7 @@ export function GoalHeaderCard({ goal, done, total, actions, pending = false }: 
   return <motion.section layoutId={goalMorphId(goal.goal_uuid)} transition={GOAL_MORPH} style={{ borderRadius: 24 }} aria-label={goal.title} aria-busy={pending || undefined}
     className="flex h-full flex-col bg-[var(--plan-deep)] p-5 text-[var(--plan-deep-ink)] shadow-[0_6px_0_var(--plan-deep-edge)]">
     <div className="flex items-center gap-4">
-      <GoalMark badge={goal.source_badge} icon={goal.icon} layoutId={goalMarkId(goal.goal_uuid)} />
+      <GoalMark badge={goal.badge} icon={goal.icon} layoutId={goalMarkId(goal.goal_uuid)} />
       <Settle className="min-w-0 flex-1">
         {source ? <p className="mb-1 text-xs font-extrabold uppercase tracking-wider opacity-80">{source}</p> : null}
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>
@@ -111,7 +112,7 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
     aria-label={`${goal.title}, ${goal.status === 'draft' ? 'finish setting up' : `${percent}% complete`}${goal.coach_notes ? ', Coach has a note' : ''}`}
     className="relative flex w-[78%] shrink-0 snap-start items-center gap-3 bg-[var(--plan-deep)] px-3 py-2.5 text-left text-[var(--plan-deep-ink)] shadow-[0_4px_0_var(--plan-deep-edge)] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-[46%] md:w-auto">
     {goal.coach_notes ? <span data-testid="coach-note-dot" aria-hidden="true" className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--plan-deep-ink)]" /> : null}
-    <GoalMark badge={header.source_badge} icon={header.icon} size="sm" layoutId={goalMarkId(goal.goal_uuid)} />
+    <GoalMark badge={header.badge} icon={header.icon} size="sm" layoutId={goalMarkId(goal.goal_uuid)} />
     <Settle className="flex min-w-0 flex-1 flex-col gap-1">
       {source ? <span className="truncate text-[11px] font-extrabold uppercase tracking-wider opacity-80">{source}</span> : null}
       <span className="truncate text-sm font-extrabold leading-tight">{goal.title}</span>

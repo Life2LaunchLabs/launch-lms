@@ -61,7 +61,7 @@ export function PlanCard({ orgslug, plan, collections, canEdit, orgId, token, in
       <span className="mt-1 flex h-5 min-w-0 items-center gap-1.5 text-[12.5px] text-muted-foreground">
         <span className="shrink-0 whitespace-nowrap">{plural(plan.step_count || 0, 'step')}</span>
         {tags.length ? <span className="min-w-0 truncate rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-semibold">{tags[0].name}{tags.length > 1 ? ` +${tags.length - 1}` : ''}</span> : null}
-        {plan.badges?.length ? <Medal size={18} className="ml-auto shrink-0 text-[hsl(38_85%_42%)]" aria-label="Earns a badge" /> : null}
+        {plan.badge ? <Medal size={18} className="ml-auto shrink-0 text-[hsl(38_85%_42%)]" aria-label="Earns a badge" /> : null}
       </span>
     </Link>
     {canEdit ? <PlanMenu plan={plan} href={href} collections={collections} orgId={orgId} token={token} inCollection={inCollection} /> : null}

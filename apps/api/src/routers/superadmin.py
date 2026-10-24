@@ -116,8 +116,6 @@ async def platform_overview(db_session: Session = Depends(get_db_session)):
         "org_count": org_count,
         "user_count": user_count,
         "badge_count": badge_count,
-        # Backward-compatible alias for older platform clients.
-        "course_count": badge_count,
         "pending_request_count": pending_requests,
         "recent_users": [
             {
