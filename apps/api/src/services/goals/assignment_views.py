@@ -11,11 +11,11 @@ from datetime import date, timedelta
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
-from src.db.learning import LearningBadge
 from src.db.goals import Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_membership
+from src.services.badges.definition import badge_summary
 from src.services.goals import assignment_status
 from src.services.goals.assignment_staff import assignment_role, can_manage
 from src.services.goals.assignment_summary import collaborators_of, status_fields
@@ -51,13 +51,12 @@ def _target(db: Session, assignment: GoalAssignment) -> dict:
 def _plan(db: Session, assignment: GoalAssignment) -> dict:
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
-    badge = db.get(LearningBadge, assignment.badge_id) if assignment.badge_id else None
     live = db.get(GoalTemplateVersion, template.published_version_id) if template and template.published_version_id else None
     return {
         "template_uuid": template.template_uuid if template else "", "title": template.title if template else "Deleted plan",
         "thumbnail_image": template.thumbnail_image if template else "", "icon": template.icon if template else None,
         "color": template.color if template else None, "version": version.number if version else None,
-        "live_version": live.number if live else None, "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name} if badge else None,
+        "live_version": live.number if live else None, "badge": badge_summary(db, template, version) if template and version else None,
     }
 
 

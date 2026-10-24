@@ -4,7 +4,6 @@ from fastapi import Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import true as sa_true
 from sqlmodel import Session, and_, func, or_, select, text
-from src.db.learning import BadgeCollection, BadgeCollectionRead, LearningBadge, LearningBadgeRead
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannel, ResourceChannelRead
@@ -19,8 +18,8 @@ T = TypeVar('T')
 class SearchResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    badges: list[LearningBadgeRead]
-    badge_collections: list[BadgeCollectionRead]
+    # Plans the organization offers to learners (Discover cards); the badge a plan earns is on its card.
+    plans: list[dict]
     organizations: list[OrganizationDiscoverRead]
     resources: list[dict]
     resource_channels: list[ResourceChannelRead]
@@ -29,6 +28,16 @@ class SearchResult(BaseModel):
 def _escape_like_wildcards(query: str) -> str:
     """Escape SQL LIKE wildcards to prevent user enumeration via pattern matching."""
     return query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
+def _plans(db_session: Session, current_user, org_id: int, search_query: str) -> list[dict]:
+    """The organization's Discover plans whose title, description or badge matches."""
+    from src.services.goals import plan_joining
+
+    needle = search_query.replace('\\', '').lower()
+    user = None if isinstance(current_user, (AnonymousUser, APITokenUser)) else current_user
+    cards = plan_joining._cards(db_session, plan_joining.offers(db_session, org_id), plan_joining._user_id(user))
+    return [card for card in cards if needle in " ".join([card["title"], card["description"], (card["badge"] or {}).get("name") or ""]).lower()]
 
 
 async def search_across_org(
@@ -41,10 +50,10 @@ async def search_across_org(
     limit: int = 10,
 ) -> SearchResult:
     """
-    Search across badges, badge collections, and users within an organization.
+    Search across the plans an organization offers learners, resources, organizations and users.
 
     SECURITY:
-    - Anonymous users can only search public badges and badge collections
+    - Plans in Discover are public; anonymous users see them too
     - Anonymous users CANNOT search/enumerate users (privacy protection)
     - Maximum limit enforced at service level
     - Uses parameterized queries (SQL injection protected)
@@ -64,7 +73,7 @@ async def search_across_org(
     org = db_session.exec(org_statement).first()
 
     if not org:
-        return SearchResult(badges=[], badge_collections=[], organizations=[], resources=[], resource_channels=[], users=[])
+        return SearchResult(plans=[], organizations=[], resources=[], resource_channels=[], users=[])
 
     # API Token validation: verify token belongs to this organization
     if isinstance(current_user, APITokenUser):
@@ -88,27 +97,6 @@ async def search_across_org(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="API token does not have search permission",
                 )
-
-    badges_query = select(LearningBadge).where(
-        LearningBadge.org_id == org.id,
-        LearningBadge.deleted_at.is_(None),
-        or_(
-            text('LOWER(learningbadge.name) LIKE LOWER(:pattern)'),
-            text('LOWER(learningbadge.description) LIKE LOWER(:pattern)'),
-        ),
-    ).params(pattern=f"%{search_query}%")
-
-    collections_query = (
-        select(BadgeCollection)
-        .where(BadgeCollection.org_id == org.id, BadgeCollection.deleted_at.is_(None), BadgeCollection.hidden == False)
-        .where(
-            or_(
-                text('LOWER(badgecollection.name) LIKE LOWER(:pattern)'),
-                text('LOWER(badgecollection.description) LIKE LOWER(:pattern)')
-            )
-        )
-        .params(pattern=f"%{search_query}%")
-    )
 
     resource_channels_query = (
         select(ResourceChannel)
@@ -149,9 +137,6 @@ async def search_across_org(
     )
 
     if isinstance(current_user, AnonymousUser):
-        # For anonymous users, only show public collections
-        collections_query = collections_query.where(BadgeCollection.public == sa_true())
-        badges_query = badges_query.where(LearningBadge.public == sa_true())
         organizations_query = organizations_query.where(Organization.explore == sa_true())
         organizations = [
             _build_discover_org_read(
@@ -169,8 +154,6 @@ async def search_across_org(
         # This prevents user directory scraping attacks
         users = []
     else:
-        # For authenticated users, show public collections and those in their org
-        collections_query = collections_query.where(or_(BadgeCollection.public == sa_true(), BadgeCollection.org_id == org.id))
         candidate_channels = db_session.exec(resource_channels_query).all()
         raw_channels = [
             channel
@@ -254,10 +237,7 @@ async def search_across_org(
             # User is NOT a member - don't return user results
             users = []
 
-    # Apply pagination to collections query
-    collections = db_session.exec(collections_query.offset(offset).limit(limit)).all()
-
-    badges = db_session.exec(badges_query.offset(offset).limit(limit)).all()
+    plans = _plans(db_session, current_user, int(org.id), search_query)[offset:offset + limit]  # type: ignore[arg-type]
     resources = await list_resources(
         request,
         org.id,
@@ -267,20 +247,11 @@ async def search_across_org(
         offset=offset,
         limit=limit,
     )
-    collection_reads = [
-        BadgeCollectionRead(**collection.model_dump(), badges=[
-            LearningBadgeRead.model_validate(badge)
-            for badge in db_session.exec(select(LearningBadge).where(LearningBadge.collection_id == collection.id, LearningBadge.deleted_at.is_(None))).all()
-        ])
-        for collection in collections
-    ]
-
     # Convert users to UserRead objects
     user_reads = [UserRead.model_validate(user) for user in users]
 
     return SearchResult(
-        badges=[LearningBadgeRead.model_validate(badge) for badge in badges],
-        badge_collections=collection_reads,
+        plans=plans,
         organizations=organizations,
         resources=resources,
         resource_channels=resource_channels,

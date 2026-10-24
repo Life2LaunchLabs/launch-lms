@@ -64,7 +64,7 @@ def suggested(db: Session, role: str) -> list[dict]:
     return [{
         "template_uuid": plan["template_uuid"], "title": plan["title"], "description": plan["description"],
         "thumbnail_image": plan["thumbnail_image"], "step_count": plan["step_count"], "stage_count": plan["stage_count"],
-        "categories": plan["categories"], "badge": bool(plan["badges"]), "creator_org": plan["creator_org"],
+        "categories": plan["categories"], "badge": bool(plan["badge"]), "creator_org": plan["creator_org"],
     } for plan in sorted(plans, key=rank)[:SUGGESTED]]
 
 

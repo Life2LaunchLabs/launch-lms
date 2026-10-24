@@ -1,4 +1,4 @@
-"""Permission is to use a plan: locked templates run as-is, open ones are copied; permission on a badge's plan issues the badge."""
+"""Permission is to use a plan: locked templates run as-is, open ones are copied; running a plan that earns a badge awards it."""
 
 from copy import deepcopy
 
@@ -7,26 +7,24 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import GoalAssignment, GoalTemplate
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge
+from src.db.badges import BadgeAward
 from src.db.roles import Role
 from src.db.template_marketplace import (
-    BadgeRoutePartner,
     GoalTemplateAuthorization,
     TemplateAuthorizationRequest,
     TemplateListingUpdate,
 )
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
-from src.services.goals import badge_authority, badge_routes, badge_templates, plan_issuers, template_marketplace as market, templates
-from src.services.goals.badges import start_badge_goal
-from src.tests.test_goal_badge_authority import PARTNER, STEPS, STRANGER, _assign, _world
+from src.services.goals import plan_issuers, template_marketplace as market, templates
+from src.tests.plan_world import PARTNER, STEPS, STRANGER, _assign, _world
 from src.tests.test_goals import ADMIN, LEARNER, NOW, _published, _user
 
 STAFF = 7
 
 
 def _market():
-    """Partner holds no permission on the badge's plans here."""
+    """Partner holds no permission on Studio's plans here."""
     db, routes = _world(plans=False)
     db.add(User(id=STAFF, user_uuid="user_7", username="tia", email="tia@example.com", first_name="Tia", last_name="Teacher", creation_date=NOW, update_date=NOW))
     db.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
@@ -78,7 +76,7 @@ def test_a_locked_template_without_a_badge_runs_as_is_once_the_creator_approves(
         assignment = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == result["assignment_uuid"])).one()
         assert (assignment.org_id, assignment.template_id) == (PARTNER, template.id)
         # It stays the creator's: read-only for Partner, on the creator's published version, and it can't be copied.
-        view = badge_templates.template_view(db, _user(ADMIN), PARTNER, template.template_uuid)
+        view = plan_issuers.template_view(db, _user(ADMIN), PARTNER, template.template_uuid)
         assert view["read_only"] and view["badge"] is None and view["published_version"] == 1
         with pytest.raises(HTTPException) as no_copy:
             market.copy_template(db, _user(ADMIN), PARTNER, template.template_uuid)
@@ -88,7 +86,7 @@ def test_a_locked_template_without_a_badge_runs_as_is_once_the_creator_approves(
 
         # Revoking stops new assignments and the running one.
         market.revoke(db, _user(ADMIN), request["authorization_uuid"])
-        assert badge_authority.still_runs(db, assignment) is False
+        assert plan_issuers.still_runs(db, assignment) is False
         with pytest.raises(HTTPException):
             _assign(db, PARTNER, template.template_uuid)
 
@@ -148,8 +146,8 @@ def test_browse_lists_published_listings_with_badges_and_this_orgs_permission_fo
 
         cards = {card["template_uuid"]: card for card in market.browse(db, _user(STAFF), PARTNER)}
         assert set(cards) == {plain.template_uuid, route_template.template_uuid}
-        assert cards[plain.template_uuid]["badges"] == [] and cards[plain.template_uuid]["mode"] == "open"
-        assert cards[route_template.template_uuid]["badges"][0]["name"] == "Adaptability"
+        assert cards[plain.template_uuid]["badge"] is None and cards[plain.template_uuid]["mode"] == "open"
+        assert cards[route_template.template_uuid]["badge"]["name"] == "Adaptability"
         assert cards[route_template.template_uuid]["authorization"]["status"] == "requested"
         assert cards[plain.template_uuid]["creator_org"]["name"] == "Studio" and cards[plain.template_uuid]["step_count"] == 2
         assert market.browse(db, _user(STAFF), PARTNER, creator_org_id=STRANGER) == []
@@ -168,25 +166,28 @@ def test_browse_lists_published_listings_with_badges_and_this_orgs_permission_fo
             market.requests_summary(db, _user(STAFF), PARTNER)
 
 
-def test_permission_on_a_badge_route_plan_is_permission_to_issue_the_badge_through_it():
+def test_permission_on_a_plan_that_earns_a_badge_is_permission_to_award_it_through_the_plan():
+    from src.tests.plan_world import _finish, _goal_of
+
     db, (route_template, _) = _market()
     with db:
         _list(db, route_template, "locked", "open")
-        # Stranger had nothing to do with the badge; approval on the plan lets it run the plan and issue the badge.
+        # Stranger had nothing to do with Studio; approval on the plan lets it run the plan, and finishing earns the badge.
         assert _request(db, route_template, STRANGER)["status"] == "approved"
-        assert badge_authority.authorized(db, db.get(LearningBadge, 1), STRANGER)
         result = _assign(db, STRANGER, route_template.template_uuid)
-        assert result["badge"]["badge_uuid"] == "badge_adapt"
-        assert plan_issuers.issuer_org_ids(db, db.get(LearningBadge, 1)) == [STRANGER]
-        # Revoking the plan permission ends issuing too.
+        assert result["badge"]["name"] == "Adaptability"
+        _finish(db, _goal_of(db, result))
+        award = db.exec(select(BadgeAward)).one()
+        assert (award.template_id, award.issuing_org_id, award.creator_org_id, award.user_id) == (route_template.id, STRANGER, 1, LEARNER)
+        assert award.achievement["creator"]["name"] == "Studio"
+        # Revoking the plan permission stops the running assignment.
         authorization = db.exec(select(GoalTemplateAuthorization).where(GoalTemplateAuthorization.issuer_org_id == STRANGER)).one()
         market.revoke(db, _user(ADMIN), authorization.authorization_uuid)
         assignment = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == result["assignment_uuid"])).one()
-        assert badge_authority.still_runs(db, assignment) is False
-        assert not plan_issuers.may_issue(db, db.get(LearningBadge, 1), STRANGER)
+        assert plan_issuers.still_runs(db, assignment) is False
 
 
-def test_a_trusted_partners_only_plan_is_one_whose_owner_approves_only_trusted_partners():
+def test_the_owner_approves_organizations_on_one_plan_at_a_time():
     db, (direct, full) = _market()
     with db:
         # Without a plan permission Partner runs nothing.
@@ -196,25 +197,14 @@ def test_a_trusted_partners_only_plan_is_one_whose_owner_approves_only_trusted_p
         # The owner authorizes Partner on the full plan only (by slug, unlisted is fine); the direct plan stays the owner's.
         invited = plan_issuers.invite(db, _user(ADMIN), 1, full.template_uuid, "partner")
         assert invited["status"] == "approved" and invited["issuer_org"]["name"] == "Partner"
-        assert _assign(db, PARTNER, full.template_uuid)["badge"]["badge_uuid"] == "badge_adapt"
+        assert _assign(db, PARTNER, full.template_uuid)["badge"]["name"] == "Adaptability"
         with pytest.raises(HTTPException) as untrusted:
             _assign(db, PARTNER, direct.template_uuid)
         assert untrusted.value.status_code == 403
-        with pytest.raises(HTTPException) as untrusted_start:
-            start_badge_goal(db, _user(LEARNER), db.get(LearningBadge, 1), direct.template_uuid, PARTNER)
-        assert untrusted_start.value.status_code == 403
-        # The owner always runs its own routes.
-        assert _assign(db, 1, direct.template_uuid, badge_uuid="badge_adapt")["badge"]["badge_uuid"] == "badge_adapt"
-
-        # Ways to earn shows who is approved on each plan; pending requests only to the owner's admins.
+        # The owner always runs its own plans.
+        assert _assign(db, 1, direct.template_uuid)["badge"]["name"] == "Adaptability"
         _list(db, direct, "locked", "request")
         _request(db, direct, STRANGER)
-        ways = {route["template_uuid"]: route["plan_issuers"] for route in badge_routes.list_routes(db, _user(ADMIN), "badge_adapt")["routes"]}
-        assert [org["name"] for org in ways[full.template_uuid]["approved"]] == ["Partner"]
-        assert (ways[direct.template_uuid]["approved"], ways[direct.template_uuid]["requested"]) == ([], 1)
-        assert ways[direct.template_uuid]["owner_org"]["name"] == "Studio"
-        learner_view = {route["template_uuid"]: route["plan_issuers"] for route in badge_routes.list_routes(db, _user(LEARNER), "badge_adapt")["routes"]}
-        assert learner_view[direct.template_uuid]["requested"] == 0
 
         # Inviting an organization that asked approves it; a stranger to the template can't invite, nor the owner itself.
         assert plan_issuers.invite(db, _user(ADMIN), 1, direct.template_uuid, "stranger")["status"] == "approved"
@@ -230,7 +220,7 @@ def test_a_trusted_partners_only_plan_is_one_whose_owner_approves_only_trusted_p
 
 
 def test_template_metrics_count_permissions_assignments_learners_and_badges_earned():
-    from src.tests.test_goal_badge_authority import _finish, _goal_of
+    from src.tests.plan_world import _finish, _goal_of
 
     db, (route_template, _) = _market()
     with db:
@@ -243,68 +233,6 @@ def test_template_metrics_count_permissions_assignments_learners_and_badges_earn
         assert (metrics["active_learners"], metrics["completions"], metrics["badges_earned"]) == (0, 1, 1)
         with pytest.raises(HTTPException):
             plan_issuers.template_metrics(db, _user(ADMIN), PARTNER, route_template.template_uuid)
-
-
-def test_one_check_owner_or_approved_on_one_of_the_badges_plans():
-    db, (first, second) = _market()
-    with db:
-        badge = db.get(LearningBadge, 1)
-        assert plan_issuers.may_issue(db, badge, 1) and not plan_issuers.may_issue(db, badge, PARTNER) and not plan_issuers.may_issue(db, badge, None)
-        # Approval on one plan is enough, and only on that plan: the other plan stays the owner's.
-        plan_issuers.invite(db, _user(ADMIN), 1, second.template_uuid, "partner")
-        assert plan_issuers.may_issue(db, badge, PARTNER) and not plan_issuers.may_issue(db, badge, STRANGER)
-        assert plan_issuers.issued_badge_ids(db, [PARTNER]) == {1} and plan_issuers.issued_badge_ids(db, [1, STRANGER]) == set()
-        assert plan_issuers.issuer_org_ids(db, badge) == [PARTNER]
-        with pytest.raises(HTTPException):
-            _assign(db, PARTNER, first.template_uuid)
-        # A pending, declined or ended permission issues nothing.
-        for status in ("requested", "rejected", "revoked"):
-            row = db.exec(select(GoalTemplateAuthorization).where(GoalTemplateAuthorization.issuer_org_id == PARTNER)).one()
-            row.status = status
-            db.add(row)
-            db.commit()
-            assert not plan_issuers.may_issue(db, badge, PARTNER)
-        # A badge-level record left over from before plans counts for nothing.
-        BadgeIssuerAuthorization.__table__.create(db.get_bind(), checkfirst=True)
-        db.add(BadgeIssuerAuthorization(authorization_uuid="old", badge_id=1, creator_org_id=1, issuer_org_id=STRANGER,
-                                        status=BadgeIssuerAuthorizationStatus.APPROVED, creation_date=NOW, update_date=NOW))
-        db.commit()
-        assert not plan_issuers.may_issue(db, badge, STRANGER)
-
-
-def test_migration_copies_badge_issuers_onto_the_plans_they_could_run():
-    from src.tests.plan_permissions import migration
-
-    module = migration()
-    # Every route for an approved issuer; a trusted-partners-only route only for its partners; never the owner.
-    assert module.plan_permissions(
-        [(1, 10, 100, False, 1), (2, 10, 200, True, 1), (3, 11, 300, True, 1)],
-        [(10, 2, "approved"), (10, 3, "requested"), (11, 2, "approved"), (10, 1, "approved")],
-        [(3, 2)],
-    ) == {(100, 1, 2), (300, 1, 2)}
-    db, (first, second) = _market()
-    with db:
-        # Before plans: Partner held a badge-level approval.
-        for model in (BadgeIssuerAuthorization, BadgeRoutePartner):
-            model.__table__.create(db.get_bind(), checkfirst=True)
-        db.add(BadgeIssuerAuthorization(authorization_uuid="auth_2", badge_id=1, creator_org_id=1, issuer_org_id=PARTNER,
-                                        status=BadgeIssuerAuthorizationStatus.APPROVED, creation_date=NOW, update_date=NOW))
-        db.commit()
-        direct = db.exec(select(badge_routes.BadgeRoute).where(badge_routes.BadgeRoute.goal_template_id == second.id)).one()
-        direct.trusted_only = True
-        db.add(direct)
-        db.commit()
-        assert module.backfill(db.connection()) == 1
-        db.commit()
-        assert [(row.template_id, row.issuer_org_id, row.status) for row in db.exec(select(GoalTemplateAuthorization)).all()] == [(first.id, PARTNER, "approved")]
-        # Partner, a partner on the direct route now too, gets that plan; a rejected plan permission stays rejected.
-        db.add(BadgeRoutePartner(route_id=int(direct.id), issuer_org_id=PARTNER, creation_date=NOW))
-        db.exec(select(GoalTemplateAuthorization)).one().status = "rejected"
-        db.commit()
-        assert module.backfill(db.connection()) == 1
-        db.commit()
-        assert {row.template_id: row.status for row in db.exec(select(GoalTemplateAuthorization)).all()} == {first.id: "rejected", second.id: "approved"}
-        assert module.backfill(db.connection()) == 0
 
 
 def test_staff_browse_the_template_and_framework_libraries_but_learners_cannot():
@@ -352,7 +280,7 @@ def _http(monkeypatch):
         db.add(UserOrganization(user_id=OWNER_ADMIN, org_id=org_id, role_id=1, creation_date=NOW, update_date=NOW))
     db.commit()
     app = FastAPI()
-    app.include_router(marketplace.router, prefix="/api/v1/badge-marketplace")
+    app.include_router(marketplace.router, prefix="/api/v1/plan-marketplace")
     app.dependency_overrides[get_db_session] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: _user(OWNER_ADMIN)
     return db, TestClient(app)
@@ -362,14 +290,14 @@ def test_an_owner_org_admin_publishes_to_the_marketplace_and_sees_it_listed(monk
     db, client = _http(monkeypatch)
     with db:
         template = _plain(db)
-        url = f"/api/v1/badge-marketplace/templates/{template.template_uuid}/listing?org_id=1"
+        url = f"/api/v1/plan-marketplace/templates/{template.template_uuid}/listing?org_id=1"
         assert client.get(url).json()["listed"] is False
         published = client.put(url, json={"listed": True, "mode": "open", "access": "open"})
         assert published.status_code == 200, published.text
         assert (published.json()["listed"], published.json()["mode"], published.json()["access"]) == (True, "open", "open")
         assert client.get(url).json()["listed"] is True
         # The owner's own marketplace returns it, marked as its own (the browse page shows it as "Yours").
-        own = [card for card in client.get("/api/v1/badge-marketplace/templates?org_id=1").json() if card["template_uuid"] == template.template_uuid]
+        own = [card for card in client.get("/api/v1/plan-marketplace/templates?org_id=1").json() if card["template_uuid"] == template.template_uuid]
         assert len(own) == 1 and own[0]["is_own"] is True
 
 
@@ -378,7 +306,7 @@ def test_publishing_is_refused_with_a_reason_when_the_org_is_not_a_plan_publishe
     with db:
         created = templates.create_template(db, _user(ADMIN), PARTNER, {"template": {"title": "Partner plan"}, "stages": [{"key": "s", "title": "S", "steps": [dict(STEPS[0])]}]})
         templates.publish(db, _user(ADMIN), PARTNER, created["template_uuid"], "First")
-        refused = client.put(f"/api/v1/badge-marketplace/templates/{created['template_uuid']}/listing?org_id={PARTNER}", json={"listed": True})
+        refused = client.put(f"/api/v1/plan-marketplace/templates/{created['template_uuid']}/listing?org_id={PARTNER}", json={"listed": True})
         assert refused.status_code == 403
         assert "plan publish" in refused.json()["detail"].lower()
 
@@ -415,21 +343,3 @@ def test_the_library_is_the_listings_anyone_may_copy():
         _list(db, template, "open", "open")
         market.set_listing(db, _user(ADMIN), 1, template.template_uuid, TemplateListingUpdate(listed=False, mode="open", access="open"))
         assert in_library() == []
-
-
-def test_migration_keeps_a_creator_that_stopped_issuing_off_its_plans_and_frees_learner_links():
-    from src.db.template_marketplace import GoalTemplateLearnerAccess
-    from src.services.goals.plan_access import access_of, set_access
-    from src.tests.plan_permissions import migration
-
-    db, (first, second) = _market()
-    with db:
-        for model in (BadgeIssuerAuthorization, GoalTemplateLearnerAccess):
-            model.__table__.create(db.get_bind(), checkfirst=True)
-        set_access(db, first.id, 1, "open", None)
-        db.add(BadgeIssuerAuthorization(authorization_uuid="own", badge_id=1, creator_org_id=1, issuer_org_id=1,
-                                        status=BadgeIssuerAuthorizationStatus.REVOKED, creation_date=NOW, update_date=NOW))
-        db.commit()
-        assert migration().stopped_creators(db.connection()) == 2
-        db.commit()
-        assert (access_of(db, first.id, 1), access_of(db, second.id, 1)) == ("invite", "invite")

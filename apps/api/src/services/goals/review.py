@@ -221,7 +221,7 @@ def inbox(db: Session, current_user: PublicUser, org_id: int) -> dict:
         group = groups.setdefault(key, {
             "kind": "grade", **assignment_context(db, assignment, contexts), "step_key": None, "step_uuid": None,
             "activity_uuid": activity.get("activity_uuid"),
-            "step": {"title": activity.get("title") or "Activity", "stage_title": (review.get("badge") or {}).get("name"), "type": "activity"},
+            "step": {"title": activity.get("title") or "Activity", "stage_title": None, "type": "activity"},
             "items": [],
         })
         group["items"].append({"goal_uuid": review["goal_uuid"], "step_uuid": review["step_uuid"], "review_id": review["review_id"], "user": review["user"], "submitted_at": review["submitted_at"]})

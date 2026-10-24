@@ -69,9 +69,9 @@ def effective(db: Session, goal: Goal, user_id: int, capabilities: set[str]) -> 
 
 
 def require_individual(db: Session, goal: Goal) -> None:
-    """A badge's steps come from the badge; a group's goals are managed once for the whole group."""
-    if _value(goal.source) == GoalSource.BADGE.value:
-        raise HTTPException(status_code=409, detail="This goal's steps come from the badge it earns, so they can't be edited here.")
+    """A plan a learner joined keeps the organization's steps; a group's goals are managed once for the whole group."""
+    if _value(goal.source) == GoalSource.JOINED.value:
+        raise HTTPException(status_code=409, detail="This plan's steps come from the organization that runs it, so they can't be edited here.")
     assignment = db.get(GoalAssignment, goal.assignment_id) if goal.assignment_id else None
     if assignment and assignment.usergroup_id:
         raise HTTPException(status_code=409, detail={

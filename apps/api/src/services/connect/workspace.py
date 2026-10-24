@@ -38,7 +38,7 @@ TOKEN = re.compile(r"<(plan|step|user|org):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+
 # Plans a chat is about: waiting to be accepted, under way, or finished.
 LIVE = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
 INVITE_ROLE = "commenter"
-ORG_SOURCES = (GoalSource.ASSIGNMENT.value, GoalSource.BADGE.value)
+ORG_SOURCES = (GoalSource.ASSIGNMENT.value, GoalSource.JOINED.value)
 
 
 def _value(item) -> str:
@@ -46,7 +46,7 @@ def _value(item) -> str:
 
 
 def _external(goal: Goal) -> bool:
-    """A plan an organization gave the learner: assigned to them, or one they started to earn its badge."""
+    """A plan an organization gave the learner: assigned to them, or one of its plans they joined."""
     return _value(goal.ownership) == GoalOwnership.EXTERNAL.value and _value(goal.source) in ORG_SOURCES and bool(goal.org_id and goal.subject_user_id)
 
 

@@ -10,8 +10,8 @@ without a badge or requirements) and says how others use it:
 
 Access is ``open`` (anyone may add it) or ``request`` (the creator approves each
 organization). ``GoalTemplateAuthorization`` records each organization's
-request and the decision. Permission on a template that earns a badge is also
-the permission to issue that badge (``services/goals/plan_issuers``).
+request and the decision. Permission to run a plan that earns a badge is also
+permission to award that badge (``services/badges/awards.runs_plan``).
 """
 
 from __future__ import annotations
@@ -84,8 +84,7 @@ class GoalTemplateLearnerAccess(SQLModel, table=True):
     """Who may start a plan an organization runs: its own template, or another organization's it may run.
 
     ``open`` (anyone starts), ``request`` (learners ask, the organization accepts) or ``invite``
-    (only learners it adds). No row means ``invite``. Discover lists a badge only while an
-    organization allowed to issue it offers one of its routes ``open`` or by ``request``.
+    (only learners it adds). No row means ``invite``.
     """
 
     __tablename__ = "goal_template_learner_access"
@@ -98,22 +97,6 @@ class GoalTemplateLearnerAccess(SQLModel, table=True):
     updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
-
-
-class BadgeRoutePartner(SQLModel, table=True):
-    """Unused (to drop in the pruning migration): an issuer once approved for a trusted-partners-only route.
-
-    Never read or written: who runs a route is who is approved on its plan (``GoalTemplateAuthorization``);
-    migration a8c4e1f7d2b9 copied the rows there. The model stays so the table isn't dropped by autogenerate."""
-
-    __tablename__ = "badge_route_partner"
-    __table_args__ = (UniqueConstraint("route_id", "issuer_org_id"),)
-
-    id: int | None = Field(default=None, primary_key=True)
-    route_id: int = Field(sa_column=Column(Integer, ForeignKey("badgeroute.id", ondelete="CASCADE"), nullable=False, index=True))
-    issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
-    approved_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    creation_date: str = ""
 
 
 # Payloads -------------------------------------------------------------------------------------

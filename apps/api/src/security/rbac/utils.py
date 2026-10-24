@@ -7,10 +7,6 @@ async def check_element_type(element_uuid):
     """
     Check if the element is a course, a user, a house or a collection, by checking its prefix
     """
-    if element_uuid.startswith("badge_collection_"):
-        return "badge_collections"
-    if element_uuid.startswith("badge_"):
-        return "badges"
     if element_uuid.startswith("learning_activity_"):
         return "learning_activities"
     elif element_uuid.startswith("user_"):
@@ -121,20 +117,14 @@ async def get_element_organization_id(
         Optional[int]: The organization ID, or None if not applicable
     """
     # Import models here to avoid circular imports
-    from src.db.learning import BadgeCollection, LearningActivity, LearningBadge
+    from src.db.learning import LearningActivity
     from src.db.organizations import Organization
     from src.db.roles import Role
     from src.db.usergroups import UserGroup
 
     element_type = await check_element_type(element_uuid)
 
-    if element_type == "badges":
-        item = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == element_uuid)).first()
-        return item.org_id if item else None
-    elif element_type == "badge_collections":
-        item = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == element_uuid)).first()
-        return item.org_id if item else None
-    elif element_type == "learning_activities":
+    if element_type == "learning_activities":
         item = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == element_uuid)).first()
         return item.org_id if item else None
 

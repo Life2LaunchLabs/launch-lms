@@ -17,7 +17,7 @@ from src.services.learning_documents.models import (
     activity_document_json_schema,
 )
 from src.services.learning_documents.references import rewrite_page_references
-from src.tests.test_badge_marketplace import NOW, _create_tables, _request, _setup
+from src.tests.plan_world import NOW, _create_tables, _request, _setup
 
 P1, P2, P3 = (f"learning_page_0000000{n}-0000-4000-8000-000000000000" for n in (1, 2, 3))
 

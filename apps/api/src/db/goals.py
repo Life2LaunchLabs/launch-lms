@@ -1,7 +1,7 @@
 """Goals: what a learner is working toward, as stages of typed steps.
 
 A goal is personal (the learner writes and owns it) or external (issued from
-a template by an assignment, a badge or the starter flow). Templates are
+a template by an assignment, a learner joining an organization's plan, or the starter flow). Templates are
 versioned JSON documents; only live goals are stored as rows.
 """
 
@@ -29,7 +29,8 @@ class GoalOwnership(str, Enum):
 class GoalSource(str, Enum):
     NONE = "none"
     ASSIGNMENT = "assignment"
-    BADGE = "badge"
+    # A learner joined an organization's plan themselves (from Discover).
+    JOINED = "joined"
     STARTER = "starter"
     # A learner started their own goal from a template.
     TEMPLATE = "template"
@@ -99,7 +100,7 @@ class GoalTemplate(SQLModel, table=True):
     system_type: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     # The working draft, as a goal template document (see services/goals/document.py).
     document: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
-    # The live version: what new assignments, badge starts and self-starts get. None = inactive.
+    # The live version: what new assignments and self-starts get. None = inactive.
     published_version_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
     # The open draft, {semver, note, base_version_uuid, started_at, started_by_user_id}; None when
     # ``document`` is just the live version (see services/goals/drafts.py).
@@ -167,8 +168,6 @@ class GoalAssignment(SQLModel, table=True):
     ended_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
-    # The badge its learners earn by finishing: another org's badge route it is authorized to run (services/goals/badge_authority.py).
-    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
@@ -189,7 +188,6 @@ class Goal(SQLModel, table=True):
     template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="SET NULL"), nullable=True, index=True))
     version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template_version.id", ondelete="SET NULL"), nullable=True, index=True))
     assignment_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_assignment.id", ondelete="SET NULL"), nullable=True, index=True))
-    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     title: str
     description: str = ""
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
@@ -266,7 +264,8 @@ class GoalStep(SQLModel, table=True):
     requirement_links: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     # Kept as columns (not only in config) so activity runs and badge awards can find their steps.
     activity_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
-    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
+    # Badge steps: the plan whose badge finishes the step.
+    badge_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="SET NULL"), nullable=True, index=True))
     template_key: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str = ""
     update_date: str = ""

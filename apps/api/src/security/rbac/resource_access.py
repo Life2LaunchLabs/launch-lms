@@ -1,7 +1,7 @@
 """
 Unified Resource Access Checker
 
-This module provides a single, unified access checker for badges, badge collections and resources.
+This module provides a single, unified access checker for resources.
 It replaces the duplicated logic in courses_security.py, podcasts_security.py, and
 communities_security.py (~1,200 lines) with a single configurable implementation (~300 lines).
 
@@ -57,7 +57,7 @@ def _coerce_flag(value: object, default: bool = False) -> bool:
 
 class ResourceAccessChecker:
     """
-    Unified access checker for badges, badge collections and resources.
+    Unified access checker for resources.
 
     Usage:
         checker = ResourceAccessChecker(request, db_session, current_user)
@@ -122,7 +122,7 @@ class ResourceAccessChecker:
             )
 
         # For child resources, delegate access check to the parent resource
-        # This handles learning activities -> badges, episodes -> podcasts, etc.
+        # Child resources inherit their parent's access.
         if config.parent_resource_type:
             parent_uuid = await self._resolve_parent_resource_uuid(resource_uuid, config)
             if not parent_uuid:
@@ -410,7 +410,7 @@ class ResourceAccessChecker:
 
         # SECURITY: For CREATE actions on existing resources (content creation),
         # require ownership. This prevents users from creating activities/chapters
-        # in badges they do not own, even if they have general "create" permission.
+        # in resources they do not own, even if they have general "create" permission.
         # For update/delete, always check ownership requirements.
         if require_ownership or action in [AccessAction.CREATE, AccessAction.UPDATE, AccessAction.DELETE]:
             return await self._check_ownership_access(resource_uuid, action, config)
@@ -687,21 +687,7 @@ class ResourceAccessChecker:
         parent_id: int,
         parent_config: ResourceConfig,
     ) -> str | None:
-        """Look up parent resource UUID by its ID."""
-        if parent_config.resource_type == "badges":
-            from src.db.learning import LearningBadge
-            statement = select(LearningBadge).where(LearningBadge.id == parent_id)
-            parent = self.db_session.exec(statement).first()
-            return parent.badge_uuid if parent else None
-
-
-
-        elif parent_config.resource_type == "badge_collections":
-            from src.db.learning import BadgeCollection
-            statement = select(BadgeCollection).where(BadgeCollection.id == parent_id)
-            parent = self.db_session.exec(statement).first()
-            return parent.collection_uuid if parent else None
-
+        """Look up parent resource UUID by its ID (no resource type has a parent today)."""
         return None
 
     async def _is_public_and_published(
@@ -797,13 +783,7 @@ class ResourceAccessChecker:
         resource = None
 
         # Primary resources
-        if config.resource_type == "badges":
-            from src.db.learning import LearningBadge
-            statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
-
-
-        elif config.resource_type == "resources":
+        if config.resource_type == "resources":
             from src.db.resources import Resource
             statement = select(Resource).where(Resource.resource_uuid == resource_uuid)
             resource = self.db_session.exec(statement).first()
@@ -812,11 +792,6 @@ class ResourceAccessChecker:
             statement = select(ResourceChannel).where(ResourceChannel.channel_uuid == resource_uuid)
             resource = self.db_session.exec(statement).first()
 
-
-        elif config.resource_type == "badge_collections":
-            from src.db.learning import BadgeCollection
-            statement = select(BadgeCollection).where(BadgeCollection.collection_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
 
         # Child resources
         elif config.resource_type == "learning_activities":

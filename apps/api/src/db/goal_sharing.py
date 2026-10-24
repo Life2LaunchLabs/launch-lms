@@ -36,7 +36,7 @@ class PlanCollaboratorRequestStatus(str, Enum):
 ALL_CAPABILITIES = {
     "view_plan", "comment", "contribute_fields", "update_progress",
     "request_collaborators", "contribute_restricted_fields", "complete_restricted_objectives",
-    "review_badge_submissions", "edit_plan_details", "edit_structure",
+    "review_submissions", "edit_plan_details", "edit_structure",
     "edit_schedule", "complete_plan", "archive_plan", "manage_collaborators",
     "manage_roles",
 }
@@ -55,7 +55,7 @@ DEFAULT_ROLE_DEFINITIONS = (
         "name": "Reviewer",
         "capabilities": [
             "view_plan", "comment", "contribute_fields", "update_progress",
-            "contribute_restricted_fields", "complete_restricted_objectives", "review_badge_submissions",
+            "contribute_restricted_fields", "complete_restricted_objectives", "review_submissions",
         ],
     },
     {
@@ -63,7 +63,7 @@ DEFAULT_ROLE_DEFINITIONS = (
         "name": "Plan admin",
         "capabilities": [
             "view_plan", "comment", "contribute_fields", "update_progress",
-            "contribute_restricted_fields", "complete_restricted_objectives", "review_badge_submissions",
+            "contribute_restricted_fields", "complete_restricted_objectives", "review_submissions",
             "edit_plan_details", "edit_structure", "edit_schedule", "complete_plan",
             "archive_plan", "manage_collaborators", "manage_roles",
         ],
@@ -75,7 +75,7 @@ DEFAULT_ROLE_DEFINITIONS = (
         "name": "Editor",
         "capabilities": [
             "view_plan", "comment", "contribute_fields", "update_progress",
-            "contribute_restricted_fields", "complete_restricted_objectives", "review_badge_submissions",
+            "contribute_restricted_fields", "complete_restricted_objectives", "review_submissions",
             "edit_plan_details", "edit_structure", "edit_schedule",
         ],
     },

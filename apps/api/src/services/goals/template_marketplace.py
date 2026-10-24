@@ -2,16 +2,13 @@
 
 Permission is to use a plan, not a badge (see ``src/db/template_marketplace``).
 A creator lists any of its templates, badge or not, as ``locked`` (others run it
-as-is: ``badge_authority.runnable`` lets an approved organization assign it,
+as-is: ``plan_issuers.runnable`` lets an approved organization assign it,
 read-only, on the creator's published versions) or ``open`` (others copy it
 into a template of their own, which remembers where it came from). Access is
 ``open`` (adding it approves at once) or ``request`` (the creator decides).
 
-Permission on a template that is a way to earn a badge is also permission to
-issue that badge through it (``plan_issuers.may_issue``). A plan of a badge
-listed in the marketplace can be asked for even when the plan itself isn't
-listed: that is how an organization asks to issue the badge. Leaving a plan
-(``revoke`` by the issuer) stops issuing through it.
+Running a plan that earns a badge awards that badge (``badges.awards.runs_plan``);
+leaving the plan (``revoke`` by the issuer) stops it.
 """
 
 from __future__ import annotations
@@ -22,10 +19,9 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, col, func, select
 
-from src.db.badge_routes import BadgeRoute
 from src.db.goals import GoalAssignment, GoalTemplate, TemplateStatus
-from src.db.learning import LearningBadge
 from src.db.organizations import Organization
+from src.services.badges.definition import badge_summary, without_badge
 from src.db.template_marketplace import (
     GoalTemplateAuthorization,
     GoalTemplateListing,
@@ -36,7 +32,9 @@ from src.db.template_marketplace import (
     TemplateListingUpdate,
 )
 from src.db.users import PublicUser
+from src.security.access.access import ensure_feature
 from src.security.org_auth import require_org_admin
+from src.security.superadmin import is_user_superadmin
 from src.services.goals import templates
 from src.services.goals.document import iter_steps
 
@@ -119,12 +117,11 @@ def get_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
 
 def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, payload: TemplateListingUpdate) -> dict:
     """The creator lists (or unlists) a template, and says how others may use it."""
-    from src.services.learning_marketplace import require_org_feature
-
     require_org_admin(current_user.id, org_id, db)
     template = templates.template_or_404(db, org_id, template_uuid)
     if payload.listed:
-        require_org_feature(db, current_user, org_id, "plan_publishing")
+        if not is_user_superadmin(current_user.id, db):
+            ensure_feature(org_id, "plan_publishing", db)
         if template.system_type:
             raise HTTPException(status_code=409, detail="System templates can't be listed in the marketplace")
         if templates.published_version(db, template) is None:
@@ -159,13 +156,6 @@ def _frameworks(db: Session, node_uuids: set[str]) -> list[dict]:
     return [{"framework_uuid": item["framework_uuid"], "name": item["name"], "node_count": len(item["nodes"])} for item in found.values()]
 
 
-def _badges(db: Session, template: GoalTemplate) -> list[dict]:
-    rows = db.exec(select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
-                   .where(BadgeRoute.goal_template_id == template.id, col(LearningBadge.deleted_at).is_(None))).all()
-    return [{"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or "",
-             "route_uuid": route.route_uuid} for route, badge in rows]
-
-
 def authorization_dict(db: Session, authorization: GoalTemplateAuthorization, template: GoalTemplate | None = None) -> dict:
     template = template or db.get(GoalTemplate, authorization.template_id)
     copied = db.get(GoalTemplate, authorization.copied_template_id) if authorization.copied_template_id else None
@@ -178,8 +168,8 @@ def authorization_dict(db: Session, authorization: GoalTemplateAuthorization, te
         "creator_org": _org(db.get(Organization, authorization.creator_org_id)),
         "issuer_org": _org(db.get(Organization, authorization.issuer_org_id)),
         "copied_template_uuid": copied.template_uuid if copied else None,
-        # The badges this plan earns: approval on it is permission to issue them.
-        "badges": _badges(db, template) if template else [],
+        # The badge this plan earns: running it awards the badge.
+        "badge": badge_summary(db, template) if template else None,
     }
 
 
@@ -194,7 +184,7 @@ def _card(db: Session, template: GoalTemplate, listing: GoalTemplateListing, org
         **templates.cover(template), "published_version": live.number if live else None,
         "stage_count": len(document.get("stages") or []), "step_count": len(steps),
         "creator_org": _org(db.get(Organization, template.org_id)), "is_own": org_id is not None and template.org_id == org_id,
-        **listing_dict(listing), "badges": _badges(db, template), "frameworks": _frameworks(db, nodes), "requirement_count": len(nodes),
+        **listing_dict(listing), "badge": badge_summary(db, template), "frameworks": _frameworks(db, nodes), "requirement_count": len(nodes),
         "authorization": authorization_dict(db, authorization, template) if authorization else None,
     }
 
@@ -232,27 +222,15 @@ def _decide(authorization: GoalTemplateAuthorization, status: str, user_id: int 
     authorization.update_date = _now()
 
 
-def _earns_listed_badge(db: Session, template: GoalTemplate) -> bool:
-    """Whether the template is a way to earn a published badge listed in the marketplace."""
-    from src.db.learning import LearningBadgeStatus
-
-    return db.exec(select(BadgeRoute.id).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id).where(
-        BadgeRoute.goal_template_id == template.id, LearningBadge.marketplace_listed == True,  # noqa: E712
-        LearningBadge.status == LearningBadgeStatus.PUBLISHED, col(LearningBadge.deleted_at).is_(None))).first() is not None
-
-
 def request_use(db: Session, current_user: PublicUser, payload: TemplateAuthorizationRequest) -> dict:
-    """Ask to use a listed template, or to issue a marketplace badge through one of its plans.
-
-    Open access approves at once (a badge's plan that isn't listed itself is by request); asking again
-    after a decline or after leaving asks again."""
+    """Ask to use a listed template. Open access approves at once; asking again after a decline or after leaving asks again."""
     require_org_admin(current_user.id, payload.issuer_org_id, db)
     template = _template(db, payload.template_uuid)
     listing = listing_of(db, template)
     if template.org_id == payload.issuer_org_id:
         raise HTTPException(status_code=422, detail="Your organization already owns this template")
     listed = listing is not None and listing.listed
-    if not listed and not _earns_listed_badge(db, template):
+    if not listed:
         raise HTTPException(status_code=422, detail="This template isn't in the marketplace")
     now = _now()
     authorization = authorization_of(db, template, payload.issuer_org_id)
@@ -296,7 +274,7 @@ def decide(db: Session, current_user: PublicUser, authorization_uuid: str, appro
 
 def revoke(db: Session, current_user: PublicUser, authorization_uuid: str) -> dict:
     """Either side ends the permission: the owner revokes it, or the organization leaves the plan.
-    Assignments already running stop issuing new plans, and the plan's badges stop issuing through it."""
+    Assignments already running stop issuing new plans, and their learners stop earning the plan's badge here."""
     authorization = _authorization(db, authorization_uuid)
     try:
         require_org_admin(current_user.id, authorization.creator_org_id, db)
@@ -371,7 +349,7 @@ def copy_template(db: Session, current_user: PublicUser, org_id: int, template_u
         else:
             raise HTTPException(status_code=403, detail="Ask the creator for permission before copying this template")
     live = templates.issuable_version(db, template)
-    copied = copy_into(db, current_user, org_id, template, live.document, live.number)
+    copied = copy_into(db, current_user, org_id, template, without_badge(live.document), live.number)
     authorization.copied_template_id = copied.id  # type: ignore[union-attr]
     authorization.update_date = _now()  # type: ignore[union-attr]
     db.add(authorization)
@@ -389,11 +367,6 @@ def provenance(db: Session, template: GoalTemplate) -> dict | None:
         return None
     return {"template_uuid": source.template_uuid, "title": source.title, "version": template.source_version,
             "org": _org(db.get(Organization, source.org_id))}
-
-
-def owner_org(db: Session, template_uuid: str) -> dict | None:
-    template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == template_uuid)).first()
-    return _org(db.get(Organization, template.org_id)) if template else None
 
 
 # Added from other organizations --------------------------------------------------------------------------------

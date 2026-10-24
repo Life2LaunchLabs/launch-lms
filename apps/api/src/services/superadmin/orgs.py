@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, func, select
-from src.db.learning import LearningBadge
+from src.db.badges import BadgeAward
 from src.db.organization_config import OrganizationConfig, OrganizationConfigDocument
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.plan_requests import PlanRequest, PlanRequestUpdate
@@ -240,7 +240,8 @@ def list_organizations(
         cfg.org_id: cfg for cfg in db_session.exec(select(OrganizationConfig)).all()
     }
     user_counts = _counts_by_org(db_session, UserOrganization.org_id)
-    badge_counts = _counts_by_org(db_session, LearningBadge.org_id)
+    # Badges awarded by each organization.
+    badge_counts = _counts_by_org(db_session, BadgeAward.issuing_org_id)
     pending_counts = _counts_by_org(
         db_session, PlanRequest.org_id, filters=(PlanRequest.status == "pending",)
     )
@@ -285,7 +286,7 @@ def get_organization(db_session: Session, org_id: int) -> dict:
         select(func.count()).where(UserOrganization.org_id == org.id)
     ).one()
     badge_count = db_session.exec(
-        select(func.count()).where(LearningBadge.org_id == org.id)
+        select(func.count()).where(BadgeAward.issuing_org_id == org.id)
     ).one()
     pending_request_count = db_session.exec(
         select(func.count()).where(

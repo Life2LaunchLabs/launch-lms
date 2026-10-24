@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import GoalTemplate
-from src.db.learning import LearningActivity, LearningBadge
+from src.db.learning import LearningActivity
 from src.services.goals import mcp_library, mcp_templates as tools, templates
 from src.services.oauth.server import AccessContext
 from src.tests.test_goals import ADMIN, LEARNER, NOW, _session, _user
@@ -86,7 +86,7 @@ def test_validation_reports_every_error_with_paths_and_warns_about_removals():
         steps = broken["stages"][0]["steps"]
         steps[0]["config"] = {"slots": []}
         steps[1]["due_week"] = 9
-        steps.append({"type": "badge", "title": "Earn it", "config": {"badge_uuid": "badge_missing"}, "after": ["nope"]})
+        steps.append({"type": "badge", "title": "Earn it", "config": {"template_uuid": "goal_template_missing"}, "after": ["nope"]})
         steps.append({"type": "task", "title": "Meet", "completed_by": "staff", "review_required": True})
         report = call(db, tools.validate_plan_template, {"template_uuid": uuid, "document": broken})
         assert report["valid"] is False
@@ -114,21 +114,24 @@ def test_validation_reports_every_error_with_paths_and_warns_about_removals():
         assert "Warning at stages: Removes step" in tools.summary("save_plan_template", saved)
 
 
-def test_create_copies_a_document_with_badge_and_new_activity_steps():
+def test_create_copies_a_document_with_its_badge_badge_steps_and_new_activity_steps():
+    from src.tests.plan_world import _badge_plan
+
     with _session() as db:
-        db.add(LearningBadge(id=1, org_id=1, badge_uuid="badge_1", name="Explorer", creation_date=NOW, update_date=NOW))
-        db.commit()
+        explorer = _badge_plan(db, _user(ADMIN), 1, "Explorer", {"kind": "Badge"})
         uuid = _career(db)
         document = call(db, tools.get_plan_template, {"template_uuid": uuid})["document"]
         document["template"]["title"] = "Career Ready (Spring)"
+        document["badge"] = {"kind": "Certification", "skills": ["Interviewing"]}
         document["stages"][0]["steps"] += [
-            {"type": "badge", "title": "Explorer badge", "config": {"badge_uuid": "badge_1"}},
+            {"type": "badge", "title": "Explorer badge", "config": {"template_uuid": explorer.template_uuid}},
             {"type": "activity", "title": "Spot the change", "after": ["resume"]},
         ]
         created = call(db, tools.create_plan_template, {"document": document})
         assert created["context"]["template_uuid"] != uuid and created["changed"] is True
         steps = created["document"]["stages"][0]["steps"]
         assert [step["type"] for step in steps] == ["upload", "task", "badge", "activity"]
+        assert created["context"]["badge"]["name"] == "Career Ready (Spring)" and created["context"]["badge"]["kind"] == "Certification"
         assert steps[3]["config"]["activity_uuid"].startswith("learning_activity_") and steps[3]["after"] == ["resume"]
 
         listed = call(db, tools.list_activities, {"template_uuid": created["context"]["template_uuid"]})["activities"]
@@ -137,9 +140,6 @@ def test_create_copies_a_document_with_badge_and_new_activity_steps():
         # A copy's activity steps get their own activities, never the source's.
         again = call(db, tools.create_plan_template, {"document": created["document"]})
         assert again["document"]["stages"][0]["steps"][3]["config"]["activity_uuid"] != steps[3]["config"]["activity_uuid"]
-
-        bumped = call(db, tools.update_template_badge_versions, {"template_uuid": created["context"]["template_uuid"], "accept_previous_major_versions": True})
-        assert bumped["changed"] and bumped["document"]["stages"][0]["steps"][2]["config"]["accept_previous_major_versions"] is True
 
 
 def test_other_organizations_and_non_admins_are_refused():

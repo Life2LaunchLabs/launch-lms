@@ -34,31 +34,27 @@ def _settings(config: OrganizationConfig | None) -> DiscoverSettings:
         customization = (config.config or {}).get("customization") if config else None
         raw = customization.get("discover", {}) if isinstance(customization, dict) else {}
         if isinstance(raw, dict) and isinstance(raw.get("slides"), list):
-            # News slides were retired from Discover; drop them rather than the whole curation.
-            raw = {**raw, "slides": [slide for slide in raw["slides"] if not (isinstance(slide, dict) and slide.get("kind") == "news")]}
+            # News and badge slides were retired from Discover; drop them rather than the whole curation.
+            raw = {**raw, "slides": [slide for slide in raw["slides"] if not (isinstance(slide, dict) and slide.get("kind") in ("news", "badge"))]}
         return DiscoverSettings.model_validate(raw)
     except ValidationError:
         # Older malformed editorial settings cannot break the learner's catalog.
         return DiscoverSettings()
 
 
-def _sources(db: Session, user_id: int | None = None, catalog: tuple[list, list, list] | None = None, site_org_id: int | None = None) -> dict:
-    """Publishable hero sources. ``catalog`` (badges, cards, collections) reuses the cards Discover already built."""
-    from src.services.badge_discover import _cards, _collection_dict, _public_collections, discoverable
+def _sources(db: Session, user_id: int | None = None, catalog: tuple[list, list] | None = None, site_org_id: int | None = None) -> dict:
+    """Publishable hero sources. ``catalog`` (plan cards, collections) reuses what Discover already built."""
+    from src.services.goals import plan_joining
 
     if catalog:
-        badges, cards, collections = catalog
+        cards, collections = catalog
     else:
-        badges = discoverable(db, site_org_id=site_org_id)
-        cards = _cards(db, badges, user_id)
-        collections = _public_collections(db, None)
-    groups = {int(collection.id): [] for collection in collections}
-    for badge, card in zip(badges, cards):
-        if badge.collection_id in groups:
-            groups[badge.collection_id].append(card)
+        items = plan_joining.offers(db, site_org_id=site_org_id)
+        cards = plan_joining._cards(db, items, user_id)
+        collections = plan_joining._collections(db, items, cards)
     return {
-        "badge": {card["badge_uuid"]: card for card in cards},
-        "collection": {collection.collection_uuid: _collection_dict(collection, groups[int(collection.id)]) for collection in collections if groups[int(collection.id)]},
+        "plan": {card["template_uuid"]: card for card in cards},
+        "collection": {collection["collection_uuid"]: collection for collection in collections},
     }
 
 
@@ -66,10 +62,14 @@ def _resolve(slide: DiscoverSlide, sources: dict) -> dict | None:
     item = sources.get(slide.kind, {}).get(slide.target)
     if slide.kind not in {"link", "challenges"} and item is None:
         return None
-    if slide.kind == "badge":
-        defaults = {"title": item["name"], "description": item["subtitle"] or item["description"], "eyebrow": "Featured badge", "action_label": "View badge", "href": f'/badges/{item["badge_uuid"].removeprefix("badge_")}', "thumbnail_url": item["thumbnail_image"], "badge": item}
+    if slide.kind == "plan":
+        eyebrow = "Earn a badge" if item["badge"] else "Featured plan"
+        defaults = {"title": item["title"], "description": item["description"], "eyebrow": eyebrow, "action_label": "View plan",
+                    "href": f'/plan/{item["template_uuid"]}', "thumbnail_url": item["thumbnail_image"] or (item["badge"] or {}).get("image_url") or "", "plan": item}
     elif slide.kind == "collection":
-        defaults = {"title": item["name"], "description": item["description"], "eyebrow": "Badge series", "action_label": "Explore series", "href": f'/badges/collections/{item["collection_uuid"].removeprefix("badge_collection_")}', "thumbnail_url": item["thumbnail_image"], "collection": item}
+        first = item["plans"][0] if item["plans"] else {}
+        defaults = {"title": item["name"], "description": item["description"], "eyebrow": "Collection", "action_label": "Explore collection",
+                    "href": f'/discover/collections/{item["collection_uuid"]}', "thumbnail_url": first.get("thumbnail_image") or "", "collection": item}
     elif slide.kind == "challenges":
         defaults = {"title": "Monthly challenges", "description": "A new way to stretch your skills. Fresh challenges are coming soon.", "eyebrow": "Coming soon", "action_label": "", "href": "", "thumbnail_url": "/jungle_landscape.jpg"}
     else:
@@ -77,7 +77,7 @@ def _resolve(slide: DiscoverSlide, sources: dict) -> dict | None:
     return {**defaults, "key": f"{slide.kind}:{slide.target}", "kind": slide.kind, "theme": slide.theme, "image_url": slide.image_url, **{field: getattr(slide, field) for field in ("title", "description", "eyebrow", "action_label", "thumbnail_url") if getattr(slide, field)}}
 
 
-def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: int | None = None, catalog: tuple[list, list, list] | None = None) -> list[dict]:
+def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: int | None = None, catalog: tuple[list, list] | None = None) -> list[dict]:
     site = _site(db, org_id)
     if not site:
         return []
@@ -88,11 +88,11 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
     if settings.mode == "curated":
         chosen = settings.slides
     else:
-        badges = [DiscoverSlide(kind="badge", target=card["badge_uuid"], theme="blue") for card in featured]
-        series = [DiscoverSlide(kind="collection", target=uuid, theme="light") for uuid, collection in sources["collection"].items() if len(collection["badges"]) > 1][:1]
-        chosen = (badges + series)[:5]
+        plans = [DiscoverSlide(kind="plan", target=card["template_uuid"], theme="blue") for card in featured]
+        series = [DiscoverSlide(kind="collection", target=uuid, theme="light") for uuid in sources["collection"]][:1]
+        chosen = (plans + series)[:5]
         if not chosen:
-            chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore badges and turn your next step into a goal.", eyebrow="Discover", action_label="Go to your goals", image_url="/jungle_landscape.jpg")]
+            chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore plans and turn your next step into a goal.", eyebrow="Discover", action_label="Go to your goals", image_url="/jungle_landscape.jpg")]
         chosen.append(DiscoverSlide(kind="challenges", target="challenges", image_url="/jungle_landscape.jpg"))
     return [resolved for slide in chosen if (resolved := _resolve(slide, sources)) is not None]
 
@@ -104,7 +104,7 @@ def read_settings(db: Session, user: PublicUser, org_id: int) -> dict:
     return {
         "settings": _settings(_config(db, org_id)).model_dump(),
         "options": {
-            "badges": [{"id": card["badge_uuid"], "name": card["name"]} for card in sources["badge"].values()],
+            "plans": [{"id": card["template_uuid"], "name": card["title"]} for card in sources["plan"].values()],
             "collections": [{"id": collection["collection_uuid"], "name": collection["name"]} for collection in sources["collection"].values()],
         },
     }

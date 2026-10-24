@@ -47,9 +47,23 @@ def _progress(db: Session, goals: list[Goal]) -> tuple[dict[int, tuple[int, int]
     return {goal_id: (done, total) for goal_id, (done, total) in counts.items()}, sum(status in WAITING for status in statuses.values())
 
 
-def assignment_dict(db: Session, assignment: GoalAssignment) -> dict:
-    from src.services.goals.badge_authority import version_status
+def version_status(db: Session, assignment: GoalAssignment) -> dict:
+    """An assignment's version against its template's live one, and the badge finishing its version earns."""
+    from src.services.badges.definition import badge_summary
 
+    template = db.get(GoalTemplate, assignment.template_id)
+    version = db.get(GoalTemplateVersion, assignment.version_id)
+    live = db.get(GoalTemplateVersion, template.published_version_id) if template and template.published_version_id else None
+    return {
+        "version_uuid": version.version_uuid if version else None,
+        "latest_version": live.number if live else None,
+        "latest_version_uuid": live.version_uuid if live else None,
+        "update_available": bool(live and version and live.id != version.id and live.number > version.number),
+        "badge": badge_summary(db, template, version) if template and version else None,
+    }
+
+
+def assignment_dict(db: Session, assignment: GoalAssignment) -> dict:
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
@@ -106,10 +120,7 @@ def assignment_summaries(db: Session, assignments: list[GoalAssignment]) -> dict
     """Many assignments summarized at once, by assignment id: what ``assignment_dict`` says (but the
     schedule, collaborators and owner) plus each one's learner ids. Everything loads in a few queries
     for the whole list, with progress counted per goal in one grouped query."""
-    from src.db.badge_routes import BadgeRoute
-    from src.db.learning import LearningBadge
-    from src.db.organizations import Organization
-    from src.services.goals.badge_authority import eligible, rule_of
+    from src.services.badges.definition import badge_summary
 
     if not assignments:
         return {}
@@ -122,10 +133,6 @@ def assignment_summaries(db: Session, assignments: list[GoalAssignment]) -> dict
     templates = by_id(GoalTemplate, (row.template_id for row in assignments))
     versions = by_id(GoalTemplateVersion, [*(row.version_id for row in assignments), *(t.published_version_id for t in templates.values())])
     groups = by_id(UserGroup, (row.usergroup_id for row in assignments))
-    badges = by_id(LearningBadge, (row.badge_id for row in assignments))
-    owners = by_id(Organization, (badge.org_id for badge in badges.values()))
-    routes = {(int(route.badge_id), int(route.goal_template_id)): route for route in db.exec(select(BadgeRoute).where(  # type: ignore[arg-type]
-        col(BadgeRoute.badge_id).in_(list(badges)), col(BadgeRoute.goal_template_id).in_(list(templates)))).all()} if badges else {}
     goals: dict[int, list[tuple[int, str, int | None, str]]] = {}
     for goal_id, assignment_id, goal_uuid, subject, status in db.exec(
         select(Goal.id, Goal.assignment_id, Goal.goal_uuid, Goal.subject_user_id, Goal.status).where(col(Goal.assignment_id).in_(ids)).order_by(Goal.id)  # type: ignore[arg-type]
@@ -141,8 +148,6 @@ def assignment_summaries(db: Session, assignments: list[GoalAssignment]) -> dict
         version = versions.get(int(assignment.version_id))
         live = versions.get(int(template.published_version_id)) if template and template.published_version_id else None
         group = groups.get(int(assignment.usergroup_id)) if assignment.usergroup_id else None
-        badge = badges.get(int(assignment.badge_id)) if assignment.badge_id else None
-        route = routes.get((int(badge.id), int(assignment.template_id))) if badge else None  # type: ignore[arg-type]
         mine = goals.get(int(assignment.id), [])  # type: ignore[arg-type]
         counts = [progress.get(goal_id, (0, 0, 0)) for goal_id, *_ in mine]
         done, total, waiting = sum(item[0] for item in counts), sum(item[1] for item in counts), sum(item[2] for item in counts)
@@ -151,7 +156,6 @@ def assignment_summaries(db: Session, assignments: list[GoalAssignment]) -> dict
         for *_, status in mine:
             lifecycle[status] = lifecycle.get(status, 0) + 1
         external = bool(assignment.subject_email) and not assignment.user_id and not assignment.usergroup_id
-        owner = owners.get(int(badge.org_id)) if badge else None
         result[int(assignment.id)] = {  # type: ignore[arg-type]
             "assignment_uuid": assignment.assignment_uuid, "org_id": assignment.org_id,
             "template_uuid": template.template_uuid if template else "", "template_title": template.title if template else "Deleted template",
@@ -169,13 +173,10 @@ def assignment_summaries(db: Session, assignments: list[GoalAssignment]) -> dict
             "completed_count": done, "review_count": waiting, "ready_for_review_count": waiting,
             "progress_percent": round(done * 100 / total) if total else 0,
             "min_progress_percent": min(percents) if percents else 0, "max_progress_percent": max(percents) if percents else 0,
-            # What badge_authority.version_status says, from what's loaded above.
+            # What version_status says, from what's loaded above.
             "version_uuid": version.version_uuid if version else None,
             "latest_version": live.number if live else None, "latest_version_uuid": live.version_uuid if live else None,
             "update_available": bool(live and version and live.id != version.id and live.number > version.number),
-            "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or "",
-                      "owner_org": {"id": owner.id, "name": owner.name, "slug": owner.slug} if owner else None,
-                      **(rule_of(route) if route else {})} if badge else None,
-            "version_eligible": eligible(route, version.number if version else None, live.number if live else None) if badge else None,
+            "badge": badge_summary(db, template, version) if template and version else None,
         }
     return result

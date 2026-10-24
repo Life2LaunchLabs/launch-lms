@@ -6,27 +6,49 @@ from sqlmodel import select
 from src.db.discover import DiscoverSettings, DiscoverSlide
 from src.db.organization_config import OrganizationConfig
 from src.db.users import AnonymousUser, User
-from src.services import badge_discover, discover_featured
-from src.tests.test_badge_discover import _collect
-from src.tests.test_goal_badges import _world
+from src.db.plan_collections import PlanCollectionCreate
+from src.services import discover_featured
+from src.services.goals import collections, plan_access, plan_joining
 from src.tests.test_goals import ADMIN, LEARNER as LEARNER_ID, _user
+from src.tests.test_plan_joining import _setup
 
 LEARNER = _user(LEARNER_ID)
 
 
 def _session():
-    session, _, _ = _world()
+    session, plans = _setup()
     OrganizationConfig.__table__.create(session.get_bind(), checkfirst=True)
+    session.info["plans"] = plans
     return session
 
 
-def test_automatic_hero_features_badges_series_and_challenges():
+def _collect(session) -> None:
+    """Studio offers both of its badge plans openly, gathered in a collection."""
+    plans = session.info["plans"]
+    for plan in plans:
+        plan_access.set_access(session, int(plan.id), 1, "open", None)
+    session.commit()
+    collections.create_collection(session, _user(ADMIN), 1, PlanCollectionCreate(name="Adapt", template_uuids=[plan.template_uuid for plan in plans]))
+
+
+def _plan_uuid(session) -> str:
+    return session.info["plans"][0].template_uuid
+
+
+def _unoffer(session) -> None:
+    for plan in session.info["plans"]:
+        plan_access.set_access(session, int(plan.id), 1, "invite", None)
+    session.commit()
+
+
+def test_automatic_hero_features_plans_series_and_challenges():
     with _session() as session:
         _collect(session)
-        slides = badge_discover.discover(session, AnonymousUser(), site_org_id=1)["hero_slides"]
+        slides = plan_joining.discover(session, AnonymousUser(), site_org_id=1)["hero_slides"]
         assert slides[-1]["kind"] == "challenges" and slides[-1]["href"] == ""
         assert not any(slide["kind"] == "news" for slide in slides)
-        assert any(slide["kind"] == "badge" for slide in slides)
+        plan = next(slide for slide in slides if slide["kind"] == "plan")
+        assert plan["eyebrow"] == "Earn a badge" and plan["href"].startswith("/plan/")
         assert any(slide["kind"] == "collection" for slide in slides)
 
 
@@ -38,13 +60,13 @@ def test_curated_order_and_artwork_persist_without_overwriting_org_settings():
         row.config = {**(row.config or {}), "general": {"enabled": True}, "customization": {"colors": {"primary": "red"}}}
         session.add(row)
         session.commit()
-        settings = DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="challenges", target="challenges", title="Challenges coming soon", image_url="/jungle_landscape.jpg"), DiscoverSlide(kind="badge", target="badge_adapt", title="Your next skill", action_label="Explore")])
+        settings = DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="challenges", target="challenges", title="Challenges coming soon", image_url="/jungle_landscape.jpg"), DiscoverSlide(kind="plan", target=_plan_uuid(session), title="Your next skill", action_label="Explore")])
         assert discover_featured.save_settings(session, admin, 1, settings)["settings"] == settings.model_dump()
         session.refresh(row)
         assert row.config["customization"]["colors"] == {"primary": "red"}
         assert row.config["general"] == {"enabled": True}
         slides = discover_featured.hero_slides(session, 1, [])
-        assert [slide["kind"] for slide in slides] == ["challenges", "badge"]
+        assert [slide["kind"] for slide in slides] == ["challenges", "plan"]
         assert slides[0]["image_url"] == "/jungle_landscape.jpg" and slides[0]["href"] == ""
         assert slides[1]["title"] == "Your next skill" and slides[1]["action_label"] == "Explore"
         discover_featured.save_settings(session, admin, 1, DiscoverSettings(enabled=False))
@@ -60,11 +82,11 @@ def test_selected_org_admin_required_and_unavailable_sources_rejected():
         session.add(row)
         session.commit()
         admin.is_superadmin = False
-        for user, org_id in [(LEARNER, 1), (AnonymousUser(), 1), (admin, 2)]:
+        for user, org_id in [(LEARNER, 1), (AnonymousUser(), 1), (admin, 99)]:
             with pytest.raises(HTTPException) as error:
                 discover_featured.save_settings(session, user, org_id, DiscoverSettings())
             assert error.value.status_code == 403
-        for kind, target in [("badge", "badge_missing"), ("collection", "badge_collection_missing")]:
+        for kind, target in [("plan", "goal_template_missing"), ("collection", "plan_collection_missing")]:
             with pytest.raises(HTTPException) as error:
                 discover_featured.save_settings(session, admin, 1, DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind=kind, target=target)]))
             assert error.value.status_code == 422
@@ -95,30 +117,20 @@ def test_duplicate_slides_and_unsafe_artwork_are_rejected():
 
 
 def test_empty_catalog_retains_welcome_and_challenges_hero():
-    from src.db.learning import LearningBadge, LearningBadgeStatus
-
     with _session() as session:
         _collect(session)
-        for badge in session.exec(select(LearningBadge)).all():
-            badge.status = LearningBadgeStatus.DRAFT
-            session.add(badge)
-        session.commit()
+        _unoffer(session)
         slides = discover_featured.hero_slides(session, 1, [])
         assert [slide["kind"] for slide in slides] == ["link", "challenges"]
         assert slides[0]["href"] == "/plans"
 
 
-def test_unpublished_curated_source_is_skipped_and_legacy_config_recovers():
-    from src.db.learning import LearningBadge, LearningBadgeStatus
-
+def test_unoffered_curated_source_is_skipped_and_legacy_config_recovers():
     with _session() as session:
         admin = _user(ADMIN)
         _collect(session)
-        discover_featured.save_settings(session, admin, 1, DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="badge", target="badge_adapt")]))
-        badge = session.get(LearningBadge, 1)
-        badge.status = LearningBadgeStatus.DRAFT
-        session.add(badge)
-        session.commit()
+        discover_featured.save_settings(session, admin, 1, DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="plan", target=_plan_uuid(session))]))
+        _unoffer(session)
         assert discover_featured.hero_slides(session, 1, []) == []
         row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first()
         row.config = {"customization": None}

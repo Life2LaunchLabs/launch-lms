@@ -11,7 +11,7 @@ from src.services.learning import update_activity, update_page
 from src.services.learning_content import activity_recovery
 from src.services.learning_documents import store
 from src.services.learning_documents.models import ActivityDocumentSave
-from src.tests.test_badge_marketplace import _request
+from src.tests.plan_world import _request
 from src.tests.test_learning_documents import P2, _world
 
 

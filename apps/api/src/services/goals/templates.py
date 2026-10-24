@@ -14,8 +14,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import inspect
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, func, select
 
 from src.db.goal_templates import TemplateCover
 from src.db.goals import PLAN_COLORS, GoalTemplate, GoalTemplateVersion, TemplateStatus
@@ -165,24 +164,6 @@ def require_reader(db: Session, current_user: PublicUser, org_id: int) -> None:
     raise HTTPException(status_code=403, detail="Only the organization's staff can see its plan templates")
 
 
-def _badges_by_template(db: Session, template_ids: list[int]) -> dict[int, list[dict]]:
-    """The badges each template earns (it is one of their routes)."""
-    from src.db.badge_routes import BadgeRoute
-    from src.db.learning import LearningBadge
-
-    if not template_ids or not inspect(db.connection()).has_table("badgeroute"):
-        return {}
-    rows = db.exec(
-        select(BadgeRoute.goal_template_id, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
-        .where(col(BadgeRoute.goal_template_id).in_(template_ids), col(LearningBadge.deleted_at).is_(None))
-        .order_by(LearningBadge.name)
-    ).all()
-    result: dict[int, list[dict]] = {}
-    for template_id, badge in rows:
-        result.setdefault(int(template_id), []).append({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or "", "org_id": badge.org_id})
-    return result
-
-
 def _frameworks_of(document: dict, nodes: dict) -> list[dict]:
     """The requirement frameworks a template's steps link to, with how many of each framework's requirements."""
     counts: dict[str, dict] = {}
@@ -197,7 +178,8 @@ def _frameworks_of(document: dict, nodes: dict) -> list[dict]:
 
 
 def list_templates(db: Session, current_user: PublicUser, org_id: int, include_archived: bool = False) -> list[dict]:
-    """The organization's templates, each with its size, the badges it earns and the frameworks it maps to."""
+    """The organization's templates, each with its size, the badge its draft earns and the frameworks it maps to."""
+    from src.services.badges.definition import summary
     from src.services.requirements import mappable_nodes
 
     require_reader(db, current_user, org_id)
@@ -208,14 +190,13 @@ def list_templates(db: Session, current_user: PublicUser, org_id: int, include_a
     read_only = not can_edit(db, current_user, org_id)
     from src.services.goals.collections import _listed_ids, collections_by_template
 
-    badges = _badges_by_template(db, [int(row.id) for row in rows if row.id])
     listed = _listed_ids(db, [int(row.id) for row in rows if row.id])
     in_collections = collections_by_template(db, org_id, [int(row.id) for row in rows if row.id])
     nodes = mappable_nodes(db, org_id)
     return [{
         **template_dict(db, row, with_document=False), "read_only": read_only,
         "stage_count": len((row.document or {}).get("stages") or []), "step_count": sum(1 for _ in iter_steps(row.document or {})),
-        "badges": badges.get(int(row.id or 0), []), "frameworks": _frameworks_of(row.document, nodes),
+        "badge": summary(row, row.document), "frameworks": _frameworks_of(row.document, nodes),
         "collections": in_collections.get(int(row.id or 0), []), "listed": int(row.id or 0) in listed,
     } for row in rows]
 
@@ -256,10 +237,12 @@ def get_template(db: Session, current_user: PublicUser, org_id: int, template_uu
     """One of the organization's templates with its draft; ``read_only`` for staff, who see it but can't change it."""
     require_reader(db, current_user, org_id)
     template = template_or_404(db, org_id, template_uuid)
+    from src.services.badges.definition import draft_achievement
     from src.services.goals.collections import collections_by_template
 
+    # The badge as the draft earns it, plan details filled in, for the editor's badge card.
     return {**template_dict(db, template), "read_only": not can_edit(db, current_user, org_id),
-            "badges": _badges_by_template(db, [int(template.id or 0)]).get(int(template.id or 0), []),
+            "badge": draft_achievement(db, template),
             "collections": collections_by_template(db, org_id, [int(template.id or 0)]).get(int(template.id or 0), [])}
 
 

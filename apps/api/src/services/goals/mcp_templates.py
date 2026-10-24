@@ -13,14 +13,13 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import HTTPException, Request
-from sqlalchemy import inspect
 from sqlmodel import Session, func, select
 
 from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.learning import LearningActivity, LearningPage
 from src.security.org_auth import require_org_admin
+from src.services.badges.definition import draft_achievement
 from src.services.goals import library, templates
-from src.services.goals.badge_versions import outdated_badge_steps
 from src.services.goals.document import iter_steps, json_schema
 from src.services.goals.mcp_template_checks import check_document, reject
 from src.services.oauth.server import AccessContext
@@ -53,22 +52,6 @@ def _counts(document: dict) -> tuple[int, int]:
     stages = document.get("stages") or []
     return len(stages), sum(len(stage.get("steps") or []) for stage in stages)
 
-
-def earns_badges(db: Session, template: GoalTemplate) -> list[dict]:
-    """Badges this template is a way to earn."""
-    from src.db.badge_routes import BadgeRoute
-    from src.db.learning import LearningBadge
-
-    if not inspect(db.get_bind()).has_table("badgeroute"):
-        return []
-    rows = db.exec(
-        select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
-        .where(BadgeRoute.goal_template_id == template.id, LearningBadge.deleted_at.is_(None))  # type: ignore[union-attr]
-    ).all()
-    return [{"badge_uuid": badge.badge_uuid, "name": badge.name, "recommended": route.recommended} for route, badge in rows]
-
-
-# Versions ------------------------------------------------------------------------------
 
 def _version_summary(version: GoalTemplateVersion, template: GoalTemplate) -> dict:
     steps = [step for _, step in iter_steps(version.document or {})]
@@ -104,8 +87,8 @@ def envelope(db: Session, template: GoalTemplate) -> dict:
             "template_uuid": template.template_uuid, "title": template.title,
             "status": getattr(template.status, "value", template.status), "system_type": template.system_type,
             "assignment_count": assignment_count, "published_to_library": library.library_status(db, template)["published_to_library"],
-            "earns_badges": earns_badges(db, template), "versioning": version_status(db, template),
-            "outdated_badge_steps": outdated_badge_steps(db, template),
+            # The badge as the draft earns it, plan details filled in (None: no badge block).
+            "badge": draft_achievement(db, template), "versioning": version_status(db, template),
         },
         "editor_url": template_editor_url(db, template.org_id, template.template_uuid),
     }
@@ -247,17 +230,6 @@ async def set_objective_requirements(request: Request, db_session: Session, ctx:
         step["requirement_node_uuids"] = requested
         _save_draft(db_session, ctx, template, document)
     return {"step_key": step_key, "requirement_links": requirement_links(db_session, ctx.org_id, requested), "template_etag": templates.etag(template)}
-
-
-async def update_template_badge_versions(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    """Point the draft's badge steps at each badge's newest major version (``goals.badge_versions``)."""
-    from src.services.goals.badge_versions import update_badge_versions
-
-    template = _template(db_session, ctx, args["template_uuid"])
-    before = templates.etag(template)
-    update_badge_versions(db_session, ctx.user, ctx.org_id, template.template_uuid, bool(args.get("accept_previous_major_versions")))
-    db_session.refresh(template)
-    return {**envelope(db_session, template), "changed": templates.etag(template) != before}
 
 
 async def list_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:

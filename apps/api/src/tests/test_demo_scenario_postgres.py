@@ -1,6 +1,7 @@
 """PostgreSQL scenario export checks against a disposable synthetic database."""
 
 import os
+from datetime import datetime
 from uuid import uuid4
 import pytest
 from sqlalchemy import create_engine
@@ -34,11 +35,8 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
     from src.db.usergroup_resources import UserGroupResource
     from src.db.resource_authors import ResourceAuthor
     from src.db.template_marketplace import GoalTemplateAuthorization
-    from src.db.learning import (
-        LearningRun,
-        LearningPageProgress,
-        LearningBadgeAward,
-    )
+    from src.db.badges import BadgeAward
+    from src.db.learning import LearningRun, LearningPageProgress
 
     import_all_models()
     engine = create_engine(url)
@@ -105,14 +103,16 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
             db.flush()
             db.add(LearningPageProgress(run_id=90002, page_id=1, complete=True))
             db.add(
-                LearningBadgeAward(
+                BadgeAward(
                     award_uuid="award_cohort_test",
-                    badge_id=1,
-                    badge_version_id=1,
-                    org_id=1,
+                    template_id=1,
+                    creator_org_id=1,
                     issuing_org_id=org_id,
                     user_id=90201,
-                    conferred_by_user_id=1,
+                    source="direct_award",
+                    awarded_by_user_id=1,
+                    earned_on=datetime.utcnow().date(),
+                    achievement={"name": "Live badge"},
                 )
             )
             db.add(
@@ -160,7 +160,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     authorship_status="ACTIVE",
                 )
             )
-            # The cohort's org issues org 1's badge: approved on one of its plans.
+            # The cohort's org runs org 1's plan (and awards its badge): approved on it.
             db.add(GoalTemplate(id=90002, template_uuid="template_cohort_test", org_id=1, title="Cohort plan"))
             db.flush()
             db.add(
@@ -258,7 +258,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                         goal_id=identifier,
                         title="Earn the badge",
                         type="badge",
-                        badge_id=1,
+                        badge_template_id=1,
                     )
                 )
                 db.flush()
@@ -297,9 +297,8 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 row["staff_user_ids"] == [90200]
                 for row in snapshot["goal_assignment"]
             )
-            assert any(row["id"] == 1 for row in snapshot["learningbadge"])
             for name in (
-                "learningbadgeversion",
+                "goal_template",
                 "learningactivity",
                 "learningpage",
             ):
@@ -316,11 +315,11 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
             )
             award = next(
                 row
-                for row in snapshot["learningbadgeaward"]
+                for row in snapshot["badge_award"]
                 if row["award_uuid"] == "award_cohort_test"
             )
             assert award["issuing_org_id"] == org_id
-            assert award["conferred_by_user_id"] is None
+            assert award["awarded_by_user_id"] is None
             authorization = next(
                 row
                 for row in snapshot["goal_template_authorization"]

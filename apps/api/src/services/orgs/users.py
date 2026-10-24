@@ -21,9 +21,7 @@ from src.db.organizations import (
     OrganizationUser,
 )
 from src.db.roles import Role, RoleRead
-from src.db.learning import LearningBadge, LearningBadgeStatus
 from src.db.user_organizations import UserOrganization
-from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
@@ -327,26 +325,10 @@ async def get_organization_users(
     if membership is not None:
         base_statement = base_statement.where(UserOrganization.status == membership)
 
-    # Active means an open plan from the organization or a published badge is assigned.
+    # Active means an open plan from the organization.
     # "Assigned to me" narrows to learners on the plans the current staff member staffs.
     if active is not None or assigned_to_me:
         assigned_user_ids = learners_on_plans(db_session, int(org_id), current_user.id if assigned_to_me else None)
-        if active is not None and not assigned_to_me:
-            badge_group_ids = set(db_session.exec(
-                select(UserGroupResource.usergroup_id)
-                .join(LearningBadge, LearningBadge.badge_uuid == UserGroupResource.resource_uuid)
-                .where(
-                    UserGroupResource.org_id == int(org_id),
-                    LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-                )
-            ).all())
-            if badge_group_ids:
-                assigned_user_ids.update(db_session.exec(
-                    select(UserGroupUser.user_id).where(
-                        UserGroupUser.usergroup_id.in_(badge_group_ids)  # type: ignore[union-attr]
-                    )
-                ).all())
-
         if active is False:
             base_statement = base_statement.where(User.id.not_in(assigned_user_ids))
         else:

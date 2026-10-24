@@ -10,7 +10,7 @@ from src.db.goals import Goal, GoalStage, GoalStep
 from src.db.learning_requests import LearningPageComplete, LearningResponseSubmit
 from src.services.goals import check_ins, goals, launch
 from src.services.learning import runtime
-from src.tests.test_badge_marketplace import _request
+from src.tests.plan_world import _request
 from src.tests.test_goals import LEARNER, OTHER, _published, _session, _user
 
 P = "learning_page_launch_"

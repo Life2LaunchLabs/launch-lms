@@ -229,7 +229,7 @@ class PortfolioTraitsUpdate(SQLModel):
 
 
 class PortfolioFeaturedBadgesUpdate(SQLModel):
-    badge_uuids: list[str] = Field(default_factory=list)
+    award_uuids: list[str] = Field(default_factory=list)
 
 
 class PortfolioFeaturedProjectUpdate(SQLModel):
@@ -242,7 +242,7 @@ class PortfolioFeaturedTimelineUpdate(SQLModel):
 
 
 class PortfolioBadgeVisibilityUpdate(SQLModel):
-    hidden_badge_uuids: list[str] = Field(default_factory=list)
+    hidden_award_uuids: list[str] = Field(default_factory=list)
     revision: int
 
 

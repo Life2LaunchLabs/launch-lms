@@ -47,7 +47,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin, require_org_membership
-from src.services.goals import access, badge_authority, templates
+from src.services.goals import access, plan_issuers, templates
 from src.services.orgs import member_status
 from src.services.goals.assignment_staff import _apply_staff, _collaborators, _drop_staff, require_assignment_manager
 from src.services.goals.assignment_summary import assignment_dict
@@ -102,7 +102,7 @@ def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, vers
         raise HTTPException(status_code=422, detail="Inviting someone by email needs an owner")
     goal = issue_goal(
         db, template, version, subject_user_id=user_id, owner_user_id=owner_id,  # type: ignore[arg-type]
-        org_id=assignment.org_id, source=GoalSource.ASSIGNMENT, assignment_id=assignment.id, badge_id=assignment.badge_id,
+        org_id=assignment.org_id, source=GoalSource.ASSIGNMENT, assignment_id=assignment.id,
         staff_user_ids=[], start_date=assignment.start_date, due_date=assignment.due_date,
         stage_dates=assignment.stage_dates, status=GoalStatus.PENDING, actor_user_id=actor_user_id,
     )
@@ -145,10 +145,10 @@ def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version
 def sync_assignment(db: Session, assignment: GoalAssignment, actor_user_id: int | None = None) -> list[Goal]:
     """Issue a goal to every learner of an active assignment who doesn't have one yet (flushed, not committed).
 
-    Paused and ended assignments issue nothing (see the module docstring), and nor
-    does a badge assignment whose organization may no longer run the badge's template.
+    Paused and ended assignments issue nothing (see the module docstring), and nor does an
+    assignment of another organization's plan once this organization may no longer run it.
     """
-    if _value(assignment.status) != AssignmentStatus.ACTIVE.value or not badge_authority.still_runs(db, assignment):
+    if _value(assignment.status) != AssignmentStatus.ACTIVE.value or not plan_issuers.still_runs(db, assignment):
         return []
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
@@ -231,7 +231,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
     email = (payload.subject_email or "").strip().lower() or None
     if sum([bool(payload.user_id), bool(payload.usergroup_id), bool(email)]) != 1:
         raise HTTPException(status_code=422, detail="Hand it to one person, one group or one email address")
-    template, badge = badge_authority.runnable(db, org_id, template_uuid, payload.badge_uuid)
+    template = plan_issuers.runnable(db, org_id, template_uuid)
     version = templates.issuable_version(db, template)
     if payload.usergroup_id and not db.exec(select(UserGroup.id).where(UserGroup.id == payload.usergroup_id, UserGroup.org_id == org_id)).first():
         raise HTTPException(status_code=404, detail="Group not found")
@@ -259,7 +259,6 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
         staff_user_ids=[item["user_id"] for item in collaborators], start_date=payload.start_date,
         due_date=payload.due_date, stage_dates=stage_dates,
         step_dates=step_dates, collaborators=collaborators, owner_user_id=owner_id, created_by_user_id=current_user.id, creation_date=now, update_date=now,
-        badge_id=badge.id if badge else None,
     )
     _check_dates(assignment)
     db.add(assignment)
@@ -272,7 +271,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
 def list_assignments(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> list[dict]:
     """A template's assignments here: all of them for admins; staff see it read-only, with the ones they staff."""
     templates.require_reader(db, current_user, org_id)
-    template, _ = badge_authority.runnable(db, org_id, template_uuid)
+    template = plan_issuers.runnable(db, org_id, template_uuid)
     rows = db.exec(select(GoalAssignment).where(GoalAssignment.template_id == template.id, GoalAssignment.org_id == org_id)
                    .order_by(GoalAssignment.id.desc())).all()  # type: ignore[union-attr]
     if not templates.can_edit(db, current_user, org_id):

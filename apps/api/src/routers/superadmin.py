@@ -95,14 +95,14 @@ async def list_global_roles(db_session: Session = Depends(get_db_session)):
 @router.get("/overview")
 async def platform_overview(db_session: Session = Depends(get_db_session)):
     from sqlmodel import func, select
-    from src.db.learning import LearningBadge
+    from src.db.badges import BadgeAward
     from src.db.organizations import Organization
     from src.db.plan_requests import PlanRequest
     from src.db.users import User
 
     org_count = db_session.exec(select(func.count()).select_from(Organization)).one()
     user_count = db_session.exec(select(func.count()).select_from(User)).one()
-    badge_count = db_session.exec(select(func.count()).select_from(LearningBadge)).one()
+    badge_count = db_session.exec(select(func.count()).select_from(BadgeAward)).one()
     pending_requests = db_session.exec(
         select(func.count()).where(PlanRequest.status == "pending")
     ).one()
@@ -229,16 +229,26 @@ async def get_org_badges(
     limit: int = 20,
     db_session: Session = Depends(get_db_session),
 ):
+    """The organization's plans that earn a badge (live or draft), with how many times each was awarded."""
     from sqlmodel import func, select
-    from src.db.learning import LearningBadge
+    from src.db.badges import BadgeAward
+    from src.db.goals import GoalTemplate, GoalTemplateVersion
+    from src.services.badges.definition import summary
 
-    statement = select(LearningBadge).where(LearningBadge.org_id == org_id).order_by(
-        LearningBadge.creation_date.desc()  # type: ignore[union-attr]
-    )
-    total = db_session.exec(select(func.count()).select_from(statement.subquery())).one()
-    items = db_session.exec(statement.offset((page - 1) * limit).limit(limit)).all()
+    plans = []
+    for template in db_session.exec(select(GoalTemplate).where(GoalTemplate.org_id == org_id).order_by(GoalTemplate.creation_date.desc())).all():  # type: ignore[union-attr]
+        live = db_session.get(GoalTemplateVersion, template.published_version_id) if template.published_version_id else None
+        badge = summary(template, live.document) if live else None
+        if badge is None and summary(template, template.document) is None:
+            continue
+        plans.append((template, badge or summary(template, template.document), live is not None and badge is not None))
+    total = len(plans)
+    shown = plans[(page - 1) * limit:page * limit]
+    awarded = dict(db_session.exec(select(BadgeAward.template_id, func.count()).where(
+        BadgeAward.template_id.in_([int(template.id) for template, _, _ in shown] or [0])).group_by(BadgeAward.template_id)).all())  # type: ignore[union-attr]
     return {
-        "items": [item.model_dump() for item in items],
+        "items": [{"template_uuid": template.template_uuid, "title": template.title, "badge": badge, "live": live,
+                   "award_count": int(awarded.get(template.id, 0)), "creation_date": template.creation_date} for template, badge, live in shown],
         "total": total,
         "page": page,
         "limit": limit,

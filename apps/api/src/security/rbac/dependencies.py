@@ -157,8 +157,8 @@ def require_create_access(
 
     Usage:
         @router.post("/")
-        async def create_badge(
-            access: AccessDecision = Depends(require_create_access("badges")),
+        async def create_resource(
+            access: AccessDecision = Depends(require_create_access("resources")),
         ):
             pass
     """
@@ -170,8 +170,6 @@ def require_create_access(
     ) -> AccessDecision:
         # Use placeholder UUID for creation
         resource_uuid = {
-            "badges": "badge_x",
-            "badge_collections": "badge_collection_x",
             "learning_activities": "learning_activity_x",
         }.get(resource_type, f"{resource_type.rstrip('s')}_x")
 
@@ -217,29 +215,3 @@ def require_dashboard_access(
         context=AccessContext.DASHBOARD,
         resource_uuid_param=resource_uuid_param,
     )
-
-
-# Pre-configured dependencies for common use cases
-
-class BadgeAccess:
-    """Pre-configured dependencies for badge access."""
-
-    @staticmethod
-    def read(context: AccessContext = AccessContext.PUBLIC_VIEW):
-        return require_read_access("badge_uuid", context)
-
-    @staticmethod
-    def create():
-        return require_create_access("badges")
-
-    @staticmethod
-    def update():
-        return require_write_access(AccessAction.UPDATE, "badge_uuid")
-
-    @staticmethod
-    def delete():
-        return require_write_access(AccessAction.DELETE, "badge_uuid")
-
-    @staticmethod
-    def dashboard():
-        return require_dashboard_access("badge_uuid")

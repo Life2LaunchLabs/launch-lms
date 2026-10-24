@@ -1,8 +1,8 @@
 """Deep-copy one account's own work onto another live account.
 
-Copies what belongs to the person (portfolio, badge runs and awards, goals,
+Copies what belongs to the person (portfolio, activity runs, badge awards, goals,
 saved resources, media and, optionally, coach conversations) with fresh row ids
-and identifiers. Shared content they reference (badges, resources, goal templates)
+and identifiers. Shared content they reference (resources, goal templates)
 is linked, not duplicated. Inbox messages and other people's work never copy.
 """
 
@@ -20,8 +20,8 @@ OWNED = {
     "portfolio": "user_id",
     "learningrun": "user_id",
     "learningresponseattempt": "user_id",
-    "learningbadgeaward": "user_id",
-    "badgeissuerlearnerlink": "user_id",
+    "badge_award": "user_id",
+    "plan_join_request": "user_id",
     "requirementenrollment": "user_id",
     "usersavedresource": "user_id",
     "userresourcechannel": "user_id",

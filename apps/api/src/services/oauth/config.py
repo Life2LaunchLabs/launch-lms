@@ -9,8 +9,8 @@ import secrets
 from config.config import get_launchlms_config
 
 SCOPES = {
-    "activities:read": "See your organization's badges and activities, and preview them",
-    "activities:write": "Edit activities in draft badge versions",
+    "activities:read": "See your organization's activities, and preview them",
+    "activities:write": "Edit activities in draft plan versions",
     "plans:read": "See your organization's plan templates and requirement frameworks",
     "plans:write": "Create and edit plan templates and requirement frameworks",
     "coach:read": "Platform admins: see the Coach policy",

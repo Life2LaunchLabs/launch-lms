@@ -119,7 +119,7 @@ def _catalog(db: Session, org_id: int) -> dict:
             "creator_org": market._org(orgs.get(row.org_id)), "partner": row.org_id in partners, "plan_count": len(items),
             "template_uuids": [item["template_uuid"] for item in items],
             "thumbs": [{key: item[key] for key in ("template_uuid", "title", "thumbnail_image", "icon", "color")} for item in items[:4]],
-            "badge_count": sum(1 for item in items if item["badges"]), "locked": all(item["mode"] == "locked" for item in items),
+            "badge_count": sum(1 for item in items if item["badge"]), "locked": all(item["mode"] == "locked" for item in items),
             "access": "open" if all(item["access"] == "open" for item in items) else "request",
             "status": status, "local_collection_uuid": added.get(row.collection_uuid),
         })
@@ -195,10 +195,11 @@ def copy_for(db: Session, user_id: int | None, org_id: int, template: GoalTempla
     """The organization's own copy of an editable plan, live at the creator's version (flushed, not committed).
 
     Collections of the organization that held the creator's plan (added while it was requested) hold the copy instead."""
+    from src.services.badges.definition import without_badge
     from src.services.goals.library import copy_into
 
     live = templates.issuable_version(db, template)
-    copied = copy_into(db, PublicUser.model_construct(id=user_id), org_id, template, live.document, live.number)
+    copied = copy_into(db, PublicUser.model_construct(id=user_id), org_id, template, without_badge(live.document), live.number)
     # It arrives ready to assign: live at the creator's version, no draft.
     templates.publish_draft(db, copied, user_id, f"Added from {template.title}", semver=live.semver or "1.0.0")
     authorization.copied_template_id = copied.id
@@ -288,8 +289,8 @@ def added_plans(db: Session, current_user: PublicUser, org_id: int) -> list[dict
         authorization = authorizations[int(template.id or 0)]
         result.append({
             "template_uuid": template.template_uuid, "title": template.title, "description": template.description or "",
-            **templates.cover(template), "org_id": template.org_id, "owner_org": market.owner_org(db, template.template_uuid),
-            "step_count": sum(len(stage.get("steps") or []) for stage in document.get("stages") or []), "badges": market._badges(db, template),
+            **templates.cover(template), "org_id": template.org_id, "owner_org": market._org(db.get(Organization, template.org_id)),
+            "step_count": sum(len(stage.get("steps") or []) for stage in document.get("stages") or []), "badge": market.badge_summary(db, template),
             "live_version": {"semver": live.semver, "number": live.number} if live else None, "published_version": live.number if live else None,
             "requested": authorization.status == REQUESTED, "read_only": True, "collections": in_collections.get(int(template.id or 0), []),
         })

@@ -29,14 +29,14 @@ def _starter_collections(db: Session) -> list[PlanCollection]:
                         .order_by(col(PlanCollection.name))).all())
 
 
-def _card(template: GoalTemplate, document: dict, badges: list[dict], categories: list[str]) -> dict:
+def _card(template: GoalTemplate, document: dict, categories: list[str]) -> dict:
     steps = [step for _, step in iter_steps(document)]
     return {
         "template_uuid": template.template_uuid, "title": template.title, "description": template.description or "", **templates.cover(template),
         "stage_count": len(document.get("stages") or []), "step_count": len(steps),
         "types": list(dict.fromkeys(str(step.get("type") or "task") for step in steps)),
         "preview": [{"type": step.get("type") or "task", "title": step.get("title") or ""} for step in steps[:PREVIEW_STEPS]],
-        "earns_badge": bool(badges), "categories": categories,
+        "earns_badge": bool(document.get("badge")), "categories": categories,
     }
 
 
@@ -53,11 +53,10 @@ def list_starters(db: Session, current_user: PublicUser, org_id: int) -> dict:
                 continue
             plans[int(plan.id or 0)] = plan
             categories.setdefault(int(plan.id or 0), []).append(row.collection_uuid)
-    badges = templates._badges_by_template(db, list(plans))
     starters = []
     for plan_id, plan in sorted(plans.items(), key=lambda item: item[1].title.lower()):
         live = templates.published_version(db, plan)
-        starters.append(_card(plan, (live.document if live else {}) or {}, badges.get(plan_id, []), categories[plan_id]))
+        starters.append(_card(plan, (live.document if live else {}) or {}, categories[plan_id]))
     return {
         "categories": [{"collection_uuid": row.collection_uuid, "name": row.name, "count": sum(row.collection_uuid in starter["categories"] for starter in starters)}
                        for row in rows],

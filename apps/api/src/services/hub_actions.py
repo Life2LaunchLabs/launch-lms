@@ -50,7 +50,7 @@ NAVIGATION_DESTINATIONS = {
         NavigationDestination("portfolio", "Open portfolio", "/portfolio", "Review the learner's portfolio and its readiness."),
         NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline?experience=work_career", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),
         NavigationDestination("add_project", "Add a project", "/portfolio/projects?newProject=1", "Add a concrete project or body of work to the portfolio."),
-        NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use."),
+        NavigationDestination("badges", "Explore Discover", "/discover", "Find plans to join (many earn a badge) and resources to use."),
         NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions.", "communities"),
         NavigationDestination("organizations", "Explore organizations", "/organizations", "Review organizations the learner can discover or join."),
         NavigationDestination("account", "Open account settings", "/account", "Manage the learner's account, preferences, messages, or Coach memory."),

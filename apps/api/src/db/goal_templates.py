@@ -45,8 +45,6 @@ class GoalAssignmentRequest(GoalAssignmentCreate):
     collaborators: list[AssignmentCollaborator] = Field(default_factory=list)
     owner_user_id: int | None = None
     schedule: AssignmentSchedule | None = None
-    # The badge its learners earn: required to run another organization's badge route; optional for your own.
-    badge_uuid: str | None = None
     # Handing a plan to an alumnus makes them active again only when this says so (services/orgs/member_status.py).
     reactivate: bool = False
 

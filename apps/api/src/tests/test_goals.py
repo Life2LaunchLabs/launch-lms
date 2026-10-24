@@ -29,7 +29,8 @@ from src.db.goals import (
     StepNote,
     StepSubmission,
 )
-from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningResponseAttempt, LearningBadge, LearningBadgeAward, LearningBadgeVersion, LearningPage, LearningPageProgress, LearningRun, LearningRunStatus
+from src.db.badges import BadgeAward
+from src.db.learning import LearningActivity, LearningResponseAttempt, LearningPage, LearningPageProgress, LearningRun, LearningRunStatus
 from src.db.media import MediaAsset
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
@@ -54,7 +55,7 @@ def _session() -> Session:
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__,
         LearningActivity.__table__, LearningPage.__table__, LearningPageProgress.__table__, LearningRun.__table__, LearningResponseAttempt.__table__,
-        LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__, BadgeIssuerLearnerLink.__table__, MediaAsset.__table__,
+        BadgeAward.__table__, MediaAsset.__table__,
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
         GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__,
@@ -390,27 +391,29 @@ def test_personal_goals_are_private_learner_owned_and_never_wait_on_staff():
 
 # Automatic completion ----------------------------------------------------------------------
 
-def test_badge_goals_award_their_badge_and_badge_steps_follow_awards():
+def test_plans_with_a_badge_award_it_and_badge_steps_follow_awards():
     with _session() as db:
-        db.add(LearningBadge(id=1, org_id=1, badge_uuid="badge_first_aid", name="First Aid", creation_date=NOW, update_date=NOW))
-        db.commit()
-        route = _published(db, {"type": "task", "title": "Take the class"})
-        badge_goal = _issue(db, route, source=GoalSource.BADGE, badge_id=1)
+        created = templates.create_template(db, _user(ADMIN), 1, {**_document({"type": "task", "title": "Take the class"}), "badge": {"kind": "Badge", "name": "First Aid"}})
+        templates.publish(db, _user(ADMIN), 1, created["template_uuid"], "First")
+        plan = templates.template_or_404(db, 1, created["template_uuid"])
+        badge_goal = _issue(db, plan, source=GoalSource.JOINED)
         badge_goal.owner_user_id = LEARNER
         db.add(badge_goal)
         db.commit()
-        uses_badge = _issue(db, _published(db, {"type": "badge", "title": "Earn First Aid", "config": {"badge_uuid": "badge_first_aid"}}, {"type": "task", "title": "Volunteer"}))
+        uses_badge = _issue(db, _published(db, {"type": "badge", "title": "Earn First Aid", "config": {"template_uuid": plan.template_uuid}}, {"type": "task", "title": "Volunteer"}))
 
         view = goals.get_goal(db, _user(LEARNER), badge_goal.goal_uuid)
         assert "complete_restricted_objectives" not in view["capabilities"]
+        assert "edit_structure" not in view["capabilities"]
         _status(db, LEARNER, badge_goal, _step(view, "Take the class"), StepStatus.COMPLETED)
-        assert db.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == LEARNER)).one().badge_id == 1
+        award = db.exec(select(BadgeAward).where(BadgeAward.user_id == LEARNER)).one()
+        assert award.template_id == plan.id and award.achievement["name"] == "First Aid" and award.semver
         other = goals.get_goal(db, _user(LEARNER), uses_badge.goal_uuid)
         assert _step(other, "Earn First Aid")["state"] == "done"
         assert _step(other, "Earn First Aid")["completion_method"] == "auto"
 
         # Awards from elsewhere complete badge steps too, once.
-        on_badge_awarded(db, LEARNER, 1)
+        on_badge_awarded(db, LEARNER, int(plan.id))
         assert db.exec(select(StepProgress).where(StepProgress.status == "completed")).all()
 
 
