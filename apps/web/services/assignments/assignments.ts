@@ -42,6 +42,8 @@ export interface AssignmentPlan {
   icon?: GoalIcon | null
   color?: string | null
   version: number | null
+  /** The badge learners earn by finishing it. */
+  badge?: { badge_uuid: string; name: string } | null
 }
 
 export interface AssignmentListItem {
@@ -52,6 +54,8 @@ export interface AssignmentListItem {
   due_date: string | null
   /** On a schedule (stage or step dates) rather than self-paced. */
   scheduled: boolean
+  /** The stage running today on a scheduled assignment. */
+  stage?: { position: number; title: string; of: number } | null
   status: AssignmentStatus
   paused_at: string | null
   ended_at: string | null

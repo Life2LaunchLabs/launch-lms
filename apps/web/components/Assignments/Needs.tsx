@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { Check, CircleHelp, ClipboardCheck, Clock, MessageSquareText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@components/ui/tooltip'
@@ -17,16 +18,19 @@ const KINDS = [
   { key: 'behind', icon: Clock, color: 'text-late', chip: 'bg-late-soft text-late', title: (n: number) => `${n} past due` },
 ] as const
 
+const NEEDS_BUTTON = 'inline-flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-full bg-brand pl-2.5 pr-3 text-[13px] font-semibold text-white hover:brightness-110'
+
 /** The list's "3 need you" button, with what they are on hover; "All clear" when nothing does. */
-export function NeedsButton({ needs, onClick }: { needs: Needs; onClick?: () => void }) {
+export function NeedsButton({ needs, onClick, href }: { needs: Needs; onClick?: () => void; href?: string }) {
   const total = needTotal(needs)
   if (!total) return <span className="inline-flex h-[34px] items-center gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-semibold text-muted-foreground"><Check size={16} className="text-good" aria-hidden="true" />All clear</span>
   return <TooltipProvider delayDuration={80}><Tooltip>
     <TooltipTrigger asChild>
-      <button type="button" onClick={onClick} aria-label={`${total} need you: ${needsText(needs)}`}
-        className="inline-flex h-[34px] items-center gap-1.5 whitespace-nowrap rounded-full bg-brand pl-2.5 pr-3 text-[13px] font-semibold text-white hover:brightness-110">
+      {href ? <Link href={href} aria-label={`${total} need you: ${needsText(needs)}`} className={NEEDS_BUTTON}>
         <MessageSquareText size={16} aria-hidden="true" /><b className="text-sm">{total}</b><span>need you</span>
-      </button>
+      </Link> : <button type="button" onClick={onClick} aria-label={`${total} need you: ${needsText(needs)}`} className={NEEDS_BUTTON}>
+        <MessageSquareText size={16} aria-hidden="true" /><b className="text-sm">{total}</b><span>need you</span>
+      </button>}
     </TooltipTrigger>
     <TooltipContent side="top" className="text-xs">{needsText(needs)}</TooltipContent>
   </Tooltip></TooltipProvider>

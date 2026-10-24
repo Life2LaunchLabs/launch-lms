@@ -70,11 +70,13 @@ def test_learners_steps_are_done_review_behind_open_or_locked():
 
         listed = assignment_views.list_assignments(db, _user(ADMIN), 1)
         assert [row["assignment_uuid"] for row in listed] == [uuid] and listed[0]["needs"] == detail["needs"]
+        assert listed[0]["stage"] == {"position": 0, "title": "Now", "of": 2}
 
 
 def test_ended_assignments_leave_unfinished_work_behind_and_self_paced_never_falls_behind():
     with _session() as db:
         uuid = _assign(db, ESSAY, dict(VISIT, due_week=None))["assignment_uuid"]
+        assert assignment_views.list_assignments(db, _user(ADMIN), 1)[0]["stage"] is None
         assert assignment_views.assignment_detail(db, _user(ADMIN), 1, uuid)["counts"] == {"done": 0, "review": 0, "behind": 0, "open": 4, "locked": 0}
         assignments.end(db, _user(ADMIN), 1, uuid)
         assert assignment_views.assignment_detail(db, _user(ADMIN), 1, uuid)["counts"]["behind"] == 4
