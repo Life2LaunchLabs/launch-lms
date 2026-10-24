@@ -2,7 +2,8 @@ import { Metadata } from 'next'
 import React from 'react'
 import { redirect } from 'next/navigation'
 import ClientAdminLayout from './ClientAdminLayout'
-import ForceLightTheme from '@components/Utils/ForceLightTheme'
+import AdminSurface from '@components/Utils/AdminSurface'
+import '@/styles/admin-dark.css'
 import { getServerSession } from '@/lib/auth/server'
 import { hasDashboardAccessForOrg } from '@/lib/auth/orgAccess'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
@@ -43,7 +44,7 @@ async function DashboardLayout(
 
   return (
     <>
-      <ForceLightTheme />
+      <AdminSurface />
       <ClientAdminLayout
         params={params}>
         {children}
