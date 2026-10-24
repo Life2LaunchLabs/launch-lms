@@ -56,6 +56,7 @@ def test_learners_steps_are_done_review_behind_open_or_locked():
         assert steps["essay"]["who"]["review"] == [LEARNER]
         assert steps["visit"]["counts"] == {"done": 1, "review": 0, "behind": 1, "open": 0, "locked": 0}
         assert steps["visit"]["who"]["behind"] == [OTHER] and steps["visit"]["own"] is True
+        assert str(steps["visit"]["own_dates"]["due_date"]) == str(TODAY - timedelta(days=1)) and steps["essay"]["own_dates"] == {}
         assert steps["later"]["counts"]["locked"] == 2
         assert [stage["counts"] for stage in detail["stages"]] == [
             {"done": 1, "review": 1, "behind": 1, "open": 1, "locked": 0}, {"done": 0, "review": 0, "behind": 0, "open": 0, "locked": 2}]
@@ -71,6 +72,7 @@ def test_learners_steps_are_done_review_behind_open_or_locked():
         listed = assignment_views.list_assignments(db, _user(ADMIN), 1)
         assert [row["assignment_uuid"] for row in listed] == [uuid] and listed[0]["needs"] == detail["needs"]
         assert listed[0]["stage"] == {"position": 0, "title": "Now", "of": 2}
+        assert listed[0]["plan"]["version"] == listed[0]["plan"]["live_version"] == 1
 
 
 def test_ended_assignments_leave_unfinished_work_behind_and_self_paced_never_falls_behind():
@@ -150,7 +152,8 @@ def test_learner_thread_is_their_chat_on_this_plan_with_past_due_lines():
         thread = assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, f"user_{LEARNER}")
         assert [m["body"] for m in thread["messages"] if m["kind"] == "text"] == ["About my essay"]
         assert [(line["step_key"], line["due_date"]) for line in thread["past_due"]] == [("visit", TODAY - timedelta(days=1))]
-        assert assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, f"user_{LEARNER}", "essay")["past_due"] == []
+        on_essay = assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, f"user_{LEARNER}", "essay")
+        assert on_essay["past_due"] == [] and on_essay["step_uuid"] == _goal_step(db, mine, "essay").step_uuid
         with pytest.raises(HTTPException):
             assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, "user_404")
 
