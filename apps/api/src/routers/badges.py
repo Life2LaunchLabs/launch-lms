@@ -1,6 +1,7 @@
 """Badge awards: a learner's own, one award (public), its Open Badges JSON, and awarding directly."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
@@ -9,7 +10,7 @@ from src.db.goals import GoalTemplate
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.badges import awards, definition, direct, open_badges
+from src.services.badges import awards, definition, direct, open_badges, signing
 
 router = APIRouter()
 
@@ -59,13 +60,31 @@ def api_learner_awards(user_id: int, org_id: int, db: Session = Depends(get_db_s
     return direct.learner_awards(db, current_user, org_id, user_id)
 
 
-@router.get("/issuer/{org_uuid}")
-def api_issuer_profile(org_uuid: str, db: Session = Depends(get_db_session)) -> dict:
-    """An organization as an Open Badges Profile."""
+def _org(db: Session, org_uuid: str) -> Organization:
     org = db.exec(select(Organization).where(Organization.org_uuid == org_uuid)).first()
     if org is None:
         raise HTTPException(status_code=404, detail="Organization not found")
-    return open_badges.profile(org)
+    return org
+
+
+@router.get("/issuer/{org_uuid}")
+def api_issuer_profile(org_uuid: str, db: Session = Depends(get_db_session)) -> dict:
+    """An organization as an Open Badges Profile."""
+    return open_badges.profile(_org(db, org_uuid))
+
+
+@router.get("/issuer/{org_uuid}/did.json")
+def api_issuer_did(org_uuid: str, db: Session = Depends(get_db_session)) -> dict:
+    """The organization's did:web document, with the public key its credentials are signed with."""
+    return signing.did_document(db, _org(db, org_uuid))
+
+
+@router.get("/status/{org_uuid}")
+def api_status_list(org_uuid: str, db: Session = Depends(get_db_session)) -> dict:
+    """The organization's revocation status list, as a signed BitstringStatusListCredential."""
+    result = signing.status_list(db, _org(db, org_uuid))
+    db.commit()
+    return result
 
 
 @router.get("/achievement/{template_uuid}")
@@ -82,6 +101,26 @@ def api_achievement(template_uuid: str, db: Session = Depends(get_db_session)) -
 def api_award(award_uuid: str, db: Session = Depends(get_db_session)) -> dict:
     """One award, as its public page shows it."""
     return awards.award_dict(db, _award(db, award_uuid))
+
+
+@router.get("/{award_uuid}/verify")
+def api_verify(award_uuid: str, db: Session = Depends(get_db_session)) -> dict:
+    """Check an award on the server: its proof against the issuer's key, and whether it was revoked."""
+    award = _award(db, award_uuid)
+    signed = open_badges.credential(db, award)
+    proof = signing.verify(db, signed)
+    revoked = award.status == "revoked"
+    return {"verified": proof and not revoked, "proof": proof, "revoked": revoked}
+
+
+class Revoke(BaseModel):
+    reason: str
+
+
+@router.post("/{award_uuid}/revoke")
+def api_revoke(award_uuid: str, payload: Revoke, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """Revoke an award; it stays on record, marked revoked, and wallets that check its status see it."""
+    return awards.award_dict(db, awards.revoke(db, current_user, award_uuid, payload.reason))
 
 
 @router.get("/{award_uuid}/credential")

@@ -8,7 +8,7 @@ badge, with Partner (2) approved to run them and Stranger (3) not.
 from sqlmodel import Session, select
 from starlette.requests import Request
 
-from src.db.badges import BadgeAward
+from src.db.badges import BadgeAward, OrgSigningKey
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanInvitation, PlanRole
 from src.db.goal_templates import AssignmentCollaborator, GoalAssignmentRequest
@@ -50,7 +50,7 @@ def _create_tables(engine) -> None:
         GoalTemplate, GoalTemplateListing, GoalTemplateAuthorization, GoalTemplateLearnerAccess,
         PlanRole, PlanCollaborator, PlanInvitation, PlanActivity, OrganizationPlanRole,
         GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory,
-        BadgeAward, PlanJoinRequest,
+        BadgeAward, OrgSigningKey, PlanJoinRequest,
         # Goals keep their chats in step (services/connect/workspace.py).
         Conversation, ConversationMember, ConversationMessage, ConversationMessageRef,
         UserGroup, UserGroupUser,

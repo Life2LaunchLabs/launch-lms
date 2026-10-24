@@ -29,7 +29,7 @@ from src.db.goals import (
     StepNote,
     StepSubmission,
 )
-from src.db.badges import BadgeAward
+from src.db.badges import BadgeAward, OrgSigningKey
 from src.db.learning import LearningActivity, LearningResponseAttempt, LearningPage, LearningPageProgress, LearningRun, LearningRunStatus
 from src.db.media import MediaAsset
 from src.db.organization_config import OrganizationConfig
@@ -55,7 +55,7 @@ def _session() -> Session:
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__,
         LearningActivity.__table__, LearningPage.__table__, LearningPageProgress.__table__, LearningRun.__table__, LearningResponseAttempt.__table__,
-        BadgeAward.__table__, MediaAsset.__table__,
+        BadgeAward.__table__, OrgSigningKey.__table__, MediaAsset.__table__,
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
         GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__,

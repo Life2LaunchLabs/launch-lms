@@ -81,7 +81,15 @@ export interface BadgeAward {
   awarded_by: { id: number; name: string } | null
   learner: { id: number; user_uuid: string; username: string; name: string } | null
   issuing_org: BadgeOrg | null
+  status: 'active' | 'revoked'
+  revoked_at: string | null
+  revoked_reason: string
+  /** Issued as a signed credential (older awards are signed the first time they're asked for). */
+  signed: boolean
 }
+
+/** The server's check of an award: its proof against the issuer's published key, and its revocation status. */
+export interface AwardCheck { verified: boolean; proof: boolean; revoked: boolean }
 
 async function request(path: string, token?: string, next?: any, method = 'GET', body: any = null) {
   const response = await fetch(`${getAPIUrl()}badge-awards/${path}`, RequestBodyWithAuthHeader(method, body, next ?? null, token))
@@ -118,6 +126,8 @@ export const badgeAwardKeys = {
 export const badgeAwardsApi = {
   mine: (token: string): Promise<BadgeAward[]> => request('', token),
   award: (awardUuid: string, token?: string, next?: any): Promise<BadgeAward> => request(encodeURIComponent(awardUuid), token, next),
+  verify: (awardUuid: string, next?: any): Promise<AwardCheck> => request(`${encodeURIComponent(awardUuid)}/verify`, undefined, next),
+  revoke: (awardUuid: string, reason: string, token?: string): Promise<BadgeAward> => request(`${encodeURIComponent(awardUuid)}/revoke`, token, undefined, 'POST', { reason }),
   credentialUrl: (awardUuid: string) => `${getAPIUrl()}badge-awards/${encodeURIComponent(awardUuid)}/credential`,
   awardable: (orgId: number, token?: string): Promise<AwardablePlan[]> => request(`awardable${orgQuery(orgId)}`, token),
   holders: (orgId: number, templateUuid: string, token?: string): Promise<number[]> => request(`holders${orgQuery(orgId, `&template_uuid=${encodeURIComponent(templateUuid)}`)}`, token),

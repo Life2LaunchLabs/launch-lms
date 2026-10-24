@@ -4,7 +4,9 @@ A learner earns a plan's badge by finishing the plan with an organization that
 runs it (the plan's owner, or one approved to run it), on a release that has a
 badge. Each award keeps the achievement as it was earned. A learner holds a
 plan's badge once: finishing the plan again, or later finishing a plan whose
-badge they were awarded directly, makes no second award.
+badge they were awarded directly, makes no second award. Staff of the issuing
+organization can revoke an award; a revoked award stays on record (and on its
+public page, marked revoked) but no longer counts, so the badge can be earned again.
 """
 
 from __future__ import annotations
@@ -14,10 +16,11 @@ from uuid import uuid4
 
 from sqlmodel import Session, col, func, select
 
-from src.db.badges import AwardSource, BadgeAward
+from src.db.badges import AwardSource, AwardStatus, BadgeAward
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStatus, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.organizations import Organization
 from src.db.users import User
+from src.services.badges import open_badges
 from src.services.badges.definition import achievement, goal_badge, summary
 
 
@@ -28,14 +31,14 @@ def _now() -> str:
 def held(db: Session, template_id: int | None, user_id: int | None) -> BadgeAward | None:
     if not template_id or not user_id:
         return None
-    return db.exec(select(BadgeAward).where(BadgeAward.template_id == template_id, BadgeAward.user_id == user_id)).first()
+    return db.exec(select(BadgeAward).where(BadgeAward.template_id == template_id, BadgeAward.user_id == user_id, BadgeAward.status == AwardStatus.ACTIVE.value)).first()
 
 
 def holders(db: Session, template_id: int, user_ids: list[int]) -> dict[int, BadgeAward]:
     """User id -> their award of this plan's badge, for the users given."""
     if not user_ids:
         return {}
-    rows = db.exec(select(BadgeAward).where(BadgeAward.template_id == template_id, col(BadgeAward.user_id).in_(user_ids))).all()
+    rows = db.exec(select(BadgeAward).where(BadgeAward.template_id == template_id, col(BadgeAward.user_id).in_(user_ids), BadgeAward.status == AwardStatus.ACTIVE.value)).all()
     return {int(row.user_id): row for row in rows}
 
 
@@ -58,6 +61,7 @@ def award_for_goal(db: Session, goal: Goal) -> BadgeAward | None:
     award = new_award(template, version, earned, int(goal.subject_user_id), goal.org_id, AwardSource.PLAN_COMPLETION, goal_id=goal.id)
     db.add(award)
     db.flush()
+    open_badges.issue(db, award)
     return award
 
 
@@ -95,11 +99,50 @@ def award_dict(db: Session, award: BadgeAward) -> dict:
         "learner": {"id": learner.id, "user_uuid": learner.user_uuid, "username": learner.username,
                     "name": " ".join(part for part in (learner.first_name, learner.last_name) if part) or learner.username} if learner else None,
         "issuing_org": _org(db, award.issuing_org_id),
+        "status": getattr(award.status, "value", award.status),
+        "revoked_at": award.revoked_at.isoformat() if award.revoked_at else None,
+        "revoked_reason": award.revoked_reason if award.revoked_at else "",
+        "signed": bool(award.credential and award.credential.get("proof")),
     }
 
 
-def awards_of(db: Session, user_id: int) -> list[BadgeAward]:
-    return list(db.exec(select(BadgeAward).where(BadgeAward.user_id == user_id).order_by(col(BadgeAward.earned_on).desc(), col(BadgeAward.id).desc())).all())
+def awards_of(db: Session, user_id: int, revoked: bool = False) -> list[BadgeAward]:
+    """A learner's badges, newest first: the ones they hold, and with ``revoked`` the revoked ones too."""
+    statement = select(BadgeAward).where(BadgeAward.user_id == user_id)
+    if not revoked:
+        statement = statement.where(BadgeAward.status == AwardStatus.ACTIVE.value)
+    return list(db.exec(statement.order_by(col(BadgeAward.earned_on).desc(), col(BadgeAward.id).desc())).all())
+
+
+def revoke(db: Session, current_user, award_uuid: str, reason: str) -> BadgeAward:
+    """Revoke an award: staff who review work at the organization that issued it, with a reason (recorded in the audit log)."""
+    from fastapi import HTTPException
+
+    from src.security.org_auth import require_org_admin
+    from src.services.audit_logs import record_audit_log
+
+    award = db.exec(select(BadgeAward).where(BadgeAward.award_uuid == award_uuid)).first()
+    if award is None or not award.issuing_org_id:
+        raise HTTPException(status_code=404, detail="Badge award not found")
+    require_org_admin(current_user.id, int(award.issuing_org_id), db, "review_work")
+    if not reason.strip():
+        raise HTTPException(status_code=422, detail="Say why it's revoked")
+    if getattr(award.status, "value", award.status) == AwardStatus.REVOKED.value:
+        return award
+    if award.credential is None:
+        # Sign it first so it has a status list slot to revoke.
+        open_badges.issue(db, award)
+    award.status = AwardStatus.REVOKED
+    award.revoked_at = datetime.utcnow()
+    award.revoked_by_user_id = int(current_user.id)
+    award.revoked_reason = reason.strip()
+    award.update_date = _now()
+    db.add(award)
+    db.commit()
+    record_audit_log(db, action="badge.revoke", resource="badge_award", status_code=200, org_id=int(award.issuing_org_id), user_id=int(current_user.id),
+                     username=current_user.username, request_metadata={"award_uuid": award.award_uuid, "user_id": award.user_id, "reason": award.revoked_reason})
+    db.refresh(award)
+    return award
 
 
 def org_badge_plans(db_session: Session, org_id: int, page: int, limit: int) -> dict:
