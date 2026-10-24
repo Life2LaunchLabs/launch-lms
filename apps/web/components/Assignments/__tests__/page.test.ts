@@ -47,6 +47,7 @@ describe('assignment page', () => {
     expect(shownLearners(rows, 'all', 'least').map((row) => row.goal_uuid)).toEqual(['Cy', 'Bo', 'Ab'])
     expect(shownLearners(rows, 'review', 'az').map((row) => row.goal_uuid)).toEqual(['Bo'])
     expect(shownLearners(rows, 'needs', 'za').map((row) => row.goal_uuid)).toEqual(['Bo', 'Ab'])
+    expect(shownLearners(rows, 'all', 'az', ' bo ').map((row) => row.goal_uuid)).toEqual(['Bo'])
     expect(invitedRows(rows).map((row) => row.email)).toEqual(['x@y.z'])
   })
 })

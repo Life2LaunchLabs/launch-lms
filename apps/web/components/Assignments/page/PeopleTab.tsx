@@ -2,11 +2,12 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import { CircleHelp, ClipboardCheck, Clock, Loader2, Mail, Send } from 'lucide-react'
+import { CircleHelp, ClipboardCheck, Clock, Loader2, Mail, Search, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import StatusBar, { StatusLegend } from '@components/Assignments/StatusBar'
 import { CountIcons, MessageButton } from '@components/Assignments/Needs'
 import { PersonTile } from '@components/Assignments/Pair'
+import RequirementEvidenceExport from '@components/Goals/admin/live/RequirementEvidenceExport'
 import { goalAdminApi } from '@services/goals/admin'
 import { assignmentApi, type AssignmentDetail, type AssignmentLearner, type AssignmentPeople, type AssignmentPerson, type AssignmentRole } from '@services/assignments/assignments'
 import { ROLES, ROLE_DO } from '@services/assignments/assignFlow'
@@ -39,6 +40,7 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
   onMessage: (person: AssignmentPerson) => void // eslint-disable-line no-unused-vars
 }) {
   const [sort, setSort] = React.useState<PeopleSort>('az')
+  const [search, setSearch] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   const group = detail.target.type === 'group'
   const editable = detail.can_manage && detail.status !== 'ended'
@@ -51,8 +53,8 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
   const resend = async () => {
     try { const { sent } = await assignmentApi.resend(orgId, detail.assignment_uuid, token); toast.success(sent ? 'Invitation sent again.' : 'Nothing to send.') } catch (error: any) { toast.error(error?.message || 'That didn’t go through') }
   }
-  const rows = people ? shownLearners(people.learners, filter, sort) : []
-  const invited = people ? invitedRows(people.learners) : []
+  const rows = people ? shownLearners(people.learners, filter, sort, search) : []
+  const invited = people && !search.trim() ? invitedRows(people.learners) : []
   const needs = people?.needs || detail.needs
   const chip = (value: PeopleFilter, label: string, icon?: React.ReactNode, count?: number) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}
     className={cn('inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold [&_svg]:h-[15px] [&_svg]:w-[15px]',
@@ -76,16 +78,23 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
         {chip('questions', 'Questions', <CircleHelp />, needs.questions)}
         {chip('review', 'To review', <ClipboardCheck />, needs.review)}
         {chip('behind', 'Past due', <Clock />, needs.behind)}
-        <label className="ml-auto flex items-center gap-2 text-[13px] text-muted-foreground">Sort
+        <span className="flex-1" />
+        <label className="relative flex items-center">
+          <Search size={14} className="absolute left-2.5 text-muted-foreground" aria-hidden="true" />
+          <input aria-label="Search learners" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search learners"
+            className="h-[34px] w-44 rounded-[10px] border-[1.5px] border-border bg-card pl-8 pr-2.5 text-[13px] focus:border-brand focus:outline-none" />
+        </label>
+        <label className="flex items-center gap-2 text-[13px] text-muted-foreground">Sort
           <select className={SELECT} value={sort} aria-label="Sort learners" onChange={(event) => setSort(event.target.value as PeopleSort)}>
             {SORTS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
+        <RequirementEvidenceExport orgId={orgId} token={token} scope={{ assignment_uuid: detail.assignment_uuid, user_ids: rows.map((row) => row.person!.id) }} />
       </div> : null}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {!people ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted-foreground" /></div> : null}
         <LearnerRows rows={rows} invited={filter === 'all' ? invited : []} ended={detail.status === 'ended'} onMessage={onMessage} onResend={editable ? () => void resend() : undefined} />
-        {people && !rows.length && filter !== 'all' ? <p className="px-4 py-4 text-sm text-muted-foreground">No one here right now.</p> : null}
+        {people && !rows.length && (filter !== 'all' || search.trim()) ? <p className="px-4 py-4 text-sm text-muted-foreground">No one here right now.</p> : null}
       </div>
       <div className="mt-3 flex flex-col gap-1.5">
         <StatusLegend />

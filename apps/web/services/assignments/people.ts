@@ -13,9 +13,10 @@ export const SORTS: Array<{ value: PeopleSort; label: string }> = [
 
 const nameOf = (row: AssignmentLearner) => row.person ? personLabel(row.person) : row.email || ''
 
-/** Learners who have joined, filtered to what needs staff and sorted; ties on progress go to who has more to review. */
-export function shownLearners(rows: AssignmentLearner[], filter: PeopleFilter, sort: PeopleSort) {
-  const joined = rows.filter((row) => row.person)
+/** Learners who have joined, filtered to what needs staff and to a name search, and sorted; ties on progress go to who has more to review. */
+export function shownLearners(rows: AssignmentLearner[], filter: PeopleFilter, sort: PeopleSort, search = '') {
+  const needle = search.trim().toLowerCase()
+  const joined = rows.filter((row) => row.person && (!needle || [nameOf(row), row.person.username].some((value) => value?.toLowerCase().includes(needle))))
   const kept = filter === 'all' ? joined : joined.filter((row) => filter === 'needs'
     ? row.needs.questions + row.needs.review + row.needs.behind > 0 : row.needs[filter] > 0)
   const byName = (a: AssignmentLearner, b: AssignmentLearner) => nameOf(a).localeCompare(nameOf(b))
