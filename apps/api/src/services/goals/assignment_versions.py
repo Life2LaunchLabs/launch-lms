@@ -25,7 +25,7 @@ OPEN_GOALS = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value)
 
 
 def _managed(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> GoalAssignment:
-    from src.services.goals.assignments import require_assignment_runner
+    from src.services.goals.assignment_staff import require_assignment_runner
 
     return require_assignment_runner(db, current_user, org_id, assignment_uuid)
 
