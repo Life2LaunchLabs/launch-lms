@@ -6,15 +6,18 @@ import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { ArrowUpRight, Layers3, Loader2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import AssignmentLearners from '@components/Goals/admin/assignments/AssignmentLearners'
+import { LearnerRows } from '@components/Assignments/page/PeopleTab'
+import { StatusLegend } from '@components/Assignments/StatusBar'
 import { assignmentHref, datesLine } from '@components/Goals/admin/assignments/shared'
 import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { cohortKey, goalAdminApi, matrixKey, type Cohort } from '@services/goals/admin'
+import { cohortKey, goalAdminApi, type Cohort } from '@services/goals/admin'
+import { assignmentApi, assignmentKeys } from '@services/assignments/assignments'
+import { shownLearners } from '@services/assignments/people'
 import { usePeopleContext } from './usePeople'
 
 /**
- * The group's Plans tab: the plans handed to it, one assignment's learners at a time (with export).
+ * The group's Plans tab: the plans handed to it, one assignment's learners at a time, each with where they are and what they need.
  * Its requirements report lives in Insights now; the old requirements view redirects there.
  */
 export default function GroupWork({ orgslug, groupId }: { orgslug: string; groupId: number }) {
@@ -36,8 +39,8 @@ function GroupPlans({ orgslug, groupId, cohort, refresh }: { orgslug: string; gr
   const requested = useSearchParams().get('assignment')
   const all = [...cohort.assignments, ...cohort.completed_assignments]
   const current = all.find((item) => item.assignment_uuid === requested) || all[0]
-  const { data: matrix, error } = useSWR(current && orgId && token ? matrixKey(current.assignment_uuid, orgId) : null,
-    () => goalAdminApi.matrix(orgId, current!.assignment_uuid, token), { revalidateOnFocus: false })
+  const { data: people, error } = useSWR(current && orgId && token ? assignmentKeys.people(orgId, current.assignment_uuid) : null,
+    () => assignmentApi.people(orgId, current!.assignment_uuid, token), { revalidateOnFocus: false })
   const assign = <AssignFlow initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium hover:bg-muted"><Plus size={15} />Assign a plan</button>} />
   if (!current) return <div className="px-4 md:px-10"><div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">No plans are assigned to this group yet.</p><div className="mt-4 flex justify-center">{assign}</div></div></div>
   return <div className="space-y-4 px-4 md:px-10">
@@ -52,7 +55,10 @@ function GroupPlans({ orgslug, groupId, cohort, refresh }: { orgslug: string; gr
       {assign}
     </div>
     {error ? <p className="p-8 text-center text-sm text-muted-foreground">{error.message || 'This plan’s learners didn’t load.'}</p>
-      : !matrix ? <Spinner />
-      : <AssignmentLearners matrix={matrix} orgslug={orgslug} orgId={orgId} token={token} />}
+      : !people ? <Spinner />
+      : <div className="space-y-3">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card"><LearnerRows rows={shownLearners(people.learners, 'all', 'az')} ended={current.status === 'ended'} /></div>
+        <StatusLegend />
+      </div>}
   </div>
 }

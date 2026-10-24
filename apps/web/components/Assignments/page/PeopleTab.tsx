@@ -8,7 +8,7 @@ import StatusBar, { StatusLegend } from '@components/Assignments/StatusBar'
 import { CountIcons, MessageButton } from '@components/Assignments/Needs'
 import { PersonTile } from '@components/Assignments/Pair'
 import { goalAdminApi } from '@services/goals/admin'
-import { assignmentApi, type AssignmentDetail, type AssignmentPeople, type AssignmentPerson, type AssignmentRole } from '@services/assignments/assignments'
+import { assignmentApi, type AssignmentDetail, type AssignmentLearner, type AssignmentPeople, type AssignmentPerson, type AssignmentRole } from '@services/assignments/assignments'
 import { ROLES, ROLE_DO } from '@services/assignments/assignFlow'
 import { invitedRows, shownLearners, SORTS, type PeopleFilter, type PeopleSort } from '@services/assignments/people'
 import { personLabel, shortDate } from '@services/assignments/status'
@@ -84,22 +84,8 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
       </div> : null}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {!people ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted-foreground" /></div> : null}
-        {rows.map((row) => <div key={row.goal_uuid} className={ROW}>
-          <PersonTile person={row.person} />
-          <b className="min-w-0 flex-1 truncate text-sm font-semibold sm:w-48 sm:flex-none">{personLabel(row.person)}</b>
-          <span className="order-last w-full sm:order-none sm:w-auto sm:flex-1"><StatusBar counts={row.counts} unit="steps" now={detail.status !== 'ended'} label={personLabel(row.person)} /></span>
-          <CountIcons needs={row.needs} className="w-[92px] justify-end" />
-          <MessageButton onClick={() => onMessage(row.person!)} />
-        </div>)}
+        <LearnerRows rows={rows} invited={filter === 'all' ? invited : []} ended={detail.status === 'ended'} onMessage={onMessage} onResend={editable ? () => void resend() : undefined} />
         {people && !rows.length && filter !== 'all' ? <p className="px-4 py-4 text-sm text-muted-foreground">No one here right now.</p> : null}
-        {filter === 'all' ? invited.map((row) => <div key={row.goal_uuid} className={ROW}>
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border-[1.5px] border-dashed border-border bg-muted text-muted-foreground"><Mail size={14} aria-hidden="true" /></span>
-          <b className="min-w-0 flex-1 truncate text-sm font-semibold sm:w-48 sm:flex-none">{row.email}</b>
-          <span className="flex-1 text-[13px] text-muted-foreground">Invited {shortDate(row.update_date)} · hasn’t joined yet</span>
-          {editable ? <button type="button" onClick={() => void resend()} className="inline-flex h-[34px] min-w-28 items-center justify-center gap-2 rounded-full border border-border bg-card px-3 text-[13px] font-semibold hover:border-foreground">
-            <Send size={15} aria-hidden="true" />Resend
-          </button> : null}
-        </div>) : null}
       </div>
       <div className="mt-3 flex flex-col gap-1.5">
         <StatusLegend />
@@ -107,4 +93,31 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
       </div>
     </Section>
   </div>
+}
+
+/** Learners on an assignment, each with where they are and what they need, then invitations not taken up. */
+export function LearnerRows({ rows, invited = [], ended, onMessage, onResend }: {
+  rows: AssignmentLearner[]
+  invited?: AssignmentLearner[]
+  ended: boolean
+  onMessage?: (person: AssignmentPerson) => void // eslint-disable-line no-unused-vars
+  onResend?: () => void
+}) {
+  return <>
+    {rows.map((row) => <div key={row.goal_uuid} className={ROW}>
+      <PersonTile person={row.person} />
+      <b className="min-w-0 flex-1 truncate text-sm font-semibold sm:w-48 sm:flex-none">{personLabel(row.person)}</b>
+      <span className="order-last w-full sm:order-none sm:w-auto sm:flex-1"><StatusBar counts={row.counts} unit="steps" now={!ended} label={personLabel(row.person)} /></span>
+      <CountIcons needs={row.needs} className="w-[92px] justify-end" />
+      {onMessage ? <MessageButton onClick={() => onMessage(row.person!)} /> : null}
+    </div>)}
+    {invited.map((row) => <div key={row.goal_uuid} className={ROW}>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border-[1.5px] border-dashed border-border bg-muted text-muted-foreground"><Mail size={14} aria-hidden="true" /></span>
+      <b className="min-w-0 flex-1 truncate text-sm font-semibold sm:w-48 sm:flex-none">{row.email}</b>
+      <span className="flex-1 text-[13px] text-muted-foreground">Invited {shortDate(row.update_date)} · hasn’t joined yet</span>
+      {onResend ? <button type="button" onClick={onResend} className="inline-flex h-[34px] min-w-28 items-center justify-center gap-2 rounded-full border border-border bg-card px-3 text-[13px] font-semibold hover:border-foreground">
+        <Send size={15} aria-hidden="true" />Resend
+      </button> : null}
+    </div>)}
+  </>
 }

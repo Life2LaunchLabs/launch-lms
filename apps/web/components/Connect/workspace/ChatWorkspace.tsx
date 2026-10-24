@@ -19,7 +19,7 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
-import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './staffNotes'
+import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './feed'
 
 const CHAT_REFRESH_MS = 5_000
 

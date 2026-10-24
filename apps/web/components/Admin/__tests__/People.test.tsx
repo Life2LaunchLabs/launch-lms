@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, setSystemTime, test } from 'bun:
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime'
-import { feedEntries, withTimeline } from '@components/Connect/workspace/staffNotes'
+import { feedEntries, withTimeline } from '@components/Connect/workspace/feed'
 import { TurnInCard } from '@components/Admin/People/PersonActivity'
 import { rowHref } from '@components/Admin/People/PeopleList'
 import type { ChatMessage } from '@services/connect/connect'
