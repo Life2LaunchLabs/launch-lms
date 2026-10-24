@@ -28,7 +28,7 @@ export async function generateMetadata(props: AwardPageProps): Promise<Metadata>
 
 export default async function BadgeAwardRoute(props: AwardPageProps) {
   const { orgslug, uuid } = await props.params
-  const award = await load(uuid)
+  const [award, check] = await Promise.all([load(uuid), badgeAwardsApi.verify(uuid, { revalidate: 0 }).catch(() => null)])
   if (!award) notFound()
-  return <AwardPage orgslug={orgslug} award={award} />
+  return <AwardPage orgslug={orgslug} award={award} check={check} />
 }

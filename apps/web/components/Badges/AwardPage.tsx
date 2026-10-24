@@ -2,12 +2,12 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Download, ShieldCheck } from 'lucide-react'
+import { Ban, Download, ShieldCheck } from 'lucide-react'
 import Certificate from '@components/Badges/Certificate'
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
-import { badgeAwardsApi, badgeKindLabel, type BadgeAward } from '@services/badges/badges'
+import { badgeAwardsApi, badgeKindLabel, type AwardCheck, type BadgeAward } from '@services/badges/badges'
 import { CHUNKY } from '@components/Discover/PlanArt'
 import { cn } from '@/lib/utils'
 
@@ -16,8 +16,15 @@ const longDate = (value: string) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-/** One badge a learner earned, as anyone with the link sees it: who earned it, the badge, and its certificate. */
-export default function AwardPage({ orgslug, award }: { orgslug: string; award: BadgeAward }) {
+/** What the server's check found, as the tag above the heading says it. */
+function CheckTag({ award, check }: { award: BadgeAward; check: AwardCheck | null }) {
+  if (award.status === 'revoked' || check?.revoked) return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-red-100 px-2.5 py-1 text-xs font-black text-red-800 dark:bg-red-950 dark:text-red-200"><Ban size={13} aria-hidden="true" />Revoked</span>
+  if (check?.verified) return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#DDF1E8] px-2.5 py-1 text-xs font-black text-[#0B5F57]"><ShieldCheck size={13} aria-hidden="true" />Verified Open Badge</span>
+  return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-muted px-2.5 py-1 text-xs font-black text-muted-foreground">Open Badge</span>
+}
+
+/** One badge a learner earned, as anyone with the link sees it: who earned it, the badge, and its certificate (or that it was revoked). */
+export default function AwardPage({ orgslug, award, check = null }: { orgslug: string; award: BadgeAward; check?: AwardCheck | null }) {
   const badge = award.achievement
   const learner = award.learner?.name || award.learner?.username || 'A learner'
   const org = award.issuing_org
@@ -29,7 +36,7 @@ export default function AwardPage({ orgslug, award }: { orgslug: string; award: 
       <div className="mx-auto flex max-w-[1056px] flex-wrap items-center gap-5 px-4 py-8 sm:px-6">
         <BadgeMedal badge={badge} size={88} />
         <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1">
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#DDF1E8] px-2.5 py-1 text-xs font-black text-[#0B5F57]"><ShieldCheck size={13} aria-hidden="true" />Verified Open Badge</span>
+          <CheckTag award={award} check={check} />
           <h1 className="m-0 text-3xl font-bold leading-tight tracking-tight">{learner} earned {badge.name}</h1>
           <p className="m-0 text-muted-foreground">
             {org ? <>Awarded by {org.name} on {longDate(award.earned_on)}</> : <>Earned on {longDate(award.earned_on)}</>}
@@ -45,6 +52,9 @@ export default function AwardPage({ orgslug, award }: { orgslug: string; award: 
       </div>
     </header>
     <main className="mx-auto flex max-w-[1056px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
+      {award.status === 'revoked' ? <p role="status" className="m-0 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+        <b>{org?.name || 'The issuer'} revoked this {kind}{award.revoked_at ? ` on ${longDate(award.revoked_at)}` : ''}.</b> It no longer counts as earned.{award.revoked_reason ? ` Reason: ${award.revoked_reason}` : ''}
+      </p> : null}
       <Certificate
         badge={badge}
         style={badge.style}

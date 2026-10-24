@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
-from src.db.badges import BadgeAward
+from src.db.badges import BadgeAward, OrgSigningKey
 from src.db.conversations import ConversationMessage, UserBlock
 from src.db.goals import GoalAssignment, GoalStep, GoalTemplateVersion, StepStatus
 from src.services.connect import cards
@@ -19,7 +19,7 @@ from src.tests.test_goals import ADMIN, LEARNER, OTHER, _status, _step, _user
 
 @pytest.fixture(autouse=True)
 def _tables(world):  # noqa: F811
-    for model in (BadgeAward, UserBlock):
+    for model in (BadgeAward, OrgSigningKey, UserBlock):
         model.__table__.create(world[0].get_bind(), checkfirst=True)  # type: ignore[attr-defined]
 
 

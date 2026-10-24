@@ -7,6 +7,11 @@ alignment, creator, version) comes from the plan. ``BadgeAward`` is what a
 learner earns: by finishing the plan, or awarded directly by staff who sign off
 on equivalent work. Awards keep the achievement as it was when earned, so they
 survive later releases and even the plan's deletion.
+
+Each award is issued as a signed Open Badges 3.0 credential
+(``services/badges/signing.py``), kept as issued, with a slot in its issuing
+organization's revocation status list. ``OrgSigningKey`` is the organization's
+Ed25519 key; its private half is encrypted at rest.
 """
 
 from __future__ import annotations
@@ -14,7 +19,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import Enum
 
-from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -23,9 +28,20 @@ class AwardSource(str, Enum):
     DIRECT_AWARD = "direct_award"
 
 
+class AwardStatus(str, Enum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+
+
 class BadgeAward(SQLModel, table=True):
     __tablename__ = "badge_award"
-    __table_args__ = (UniqueConstraint("award_uuid"), UniqueConstraint("template_id", "user_id"))
+    __table_args__ = (
+        UniqueConstraint("award_uuid"),
+        # A learner holds a plan's badge once; a revoked award doesn't count, so it can be awarded again.
+        Index("uq_badge_award_active_holder", "template_id", "user_id", unique=True,
+              postgresql_where=text("status = 'active'"), sqlite_where=text("status = 'active'")),
+        UniqueConstraint("issuing_org_id", "status_list_index"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     award_uuid: str = Field(index=True)
@@ -49,5 +65,25 @@ class BadgeAward(SQLModel, table=True):
     # The achievement as it was when earned (see services/badges/definition.achievement).
     achievement: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     issued_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
+    status: AwardStatus = Field(default=AwardStatus.ACTIVE, sa_column=Column(String, nullable=False, server_default="active", index=True))
+    revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    revoked_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    revoked_reason: str = ""
+    # The award's slot in its issuing organization's revocation status list, and the signed credential as issued.
+    status_list_index: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    credential: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     creation_date: str = ""
     update_date: str = ""
+
+
+class OrgSigningKey(SQLModel, table=True):
+    """An organization's Ed25519 key for signing the credentials it issues, made on its first award."""
+    __tablename__ = "org_signing_key"
+
+    id: int | None = Field(default=None, primary_key=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, unique=True))
+    # Multikey (multibase base58btc of 0xed01 + the raw key), as the DID document publishes it.
+    public_key_multibase: str = Field(sa_column=Column(String, nullable=False))
+    # The raw private key, Fernet-encrypted with the credential key (services/badges/signing.py).
+    private_key_encrypted: str = Field(sa_column=Column(Text, nullable=False))
+    creation_date: str = ""

@@ -26,6 +26,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import require_org_admin
+from src.services.badges import open_badges
 from src.services.badges.awards import award_dict, holders, new_award
 from src.services.badges.definition import achievement, badge_block, summary
 from src.services.goals.plan_issuers import approved_on, runnable_ids
@@ -154,6 +155,8 @@ def award_directly(db: Session, current_user: PublicUser, org_id: int, payload: 
         made.append(award)
     db.flush()
     for award in made:
+        open_badges.issue(db, award)
+    for award in made:
         create_inbox_message(
             db, recipient_user_id=award.user_id, sender_org_id=org_id, sender_user_id=int(current_user.id), message_type="badge_award",
             subject=f"You earned {earned['name']}", body=f"{org.name if org else 'Your organization'} awarded you the {earned['name']} badge for work equal to {template.title}.",
@@ -181,4 +184,4 @@ def learner_awards(db: Session, current_user: PublicUser, org_id: int, user_id: 
     require_org_admin(current_user.id, org_id, db)
     if db.exec(select(UserOrganization.id).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first() is None:
         raise HTTPException(status_code=404, detail="User is not connected to this organization")
-    return {"awards": [award_dict(db, award) for award in awards_of(db, user_id)], "can_award": is_org_admin(current_user.id, org_id, db, PERMISSION)}
+    return {"awards": [award_dict(db, award) for award in awards_of(db, user_id, revoked=True)], "can_award": is_org_admin(current_user.id, org_id, db, PERMISSION)}

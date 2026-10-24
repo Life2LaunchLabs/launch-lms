@@ -2,8 +2,10 @@
 
 The organization that ran the plan with the learner (or awarded the badge) is
 the credential's ``issuer``; the organization that owns the plan is the
-achievement's ``creator``. Both are the organization's own details. Ids are
-stable URLs on the API host, and pages people read are on the web host.
+achievement's ``creator``. Both are the organization's own details, identified
+by the organization's ``did:web`` (``signing.did``). Other ids are stable URLs on
+the API host, and pages people read are on the web host. A credential is built
+and signed once, when the award is issued, and kept as issued.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from sqlmodel import Session
 from src.db.badges import AwardSource, BadgeAward
 from src.db.organizations import Organization
 from src.db.users import User
+from src.services.badges import signing
 from src.services.oauth.config import frontend_url, issuer
 
 CONTEXTS = [
@@ -42,7 +45,7 @@ def _image(url: str) -> str:
 
 def profile(org: Organization) -> dict:
     """The organization as an Open Badges Profile (issuer or creator)."""
-    result: dict = {"id": api_url(f"badge-awards/issuer/{org.org_uuid}"), "type": ["Profile"], "name": org.name, "url": org_page(org)}
+    result: dict = {"id": signing.did(org), "type": ["Profile"], "name": org.name, "url": org_page(org)}
     if org.logo_image:
         result["image"] = {"id": f"{frontend_url()}/content/orgs/{org.org_uuid}/logos/{org.logo_image}", "type": "Image"}
     if org.email:
@@ -104,11 +107,15 @@ def _evidence(award: BadgeAward, issuing: Organization | None) -> list[dict]:
     return [{"type": ["Evidence"], "name": "Finished the plan", "genre": "Plan completion", "description": award.achievement.get("criteria_narrative") or ""}]
 
 
-def credential(db: Session, award: BadgeAward) -> dict:
-    """The award as an OpenBadgeCredential."""
+def _issuing(db: Session, award: BadgeAward) -> Organization | None:
+    org = db.get(Organization, award.issuing_org_id) if award.issuing_org_id else None
+    return org or (db.get(Organization, award.creator_org_id) if award.creator_org_id else None)
+
+
+def unsigned(db: Session, award: BadgeAward) -> dict:
+    """The award as an OpenBadgeCredential, before its proof."""
     user = db.get(User, award.user_id)
-    issuing = db.get(Organization, award.issuing_org_id) if award.issuing_org_id else None
-    issuing = issuing or (db.get(Organization, award.creator_org_id) if award.creator_org_id else None)
+    issuing = _issuing(db, award)
     result: dict = {
         "@context": CONTEXTS,
         "id": api_url(f"badge-awards/{award.award_uuid}/credential"),
@@ -123,4 +130,28 @@ def credential(db: Session, award: BadgeAward) -> dict:
         },
         "evidence": _evidence(award, issuing),
     }
+    if issuing and award.status_list_index is not None:
+        result["credentialStatus"] = signing.status_entry(issuing, award.status_list_index)
+    return result
+
+
+def issue(db: Session, award: BadgeAward) -> dict:
+    """Sign the award's credential, with its slot in the issuer's status list, and keep it (flushed, not committed)."""
+    issuing = _issuing(db, award)
+    if issuing is None:
+        return unsigned(db, award)
+    if award.status_list_index is None:
+        award.status_list_index = signing.next_status_index(db, int(issuing.id))  # type: ignore[arg-type]
+    award.credential = signing.sign(db, unsigned(db, award), issuing)
+    db.add(award)
+    db.flush()
+    return award.credential
+
+
+def credential(db: Session, award: BadgeAward) -> dict:
+    """The award's credential as issued; awards from before signing are signed the first time they're asked for."""
+    if award.credential:
+        return award.credential
+    result = issue(db, award)
+    db.commit()
     return result
