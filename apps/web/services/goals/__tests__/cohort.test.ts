@@ -77,8 +77,8 @@ test('a step with no date of its own is late once its stage ends, and the assign
   assert.equal(closeDate({ ...plan.steps[1], due_date: '2026-10-29', due_set: true }, data.learners), '2026-10-29')
 })
 
-test('a group’s assignment talks with its staff and its whole group; one person’s only with its staff', () => {
-  assert.deepEqual(cohortAudiences({ assignment_type: 'group' }), ['staff', 'group'])
-  assert.deepEqual(cohortAudiences({ assignment_type: 'individual' }), ['staff'])
-  assert.deepEqual(cohortAudiences({ assignment_type: 'external' }), ['staff'])
+test('a group’s assignment has one chat with the whole group; one person’s talks in the learner’s own chat', () => {
+  assert.deepEqual(cohortAudiences({ assignment_type: 'group' }), ['group'])
+  assert.deepEqual(cohortAudiences({ assignment_type: 'individual' }), [])
+  assert.deepEqual(cohortAudiences({ assignment_type: 'external' }), [])
 })

@@ -22,8 +22,7 @@ export interface GroupStaff {
 }
 
 export interface TeamMember { user: PersonSummary; groups: Array<{ group_id: number; name: string; role_key: StaffRole; role: string }> }
-export interface StaffNote { note_uuid: string; body: string; author: PersonSummary | null; creation_date: string; can_delete: boolean }
-export interface StudentView { student: PersonSummary; team: TeamMember[]; notes: StaffNote[] }
+export interface StudentView { student: PersonSummary; team: TeamMember[] }
 
 export interface WaitingStudent { student: PersonSummary; unread: number; mentions: number; reviews: number; last_message: ChatMessage | null }
 export interface Waiting { mine: boolean; can_see_everyone: boolean; students: WaitingStudent[] }
@@ -59,8 +58,6 @@ export const schoolApi = {
   removeStaff: (orgId: number, groupId: number, userId: number, token?: string) => request<GroupStaff>(`${schoolKeys.groupStaff(orgId, groupId)}/${userId}`, token, 'DELETE'),
   student: (orgId: number, userId: number, token?: string) => request<StudentView>(schoolKeys.student(orgId, userId), token),
   studentChat: (orgId: number, userId: number, token?: string, filter: ChatFilter = {}) => request<Chat>(schoolKeys.studentChat(orgId, userId, filter), token),
-  addNote: (orgId: number, userId: number, body: string, token?: string) => request<StaffNote[]>(`${schoolKeys.student(orgId, userId)}/notes`, token, 'POST', { body }),
-  deleteNote: (orgId: number, userId: number, noteUuid: string, token?: string) => request<StaffNote[]>(`${schoolKeys.student(orgId, userId)}/notes/${q(noteUuid)}`, token, 'DELETE'),
   waiting: (orgId: number, mine: boolean, token?: string) => request<Waiting>(schoolKeys.waiting(orgId, mine), token),
   reports: (orgId: number, status: ReportStatus, token?: string) => request<ChatReports>(schoolKeys.reports(orgId, status), token),
   reviewReport: (orgId: number, reportUuid: string, status: ReportStatus, token?: string) =>

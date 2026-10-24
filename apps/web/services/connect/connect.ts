@@ -9,6 +9,7 @@ export const filterQuery = (filter: ChatFilter) => {
   const params = new URLSearchParams()
   if (filter.goal_uuid) params.set('goal_uuid', filter.goal_uuid)
   if (filter.goal_uuid && filter.step_uuid) params.set('step_uuid', filter.step_uuid)
+  if (filter.audience) params.set('audience', filter.audience)
   return params.size ? `?${params.toString()}` : ''
 }
 
@@ -112,6 +113,8 @@ export interface ChatMessage {
   card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | EventCard | StepReminderCard | GroupReportCard | null
   sender: PersonSummary | null
   mine: boolean
+  /** Only the organization's staff read it. */
+  staff_only?: boolean
   creation_date: string
   update_date: string
 }
@@ -166,10 +169,15 @@ export interface Chat extends ChatSummary {
   /** Why the organization's messaging policy keeps you from writing here, if it does. */
   policy_block?: string | null
   topics: ChatTopic[]
+  /** Whether you can write messages only staff read here (staff, in a learner's or a group's chat). */
+  can_post_staff_only?: boolean
 }
 
-/** What a chat shows: everything, one plan, or one of its steps. */
-export interface ChatFilter { goal_uuid?: string; step_uuid?: string }
+/** Who reads a message: everyone in the chat, or the organization's staff alone. */
+export type MessageAudience = 'all' | 'learner' | 'staff'
+
+/** What a chat shows: everything, one plan, or one of its steps; and everything, what learners read, or staff-only messages. */
+export interface ChatFilter { goal_uuid?: string; step_uuid?: string; audience?: MessageAudience }
 
 /** Where a plan talks, for its chat button. */
 export interface GoalChat {
@@ -182,7 +190,7 @@ export interface GoalChat {
   count: number
 }
 
-/** Who an assignment's chat is with: its staff alone, or staff and the whole group. */
+/** An assignment's chat: staff and the whole group, in one thread where staff can also write staff-only messages. 'staff' is an older name for the same chat. */
 export type ChatAudience = 'staff' | 'group'
 
 /** An assignment's chat, for its chat buttons, with the plan's template steps to filter by. */
@@ -210,6 +218,8 @@ export interface SendOptions {
   scope?: ChatFilter
   /** Who to share each of your tagged plans with. {} sends without sharing. */
   share?: Record<string, string[]>
+  /** Only the organization's staff read it. */
+  staffOnly?: boolean
 }
 
 export interface ChatCounts { unread: number; requests: number }
@@ -240,7 +250,7 @@ export const connectApi = {
   cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience, token?: string) => request<CohortChat>(connectKeys.cohortChat(orgId, assignmentUuid, audience), token),
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
   send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
-    body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share,
+    body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share, staff_only: options.staffOnly || undefined,
   }),
   plans: (token?: string) => request<ChatTopic[]>(connectKeys.plans(), token),
   read: (uuid: string, token?: string) => request<ChatCounts>(connectUrl(`/chats/${q(uuid)}/read`), token, 'POST'),

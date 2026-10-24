@@ -57,6 +57,8 @@ class ConversationMessage(SQLModel, table=True):
     card: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     # What the message tags, in order: [{"kind": "plan"|"step"|"user"|"org", ...ids}].
     refs: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # "all", or "staff": only the organization's staff read it (services/connect/visibility.py).
+    visibility: str = Field(default="all", sa_column=Column(String, nullable=False, server_default="all"))
     creation_date: str = ""
     update_date: str = ""
 
@@ -117,6 +119,8 @@ class ChatMessageCreate(BaseModel):
     step_uuid: str | None = None
     # For each of your plans from elsewhere that you tagged, who here to share it with. {} sends without sharing.
     share: dict[str, list[str]] | None = None
+    # Only the organization's staff will read it: in a learner's chat with the organization or an assignment's group chat.
+    staff_only: bool = False
 
 
 class ChatReportCreate(BaseModel):

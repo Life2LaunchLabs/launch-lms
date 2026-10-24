@@ -20,7 +20,7 @@ function render(node: React.ReactNode) {
 describe('People', () => {
   test('a person’s cards sit between their messages by time', () => {
     const message = (uuid: string, at: string) => ({ message_uuid: uuid, creation_date: at }) as ChatMessage
-    const entries = withTimeline(feedEntries([message('m1', '2026-10-18T09:00:00Z'), message('m2', '2026-10-18T11:00:00Z')], []), [
+    const entries = withTimeline(feedEntries([message('m1', '2026-10-18T09:00:00Z'), message('m2', '2026-10-18T11:00:00Z')]), [
       { key: 'turn-in', at: '2026-10-18T10:00:00', node: null },
       { key: 'approval', at: '2026-10-18T12:00:00Z', node: null },
     ])

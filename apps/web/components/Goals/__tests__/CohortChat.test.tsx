@@ -16,14 +16,14 @@ afterAll(() => setSystemTime())
 
 function staffChat(counts: Record<string, number>): CohortChat {
   return {
-    assignment_uuid: 'a1', audience: 'staff', conversation_uuid: 'chat_1', title: 'College & Career Launch · Staff', can_post: true, counts,
+    assignment_uuid: 'a1', audience: 'group', conversation_uuid: 'chat_1', title: 'College & Career Launch · Group', can_post: true, counts,
     count: Object.values(counts).reduce((sum, count) => sum + count, 0),
     topic: { goal_uuid: 'a1', title: 'College & Career Launch', status: 'active', source: 'assignment', count: 0, progress: { done: 0, total: 0, submitted: 0, behind: 0 }, steps: [] },
   }
 }
 
 function render(node: React.ReactNode, chat?: CohortChat) {
-  const fallback = chat ? { [connectKeys.cohortChat(1, 'a1', 'staff')]: chat } : {}
+  const fallback = chat ? { [connectKeys.cohortChat(1, 'a1', 'group')]: chat } : {}
   return renderToStaticMarkup(<AppRouterContext.Provider value={router as never}>
     <SWRConfig value={{ provider: () => new Map(), fallback }}>{node}</SWRConfig>
   </AppRouterContext.Provider>)

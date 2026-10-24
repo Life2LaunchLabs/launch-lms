@@ -19,7 +19,7 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
-import { ComposeModeToggle, feedEntries, NoteComposer, NoteEntry, useStaffNotes, withTimeline, type ComposeMode, type StaffNotesTarget, type TimelineItem } from './staffNotes'
+import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './staffNotes'
 
 const CHAT_REFRESH_MS = 5_000
 
@@ -32,7 +32,7 @@ export type ChatSource = ({ chatUuid: string } | { orgId: number; userId: number
 export type { TimelineItem }
 
 const AUDIENCE: Record<ChatAudience, { icon: React.ElementType; text: string }> = {
-  staff: { icon: Lock, text: 'Staff only · learners never see this' },
+  staff: { icon: Users, text: 'Everyone in the group sees this' },
   group: { icon: Users, text: 'Everyone in the group sees this' },
 }
 
@@ -48,7 +48,7 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, staffNotes, timeline }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline }: {
   source: ChatSource
   orgslug: string
   token?: string
@@ -70,8 +70,6 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   onOpenPlan?: (goalUuid: string, stepUuid?: string) => void
   // eslint-disable-next-line no-unused-vars
   onChat?: (chat: Chat) => void
-  /** Staff on a learner's feed: their notes about the learner show between the messages, and the composer can write one. */
-  staffNotes?: StaffNotesTarget
   /** Cards between the messages, by time, in the unfiltered feed. */
   timeline?: TimelineItem[]
 }) {
@@ -90,17 +88,14 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const { getGoalColor } = useGoalColors(live, session?.data?.user?.id)
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
-  const notes = useStaffNotes(staffNotes, token)
+  // Staff write here for everyone, or for staff alone.
   const [mode, setMode] = React.useState<ComposeMode>('message')
-  // Notes are about the learner, not a step: they show in the whole feed.
-  const shownNotes = notes.available && !filter.goal_uuid ? notes.notes : []
-  const noting = notes.available && mode === 'note'
+  const staffOnly = Boolean(chat?.can_post_staff_only) && mode === 'staff'
 
   const shownTimeline = React.useMemo(() => filter.goal_uuid ? [] : timeline || [], [filter.goal_uuid, timeline])
   const lastStamp = chat?.messages.at(-1)?.update_date
-  const lastNote = shownNotes.at(-1)?.note_uuid
   const cards = shownTimeline.map((item) => item.key).join()
-  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, lastNote, cards, filter.goal_uuid, filter.step_uuid])
+  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, cards, filter.goal_uuid, filter.step_uuid])
   React.useEffect(() => { if (chat) onChat?.(chat) }, [chat, onChat])
   // Reading the chat clears its unread count, but a request stays unanswered until accepted.
   const unread = chat?.unread || 0
@@ -127,7 +122,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const send = async (body: string, share?: Record<string, string[]>) => {
     if (!chat) return false
     try {
-      const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope: filter, share })
+      const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope: filter, share, staffOnly })
       for (const outcome of sent.mentions || []) {
         if (outcome.status === 'invited') toast.success(`Invited ${outcome.user.name} as a commenter`)
         else if (outcome.status === 'requested') toast.success(`Asked the plan’s admins to add ${outcome.user.name}`)
@@ -161,10 +156,9 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-6">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
-        : chat.messages.length || shownNotes.length || shownTimeline.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
-          {withTimeline(feedEntries(chat.messages, shownNotes), shownTimeline).map((entry, position, entries) => {
+        : chat.messages.length || shownTimeline.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
+          {withTimeline(feedEntries(chat.messages), shownTimeline).map((entry, position, entries) => {
             if (entry.kind === 'card') return <li key={entry.item.key} className="my-2">{entry.item.node}</li>
-            if (entry.kind === 'note') return <NoteEntry key={entry.note.note_uuid} note={entry.note} onRemove={notes.remove} />
             const { message } = entry
             const before = entries[position - 1]
             return <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
@@ -176,9 +170,9 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     </div>
     {chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
-      {notes.available ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
-      {noting ? <NoteComposer onAdd={notes.add} /> : <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
-        placeholder={step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />}
+      {chat.can_post_staff_only ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
+      <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
+        placeholder={staffOnly ? 'Only staff will see this' : step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
@@ -250,11 +244,13 @@ function Message({ message, orgslug, token, links, first, names, topics, filter,
   const time = new Date(message.update_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   if (message.kind === 'card' && message.card) return <CardMessage message={message} orgslug={orgslug} token={token} topics={topics} time={time} first={first} onTag={onTag} onAnswered={onAnswered} />
   const scope = scopeLabel(message, filter)
-  return <li className={cn('flex flex-col', message.mine ? 'items-end' : 'items-start', first && 'mt-2')}>
-    {names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
+  return <li className={cn('flex flex-col', message.mine ? 'items-end' : 'items-start', (first || message.staff_only) && 'mt-2')}>
+    {message.staff_only ? <span className="mb-0.5 flex items-center gap-1 px-3 text-[11px] font-bold text-amber-700 dark:text-amber-300"><Lock size={10} aria-hidden="true" />Staff only{!message.mine && message.sender ? ` · ${message.sender.name}` : ''}</span>
+      : names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
     {/* Coach's bubbles: yours on the raised surface as in Coach; other people's a shade apart. Only Coach goes without one. */}
     <div className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground',
-      message.mine ? 'hub-user-message rounded-br-md' : 'rounded-bl-md bg-[hsl(var(--raised)/0.55)]')}>
+      message.staff_only ? 'border border-dashed border-amber-400/70 bg-amber-50 text-amber-950 dark:bg-amber-500/10 dark:text-amber-100'
+        : message.mine ? 'hub-user-message rounded-br-md' : 'rounded-bl-md bg-[hsl(var(--raised)/0.55)]')}>
       <MessageText body={message.body} refs={message.refs || []} links={links} inPlan={filter.goal_uuid} onTag={onTag} />
       <span className="ml-2 inline-block align-bottom text-[10px] text-muted-foreground">{time}</span>
     </div>

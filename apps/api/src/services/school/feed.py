@@ -190,7 +190,7 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
                 continue
             entry = row("group", group_id)
             entry["group"] = _group_rows(db, [group])[0]["group"]
-            last = chats._last(db, conversation)
+            last = chats._last(db, conversation, viewer)
             entry["_last_at"], entry["_last"] = conversation.last_message_at or "", _last_line(chats._message_dict(db, last, viewer) if last else None, True)
             touch(entry, conversation.last_message_at)
 
@@ -245,7 +245,7 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
     for entry in found:
         school_chat = entry.pop("_school", None)
         if school_chat is not None and (school_chat.last_message_at or "") >= entry["_last_at"]:
-            last = chats._last(db, school_chat)
+            last = chats._last(db, school_chat, viewer)
             entry["_last"] = _last_line(chats._message_dict(db, last, viewer) if last else None, True)
         entry["preview"] = _preview(entry)
         for key in [key for key in entry if key.startswith("_")]:

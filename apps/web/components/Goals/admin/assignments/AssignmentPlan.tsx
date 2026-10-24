@@ -24,7 +24,7 @@ export default function AssignmentPlan({ matrix, ctx, viewerUserId }: { matrix: 
   const upcoming = upcomingStep(matrix)?.template_key
   const [selected, setSelected] = React.useState(() => firstToDo(matrix, now))
   const summary = matrix.assignment
-  const [audience, setAudience] = React.useState<ChatAudience>('staff')
+  const [audience, setAudience] = React.useState<ChatAudience>('group')
   const full: TodoContext = { ...ctx, learners: matrix.learners, now, status: summary.status, canReschedule: Boolean(matrix.can_reschedule) }
   const todos = (key: string, open: boolean) => {
     const found = columns.get(key)
