@@ -3473,9 +3473,9 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/editor/GoalAssignmentModal.tsx",
-                  "symbol": "ScheduleStep,ProgramAssignmentModal",
-                  "responsibility": "The template's Assign dialog: sets phase dates and per-objective due rules for the group or learners it is handed to."
+                  "path": "apps/web/components/Assignments/page/StepsTab.tsx",
+                  "symbol": "ScheduleEditor",
+                  "responsibility": "The assignment page's schedule mode: sets stage starts, each step's dates and late rules, and the last day, saved in one call."
                 }
               ]
             },
@@ -4150,9 +4150,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/assignments/AssignmentLearners.tsx",
-              "symbol": "AssignmentLearners",
-              "responsibility": "An assignment's Learners tab: each learner's steps as dots by stage, pace and what needs attention, opening their plan feed."
+              "path": "apps/web/components/Assignments/page/PeopleTab.tsx",
+              "symbol": "PeopleTab,LearnerRows",
+              "responsibility": "An assignment's People tab: staff roles, then each learner's progress bar and what needs attention, with Message and Resend."
             }
           ],
           "relationships": [
