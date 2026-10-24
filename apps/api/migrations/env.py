@@ -109,6 +109,12 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        if connection.dialect.name == "postgresql":
+            # The app keeps serving while deploys migrate. A migration that waits on a lock queues
+            # every query on that table behind it, so give up and fail the deploy instead.
+            lock_timeout = os.getenv("LAUNCHLMS_MIGRATION_LOCK_TIMEOUT", "15s")
+            connection.exec_driver_sql(f"SET lock_timeout = '{lock_timeout}'")
+            connection.commit()
         context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
