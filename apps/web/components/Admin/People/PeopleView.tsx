@@ -7,16 +7,15 @@ import { ArrowLeft, PanelRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHub } from '@components/Hub/HubContext'
 import ThreadView, { type ThreadTarget } from '@components/Threads/ThreadView'
-import ChatPane from '@components/Connect/ChatPane'
 import ChatReports from '@components/Admin/Users/ChatReports'
 import WaitingOnYou from '@components/Admin/Users/WaitingOnYou'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { profileHref } from '@components/Threads/profiles/ProfileFrame'
 import PeopleList, { threadHref } from './PeopleList'
-import { usePeopleContext, useRefreshPeople } from './usePeople'
+import { usePeopleContext } from './usePeople'
 
-/** What's open beside the list: nothing yet, a thread, or an old chat link. Profiles have their own pages. */
-export type PeopleSelection = { kind: 'none' } | { kind: 'thread'; target: ThreadTarget } | { kind: 'chat'; uuid: string }
+/** What's open beside the list: nothing yet, or a thread. Profiles have their own pages. */
+export type PeopleSelection = { kind: 'none' } | { kind: 'thread'; target: ThreadTarget }
 
 /**
  * People: the organization's people and groups in one list, with whoever has something new for
@@ -26,19 +25,15 @@ export type PeopleSelection = { kind: 'none' } | { kind: 'thread'; target: Threa
  */
 export default function PeopleView({ orgslug, selection }: { orgslug: string; selection: PeopleSelection }) {
   const { orgId, token, isAdmin } = usePeopleContext()
-  const refreshList = useRefreshPeople()
   const open = selection.kind !== 'none'
   const listHref = getUriWithOrg(orgslug, routePaths.org.admin.threads.root())
-  const personHref = React.useCallback((person: { username: string }) => getUriWithOrg(orgslug, routePaths.org.admin.people.user(person.username)), [orgslug])
-  const onChanged = React.useCallback(() => { void refreshList() }, [refreshList])
 
   return <div className="flex h-[calc(100dvh-4rem)] w-full overflow-hidden bg-background md:h-[100dvh]" data-people>
     <section aria-label="People and groups" className={cn('flex min-h-0 w-full flex-col md:w-[360px] md:shrink-0 md:border-r md:border-border', open && 'hidden md:flex')}>
       <PeopleList orgslug={orgslug} selection={selection} />
     </section>
-    <section aria-label={selection.kind === 'thread' ? 'Thread' : 'Chat'} className={cn('min-h-0 min-w-0 flex-1 flex-col overflow-hidden', open ? 'flex' : 'hidden md:flex')}>
+    <section aria-label="Thread" className={cn('min-h-0 min-w-0 flex-1 flex-col overflow-hidden', open ? 'flex' : 'hidden md:flex')}>
       {selection.kind === 'thread' ? <OpenThread key={JSON.stringify(selection.target)} orgslug={orgslug} target={selection.target} listHref={listHref} />
-        : selection.kind === 'chat' ? <ChatPane key={selection.uuid} orgslug={orgslug} chatUuid={selection.uuid} listHref={listHref} personHref={personHref} onChanged={onChanged} />
         : <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#f8f8f8] p-6 dark:bg-background">
           {/* Admins keep their oversight here: chat reports, and every student waiting on staff (not just theirs). */}
           {isAdmin && orgId ? <>

@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import ChatWorkspace from '@components/Connect/workspace/ChatWorkspace'
 import type { TimelineItem } from '@components/Connect/workspace/feed'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
-import { reviewHref } from '@components/Goals/admin/live/ui'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type ChatFilter, type ChatMessage } from '@services/connect/connect'
@@ -16,7 +15,7 @@ import { ROLE_LABELS } from '@services/school/people'
 import { threadKeys, threadsApi, type OrgLogEntry, type PersonThread, type ThreadFilter } from '@services/school/threads'
 import { shortDate } from '@services/assignments/status'
 import { ContextBar, FilterChips, type StepOption } from './ContextBar'
-import { AskedCard, PastDueCard, RequestCard, ReviewCard } from './ThreadCards'
+import { AskedCard, PastDueCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
@@ -111,8 +110,7 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
     if (filter === 'all' || filter === 'requests') cards.push(...(step ? [] : thread.requests).map((request) => ({ key: `ask:${request.invitation_uuid}`, at: request.creation_date,
       node: <RequestCard request={request} orgId={orgId} token={token} onDone={() => void mutate()} /> })))
     if (filter === 'review') cards.push(...onStep(thread.review).map((item) => ({ key: `review:${item.step_uuid}`, at: item.submitted_at,
-      node: <ReviewCard item={item} reviewHref={item.assignment_uuid ? reviewHref({ assignment: item.assignment_uuid, stepKey: item.step_key, stepUuid: item.step_key ? null : item.step_uuid, focus: item.step_uuid })
-        : routePaths.org.admin.learnerFeed(item.goal_uuid)} /> })))
+      node: <ReviewCard item={item} reviewHref={turnInHref(item)} /> })))
     return cards
   }, [thread, filter, step, orgId, token, mutate])
 

@@ -164,7 +164,6 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.people.group(2, 'plans', 'assignment_1'), '/admin/threads/profiles/groups/2?view=plans&assignment=assignment_1')
   assert.equal(admin.people.group(2, 'requirements', 'assignment_1'), '/admin/threads/profiles/groups/2?view=requirements')
   assert.equal(admin.people.org('invites'), '/admin/threads/profiles/org?tab=invites')
-  assert.equal(admin.people.chat('chat_1'), '/admin/users/chat/chat_1')
   assert.equal(admin.learnerFeed('plan_1'), '/admin/plans/live/plan_1?chat=plan')
   assert.equal(admin.template('template 1'), '/admin/plans/template%201')
   assert.equal(admin.insights(), '/admin/insights')

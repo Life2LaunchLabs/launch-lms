@@ -1,6 +1,7 @@
-import PeopleView from '@components/Admin/People/PeopleView'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 
-export default async function PeopleChatPage({ params }: { params: Promise<{ orgslug: string; chatuuid: string }> }) {
-  const { orgslug, chatuuid } = await params
-  return <PeopleView orgslug={orgslug} selection={{ kind: 'chat', uuid: decodeURIComponent(chatuuid) }} />
+/** Chats in People became threads. */
+export default function PeopleChatPage() {
+  redirect(routePaths.org.admin.threads.root())
 }

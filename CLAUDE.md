@@ -92,6 +92,8 @@ launch-lms/
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
 | `/users` | User profile, settings |
+| `/school` | Threads (a person's, a group's, all staff, the organization's), the Threads list, profiles, helper requests |
+| `/connect` | Conversations: messages, staff-only notes, reactions |
 | `/orgs` | Organization CRUD, usage |
 | `/roles` | RBAC role definitions |
 | `/usergroups` | User groups & resource access |
@@ -152,6 +154,7 @@ launch-lms/
 
 ### App Router Layout
 - `app/orgs/[orgslug]/admin/` — org admin dashboard (superadmins additionally see platform controls: org management, users, news)
+  - `admin/threads/` — Threads (formerly People): the list, each thread, and profiles under `threads/profiles/`; threads also open in the admin side panel beside Coach (`components/Threads/`)
 - `app/auth/` — login, register, email verification
 - `app/editor/` — course editor
 - `app/orgs/` — organization pages
