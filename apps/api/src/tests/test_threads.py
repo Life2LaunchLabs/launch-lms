@@ -41,9 +41,9 @@ def test_a_learners_thread_lists_their_plans_and_what_waits_on_staff_in_each():
         assert [person["id"] for person in thread["with"]][:2] == [ADMIN, COACH]
         plan = next(item for item in thread["plans"] if item["goal_uuid"] == mine.goal_uuid)
         assert plan["assignment_uuid"] == uuid and plan["status"] == "active" and plan["cover"]["template_uuid"]
-        # The turn-in and the question about this plan (not the message about no plan, which nobody answered either).
+        # The turn-in and the question about this plan; a thank-you isn't a question.
         assert plan["needs"] == 2
-        assert thread["counts"]["review"] == 1 and thread["counts"]["questions"] == 2 and thread["counts"]["staff_only"] == 1
+        assert thread["counts"]["review"] == 1 and thread["counts"]["questions"] == 1 and thread["counts"]["staff_only"] == 1
         assert [(item["step_uuid"], item["assignment_uuid"]) for item in thread["review"]] == [(essay.step_uuid, uuid)]
 
         # A staff reply about the step answers the question about it; staff-only notes don't answer.
@@ -79,6 +79,8 @@ def test_a_groups_thread_lists_its_assignments_and_who_asked_about_each_step():
         thread = threads.group_thread(db, _user(ADMIN), 1, 1)
         assert thread["kind"] == "group" and thread["group"] == {"id": 1, "name": "Fall", "learner_count": len(_group_learners(db))}
         assert [(plan["assignment_uuid"], plan["status"]) for plan in thread["plans"]] == [(uuid, "active")] and thread["plans"][0]["chat_uuid"]
+        # An admin who isn't on the group reads its assignments' threads, not its own chat.
+        assert thread["chat_uuid"] is None and thread["chat_note"]
         focused = threads.group_thread(db, _user(ADMIN), 1, 1, uuid)
         assert focused["asked"] == [{"step_key": "essay", "title": "Essay", "learners": [focused["asked"][0]["learners"][0]]}]
         assert focused["asked"][0]["learners"][0]["id"] == LEARNER and focused["counts"]["questions"] == 1

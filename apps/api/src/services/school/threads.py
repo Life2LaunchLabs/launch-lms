@@ -78,10 +78,11 @@ def _scopes(db: Session, message_ids: list[int]) -> dict[int, tuple[int | None, 
 
 
 def open_questions(db: Session, conversation: Conversation, student_id: int) -> list[tuple[ConversationMessage, int | None, str | None]]:
-    """The learner's messages that no one on staff has answered since, each with its plan and step.
+    """The learner's questions that no one on staff has answered since, each with its plan and step.
 
-    A staff reply answers what the learner wrote before it about the same plan and step (or, for
-    messages about no plan, anything else about no plan). Staff-only notes don't answer.
+    A question is a message with a question mark in it. A staff reply answers what the learner asked
+    before it about the same plan and step (or, for questions about no plan, anything else about no
+    plan). Staff-only notes don't answer.
     """
     rows = list(reversed(db.exec(select(ConversationMessage).where(
         ConversationMessage.conversation_id == conversation.id, ConversationMessage.kind == "text", ConversationMessage.visibility == visibility.ALL,
@@ -91,7 +92,8 @@ def open_questions(db: Session, conversation: Conversation, student_id: int) -> 
     for message in rows:
         scope = scopes.get(int(message.id), (None, None))  # type: ignore[arg-type]
         if message.sender_user_id == student_id:
-            waiting[scope].append(message)
+            if "?" in (message.body or ""):
+                waiting[scope].append(message)
         elif message.sender_user_id:
             waiting.pop(scope, None)
     found = [(message, scope[0], scope[1]) for scope, messages in waiting.items() for message in messages]
@@ -256,7 +258,10 @@ def group_thread(db: Session, current_user: PublicUser, org_id: int, group_id: i
     group = db.get(UserGroup, group_id)
     if not group or group.org_id != org_id or (not is_org_admin(viewer, org_id, db) and viewer not in group_chats.people_of(db, group_id)):
         raise HTTPException(status_code=404, detail="Group not found")
-    chat = group_chats.find(db, group_id) if group_chats.visible(db, org_id) else None
+    # The group's own chat is for its members and staff: anyone else sees its assignments' threads only.
+    inside = viewer in group_chats.people_of(db, group_id)
+    chat = (group_chats.group_chat(db, group) if inside and group_chats.enabled(db, org_id) else group_chats.find(db, group_id) if inside and group_chats.visible(db, org_id) else None)
+    note = None if chat else "Group chats need the Full tier." if not group_chats.visible(db, org_id) else None if inside else "Only the group’s members and staff are in its chat. Add yourself as staff to join it."
     runs = list(db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == group_id).order_by(col(GoalAssignment.id))).all())
     focus = next((item for item in runs if item.assignment_uuid == assignment_uuid), None) if assignment_uuid else None
     if assignment_uuid and not focus:
@@ -285,7 +290,7 @@ def group_thread(db: Session, current_user: PublicUser, org_id: int, group_id: i
         conversation = db.exec(select(Conversation).where(Conversation.conversation_uuid == focus_chat)).first()
         staff_only = _staff_only(db, conversation, None) if conversation else 0
     counts = {**_empty_counts(), "questions": sum(len(item["learners"]) for item in asked), "past_due": len(past_due), "staff_only": staff_only}
-    return {"kind": "group", "group": {"id": group.id, "name": group.name, "learner_count": learners}, "chat_uuid": chat.conversation_uuid if chat else None,
+    return {"kind": "group", "group": {"id": group.id, "name": group.name, "learner_count": learners}, "chat_uuid": chat.conversation_uuid if chat else None, "chat_note": note,
             "with": _people(db, [int(item) for item in staff], viewer), "plans": plans, "focus": focus.assignment_uuid if focus else None,
             "counts": counts, "past_due": past_due, "asked": asked}
 
