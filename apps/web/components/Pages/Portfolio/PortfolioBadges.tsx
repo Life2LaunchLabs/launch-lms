@@ -16,7 +16,7 @@ import type { Shell, PortfolioBadge, SetShell, WorkingToward } from './portfolio
 // Earned badges: featured on the front page, and all of them with feature and visibility controls; then the plans that will earn one.
 
 const medal = (badge: PortfolioBadge | WorkingToward) => ({ image_url: normalizeMediaUrl(badge.image_url || '') || '', icon: badge.icon, color: badge.color })
-const awardHref = (orgslug: string, badge: PortfolioBadge) => getUriWithOrg(orgslug, routePaths.org.badgeAward(badge.award_uuid))
+const awardHref = (orgslug: string, badge: PortfolioBadge) => getUriWithOrg(orgslug, routePaths.org.badgeAward(badge.code))
 
 export function SidebarBadge({ badge, orgslug }: { badge: PortfolioBadge; orgslug: string }) {
   return <Link href={awardHref(orgslug, badge)} className="group flex w-28 shrink-0 flex-col items-center gap-2 rounded-2xl p-1 text-center outline-none focus-visible:ring-2 focus-visible:ring-foreground">

@@ -160,7 +160,7 @@ def award_directly(db: Session, current_user: PublicUser, org_id: int, payload: 
         create_inbox_message(
             db, recipient_user_id=award.user_id, sender_org_id=org_id, sender_user_id=int(current_user.id), message_type="badge_award",
             subject=f"You earned {earned['name']}", body=f"{org.name if org else 'Your organization'} awarded you the {earned['name']} badge for work equal to {template.title}.",
-            action_url=f"/badges/{award.award_uuid}", dedupe_key=f"badge_award:{award.award_uuid}",
+            action_url=f"/b/{award.code}", dedupe_key=f"badge_award:{award.award_uuid}",
         )
     db.commit()
     for award in made:

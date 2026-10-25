@@ -97,6 +97,8 @@ export function legacyRedirectPath(pathname: string): string | null {
     return legacyAdminPath(rest) ?? `/admin${rest.length ? `/${rest.join('/')}` : ''}`
   }
   if (parts[0] === 'admin') return legacyAdminPath(parts.slice(1))
+  // A badge's old verify page: the award page is the verification now (and itself redirects to the award's short link).
+  if (parts[0] === 'badges' && parts.length === 3 && parts[2] === 'verify') return `/badges/${parts[1]}`
   // Group plans are managed from the admin side now; staff land on their own plans.
   if (parts[0] === 'plans' && parts[1] === 'groups' && parts.length === 3) return routePaths.org.plans()
   return null

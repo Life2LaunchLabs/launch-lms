@@ -16,6 +16,7 @@ Ed25519 key; its private half is encrypted at rest.
 
 from __future__ import annotations
 
+import secrets
 from datetime import date, datetime
 from enum import Enum
 
@@ -33,10 +34,20 @@ class AwardStatus(str, Enum):
     REVOKED = "revoked"
 
 
+# Crockford base32: no I, L, O or U, so a code read off a printed certificate can't be mistyped as another.
+CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def new_award_code() -> str:
+    """An award's short public code, for its page at ``/b/<code>`` and the certificate."""
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
+
+
 class BadgeAward(SQLModel, table=True):
     __tablename__ = "badge_award"
     __table_args__ = (
         UniqueConstraint("award_uuid"),
+        UniqueConstraint("code", name="uq_badge_award_code"),
         # A learner holds a plan's badge once; a revoked award doesn't count, so it can be awarded again.
         Index("uq_badge_award_active_holder", "template_id", "user_id", unique=True,
               postgresql_where=text("status = 'active'"), sqlite_where=text("status = 'active'")),
@@ -45,6 +56,8 @@ class BadgeAward(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     award_uuid: str = Field(index=True)
+    # Its short public code: the award's page is /b/<code>.
+    code: str = Field(default_factory=new_award_code, sa_column=Column(String, nullable=False))
     # The plan whose badge it is; None once the plan is deleted (the award keeps its achievement).
     template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="SET NULL"), nullable=True, index=True))
     # The release it was earned against.

@@ -137,8 +137,8 @@ export const routePaths = {
     portfolioResume: () => '/portfolio/resume',
     portfolioTimeline: () => '/portfolio/timeline',
     portfolioBadges: () => '/portfolio/badges',
-    /** One badge a learner earned: the badge, who earned it, and its certificate. */
-    badgeAward: (awardUuid: string) => `/badges/${encodeURIComponent(awardUuid)}`,
+    /** One badge a learner earned, by its short code: the badge, who earned it, and its certificate. */
+    badgeAward: (code: string) => `/b/${encodeURIComponent(code)}`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
     search: (query?: string) => withQuery('/discover', { q: query }),

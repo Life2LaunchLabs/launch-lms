@@ -269,7 +269,7 @@ function Done({ plan, done, slug, onClose }: { plan: AwardablePlan; done: { awar
     </div>
     {done.skipped.length ? <p className="mt-3 text-[13px] text-muted-foreground">Skipped, they already had it: {done.skipped.map((person) => person.name).join(', ')}.</p> : null}
     <div className="mt-6 flex flex-col gap-2.5">
-      {done.awarded[0] ? <Link href={getUriWithOrg(slug, routePaths.org.badgeAward(done.awarded[0].award_uuid))} target="_blank"
+      {done.awarded[0] ? <Link href={getUriWithOrg(slug, routePaths.org.badgeAward(done.awarded[0].code))} target="_blank"
         className="flex w-full items-center gap-3.5 rounded-2xl bg-primary p-4 text-left text-primary-foreground no-underline hover:brightness-110">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-foreground/15"><ArrowRight size={18} /></span>
         <span className="flex min-w-0 flex-col"><b className="text-[15px]">{done.awarded[0].learner?.name ? `See ${done.awarded[0].learner.name}’s badge` : 'See their badge'}</b><span className="text-[13px] opacity-75">Its public page and certificate</span></span>
