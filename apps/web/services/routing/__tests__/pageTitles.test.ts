@@ -25,7 +25,8 @@ test('titles admin pages by the registry tab that owns them', () => {
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/requirements/fw_1/spec'), { section: 'Admin', detail: 'Plans · Requirements' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/discover'), { section: 'Admin', detail: 'Plans · Discover' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/insights'), { section: 'Admin', detail: 'Insights' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'People' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'Threads' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/threads/people/4'), { section: 'Admin', detail: 'Threads' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/org/settings/branding'), { section: 'Admin', detail: 'Organization · Branding' })
 })
 

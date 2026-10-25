@@ -27,11 +27,11 @@ describe('People', () => {
     expect(entries.map((entry) => entry.kind === 'card' ? entry.item.key : entry.kind === 'message' ? entry.message.message_uuid : '')).toEqual(['m1', 'turn-in', 'm2', 'approval'])
   })
 
-  test('people and groups in the list open their own page', () => {
+  test('people and groups in the list open their thread', () => {
     const person = { key: 'person:2', kind: 'person', person: { id: 2, username: 'lee', name: 'Lee Arner' }, role: 'learner', group: null } as FeedRow
     const group = { key: 'group:1', kind: 'group', person: null, role: null, group: { id: 1, name: 'Fall', member_count: 2 } } as FeedRow
-    expect(rowHref('north', person).endsWith('/admin/users/user/lee')).toBe(true)
-    expect(rowHref('north', group).endsWith('/admin/users/groups/1')).toBe(true)
+    expect(rowHref('north', person).endsWith('/admin/threads/people/2')).toBe(true)
+    expect(rowHref('north', group).endsWith('/admin/threads/groups/1')).toBe(true)
   })
 
   test('a turned-in step opens the review workspace at that step', () => {

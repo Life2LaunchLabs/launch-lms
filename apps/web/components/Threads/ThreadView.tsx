@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import ChatWorkspace from '@components/Connect/workspace/ChatWorkspace'
 import type { TimelineItem } from '@components/Connect/workspace/feed'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
+import { reviewHref } from '@components/Goals/admin/live/ui'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type ChatFilter, type ChatMessage } from '@services/connect/connect'
@@ -19,7 +20,7 @@ import { AskedCard, PastDueCard, RequestCard, ReviewCard } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
-  | { kind: 'person'; userId: number; plan?: string | null; step?: string | null }
+  | { kind: 'person'; userId: number; plan?: string | null; step?: string | null; /** Opened from an assignment: its plan, and a step by its template key. */ assignment?: string | null; stepKey?: string | null }
   | { kind: 'group'; groupId: number; plan?: string | null; step?: string | null }
   | { kind: 'staff_room' }
   | { kind: 'org' }
@@ -33,8 +34,8 @@ export interface ThreadViewProps {
   actions?: React.ReactNode
   /** Opening someone else's thread, from a face on a card. */
   onOpen?: (target: ThreadTarget) => void // eslint-disable-line no-unused-vars
-  /** Opening the profile of whoever the thread is with. */
-  onProfile?: () => void
+  /** Opening the profile of whoever the thread is with: a person by handle, or a group. */
+  onProfile?: (who: { username: string } | { groupId: number }) => void // eslint-disable-line no-unused-vars
 }
 
 const names = (people: PersonSummary[], me?: number) => {
@@ -82,6 +83,18 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   const { data: thread, mutate } = useSWR<PersonThread>(token ? threadKeys.person(orgId, target.userId, focus) : null,
     () => threadsApi.person(orgId, target.userId, token, focus), { keepPreviousData: true, refreshInterval: 15_000 })
   const me = (useLHSession() as any)?.data?.user?.id as number | undefined
+  // Opened from an assignment: settle on the learner's plan from it, then on the step.
+  const [landing, setLanding] = React.useState(Boolean(target.assignment))
+  React.useEffect(() => {
+    if (!landing || !thread) return
+    const plan = thread.plans.find((item) => item.assignment_uuid === target.assignment)
+    if (!plan?.goal_uuid) { setLanding(false); return }
+    if (focus !== plan.goal_uuid) { context.setFocus(plan.goal_uuid); return }
+    if (thread.focus !== plan.goal_uuid) return
+    const found = target.stepKey ? thread.steps.find((item) => item.step_key === target.stepKey) : undefined
+    if (found) context.setStep(found.step_uuid)
+    setLanding(false)
+  }, [landing, thread, focus, target.assignment, target.stepKey, context])
   const questions = React.useMemo(() => new Set((thread?.questions || []).filter((item) => !step || item.step_uuid === step).map((item) => item.message_uuid)), [thread, step])
   const onlyQuestions = React.useCallback((message: ChatMessage) => questions.has(message.message_uuid), [questions])
   const hideAll = React.useCallback(() => false, [])
@@ -95,15 +108,16 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
     if (filter === 'all' || filter === 'requests') cards.push(...(step ? [] : thread.requests).map((request) => ({ key: `ask:${request.invitation_uuid}`, at: request.creation_date,
       node: <RequestCard request={request} orgId={orgId} token={token} onDone={() => void mutate()} /> })))
     if (filter === 'review') cards.push(...onStep(thread.review).map((item) => ({ key: `review:${item.step_uuid}`, at: item.submitted_at,
-      node: <ReviewCard item={item} reviewHref={item.assignment_uuid && item.step_key ? getUriWithOrg(orgslug, routePaths.org.admin.planReview({ assignment: item.assignment_uuid, planObjective: item.step_key })) : undefined} /> })))
+      node: <ReviewCard item={item} reviewHref={item.assignment_uuid ? reviewHref({ assignment: item.assignment_uuid, stepKey: item.step_key, stepUuid: item.step_key ? null : item.step_uuid, focus: item.step_uuid })
+        : routePaths.org.admin.learnerFeed(item.goal_uuid)} /> })))
     return cards
-  }, [thread, filter, step, orgId, orgslug, token, mutate])
+  }, [thread, filter, step, orgId, token, mutate])
 
   if (!thread) return <Loading actions={actions} />
   const art = <PersonAvatar user={thread.person as any} size="md" />
   const others = thread.with.filter((person) => person.id !== thread.person.id)
   const sub = thread.kind === 'staff' ? ROLE_LABELS[thread.role] : others.length ? `With ${names(others, me)}` : ROLE_LABELS[thread.role]
-  const header = <Header art={art} title={thread.person.name} sub={sub} actions={actions} onProfile={onProfile} />
+  const header = <Header art={art} title={thread.person.name} sub={sub} actions={actions} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
   if (thread.kind === 'staff' || !thread.chat_uuid) return <Shell>{header}<div className="border-b border-border" />
     {thread.chat_uuid ? <ChatWorkspace key={thread.chat_uuid} source={{ chatUuid: thread.chat_uuid }} orgslug={orgslug} token={token} hideTopics empty="Nothing here yet. Say hello." />
       : <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">You can’t message {thread.person.name.split(' ')[0]} directly.</p>}
@@ -117,7 +131,7 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
     <ContextBar plans={thread.plans} focus={focus} onFocus={context.setFocus} steps={steps} step={step} onStep={context.setStep} />
     <FilterChips counts={thread.counts} value={filter} onChange={context.setFilter} />
     {thread.counts && !Object.values(thread.counts).some(Boolean) && filter === 'all' ? <div className="border-b border-border" /> : null}
-    <ChatWorkspace key={thread.chat_uuid} source={{ orgId, userId: target.userId }} orgslug={orgslug} token={token} hideTopics filter={shown} onFilter={pick}
+    <ChatWorkspace key={thread.chat_uuid} source={{ orgId, userId: target.userId }} orgslug={orgslug} token={token} hideTopics filter={shown} onFilter={pick} title={thread.person.name.split(' ')[0]}
       audience={filter === 'staff_only' ? 'staff' : undefined}
       only={filter === 'questions' ? onlyQuestions : filter === 'review' || filter === 'requests' || filter === 'past_due' ? hideAll : undefined}
       timeline={timeline} timelineFiltered
@@ -152,7 +166,7 @@ function GroupThreadView({ target, orgId, orgslug, token, actions, onOpen, onPro
   const asked = (thread.asked || []).filter((item) => !step || item.step_key === step)
   const chatUuid = focus ? cohort?.conversation_uuid : thread.chat_uuid
   return <Shell>
-    <Header art={<Mark icon={Users} />} title={thread.group.name} sub={sub} actions={actions} onProfile={onProfile} />
+    <Header art={<Mark icon={Users} />} title={thread.group.name} sub={sub} actions={actions} onProfile={onProfile ? () => onProfile({ groupId: thread.group.id }) : undefined} />
     <ContextBar plans={thread.plans} focus={focus} onFocus={context.setFocus} steps={steps} step={step} onStep={context.setStep} />
     <FilterChips counts={thread.counts} value={filter} onChange={context.setFilter} />
     {chatUuid ? <ChatWorkspace key={chatUuid} source={{ chatUuid, audience: focus ? 'group' : undefined }} orgslug={orgslug} token={token} hideTopics
@@ -163,7 +177,7 @@ function GroupThreadView({ target, orgId, orgslug, token, actions, onOpen, onPro
       empty={filter === 'all' ? 'Nothing here yet. Say hello to the group.' : 'Nothing left here. Nice.'} />
       : <><div className="border-b border-border" /><div className="mx-auto flex w-full max-w-[46rem] flex-1 flex-col gap-2 overflow-y-auto p-4">
         {timeline.map((item) => <div key={item.key}>{item.node}</div>)}
-        <p className="pt-10 text-center text-sm text-muted-foreground">{focus ? '' : 'Group chats need the Full tier.'}</p>
+        <p className="mx-auto max-w-sm pt-10 text-center text-sm text-muted-foreground">{focus ? '' : thread.chat_note || ''}</p>
       </div></>}
   </Shell>
 }

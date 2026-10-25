@@ -59,7 +59,8 @@ export const ADMIN_TABS: AdminTab[] = [
       { id: 'requirements', label: 'Requirements', href: admin.plans('requirements'), match: [admin.plans('requirements')], requires: {} },
     ],
   },
-  { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },
+  // Threads took over People: profiles still live under /admin/users.
+  { id: 'people', label: 'Threads', href: admin.threads.root(), match: [admin.threads.root(), '/admin/users'], requires: { right: STAFF } },
   {
     id: 'insights',
     label: 'Insights',

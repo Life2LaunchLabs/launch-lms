@@ -7,7 +7,7 @@ import { usePageTitle } from '@components/Contexts/PageTitleContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import type { HubEditOperation, HubEditRun } from '@services/hub/advisor'
 import type { Resource } from '@services/resources/resources'
-import { HubContext, type HubCoachIntent, type HubCoachState, type HubContextValue, type HubEditContinuation, type HubEditReviewItem, type HubSurface } from './HubContext'
+import { HubContext, type HubCoachIntent, type HubCoachState, type HubContextValue, type HubEditContinuation, type HubEditReviewItem, type HubSurface, type HubTab } from './HubContext'
 import HubConversation from './conversation/HubConversation'
 import useHubGestures from './useHubGestures'
 import './hub.css'
@@ -28,13 +28,16 @@ export const HUB_INTENT_PARAMS = { open: 'coach', conversation: 'coach_conversat
 /** Links shared before the rename to Coach still use the ``hub`` names. */
 const LEGACY_INTENT_PARAMS = { open: 'hub', conversation: 'hub_conversation', prompt: 'hub_prompt', resource: 'hub_resource' } as const
 
+/** The Threads tab's content, given whether it shows and the thread it has open. */
+export type HubThreadsTab = (state: { active: boolean; target: unknown; setTarget: (target: unknown) => void; close: () => void }) => ReactNode // eslint-disable-line no-unused-vars
+
 /**
- * The learner app's frame: navigation and Coach sit on an outside surface, the page is a
+ * The learner app's frame (and, for staff, the admin side's): navigation and Coach sit on an outside surface, the page is a
  * card on it. Coach is open (page aside or narrowed), at the edge (page back, Coach's edge
  * still showing because a conversation exists), or closed. The conversation is one
  * stable instance beside the routed page, so navigating never interrupts it.
  */
-export default function HubShell({ children, orgslug, orgId, focused = false }: { children: ReactNode; orgslug: string; orgId?: number; focused?: boolean }) {
+export default function HubShell({ children, orgslug, orgId, focused = false, threads }: { children: ReactNode; orgslug: string; orgId?: number; focused?: boolean; threads?: HubThreadsTab }) {
   const pathname = usePathname()
   const search = useSearchParams()
   const pageTitle = usePageTitle()
@@ -46,6 +49,8 @@ export default function HubShell({ children, orgslug, orgId, focused = false }: 
   const shellRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLElement>(null)
   const [state, setState] = useState<HubCoachState>('closed')
+  const [tab, setTab] = useState<HubTab>('coach')
+  const [threadTarget, setThreadTarget] = useState<unknown>(null)
   const [started, setStarted] = useState(false)
   const [unread, setUnread] = useState(false)
   const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
@@ -84,12 +89,20 @@ export default function HubShell({ children, orgslug, orgId, focused = false }: 
     // On phones the page freezes in place as a card while Coach is out; remember where it was scrolled.
     if (window.matchMedia(PHONE).matches) setFrozenY((current) => current ?? window.scrollY)
     setState('open')
+    setTab('coach')
     setUnread(false)
     if (next && (next.prompt || next.conversation || next.resource)) setIntent({ ...next, id: Date.now() })
   }, [])
+  const openThreads = useCallback((target?: unknown) => {
+    if (!threads) return
+    if (window.matchMedia(PHONE).matches) setFrozenY((current) => current ?? window.scrollY)
+    if (target !== undefined) setThreadTarget(target)
+    setTab('threads')
+    setState('open')
+  }, [threads])
   const tuck = useCallback(() => setState((current) => current === 'closed' ? current : started ? 'edge' : 'closed'), [started])
   const end = useCallback(() => { setEndSignal((value) => value + 1); setState('closed'); setUnread(false) }, [])
-  const toggle = useCallback(() => (state === 'open' ? tuck() : open()), [open, state, tuck])
+  const toggle = useCallback(() => (state === 'open' && tab === 'coach' ? tuck() : open()), [open, state, tab, tuck])
   const attach = useCallback((resource: Resource) => open({ resource: resource.resource_uuid }), [open])
   const onReply = useCallback(() => setUnread((current) => current || state !== 'open'), [state])
 
@@ -195,10 +208,10 @@ export default function HubShell({ children, orgslug, orgId, focused = false }: 
   }, [])
 
   const value = useMemo<HubContextValue>(() => ({
-    surface: currentSurface, setSurface, state, open, tuck, toggle, end, unread, attach,
+    surface: currentSurface, setSurface, state, open, tuck, toggle, end, unread, attach, tab, hasThreads: Boolean(threads), openThreads,
     editRun, setEditRun, editOperations, setEditOperations, editReviewItems, setEditReviewItems,
     editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations,
-  }), [currentSurface, state, open, tuck, toggle, end, unread, attach, editRun, editOperations, editReviewItems, editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations])
+  }), [currentSurface, state, open, tuck, toggle, end, unread, attach, tab, threads, openThreads, editRun, editOperations, editReviewItems, editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations])
 
   const showEdge = state === 'edge' && started
   const style = { '--hub-width': `${width}px`, '--hub-frozen-y': `${-(frozenY || 0)}px` } as CSSProperties
@@ -212,9 +225,26 @@ export default function HubShell({ children, orgslug, orgId, focused = false }: 
         <span className="hub-edge-grip" aria-hidden="true" />
       </button> : null}
       {!focused && state === 'open' && !phone ? <div role="separator" aria-label="Resize Coach" aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
-      <section ref={panelRef} tabIndex={-1} className="hub-panel" style={focused ? { display: 'none' } : undefined} aria-label="Coach" aria-hidden={focused || state !== 'open' || undefined} inert={focused || state !== 'open' || undefined}>
-        <HubConversation orgslug={orgslug} active={!focused && state === 'open'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />
+      <section ref={panelRef} tabIndex={-1} className="hub-panel" style={focused ? { display: 'none' } : undefined} aria-label={threads ? (tab === 'threads' ? 'Threads' : 'Coach') : 'Coach'} aria-hidden={focused || state !== 'open' || undefined} inert={focused || state !== 'open' || undefined}>
+        {threads ? <>
+          <PanelTabs tab={tab} onTab={(next) => next === 'coach' ? open() : openThreads()} unread={unread} />
+          <div className="relative min-h-0 flex-1" hidden={tab !== 'threads'}>{threads({ active: !focused && state === 'open' && tab === 'threads', target: threadTarget, setTarget: setThreadTarget, close: tuck })}</div>
+          <div className="relative min-h-0 flex-1" hidden={tab !== 'coach'}>
+            <HubConversation orgslug={orgslug} active={!focused && state === 'open' && tab === 'coach'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />
+          </div>
+        </> : <HubConversation orgslug={orgslug} active={!focused && state === 'open'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />}
       </section>
     </div>
   </HubContext.Provider>
+}
+
+/** Above the panel, for staff: Threads or Coach, one switch. */
+function PanelTabs({ tab, onTab, unread }: { tab: HubTab; onTab: (tab: HubTab) => void; unread: boolean }) { // eslint-disable-line no-unused-vars
+  const option = (value: HubTab, label: string, icon?: ReactNode) => <button type="button" role="tab" aria-selected={tab === value} onClick={() => onTab(value)}
+    className={`relative flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-bold transition-colors ${tab === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+    {icon}{label}{value === 'coach' && unread && tab !== 'coach' ? <span className="absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full bg-[#7cc4ff]" aria-label="new reply" /> : null}
+  </button>
+  return <div role="tablist" aria-label="Panel" className="mx-3 mt-3 flex shrink-0 rounded-full bg-foreground/[0.06] p-1">
+    {option('threads', 'Threads')}{option('coach', 'Coach', <Sparkle size={13} weight="fill" aria-hidden="true" />)}
+  </div>
 }

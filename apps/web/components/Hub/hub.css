@@ -81,3 +81,10 @@
   .hub-shell .org-layout-shell { height: auto !important; min-height: 0; overflow: visible !important; border: 0 !important; border-radius: 0; box-shadow: none; }
   .hub-shell .org-page-body { overflow: visible !important; }
 }
+
+/* The admin side in the same frame: the sidebar and page are the card, Threads and Coach sit beside it. */
+.hub-shell .org-layout-shell.admin-layout-shell { background: hsl(var(--background)); }
+@media (min-width: 768px) {
+  .hub-shell[data-hub-state='open'] .admin-layout-shell, .hub-shell[data-hub-edge] .admin-layout-shell { height: calc(100dvh - var(--hub-top)); }
+  .hub-shell[data-hub-state='open'] .admin-layout-shell > nav, .hub-shell[data-hub-state='open'] .admin-layout-shell > div { height: 100%; max-height: 100%; }
+}

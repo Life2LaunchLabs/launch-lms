@@ -71,6 +71,8 @@ export interface GroupThread {
   kind: 'group'
   group: { id: number; name: string; learner_count: number }
   chat_uuid: string | null
+  /** Why there's no group chat here, when there isn't. */
+  chat_note: string | null
   with: PersonSummary[]
   plans: ThreadPlan[]
   focus: string | null
