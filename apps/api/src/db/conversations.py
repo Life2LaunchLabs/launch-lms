@@ -76,6 +76,19 @@ class ConversationMessageRef(SQLModel, table=True):
     step_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True))
 
 
+class ConversationReaction(SQLModel, table=True):
+    """A cheer on a message: one per person, message and emoji."""
+
+    __tablename__ = "conversationreaction"
+    __table_args__ = (UniqueConstraint("message_id", "user_id", "emoji", name="uq_conversationreaction_message_user_emoji"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("conversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False))
+    emoji: str = Field(sa_column=Column(String, nullable=False))
+    creation_date: str = ""
+
+
 class UserBlock(SQLModel, table=True):
     __tablename__ = "userblock"
     __table_args__ = (UniqueConstraint("blocker_user_id", "blocked_user_id", name="uq_userblock_pair"),)
@@ -121,6 +134,10 @@ class ChatMessageCreate(BaseModel):
     share: dict[str, list[str]] | None = None
     # Only the organization's staff will read it: in a learner's chat with the organization or an assignment's group chat.
     staff_only: bool = False
+
+
+class ReactionToggle(BaseModel):
+    emoji: str = PydanticField(default="👏", min_length=1, max_length=16)
 
 
 class ChatReportCreate(BaseModel):

@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, select
 
+from src.db.organization_invitations import OrganizationInvitation
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationReport, UserBlock
 from src.db.portfolio_people import PortfolioComment, PortfolioPerson
 from src.db.school import UserGroupStaff
@@ -37,7 +38,7 @@ def _session() -> Session:
     SQLModel.metadata.create_all(db.get_bind(), tables=[
         PlanInvitation.__table__, PlanCollaboratorRequest.__table__, PlanAttachment.__table__, InboxMessage.__table__,  # type: ignore[attr-defined]
         Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, UserBlock.__table__, ConversationReport.__table__,  # type: ignore[attr-defined]
-        PortfolioPerson.__table__, PortfolioComment.__table__, UserGroupStaff.__table__,  # type: ignore[attr-defined]
+        PortfolioPerson.__table__, PortfolioComment.__table__, UserGroupStaff.__table__, OrganizationInvitation.__table__,  # type: ignore[attr-defined]
     ])
     return db
 

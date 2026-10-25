@@ -264,7 +264,7 @@ def _group_rows(db: Session, groups: list[UserGroup]) -> list[dict]:
 
 
 def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: str, skip: set[str], groups_on: bool, admin: bool,
-                  offset: int = 0, limit: int = PAGE, status: str = "active") -> dict:
+                  offset: int = 0, limit: int = PAGE, status: str = "active", kind: str = "all") -> dict:
     """The organization's people and groups A to Z, without the viewer and whoever is already on top, one page at a time.
 
     Alumni are left out unless ``status`` is "alumni" (only them, and no groups) or "all".
@@ -278,8 +278,11 @@ def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: st
         members = members.where(UserOrganization.status == status)
     if needle:
         members = directory._like(members, needle)
-    parts = [members]
-    if groups_on and status != "alumni":
+    if kind in ("learners", "staff"):
+        staff_roles = list(roles.staff_role_ids(db, org_id))
+        members = members.where(col(UserOrganization.role_id).in_(staff_roles) if kind == "staff" else col(UserOrganization.role_id).not_in(staff_roles))
+    parts = [members] if kind != "groups" else []
+    if groups_on and status != "alumni" and kind in ("all", "groups"):
         groups = select(UserGroup.id.label("id"), literal("group", String).label("kind"), func.lower(UserGroup.name).label("sort")).where(  # type: ignore[union-attr]
             UserGroup.org_id == org_id, col(UserGroup.id).not_in(skip_groups or [0]))
         if not admin:
@@ -287,7 +290,9 @@ def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: st
         if needle:
             groups = groups.where(col(UserGroup.name).ilike(f"%{needle}%"))
         parts.append(groups)
-    listed = union_all(*parts).subquery()
+    if not parts:
+        return {"rest": [], "total": 0, "offset": offset, "limit": limit}
+    listed = (union_all(*parts) if len(parts) > 1 else parts[0]).subquery()
     total = int(db.exec(select(func.count()).select_from(listed)).one())  # type: ignore[call-overload]
     page = db.exec(select(listed.c.kind, listed.c.id).order_by(listed.c.sort, listed.c.kind, listed.c.id).offset(max(offset, 0)).limit(limit)).all()  # type: ignore[call-overload]
     user_ids = [int(item_id) for kind, item_id in page if kind == "person"]
@@ -304,17 +309,35 @@ def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: st
                          "status": item["status"], "group": None})
         elif kind == "group" and int(item_id) in group_rows:
             rest.append(group_rows[int(item_id)])
-    if needle and offset == 0 and status != "alumni":
+    if needle and offset == 0 and status != "alumni" and kind in ("all", "learners"):
         rest.extend({"key": f"person:{item['user']['id']}", "kind": "person", "person": item["user"], "role": "helper", "role_name": "Helper", "groups": [],
                      "helping_on": item["helping_on"], "group": None} for item in directory.matching_helpers(db, org_id, needle) if f"person:{item['user']['id']}" not in skip)
     return {"rest": rest, "total": total, "offset": offset, "limit": limit}
 
 
-def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str = "", offset: int = 0, limit: int = PAGE, status: str = "active") -> dict:
-    """People's list: ``active`` (who has something for you, on the first page only) and ``rest`` (everyone else A to Z, paged).
+KINDS = ("all", "learners", "staff", "groups")
 
-    ``status`` "alumni" lists only alumni (A to Z, nothing on top); "all" lists alumni with everyone else.
+
+def _of_kind(entry: dict, kind: str) -> bool:
+    if kind == "groups":
+        return entry["kind"] == "group"
+    if kind == "staff":
+        return entry["kind"] == "person" and entry.get("role") in roles.STAFF_ROLES
+    if kind == "learners":
+        return entry["kind"] == "person" and entry.get("role") not in roles.STAFF_ROLES
+    return True
+
+
+def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str = "", offset: int = 0, limit: int = PAGE, status: str = "active",
+                kind: str = "all") -> dict:
+    """Threads' list: ``active`` (who has something for you, on the first page only) and ``rest`` (everyone else A to Z, paged).
+
+    ``status`` "alumni" lists only alumni (A to Z, nothing on top); "all" lists alumni with everyone else. ``kind`` keeps only
+    learners, staff or groups. ``pinned`` holds the all-staff room and the organization's own thread, on the first page of the
+    whole list or of staff.
     """
+    from src.services.school import threads
+
     roles.require_staff(db, current_user.id, org_id)
     needle = (query or "").strip().lstrip("@").lower()
     limit = max(1, min(limit, 100))
@@ -323,10 +346,12 @@ def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str =
     active, groups_on = active_rows(db, current_user, org_id, needle, admin)
     if status == "alumni":
         active = []
-    rest = everyone_else(db, current_user, org_id, needle, {item["key"] for item in active}, groups_on, admin, offset, limit, status)
+    active = [entry for entry in active if _of_kind(entry, kind)]
+    rest = everyone_else(db, current_user, org_id, needle, {item["key"] for item in active}, groups_on, admin, offset, limit, status, kind)
+    pinned = threads.pinned(db, current_user, org_id) if offset == 0 and not needle and status != "alumni" and kind in ("all", "staff") else []
     # Groups stay listed after a Full trial ends, but nobody can make new ones.
     enabled = groups_on and group_chats.enabled(db, org_id)
-    return {"active": active if offset == 0 else [], **rest, "groups_enabled": enabled, "groups_read_only": groups_on and not enabled, "is_admin": admin}
+    return {"pinned": pinned, "active": active if offset == 0 else [], **rest, "groups_enabled": enabled, "groups_read_only": groups_on and not enabled, "is_admin": admin}
 
 
 # A person's activity cards ---------------------------------------------------------------
