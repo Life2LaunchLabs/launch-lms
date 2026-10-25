@@ -13,7 +13,7 @@ import { peopleKeys, type Profile } from '@services/school/people'
 import { STATUS_LABELS, membershipKeys, setMemberStatus, setStaffPermissions, statusLine, type MemberStatus, type StaffPermission, type StaffPermissionInfo } from '@services/organizations/membership'
 import { useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
 
-const SELECT = 'h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-medium text-gray-900 disabled:opacity-50'
+const SELECT = 'h-9 rounded-lg border border-border bg-background px-2.5 text-sm font-medium disabled:opacity-50'
 
 /** What admins change about someone: their role and permissions, their status, their groups, and whether they're in the organization at all. */
 export default function PersonManage({ orgslug, profile, refresh }: { orgslug: string; profile: Profile; refresh: () => Promise<unknown> }) {
@@ -69,37 +69,37 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
     if (await run(() => removeUserFromOrg(orgId, user.id, token as string), `${user.name} was removed`)) router.push(getUriWithOrg(orgslug, routePaths.org.admin.people.root()))
   }
 
-  return <section aria-label="Manage" className="space-y-4 rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
-    <h2 className="text-sm font-bold text-gray-900">Manage</h2>
+  return <section aria-label="Manage" className="space-y-4 rounded-2xl border border-border bg-card p-5">
+    <h2 className="text-sm font-bold">Manage</h2>
     {manage.change_role ? <label className="flex items-center justify-between gap-4 text-sm">
-      <span className="font-semibold text-gray-700">Role</span>
+      <span className="font-semibold text-foreground">Role</span>
       <select aria-label="Role" className={SELECT} value={profile.org_role?.role_uuid || ''} disabled={busy || !roles} onChange={(event) => changeRole(event.target.value)}>
         {!profile.org_role ? <option value="">—</option> : null}
         {(roles || []).map((role: any) => <option key={role.role_uuid} value={role.role_uuid}>{role.name}</option>)}
       </select>
     </label> : null}
     {manage.permissions ? <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold text-gray-700">What they may do</legend>
-      {(catalog?.permissions || []).map((item) => <label key={item.key} className="flex items-center gap-2 text-sm text-gray-800">
+      <legend className="text-sm font-semibold text-foreground">What they may do</legend>
+      {(catalog?.permissions || []).map((item) => <label key={item.key} className="flex items-center gap-2 text-sm text-foreground">
         <input type="checkbox" className="h-4 w-4" checked={profile.permissions.includes(item.key)} disabled={busy} onChange={(event) => togglePermission(item.key, event.target.checked)} />
         {item.label}
       </label>)}
     </fieldset> : null}
     {manage.status ? <label className="flex items-center justify-between gap-4 text-sm">
       <span>
-        <span className="block font-semibold text-gray-700">Status</span>
-        <span className="block text-xs text-gray-500">{profile.status === 'alumni' ? statusLine('alumni', profile.status_since) + '. Alumni don’t count toward your learner limit.' : 'Mark learners who have moved on as alumni to free their place.'}</span>
+        <span className="block font-semibold text-foreground">Status</span>
+        <span className="block text-xs text-muted-foreground">{profile.status === 'alumni' ? statusLine('alumni', profile.status_since) + '. Alumni don’t count toward your learner limit.' : 'Mark learners who have moved on as alumni to free their place.'}</span>
       </span>
       <select aria-label="Status" className={SELECT} value={profile.status || 'active'} disabled={busy} onChange={(event) => changeStatus(event.target.value as MemberStatus)}>
         {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
       </select>
     </label> : null}
     {manage.groups ? <div className="space-y-2">
-      <p className="text-sm font-semibold text-gray-700">Groups</p>
-      {profile.groups.length ? <ul className="flex flex-wrap gap-1.5">{profile.groups.map((group) => <li key={`${group.as}-${group.id}`} className="inline-flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-1 text-xs font-semibold text-gray-800">
-        {group.name}{group.as === 'staff' ? <span className="font-normal text-gray-500">· staff</span> : null}
-        {group.as === 'member' ? <button type="button" onClick={() => leaveGroup(group.id, group.name)} disabled={busy} aria-label={`Take out of ${group.name}`} className="-my-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-200 md:my-0 md:h-auto md:w-auto md:p-0.5"><X size={12} /></button> : <span className="w-1" />}
-      </li>)}</ul> : <p className="text-xs text-gray-500">Not in any group.</p>}
+      <p className="text-sm font-semibold text-foreground">Groups</p>
+      {profile.groups.length ? <ul className="flex flex-wrap gap-1.5">{profile.groups.map((group) => <li key={`${group.as}-${group.id}`} className="inline-flex items-center gap-1 rounded-full bg-muted py-1 pl-3 pr-1 text-xs font-semibold text-foreground">
+        {group.name}{group.as === 'staff' ? <span className="font-normal text-muted-foreground">· staff</span> : null}
+        {group.as === 'member' ? <button type="button" onClick={() => leaveGroup(group.id, group.name)} disabled={busy} aria-label={`Take out of ${group.name}`} className="-my-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted md:my-0 md:h-auto md:w-auto md:p-0.5"><X size={12} /></button> : <span className="w-1" />}
+      </li>)}</ul> : <p className="text-xs text-muted-foreground">Not in any group.</p>}
       {addable.length ? <div className="flex gap-2">
         <select aria-label="Add to a group" className={`${SELECT} flex-1`} value={adding} onChange={(event) => setAdding(event.target.value)} disabled={busy}>
           <option value="">Add to a group…</option>

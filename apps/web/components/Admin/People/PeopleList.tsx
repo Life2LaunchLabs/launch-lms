@@ -49,8 +49,6 @@ function isOpen(row: FeedRow | PinnedRow, selection: PeopleSelection) {
     return target.kind === open.kind && (target.kind !== 'person' || (open.kind === 'person' && target.userId === open.userId))
       && (target.kind !== 'group' || (open.kind === 'group' && target.groupId === open.groupId))
   }
-  if (selection.kind === 'group') return row.kind === 'group' && row.group?.id === selection.id
-  if (selection.kind === 'person') return row.kind === 'person' && row.person?.username === selection.username
   if (selection.kind === 'chat') return Boolean(row.chat_uuid) && row.chat_uuid === selection.uuid
   return false
 }

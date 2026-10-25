@@ -114,7 +114,7 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
         await expect(selector).toHaveValue(fixture.framework_uuid)
       }
     } else {
-      // A person opens on Message; their requirement tree lives under Plans.
+      // A profile opens on Overview; the requirement tree lives under Plans.
       await page.getByRole('link', { name: /^Plans · \d+$/ }).click()
       await expect(page).toHaveURL(/[?&]tab=plans/)
     }
