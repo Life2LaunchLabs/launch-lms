@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen
+from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen, ReactionToggle
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, cohort, linking, people, profile, workspace
+from src.services.connect import chats, cohort, linking, people, profile, reactions, workspace
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -60,6 +60,11 @@ async def cohort_chat(org_id: int, assignment_uuid: str, audience: str = "staff"
 async def send_message(conversation_uuid: str, payload: ChatMessageCreate, current_user: PublicUser = USER, db_session: Session = DB):
     scope = {"goal_uuid": payload.goal_uuid, "step_uuid": payload.step_uuid} if payload.goal_uuid else None
     return chats.send(db_session, current_user, conversation_uuid, payload.body, scope, payload.share, payload.staff_only)
+
+
+@router.post("/chats/{conversation_uuid}/messages/{message_uuid}/reactions")
+async def toggle_reaction(conversation_uuid: str, message_uuid: str, payload: ReactionToggle, current_user: PublicUser = USER, db_session: Session = DB):
+    return reactions.toggle(db_session, current_user, conversation_uuid, message_uuid, payload.emoji)
 
 
 @router.post("/chats/{conversation_uuid}/read")

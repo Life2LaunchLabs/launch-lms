@@ -24,6 +24,8 @@ PAGE = 60
 # Statuses that keep a chat in someone's list.
 LISTED = ("active", "request")
 UNAVAILABLE = "This chat isn't available"
+# Where a page of messages keeps its reactions, fetched in one query, in the cache it shares with refs.
+REACTIONS = "__reactions__"
 
 
 def _direct_key(a: int, b: int) -> str:
@@ -140,7 +142,7 @@ def _last(db: Session, conversation: Conversation, viewer_id: int | None = None)
 
 
 def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cache: dict | None = None) -> dict:
-    from src.services.connect import inbox, workspace
+    from src.services.connect import inbox, reactions, workspace
 
     refs = workspace.resolve(db, message.refs, {} if cache is None else cache, viewer_id)
     return {
@@ -148,6 +150,7 @@ def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cac
         "preview": workspace.plain(db, message.body, message.refs, viewer_id) if message.refs else message.body,
         "sender": people.person(db, message.sender_user_id), "mine": message.sender_user_id == viewer_id,
         "staff_only": message.visibility == visibility.STAFF, "creation_date": message.creation_date, "update_date": message.update_date,
+        "reactions": reactions.of(db, int(message.id), viewer_id, (cache or {}).get(REACTIONS)),  # type: ignore[arg-type]
     }
 
 
@@ -206,7 +209,9 @@ def messages_of(db: Session, conversation: Conversation, viewer_id: int, before:
     if before:
         query = query.where(ConversationMessage.creation_date < before)
     messages = list(reversed(db.exec(query.order_by(col(ConversationMessage.creation_date).desc(), col(ConversationMessage.id).desc()).limit(PAGE)).all()))
-    cache: dict = {}
+    from src.services.connect import reactions
+
+    cache: dict = {REACTIONS: reactions.prefetch(db, [int(message.id) for message in messages])}  # type: ignore[arg-type]
     return {
         "messages": [_message_dict(db, message, viewer_id, cache) for message in messages], "has_more": len(messages) == PAGE,
         # A shared workspace: the plans it's about, to filter by and to tag.

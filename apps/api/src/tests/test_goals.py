@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.coach import CoachPlaybook, CoachPolicy, CoachProviderKey
-from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
+from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, ConversationReaction
 from src.db.coach_notes import CoachNote
 from src.db.goals import (
     Goal,
@@ -61,7 +61,7 @@ def _session() -> Session:
         GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__,
         CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, UserGroupStaff.__table__, OrganizationConfig.__table__,
         # Goals keep their chats in step (services/connect/workspace.py).
-        Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, ConversationMessageRef.__table__,
+        Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, ConversationMessageRef.__table__, ConversationReaction.__table__,
         # Marketplace permission to use another organization's template (services/goals/template_marketplace.py).
         GoalTemplateListing.__table__, GoalTemplateAuthorization.__table__, GoalTemplateLearnerAccess.__table__,
     ])
