@@ -1,5 +1,9 @@
-/** What a group in People shows beside the list besides its chat. */
-export type GroupView = 'plans' | 'requirements'
+/** A group profile's tabs (People when none); requirements moved to Insights. */
+export type GroupView = 'plans' | 'join' | 'requirements'
+/** A person's profile tabs (Overview when none). */
+export type PersonTab = 'overview' | 'portfolio' | 'plans' | 'access'
+/** The organization's profile tabs (Overview when none). */
+export type OrgTab = 'overview' | 'invites' | 'join'
 
 /** The Plans area's tabs, each its own page, always in this order. */
 export type PlansTabId = 'plans' | 'discover' | 'assignments' | 'requirements'
@@ -192,15 +196,17 @@ export const routePaths = {
         staff: () => '/admin/threads/staff',
         org: () => '/admin/threads/org',
       },
-      /** Profiles, opened from a thread's header: a person's (with Manage for admins) and a group's. */
+      /** Profiles under Threads, opened from a thread's header: a person's, a group's and the organization's. */
       people: {
         /** The list moved to Threads. */
         root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
         chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
-        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
-        /** A group: its chat, or its plans (one assignment's grid) or requirements beside it. */
+        user: (username: string, tab?: PersonTab) =>
+          withQuery(`/admin/threads/profiles/people/${encodeURIComponent(username)}`, { tab: tab === 'overview' ? null : tab }),
+        /** A group: its people, its plans (one assignment's grid), or its join links. */
         group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
-          withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
+          withQuery(`/admin/threads/profiles/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
+        org: (tab?: OrgTab) => withQuery('/admin/threads/profiles/org', { tab: tab === 'overview' ? null : tab }),
       },
       // Template uuids kept their old program uuids.
       template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,

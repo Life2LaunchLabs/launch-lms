@@ -25,6 +25,9 @@ export type ThreadTarget =
   | { kind: 'staff_room' }
   | { kind: 'org' }
 
+/** Whose profile a thread's header opens. */
+export type ProfileOf = { username: string } | { groupId: number } | { org: true }
+
 export interface ThreadViewProps {
   target: ThreadTarget
   orgId: number
@@ -34,8 +37,8 @@ export interface ThreadViewProps {
   actions?: React.ReactNode
   /** Opening someone else's thread, from a face on a card. */
   onOpen?: (target: ThreadTarget) => void // eslint-disable-line no-unused-vars
-  /** Opening the profile of whoever the thread is with: a person by handle, or a group. */
-  onProfile?: (who: { username: string } | { groupId: number }) => void // eslint-disable-line no-unused-vars
+  /** Opening the profile of whoever the thread is with: a person by handle, a group, or the organization. */
+  onProfile?: (who: ProfileOf) => void // eslint-disable-line no-unused-vars
 }
 
 const names = (people: PersonSummary[], me?: number) => {
@@ -199,13 +202,13 @@ function logLine(entry: OrgLogEntry) {
   return { icon: UserPlus, text: <><b>{entry.by?.name || 'Someone'}</b> invited {entry.count} {entry.role}{entry.count === 1 || entry.role === 'staff' ? '' : 's'}{entry.pending ? ` · ${entry.pending} haven’t answered yet` : ''}</> }
 }
 
-function OrgThreadView({ orgId, token, actions }: ThreadViewProps) {
+function OrgThreadView({ orgId, token, actions, onProfile }: ThreadViewProps) {
   const { data: thread } = useSWR(token ? threadKeys.org(orgId) : null, () => threadsApi.org(orgId, token))
   const scroller = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [thread?.entries.length])
   if (!thread) return <Loading actions={actions} />
   return <Shell>
-    <Header art={<Mark icon={Building2} />} title={thread.org.name} sub="What changed in your organization" actions={actions} />
+    <Header art={<Mark icon={Building2} />} title={thread.org.name} sub="What changed in your organization" actions={actions} onProfile={onProfile ? () => onProfile({ org: true }) : undefined} />
     <div className="border-b border-border" />
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
       <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1">

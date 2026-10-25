@@ -20,11 +20,11 @@ import { usePeopleContext } from './usePeople'
  * The group's Plans tab: the plans handed to it, one assignment's learners at a time, each with where they are and what they need.
  * Its requirements report lives in Insights now; the old requirements view redirects there.
  */
-export default function GroupWork({ orgslug, groupId }: { orgslug: string; groupId: number }) {
+export default function GroupWork({ orgslug, groupId, bare }: { orgslug: string; groupId: number; /** Inside a profile, which scrolls and pads it. */ bare?: boolean }) {
   const { orgId, token } = usePeopleContext()
   const { data: cohort, error, mutate } = useSWR(orgId && token ? cohortKey(groupId, orgId) : null,
     () => goalAdminApi.cohort(orgId, groupId, token), { revalidateOnFocus: false })
-  return <div className="min-h-0 flex-1 overflow-y-auto bg-[#f8f8f8] py-6 dark:bg-background">
+  return <div className={bare ? '[&>div]:px-0' : 'min-h-0 flex-1 overflow-y-auto bg-[#f8f8f8] py-6 dark:bg-background'}>
     {error ? <p className="p-8 text-center text-sm text-muted-foreground">{error.message || 'This group’s plans didn’t load.'}</p>
       : !cohort ? <Spinner />
       : <React.Suspense fallback={<Spinner />}><GroupPlans orgslug={orgslug} groupId={groupId} cohort={cohort} refresh={() => mutate()} /></React.Suspense>}

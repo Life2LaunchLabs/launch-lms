@@ -10,12 +10,12 @@ export default function LearnerTeam({ orgId, userId, token }: { orgId: number; u
     { revalidateOnFocus: false, shouldRetryOnError: false })
   if (!data) return null
   return (
-    <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
-      <h2 className="text-sm font-bold text-gray-900">School team</h2>
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <h2 className="text-sm font-bold">School team</h2>
       {data.team.length ? <ul className="mt-3 space-y-3">{data.team.map((member) => <li key={member.user.id} className="flex items-center gap-3">
         <PersonAvatar user={member.user as any} size="md" />
-        <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.user.name}</p><p className="truncate text-xs text-gray-500">{member.groups.map((group) => `${group.role} · ${group.name}`).join(', ')}</p></div>
-      </li>)}</ul> : <p className="mt-2 text-xs text-gray-500">Nobody yet. Add staff to one of their groups.</p>}
+        <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.user.name}</p><p className="truncate text-xs text-muted-foreground">{member.groups.map((group) => `${group.role} · ${group.name}`).join(', ')}</p></div>
+      </li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">Nobody yet. Add staff to one of their groups.</p>}
     </section>
   )
 }

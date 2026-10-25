@@ -158,10 +158,12 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.people.root(), '/admin/threads')
   assert.equal(admin.threads.person(4, 'goal_1'), '/admin/threads/people/4?plan=goal_1')
   assert.equal(admin.threads.group(2), '/admin/threads/groups/2')
-  assert.equal(admin.people.user('learner'), '/admin/users/user/learner')
-  assert.equal(admin.people.group(2), '/admin/users/groups/2')
-  assert.equal(admin.people.group(2, 'plans', 'assignment_1'), '/admin/users/groups/2?view=plans&assignment=assignment_1')
-  assert.equal(admin.people.group(2, 'requirements', 'assignment_1'), '/admin/users/groups/2?view=requirements')
+  assert.equal(admin.people.user('learner'), '/admin/threads/profiles/people/learner')
+  assert.equal(admin.people.user('learner', 'portfolio'), '/admin/threads/profiles/people/learner?tab=portfolio')
+  assert.equal(admin.people.group(2), '/admin/threads/profiles/groups/2')
+  assert.equal(admin.people.group(2, 'plans', 'assignment_1'), '/admin/threads/profiles/groups/2?view=plans&assignment=assignment_1')
+  assert.equal(admin.people.group(2, 'requirements', 'assignment_1'), '/admin/threads/profiles/groups/2?view=requirements')
+  assert.equal(admin.people.org('invites'), '/admin/threads/profiles/org?tab=invites')
   assert.equal(admin.people.chat('chat_1'), '/admin/users/chat/chat_1')
   assert.equal(admin.learnerFeed('plan_1'), '/admin/plans/live/plan_1?chat=plan')
   assert.equal(admin.template('template 1'), '/admin/plans/template%201')
@@ -368,15 +370,15 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/badges', '', '/admin/plans'],
     ['/admin/badges/discover', '', '/admin/plans'],
     ['/admin/plans/requirements/fw_1', '', '/admin/plans/requirements/fw_1/details'],
-    ['/admin/users/jane', '', '/admin/users/user/jane'],
+    ['/admin/users/jane', '', '/admin/threads/profiles/people/jane'],
     ['/admin/users/roles', '', '/admin/threads'],
-    ['/admin/users/user/jane/overview', '', '/admin/users/user/jane'],
-    ['/admin/users/user/jane/messages', '', '/admin/users/user/jane'],
-    ['/admin/users/cohorts/3/programs/assignment_1', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
-    ['/admin/users/cohorts/3', '', '/admin/users/groups/3'],
-    ['/admin/users/groups/3/plans', '?assignment=assignment_1', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
-    ['/admin/users/groups/3/members', '', '/admin/users/groups/3'],
-    ['/admin/users/groups/3/programs/assignment_1/learners', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
+    ['/admin/users/user/jane/overview', '', '/admin/threads/profiles/people/jane'],
+    ['/admin/users/user/jane/messages', '', '/admin/threads/profiles/people/jane'],
+    ['/admin/users/cohorts/3/programs/assignment_1', '', '/admin/threads/profiles/groups/3?view=plans&assignment=assignment_1'],
+    ['/admin/users/cohorts/3', '', '/admin/threads/profiles/groups/3'],
+    ['/admin/users/groups/3/plans', '?assignment=assignment_1', '/admin/threads/profiles/groups/3?view=plans&assignment=assignment_1'],
+    ['/admin/users/groups/3/members', '', '/admin/threads/profiles/groups/3'],
+    ['/admin/users/groups/3/programs/assignment_1/learners', '', '/admin/threads/profiles/groups/3?view=plans&assignment=assignment_1'],
     ['/admin/badges/marketplace', '', '/admin/plans/discover'],
     ['/admin/badges/badge/abc', '', '/admin/plans'],
     ['/admin/badges/badge/abc/routes', '', '/admin/plans'],

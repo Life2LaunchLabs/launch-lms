@@ -77,6 +77,11 @@ test('people.feed: one list with conversations on top, and a row opens that pers
   await expect(thread.locator('button[title="Open profile"]')).toContainText(fixture.friend.name)
   await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  // Their name opens their profile under Threads, with Plans a tab.
+  await thread.locator('button[title="Open profile"]').click()
+  await expect(page.getByRole('heading', { level: 1, name: new RegExp(fixture.friend.name) })).toBeVisible()
+  await page.getByRole('link', { name: /^Plans · \d+$/ }).click()
+  await expect(page).toHaveURL(/[?&]tab=plans/)
   // Search finds anyone, people and groups alike.
   await page.goto(`${orgPath}/admin/users`)
   await page.getByRole('textbox', { name: /Search people and groups/ }).fill('Casey')
