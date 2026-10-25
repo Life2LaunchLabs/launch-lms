@@ -48,11 +48,20 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, audience, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, filter: shownFilter, onFilter, hideTopics = false, only, audience, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer, composer: composerOff }: {
   source: ChatSource
   orgslug: string
   token?: string
   initialFilter?: ChatFilter
+  /** The plan and step shown, when the page around it keeps them (Threads' context bar); otherwise the chat keeps its own. */
+  filter?: ChatFilter
+  // eslint-disable-next-line no-unused-vars
+  onFilter?: (filter: ChatFilter) => void
+  /** The page shows its own plan and step picker. */
+  hideTopics?: boolean
+  /** Only these messages, such as a thread's open questions. */
+  // eslint-disable-next-line no-unused-vars
+  only?: (message: ChatMessage) => boolean
   /** Whose messages to show: all, what learners see, or staff only. It stays as the plan and step filters change. */
   audience?: MessageAudience
   /** Above the filters, given the chat once it loads. */
@@ -78,8 +87,16 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   timelineFiltered?: boolean
   /** After the messages, inside the scrolling feed. */
   footer?: React.ReactNode
+  /** In place of the composer, such as why nobody writes here. */
+  composer?: React.ReactNode
 }) {
-  const [filter, setFilter] = React.useState<ChatFilter>(initialFilter)
+  const [ownFilter, setOwnFilter] = React.useState<ChatFilter>(initialFilter)
+  const filter = shownFilter ?? ownFilter
+  const setFilter = React.useCallback((next: React.SetStateAction<ChatFilter>) => {
+    const value = typeof next === 'function' ? next(filter) : next
+    if (onFilter) onFilter(value)
+    else setOwnFilter(value)
+  }, [filter, onFilter])
   const fetched = React.useMemo(() => audience && audience !== 'all' ? { ...filter, audience } : filter, [filter, audience])
   const { data: chat, error, mutate } = useWorkspaceChat(source, fetched, token)
   const { data: list } = useChatList()
@@ -152,34 +169,45 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       return false
     }
   }
+  const cheer = async (message: ChatMessage) => {
+    if (!chat) return
+    try {
+      const { reactions } = await connectApi.react(chat.conversation_uuid, message.message_uuid, token)
+      await mutate((current) => current && { ...current, messages: current.messages.map((item) => item.message_uuid === message.message_uuid ? { ...item, reactions } : item) }, { revalidate: false })
+    } catch (cheerError: any) {
+      toast.error(cheerError?.message || 'That didn’t go through')
+    }
+  }
   const answered = () => {
     void mutate()
     void mutateGlobal(connectKeys.chats())
     void mutateGlobal(isGoalsKey)
   }
 
+  const shown = React.useMemo(() => !chat ? [] : only ? chat.messages.filter(only) : chat.messages, [chat, only])
   const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : 'You can read along here')) : ''
   const names = chat ? chat.kind !== 'direct' : false
   return <>
     {header?.(chat, mutate)}
-    {live.length || plan ? <TopicFilters topics={live} plan={plan} filter={filter} onChange={setFilter} color={getGoalColor} stepLink={plan && step && stepHref ? stepHref(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
+    {!hideTopics && (live.length || plan) ? <TopicFilters topics={live} plan={plan} filter={filter} onChange={setFilter} color={getGoalColor} stepLink={plan && step && stepHref ? stepHref(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-6">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
-        : chat.messages.length || shownTimeline.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
-          {withTimeline(feedEntries(chat.messages), shownTimeline).map((entry, position, entries) => {
+        : shown.length || shownTimeline.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
+          {withTimeline(feedEntries(shown), shownTimeline).map((entry, position, entries) => {
             if (entry.kind === 'card') return <li key={entry.item.key} className="my-2">{entry.item.node}</li>
             const { message } = entry
             const before = entries[position - 1]
             return <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
-              topics={topics} filter={filter} onTag={openTag} onAnswered={answered}
+              topics={topics} filter={filter} onTag={openTag} onAnswered={answered} onCheer={chat.can_post ? cheer : undefined}
               first={!before || before.kind !== 'message' || before.message.sender?.id !== message.sender?.id || before.message.kind === 'card'} />
           })}
         </ol>
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
       {footer}
     </div>
-    {chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
+    {chat && composerOff ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">{composerOff}</div>
+      : chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
       {chat.can_post_staff_only ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
       <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
@@ -251,11 +279,15 @@ function scopeLabel(message: ChatMessage, filter: ChatFilter) {
 
 /** One message: text with its tags, or a card the app posted. */
 // eslint-disable-next-line no-unused-vars
-function Message({ message, orgslug, token, links, first, names, topics, filter, onTag, onAnswered }: { message: ChatMessage; orgslug: string; token?: string; links: boolean; first: boolean; names: boolean; topics: ChatTopic[]; filter: ChatFilter; onTag: (ref: MessageRef) => void; onAnswered: () => void }) {
+function Message({ message, orgslug, token, links, first, names, topics, filter, onTag, onAnswered, onCheer }: { message: ChatMessage; orgslug: string; token?: string; links: boolean; first: boolean; names: boolean; topics: ChatTopic[]; filter: ChatFilter; onTag: (ref: MessageRef) => void; onAnswered: () => void; onCheer?: (message: ChatMessage) => void }) {
   const time = new Date(message.update_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  if (message.kind === 'card' && message.card) return <CardMessage message={message} orgslug={orgslug} token={token} topics={topics} time={time} first={first} onTag={onTag} onAnswered={onAnswered} />
+  const cheers = <Cheers message={message} onCheer={onCheer} />
+  if (message.kind === 'card' && message.card) return <>
+    <CardMessage message={message} orgslug={orgslug} token={token} topics={topics} time={time} first={first} onTag={onTag} onAnswered={onAnswered} />
+    {message.reactions?.length ? <li className="-mt-1 flex">{cheers}</li> : null}
+  </>
   const scope = scopeLabel(message, filter)
-  return <li className={cn('flex flex-col', message.mine ? 'items-end' : 'items-start', (first || message.staff_only) && 'mt-2')}>
+  return <li className={cn('group/message flex flex-col', message.mine ? 'items-end' : 'items-start', (first || message.staff_only) && 'mt-2')}>
     {message.staff_only ? <span className="mb-0.5 flex items-center gap-1 px-3 text-[11px] font-bold text-amber-700 dark:text-amber-300"><Lock size={10} aria-hidden="true" />Staff only{!message.mine && message.sender ? ` · ${message.sender.name}` : ''}</span>
       : names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
     {/* Coach's bubbles: yours on the raised surface as in Coach; other people's a shade apart. Only Coach goes without one. */}
@@ -265,8 +297,22 @@ function Message({ message, orgslug, token, links, first, names, topics, filter,
       <MessageText body={message.body} refs={message.refs || []} links={links} inPlan={filter.goal_uuid} onTag={onTag} />
       <span className="ml-2 inline-block align-bottom text-[10px] text-muted-foreground">{time}</span>
     </div>
+    {cheers}
     {scope ? <button type="button" onClick={() => onTag(scope.ref)} className="mt-0.5 flex max-w-[85%] items-center gap-1 px-3 text-[11px] text-muted-foreground hover:text-foreground hover:underline">
       <Flag size={10} aria-hidden="true" /><span className="truncate">in {scope.text}</span>
     </button> : null}
   </li>
+}
+
+/** A message's cheers, and a button to add yours that shows on hover until someone has. */
+function Cheers({ message, onCheer }: { message: ChatMessage; onCheer?: (message: ChatMessage) => void }) { // eslint-disable-line no-unused-vars
+  const reactions = message.reactions || []
+  if (!reactions.length && !onCheer) return null
+  if (!reactions.length) return <button type="button" onClick={() => onCheer?.(message)} aria-label="Cheer" title="Cheer"
+    className="mt-0.5 hidden h-6 items-center rounded-full px-2 text-xs text-muted-foreground hover:bg-muted group-hover/message:flex group-focus-within/message:flex">👏</button>
+  return <span className="mt-1 flex gap-1 px-1">{reactions.map((reaction) => <button key={reaction.emoji} type="button" disabled={!onCheer} aria-pressed={reaction.mine}
+    onClick={() => onCheer?.(message)} aria-label={`${reaction.emoji} ${reaction.count}${reaction.mine ? ', including you' : ''}`}
+    className={cn('flex h-6 items-center gap-1 rounded-full border px-2 text-xs font-semibold', reaction.mine ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_12%,transparent)]' : 'border-border')}>
+    <span aria-hidden="true">{reaction.emoji}</span>{reaction.count}
+  </button>)}</span>
 }
