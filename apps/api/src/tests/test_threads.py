@@ -44,7 +44,7 @@ def test_a_learners_thread_lists_their_plans_and_what_waits_on_staff_in_each():
         # The turn-in and the question about this plan (not the message about no plan, which nobody answered either).
         assert plan["needs"] == 2
         assert thread["counts"]["review"] == 1 and thread["counts"]["questions"] == 2 and thread["counts"]["staff_only"] == 1
-        assert [item["step_uuid"] for item in thread["review"]] == [essay.step_uuid]
+        assert [(item["step_uuid"], item["assignment_uuid"]) for item in thread["review"]] == [(essay.step_uuid, uuid)]
 
         # A staff reply about the step answers the question about it; staff-only notes don't answer.
         chats.send(db, _user(COACH), chat.conversation_uuid, "One page is fine", {"goal_uuid": mine.goal_uuid, "step_uuid": essay.step_uuid})

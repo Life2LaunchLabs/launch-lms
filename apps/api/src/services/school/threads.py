@@ -178,9 +178,10 @@ def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: i
     assignments = {int(item.id): item for item in db.exec(select(GoalAssignment).where(col(GoalAssignment.id).in_([goal.assignment_id for goal in goals if goal.assignment_id] or [0]))).all()}  # type: ignore[arg-type]
     templates = {int(item.id): item for item in db.exec(select(GoalTemplate).where(col(GoalTemplate.id).in_([goal.template_id for goal in goals if goal.template_id] or [0]))).all()}  # type: ignore[arg-type]
 
-    review = [{"goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid, "step_key": step.template_key, "title": step.title, "submitted_at": progress.update_date}
-              for goal, step, progress in feed.turn_ins(db, viewer, org_id, user_id)]
-    requests = [helper_requests._dict(db, invitation, goal) for invitation, goal in feed.waiting_helpers(db, org_id, user_id)] if admin else []
+    assignment_of = {goal.goal_uuid: assignments[int(goal.assignment_id)].assignment_uuid for goal in goals if goal.assignment_id and int(goal.assignment_id) in assignments}
+    review = [{"goal_uuid": goal.goal_uuid, "assignment_uuid": assignment_of.get(goal.goal_uuid), "step_uuid": step.step_uuid, "step_key": step.template_key,
+               "title": step.title, "submitted_at": progress.update_date} for goal, step, progress in feed.turn_ins(db, viewer, org_id, user_id)]
+    requests = [{**helper_requests._dict(db, invitation, goal), "goal_uuid": goal.goal_uuid} for invitation, goal in feed.waiting_helpers(db, org_id, user_id)] if admin else []
     goal_ids = {int(goal.id): goal for goal in goals}  # type: ignore[arg-type]
     questions = [{"message_uuid": message.message_uuid, "goal_uuid": goal_ids[goal_id].goal_uuid if goal_id in goal_ids else None, "step_uuid": step_uuid}
                  for message, goal_id, step_uuid in open_questions(db, conversation, user_id)]
