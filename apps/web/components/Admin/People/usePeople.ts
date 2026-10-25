@@ -7,7 +7,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { LIST_REFRESH_MS } from '@components/Connect/useConnect'
 import { getAPIUrl } from '@services/config/config'
 import { getUserGroups } from '@services/usergroups/usergroups'
-import { peopleApi, peopleKeys, type Directory, type GroupDetail, type PeopleChats, type PeopleFeed, type PeopleStatusFilter, type PersonActivity, type Profile, type ThreadKind } from '@services/school/people'
+import { peopleApi, peopleKeys, type Directory, type GroupDetail, type PeopleChats, type PeopleFeed, type PeopleStatusFilter, type Profile, type ThreadKind } from '@services/school/people'
 
 // Role ids the API treats as organization admins (admin and maintainer), as in security/org_auth.py.
 const ADMIN_ROLE_IDS = new Set([1, 2])
@@ -43,13 +43,6 @@ export function useRefreshPeople() {
     const feed = peopleKeys.feed(orgId).split('?')[0]
     return mutate((key) => typeof key === 'string' && (key.startsWith(`${feed}?`) || key === peopleKeys.chats(orgId)))
   }, [mutate, orgId])
-}
-
-/** What waits on you about someone: helpers to approve and steps they turned in. */
-export function usePersonActivity(username: string) {
-  const { orgId, token } = usePeopleContext()
-  return useSWR<PersonActivity>(orgId && token && username ? peopleKeys.activity(orgId, username) : null, () => peopleApi.activity(orgId, username, token),
-    { refreshInterval: 60_000, revalidateOnFocus: true, shouldRetryOnError: false })
 }
 
 /** A group's name and people, staff first, for its header. */

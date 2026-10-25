@@ -78,7 +78,7 @@ export function InsightsEvidencePage({ orgslug, groupId }: { orgslug: string; gr
   const selected = groups?.find((group) => group.id === groupId) || groups?.[0]
   const choose = (id: string) => router.replace(getUriWithOrg(orgslug, routePaths.org.admin.insightsEvidence(id)))
   return <InsightsTabs orgslug={orgslug} view="evidence">
-    {isLoading || !groups ? <PageLoader /> : !selected ? <div className="px-10 pb-10 pt-6"><EmptyState icon={<Users size={36} />} title="No groups yet" detail="Learner evidence is reported per group. Make a group in People and assign it a requirement framework." /></div>
+    {isLoading || !groups ? <PageLoader /> : !selected ? <div className="px-10 pb-10 pt-6"><EmptyState icon={<Users size={36} />} title="No groups yet" detail="Learner evidence is reported per group. Make a group in Threads and assign it a requirement framework." /></div>
       : <div className="space-y-4 px-10 pb-10 pt-6">
         <label className="flex items-center gap-2 text-sm font-bold text-gray-900">Group
           <select aria-label="Group" value={selected.id} onChange={(event) => choose(event.target.value)} className="h-9 max-w-[320px] rounded-lg border border-gray-200 bg-white px-2 text-sm font-semibold">

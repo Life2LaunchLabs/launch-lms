@@ -200,7 +200,6 @@ export const routePaths = {
       people: {
         /** The list moved to Threads. */
         root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
-        chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
         user: (username: string, tab?: PersonTab) =>
           withQuery(`/admin/threads/profiles/people/${encodeURIComponent(username)}`, { tab: tab === 'overview' ? null : tab }),
         /** A group: its people, its plans (one assignment's grid), or its join links. */

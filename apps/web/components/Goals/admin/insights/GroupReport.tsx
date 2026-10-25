@@ -232,7 +232,7 @@ export default function GroupReport({ orgslug, groupId, frameworks: fromUrl }: {
   const toggleFramework = (uuid: string) => selected && go(selected.id, frameworks.includes(uuid) ? frameworks.filter((item) => item !== uuid) : [...frameworks, uuid])
 
   if (groupsLoading || !groups) return <PageLoader />
-  if (!selected) return <div className="px-4 pb-10 pt-6 sm:px-10"><EmptyState icon={<Users size={36} />} title="No groups yet" detail="Reports are by group. Make a group in People and assign it a plan to report on it here." /></div>
+  if (!selected) return <div className="px-4 pb-10 pt-6 sm:px-10"><EmptyState icon={<Users size={36} />} title="No groups yet" detail="Reports are by group. Make a group in Threads and assign it a plan to report on it here." /></div>
   const available = report?.frameworks || []
   return <div className="mx-auto max-w-[1300px] px-4 pb-12 pt-6 sm:px-10">
     <p className="mb-4 max-w-[66ch] text-sm text-gray-600">Reports are by group. Pick a group to see where it stands on its plans and badges, who&rsquo;s behind and what&rsquo;s left. Then print it or send it.</p>

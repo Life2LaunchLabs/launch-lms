@@ -6,6 +6,8 @@ import toast from 'react-hot-toast'
 import { BellRing, Check, ClipboardCheck, Clock, Hand, MessageCircleQuestion } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
+import { reviewHref } from '@components/Goals/admin/live/ui'
+import { routePaths } from '@services/config/config'
 import { goalAdminApi } from '@services/goals/admin'
 import { peopleApi } from '@services/school/people'
 import { shortDate } from '@services/assignments/status'
@@ -74,6 +76,12 @@ export function PastDueCard({ line, learner, orgId, token, onPerson }: {
         : <button type="button" disabled={busy} onClick={nudge} className={plain}><BellRing size={14} aria-hidden="true" />{learner ? `Nudge ${first}` : people.length > 1 ? `Nudge all ${people.length}` : 'Nudge'}</button>}
     </span>
   </Notice>
+}
+
+/** Where a turn-in's Review goes: the assignment's review at that step, or the plan's feed when nobody assigned it. */
+export function turnInHref(item: ReviewItem) {
+  return item.assignment_uuid ? reviewHref({ assignment: item.assignment_uuid, stepKey: item.step_key, stepUuid: item.step_key ? null : item.step_uuid, focus: item.step_uuid })
+    : routePaths.org.admin.learnerFeed(item.goal_uuid)
 }
 
 /** Work a learner turned in that waits on a review, with the way to it. */
