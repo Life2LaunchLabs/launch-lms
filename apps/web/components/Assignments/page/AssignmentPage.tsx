@@ -17,13 +17,15 @@ import Sidebar from './Sidebar'
 import StepsTab from './StepsTab'
 import PeopleTab from './PeopleTab'
 import type { PeopleFilter } from '@services/assignments/people'
-import MessagesDrawer, { type MessagesTarget } from './MessagesDrawer'
+import { useHub } from '@components/Hub/HubContext'
+import { threadHref } from '@components/Admin/People/PeopleList'
+import type { ThreadTarget } from '@components/Threads/ThreadView'
 
 /**
  * One assignment: a plan handed to a group or a person. Steps shows where learners are on each
- * step, with the schedule; People shows each person. Messages open in a drawer on either.
- * The URL carries the tab (?tab=people, with ?filter=), the schedule editor (?schedule=1) and an
- * open thread (?messages=group).
+ * step, with the schedule; People shows each person. Messages open in Threads beside the page,
+ * on this assignment. The URL carries the tab (?tab=people, with ?filter=), the schedule editor
+ * (?schedule=1) and an open thread (?messages=group).
  */
 export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = 'steps' }: { orgslug: string; assignmentUuid: string; initialTab?: AssignmentTab }) {
   const { orgId, token } = useStaff()
@@ -40,8 +42,18 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
   const tab: AssignmentTab = params.get('tab') === 'people' ? 'people' : params.get('tab') === 'steps' ? 'steps' : initialTab
   const scheduling = params.get('schedule') === '1'
   const messagesParam = params.get('messages')
-  const [messages, setMessages] = React.useState<MessagesTarget | null>(null)
-  React.useEffect(() => { if (messagesParam === 'group' && group) setMessages({ kind: 'group' }) }, [messagesParam, group])
+  const hub = useHub()
+  // The group's thread or a learner's, on this assignment, beside the page (or on the Threads page without the panel).
+  const openThread = React.useCallback((target: ThreadTarget) => {
+    if (hub?.hasThreads) hub.openThreads(target)
+    else router.push(threadHref(orgslug, target))
+  }, [hub, router, orgslug])
+  const groupId = detail?.target.type === 'group' ? detail.target.id : null
+  React.useEffect(() => {
+    if (messagesParam !== 'group' || !groupId) return
+    openThread({ kind: 'group', groupId, plan: assignmentUuid })
+    router.replace(pathname + (tab === 'people' ? '?tab=people' : ''), { scroll: false })
+  }, [messagesParam, groupId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const base = getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(assignmentUuid))
   const href = (query: Record<string, string>) => `${base}${Object.keys(query).length ? `?${new URLSearchParams(query).toString()}` : ''}`
@@ -54,12 +66,12 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
   const run = async (change: () => Promise<unknown>, done: string) => {
     try { await change(); toast.success(done); await refresh(); return true } catch (failure: any) { toast.error(failure?.message || 'That didn’t go through'); return false }
   }
-  const learnerOf = (person?: AssignmentPerson | null) => person ? setMessages({ kind: 'learner', person }) : undefined
-  const message = () => group ? setMessages({ kind: 'group' }) : detail.target.type === 'person' ? learnerOf(detail.target.person) : undefined
+  const learnerOf = (person?: AssignmentPerson | null, stepKey?: string) => person ? openThread({ kind: 'person', userId: person.id, assignment: assignmentUuid, stepKey }) : undefined
+  const message = () => groupId ? openThread({ kind: 'group', groupId, plan: assignmentUuid }) : detail.target.type === 'person' ? learnerOf(detail.target.person) : undefined
   const ctx = {
     detail, orgId, orgslug, token,
     reviewHref: (stepKey: string) => getUriWithOrg(orgslug, routePaths.org.admin.planReview({ assignment: assignmentUuid, planObjective: stepKey, from: 'assignment' })),
-    onMessageStep: (stepKey: string) => group ? setMessages({ kind: 'group', step: stepKey }) : detail.target.type === 'person' && detail.target.person ? setMessages({ kind: 'learner', person: detail.target.person, step: stepKey }) : undefined,
+    onMessageStep: (stepKey: string) => groupId ? openThread({ kind: 'group', groupId, plan: assignmentUuid, step: stepKey }) : detail.target.type === 'person' ? learnerOf(detail.target.person, stepKey) : undefined,
     onMessageLearner: (person: AssignmentPerson) => learnerOf(person),
   }
   const canVersion = detail.can_change_version && detail.status !== 'ended' && Boolean(detail.plan.live_version && detail.plan.live_version !== detail.plan.version)
@@ -92,8 +104,6 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
             otherHref={(uuid) => getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(uuid))} />
         </div>}
     </div>
-    {messages ? <MessagesDrawer detail={detail} target={messages} setTarget={setMessages} orgId={orgId} token={token} orgslug={orgslug}
-      onClose={() => { setMessages(null); if (messagesParam) router.replace(pathname + (tab === 'people' ? '?tab=people' : ''), { scroll: false }) }} /> : null}
     {versioning ? <VersionReviewModal orgId={orgId} token={token} assignmentUuid={assignmentUuid} open={versioning} onOpenChange={setVersioning} onApplied={async () => { await refresh() }} /> : null}
   </main>
 }

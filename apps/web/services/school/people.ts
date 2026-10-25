@@ -126,6 +126,8 @@ export interface PeopleFeed {
   offset: number
   limit: number
   groups_enabled: boolean
+  /** Groups stay listed after a Full trial ends, but nobody can make new ones. */
+  groups_read_only?: boolean
   is_admin: boolean
 }
 

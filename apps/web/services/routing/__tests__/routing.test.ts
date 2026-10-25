@@ -155,7 +155,9 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1')
   assert.equal(admin.planAssignment('assignment_1', 'learners'), '/admin/plans/assignments/assignment_1/learners')
   assert.equal(admin.livePlan('plan_1', 'reviews'), '/admin/plans/live/plan_1/reviews')
-  assert.equal(admin.people.root(), '/admin/users')
+  assert.equal(admin.people.root(), '/admin/threads')
+  assert.equal(admin.threads.person(4, 'goal_1'), '/admin/threads/people/4?plan=goal_1')
+  assert.equal(admin.threads.group(2), '/admin/threads/groups/2')
   assert.equal(admin.people.user('learner'), '/admin/users/user/learner')
   assert.equal(admin.people.group(2), '/admin/users/groups/2')
   assert.equal(admin.people.group(2, 'plans', 'assignment_1'), '/admin/users/groups/2?view=plans&assignment=assignment_1')
@@ -339,7 +341,7 @@ test('request policy keeps review queue links on the canonical org route', () =>
 test('old admin and dashboard URLs redirect once, in one place, keeping their query', () => {
   const cases: [string, string, string][] = [
     ['/dash', '', '/admin'],
-    ['/dash/users/settings/roles', '', '/admin/users'],
+    ['/dash/users/settings/roles', '', '/admin/threads'],
     ['/dash/badges', '?tab=marketplace', '/admin/plans?tab=marketplace'],
     ['/badges/award_1/verify', '', '/badges/award_1'],
     ['/admin/analytics', '', '/admin'],
@@ -367,7 +369,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/badges/discover', '', '/admin/plans'],
     ['/admin/plans/requirements/fw_1', '', '/admin/plans/requirements/fw_1/details'],
     ['/admin/users/jane', '', '/admin/users/user/jane'],
-    ['/admin/users/roles', '', '/admin/users'],
+    ['/admin/users/roles', '', '/admin/threads'],
     ['/admin/users/user/jane/overview', '', '/admin/users/user/jane'],
     ['/admin/users/user/jane/messages', '', '/admin/users/user/jane'],
     ['/admin/users/cohorts/3/programs/assignment_1', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],

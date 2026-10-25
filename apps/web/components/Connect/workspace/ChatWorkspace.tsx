@@ -48,7 +48,7 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, filter: shownFilter, onFilter, hideTopics = false, only, audience, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer, composer: composerOff }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, filter: shownFilter, onFilter, hideTopics = false, only, title, audience, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer, composer: composerOff }: {
   source: ChatSource
   orgslug: string
   token?: string
@@ -59,6 +59,8 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   onFilter?: (filter: ChatFilter) => void
   /** The page shows its own plan and step picker. */
   hideTopics?: boolean
+  /** Who you're writing to, for the composer, in place of the chat's title. */
+  title?: string
   /** Only these messages, such as a thread's open questions. */
   // eslint-disable-next-line no-unused-vars
   only?: (message: ChatMessage) => boolean
@@ -211,7 +213,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
       {chat.can_post_staff_only ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
       <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
-        placeholder={staffOnly ? 'Only staff will see this' : step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
+        placeholder={staffOnly ? 'Only staff will see this' : step ? `Comment on ${step.title}` : plan ? `Message ${title ? `${title} ` : ''}about ${plan.title}` : `Message ${title || chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />

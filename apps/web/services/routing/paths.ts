@@ -180,9 +180,22 @@ export const routePaths = {
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       /** A learner's plan feed: their plan from the staff side, its chat open. People's "Open feed" lands here. */
       learnerFeed: (planUuid: string) => `/admin/plans/live/${encodeURIComponent(planUuid)}?chat=plan`,
-      /** People: one list of the organization's people and your chats with them, with a chat, a person or a group open beside it. */
+      /**
+       * Threads: everyone you share a thread with (learners, staff, groups, all staff, the
+       * organization), one open beside the list, maybe on one plan (an assignment, for a group)
+       * and one of its steps.
+       */
+      threads: {
+        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
+        person: (userId: number, plan?: string | null, step?: string | null) => withQuery(`/admin/threads/people/${userId}`, { plan, step }),
+        group: (groupId: number, plan?: string | null, step?: string | null) => withQuery(`/admin/threads/groups/${groupId}`, { plan, step }),
+        staff: () => '/admin/threads/staff',
+        org: () => '/admin/threads/org',
+      },
+      /** Profiles, opened from a thread's header: a person's (with Manage for admins) and a group's. */
       people: {
-        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/users', params),
+        /** The list moved to Threads. */
+        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
         chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
         user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
         /** A group: its chat, or its plans (one assignment's grid) or requirements beside it. */

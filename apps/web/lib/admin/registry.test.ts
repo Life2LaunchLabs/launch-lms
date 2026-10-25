@@ -108,6 +108,7 @@ test('paths resolve to the tab that owns them, by longest match', () => {
   assert.equal(owner('/admin/org/settings/discover'), 'organization/discover')
   assert.equal(owner('/admin/insights/evidence'), 'insights')
   assert.equal(owner('/admin/users/groups/2/members'), 'people')
+  assert.equal(owner('/admin/threads/people/12'), 'people')
   assert.equal(owner('/admin/resources/tags'), 'content/resources')
   assert.equal(owner('/admin/payments/offers'), 'organization/payments')
   assert.equal(owner('/admin/org/settings/sso'), 'organization/sso')

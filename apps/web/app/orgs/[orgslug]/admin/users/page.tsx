@@ -1,6 +1,8 @@
-import PeopleView from '@components/Admin/People/PeopleView'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 
-export default async function PeoplePage({ params }: { params: Promise<{ orgslug: string }> }) {
-  const { orgslug } = await params
-  return <PeopleView orgslug={orgslug} selection={{ kind: 'none' }} />
+/** People became Threads. */
+export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {
+  const { invite } = await searchParams
+  redirect(routePaths.org.admin.threads.root({ invite: invite === 'staff' || invite === 'learner' ? invite : undefined }))
 }

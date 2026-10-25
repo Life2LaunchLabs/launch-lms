@@ -56,6 +56,7 @@ import { OrgLogo } from '@components/Objects/OrgLogo'
 import { cn } from '@/lib/utils'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { tierLabel } from '@services/plans/plans'
+import { useHub } from '@components/Hub/HubContext'
 
 const TOOLTIP_CLASS = "z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20"
 const COLLAPSED_KEY = 'dash-menu-collapsed'
@@ -290,6 +291,7 @@ function DashLeftMenu() {
 /** One tab: a link, a hover menu when it has more than one page, or a locked row with its Request action. */
 function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isActive: boolean; isCollapsed: boolean }) {
   const { t } = useTranslation()
+  const hub = useHub()
   const label = adminLabel(t, item)
   const Icon = ADMIN_NAV_ICONS[item.id]
   const locked = item.visibility.state === 'locked' ? item.visibility.request : null
@@ -334,6 +336,15 @@ function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isAct
     </>
   )
   const link = <Link aria-label={label} href={item.href} className={rowClass}>{content}</Link>
+
+  // Threads also opens beside whatever page you're on.
+  if (item.id === 'people' && hub?.hasThreads && !isCollapsed) return <div className="group/threads relative">
+    {link}
+    <button type="button" onClick={() => hub.openThreads(null)} aria-label="Show threads beside the page" title="Show beside the page"
+      className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-white/40 hover:bg-white/[0.12] hover:text-white">
+      <SidebarSimple size={15} weight="fill" className="-scale-x-100" />
+    </button>
+  </div>
 
   if (!hasMenu) return isCollapsed ? <WithTooltip label={label}>{link}</WithTooltip> : link
 
