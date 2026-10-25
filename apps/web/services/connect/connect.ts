@@ -115,9 +115,13 @@ export interface ChatMessage {
   mine: boolean
   /** Only the organization's staff read it. */
   staff_only?: boolean
+  /** Cheers on it, each emoji once with how many and whether one is yours. */
+  reactions?: Reaction[]
   creation_date: string
   update_date: string
 }
+
+export interface Reaction { emoji: string; count: number; mine: boolean }
 
 export interface ChatSummary {
   conversation_uuid: string
@@ -253,6 +257,9 @@ export const connectApi = {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share, staff_only: options.staffOnly || undefined,
   }),
   plans: (token?: string) => request<ChatTopic[]>(connectKeys.plans(), token),
+  /** Cheer a message, or take your cheer back. */
+  react: (uuid: string, messageUuid: string, token?: string, emoji = '👏') =>
+    request<{ message_uuid: string; reactions: Reaction[] }>(connectUrl(`/chats/${q(uuid)}/messages/${q(messageUuid)}/reactions`), token, 'POST', { emoji }),
   read: (uuid: string, token?: string) => request<ChatCounts>(connectUrl(`/chats/${q(uuid)}/read`), token, 'POST'),
   accept: (uuid: string, token?: string) => request<Chat>(connectUrl(`/chats/${q(uuid)}/accept`), token, 'POST'),
   decline: (uuid: string, token?: string) => request<ChatCounts>(connectUrl(`/chats/${q(uuid)}/decline`), token, 'POST'),
