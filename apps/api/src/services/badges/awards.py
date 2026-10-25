@@ -86,6 +86,7 @@ def award_dict(db: Session, award: BadgeAward) -> dict:
     learner = db.get(User, award.user_id)
     return {
         "award_uuid": award.award_uuid,
+        "code": award.code,
         "template_uuid": template.template_uuid if template else None,
         "semver": award.semver,
         "source": getattr(award.source, "value", award.source),
@@ -104,6 +105,12 @@ def award_dict(db: Session, award: BadgeAward) -> dict:
         "revoked_reason": award.revoked_reason if award.revoked_at else "",
         "signed": bool(award.credential and award.credential.get("proof")),
     }
+
+
+def by_code(db: Session, code: str) -> BadgeAward | None:
+    """The award with this short code, read leniently: any case, and I, L and O typed for 1, 1 and 0."""
+    normalized = code.strip().upper().translate(str.maketrans("ILO", "110")).replace("-", "")
+    return db.exec(select(BadgeAward).where(BadgeAward.code == normalized)).first() if normalized else None
 
 
 def awards_of(db: Session, user_id: int, revoked: bool = False) -> list[BadgeAward]:
@@ -173,6 +180,7 @@ def award_card(db_session: Session, award: BadgeAward) -> dict:
     issuer = db_session.get(Organization, award.issuing_org_id) if award.issuing_org_id else None
     return {
         "award_uuid": award.award_uuid,
+        "code": award.code,
         "template_uuid": earned.get("template_uuid"),
         "name": earned.get("name") or "",
         "description": earned.get("description") or "",

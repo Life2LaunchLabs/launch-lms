@@ -58,7 +58,7 @@ export default function LearnerBadges({ orgslug, orgId, token, person }: {
     </div>
     {data.awards.length ? <ul className="mt-3 divide-y divide-gray-100">{data.awards.map((award) => { const revoked = award.status === 'revoked'; return <li key={award.award_uuid}>
       <div className="flex flex-wrap items-center gap-x-2">
-      <Link href={getUriWithOrg(orgslug, routePaths.org.badgeAward(award.award_uuid))} target="_blank" className={`flex min-w-0 flex-1 items-center gap-3 py-2.5 no-underline hover:opacity-85${revoked ? ' opacity-60' : ''}`}>
+      <Link href={getUriWithOrg(orgslug, routePaths.org.badgeAward(award.code))} target="_blank" className={`flex min-w-0 flex-1 items-center gap-3 py-2.5 no-underline hover:opacity-85${revoked ? ' opacity-60' : ''}`}>
         <BadgeMedal badge={award.achievement} size={40} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2 text-sm font-semibold text-gray-900"><span className="truncate">{award.achievement.name}</span>{revoked ? <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-800">Revoked</span> : null}</span>

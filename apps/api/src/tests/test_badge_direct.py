@@ -57,7 +57,7 @@ def test_a_group_award_reaches_its_active_learners_once_with_the_sign_off_on_the
         evidence = open_badges.credential(db, award)["evidence"][0]
         assert evidence["id"] == "https://example.com/work" and "summer internship" in evidence["description"]
         message = db.exec(select(InboxMessage)).one()
-        assert (message.recipient_user_id, message.action_url) == (LEARNER, f"/badges/{award.award_uuid}")
+        assert (message.recipient_user_id, message.action_url) == (LEARNER, f"/b/{award.code}")
         assert db.exec(select(AuditLog)).one().request_metadata["user_ids"] == [LEARNER]
 
         # Awarding again skips whoever has it.

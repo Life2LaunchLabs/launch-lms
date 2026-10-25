@@ -220,7 +220,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
 
   assert.equal(routePaths.org.portfolioBadges(), '/portfolio/badges')
   assert.equal(routePaths.org.discover(), '/discover')
-  assert.equal(routePaths.org.badgeAward('award_1'), '/badges/award_1')
+  assert.equal(routePaths.org.badgeAward('K7M2Q9XB'), '/b/K7M2Q9XB')
   assert.equal(routePaths.org.discoverPlan('goal_template_1'), '/discover/plans/goal_template_1')
   assert.equal(routePaths.org.discoverCollection('c 1'), '/discover/collections/c%201')
   assert.equal('badgeDetail' in routePaths.org, false)
@@ -341,6 +341,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/dash', '', '/admin'],
     ['/dash/users/settings/roles', '', '/admin/users'],
     ['/dash/badges', '?tab=marketplace', '/admin/plans?tab=marketplace'],
+    ['/badges/award_1/verify', '', '/badges/award_1'],
     ['/admin/analytics', '', '/admin'],
     ['/admin/boards/board_1/general', '', '/admin'],
     ['/admin/feedback', '', '/admin/platform/feedback'],
@@ -595,6 +596,7 @@ test('route access treats welcome onboarding as public', () => {
 })
 
 test('route access exposes badge awards and the plan pages their badges point to', () => {
+  assert.equal(classifyRoute('/b/K7M2Q9XB').kind, 'public')
   assert.equal(classifyRoute('/badges/award_1').kind, 'public')
   assert.equal(classifyRoute('/discover/plans/goal_template_1').kind, 'public')
   assert.equal(classifyRoute('/discover/collections/c1').kind, 'public')

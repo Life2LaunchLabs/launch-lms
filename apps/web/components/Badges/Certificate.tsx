@@ -15,6 +15,8 @@ export type CertificateProps = {
   /** Shown under "Scan to verify", and encoded in the QR code with ``verifyUrl``. */
   code: string
   verifyUrl?: string
+  /** False for a revoked award: the modern style's band then doesn't say it's verified. */
+  verified?: boolean
 }
 
 function useQrCode(value: string) {
@@ -55,7 +57,7 @@ function useFit(ref: React.RefObject<HTMLDivElement | null>, deps: unknown[]) {
 }
 
 /** A badge's certificate as one learner gets it, in the style the plan's badge chose. */
-export default function Certificate({ badge, style, learner, awardedBy, date, code, verifyUrl }: CertificateProps) {
+export default function Certificate({ badge, style, learner, awardedBy, date, code, verifyUrl, verified = true }: CertificateProps) {
   const ref = React.useRef<HTMLDivElement>(null)
   const qr = useQrCode(verifyUrl || code)
   useFit(ref, [badge.name, badge.description, learner, style])
@@ -84,6 +86,6 @@ export default function Certificate({ badge, style, learner, awardedBy, date, co
   let inner: React.ReactNode
   if (style === 'classic') inner = <><div className="cert-frame" /><div className="cert-content"><BadgeMedal badge={badge} />{eyebrow}{body}{foot}</div></>
   else if (style === 'minimal') inner = <><div className="cert-rule" /><div className="cert-content"><div className="cert-row"><div className="min-w-0">{eyebrow}</div><BadgeMedal badge={badge} /></div>{body}{foot}</div></>
-  else inner = <><div className="cert-band"><BadgeMedal badge={badge} /><span className="cert-verified"><ShieldCheck aria-hidden="true" />Verified Open Badge</span></div><div className="cert-content">{eyebrow}{body}{foot}</div></>
+  else inner = <><div className="cert-band"><BadgeMedal badge={badge} /><span className="cert-verified">{verified ? <><ShieldCheck aria-hidden="true" />Verified Open Badge</> : 'Open Badge'}</span></div><div className="cert-content">{eyebrow}{body}{foot}</div></>
   return <div className="cert-wrap"><div ref={ref} className={`cert cert-${style}`} style={{ '--cc': medalColor(badge) } as React.CSSProperties}>{inner}</div></div>
 }

@@ -97,6 +97,15 @@ def api_achievement(template_uuid: str, db: Session = Depends(get_db_session)) -
     return open_badges.achievement(db, earned)
 
 
+@router.get("/code/{code}")
+def api_award_by_code(code: str, db: Session = Depends(get_db_session)) -> dict:
+    """One award by its short code (its page is /b/<code>), with the server's check of it."""
+    award = awards.by_code(db, code)
+    if award is None:
+        raise HTTPException(status_code=404, detail="Badge award not found")
+    return {**awards.award_dict(db, award), "check": _check(db, award)}
+
+
 @router.get("/{award_uuid}")
 def api_award(award_uuid: str, db: Session = Depends(get_db_session)) -> dict:
     """One award, as its public page shows it."""
@@ -106,9 +115,11 @@ def api_award(award_uuid: str, db: Session = Depends(get_db_session)) -> dict:
 @router.get("/{award_uuid}/verify")
 def api_verify(award_uuid: str, db: Session = Depends(get_db_session)) -> dict:
     """Check an award on the server: its proof against the issuer's key, and whether it was revoked."""
-    award = _award(db, award_uuid)
-    signed = open_badges.credential(db, award)
-    proof = signing.verify(db, signed)
+    return _check(db, _award(db, award_uuid))
+
+
+def _check(db: Session, award: BadgeAward) -> dict:
+    proof = signing.verify(db, open_badges.credential(db, award))
     revoked = award.status == "revoked"
     return {"verified": proof and not revoked, "proof": proof, "revoked": revoked}
 

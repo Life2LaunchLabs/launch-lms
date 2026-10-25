@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.audit_logs import AuditLog
-from src.db.badges import BadgeAward
+from src.db.badges import CODE_ALPHABET, BadgeAward
 from src.db.organizations import Organization
 from src.services.badges import awards, direct, open_badges, signing
 from src.tests.plan_world import PARTNER, _assign, _finish, _goal_of, _world
@@ -86,3 +86,15 @@ def test_base58_and_status_lists_round_trip():
         assert signing.b58decode(signing.b58encode(data)) == data
     encoded = signing.encoded_list([0, 9, 131071])
     assert encoded.startswith("u") and [signing.is_set(encoded, index) for index in (0, 1, 9, 131071)] == [True, False, True, True]
+
+
+def test_an_award_has_a_short_code_for_its_page_read_leniently():
+    db, (plan, _) = _world()
+    with db:
+        _finish(db, _goal_of(db, _assign(db, PARTNER, plan.template_uuid)))
+        award = db.exec(select(BadgeAward)).one()
+        assert len(award.code) == 8 and set(award.code) <= set(CODE_ALPHABET)
+        assert awards.award_dict(db, award)["code"] == award.code
+        typed = award.code.lower().replace("1", "l").replace("0", "o")
+        assert awards.by_code(db, typed).id == award.id and awards.by_code(db, f" {award.code[:4]}-{award.code[4:]} ").id == award.id
+        assert awards.by_code(db, "ZZZZZZZZ" if award.code != "ZZZZZZZZ" else "YYYYYYYY") is None and awards.by_code(db, "") is None

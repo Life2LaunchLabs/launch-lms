@@ -70,6 +70,8 @@ export interface BadgeSummary { template_uuid: string; name: string; kind: Badge
 
 export interface BadgeAward {
   award_uuid: string
+  /** The award's short public code: its page is /b/<code>. */
+  code: string
   template_uuid: string | null
   semver: string | null
   source: 'plan_completion' | 'direct_award'
@@ -126,7 +128,8 @@ export const badgeAwardKeys = {
 export const badgeAwardsApi = {
   mine: (token: string): Promise<BadgeAward[]> => request('', token),
   award: (awardUuid: string, token?: string, next?: any): Promise<BadgeAward> => request(encodeURIComponent(awardUuid), token, next),
-  verify: (awardUuid: string, next?: any): Promise<AwardCheck> => request(`${encodeURIComponent(awardUuid)}/verify`, undefined, next),
+  /** An award by its short code, with the server's check of its proof and status. */
+  byCode: (code: string, next?: any): Promise<BadgeAward & { check: AwardCheck }> => request(`code/${encodeURIComponent(code)}`, undefined, next),
   revoke: (awardUuid: string, reason: string, token?: string): Promise<BadgeAward> => request(`${encodeURIComponent(awardUuid)}/revoke`, token, undefined, 'POST', { reason }),
   credentialUrl: (awardUuid: string) => `${getAPIUrl()}badge-awards/${encodeURIComponent(awardUuid)}/credential`,
   awardable: (orgId: number, token?: string): Promise<AwardablePlan[]> => request(`awardable${orgQuery(orgId)}`, token),
