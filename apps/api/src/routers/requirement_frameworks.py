@@ -1,17 +1,18 @@
-"""Requirement frameworks: create, edit, version, share through the library and assign to learners."""
+"""Requirement frameworks: create, edit, version, share through the library, and flag gaps to fill."""
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.requirements import (
-    RequirementAssignmentCreate,
     RequirementEnrollmentMigrate,
+    RequirementFlagsUpdate,
     RequirementFrameworkCreate,
     RequirementFrameworkUpdate,
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.services import requirement_tracking
 from src.services import requirements as requirement_service
 
 router = APIRouter()
@@ -62,15 +63,16 @@ def api_publish_requirement_framework(framework_uuid: str, org_id: int, db: Sess
 
 
 @router.post("/{framework_uuid}/publish-to-library")
-def api_publish_requirement_to_library(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return requirement_service.publish_framework_to_library(db, current_user, org_id, framework_uuid)
+def api_publish_requirement_to_library(framework_uuid: str, org_id: int, editable: bool = True, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.publish_framework_to_library(db, current_user, org_id, framework_uuid, editable)
 
 
-@router.post("/{framework_uuid}/assignments")
-def api_assign_requirement_framework(framework_uuid: str, org_id: int, payload: RequirementAssignmentCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return requirement_service.assign_framework(db, current_user, org_id, framework_uuid, payload)
+@router.put("/{framework_uuid}/flags")
+def api_set_requirement_flags(framework_uuid: str, org_id: int, payload: RequirementFlagsUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    """The gaps staff flagged to fill: shown in Discover and on plans that count toward the framework."""
+    return requirement_service.set_flags(db, current_user, org_id, framework_uuid, payload.node_uuids)
 
 
 @router.post("/{framework_uuid}/migrate-active")
 def api_migrate_requirement_enrollments(framework_uuid: str, org_id: int, payload: RequirementEnrollmentMigrate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return requirement_service.migrate_enrollments(db, current_user, org_id, framework_uuid, payload)
+    return requirement_tracking.migrate_enrollments(db, current_user, org_id, framework_uuid, payload)

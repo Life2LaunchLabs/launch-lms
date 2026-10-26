@@ -65,10 +65,38 @@ def test_validation_reports_paths(world):
     assert {"path": "nodes[2].parent_node_uuid", "message": "No node in this document has node_uuid nope"} in errors
     broken["nodes"][2]["parent_node_uuid"] = "new-pro"
     errors = call("validate_requirement_framework", {"document": broken})["structuredContent"]["errors"]
-    assert errors == [{"path": "nodes[1].metadata", "message": "Fill in the required Standard fields: Hours"}]
-    too_deep = _framework_document()
-    too_deep["nodes"].append({"title": "Detail", "parent_node_uuid": "new-comm"})
-    assert "enough hierarchy levels" in call("validate_requirement_framework", {"document": too_deep})["structuredContent"]["errors"][0]["message"]
+    assert errors == [{"path": "nodes[1].metadata", "message": "Fill in the required fields: Hours"}]
+    greedy = _framework_document()
+    greedy["nodes"][0]["rule"] = {"kind": "any", "count": 3}
+    assert "can need between 1 and 2" in call("validate_requirement_framework", {"document": greedy})["structuredContent"]["errors"][0]["message"]
+
+
+def test_categories_number_their_own_children_without_levels(world):
+    _, call, _, _ = world
+    document = {
+        "framework": {"name": "Graduation readiness", "numbering": "custom",
+                      "fields": [{"field_uuid": "credit", "name": "Credit", "type": "number", "applies": "groups"}]},
+        "nodes": [
+            {"node_uuid": "new-sb3", "code": "SB3", "title": "Higher Education & Career Path Skills", "numbering": "decimal", "metadata": {"credit": 0.5}},
+            {"node_uuid": "new-higher", "parent_node_uuid": "new-sb3", "title": "Higher education", "numbering": "lower_alpha"},
+            {"parent_node_uuid": "new-higher", "title": "Explore options"},
+            {"parent_node_uuid": "new-higher", "title": "Apply for financial aid"},
+            {"node_uuid": "new-ccl", "code": "CCL", "title": "Career Connected Learning", "rule": {"kind": "any", "count": 2}},
+            {"parent_node_uuid": "new-ccl", "code": "CCL-AW", "title": "Awareness"},
+            {"parent_node_uuid": "new-ccl", "code": "CCL-EX", "title": "Exploration"},
+            {"parent_node_uuid": "new-ccl", "code": "CCL-PR", "title": "Preparation"},
+            {"node_uuid": "new-pps", "code": "PPS", "title": "Our expectations", "numbering": "none"},
+            {"parent_node_uuid": "new-pps", "code": "dropped", "title": "Senior portfolio"},
+        ],
+    }
+    created = call("create_requirement_framework", {"document": document})["structuredContent"]
+    nodes = created["document"]["nodes"]
+    assert [node["code"] for node in nodes] == ["SB3", "SB3.1", "SB3.1.a", "SB3.1.b", "CCL", "CCL-AW", "CCL-EX", "CCL-PR", "PPS", ""]
+    assert nodes[4]["rule"] == {"kind": "any", "count": 2} and "rule" not in nodes[0]
+    assert (nodes[0]["numbering"], nodes[1]["numbering"], nodes[8]["numbering"]) == ("decimal", "lower_alpha", "none")
+    assert created["document"]["framework"]["fields"] == [{"field_uuid": "credit", "name": "Credit", "type": "number", "applies": "groups", "required": False}]
+    again = call("save_requirement_framework", {"framework_uuid": created["context"]["framework_uuid"], "document": created["document"], "base_etag": created["etag"]})
+    assert again["structuredContent"]["changed"] is False
 
 
 def test_link_objectives_and_see_coverage_then_edit_and_publish(world):

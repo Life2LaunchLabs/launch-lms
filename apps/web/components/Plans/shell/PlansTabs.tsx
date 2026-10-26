@@ -3,7 +3,7 @@
 import React from 'react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import AssignmentsList from '@components/Assignments/list/AssignmentsList'
-import { RequirementFrameworkDetail } from '@components/Goals/admin/insights/RequirementFrameworkEditor'
+import FrameworkPage from '@components/Requirements/FrameworkPage'
 import FrameworkList from '@components/Goals/admin/requirements/FrameworkList'
 import { useStaff } from '@components/Goals/admin/assignments/shared'
 import DiscoverHome from '@components/Plans/discover/DiscoverHome'
@@ -44,5 +44,5 @@ export function RequestsTab() {
 /** One requirement framework, under Plans › Requirements: coverage by plan, details, levels and spec. */
 export function RequirementFrameworkPage({ orgslug, frameworkUuid, subpage }: { orgslug: string; frameworkUuid: string; subpage: FrameworkSubpage }) {
   const { orgId, token } = useStaff()
-  return <AdminTabPage tab="plans"><RequirementFrameworkDetail orgslug={orgslug} orgId={orgId} token={token} frameworkUuid={frameworkUuid} activeSubpage={subpage} /></AdminTabPage>
+  return <AdminTabPage tab="plans"><FrameworkPage orgslug={orgslug} orgId={orgId} token={token} frameworkUuid={frameworkUuid} editing={subpage === 'edit'} /></AdminTabPage>
 }

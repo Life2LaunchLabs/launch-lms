@@ -8,7 +8,7 @@ export type OrgTab = 'overview' | 'invites' | 'join'
 /** The Plans area's tabs, each its own page, always in this order. */
 export type PlansTabId = 'plans' | 'discover' | 'assignments' | 'requirements' | 'requests'
 /** A requirement framework's pages under Plans › Requirements. */
-export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans'
+export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans' | 'edit'
 
 const PLANS_TAB_PATHS: Record<PlansTabId, string> = {
   plans: '/admin/plans',
@@ -216,12 +216,14 @@ export const routePaths = {
       planCollection: (collectionUuid: string) => `/admin/plans/collections/${encodeURIComponent(collectionUuid)}`,
       /** Plans › Discover: what other organizations share, optionally searched. */
       discover: (q?: string | null) => withQuery(PLANS_TAB_PATHS.discover, { q }),
+      /** Plans › Discover narrowed to plans counting toward these requirements of a framework (such as its flagged gaps). */
+      discoverCovering: (frameworkUuid: string, nodeUuids: string[]) => withQuery(PLANS_TAB_PATHS.discover, { fw: frameworkUuid, covers: nodeUuids.join(',') }),
       /** A plan or collection another organization shares, as Discover shows it. */
       discoverPlan: (templateUuid: string) => `/admin/plans/discover/plan/${encodeURIComponent(templateUuid)}`,
       discoverCollection: (collectionUuid: string) => `/admin/plans/discover/collection/${encodeURIComponent(collectionUuid)}`,
       /** Plans › Requirements: the org's requirement frameworks. */
       requirements: () => PLANS_TAB_PATHS.requirements,
-      /** One framework under Plans › Requirements: details, levels, spec, or coverage by plan. */
+      /** One framework under Plans › Requirements: its tree (any subpage but edit, kept from the old tabs), or editing it. */
       requirementFrameworkPlans: frameworkPage,
       // Insights: dashboards about the organization, one plan, one group or one learner; reports by group; learners' evidence by group.
       /** The organization's dashboards; `dashboard` opens one of them. */

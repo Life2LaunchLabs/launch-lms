@@ -121,7 +121,7 @@ function Frameworks({ orgslug }: { orgslug: string }) {
     try {
       const created: any = await requirementsApi.copyFromLibrary(orgId, uuid, token)
       toast.success('Tracking it. It’s in your requirements now.')
-      if (created?.framework_uuid) router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(created.framework_uuid, 'details')))
+      if (created?.framework_uuid) router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(created.framework_uuid, 'plans')))
     } catch (error: any) { toast.error(error?.message || 'Could not add the framework.') } finally { setBusy(null) }
   }
   return <Section title="Requirement frameworks">

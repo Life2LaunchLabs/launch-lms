@@ -31,6 +31,7 @@ from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_membership
 from src.services.goals import access
+from src.services.goals.templates import cover
 from src.services.goals.document import iter_steps
 
 REVIEW = "complete_restricted_objectives"
@@ -103,7 +104,7 @@ def _planned_steps(db: Session, goals: list[Goal]) -> dict[str, list[dict]]:
 
 
 def _enrollments(db: Session, org_id: int, user_ids: list[int]) -> list[RequirementEnrollment]:
-    from src.services.requirements import sync_group_batches
+    from src.services.requirement_tracking import sync_group_batches
 
     sync_group_batches(db, org_id)
     db.commit()
@@ -276,7 +277,7 @@ def add_makeup_step(db: Session, current_user: PublicUser, org_id: int, user_id:
 
 def credit_requirement(db: Session, current_user: PublicUser, org_id: int, user_id: int, enrollment_uuid: str, node_uuid: str, note: str) -> dict:
     """Staff attest that a learner meets a requirement, with the reason on record."""
-    from src.services.requirements import _recompute_enrollment
+    from src.services.requirement_tracking import _recompute_enrollment
 
     note = (note or "").strip()
     if not note:
@@ -325,7 +326,7 @@ def _template_coverage(db: Session, org_id: int, node_uuids: set[str]) -> tuple[
                         "template_uuid": template.template_uuid, "step_key": step.get("key"), "title": step.get("title"),
                         "step_types": [step.get("type")],
                     })
-        templates.append({"template_uuid": template.template_uuid, "title": template.title, "mapped": mapped})
+        templates.append({"template_uuid": template.template_uuid, "title": template.title, "mapped": mapped, **cover(template)})
     return by_node, templates
 
 
@@ -337,7 +338,9 @@ def coverage(db: Session, current_user: PublicUser, org_id: int, framework_uuid:
     framework_view = _framework_dict(db, _framework_or_404(db, org_id, framework_uuid))
     by_node, templates = _template_coverage(db, org_id, {node["node_uuid"] for node in framework_view["nodes"]})
     return {
-        "framework": {key: framework_view[key] for key in ("framework_uuid", "name", "description", "version", "status", "source_framework_uuid", "source_metadata")},
+        "framework": {key: framework_view[key] for key in (
+            "framework_uuid", "name", "description", "version", "status", "source_framework_uuid", "source_metadata", "locked", "flagged_node_uuids",
+        )},
         "templates": templates,
         "nodes": [{**node, "covered_by": by_node.get(node["node_uuid"], [])} for node in framework_view["nodes"]],
     }
@@ -359,10 +362,36 @@ def coverage_summaries(db: Session, org_id: int, framework_views: list[dict]) ->
         templates = {item["template_uuid"] for node_uuid in nodes for item in by_node.get(node_uuid, [])}
         total = len(framework_leaves)
         summaries[view["framework_uuid"]] = {
-            "covered": covered, "total": total, "gaps": total - covered, "template_count": len(templates),
+            "covered": covered, "total": total, "gaps": len(gap_uuids(view["nodes"], set(by_node))), "template_count": len(templates),
             "percent": round(covered * 100 / total) if total else 0,
         }
     return summaries
+
+
+def gap_uuids(nodes: list[dict], covered: set[str]) -> list[str]:
+    """Requirements nothing covers, leaving out ones a group doesn't need: under an "any N" group that already has N
+    children covered, the rest aren't gaps."""
+    children: dict[str | None, list[dict]] = {}
+    for node in nodes:
+        children.setdefault(node.get("parent_node_uuid"), []).append(node)
+
+    def met(node: dict) -> bool:
+        kids = children.get(node["node_uuid"])
+        if not kids:
+            return node["node_uuid"] in covered
+        rule = node.get("rule") or {}
+        needed = int(rule.get("count") or 0) if rule.get("kind") == "any" else len(kids)
+        return sum(1 for kid in kids if met(kid)) >= needed
+
+    def gaps(node: dict) -> list[str]:
+        kids = children.get(node["node_uuid"])
+        if not kids:
+            return [] if node["node_uuid"] in covered else [node["node_uuid"]]
+        if met(node):
+            return []
+        return [uuid for kid in kids for uuid in gaps(kid)]
+
+    return [uuid for root in children.get(None, []) for uuid in gaps(root)]
 
 
 def _leaf_uuids(nodes: list[dict]) -> list[str]:

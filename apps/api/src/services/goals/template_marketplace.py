@@ -180,6 +180,13 @@ def authorization_dict(db: Session, authorization: GoalTemplateAuthorization, te
     }
 
 
+def covered_nodes(db: Session, template: GoalTemplate, node_uuids: list[str]) -> list[str]:
+    """Which of these requirement nodes the template's published steps count toward."""
+    live = templates.published_version(db, template)
+    linked = {node for _, step in iter_steps((live.document if live else {}) or {}) for node in step.get("requirement_node_uuids") or []}
+    return [node for node in dict.fromkeys(node_uuids) if node in linked]
+
+
 def _card(db: Session, template: GoalTemplate, listing: GoalTemplateListing, org_id: int | None) -> dict:
     live = templates.published_version(db, template)
     document = (live.document if live else {}) or {}

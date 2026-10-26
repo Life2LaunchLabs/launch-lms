@@ -7,7 +7,8 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalStep, StepProgress, StepStatus
 from src.db.requirements import RequirementEnrollment
-from src.services.requirements import _available, _recompute_enrollment, _upsert_source, mappable_nodes
+from src.services.requirement_tracking import _recompute_enrollment, _upsert_source, track
+from src.services.requirements import _available, mappable_nodes
 
 
 def sync_step_progress(db: Session, progress: StepProgress, step: GoalStep, goal: Goal, evidence: dict) -> None:
@@ -17,6 +18,8 @@ def sync_step_progress(db: Session, progress: StepProgress, step: GoalStep, goal
     if not progress.id:
         db.flush()
     active = getattr(progress.status, "value", progress.status) == StepStatus.COMPLETED.value
+    # a goal issued before its framework was published, or before its learner had an account, starts tracking here
+    track(db, goal.org_id, goal.subject_user_id, {int(link["framework_id"]) for link in step.requirement_links if link.get("framework_id")})
     for link in step.requirement_links:
         enrollments = db.exec(select(RequirementEnrollment).where(
             RequirementEnrollment.org_id == goal.org_id,

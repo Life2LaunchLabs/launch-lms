@@ -1,6 +1,6 @@
 """Discover: plans and collections other organizations share, and adding them."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
@@ -12,9 +12,13 @@ router = APIRouter()
 
 
 @router.get("")
-def api_discover(org_id: int, q: str = "", db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """The featured partner collection, shared collections, and listed plans with their categories."""
-    return discover.discover(db, user, org_id, q)
+def api_discover(
+    org_id: int, q: str = "", covers: list[str] | None = Query(None),
+    db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user),
+):
+    """The featured partner collection, shared collections, and listed plans with their categories; with ``covers``,
+    only plans counting toward those requirements."""
+    return discover.discover(db, user, org_id, q, covers)
 
 
 @router.get("/added")

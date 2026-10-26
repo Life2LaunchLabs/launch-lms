@@ -173,6 +173,9 @@ def issue_goal(
             access.add_member(db, goal, int(staff_id), staff_role)
 
     build_stages(db, goal, document, stage_schedule(document, start_date, stage_dates))
+    from src.services.requirement_tracking import track_goal
+
+    track_goal(db, goal)  # its learner is tracked on what the plan counts toward
     access.log(db, goal, actor_user_id, "goal.issued", {"source": _source_value(source), "template_uuid": template.template_uuid, "version": version.number})
     return goal
 
@@ -186,5 +189,8 @@ def issue_step(db: Session, goal: Goal, version: GoalTemplateVersion, step_key: 
     position = 0 if last is None else last + 1
     step = build_step(db, goal, stage, {**spec, "after": []}, position)
     db.flush()
+    from src.services.requirement_tracking import track_goal
+
+    track_goal(db, goal)
     access.log(db, goal, actor_user_id, "step.added", {"step_uuid": step.step_uuid, "from_template_step": step_key})
     return step
