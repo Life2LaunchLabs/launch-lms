@@ -21,6 +21,7 @@ from sqlmodel import Session, col, func, select
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalOwnership, GoalSource, GoalStage, GoalStatus, GoalStep, StepProgress, StepStatus
 from src.db.organizations import Organization
+from src.db.resources import Resource
 from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
 from src.services.connect import chats, cohort, people, visibility
@@ -34,7 +35,7 @@ KINDS = (school_chats.SCHOOL, GOAL)
 TOPIC_KINDS = (*KINDS, cohort.COHORT)
 PROGRESS = "plan_progress"
 ORG_MENTION = "org_mention"
-TOKEN = re.compile(r"<(plan|step|user|org):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
+TOKEN = re.compile(r"<(plan|step|user|org|resource):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
 # Plans a chat is about: waiting to be accepted, under way, or finished.
 LIVE = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
 INVITE_ROLE = "commenter"
@@ -223,6 +224,8 @@ def prepare(db: Session, conversation: Conversation, body: str, sender_id: int |
             add(ref := {"kind": "user", "user_uuid": first})
         elif kind == "org" and db.exec(select(Organization.id).where(Organization.org_uuid == first)).first():
             add(ref := {"kind": "org", "org_uuid": first})
+        elif kind == "resource" and _shareable_resource(db, first, sender_id):
+            add(ref := {"kind": "resource", "resource_uuid": first})
         return match.group(0) if ref else ""
 
     text = re.sub(r"[ \t]{2,}", " ", TOKEN.sub(keep, body)).strip()
@@ -256,7 +259,7 @@ def resolve(db: Session, refs: list[dict] | None, cache: dict, viewer_id: int | 
     resolved: list[dict] = []
     for ref in refs or []:
         kind = ref.get("kind")
-        key = f"{kind}:{ref.get('goal_uuid') or ref.get('user_uuid') or ref.get('org_uuid')}" + (f"/{ref['step_uuid']}" if ref.get("step_uuid") else "")
+        key = f"{kind}:{ref.get('goal_uuid') or ref.get('user_uuid') or ref.get('org_uuid') or ref.get('resource_uuid')}" + (f"/{ref['step_uuid']}" if ref.get("step_uuid") else "")
         if key not in cache:
             found = _resolve_one(db, ref)
             if found and ref.get("outside"):
@@ -290,7 +293,19 @@ def _resolve_one(db: Session, ref: dict) -> dict | None:
         org = db.exec(select(Organization).where(Organization.org_uuid == ref.get("org_uuid"))).first()
         summary = org_summary(db, org.id) if org else None
         return {"kind": "org", **summary} if summary else None
+    if kind == "resource":
+        resource = db.exec(select(Resource).where(Resource.resource_uuid == ref.get("resource_uuid"))).first()
+        return {"kind": "resource", "resource_uuid": resource.resource_uuid, "title": resource.title, "url": resource.external_url,
+                "resource_type": resource.resource_type, "provider_name": resource.provider_name} if resource else None
     return None
+
+
+def _shareable_resource(db: Session, resource_uuid: str, sender_id: int | None) -> bool:
+    """A resource the sender can see themselves: its org's staff, or in a channel open to them."""
+    from src.services.resources import _resource_in_accessible_channel
+
+    resource = db.exec(select(Resource).where(Resource.resource_uuid == resource_uuid)).first()
+    return bool(resource and sender_id and _resource_in_accessible_channel(resource, db, PublicUser.model_construct(id=sender_id)))
 
 
 def plain(db: Session, body: str, refs: list[dict] | None, viewer_id: int | None = None) -> str:

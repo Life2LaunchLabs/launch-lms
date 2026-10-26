@@ -246,3 +246,23 @@ def test_an_organizations_notice_is_a_message_from_it():
         # Delivered once, however often the list loads.
         chats.list_chats(db, _user(LEARNER))
         assert len(chats.get_chat(db, _user(LEARNER), chat["conversation_uuid"])["messages"]) == 2
+
+
+def test_a_resource_tag_shows_its_title_and_link_when_the_sender_can_see_it():
+    from sqlmodel import SQLModel
+    from src.db.resources import Resource, ResourceChannel, ResourceChannelResource
+
+    with _session() as db:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[Resource.__table__, ResourceChannel.__table__, ResourceChannelResource.__table__])  # type: ignore[attr-defined]
+        for channel_id, audience in ((1, "org"), (2, "staff")):
+            db.add(ResourceChannel(id=channel_id, org_id=1, channel_uuid=f"channel_{channel_id}", name=f"Channel {channel_id}", audience=audience, creation_date=NOW, update_date=NOW))
+            db.add(Resource(id=channel_id, org_id=1, resource_uuid=f"resource_{channel_id}", title=f"Guide {channel_id}", resource_type="guide",
+                            external_url=f"https://example.com/{channel_id}", creation_date=NOW, update_date=NOW))
+            db.add(ResourceChannelResource(channel_id=channel_id, resource_id=channel_id))
+        db.commit()
+        _plan(db)
+        uuid = _org_chat(db)["conversation_uuid"]
+        sent = chats.send(db, _user(LEARNER), uuid, "Have a look <resource:resource_1> <resource:resource_2>")
+        assert sent["body"] == "Have a look <resource:resource_1>"
+        assert [(ref["kind"], ref["title"], ref["url"]) for ref in sent["refs"]] == [("resource", "Guide 1", "https://example.com/1")]
+        assert workspace.plain(db, sent["body"], sent["refs"], LEARNER) == "Have a look Guide 1"

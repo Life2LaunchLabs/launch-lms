@@ -10,6 +10,7 @@ import type { Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { AskCoach, CardNote, Feedback, FinishControls, StepIntro } from './shared'
 import { evidenceOf, ExploreBoard, KIND, pinned, Thumb, type Evidence } from './exploreBoard'
+import { ExploreSuggestions } from './exploreSuggestions'
 
 function ExploreRow({ step }: { step: Step<'explore'> }) {
   const result = step.result?.kind === 'explore' ? step.result : null
@@ -98,6 +99,7 @@ export const explore: StepDefinition<'explore'> = {
   },
   RowResult: ExploreRow,
   CardBody: ExploreCard,
+  ConfigPanel: ExploreSuggestions,
   SettingsPanel: ExploreSettings,
   notePrompt: false,
   defaultConfig: () => ({ suggestions: [] }),
