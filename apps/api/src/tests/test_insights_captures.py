@@ -168,3 +168,13 @@ def test_attachments_are_built_with_the_capture_and_kept_off_links_unless_public
     assert made["attachments"][0]["rows"] == [{"name": "Ana"}]
     token = captures.set_link(db, _user(ADMIN), 1, made["capture_uuid"], on=True)["link"]["token"]
     assert [item["kind"] for item in captures.shared(db, token)["attachments"]] == ["summary"]
+
+
+def test_the_read_only_link_route_needs_no_sign_in():
+    from src.router import v1_router
+
+    route = next(item for item in v1_router.routes if getattr(item, "path", "") == "/api/v1/insights/shared/{token}")
+    calls = {getattr(dep.call, "__name__", "") for dep in route.dependant.dependencies}  # type: ignore[attr-defined]
+    assert not calls & {"get_non_api_token_user", "get_current_user"}
+    others = next(item for item in v1_router.routes if getattr(item, "path", "") == "/api/v1/insights/captures/{capture_uuid}" and "GET" in item.methods)  # type: ignore[attr-defined]
+    assert "get_non_api_token_user" in {getattr(dep.call, "__name__", "") for dep in others.dependant.dependencies}  # type: ignore[attr-defined]

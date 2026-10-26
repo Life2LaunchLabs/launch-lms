@@ -102,6 +102,7 @@ for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_stor
 for module in (goal_admin, goal_requirements, goal_reports, goal_helper_requests):
     v1_router.include_router(module.router, prefix="/goal-admin", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(insights.router, prefix="/insights", tags=["insights"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(insights.public_router, prefix="/insights", tags=["insights"])
 v1_router.include_router(assignments_router.router, prefix="/plan-assignments", tags=["assignments"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     goals.router,

@@ -13,6 +13,8 @@ from src.services.insights import captures, context, dashboards, engine
 from src.services.insights.spec import CardSpec, CustomRange
 
 router = APIRouter()
+# Read-only links open signed out, so they sit outside the router's sign-in dependency (``src/router.py``).
+public_router = APIRouter()
 
 
 class ScopeRef(BaseModel):
@@ -165,7 +167,7 @@ def api_capture_link(org_id: int, capture_uuid: str, payload: CaptureLink, db: S
     return captures.set_link(db, user, org_id, capture_uuid, on=payload.on, days=payload.days)
 
 
-@router.get("/shared/{token}")
+@public_router.get("/shared/{token}")
 def api_shared_capture(token: str, db: Session = Depends(get_db_session)):
     """A capture's read-only link: no sign-in, small numbers hidden, no names."""
     return captures.shared(db, token)
