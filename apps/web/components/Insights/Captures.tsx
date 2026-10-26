@@ -108,7 +108,9 @@ function SharePanel({ capture }: { capture: Capture }) {
   const [days, setDays] = React.useState<number | null>(30)
   const [busy, setBusy] = React.useState(false)
   const link = capture.link && !capture.link.expired ? capture.link : null
-  const href = link && typeof window !== 'undefined' ? `${window.location.origin}${getUriWithOrg(orgslug, routePaths.org.insightsShared(link.token))}` : ''
+  const path = link ? getUriWithOrg(orgslug, routePaths.org.insightsShared(link.token)) : ''
+  // getUriWithOrg is already absolute on subdomain hosts.
+  const href = path && typeof window !== 'undefined' ? new URL(path, window.location.origin).toString() : ''
   const set = async (on: boolean) => {
     setBusy(true)
     try {
