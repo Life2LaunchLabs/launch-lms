@@ -345,3 +345,74 @@ async def test_resend_enforces_cooldown(session: Session, monkeypatch):
     with pytest.raises(Exception) as exc_info:
         await org_users_service.resend_invited_user(request, 1, invitation.invitation_uuid, session, current_user)
     assert getattr(exc_info.value, "status_code", None) == 429
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("signup_mode", ["inviteOnly", "open"])
+async def test_existing_user_joining_from_a_group_join_link_lands_in_the_group(session: Session, monkeypatch, signup_mode: str):
+    _seed(session)
+
+    async def mechanism(*_args, **_kwargs):
+        return signup_mode
+
+    async def join_link(*_args, **_kwargs):
+        return {"invite_code_uuid": "link_1", "usergroup_id": 1}
+
+    added_to_groups: list[tuple[int, str]] = []
+
+    async def add_to_group(_request, _session, _actor, group_id, user_ids):
+        added_to_groups.append((group_id, user_ids))
+
+    redeemed: list[str] = []
+    monkeypatch.setattr(join_service, "get_org_join_mechanism", mechanism)
+    monkeypatch.setattr(join_service, "get_invite_code", join_link)
+    monkeypatch.setattr(join_service, "redeem_join_link", lambda _session, link_uuid, _email: redeemed.append(link_uuid))
+    monkeypatch.setattr(join_service, "add_users_to_usergroup", add_to_group)
+    monkeypatch.setattr("src.routers.users._invalidate_session_cache", lambda *_args: None)
+
+    current_user = PublicUser(id=2, user_uuid="user_2", username="existing", email="existing@example.com", first_name="E", last_name="Xisting")
+    request = Request({"type": "http", "scheme": "https", "server": ("studio.example.com", 443), "path": "/", "headers": []})
+    await join_service.join_org(request, JoinOrg(org_id=1, user_id=2, invite_code="secret"), current_user, session)
+
+    assert redeemed == ["link_1"]
+    assert added_to_groups == [(1, "2")]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("role_id", "redirect"), [(4, "/orgs/school"), (2, "/orgs/school/admin")])
+async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session: Session, monkeypatch, role_id: int, redirect: str):
+    from starlette.responses import Response
+
+    from src.routers import auth as auth_router
+
+    _seed(session)
+    session.add(Organization(id=2, org_uuid="org_2", name="School", slug="school", email="school@example.com"))
+    session.add(_invitation(org_id=2, role_id=role_id))
+    session.commit()
+    joined: list[tuple[int, str]] = []
+
+    async def create_invited(_request, db, _actor, user_object, org_id, token):
+        joined.append((org_id, token))
+        db.add(User(id=9, user_uuid="user_9", username=user_object.username, email=user_object.email, first_name="", last_name=""))
+        db.add(UserOrganization(user_id=9, org_id=org_id, role_id=role_id, creation_date=NOW.isoformat(), update_date=NOW.isoformat()))
+        db.commit()
+        return UserRead(id=9, user_uuid="user_9", username=user_object.username, email=user_object.email, first_name="", last_name="")
+
+    async def owner_org_signup(*_args, **_kwargs):
+        raise AssertionError("an invited signup must not join the owner organization")
+
+    monkeypatch.setattr(user_service, "create_user_with_organization_invitation", create_invited)
+    monkeypatch.setattr(user_service, "create_user", owner_org_signup)
+    monkeypatch.setattr(auth_router, "require_owner_org", lambda db: db.get(Organization, 1))
+    request = Request({"type": "http", "scheme": "https", "server": ("school.example.com", 443), "path": "/", "headers": []})
+    body = auth_router.WelcomeSignupRequest(email="pending@example.com", password="Str0ng!Passw0rd", invitation_token="invite_1")
+
+    result = await auth_router.complete_welcome_signup(request, Response(), body, session)
+
+    assert joined == [(2, "invite_1")]
+    assert result["onboarding"] == {"org_slug": "school", "redirect_url": redirect}
+
+    unknown = auth_router.WelcomeSignupRequest(email="other@example.com", password="Str0ng!Passw0rd", invitation_token="nope")
+    with pytest.raises(Exception) as exc_info:
+        await auth_router.complete_welcome_signup(request, Response(), unknown, session)
+    assert getattr(exc_info.value, "status_code", None) == 403
