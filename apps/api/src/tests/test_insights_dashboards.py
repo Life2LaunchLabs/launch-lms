@@ -32,22 +32,22 @@ def test_every_template_card_fits_its_scope(item):
         assert check(CardSpec.model_validate(card["spec"]), item["scope"], see_reports=True) == [], card["key"]
 
 
-@pytest.mark.parametrize("scope", ["org", "plan", "group"])
+@pytest.mark.parametrize("scope", ["org", "plan", "group", "learner"])
 def test_every_question_fits_some_scope_and_the_library_filters_by_scope(scope):
     offered = library.library(scope, see_reports=True)
     assert offered["templates"] and offered["questions"]
     for item in offered["questions"]:
         assert check(CardSpec.model_validate(item["spec"]), scope, see_reports=True) == []
-    assert all(any(not check(CardSpec.model_validate(item["spec"]), kind, see_reports=True) for kind in ("org", "plan", "group")) for item in library.QUESTIONS)
+    assert all(any(not check(CardSpec.model_validate(item["spec"]), kind, see_reports=True) for kind in ("org", "plan", "group", "learner")) for item in library.QUESTIONS)
 
 
 def test_starters_are_made_once_shared_with_staff_and_run(db):
     listed = dashboards.list_dashboards(db, _user(ANA), 1)
     assert [item["source_template"] for item in listed] == [f"starter:{key}" for key in library.STARTERS]
     assert all(item["visibility"] == "staff" and not item["mine"] and not item["editable"] for item in listed)
-    assert len(dashboards.list_dashboards(db, _user(ADMIN), 1)) == 3
+    assert len(dashboards.list_dashboards(db, _user(ADMIN), 1)) == 4
 
-    for item, key in zip(listed, (None, "tpl_cl", "grp_fall")):
+    for item, key in zip(listed, (None, "tpl_cl", "grp_fall", "user_13")):
         board = dashboards.get_dashboard(db, _user(ADMIN), 1, item["dashboard_uuid"])
         results = engine.run_cards(engine.context(db, _user(ADMIN), 1, board["scope"], key, today=TODAY), board["document"]["cards"], board["document"]["range"])
         assert all("error" not in result for result in results.values()), item["source_template"]
@@ -57,7 +57,7 @@ def test_deleting_every_starter_does_not_bring_them_back(db):
     for item in dashboards.list_dashboards(db, _user(ADMIN), 1):
         dashboards.delete_dashboard(db, _user(ADMIN), 1, item["dashboard_uuid"])
     assert dashboards.list_dashboards(db, _user(ADMIN), 1) == []
-    assert len(db.exec(select(InsightDashboard)).all()) == 3
+    assert len(db.exec(select(InsightDashboard)).all()) == 4
 
 
 def test_personal_dashboards_are_only_the_owners(db):

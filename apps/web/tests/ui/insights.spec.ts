@@ -147,3 +147,22 @@ test('insights.schedules: a dashboard schedules weekly captures, and Run now cap
   await expect(page.getByText(note)).toBeVisible()
   await expect(page.getByText(/on a schedule/)).toBeVisible()
 })
+
+test('insights.learner: a learner dashboard opens from the rail, runs its cards and switches learners', async ({ page }, testInfo) => {
+  test.setTimeout(60_000)
+  await page.goto(insightsPath)
+  await assertActualApp(page)
+  await (await rail(page)).getByRole('link', { name: /Learners/ }).click()
+  await expect(page.getByRole('button', { name: 'Switch learner' })).toBeVisible()
+  const views = page.getByRole('navigation', { name: 'Learner dashboards' })
+  await expect(views.getByRole('link', { name: 'Learner overview' })).toHaveAttribute('aria-current', 'page')
+  await expect(cards(page).first()).toBeVisible()
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
+  expect(await cards(page).count()).toBeGreaterThanOrEqual(8)
+  await capture(page, testInfo, 'insights-learner.png')
+
+  await page.getByRole('button', { name: 'Switch learner' }).click()
+  await expect(page.getByRole('menuitem').first()).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+})

@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { ExternalLink, Eye, Layers3, Loader2, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, ExternalLink, Eye, Layers3, Loader2, UserRound, Users, X } from 'lucide-react'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
 import LearnerBadges from '@components/Badges/award/LearnerBadges'
@@ -62,7 +62,11 @@ export default function PersonProfile({ orgslug, username, tab = 'overview', com
     </span>}
     chips={profile.groups.length ? profile.groups.map((group) => <Link key={`${group.as}-${group.id}`} href={getUriWithOrg(orgslug, admin.people.group(group.id))}
       className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-2.5 text-xs font-semibold hover:bg-muted"><Users size={12} />{group.name}{group.as === 'staff' ? <span className="font-normal text-muted-foreground">· staff</span> : null}</Link>) : null}
-    actions={compact ? null : <ThreadButton primary onClick={() => thread()} />}
+    actions={compact ? null : <>
+      {profile.role === 'learner' && user.user_uuid ? <Link href={getUriWithOrg(orgslug, admin.insightsScope('learner', user.user_uuid))}
+        className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold hover:bg-muted"><BarChart3 size={16} aria-hidden="true" />Insights</Link> : null}
+      <ThreadButton primary onClick={() => thread()} />
+    </>}
     tabs={tabs.map((key) => ({ key, label: labels[key], href: getUriWithOrg(orgslug, admin.people.user(user.username, key)) }))}
     tab={current} onTab={compact ? (key) => setShown(key as PersonTab) : undefined}>
     {current === 'overview' ? <Overview orgslug={orgslug} profile={profile} thread={thread} showPlans={() => compact ? setShown('plans') : undefined} compact={compact} />

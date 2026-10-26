@@ -183,7 +183,7 @@ def scope(db: Session, pop: Population, kind: str, key: str | None) -> Scope:
 
 
 def objects(db: Session, pop: Population, kind: str) -> list[dict]:
-    """The plans or groups this viewer can open a dashboard on, most learners first.
+    """The plans, groups or learners this viewer can open a dashboard on, most learners first (learners by name).
 
     Plans are the organization's own (not archived) and any plan its learners have started; groups are the
     organization's, or for staff without See reports the ones that hold their learners.
@@ -206,11 +206,28 @@ def objects(db: Session, pop: Population, kind: str) -> list[dict]:
         groups = db.exec(select(UserGroup).where(UserGroup.org_id == pop.org_id)).all()
         rows = [{"key": group.usergroup_uuid, "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
                 for group in groups if pop.see_reports or int(group.id) in members]  # type: ignore[arg-type]
+    elif kind == "learner":
+        return _learner_objects(db, pop)
     elif kind == "org":
         return []
     else:
-        raise HTTPException(status_code=422, detail="Objects are plans or groups")
+        raise HTTPException(status_code=422, detail="Objects are plans, groups or learners")
     return sorted(rows, key=lambda row: (-row["learners"], row["label"].lower()))
+
+
+def _learner_objects(db: Session, pop: Population) -> list[dict]:
+    """The active learners this viewer counts, by name, each with their groups."""
+    ids = [user_id for user_id, status in pop.status.items() if status == "active"]
+    if not ids:
+        return []
+    groups: dict[int, list[str]] = {}
+    for user_id, name in db.exec(select(UserGroupUser.user_id, UserGroup.name).join(UserGroup, UserGroup.id == UserGroupUser.usergroup_id)
+                                 .where(UserGroup.org_id == pop.org_id, col(UserGroupUser.user_id).in_(ids))).all():
+        groups.setdefault(int(user_id), []).append(name)
+    people = db.exec(select(User).where(col(User.id).in_(ids))).all()
+    rows = [{"key": user.user_uuid, "label": " ".join(part for part in (user.first_name, user.last_name) if part) or user.username, "learners": 1,
+             "detail": ", ".join(sorted(groups.get(int(user.id), []))) or "No group"} for user in people]  # type: ignore[arg-type]
+    return sorted(rows, key=lambda row: row["label"].lower())
 
 
 # Lookups measures share ---------------------------------------------------------------------------

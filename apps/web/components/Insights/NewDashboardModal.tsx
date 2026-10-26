@@ -17,6 +17,7 @@ const SCOPES: Array<{ scope: Scope; detail: string }> = [
   { scope: 'org', detail: 'The whole organization' },
   { scope: 'plan', detail: 'Any one plan, picked when you open it' },
   { scope: 'group', detail: 'Any one group, picked when you open it' },
+  { scope: 'learner', detail: 'Any one learner, picked when you open it' },
 ]
 const VISIBILITY_DETAIL: Record<Visibility, string> = {
   me: 'Only you see it.',
@@ -26,14 +27,14 @@ const VISIBILITY_DETAIL: Record<Visibility, string> = {
 
 export function dashboardHref(orgslug: string, scope: Scope, uuid: string) {
   const admin = routePaths.org.admin
-  return getUriWithOrg(orgslug, scope === 'org' ? admin.insights(uuid) : admin.insightsScope(scope as 'plan' | 'group', null, uuid))
+  return getUriWithOrg(orgslug, scope === 'org' ? admin.insights(uuid) : admin.insightsScope(scope, null, uuid))
 }
 
 /** New dashboard: what it's about, a template or blank, its name, and who sees it. */
 export default function NewDashboardModal({ scope, onClose }: { scope: Scope | null; onClose: () => void }) {
   return <Modal isDialogOpen={Boolean(scope)} onOpenChange={(open) => { if (!open) onClose() }} minHeight="no-min" minWidth="md" dialogTitle="New dashboard"
     dialogDescription="Start from a template or a blank page. Templates are only a start: every card can be changed."
-    dialogContent={scope ? <NewDashboardForm initialScope={scope === 'learner' ? 'org' : scope} close={onClose} /> : null} />
+    dialogContent={scope ? <NewDashboardForm initialScope={scope} close={onClose} /> : null} />
 }
 
 function NewDashboardForm({ initialScope, close }: { initialScope: Scope; close: () => void }) {

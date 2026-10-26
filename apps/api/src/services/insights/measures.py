@@ -263,7 +263,7 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     ),
     Measure(
         "plan_starts", "Plan starts", "Plans started in the range: assigned and accepted, or joined.",
-        kind="count", unit="count", direction="up", load=_plan_starts, dims=GOAL_DIMS, scopes=TEAM_SCOPES,
+        kind="count", unit="count", direction="up", load=_plan_starts, dims=GOAL_DIMS, scopes=ALL_SCOPES,
         phrase=("{v} plan started", "{v} plans started"), base=("plan", "plans"), rank="{a} had the most starts ({av}); {b} the fewest ({bv})",
         keywords=("started", "enrolled", "assigned"),
     ),
@@ -276,13 +276,13 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
         "completion_rate", "Completion rate",
         f"Of plans started in the range, the share finished. Plans younger than {SETTLE_DAYS} days are still running and left out.",
-        kind="rate", unit="percent", direction="up", load=_completion, dims=GOAL_DIMS, scopes=TEAM_SCOPES,
+        kind="rate", unit="percent", direction="up", load=_completion, dims=GOAL_DIMS, scopes=ALL_SCOPES,
         phrase=("Completion is {v}", "Completion is {v}"), base=("plan started", "plans started"), rank="{a} finishes most often ({av}); {b} least ({bv})",
         settle_days=SETTLE_DAYS, keywords=("finish", "completed"),
     ),
     Measure(
         "time_to_finish", "Time to finish", "For plans finished in the range, the median days from starting to finishing.",
-        kind="median", unit="days", direction="down", load=_time_to_finish, dims=GOAL_DIMS, scopes=TEAM_SCOPES,
+        kind="median", unit="days", direction="down", load=_time_to_finish, dims=GOAL_DIMS, scopes=ALL_SCOPES,
         phrase=("Plans take {v} to finish", "Plans take {v} to finish"), base=("plan finished", "plans finished"), rank="{a} is quickest ({av}); {b} slowest ({bv})",
         keywords=("duration", "how long"),
     ),
@@ -294,7 +294,9 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     ),
 )}
 
-# Steps, reviews, retention and reach live beside these; importing them here keeps one registry.
+# Steps, reviews, retention, reach and the learner measures live beside these; importing them here keeps one registry.
+from src.services.insights.measures_learner import MEASURES as _LEARNER  # noqa: E402
 from src.services.insights.measures_steps import MEASURES as _MORE  # noqa: E402
 
 MEASURES.update(_MORE)
+MEASURES.update(_LEARNER)

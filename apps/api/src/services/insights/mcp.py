@@ -86,7 +86,7 @@ async def get_dashboard_schema(request: Request, db: Session, ctx: AccessContext
 async def list_dashboards(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     items = dashboards.list_dashboards(db, ctx.user, ctx.org_id, args.get("scope"))
     out = {"dashboards": [_dashboard(db, ctx, item) for item in items]}
-    if args.get("scope") in ("plan", "group"):
+    if args.get("scope") in ("plan", "group", "learner"):
         out["objects"] = context.objects(db, context.population(db, ctx.user, ctx.org_id), args["scope"])
     return out
 

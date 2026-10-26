@@ -79,10 +79,23 @@ TEMPLATES: list[dict] = [
         card("waiting", 6, "waiting_for_review"),
         card("turnaround", 6, "review_turnaround", range="28d"),
     ]},
+    {"key": "learner.overview", "scope": "learner", "title": "Learner overview", "description": "One learner's plans, steps, badges, check-ins and activity.", "cards": [
+        card("plans", 3, "plan_starts", range="all"),
+        card("finished", 3, "plans_finished", range="all"),
+        card("steps", 3, "steps_done"),
+        card("badges", 3, "badges_awarded", range="all"),
+        card("progress", 5, "plan_progress", by="plan"),
+        card("active_days", 7, "days_active", by="time"),
+        card("steps_plans", 6, "steps_done", by="plan"),
+        card("check_ins", 6, "check_ins", by="time"),
+        card("waiting", 4, "waiting_for_review"),
+        card("sent_back", 4, "sent_back_rate"),
+        card("turnaround", 4, "review_turnaround"),
+    ]},
 ]
 
-# Starter dashboards, made the first time an organization opens Insights.
-STARTERS = ("org.overview", "plan.performance", "group.progress")
+# Starter dashboards: each is made once for an organization, the first time it opens Insights after the starter exists.
+STARTERS = ("org.overview", "plan.performance", "group.progress", "learner.overview")
 
 QUESTIONS: list[dict] = [
     {"key": "active_weekly", "text": "How many learners are active each week?", "spec": {"measure": "active_learners", "by": "time", "compare": "year"}},
@@ -107,6 +120,10 @@ QUESTIONS: list[dict] = [
     {"key": "retention", "text": "Do learners stay active after joining?", "spec": {"measure": "retention", "by": "group"}},
     {"key": "issuing_orgs", "text": "Which organizations use this plan?", "spec": {"measure": "plan_reach", "by": "org"}},
     {"key": "reach_time", "text": "How many learners start this plan, everywhere?", "spec": {"measure": "plan_reach", "by": "time", "compare": "year"}},
+    {"key": "steps_weekly", "text": "How many steps are done each week?", "spec": {"measure": "steps_done", "by": "time"}},
+    {"key": "how_far", "text": "How far along are the running plans?", "spec": {"measure": "plan_progress", "by": "plan"}},
+    {"key": "days_active", "text": "How often is this learner active?", "spec": {"measure": "days_active", "by": "time"}},
+    {"key": "check_ins", "text": "How often does staff check in?", "spec": {"measure": "check_ins", "by": "time"}},
     {"key": "finished_weekly", "text": "How many plans are finished each week?", "spec": {"measure": "plans_finished", "by": "time"}},
 ]
 

@@ -209,7 +209,7 @@ export const ruleInput = (rule: CaptureRule): RuleInput => ({
   range: rule.range ? ('preset' in rule.range ? rule.range.preset : rule.range) : null, staff: rule.staff.map((item) => item.user_uuid), emails: rule.emails,
 })
 
-export interface InsightObject { key: string; label: string; learners: number; external?: boolean }
+export interface InsightObject { key: string; label: string; learners: number; external?: boolean; detail?: string }
 export interface LibraryTemplate { key: string; scope: Scope; title: string; description: string; cards: DashboardCard[] }
 export interface LibraryQuestion { key: string; text: string; spec: CardSpec }
 
@@ -237,7 +237,7 @@ export const insightsApi = {
   duplicate: (orgId: number, uuid: string, title?: string, token?: string) =>
     request<Dashboard>(url(orgId, `/dashboards/${q(uuid)}/duplicate`), token, 'POST', { title: title || null }),
   remove: (orgId: number, uuid: string, token?: string) => request<{ deleted: boolean }>(url(orgId, `/dashboards/${q(uuid)}`), token, 'DELETE'),
-  objects: (orgId: number, scope: 'plan' | 'group', token?: string) =>
+  objects: (orgId: number, scope: 'plan' | 'group' | 'learner', token?: string) =>
     request<{ objects: InsightObject[] }>(url(orgId, '/objects', { scope }), token).then((body) => body.objects),
   library: (orgId: number, scope: Scope, token?: string) =>
     request<{ templates: LibraryTemplate[]; questions: LibraryQuestion[] }>(url(orgId, '/library', { scope }), token),

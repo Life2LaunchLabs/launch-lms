@@ -13,7 +13,7 @@ from sqlmodel import col, select
 from src.db.goal_sharing import PlanActivity
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStatus, GoalStep, GoalTemplateVersion, StepProgress, StepStatus
 from src.services.insights.context import Ctx, as_date
-from src.services.insights.measures import TEAM_SCOPES, Fact, Measure, _activity_days, _goal_dims, _goal_rows, _new_learners, started_on
+from src.services.insights.measures import ALL_SCOPES, Fact, Measure, _activity_days, _goal_dims, _goal_rows, _new_learners, started_on
 
 SUBMITTED = StepStatus.SUBMITTED.value
 SENT_BACK = StepStatus.CHANGES_REQUESTED.value
@@ -135,19 +135,19 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     ),
     Measure(
         "sent_back_rate", "Sent back", "Of steps handed in for review in the range, the share sent back for changes at least once.",
-        kind="rate", unit="percent", direction="down", load=_sent_back, dims=REVIEW_DIMS, scopes=TEAM_SCOPES,
+        kind="rate", unit="percent", direction="down", load=_sent_back, dims=REVIEW_DIMS, scopes=ALL_SCOPES,
         phrase=("{v} of hand-ins were sent back", "{v} of hand-ins were sent back"), base=("hand-in", "hand-ins"),
         rank="{a} is sent back least ({av}); {b} most ({bv})", keywords=("changes requested", "revisions", "review"),
     ),
     Measure(
         "review_turnaround", "Review turnaround", "For reviews decided in the range, the median hours from hand-in to approval or sending back.",
-        kind="median", unit="hours", direction="down", load=_turnaround, dims=REVIEW_DIMS, scopes=TEAM_SCOPES,
+        kind="median", unit="hours", direction="down", load=_turnaround, dims=REVIEW_DIMS, scopes=ALL_SCOPES,
         phrase=("Reviews take {v}", "Reviews take {v}"), base=("review", "reviews"), rank="{a} is reviewed quickest ({av}); {b} slowest ({bv})",
         keywords=("review time", "feedback", "waiting"),
     ),
     Measure(
         "waiting_for_review", "Waiting for review", "Today, steps handed in that no one has approved or sent back yet.",
-        kind="count", unit="count", direction="down", load=_waiting, dims=("plan", "step", "group"), scopes=TEAM_SCOPES,
+        kind="count", unit="count", direction="down", load=_waiting, dims=("plan", "step", "group"), scopes=ALL_SCOPES,
         phrase=("{v} step is waiting for review", "{v} steps are waiting for review"), base=("step", "steps"), snapshot=True,
         rank="{a} has the most waiting ({av}); {b} the fewest ({bv})", keywords=("queue", "to review", "backlog"),
     ),
