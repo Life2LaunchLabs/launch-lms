@@ -182,6 +182,37 @@ def scope(db: Session, pop: Population, kind: str, key: str | None) -> Scope:
     return Scope("learner", key, int(user.id), name)  # type: ignore[arg-type]
 
 
+def objects(db: Session, pop: Population, kind: str) -> list[dict]:
+    """The plans or groups this viewer can open a dashboard on, most learners first.
+
+    Plans are the organization's own (not archived) and any plan its learners have started; groups are the
+    organization's, or for staff without See reports the ones that hold their learners.
+    """
+    if kind == "plan":
+        counts: dict[int, set[int]] = {}
+        for template_id, user_id in db.exec(select(Goal.template_id, Goal.subject_user_id).where(Goal.org_id == pop.org_id, col(Goal.template_id).is_not(None))).all():
+            if user_id is not None and int(user_id) in pop.status:
+                counts.setdefault(int(template_id), set()).add(int(user_id))
+        own = db.exec(select(GoalTemplate).where(GoalTemplate.org_id == pop.org_id, GoalTemplate.status != "archived")).all() if pop.see_reports else []
+        ids = {int(template.id) for template in own} | set(counts)  # type: ignore[arg-type]
+        templates = db.exec(select(GoalTemplate).where(col(GoalTemplate.id).in_(ids))).all() if ids else []
+        rows = [{"key": template.template_uuid, "label": template.title, "learners": len(counts.get(int(template.id), ())),  # type: ignore[arg-type]
+                 "external": template.org_id != pop.org_id} for template in templates]
+    elif kind == "group":
+        members: dict[int, set[int]] = {}
+        for group_id, user_id in db.exec(select(UserGroupUser.usergroup_id, UserGroupUser.user_id).where(UserGroupUser.org_id == pop.org_id)).all():
+            if int(user_id) in pop.status:
+                members.setdefault(int(group_id), set()).add(int(user_id))
+        groups = db.exec(select(UserGroup).where(UserGroup.org_id == pop.org_id)).all()
+        rows = [{"key": group.usergroup_uuid, "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
+                for group in groups if pop.see_reports or int(group.id) in members]  # type: ignore[arg-type]
+    elif kind == "org":
+        return []
+    else:
+        raise HTTPException(status_code=422, detail="Objects are plans or groups")
+    return sorted(rows, key=lambda row: (-row["learners"], row["label"].lower()))
+
+
 # Lookups measures share ---------------------------------------------------------------------------
 
 @dataclass
