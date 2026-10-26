@@ -107,6 +107,7 @@ launch-lms/
 | `/trail` | Learning paths |
 | `/code` | Code execution (Judge0) |
 | `/analytics` | Course analytics |
+| `/insights` | Insights cards: run a dashboard's cards, drill into a number, the measure registry |
 | `/search` | Global search |
 | `/instance` | Public instance metadata |
 | `/plans` | Plan definitions (public) |
