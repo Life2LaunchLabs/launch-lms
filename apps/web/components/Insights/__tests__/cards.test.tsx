@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import InsightCard, { DeltaChip, spanClass } from '@components/Insights/InsightCard'
+import { moveCard } from '@components/Insights/DashboardEditing'
 import type { CardResult } from '@services/insights/insights'
 
 const base: CardResult = {
@@ -48,5 +49,15 @@ describe('insight cards', () => {
     expect(renderToStaticMarkup(<DeltaChip compare={{ v: 0.35, text: '35%', change: '+1 pts', tone: 'flat', real: false, against: 'the 90 days before' }} />)).toContain('About the same')
     expect(spanClass(3)).toContain('col-span-12')
     expect(spanClass(3)).toContain('lg:col-span-3')
+  })
+})
+
+describe('editing a dashboard', () => {
+  const cards = ['a', 'b', 'c'].map((key) => ({ key, span: 6, spec: { measure: 'plan_starts' } }))
+  test('cards move one place at a time and stay put at the ends', () => {
+    expect(moveCard(cards, 'b', -1).map((card) => card.key)).toEqual(['b', 'a', 'c'])
+    expect(moveCard(cards, 'b', 1).map((card) => card.key)).toEqual(['a', 'c', 'b'])
+    expect(moveCard(cards, 'a', -1)).toBe(cards)
+    expect(moveCard(cards, 'c', 1)).toBe(cards)
   })
 })

@@ -105,6 +105,26 @@ export interface DrillPerson {
   last: string
 }
 
+export interface RegistryMeasure {
+  key: string
+  label: string
+  definition: string
+  kind: CardResult['kind']
+  unit: string
+  direction: 'up' | 'down'
+  dims: string[]
+  scopes: Scope[]
+  snapshot: boolean
+  available: boolean
+  keywords: string[]
+}
+export interface Registry {
+  measures: RegistryMeasure[]
+  dimensions: Array<{ key: string; label: string; available: boolean }>
+  charts: Record<Shape, Array<Exclude<Chart, 'auto'>>>
+  ranges: string[]
+}
+
 export interface InsightObject { key: string; label: string; learners: number; external?: boolean }
 export interface LibraryTemplate { key: string; scope: Scope; title: string; description: string; cards: DashboardCard[] }
 export interface LibraryQuestion { key: string; text: string; spec: CardSpec }
@@ -114,6 +134,7 @@ export const insightKeys = {
   dashboard: (orgId: number, uuid: string) => ['insights', orgId, 'dashboard', uuid] as const,
   objects: (orgId: number, scope: Scope) => ['insights', orgId, 'objects', scope] as const,
   library: (orgId: number, scope: Scope) => ['insights', orgId, 'library', scope] as const,
+  registry: (orgId: number, scope: Scope, key: string | null) => ['insights', orgId, 'registry', scope, key] as const,
   cards: (orgId: number, uuid: string, revision: number, scopeKey: string | null, range: DateRange) =>
     ['insights', orgId, 'cards', uuid, revision, scopeKey, JSON.stringify(range)] as const,
 }
@@ -133,6 +154,7 @@ export const insightsApi = {
     request<{ objects: InsightObject[] }>(url(orgId, '/objects', { scope }), token).then((body) => body.objects),
   library: (orgId: number, scope: Scope, token?: string) =>
     request<{ templates: LibraryTemplate[]; questions: LibraryQuestion[] }>(url(orgId, '/library', { scope }), token),
+  registry: (orgId: number, scope: Scope, key: string | null, token?: string) => request<Registry>(url(orgId, '/registry', { scope, key }), token),
   run: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; cards: Array<{ key: string; spec: CardSpec }> }, token?: string) =>
     request<{ results: Record<string, CardOutcome> }>(url(orgId, '/cards/run'), token, 'POST', body).then((response) => response.results),
   drill: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; spec: CardSpec; drill: string }, token?: string) =>

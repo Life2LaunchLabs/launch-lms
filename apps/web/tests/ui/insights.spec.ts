@@ -55,7 +55,8 @@ test('insights.scopes: a group dashboard switches groups and lists its views; ol
   await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
 })
 
-test('insights.new: New dashboard offers the templates for each kind and makes a personal one', async ({ page }) => {
+test('insights.new: New dashboard makes a personal one from a template, and editing adds a card from the library', async ({ page }) => {
+  test.setTimeout(60_000)
   await page.goto(insightsPath)
   await assertActualApp(page)
   await page.getByRole('navigation', { name: 'Dashboards' }).getByRole('button', { name: 'New dashboard' }).click()
@@ -66,4 +67,17 @@ test('insights.new: New dashboard offers the templates for each kind and makes a
   await dialog.getByRole('button', { name: 'Make dashboard' }).click()
   await expect(page).toHaveURL(/\/admin\/insights\/plan\?d=dashboard_/)
   await expect(page.getByRole('navigation', { name: 'Plan dashboards' }).getByRole('link', { name: 'Badge check' })).toHaveAttribute('aria-current', 'page')
+  await expect(cards(page).first()).toBeVisible()
+  const before = await cards(page).count()
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByRole('button', { name: /Add a card/ }).click()
+  const editor = page.getByRole('dialog', { name: 'Add a card' })
+  await editor.getByRole('button', { name: 'How many plans are finished each week?' }).click()
+  await expect(editor.getByRole('combobox', { name: 'Show' })).toHaveValue('plans_finished')
+  await expect(editor.getByTestId('insight-card')).toBeVisible()
+  await editor.getByRole('button', { name: 'Add card' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await expect(cards(page)).toHaveCount(before + 1)
 })

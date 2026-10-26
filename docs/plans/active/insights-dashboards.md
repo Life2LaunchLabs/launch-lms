@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I3 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I4 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -57,6 +57,14 @@ colors are tokens in `insights.css`, with their own dark steps.
 
 Routes: `/admin/insights?d=`, `/admin/insights/plan/[key]?d=`, `/admin/insights/group/[key]?d=`. Group
 reports moved to `/admin/insights/reports`; old `?group=` links redirect.
+
+## Editing (I4)
+
+Edit turns the dashboard into a draft: cards move, resize (small, medium, large, wide), change or go, and
+Add a card opens the card editor on the question library or a blank card. The editor maps each choice to one
+spec field (show, by, and by, who, dates, compare, size, headline, chart) and re-runs a live preview, so
+server validation shows on the card itself. Done saves the whole document at the opened revision; a stale
+revision keeps the draft and says so, and a viewer who can't save over the dashboard gets their own copy.
 
 ## Acceptance
 
