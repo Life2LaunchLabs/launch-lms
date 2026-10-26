@@ -163,3 +163,33 @@ def test_template_learners_shows_the_badge_and_is_the_running_orgs_own_setting()
         with pytest.raises(HTTPException) as refused:
             template_learners.set_template_access(db, _user(ADMIN), PARTNER, first.template_uuid, TemplateLearnerAccessUpdate(access="open"))
         assert refused.value.status_code in (403, 404)
+
+
+def test_a_plan_request_is_a_card_in_the_askers_thread_and_the_answer_is_posted_to_them():
+    from src.db.conversations import ConversationMessage
+    from src.services.school import chats as school_chats, feed, threads
+
+    db, (first, second) = _setup()
+    with db:
+        _offer(db, first, 1, "request")
+        _offer(db, second, 1, "request")
+        asked = plan_joining.join(db, _user(NEWCOMER), first.template_uuid, PlanJoin(org_id=1, message="Please"))
+        # Nia isn't one of Studio's people yet; her thread is the request, and she's on top of the list.
+        thread = threads.person_thread(db, _user(ADMIN), 1, NEWCOMER)
+        assert (thread["role"], thread["counts"]["requests"]) == ("applicant", 1)
+        assert [card["request_uuid"] for card in thread["plan_requests"]] == [asked["request_uuid"]]
+        rows, _ = feed.active_rows(db, _user(ADMIN), 1)
+        [row] = [row for row in rows if row["person"] and row["person"]["id"] == NEWCOMER]
+        assert (row["role"], row["counts"]["approvals"], row["preview"]) == ("applicant", 1, f"Asks for “{first.title}”")
+
+        plan_joining.decide(db, _user(ADMIN), asked["request_uuid"], True)
+        other = plan_joining.join(db, _user(NEWCOMER), second.template_uuid, PlanJoin(org_id=1))
+        plan_joining.decide(db, _user(ADMIN), other["request_uuid"], False)
+        chat = school_chats.find(db, 1, NEWCOMER)
+        assert chat is not None
+        said = [message.body for message in db.exec(select(ConversationMessage).where(ConversationMessage.conversation_id == chat.id)).all()]
+        accepted, declined = said[-2:]  # after the plan's own "Started" line
+        assert first.title in accepted and "accepted" in accepted and second.title in declined and "declined" in declined
+        # Answered, the card is gone; Nia is a learner now.
+        thread = threads.person_thread(db, _user(ADMIN), 1, NEWCOMER)
+        assert (thread["role"], thread["plan_requests"]) == ("learner", [])

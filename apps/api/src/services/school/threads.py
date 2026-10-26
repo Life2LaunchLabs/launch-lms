@@ -14,10 +14,11 @@ from collections import defaultdict
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, func, or_, select
 
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, StepProgress, StepStatus
+from src.db.template_marketplace import GoalTemplateAuthorization
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.organizations import Organization
 from src.db.school import UserGroupStaff
@@ -30,7 +31,7 @@ from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.connect import chats, cohort, people, visibility, workspace
 from src.services.goals import assignment_messages, assignment_status, helper_requests
 from src.services.goals.sharing_roles import _stamp
-from src.services.school import chats as school_chats, feed, group_chats, roles, views
+from src.services.school import chats as school_chats, feed, group_chats, plan_requests, roles, views
 
 FILTERS = ("review", "questions", "requests", "past_due", "staff_only")
 # How far back open questions are looked for.
@@ -152,7 +153,7 @@ def _staff_thread(db: Session, current_user: PublicUser, org_id: int, user: User
     conversation = chats.ensure_direct(db, int(current_user.id), int(user.id))  # type: ignore[arg-type]
     db.commit()
     return {"kind": "staff", "person": people.person(db, user.id), "role": role, "chat_uuid": conversation.conversation_uuid if conversation else None,
-            "with": [], "plans": [], "focus": None, "steps": [], "counts": _empty_counts(), "review": [], "questions": [], "requests": [], "past_due": []}
+            "with": [], "plans": [], "focus": None, "steps": [], "counts": _empty_counts(), "review": [], "questions": [], "requests": [], "plan_requests": [], "past_due": []}
 
 
 def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: int, goal_uuid: str | None = None) -> dict:
@@ -164,11 +165,16 @@ def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: i
     viewer = int(current_user.id)  # type: ignore[arg-type]
     user = db.get(User, user_id)
     role = roles.org_role(db, org_id, user_id) if user else None
+    deciding = plan_requests.can_decide(db, viewer, org_id)
+    asked = plan_requests.cards(db, org_id, user_id) if user and deciding else []
+    if not role and asked:
+        role = plan_requests.APPLICANT  # asking for a plan before they're one of the organization's people
     if not user or not role or user_id == viewer:
         raise HTTPException(status_code=404, detail="Person not found")
     if role in roles.STAFF_ROLES:
         return _staff_thread(db, current_user, org_id, user, role)
-    views._require(db, current_user, org_id, user_id)
+    if role != plan_requests.APPLICANT:
+        views._require(db, current_user, org_id, user_id)
     conversation = school_chats.school_chat(db, org_id, user_id)
     db.commit()
     admin = is_org_admin(viewer, org_id, db)
@@ -208,11 +214,12 @@ def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: i
     in_scope = [assignments[int(goal.assignment_id)] for goal in ([focus] if focus else goals) if goal.assignment_id and int(goal.assignment_id) in assignments]
     staff = [user_id for assignment in in_scope if _value(assignment.status) != "ended" for user_id in assignment.staff_user_ids]
     staff += [row.user_id for row in school_chats.team(db, org_id, user_id)]
-    counts = {"review": len(scoped(review)), "questions": len(scoped(questions)), "requests": len(scoped(requests)), "past_due": len(scoped(past_due)),
+    asked = [] if focus else asked  # a request isn't about a plan they have yet
+    counts = {"review": len(scoped(review)), "questions": len(scoped(questions)), "requests": len(scoped(requests)) + len(asked), "past_due": len(scoped(past_due)),
               "staff_only": _staff_only(db, conversation, focus)}
     return {"kind": "learner", "person": people.person(db, user_id), "role": role, "chat_uuid": conversation.conversation_uuid, "with": _people(db, staff, viewer),
             "plans": plans, "focus": focus.goal_uuid if focus else None, "steps": plan_steps(db, focus, conversation, viewer) if focus else [], "counts": counts,
-            "review": scoped(review), "questions": scoped(questions), "requests": scoped(requests), "past_due": scoped(past_due)}
+            "review": scoped(review), "questions": scoped(questions), "requests": scoped(requests), "plan_requests": asked, "past_due": scoped(past_due)}
 
 
 # A group's thread -------------------------------------------------------------------------
@@ -379,8 +386,24 @@ def org_log(db: Session, org_id: int) -> list[dict]:
     for (_, by, role), rows in invited.items():
         entries.append({"kind": "invited", "at": _iso(rows[-1].created_at), "role": role, "count": len(rows), "by": people.person(db, by) if by else None,
                         "pending": sum(1 for row in rows if row.status == "pending")})
+    entries += _plan_requests_log(db, org_id)
     entries.sort(key=lambda entry: entry["at"] or "")
     return entries[-LOG_LIMIT:]
+
+
+def _plan_requests_log(db: Session, org_id: int) -> list[dict]:
+    """Asking another organization to run its plan, either way, and its answer."""
+    entries = []
+    rows = db.exec(select(GoalTemplateAuthorization).where(or_(GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.issuer_org_id == org_id))).all()
+    for row in rows:
+        template = db.get(GoalTemplate, row.template_id)
+        incoming = row.creator_org_id == org_id
+        other = db.get(Organization, row.issuer_org_id if incoming else row.creator_org_id)
+        line = {"incoming": incoming, "org": {"name": other.name if other else "Another organization"}, "plan": template.title if template else "a plan"}
+        entries.append({"kind": "plan_asked", "at": row.creation_date, **line})
+        if row.decided_at and row.status in ("approved", "rejected"):
+            entries.append({"kind": "plan_answered", "at": _iso(row.decided_at), "approved": row.status == "approved", **line})
+    return entries
 
 
 def org_thread(db: Session, current_user: PublicUser, org_id: int) -> dict:
@@ -407,6 +430,11 @@ def _log_line(entry: dict) -> str:
         return f"{name(entry['person'])} joined as {entry['role']}"
     if entry["kind"] == "learners_joined":
         return f"{entry['count']} learner{'s' if entry['count'] != 1 else ''} joined"
+    if entry["kind"] == "plan_asked":
+        return f"{entry['org']['name']} asked to run “{entry['plan']}”" if entry["incoming"] else f"You asked {entry['org']['name']} to run “{entry['plan']}”"
+    if entry["kind"] == "plan_answered":
+        verb = "approved" if entry["approved"] else "declined"
+        return f"You {verb} {entry['org']['name']} running “{entry['plan']}”" if entry["incoming"] else f"{entry['org']['name']} {verb} your request for “{entry['plan']}”"
     return f"{name(entry['by'])} invited {entry['count']} {entry['role']}{'s' if entry['count'] != 1 and entry['role'] == 'learner' else ''}"
 
 

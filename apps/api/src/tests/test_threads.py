@@ -122,6 +122,23 @@ def test_the_organizations_thread_is_a_log_of_who_joined_and_who_was_invited():
         assert _denied(threads.org_thread, db, _user(LEARNER), 1) == 403
 
 
+
+def test_asking_another_organization_for_a_plan_and_its_answer_are_in_both_organizations_logs():
+    from datetime import datetime
+
+    from src.db.organizations import Organization
+    from src.db.template_marketplace import GoalTemplateAuthorization
+
+    with _session() as db:
+        db.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="p@example.com"))
+        db.add(GoalTemplateAuthorization(authorization_uuid="auth_1", template_id=99, creator_org_id=1, issuer_org_id=2, status="approved",
+                                         creation_date="2026-10-01T10:00:00", decided_at=datetime(2026, 10, 2, 9)))
+        db.commit()
+        mine = [threads._log_line(entry) for entry in threads.org_log(db, 1) if entry["kind"].startswith("plan_")]
+        assert mine == ["Partner asked to run “a plan”", "You approved Partner running “a plan”"]
+        theirs = [threads._log_line(entry) for entry in threads.org_log(db, 2) if entry["kind"].startswith("plan_")]
+        assert theirs == ["You asked Studio to run “a plan”", "Studio approved your request for “a plan”"]
+
 def test_the_list_keeps_one_kind_and_pins_the_staff_room_and_the_organization():
     with _session() as db:
         listed = feed.people_feed(db, _user(ADMIN), 1)

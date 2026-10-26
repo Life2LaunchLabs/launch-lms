@@ -3,13 +3,14 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { BellRing, Check, ClipboardCheck, Clock, Hand, MessageCircleQuestion } from 'lucide-react'
+import { BellRing, Check, ClipboardCheck, Clock, Hand, MessageCircleQuestion, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { reviewHref } from '@components/Goals/admin/live/ui'
 import { routePaths } from '@services/config/config'
 import { goalAdminApi } from '@services/goals/admin'
 import { peopleApi } from '@services/school/people'
+import { planJoiningApi, type JoinRequest } from '@services/goals/planJoining'
 import { shortDate } from '@services/assignments/status'
 import type { PersonSummary } from '@services/goals/types'
 import type { AskedItem, PastDueItem, ReviewItem, ThreadRequest } from '@services/school/threads'
@@ -113,6 +114,34 @@ export function RequestCard({ request, orgId, token, onDone }: { request: Thread
     <span className="text-xs text-muted-foreground">Helpers see {request.goal.title} only, and can message staff about it.</span>
     <span className="flex gap-2">
       <button type="button" disabled={busy} onClick={() => decide(true)} className={primary}><Check size={14} aria-hidden="true" />Approve</button>
+      <button type="button" disabled={busy} onClick={() => decide(false)} className={plain}>Decline</button>
+    </span>
+  </Notice>
+}
+
+/** They asked for a plan in Discover; staff who decide accept (they get the plan, and become a learner) or decline. Either way they're told here. */
+export function PlanRequestCard({ request, token, onDone }: { request: JoinRequest; token?: string; onDone: () => void }) {
+  const [busy, setBusy] = React.useState(false)
+  const first = request.user?.first_name || request.user?.username || 'They'
+  const decide = async (accept: boolean) => {
+    if (!token) return
+    setBusy(true)
+    try {
+      if (accept) await planJoiningApi.accept(request.request_uuid, token)
+      else await planJoiningApi.reject(request.request_uuid, token)
+      toast.success(accept ? `Accepted. ${first} has the plan now.` : 'Declined. They’ve been told.')
+      onDone()
+    } catch (error: any) {
+      toast.error(error?.message || 'That didn’t go through')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return <Notice icon={Route} tone="warn">
+    <span><b>{first}</b> asked for <b>{request.plan?.title || 'a plan'}</b> in Discover</span>
+    {request.message ? <span className="text-muted-foreground">“{request.message}”</span> : null}
+    <span className="flex gap-2">
+      <button type="button" disabled={busy} onClick={() => decide(true)} className={primary}><Check size={14} aria-hidden="true" />Accept</button>
       <button type="button" disabled={busy} onClick={() => decide(false)} className={plain}>Decline</button>
     </span>
   </Notice>

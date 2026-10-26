@@ -9,7 +9,6 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useStaff } from '@components/Goals/admin/assignments/shared'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isMarketplaceKey, MARKETPLACE_KEY, templateMarketplaceApi, type MarketplaceOrg, type TemplateAuthorization } from '@services/learning/marketplace'
-import { JOIN_REQUESTS_KEY, planJoiningApi, type JoinRequest } from '@services/goals/planJoining'
 import type { BadgeSummary } from '@services/badges/badges'
 import { cn } from '@/lib/utils'
 
@@ -56,8 +55,8 @@ function planRow(item: TemplateAuthorization, side: 'creator' | 'issuer', orgslu
 
 /**
  * Requests: who's asking to run your plans, what you asked for, what you run from other orgs and who
- * runs yours, and learners asking to join your plans from Discover. Running a plan that earns a badge
- * is permission to award it. Admins only.
+ * runs yours. Learners asking for a plan in Discover are answered in their threads. Running a plan that
+ * earns a badge is permission to award it. Admins only.
  */
 export default function MarketplaceRequests() {
   const { orgId, token, admin } = useStaff()
@@ -67,25 +66,11 @@ export default function MarketplaceRequests() {
   const key = (name: string) => (ready ? [MARKETPLACE_KEY, name, orgId, token] : null)
   const { data: creatorPlans = [] } = useSWR(key('template-auth-creator'), () => templateMarketplaceApi.authorizations(orgId, 'creator', token))
   const { data: issuerPlans = [] } = useSWR(key('template-auth-issuer'), () => templateMarketplaceApi.authorizations(orgId, 'issuer', token))
-  const { data: joinRequests = [], mutate: mutateJoins } = useSWR(ready ? [JOIN_REQUESTS_KEY, orgId, token] : null, () => planJoiningApi.requests(orgId, token!))
   const { mutate } = useSWRConfig()
   const [busy, setBusy] = React.useState('')
 
   if (!admin) return <p className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Only admins see and answer marketplace requests.</p>
 
-  const answer = async (request: JoinRequest, accept: boolean) => {
-    setBusy(request.request_uuid)
-    try {
-      if (accept) await planJoiningApi.accept(request.request_uuid, token!)
-      else await planJoiningApi.reject(request.request_uuid, token!)
-      toast.success(accept ? 'Accepted. The plan is in their Plans now.' : 'Request declined.')
-      await mutateJoins()
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not answer the request.')
-    } finally {
-      setBusy('')
-    }
-  }
   const act = async (row: Row, action: 'approve' | 'reject' | 'revoke', done: string) => {
     setBusy(row.key)
     try {
@@ -110,13 +95,7 @@ export default function MarketplaceRequests() {
       className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold disabled:opacity-50', primary ? 'bg-black text-white hover:bg-black/85' : 'border border-gray-200 bg-white hover:bg-gray-50')}>{label}</button>
 
   return <div className="space-y-8">
-    <p className="max-w-[70ch] text-sm text-gray-600">Learners asking to join your plans, requests to run plans in both directions, and who runs what. Running a plan that earns a badge is how an organization awards it.</p>
-    <Section title="Learners asking to join" count={joinRequests.length} empty="No learner is waiting on an answer." testId="join-requests">
-      {joinRequests.map((request) => <JoinRow key={request.request_uuid} request={request}>
-        <button type="button" disabled={busy === request.request_uuid} onClick={() => void answer(request, false)} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">Decline</button>
-        <button type="button" disabled={busy === request.request_uuid} onClick={() => void answer(request, true)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-black px-3.5 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"><Check size={14} />Accept</button>
-      </JoinRow>)}
-    </Section>
+    <p className="max-w-[70ch] text-sm text-gray-600">Requests to run plans in both directions, and who runs what. Learners asking for a plan show in their threads, under Requests. Running a plan that earns a badge is how an organization awards it.</p>
     <Section title="Asking to run yours" count={incoming.length} empty="Nobody is asking right now." testId="marketplace-incoming">
       {incoming.map((row) => <RequestRow key={row.key} row={row} lead={<><b>{row.org?.name || 'An organization'}</b> wants to run </>}>
         {button(row, 'Decline', 'reject', 'Request declined.')}
@@ -159,20 +138,6 @@ function RequestRow({ row, lead, children }: { row: Row; lead: React.ReactNode; 
       {lead}{row.href ? <Link className="font-semibold underline-offset-2 hover:underline" href={row.href}>{row.title}</Link> : <b>{row.title}</b>}
       {row.badge ? <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs font-semibold text-amber-800"><span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5"><Medal size={12} />Earns {row.badge.name}</span></p> : null}
       <p className="text-xs text-gray-500">{row.detail}{row.message ? ` · “${row.message}”` : ''}</p>
-    </div>
-    <div className="flex flex-wrap items-center gap-2">{children}</div>
-  </div>
-}
-
-/** A learner who asked to join one of the organization's plans from Discover. */
-function JoinRow({ request, children }: { request: JoinRequest; children: React.ReactNode }) {
-  const name = request.user ? [request.user.first_name, request.user.last_name].filter(Boolean).join(' ') || request.user.username : 'A learner'
-  const initials = name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
-  return <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center" data-testid="join-request-row">
-    <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-xs font-bold text-gray-700 sm:inline-grid">{initials}</span>
-    <div className="min-w-0 flex-1 text-sm">
-      <b>{name}</b> wants to join <b>{request.plan?.title || 'a plan'}</b>
-      <p className="text-xs text-gray-500">Asked {new Date(request.creation_date).toLocaleDateString()}{request.message ? ` · “${request.message}”` : ''}</p>
     </div>
     <div className="flex flex-wrap items-center gap-2">{children}</div>
   </div>

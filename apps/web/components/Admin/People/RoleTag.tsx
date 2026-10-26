@@ -6,6 +6,7 @@ const ROLE_TONES: Record<OrgRole, string> = {
   staff: 'bg-[var(--org-primary-color)]/15 text-foreground',
   learner: 'bg-muted text-muted-foreground',
   helper: 'bg-amber-100 text-amber-800',
+  applicant: 'bg-amber-100 text-amber-800',
 }
 
 /** What someone is to the organization (or to a group): Admin, Staff, Learner or Helper. */

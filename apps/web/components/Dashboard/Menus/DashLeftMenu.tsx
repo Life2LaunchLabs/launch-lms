@@ -47,6 +47,7 @@ import {
 } from '@components/ui/dropdown-menu'
 import DashFeedbackButton from './DashFeedbackButton'
 import NavPill from './NavPill'
+import NavCount from './NavCount'
 import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
@@ -329,6 +330,7 @@ function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isAct
       {!isCollapsed && (
         <>
           <span className="text-sm font-medium flex-1 text-left">{label}</span>
+          <NavCount id={item.id} />
           {item.pill && <NavPill>{item.pill}</NavPill>}
           {hasMenu && <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />}
         </>

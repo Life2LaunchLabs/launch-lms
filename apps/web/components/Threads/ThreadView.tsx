@@ -2,7 +2,7 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { Building2, Lock, UserPlus, Users } from 'lucide-react'
+import { Building2, Check, Lock, Route, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ChatWorkspace from '@components/Connect/workspace/ChatWorkspace'
 import type { TimelineItem } from '@components/Connect/workspace/feed'
@@ -15,7 +15,7 @@ import { ROLE_LABELS } from '@services/school/people'
 import { threadKeys, threadsApi, type OrgLogEntry, type PersonThread, type ThreadFilter } from '@services/school/threads'
 import { shortDate } from '@services/assignments/status'
 import { ContextBar, FilterChips, type StepOption } from './ContextBar'
-import { AskedCard, PastDueCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
+import { AskedCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
@@ -109,10 +109,12 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
       node: <PastDueCard line={line} learner={thread.person} orgId={orgId} token={token} /> })))
     if (filter === 'all' || filter === 'requests') cards.push(...(step ? [] : thread.requests).map((request) => ({ key: `ask:${request.invitation_uuid}`, at: request.creation_date,
       node: <RequestCard request={request} orgId={orgId} token={token} onDone={() => void mutate()} /> })))
+    if (filter === 'all' || filter === 'requests') cards.push(...(focus ? [] : thread.plan_requests || []).map((request) => ({ key: `plan:${request.request_uuid}`, at: request.creation_date,
+      node: <PlanRequestCard request={request} token={token} onDone={() => void mutate()} /> })))
     if (filter === 'review') cards.push(...onStep(thread.review).map((item) => ({ key: `review:${item.step_uuid}`, at: item.submitted_at,
       node: <ReviewCard item={item} reviewHref={turnInHref(item)} /> })))
     return cards
-  }, [thread, filter, step, orgId, token, mutate])
+  }, [thread, filter, step, focus, orgId, token, mutate])
 
   if (!thread) return <Loading actions={actions} />
   const art = <PersonAvatar user={thread.person as any} size="md" />
@@ -197,6 +199,11 @@ function logLine(entry: OrgLogEntry) {
   if (entry.kind === 'org_created') return { icon: Building2, text: <>{entry.org.name} was created</> }
   if (entry.kind === 'staff_joined') return { icon: UserPlus, text: <><b>{entry.person?.name || 'Someone'}</b> joined as {entry.role}</> }
   if (entry.kind === 'learners_joined') return { icon: Users, text: <><b>{entry.count} learner{entry.count === 1 ? '' : 's'}</b> joined{entry.people.length ? `: ${entry.people.map((person) => person.name.split(' ')[0]).join(', ')}${entry.count > entry.people.length ? ' and others' : ''}` : ''}</> }
+  if (entry.kind === 'plan_asked') return { icon: Route, text: entry.incoming ? <><b>{entry.org.name}</b> asked to run <b>{entry.plan}</b></> : <>You asked <b>{entry.org.name}</b> to run <b>{entry.plan}</b></> }
+  if (entry.kind === 'plan_answered') {
+    const verb = entry.approved ? 'approved' : 'declined'
+    return { icon: entry.approved ? Check : X, text: entry.incoming ? <>You {verb} <b>{entry.org.name}</b> running <b>{entry.plan}</b></> : <><b>{entry.org.name}</b> {verb} your request for <b>{entry.plan}</b></> }
+  }
   return { icon: UserPlus, text: <><b>{entry.by?.name || 'Someone'}</b> invited {entry.count} {entry.role}{entry.count === 1 || entry.role === 'staff' ? '' : 's'}{entry.pending ? ` · ${entry.pending} haven’t answered yet` : ''}</> }
 }
 
