@@ -13,6 +13,7 @@ from sqlmodel import col, select
 
 from src.db.goals import Goal, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion
 from src.db.organizations import Organization
+from src.db.requirements import RequirementFramework, RequirementNode
 from src.db.usergroups import UserGroup
 from src.services.insights.context import Ctx
 
@@ -83,6 +84,32 @@ def _orgs(ctx: Ctx, keys: list[str]) -> dict[str, str]:
     return {str(org_id): name for org_id, name in ctx.db.exec(select(Organization.id, Organization.name).where(col(Organization.id).in_(ids))).all()} if ids else {}
 
 
+def _frameworks(ctx: Ctx, keys: list[str]) -> dict[str, str]:
+    rows = ctx.db.exec(select(RequirementFramework.framework_uuid, RequirementFramework.name)
+                       .where(col(RequirementFramework.framework_uuid).in_(keys), RequirementFramework.org_id == ctx.org_id)).all() if keys else []
+    return dict(rows)
+
+
+def _category_nodes(ctx: Ctx, keys: list[str]) -> dict[str, tuple[int, str]]:
+    """A framework's top-level nodes by uuid: their position and "code title", from the newest version that has them."""
+    rows = ctx.db.exec(select(RequirementNode.node_uuid, RequirementNode.position, RequirementNode.code, RequirementNode.title, RequirementNode.id)
+                       .where(col(RequirementNode.node_uuid).in_(keys))).all() if keys else []
+    out: dict[str, tuple[int, str, int]] = {}
+    for uuid, position, code, title, node_id in rows:
+        if uuid not in out or node_id > out[uuid][2]:
+            out[uuid] = (position or 0, f"{code} {title}".strip() if code else title, node_id)
+    return {uuid: (position, label) for uuid, (position, label, _) in out.items()}
+
+
+def _categories(ctx: Ctx, keys: list[str]) -> dict[str, str]:
+    return {uuid: label for uuid, (_, label) in _category_nodes(ctx, keys).items()}
+
+
+def _category_order(ctx: Ctx, keys: list[str]) -> list[str]:
+    nodes = _category_nodes(ctx, keys)
+    return sorted(keys, key=lambda key: nodes[key][0] if key in nodes else 10**6)
+
+
 def _fixed(labels: dict[str, str]) -> Callable[[Ctx, list[str]], dict[str, str]]:
     return lambda ctx, keys: labels
 
@@ -96,6 +123,9 @@ DIMENSIONS: dict[str, Dimension] = {dimension.key: dimension for dimension in (
     Dimension("route", "How it was earned", "routes", labels=_fixed(ROUTE_LABELS)),
     Dimension("step", "Step", "steps", order="natural", labels=_steps, sort=_step_order, scopes=("plan",)),
     Dimension("org", "Organization", "organizations", labels=_orgs, scopes=("plan",)),
+    Dimension("framework", "Requirement framework", "frameworks", links_to="framework", labels=_frameworks),
+    # A framework's top-level categories; a requirement counts toward the category it sits under.
+    Dimension("category", "Category", "categories", order="natural", labels=_categories, sort=_category_order, scopes=("framework",)),
 )}
 
 # The order fixed-list dimensions show in.

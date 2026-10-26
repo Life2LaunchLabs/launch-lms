@@ -19,6 +19,8 @@ CHARTS: tuple[str, ...] = ("auto", "number", "line", "bars", "columns", "stacked
 # Filters any measure takes, on top of its dimensions: which learners count (active members by default).
 COMMON_FILTERS = ("learner_status",)
 LEARNER_STATUSES = ("active", "alumni")
+# The dimension a dashboard already pins: a plan dashboard shows one plan, so "by plan" has one row.
+BOUND = {"plan": "plan", "group": "group", "framework": "framework"}
 
 
 class CustomRange(BaseModel):
@@ -88,7 +90,7 @@ def check(spec: CardSpec, scope: str, *, see_reports: bool) -> list[dict]:
         errors.append({"field": "measure", "message": f"{measure.label} needs the See reports permission."})
     if scope not in measure.scopes:
         errors.append({"field": "measure", "message": f"{measure.label} doesn't work on a {scope} dashboard. It works on: {', '.join(measure.scopes)}."})
-    bound = {"plan": "plan", "group": "group"}.get(scope)
+    bound = BOUND.get(scope)
     for field in ("by", "by2"):
         key = getattr(spec, field)
         if key is None:

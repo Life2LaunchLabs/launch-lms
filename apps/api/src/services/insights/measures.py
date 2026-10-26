@@ -294,9 +294,11 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     ),
 )}
 
-# Steps, reviews, retention, reach and the learner measures live beside these; importing them here keeps one registry.
+# Steps, reviews, retention, reach, the learner and the requirement measures live beside these; importing them here keeps one registry.
 from src.services.insights.measures_learner import MEASURES as _LEARNER  # noqa: E402
+from src.services.insights.measures_requirements import MEASURES as _REQUIREMENTS  # noqa: E402
 from src.services.insights.measures_steps import MEASURES as _MORE  # noqa: E402
 
 MEASURES.update(_MORE)
 MEASURES.update(_LEARNER)
+MEASURES.update(_REQUIREMENTS)

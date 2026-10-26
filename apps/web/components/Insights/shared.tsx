@@ -2,7 +2,7 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { Building2, Route, User, Users } from 'lucide-react'
+import { Building2, ListChecks, Route, User, Users } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { insightKeys, insightsApi, type DashboardSummary, type Scope } from '@services/insights/insights'
@@ -22,8 +22,8 @@ export function useDashboards() {
   return useSWR<DashboardSummary[]>(ready ? insightKeys.dashboards(orgId) : null, () => insightsApi.dashboards(orgId, token), { revalidateOnFocus: false })
 }
 
-const SCOPE_ICONS = { org: Building2, plan: Route, group: Users, learner: User } as const
-const scopeTint: Record<Scope, string> = { org: 'bg-[#0B8077]', plan: 'bg-[#2F66D6]', group: 'bg-[#C77A0E]', learner: 'bg-[#6B3FE0]' }
+const SCOPE_ICONS = { org: Building2, plan: Route, group: Users, learner: User, framework: ListChecks } as const
+const scopeTint: Record<Scope, string> = { org: 'bg-[#0B8077]', plan: 'bg-[#2F66D6]', group: 'bg-[#C77A0E]', learner: 'bg-[#6B3FE0]', framework: 'bg-[#C9501E]' }
 
 export function ScopeGlyph({ scope, size = 'sm' }: { scope: Scope; size?: 'sm' | 'lg' }) {
   const Icon = SCOPE_ICONS[scope]

@@ -2,21 +2,21 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { BarChart3, Camera, ChevronDown, ClipboardCheck, ListTree, Lock, Plus } from 'lucide-react'
+import { BarChart3, Camera, ChevronDown, Lock, Plus } from 'lucide-react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import type { Scope } from '@services/insights/insights'
+import type { ObjectScope, Scope } from '@services/insights/insights'
 import { cn } from '@/lib/utils'
 import NewDashboardModal from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 import './insights.css'
 
-export type InsightsPlace = { dashboard: string | null; scope: Scope } | 'captures' | 'reports' | 'coverage' | 'evidence'
+export type InsightsPlace = { dashboard: string | null; scope: Scope } | 'captures' | 'reports'
 
 const item = 'flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13.5px] font-semibold text-foreground transition-colors hover:bg-muted'
 const eyebrow = 'mb-1 mt-4 px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground first:mt-0'
 
-/** The dashboards rail: the organization's own, then one plan, group or learner at a time, then the reports. */
+/** The dashboards rail: the organization's own, then one plan, group, learner or framework at a time, then the reports. */
 function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
   const { orgslug } = useInsightsContext()
   const { data: dashboards } = useDashboards()
@@ -24,12 +24,12 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
   const href = (path: string) => getUriWithOrg(orgslug, path)
   const current = typeof place === 'object' ? place : null
   const count = (scope: Scope) => dashboards?.filter((dashboard) => dashboard.scope === scope).length || 0
-  const scopeItem = (scope: 'plan' | 'group' | 'learner', label: string) => <Link key={scope} href={href(admin.insightsScope(scope))}
+  const scopeItem = (scope: ObjectScope, label: string) => <Link key={scope} href={href(admin.insightsScope(scope))}
     aria-current={current?.scope === scope ? 'page' : undefined} className={cn(item, current?.scope === scope && 'bg-muted')}>
     <ScopeGlyph scope={scope} /><span className="min-w-0 flex-1"><b className="block truncate">{label}</b>
       <span className="block truncate text-[11.5px] font-medium text-muted-foreground">{count(scope)} view{count(scope) === 1 ? '' : 's'}</span></span>
   </Link>
-  const reportItem = (id: 'captures' | 'reports' | 'coverage' | 'evidence', label: string, path: string, Icon: typeof BarChart3) =>
+  const reportItem = (id: 'captures' | 'reports', label: string, path: string, Icon: typeof BarChart3) =>
     <Link key={id} href={href(path)} aria-current={place === id ? 'page' : undefined} className={cn(item, place === id && 'bg-muted')}>
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true"><Icon size={15} /></span>
       <span className="truncate">{label}</span>
@@ -47,14 +47,13 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
     {scopeItem('plan', 'Plans')}
     {scopeItem('group', 'Groups')}
     {scopeItem('learner', 'Learners')}
+    {scopeItem('framework', 'Requirements')}
     <button type="button" onClick={onNew} className={cn(item, 'mt-2 text-muted-foreground hover:text-foreground')}>
       <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-dashed border-border" aria-hidden="true"><Plus size={15} /></span>New dashboard
     </button>
-    <span className={eyebrow}>Reports and evidence</span>
+    <span className={eyebrow}>Reports</span>
     {reportItem('captures', 'Captures', admin.insightsCaptures(), Camera)}
     {reportItem('reports', 'Group reports', admin.insightsReport(), BarChart3)}
-    {reportItem('coverage', 'Requirement coverage', admin.insightsCoverage(), ListTree)}
-    {reportItem('evidence', 'Learner evidence', admin.insightsEvidence(), ClipboardCheck)}
   </nav>
 }
 

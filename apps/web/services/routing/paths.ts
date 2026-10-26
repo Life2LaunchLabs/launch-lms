@@ -225,11 +225,11 @@ export const routePaths = {
       requirements: () => PLANS_TAB_PATHS.requirements,
       /** One framework under Plans › Requirements: its tree (any subpage but edit, kept from the old tabs), or editing it. */
       requirementFrameworkPlans: frameworkPage,
-      // Insights: dashboards about the organization, one plan, one group or one learner; reports by group; learners' evidence by group.
+      // Insights: dashboards about the organization, one plan, group, learner or requirement framework; reports by group.
       /** The organization's dashboards; `dashboard` opens one of them. */
       insights: (dashboard?: string | null) => withQuery('/admin/insights', { d: dashboard || null }),
-      /** A plan, group or learner dashboard, for one of them (`key`); without it the first one the viewer can open. */
-      insightsScope: (scope: 'plan' | 'group' | 'learner', key?: string | null, dashboard?: string | null) =>
+      /** A plan, group, learner or framework dashboard, for one of them (`key`); without it the first one the viewer can open. */
+      insightsScope: (scope: 'plan' | 'group' | 'learner' | 'framework', key?: string | null, dashboard?: string | null) =>
         withQuery(`/admin/insights/${scope}${key ? `/${encodeURIComponent(key)}` : ''}`, { d: dashboard || null }),
       /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
       /** The capture log, optionally narrowed to one dashboard. */
@@ -241,8 +241,9 @@ export const routePaths = {
         withQuery(`/admin/insights/reports/${encodeURIComponent(String(groupId))}/print`, { fw: frameworksParam(frameworks) }),
       /** Engagement by group (a placeholder for now). */
       insightsEngagement: () => '/admin/insights/engagement',
-      /** Requirement coverage by template. */
+      /** Old coverage page; it redirects to Plans › Requirements. */
       insightsCoverage: () => '/admin/insights/coverage',
+      /** Old evidence page; it redirects to the requirement framework dashboards. */
       insightsEvidence: (groupId?: string | number | null) => withQuery('/admin/insights/evidence', { group: groupId == null ? null : String(groupId) }),
       /** Old name for `requirementFrameworkPlans`; frameworks moved from Insights to Plans › Requirements. */
       requirementFramework: frameworkPage,

@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   RANGE_LABELS, SCOPE_LABELS, VISIBILITY_LABELS, insightKeys, insightsApi,
-  type Dashboard, type DashboardCard, type DateRange, type InsightObject, type Preset, type ResultRow, type Scope,
+  type Dashboard, type DashboardCard, type DateRange, type InsightObject, type ObjectScope, type Preset, type ResultRow, type Scope,
 } from '@services/insights/insights'
 import { cn } from '@/lib/utils'
 import DrillSheet, { type DrillTarget } from './DrillSheet'
@@ -128,7 +128,7 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
     : insightKeys.cards(orgId, dashboard.dashboard_uuid, dashboard.revision, scopeKey, range)
   const { data: results, error } = useSWR(cards.length ? runKey : null,
     () => insightsApi.run(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
-  const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group')
+  const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'framework')
     ? getUriWithOrg(orgslug, routePaths.org.admin.insightsScope(row.link.scope, row.link.key)) : null, [orgslug])
   const drillFor = (card: DashboardCard) => (key: string | null | undefined, title: string) => { if (key && !draft) setTarget({ title, spec: card.spec, drill: key }) }
   const change = (next: DashboardCard[]) => draft && setDraft({ ...draft, cards: next })
@@ -160,26 +160,28 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   </>
 }
 
-const EMPTY_ONE: Record<'plan' | 'group' | 'learner', string> = {
+const EMPTY_ONE: Record<ObjectScope, string> = {
   plan: 'Its dashboards fill in once your learners start it.',
   group: 'You can see a group here once it has learners you work with.',
   learner: 'You can see a learner here while they are active and you work with them.',
+  framework: 'This framework isn’t one of your organization’s.',
 }
-const EMPTY_ALL: Record<'plan' | 'group' | 'learner', string> = {
+const EMPTY_ALL: Record<ObjectScope, string> = {
   plan: 'Once your learners start plans, each plan gets these dashboards.',
   group: 'Make a group in Threads, and each group gets these dashboards.',
   learner: 'Once learners join, each one gets these dashboards.',
+  framework: 'Track a requirement framework under Plans › Requirements, and each one gets these dashboards.',
 }
 
 /** A dashboard page: the org's (`scope` org), or a plan's, group's or learner's for the one picked (`objectKey`). */
-export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: { scope: 'org' | 'plan' | 'group' | 'learner'; objectKey?: string | null; dashboardUuid?: string | null }) {
+export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: { scope: Scope; objectKey?: string | null; dashboardUuid?: string | null }) {
   const router = useRouter()
   const { orgId, orgslug, token, ready } = useInsightsContext()
   const { data: dashboards } = useDashboards()
   const inScope = (dashboards || []).filter((item) => item.scope === scope)
   const chosen = inScope.find((item) => item.dashboard_uuid === dashboardUuid) || inScope[0]
   const { data: objects } = useSWR(ready && scope !== 'org' ? insightKeys.objects(orgId, scope) : null,
-    () => insightsApi.objects(orgId, scope as 'plan' | 'group' | 'learner', token), { revalidateOnFocus: false })
+    () => insightsApi.objects(orgId, scope as ObjectScope, token), { revalidateOnFocus: false })
   // A plan or group asked for by key that the viewer can't open (or that has no learners here) isn't swapped for another.
   const object = objectKey ? objects?.find((item) => item.key === objectKey) : objects?.[0]
   const { data: dashboard } = useSWR(ready && chosen ? insightKeys.dashboard(orgId, chosen.dashboard_uuid) : null,
@@ -209,7 +211,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
             <div className="min-w-0">
               {scope === 'org' ? <h1 className="truncate text-[26px] font-extrabold leading-tight tracking-tight">{chosen.title}</h1>
                 : <ObjectSwitcher scope={scope} objects={objects!} current={object!} onPick={(key) => router.push(scopeHref(key, chosen.dashboard_uuid))} />}
-              <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : scope === 'learner' ? object!.detail : `${object!.learners} learner${object!.learners === 1 ? '' : 's'}${object!.external ? ' · from another organization' : ''}`}</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : scope === 'learner' ? object!.detail : `${object!.learners} learner${object!.learners === 1 ? '' : 's'}${scope === 'framework' ? ' tracked' : ''}${object!.external ? ' · from another organization' : ''}`}</p>
             </div>
           </div>
           {dashboard && !draft ? <div className="flex items-center gap-2">

@@ -5,7 +5,7 @@ from __future__ import annotations
 from src.services.insights import mcp as insights_mcp
 from src.services.mcp.tool import Tool
 
-_SCOPE = {"type": "string", "enum": ["org", "plan", "group", "learner"], "description": "What the dashboard is about: the whole organization, one plan, one group or one learner."}
+_SCOPE = {"type": "string", "enum": ["org", "plan", "group", "learner", "framework"], "description": "What the dashboard is about: the whole organization, one plan, one group, one learner or one requirement framework."}
 _KEY = {"type": "string", "description": "The plan, group or learner a plan, group or learner dashboard is showing (list_dashboards with that scope lists them). Omit for org."}
 _RANGE = {
     "description": "28d, 90d, 12m, all, or {start, end} as ISO dates. Omit for the dashboard's own range.",

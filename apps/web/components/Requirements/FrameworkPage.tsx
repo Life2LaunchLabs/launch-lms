@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { BookOpen, Check, Lock, PencilSimple } from '@phosphor-icons/react'
+import { BookOpen, ChartBar, Check, Lock, PencilSimple } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
 import { EmptyState, PageLoader } from '@components/Goals/admin/live/ui'
 import SourceChip from '@components/Goals/admin/requirements/SourceChip'
@@ -110,6 +110,7 @@ export default function FrameworkPage({ orgslug, orgId, token, frameworkUuid, ed
         {framework.description && !editing ? <p className="max-w-3xl text-sm text-gray-600">{framework.description}</p> : null}
       </div>
       {!editing ? <div className="flex flex-wrap gap-2">
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('framework', framework.framework_uuid))} className={cn(btn, 'border border-gray-200 bg-white text-gray-900 hover:border-gray-300')}><ChartBar size={16} aria-hidden="true" />Progress in Insights</Link>
         {canEdit && orgslug === getDefaultOrg() && !isDraft ? <button type="button" onClick={() => void publishToLibrary()} disabled={busy === 'library' || framework.library_published_version === framework.version} className={cn(btn, 'border border-gray-200 bg-white text-gray-900 hover:border-gray-300')}><BookOpen size={16} aria-hidden="true" />{framework.library_published_version === framework.version ? 'Shared in Discover' : framework.published_to_library ? 'Update in Discover' : 'Share in Discover'}</button> : null}
         {canEdit ? <Link href={page(true)} className={cn(btn, 'bg-black text-white hover:bg-black/85')}><PencilSimple size={16} aria-hidden="true" />{isDraft && live ? 'Continue editing' : 'Edit'}</Link> : null}
       </div> : null}
