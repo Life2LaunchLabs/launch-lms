@@ -34,14 +34,13 @@ class StepProgressBulk(SQLModel):
     staff_note: str | None = Field(default=None, max_length=10000)
 
 
-# The admin Home's widgets, in their default order (see services/goals/admin_home.py).
-ADMIN_HOME_WIDGETS = ("waiting", "today", "messages", "attention", "creator", "requirements")
+# Home's sections, in page order (see services/goals/admin_home.py).
+HOME_SECTIONS = ("needs", "assignments", "continue", "week", "glance", "requirements")
 
 
-class AdminHomeLayout(SQLModel):
-    """A member's own Home: widgets in the order they want, and the ones they hid."""
+class HomeLayout(SQLModel):
+    """A member's own Home: the sections they hid."""
 
-    order: list[str] = Field(default_factory=list, max_length=20)
     hidden: list[str] = Field(default_factory=list, max_length=20)
 
 

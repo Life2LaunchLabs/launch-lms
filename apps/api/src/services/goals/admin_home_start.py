@@ -1,6 +1,6 @@
 """Getting started: the first things a new organization's admin does, ticked off from the org's own data.
 
-Admins see it on Home until every required step is done or they dismiss it. Each step is
+Admins see it on Home until they dismiss it, done or not. Each step is
 done when the data says so, never by clicking it, so whatever /start already did shows as done:
 
 - ``plan``: the org has a plan template of its own (made, copied or added from Discover).
@@ -16,7 +16,6 @@ Orgs without groups (Free) get plan, organization, learners and assign.
 
 from __future__ import annotations
 
-from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.goals import GoalAssignment, GoalTemplate
@@ -83,7 +82,7 @@ def _note(key: str, count: int) -> str | None:
 
 
 def getting_started(db: Session, current_user: PublicUser, org_id: int) -> dict | None:
-    """The checklist for an admin of the org, or None once it's dismissed or finished, and for anyone else."""
+    """The checklist for an admin of the org, or None once it's dismissed, and for anyone else."""
     membership = get_user_org(current_user.id, org_id, db)
     if not membership or membership.role_id != ADMIN_ROLE_ID or (membership.preferences or {}).get(DISMISSED_KEY):
         return None
@@ -92,8 +91,6 @@ def getting_started(db: Session, current_user: PublicUser, org_id: int) -> dict 
     # /start already named and colored the space, so the details page is a nice-to-have.
     optional = OPTIONAL | ({"organization"} if setup else set())
     have = counts(db, org_id, current_user.id)
-    if all(have[key] for key in keys if key not in optional):
-        return None
     return {
         "steps": [{
             "key": key, "done": have[key] > 0, "optional": key in optional,
@@ -102,17 +99,7 @@ def getting_started(db: Session, current_user: PublicUser, org_id: int) -> dict 
         "done": sum(have[key] > 0 for key in keys),
         "total": len(keys),
         "from_setup": bool(setup),
+        # Every required step is done; it stays until the admin dismisses it.
+        "complete": all(have[key] for key in keys if key not in optional),
     }
-
-
-def dismiss(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """Hide the checklist for this admin in this org."""
-    membership = get_user_org(current_user.id, org_id, db)
-    if not membership or membership.role_id != ADMIN_ROLE_ID:
-        raise HTTPException(status_code=403, detail="Only admins of this organization see getting started")
-    # A new dict, so the JSON column sees the change.
-    membership.preferences = {**(membership.preferences or {}), DISMISSED_KEY: True}
-    db.add(membership)
-    db.commit()
-    return {"dismissed": True}
 
