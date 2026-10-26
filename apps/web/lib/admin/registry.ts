@@ -1,6 +1,6 @@
 import type { AccessRequest, FeatureAccess } from '../../services/plans/plans.ts'
 import { routePaths } from '../../services/routing/paths.ts'
-import type { HomeWidgetId } from '../../services/goals/adminHome.ts'
+import type { HomeSectionId } from '../../services/goals/adminHome.ts'
 
 /**
  * The one list of admin tabs and Home widgets. The sidebar, the mobile menu, page titles and the
@@ -102,26 +102,14 @@ export function adminTab(id: AdminTabId): AdminTab {
   return ADMIN_TABS.find((tab) => tab.id === id)!
 }
 
-export type AdminWidgetId = HomeWidgetId
-export type AdminWidget = { id: AdminWidgetId; label: string; description: string; requires: AdminRequirement }
-
-/**
- * Home widgets, in default page order. `GET /goal-admin/home` says which ones a viewer gets (by what
- * they staff and what the org makes) and carries their data; these requirements hide or lock them
- * like the tabs. Each member reorders and hides them for themselves.
- */
-export const ADMIN_HOME_WIDGETS: AdminWidget[] = [
-  { id: 'waiting', label: 'Waiting on you', description: 'Work to review, grade or confirm, and chat reports.', requires: { right: STAFF } },
-  { id: 'today', label: 'Today and upcoming', description: 'Steps closing and stages opening this week in the assignments you staff.', requires: { right: STAFF } },
-  { id: 'messages', label: 'Recent messages', description: 'Your latest chats in this organization.', requires: { right: STAFF } },
-  { id: 'attention', label: 'Assignments needing attention', description: 'Learners behind, overdue steps and work waiting on staff.', requires: { right: STAFF } },
-  {
-    id: 'creator',
-    label: 'How your plans and badges do',
-    description: 'Starts, completions and recent edits of what your org makes.',
-    requires: { right: 'learning_activities.action_update' },
-  },
-  { id: 'requirements', label: 'Requirements', description: 'How learners are doing on each requirement framework, with the details in Insights.', requires: { right: STAFF } },
+/** Home's sections as Customize lists them, in page order. `GET /goal-admin/home` says which ones a viewer gets. */
+export const HOME_SECTIONS: Array<{ id: HomeSectionId; label: string; description: string }> = [
+  { id: 'needs', label: 'Needs you', description: 'Threads with something waiting on you.' },
+  { id: 'assignments', label: 'Your assignments', description: 'Where learners are on the assignments you’re on.' },
+  { id: 'continue', label: 'Continue', description: 'Plans, requirements and resources edited last.' },
+  { id: 'week', label: 'This week', description: 'Steps closing and stages opening on your assignments.' },
+  { id: 'glance', label: 'At a glance', description: 'Insight cards you pinned.' },
+  { id: 'requirements', label: 'Requirements', description: 'How learners are doing on each requirement framework.' },
 ]
 
 export type { AccessRequest }

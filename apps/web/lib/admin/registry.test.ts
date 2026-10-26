@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { FeatureAccess } from '../../services/plans/plans.ts'
 import {
-  ADMIN_HOME_WIDGETS,
   adminLabel,
   adminTabForPath,
   adminVisibility,
@@ -46,7 +45,6 @@ test('a teacher (staff without admin rights) gets Home, Plans (with its four tab
   assert.equal(plans.href, '/admin/plans')
   assert.equal(plans.inPageTabs, true)
   assert.equal(plans.pill, 'New')
-  assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention', 'requirements'])
 })
 
 test('an admin gets every tab in job order and gated pages show what to request', () => {
@@ -77,12 +75,6 @@ test('an enabled feature opens, and one nobody can turn on is hidden rather than
   assert.deepEqual(adminVisibility({ feature: 'groups' }, access({ features: FULL_FEATURES })), { state: 'open' })
   assert.deepEqual(adminVisibility({ feature: 'not_a_feature' }, access({ features: FULL_FEATURES })), { state: 'hidden' })
   assert.equal(featureUnlock(on), null)
-})
-
-test('creator metrics are an admin widget open at every tier', () => {
-  const creator = ADMIN_HOME_WIDGETS.find((widget) => widget.id === 'creator')!
-  assert.deepEqual(adminVisibility(creator.requires, access({ rights: ADMIN_RIGHTS })), { state: 'open' })
-  assert.deepEqual(adminVisibility(creator.requires, access({ rights: [STAFF] })), { state: 'hidden' })
 })
 
 test('paths resolve to the tab that owns them, by longest match', () => {

@@ -18,6 +18,7 @@ import CardEditor, { type EditorTarget } from './CardEditor'
 import { AddCardTile, CardControls, EditBar, draftFrom, moveCard, type EditDraft } from './DashboardEditing'
 import InsightCard, { CardSkeleton, spanClass } from './InsightCard'
 import InsightsShell, { useNewDashboard } from './InsightsShell'
+import { useHomePins } from './homePins'
 import CaptureButton from './CaptureModal'
 import SchedulesModal from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
@@ -126,6 +127,8 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   const scope = { kind: dashboard.scope, key: scopeKey }
   const runKey = draft ? [...insightKeys.cards(orgId, dashboard.dashboard_uuid, -1, scopeKey, range), JSON.stringify(cards.map(({ key, spec }) => [key, spec]))]
     : insightKeys.cards(orgId, dashboard.dashboard_uuid, dashboard.revision, scopeKey, range)
+  const pins = useHomePins(orgId, token)
+  const pinFor = (card: DashboardCard) => draft ? undefined : pins.pinFor({ dashboard_uuid: dashboard.dashboard_uuid, card_key: card.key, scope_key: dashboard.scope === 'org' ? null : scopeKey })
   const { data: results, error } = useSWR(cards.length ? runKey : null,
     () => insightsApi.run(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
   const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'framework')
@@ -142,7 +145,7 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   return <>
     <div className="grid grid-cols-12 gap-4">
       {cards.map((card, index) => {
-        const body = results ? <InsightCard key={card.key} card={draft ? { ...card, span: 12 } : card} outcome={results[card.key]} drill={drillFor(card)} linkFor={linkFor} />
+        const body = results ? <InsightCard key={card.key} card={draft ? { ...card, span: 12 } : card} outcome={results[card.key]} drill={drillFor(card)} linkFor={linkFor} pin={pinFor(card)} />
           : <CardSkeleton key={card.key} span={draft ? 12 : card.span} />
         if (!draft) return body
         return <div key={card.key} className={cn(spanClass(card.span), 'grid grid-cols-12 content-start gap-2 rounded-[20px] outline-dashed outline-2 outline-offset-2 outline-border')}>

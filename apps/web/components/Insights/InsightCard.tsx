@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Info, Lock, Minus } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Info, Lock, Minus, Pin, PinOff } from 'lucide-react'
 import { isCardError, type CardOutcome, type CardResult, type DashboardCard } from '@services/insights/insights'
 import { cn } from '@/lib/utils'
 import { CardBody, type Drill, type LinkFor } from './charts'
@@ -32,8 +32,11 @@ export function CardSkeleton({ span }: { span: number }) {
   </section>
 }
 
+/** Pin a card to Home, or take it off. */
+export interface CardPin { pinned: boolean; onToggle: () => void }
+
 /** One card on a dashboard: the headline sentence, what it shows, the chart, and who is behind it. */
-export default function InsightCard({ card, outcome, drill, linkFor }: { card: DashboardCard; outcome: CardOutcome | undefined; drill: Drill; linkFor: LinkFor }) {
+export default function InsightCard({ card, outcome, drill, linkFor, pin }: { card: DashboardCard; outcome: CardOutcome | undefined; drill: Drill; linkFor: LinkFor; pin?: CardPin }) {
   if (!outcome) return <CardSkeleton span={card.span} />
   if (isCardError(outcome)) {
     const locked = outcome.error === 'locked'
@@ -68,6 +71,10 @@ export default function InsightCard({ card, outcome, drill, linkFor }: { card: D
     <footer className="mt-auto flex items-center gap-2 border-t border-border pt-2 text-[12px] text-muted-foreground">
       <span className="inline-flex min-w-0 items-center gap-1 truncate" title={result.definition}><Info size={12} className="shrink-0" aria-hidden="true" /><span className="truncate">{result.definition}</span></span>
       <span className="flex-1" />
+      {pin ? <button type="button" onClick={pin.onToggle} aria-pressed={pin.pinned} title={pin.pinned ? 'Unpin from Home' : 'Pin to Home'}
+        className={cn('inline-flex shrink-0 items-center gap-1 rounded-md px-1 font-semibold hover:text-foreground', pin.pinned && 'text-foreground')}>
+        {pin.pinned ? <PinOff size={13} aria-hidden="true" /> : <Pin size={13} aria-hidden="true" />}{pin.pinned ? 'Unpin' : 'Pin to Home'}
+      </button> : null}
       {result.drill ? <button type="button" onClick={seeWho} className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-foreground hover:underline">See who<ChevronRight size={13} aria-hidden="true" /></button> : null}
     </footer>
   </section>
