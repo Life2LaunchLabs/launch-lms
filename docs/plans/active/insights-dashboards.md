@@ -95,7 +95,15 @@ API: `POST /dashboards/{uuid}/captures`, `GET /captures` (filters: dashboard, sc
 `GET /captures/{uuid}`, `PUT /captures/{uuid}/note`, `PUT /captures/{uuid}/link`, and `GET /shared/{token}`
 with no sign-in. Web: Capture on a dashboard's header, the log at `/admin/insights/captures`, one capture at
 `/admin/insights/captures/[uuid]` (print and the link), and the link at `/insights/shared/[token]`.
-Scheduled captures (rules, the scheduler, email) follow as I6b.
+Scheduled captures (I6b): `InsightCaptureRule` captures a dashboard weekly (a weekday), monthly (a day, or
+the last) or once on a date, at 06:00 UTC, as its owner, with a note and optional fixed dates.
+`services/insights/rules.py` claims due rules (moving their next run on in one commit, `SKIP LOCKED` on
+Postgres) before running them, from a loop started with the app (`run_forever`). Staff recipients must be
+able to open the capture and get a link into Insights; other addresses get the read-only link, so a rule
+with addresses makes one each run. Emails list the shielded headlines. A rule that can't run (dashboard
+deleted, owner gone, plan or group no longer theirs) turns itself off with the reason. API: `GET /rules`,
+`POST /dashboards/{uuid}/rules`, `PUT|DELETE /rules/{uuid}`, `POST /rules/{uuid}/run`. Web: Schedule
+captures in a dashboard's menu, and Schedules above the capture log.
 
 ## Acceptance
 

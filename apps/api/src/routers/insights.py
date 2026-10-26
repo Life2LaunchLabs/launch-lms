@@ -9,7 +9,7 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.insights import captures, context, dashboards, engine
+from src.services.insights import captures, context, dashboards, engine, rules
 from src.services.insights.spec import CardSpec, CustomRange
 
 router = APIRouter()
@@ -171,3 +171,30 @@ def api_capture_link(org_id: int, capture_uuid: str, payload: CaptureLink, db: S
 def api_shared_capture(token: str, db: Session = Depends(get_db_session)):
     """A capture's read-only link: no sign-in, small numbers hidden, no names."""
     return captures.shared(db, token)
+
+
+@router.get("/rules")
+def api_list_rules(org_id: int, dashboard: str | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Scheduled captures the viewer can see, optionally for one dashboard."""
+    return {"rules": rules.list_rules(db, user, org_id, dashboard)}
+
+
+@router.post("/dashboards/{dashboard_uuid}/rules")
+def api_create_rule(org_id: int, dashboard_uuid: str, payload: rules.RuleIn, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return rules.create_rule(db, user, org_id, dashboard_uuid, payload)
+
+
+@router.put("/rules/{rule_uuid}")
+def api_update_rule(org_id: int, rule_uuid: str, payload: rules.RuleIn, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return rules.update_rule(db, user, org_id, rule_uuid, payload)
+
+
+@router.delete("/rules/{rule_uuid}")
+def api_delete_rule(org_id: int, rule_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return rules.delete_rule(db, user, org_id, rule_uuid)
+
+
+@router.post("/rules/{rule_uuid}/run")
+def api_run_rule(org_id: int, rule_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Run a schedule now, to try it; its next run stays as it was."""
+    return rules.run_now(db, user, org_id, rule_uuid)

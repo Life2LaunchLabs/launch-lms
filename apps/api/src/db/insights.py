@@ -68,3 +68,38 @@ class InsightCapture(SQLModel, table=True):
     link_expires_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str = ""
     update_date: str = ""
+
+
+class InsightCaptureRule(SQLModel, table=True):
+    """Capture a dashboard on a schedule and send it: weekly, monthly, or once on a date.
+
+    It runs as its owner, so it counts the learners they can see, and it stops (``enabled`` off, with
+    ``last_error``) when the owner or the dashboard can no longer run it.
+    """
+
+    __tablename__ = "insight_capture_rule"
+
+    id: int | None = Field(default=None, primary_key=True)
+    rule_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    dashboard_id: int = Field(sa_column=Column(Integer, ForeignKey("insight_dashboard.id", ondelete="CASCADE"), nullable=False, index=True))
+    owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
+    # The plan or group it captures; none for an organization dashboard.
+    object_key: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    # weekly (on ``day`` 0 = Monday), monthly (on ``day`` 1-28, or 0 for the last day), once (on ``on_date``).
+    cadence: str = Field(sa_column=Column(String, nullable=False))
+    day: int = 0
+    on_date: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    # The dates each capture covers; none follows the dashboard's own.
+    range: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    note: str = ""
+    # Who hears about it: staff (user ids) open it in Insights; other addresses get its read-only link.
+    staff_user_ids: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    emails: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    link_days: int | None = None
+    enabled: bool = True
+    next_run_at: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
+    last_run_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    last_error: str = ""
+    creation_date: str = ""
+    update_date: str = ""

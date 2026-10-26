@@ -10,6 +10,7 @@ import { LINK_DAYS, SCOPE_LABELS, insightKeys, insightsApi, type Capture, type C
 import { cn } from '@/lib/utils'
 import CapturedCards, { Attachments, capturedOn, rangeText } from './CapturedCards'
 import InsightsShell from './InsightsShell'
+import { ScheduleList } from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 
@@ -53,8 +54,9 @@ export function CaptureLog({ dashboard }: { dashboard: string | null }) {
     <div className="space-y-5">
       <header className="space-y-1">
         <h1 className="text-[26px] font-extrabold leading-tight tracking-tight">Captures</h1>
-        <p className="text-[13.5px] text-muted-foreground">Dashboards frozen at a moment, kept as they were. Capture any dashboard from its page.</p>
+        <p className="text-[13.5px] text-muted-foreground">Dashboards frozen at a moment, kept as they were. Capture any dashboard from its page, or schedule it from its menu.</p>
       </header>
+      {dashboard ? null : <ScheduleList />}
       <div className="flex flex-wrap items-center gap-2">
         {board ? <span className="inline-flex h-8 items-center gap-2 rounded-full bg-muted pl-3 pr-1 text-[13px] font-semibold">{board.title}
           <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsCaptures())} className="rounded-full px-2 py-0.5 text-muted-foreground hover:bg-card" aria-label="Show every dashboard">×</Link>

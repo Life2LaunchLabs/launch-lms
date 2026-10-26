@@ -165,6 +165,50 @@ export interface SharedCapture {
 export type CaptureFilters = { dashboard?: string | null; scope?: Scope | null; key?: string | null; mine?: boolean; scheduled?: boolean | null }
 export const LINK_DAYS = [7, 30, 90] as const
 
+export type Cadence = 'weekly' | 'monthly' | 'once'
+/** A scheduled capture (apps/api/src/services/insights/rules.py). */
+export interface CaptureRule {
+  rule_uuid: string
+  dashboard_uuid: string | null
+  title: string
+  scope: Scope
+  key: string | null
+  cadence: Cadence
+  /** Weekly: 0 is Monday. Monthly: 1-28, or 0 for the last day. */
+  day: number
+  on_date: string | null
+  range: { preset: Preset } | { start: string; end: string } | null
+  note: string
+  summary: string
+  staff: Array<{ user_uuid: string; name: string }>
+  emails: string[]
+  link_days: number | null
+  enabled: boolean
+  next_run_at: string | null
+  last_run_at: string | null
+  last_error: string
+  owner: string
+  mine: boolean
+  editable: boolean
+}
+export interface RuleInput {
+  key?: string | null
+  cadence: Cadence
+  day: number
+  on_date?: string | null
+  range?: DateRange | null
+  note?: string
+  staff?: string[]
+  emails?: string[]
+  link_days?: number | null
+  enabled?: boolean
+}
+/** A rule as the form edits it again. */
+export const ruleInput = (rule: CaptureRule): RuleInput => ({
+  key: rule.key, cadence: rule.cadence, day: rule.day, on_date: rule.on_date, note: rule.note, link_days: rule.link_days, enabled: rule.enabled,
+  range: rule.range ? ('preset' in rule.range ? rule.range.preset : rule.range) : null, staff: rule.staff.map((item) => item.user_uuid), emails: rule.emails,
+})
+
 export interface InsightObject { key: string; label: string; learners: number; external?: boolean }
 export interface LibraryTemplate { key: string; scope: Scope; title: string; description: string; cards: DashboardCard[] }
 export interface LibraryQuestion { key: string; text: string; spec: CardSpec }
@@ -177,6 +221,7 @@ export const insightKeys = {
   registry: (orgId: number, scope: Scope, key: string | null) => ['insights', orgId, 'registry', scope, key] as const,
   captures: (orgId: number, filters: CaptureFilters = {}) => ['insights', orgId, 'captures', JSON.stringify(filters)] as const,
   capture: (orgId: number, uuid: string) => ['insights', orgId, 'capture', uuid] as const,
+  rules: (orgId: number, dashboard: string | null = null) => ['insights', orgId, 'rules', dashboard] as const,
   cards: (orgId: number, uuid: string, revision: number, scopeKey: string | null, range: DateRange) =>
     ['insights', orgId, 'cards', uuid, revision, scopeKey, JSON.stringify(range)] as const,
 }
@@ -210,6 +255,12 @@ export const insightsApi = {
   captureNote: (orgId: number, uuid: string, note: string, token?: string) => request<Capture>(url(orgId, `/captures/${q(uuid)}/note`), token, 'PUT', { note }),
   captureLink: (orgId: number, uuid: string, body: { on: boolean; days?: number | null }, token?: string) =>
     request<Capture>(url(orgId, `/captures/${q(uuid)}/link`), token, 'PUT', body),
+  rules: (orgId: number, dashboard: string | null = null, token?: string) =>
+    request<{ rules: CaptureRule[] }>(url(orgId, '/rules', { dashboard }), token).then((body) => body.rules),
+  createRule: (orgId: number, dashboard: string, body: RuleInput, token?: string) => request<CaptureRule>(url(orgId, `/dashboards/${q(dashboard)}/rules`), token, 'POST', body),
+  updateRule: (orgId: number, uuid: string, body: RuleInput, token?: string) => request<CaptureRule>(url(orgId, `/rules/${q(uuid)}`), token, 'PUT', body),
+  deleteRule: (orgId: number, uuid: string, token?: string) => request<{ deleted: boolean }>(url(orgId, `/rules/${q(uuid)}`), token, 'DELETE'),
+  runRule: (orgId: number, uuid: string, token?: string) => request<{ capture_uuid: string; rule: CaptureRule }>(url(orgId, `/rules/${q(uuid)}/run`), token, 'POST'),
   /** No sign-in: anyone with the link. */
   shared: (token: string) => request<SharedCapture>(`${getAPIUrl()}insights/shared/${q(token)}`),
   drill: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; spec: CardSpec; drill: string }, token?: string) =>
