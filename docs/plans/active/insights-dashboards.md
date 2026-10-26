@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I1 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I2 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -28,12 +28,31 @@ Measures read existing tables: goals, `PlanActivity` (every step status change, 
 API (`routers/insights.py`, prefix `/insights`): `GET /registry`, `POST /cards/run`, `POST /drill`, all
 with `org_id`.
 
+## Dashboards (I2)
+
+`InsightDashboard` (`db/insights.py`): scope, title, visibility (`me`, `staff`, `admins`), owner, a
+document of cards (`{key, spec, span}`) and a default range, a revision, the template it came from, and a
+soft delete. `services/insights/dashboards.py` holds the rules:
+
+- Sharing with staff needs See reports; sharing with admins only needs an admin.
+- The owner, or an admin on a shared dashboard, saves in place at the revision they opened (409 with the
+  current dashboard otherwise). Anyone else's save makes their own copy.
+- Every card is checked against the dashboard's scope when saved; a card the viewer may not run shows locked.
+- The first time an organization opens Insights it gets the starters (org overview, plan performance,
+  group progress) shared with staff. Deleting them keeps them gone.
+
+`services/insights/library.py` holds the templates per scope and the question library, all plain specs.
+
+API: `GET /library`, `GET /objects` (plans or groups for the switcher), `GET|POST /dashboards`, `GET|PUT|DELETE /dashboards/{uuid}`,
+`POST /dashboards/{uuid}/duplicate`, all with `org_id`.
+
 ## Acceptance
 
 - Every measure has exact numbers on the `test_insights` fixture, and a staff viewer never counts a learner
   outside their groups (parametrized over the registry).
 - Changes are called only when real (thresholds in `sentences.real_change`); too few rows say so.
 - A bad spec on a dashboard returns its errors without failing the other cards.
+- Every template and question validates on its scope, and every starter runs without errors.
 
 ## Sequence
 
