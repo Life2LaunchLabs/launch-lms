@@ -184,7 +184,8 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.insightsReport(3, ['fw_1', 'fw_2']), '/admin/insights?group=3&fw=fw_1%2Cfw_2')
   assert.equal(admin.insightsReport(null, 'all'), '/admin/insights?fw=all')
   assert.equal(admin.insightsReportPrint(3, 'all'), '/admin/insights/reports/3/print?fw=all')
-  assert.equal(admin.content.resourceChannel('channel_1', 'general'), '/admin/resources/channel_1/general')
+  assert.equal(admin.resources.channel('channel_1'), '/admin/resources/channel/channel_1')
+  assert.equal(admin.resources.item('resource_1'), '/admin/resources/item/resource_1')
   assert.equal(admin.organization.general(), '/admin/org/settings/general')
   assert.equal(admin.payments.overview(), '/admin/payments/overview')
   assert.equal(routePaths.owner.platform.organization(42), '/admin/platform/orgs/42')
@@ -383,7 +384,9 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/badges/badge/abc/routes', '', '/admin/plans'],
     ['/admin/plans/badge/abc/routes', '', '/admin/plans'],
     ['/admin/badges/collection/c1/badges', '', '/admin/plans'],
-    ['/admin/resources/channel_1', '', '/admin/resources/channel_1/general'],
+    ['/admin/resources/channel_1', '', '/admin/resources/channel/channel_1'],
+    ['/admin/resources/channel_1/moderation', '', '/admin/resources/channel/channel_1'],
+    ['/admin/resources/tags', '', '/admin/resources'],
     ['/plans/groups/assignment_1', '', '/plans'],
   ]
   for (const [pathname, search, expected] of cases) {
@@ -403,7 +406,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
 })
 
 test('live admin pages are not caught by the legacy redirects', () => {
-  for (const pathname of ['/admin', '/admin/plans', '/admin/plans/template_1', '/admin/plans/assignments', '/admin/plans/assignments/a_1/learners', '/admin/plans/live/p_1/overview', '/admin/insights', '/admin/insights/evidence', '/admin/plans/requirements', '/admin/plans/requirements/fw_1/spec', '/admin/plans/discover', '/admin/plans/discover/plan/goal_template_1', '/admin/resources/tags', '/admin/users/groups/3', '/admin/users/user/jane', '/admin/users/chat/chat_1', '/plans/sb3']) {
+  for (const pathname of ['/admin', '/admin/plans', '/admin/plans/template_1', '/admin/plans/assignments', '/admin/plans/assignments/a_1/learners', '/admin/plans/live/p_1/overview', '/admin/insights', '/admin/insights/evidence', '/admin/plans/requirements', '/admin/plans/requirements/fw_1/spec', '/admin/plans/discover', '/admin/plans/discover/plan/goal_template_1', '/admin/resources', '/admin/resources/library', '/admin/resources/channel/channel_1', '/admin/resources/item/resource_1', '/admin/users/groups/3', '/admin/users/user/jane', '/admin/users/chat/chat_1', '/plans/sb3']) {
     const decision = resolveRequestRouting({
       requestUrl: `https://acme.launchlms.test${pathname}`,
       pathname,

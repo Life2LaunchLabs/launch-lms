@@ -38,9 +38,9 @@ const FULL_FEATURES: Record<string, FeatureAccess> = {
 }
 const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
-test('a teacher (staff without admin rights) gets Home, Plans (with its four tabs) and People only', () => {
+test('a teacher (staff without admin rights) gets Home, Plans (with its four tabs), People and Resources', () => {
   const tabs = visibleAdminTabs(access({ rights: [STAFF], features: FULL_FEATURES }))
-  assert.deepEqual(ids(tabs), ['home', 'plans', 'people'])
+  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'resources'])
   const plans = tabs.find((tab) => tab.id === 'plans')!
   assert.deepEqual(ids(plans.children!), ['plans', 'discover', 'assignments', 'requirements'])
   assert.equal(plans.href, '/admin/plans')
@@ -51,10 +51,9 @@ test('a teacher (staff without admin rights) gets Home, Plans (with its four tab
 
 test('an admin gets every tab in job order and gated pages show what to request', () => {
   const tabs = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES }))
-  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'content', 'organization'])
-  const content = tabs.find((tab) => tab.id === 'content')!
-  assert.deepEqual(ids(content.children!), ['resources'])
-  assert.deepEqual(content.visibility, { state: 'locked', request: { type: 'partner_application', value: 'resource_partner' } })
+  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'resources', 'organization'])
+  // Any staff member adds resources; only listing in the Library needs the resource partner program.
+  assert.equal(tabs.find((tab) => tab.id === 'resources')!.visibility.state, 'open')
   const organization = tabs.find((tab) => tab.id === 'organization')!
   assert.deepEqual(ids(organization.children!), ['general', 'branding', 'discover', 'messaging', 'sso', 'plan', 'payments'])
   assert.deepEqual(organization.children!.find((child) => child.id === 'sso')!.visibility, { state: 'locked', request: { type: 'tier_upgrade', value: 'enterprise' } })
@@ -109,7 +108,7 @@ test('paths resolve to the tab that owns them, by longest match', () => {
   assert.equal(owner('/admin/insights/evidence'), 'insights')
   assert.equal(owner('/admin/users/groups/2/members'), 'people')
   assert.equal(owner('/admin/threads/people/12'), 'people')
-  assert.equal(owner('/admin/resources/tags'), 'content/resources')
+  assert.equal(owner('/admin/resources/channel/channel_1'), 'resources')
   assert.equal(owner('/admin/payments/offers'), 'organization/payments')
   assert.equal(owner('/admin/org/settings/sso'), 'organization/sso')
   assert.equal(owner('/admin/platform/users'), null)

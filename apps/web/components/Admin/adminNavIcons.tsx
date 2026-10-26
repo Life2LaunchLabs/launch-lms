@@ -1,4 +1,5 @@
 import {
+  Books,
   Buildings,
   ChartLineUp,
   ChartPieSlice,
@@ -9,7 +10,6 @@ import {
   CurrencyCircleDollar,
   Flag,
   Flask,
-  FolderOpen,
   Gear,
   Headphones,
   House,
@@ -38,8 +38,7 @@ export const ADMIN_NAV_ICONS: Record<string, Icon> = {
   requirements: ListChecks,
   discover: Storefront,
   insights: ChartLineUp,
-  content: FolderOpen,
-  resources: FolderOpen,
+  resources: Books,
   podcasts: Headphones,
   playgrounds: Cube,
   organization: Buildings,

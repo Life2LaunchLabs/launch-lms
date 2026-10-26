@@ -25,7 +25,6 @@
     "apps/api/src/services/users/usergroups.py": 699,
     "apps/api/src/services/users/users.py": 929,
     "apps/web/app/api/portfolio/social-previews/route.ts": 503,
-    "apps/web/app/orgs/[orgslug]/admin/resources/[channeluuid]/[subpage]/page.tsx": 1339,
     "apps/web/components/Admin/Platform/OrgDetail.tsx": 888,
     "apps/web/components/Admin/Platform/UserDetail.tsx": 879,
     "apps/web/components/Admin/Platform/UsersTable.tsx": 799,
