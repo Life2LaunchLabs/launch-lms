@@ -612,6 +612,12 @@ test('route access exposes badge awards and the plan pages their badges point to
   assert.equal(classifyRoute('/discover').kind, 'protected')
 })
 
+test('route access opens an Insights capture\'s read-only link signed out, and nothing else in Insights', () => {
+  assert.equal(classifyRoute('/insights/shared/tok_123').kind, 'public')
+  assert.equal(classifyRoute('/insights/shared').kind, 'protected')
+  assert.equal(classifyRoute('/admin/insights/captures/cap_1').kind, 'protected')
+})
+
 test('route access exposes only the new public portfolio surfaces', () => {
   assert.equal(classifyRoute('/user/maya').kind, 'public')
   assert.equal(classifyRoute('/user/maya/work').kind, 'public')
@@ -647,6 +653,21 @@ test('request policy allows unauthenticated badge entry pages', () => {
   })
   assert.equal(canonicalDecision.action, 'rewrite')
   assert.equal(canonicalDecision.destination, '/orgs/acme/badges/badge-slug')
+})
+
+test('request policy serves an Insights read-only link to a visitor who is signed out', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/insights/shared/tok_123',
+    pathname: '/insights/shared/tok_123',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/orgs/acme/insights/shared/tok_123')
 })
 
 test('request policy redirects direct internal org paths to canonical org URLs', () => {

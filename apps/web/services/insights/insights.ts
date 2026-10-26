@@ -125,6 +125,46 @@ export interface Registry {
   ranges: string[]
 }
 
+export interface CaptureLink { token: string; expires_at: string | null; expired: boolean }
+export interface CaptureAttachment { kind: string; label: string; [key: string]: unknown }
+export interface CaptureSummary {
+  capture_uuid: string
+  title: string
+  scope: Scope
+  object_key: string | null
+  object_label: string
+  range: { asked: DateRange; start: string | null; end: string }
+  note: string
+  captured_by: string
+  mine: boolean
+  whole_org: boolean
+  learners: number
+  dashboard_uuid: string | null
+  scheduled: boolean
+  card_count: number
+  attachments: Array<{ kind: string; label: string }>
+  /** Its maker and admins can share it, and only they see the link. */
+  can_share: boolean
+  link: CaptureLink | null
+  creation_date: string
+}
+export interface Capture extends Omit<CaptureSummary, 'attachments'> { cards: DashboardCard[]; results: Record<string, CardOutcome>; attachments: CaptureAttachment[] }
+/** What a read-only link shows: no names, nothing to click into, numbers under ten hidden. */
+export interface SharedCapture {
+  title: string
+  scope: Scope
+  object_label: string
+  range: Capture['range']
+  note: string
+  org: { name: string; slug: string }
+  creation_date: string
+  cards: DashboardCard[]
+  results: Record<string, CardOutcome>
+  attachments: CaptureAttachment[]
+}
+export type CaptureFilters = { dashboard?: string | null; scope?: Scope | null; key?: string | null; mine?: boolean; scheduled?: boolean | null }
+export const LINK_DAYS = [7, 30, 90] as const
+
 export interface InsightObject { key: string; label: string; learners: number; external?: boolean }
 export interface LibraryTemplate { key: string; scope: Scope; title: string; description: string; cards: DashboardCard[] }
 export interface LibraryQuestion { key: string; text: string; spec: CardSpec }
@@ -135,6 +175,8 @@ export const insightKeys = {
   objects: (orgId: number, scope: Scope) => ['insights', orgId, 'objects', scope] as const,
   library: (orgId: number, scope: Scope) => ['insights', orgId, 'library', scope] as const,
   registry: (orgId: number, scope: Scope, key: string | null) => ['insights', orgId, 'registry', scope, key] as const,
+  captures: (orgId: number, filters: CaptureFilters = {}) => ['insights', orgId, 'captures', JSON.stringify(filters)] as const,
+  capture: (orgId: number, uuid: string) => ['insights', orgId, 'capture', uuid] as const,
   cards: (orgId: number, uuid: string, revision: number, scopeKey: string | null, range: DateRange) =>
     ['insights', orgId, 'cards', uuid, revision, scopeKey, JSON.stringify(range)] as const,
 }
@@ -157,6 +199,19 @@ export const insightsApi = {
   registry: (orgId: number, scope: Scope, key: string | null, token?: string) => request<Registry>(url(orgId, '/registry', { scope, key }), token),
   run: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; cards: Array<{ key: string; spec: CardSpec }> }, token?: string) =>
     request<{ results: Record<string, CardOutcome> }>(url(orgId, '/cards/run'), token, 'POST', body).then((response) => response.results),
+  capture: (orgId: number, uuid: string, body: { key?: string | null; range?: DateRange | null; note?: string; attach?: string[] }, token?: string) =>
+    request<Capture>(url(orgId, `/dashboards/${q(uuid)}/captures`), token, 'POST', body),
+  captures: (orgId: number, filters: CaptureFilters = {}, token?: string) =>
+    request<{ captures: CaptureSummary[] }>(url(orgId, '/captures', {
+      dashboard: filters.dashboard, scope: filters.scope, key: filters.key, mine: filters.mine ? 'true' : null,
+      scheduled: filters.scheduled == null ? null : String(filters.scheduled),
+    }), token).then((body) => body.captures),
+  getCapture: (orgId: number, uuid: string, token?: string) => request<Capture>(url(orgId, `/captures/${q(uuid)}`), token),
+  captureNote: (orgId: number, uuid: string, note: string, token?: string) => request<Capture>(url(orgId, `/captures/${q(uuid)}/note`), token, 'PUT', { note }),
+  captureLink: (orgId: number, uuid: string, body: { on: boolean; days?: number | null }, token?: string) =>
+    request<Capture>(url(orgId, `/captures/${q(uuid)}/link`), token, 'PUT', body),
+  /** No sign-in: anyone with the link. */
+  shared: (token: string) => request<SharedCapture>(`${getAPIUrl()}insights/shared/${q(token)}`),
   drill: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; spec: CardSpec; drill: string }, token?: string) =>
     request<{ total: number; people: DrillPerson[]; truncated: boolean }>(url(orgId, '/drill'), token, 'POST', body),
 }

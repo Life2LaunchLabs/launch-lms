@@ -9,10 +9,12 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.insights import context, dashboards, engine
+from src.services.insights import captures, context, dashboards, engine
 from src.services.insights.spec import CardSpec, CustomRange
 
 router = APIRouter()
+# Read-only links open signed out, so they sit outside the router's sign-in dependency (``src/router.py``).
+public_router = APIRouter()
 
 
 class ScopeRef(BaseModel):
@@ -50,6 +52,22 @@ class DashboardSave(BaseModel):
 
 class DashboardDuplicate(BaseModel):
     title: str | None = Field(default=None, max_length=120)
+
+
+class CaptureCreate(BaseModel):
+    key: str | None = Field(default=None, max_length=200)
+    range: Literal["28d", "90d", "12m", "all"] | CustomRange | None = None
+    note: str = Field(default="", max_length=2000)
+    attach: list[str] = Field(default_factory=list, max_length=8)
+
+
+class CaptureNote(BaseModel):
+    note: str = Field(default="", max_length=2000)
+
+
+class CaptureLink(BaseModel):
+    on: bool = True
+    days: int | None = None
 
 
 class DrillRequest(BaseModel):
@@ -119,3 +137,37 @@ def api_duplicate_dashboard(org_id: int, dashboard_uuid: str, payload: Dashboard
 @router.delete("/dashboards/{dashboard_uuid}")
 def api_delete_dashboard(org_id: int, dashboard_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return dashboards.delete_dashboard(db, user, org_id, dashboard_uuid)
+
+
+@router.post("/dashboards/{dashboard_uuid}/captures")
+def api_capture_dashboard(org_id: int, dashboard_uuid: str, payload: CaptureCreate, db: Session = Depends(get_db_session),
+                          user: PublicUser = Depends(get_current_user)):
+    """Freeze the saved dashboard as it shows now, for this viewer, with a note."""
+    return captures.capture_dashboard(db, user, org_id, dashboard_uuid, key=payload.key, range_=payload.range, note=payload.note, attach=payload.attach)
+
+
+@router.get("/captures")
+def api_list_captures(org_id: int, dashboard: str | None = None, scope: Literal["org", "plan", "group", "learner"] | None = None, key: str | None = None,
+                      mine: bool = False, scheduled: bool | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return {"captures": captures.list_captures(db, user, org_id, dashboard_uuid=dashboard, scope=scope, key=key, mine=mine, scheduled=scheduled)}
+
+
+@router.get("/captures/{capture_uuid}")
+def api_get_capture(org_id: int, capture_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return captures.get_capture(db, user, org_id, capture_uuid)
+
+
+@router.put("/captures/{capture_uuid}/note")
+def api_capture_note(org_id: int, capture_uuid: str, payload: CaptureNote, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return captures.update_note(db, user, org_id, capture_uuid, payload.note)
+
+
+@router.put("/captures/{capture_uuid}/link")
+def api_capture_link(org_id: int, capture_uuid: str, payload: CaptureLink, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return captures.set_link(db, user, org_id, capture_uuid, on=payload.on, days=payload.days)
+
+
+@public_router.get("/shared/{token}")
+def api_shared_capture(token: str, db: Session = Depends(get_db_session)):
+    """A capture's read-only link: no sign-in, small numbers hidden, no names."""
+    return captures.shared(db, token)

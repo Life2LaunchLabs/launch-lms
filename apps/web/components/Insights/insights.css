@@ -33,3 +33,12 @@
     --viz-surface: hsl(199 29% 13%);
   }
 }
+
+/* Printing a capture: only the capture, light, without the admin chrome around it or its buttons. */
+@media print {
+  body:has(.insights-print) * { visibility: hidden; }
+  .insights-print, .insights-print * { visibility: visible; }
+  .insights-print { position: absolute; inset: 0 auto auto 0; width: 100%; }
+  .insights-print-hide { display: none !important; }
+  .insights-print [data-testid='insight-card'] { break-inside: avoid; box-shadow: none; }
+}
