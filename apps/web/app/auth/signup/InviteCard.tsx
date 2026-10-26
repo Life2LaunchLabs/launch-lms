@@ -68,6 +68,7 @@ export default function InviteCard({ preview, signedInEmail }: { preview: Invite
           {` as ${ROLE[preview.role]}`}{preview.group ? <>, in <b className="text-gray-950">{preview.group}</b></> : null}.
         </p>
       </div>
+      <InviteSetup preview={preview} />
       {preview.email && (!signedInEmail || mismatch) && (
         <p className={`mt-3 text-sm ${mismatch ? 'font-medium text-amber-800' : 'text-gray-500'}`}>
           {mismatch
@@ -75,6 +76,36 @@ export default function InviteCard({ preview, signedInEmail }: { preview: Invite
             : `Sent to ${preview.email}. Sign up with this address to accept it.`}
         </p>
       )}
+    </div>
+  )
+}
+
+/** What a staff invitation sets up: the inviter's note, then the assignments they're on (or, without any, what they'll be able to do). */
+function InviteSetup({ preview }: { preview: InvitePreview }) {
+  const assignments = preview.assignments || []
+  const permissions = preview.permissions || []
+  if (!preview.note && !assignments.length && !permissions.length) return null
+  return (
+    <div className="mt-3 space-y-3 text-sm">
+      {preview.note && <p className="whitespace-pre-line rounded-xl bg-white px-3 py-2.5 text-gray-700 ring-1 ring-gray-100">“{preview.note}”</p>}
+      {assignments.length > 0 ? (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">You’re on</p>
+          <ul className="space-y-1.5">
+            {assignments.map((item) => (
+              <li key={item.assignment_uuid} className="flex items-center gap-2 text-gray-700">
+                <span className="min-w-0 flex-1 truncate"><b className="text-gray-950">{item.plan}</b>{item.assigned_to ? ` · ${item.assigned_to}` : ''}</span>
+                <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-200">{item.role_label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : permissions.length > 0 ? (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">You’ll be able to</p>
+          <ul className="list-disc space-y-1 pl-5 text-gray-700">{permissions.map((item) => <li key={item.key}>{item.label}</li>)}</ul>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -51,6 +51,7 @@ interface InviteOnlySignUpProps {
   inviteCode: string
   invitationToken: string
   header?: React.ReactNode // the invitation
+  postSignupUrl?: string // where the new account goes, when not ?next or the org
 }
 
 function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
@@ -62,7 +63,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const searchParams = useSearchParams()
   const nextUrl = searchParams.get('next')
   const postSignupUrl =
-    nextUrl || '/'
+    nextUrl || props.postSignupUrl || '/'
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,

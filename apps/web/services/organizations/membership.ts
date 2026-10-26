@@ -10,6 +10,11 @@ export const STATUS_LABELS: Record<MemberStatus, string> = { active: 'Active', a
 /** What an admin lets a staff member do. */
 export type StaffPermission = 'build_plans' | 'run_assignments' | 'review_work' | 'manage_learners' | 'see_reports'
 
+/** Each permission's short name; the API's label says what it allows. */
+export const PERMISSION_NAMES: Record<StaffPermission, string> = {
+  build_plans: 'Build plans', run_assignments: 'Run assignments', review_work: 'Review work', manage_learners: 'Manage learners', see_reports: 'See reports',
+}
+
 export interface StaffPermissionInfo { key: StaffPermission; label: string; default: boolean }
 
 export interface Relationship {

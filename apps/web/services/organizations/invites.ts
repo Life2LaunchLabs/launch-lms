@@ -4,6 +4,9 @@ import {
   getResponseMetadata,
 } from '@services/utils/ts/requests'
 
+export type AssignmentRoleKey = 'lead' | 'review' | 'comment'
+export interface InviteAssignment { assignment_uuid: string; role_key: AssignmentRoleKey }
+
 export async function inviteBatchUsers(
   org_id: any,
   body: {
@@ -13,6 +16,11 @@ export async function inviteBatchUsers(
     new_usergroup_name?: string
     source?: 'manual' | 'csv' | 'api'
     batch_uuid?: string
+    /** Staff only: what they may do (omitted means the defaults). */
+    permissions?: string[]
+    /** Staff only: running assignments they join, each in a role. */
+    assignments?: InviteAssignment[]
+    note?: string
   },
   access_token: any
 ) {
@@ -64,6 +72,10 @@ export interface InvitePreview {
   group: string | null
   email: string | null
   inviter: { name: string; avatar_image?: string | null; user_uuid: string } | null
+  /** Staff invitations: what they'll be able to do, the assignments they're on and the inviter's note. */
+  permissions?: Array<{ key: string; label: string }>
+  assignments?: Array<{ assignment_uuid: string; plan: string; assigned_to: string; role: AssignmentRoleKey; role_label: string }>
+  note?: string
 }
 
 /** Who sent an invitation or join link, to what and for whom; public, since the token is the secret. */
