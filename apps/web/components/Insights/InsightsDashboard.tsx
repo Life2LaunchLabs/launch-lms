@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Camera, Check, ChevronDown, Copy, Lock, MoreHorizontal, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { CalendarClock, Camera, Check, ChevronDown, Copy, Lock, MoreHorizontal, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
@@ -19,6 +19,7 @@ import { AddCardTile, CardControls, EditBar, draftFrom, moveCard, type EditDraft
 import InsightCard, { CardSkeleton, spanClass } from './InsightCard'
 import InsightsShell, { useNewDashboard } from './InsightsShell'
 import CaptureButton from './CaptureModal'
+import SchedulesModal from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 
@@ -57,8 +58,9 @@ function ObjectSwitcher({ scope, objects, current, onPick }: { scope: Scope; obj
 }
 
 /** Duplicate or delete the open dashboard. */
-function DashboardMenu({ dashboard, scopeRoot }: { dashboard: Dashboard; scopeRoot: string }) {
+function DashboardMenu({ dashboard, scopeRoot, scopeKey, objectLabel }: { dashboard: Dashboard; scopeRoot: string; scopeKey: string | null; objectLabel: string | null }) {
   const router = useRouter()
+  const [scheduling, setScheduling] = React.useState(false)
   const { orgId, orgslug, token } = useInsightsContext()
   const duplicate = async () => {
     try {
@@ -76,14 +78,16 @@ function DashboardMenu({ dashboard, scopeRoot }: { dashboard: Dashboard; scopeRo
       router.push(scopeRoot)
     } catch (error: any) { toast.error(error?.message || "Couldn't delete it") }
   }
-  return <DropdownMenu>
+  return <><DropdownMenu>
     <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card hover:bg-muted" aria-label="More"><MoreHorizontal size={16} /></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem onSelect={duplicate}><Copy size={14} className="mr-2" />Duplicate</DropdownMenuItem>
       <DropdownMenuItem onSelect={() => router.push(getUriWithOrg(orgslug, routePaths.org.admin.insightsCaptures(dashboard.dashboard_uuid)))}><Camera size={14} className="mr-2" />Its captures</DropdownMenuItem>
+      {dashboard.document.cards.length ? <DropdownMenuItem onSelect={() => setScheduling(true)}><CalendarClock size={14} className="mr-2" />Schedule captures</DropdownMenuItem> : null}
       {dashboard.editable ? <><DropdownMenuSeparator /><DropdownMenuItem onSelect={remove} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem></> : null}
     </DropdownMenuContent>
   </DropdownMenu>
+  <SchedulesModal dashboard={dashboard} scopeKey={scopeKey} objectLabel={objectLabel} open={scheduling} onOpenChange={setScheduling} /></>
 }
 
 function RangeBar({ range, setRange }: { range: DateRange; setRange: (range: DateRange) => void }) { // eslint-disable-line no-unused-vars
@@ -200,7 +204,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
           {dashboard && !draft ? <div className="flex items-center gap-2">
             <button type="button" onClick={() => setDraft(draftFrom(dashboard))} className={ghostButton}><Pencil size={14} aria-hidden="true" />Edit</button>
             {dashboard.document.cards.length ? <CaptureButton dashboard={dashboard} scopeKey={object?.key || null} objectLabel={object?.label || null} range={effective} className={ghostButton} /> : null}
-            <DashboardMenu dashboard={dashboard} scopeRoot={scopeHref(object?.key)} />
+            <DashboardMenu dashboard={dashboard} scopeRoot={scopeHref(object?.key)} scopeKey={object?.key || null} objectLabel={object?.label || null} />
           </div> : null}
         </div>
         {scope !== 'org' ? <nav aria-label={`${SCOPE_LABELS[scope].one} dashboards`} className="flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]">

@@ -10,10 +10,10 @@ import { cn } from '@/lib/utils'
 
 export function useInsightsContext() {
   const org = useOrg() as { id?: number; slug?: string } | null
-  const session = useLHSession() as { data?: { tokens?: { access_token?: string } } }
+  const session = useLHSession() as { data?: { tokens?: { access_token?: string }; user?: { user_uuid?: string } } }
   const orgId = Number(org?.id)
   const token = session?.data?.tokens?.access_token
-  return { orgId, orgslug: org?.slug || '', token, ready: Boolean(orgId && token) }
+  return { orgId, orgslug: org?.slug || '', token, userUuid: session?.data?.user?.user_uuid || null, ready: Boolean(orgId && token) }
 }
 
 /** Every dashboard the viewer can open (the API makes the starters the first time). */
