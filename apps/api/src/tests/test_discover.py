@@ -135,3 +135,22 @@ def test_start_suggests_open_plans_for_a_role_and_sets_up_a_space_once():
         again = asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))
         assert again["org"]["id"] == first["org"]["id"]
         assert len(templates.list_templates(db, _user(NEWCOMER), first["org"]["id"])) == 1
+
+
+def test_covers_lists_only_plans_counting_toward_those_requirements_most_first():
+    from src.db.requirements import RequirementFramework, RequirementFrameworkVersion, RequirementNode
+
+    db = _world()
+    for model in (RequirementFramework, RequirementFrameworkVersion, RequirementNode):
+        model.__table__.create(db.get_bind(), checkfirst=True)
+    with db:
+        one, both, neither = _shared(db, "One"), _shared(db, "Both"), _shared(db, "Neither")
+        for template, nodes in ((one, ["gap_a"]), (both, ["gap_a", "gap_b"])):
+            live = templates.published_version(db, template)
+            document = {**live.document, "stages": [{**stage, "steps": [{**step, "requirement_node_uuids": nodes} for step in stage["steps"]]} for stage in live.document["stages"]]}
+            live.document = document
+            db.add(live)
+        db.commit()
+        page = discover.discover(db, _user(ADMIN), PARTNER, covers=["gap_a", "gap_b"])
+        assert [(plan["template_uuid"], plan["covers"]) for plan in page["plans"]] == [(both.template_uuid, ["gap_a", "gap_b"]), (one.template_uuid, ["gap_a"])]
+        assert page["collections"] == [] and neither.template_uuid not in {plan["template_uuid"] for plan in page["plans"]}

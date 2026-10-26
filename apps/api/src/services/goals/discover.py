@@ -130,12 +130,20 @@ def _matches(needle: str, *texts: str) -> bool:
     return not needle or needle in " ".join(text or "" for text in texts).lower()
 
 
-def discover(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> dict:
-    """The Discover page: a partner collection to feature, collections, and plans with their categories."""
+def discover(db: Session, current_user: PublicUser, org_id: int, query: str = "", covers: list[str] | None = None) -> dict:
+    """The Discover page: a partner collection to feature, collections, and plans with their categories.
+
+    With ``covers`` (requirement node uuids, such as a framework's flagged gaps) it lists only plans whose steps count
+    toward at least one of them, those covering the most first, each saying which; collections aren't shown."""
     market.require_reader(db, current_user, org_id)
     catalog = _catalog(db, org_id)
     needle = query.strip().lower()
     plans = [plan for plan in catalog["plans"] if _matches(needle, plan["title"], plan["description"], (plan["creator_org"] or {}).get("name", ""), *plan["categories"])]
+    if covers:
+        by_uuid = {template.template_uuid: template for template, _ in _listed_templates(db)}
+        plans = [{**plan, "covers": market.covered_nodes(db, by_uuid[plan["template_uuid"]], covers)} for plan in plans]
+        plans = sorted((plan for plan in plans if plan["covers"]), key=lambda plan: -len(plan["covers"]))
+        return {"featured": None, "collections": [], "plans": plans, "categories": list(collections.CATEGORIES)}
     shared = [item for item in catalog["collections"] if _matches(needle, item["name"], item["description"], (item["creator_org"] or {}).get("name", ""), *item["categories"])]
     # Partners' collections lead; among them, the largest is the one featured.
     shared.sort(key=lambda item: (not item["partner"], -item["plan_count"], item["name"]))

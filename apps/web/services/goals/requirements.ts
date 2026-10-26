@@ -70,7 +70,8 @@ export const requirementsApi = {
   publishToLibrary: (orgId: number, uuid: string, token?: string) => request(frameworks(`/${q(uuid)}/publish-to-library?org_id=${orgId}`), token, 'POST'),
   update: (orgId: number, uuid: string, data: any, token?: string) => request(frameworks(`/${q(uuid)}?org_id=${orgId}`), token, 'PATCH', data),
   publish: (orgId: number, uuid: string, token?: string) => request(frameworks(`/${q(uuid)}/publish?org_id=${orgId}`), token, 'POST'),
-  assign: (orgId: number, uuid: string, data: { usergroup_id?: number; user_id?: number }, token?: string) => request(frameworks(`/${q(uuid)}/assignments?org_id=${orgId}`), token, 'POST', data),
+  /** Replace the requirements flagged as gaps to fill; [] clears them all. */
+  setFlags: (orgId: number, uuid: string, nodeUuids: string[], token?: string) => request<{ framework_uuid: string; flagged_node_uuids: string[] }>(frameworks(`/${q(uuid)}/flags?org_id=${orgId}`), token, 'PUT', { node_uuids: nodeUuids }),
   migrateActive: (orgId: number, uuid: string, enrollmentUuids: string[] | null, token?: string) => request(frameworks(`/${q(uuid)}/migrate-active?org_id=${orgId}`), token, 'POST', { enrollment_uuids: enrollmentUuids }),
 
   coverage: (orgId: number, uuid: string, token?: string) => request<Coverage>(goalAdminUrl(`/requirements/${q(uuid)}/coverage`, orgId), token),

@@ -11,7 +11,6 @@ from src.db.learning import LearningActivity, LearningPage, LearningResponseAtte
 from src.db.requirement_exports import RequirementEvidenceExport
 from src.db.requirements import (
     RequirementAssignmentBatch,
-    RequirementAssignmentCreate,
     RequirementAttainmentSource,
     RequirementEnrollment,
     RequirementFramework,
@@ -59,7 +58,6 @@ def world():
         {"key": "fair", "type": "task", "title": "Career Fair"},
     ))
     templates.publish(db, admin, 1, created["template_uuid"])
-    requirements.assign_framework(db, admin, 1, framework["framework_uuid"], RequirementAssignmentCreate(usergroup_id=1))
     assignment = assignments.assign(db, admin, 1, created["template_uuid"], GoalAssignmentCreate(usergroup_id=1, staff_user_ids=[TEACHER]))
     for user_id in (LEARNER, OTHER):
         mine = goals.list_my_goals(db, _user(user_id))
@@ -93,7 +91,8 @@ def test_learner_requirements_show_gaps_and_staff_plan_a_makeup_or_credit_it(wor
     report = service.coverage(db, admin, 1, framework["framework_uuid"])
     covered = {node["title"]: [(item["title"], item["step_key"], item["step_types"]) for item in node["covered_by"]] for node in report["nodes"]}
     assert covered == {"Experiences": [], "Resume": [("Your first resume", "resume", ["upload"])], "Workplace experience": []}
-    assert report["templates"] == [{"template_uuid": template_uuid, "title": "College ready", "mapped": True}]
+    assert [{key: item[key] for key in ("template_uuid", "title", "mapped")} for item in report["templates"]] == [{"template_uuid": template_uuid, "title": "College ready", "mapped": True}]
+    assert {"icon", "color", "thumbnail_image"} <= set(report["templates"][0])  # each plan's own mark, for the tree
     # Staff read the same coverage; a learner can't.
     assert service.coverage(db, _user(TEACHER), 1, framework["framework_uuid"])["nodes"] == report["nodes"]
     with pytest.raises(HTTPException) as learner_coverage:
@@ -295,3 +294,16 @@ def test_export_uses_the_assigned_framework_snapshot_after_a_new_version_is_publ
     rows = _rows(db, ADMIN)
     assert {row["Framework version"] for row in rows} == {1}
     assert {row["Requirement title"] for row in rows} == {"Resume", "Workplace experience"}
+
+
+def test_an_any_group_with_enough_covered_has_no_gaps():
+    from src.services.goals.requirements import gap_uuids
+
+    nodes = [
+        {"node_uuid": "ccl", "parent_node_uuid": None, "rule": {"kind": "any", "count": 2}},
+        *({"node_uuid": key, "parent_node_uuid": "ccl", "rule": {"kind": "all"}} for key in ("a", "b", "c")),
+        {"node_uuid": "sb3", "parent_node_uuid": None, "rule": {"kind": "all"}},
+        *({"node_uuid": key, "parent_node_uuid": "sb3", "rule": {"kind": "all"}} for key in ("x", "y")),
+    ]
+    assert gap_uuids(nodes, {"a", "x"}) == ["b", "c", "y"]
+    assert gap_uuids(nodes, {"a", "b", "x"}) == ["y"]  # two of CCL is enough

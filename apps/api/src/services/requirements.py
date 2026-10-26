@@ -7,14 +7,10 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.db.goals import StepProgress
 from src.db.organizations import Organization
 from src.db.requirements import (
-    RequirementAssignmentBatch,
-    RequirementAssignmentCreate,
     RequirementAttainmentSource,
     RequirementEnrollment,
-    RequirementEnrollmentMigrate,
     RequirementEnrollmentStatus,
     RequirementFramework,
     RequirementFrameworkCreate,
@@ -24,9 +20,7 @@ from src.db.requirements import (
     RequirementNodeInput,
     RequirementVersionStatus,
 )
-from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
-from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
 from src.security.superadmin import is_user_superadmin
@@ -35,6 +29,7 @@ from src.services.requirement_codes import (  # noqa: F401
     _code_segment,
     _default_code_style,
     _normalize_source_metadata,
+    node_fields,
     node_numbering,
     node_rule,
     upgrade_levels,
@@ -208,7 +203,7 @@ def _node_dict(node: RequirementNode) -> dict:
     return {
         "node_uuid": node.node_uuid, "parent_node_uuid": node.parent_node_uuid,
         "code": node.code, "title": node.title, "description": node.description,
-        "position": node.position, "metadata": node.metadata_json or {},
+        "position": node.position, "metadata": node_fields(node.metadata_json),
         "numbering": node_numbering(node.metadata_json), "rule": node_rule(node.metadata_json),
     }
 
@@ -454,6 +449,22 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
     return _framework_dict(db, framework)
 
 
+def set_flags(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, node_uuids: list[str]) -> dict:
+    """Replace the gaps staff flagged to fill. Only requirements (leaves) of the current version can be flagged; any
+    staff member can flag, since flags are notes for finding and building plans, not changes to the framework."""
+    _require_staff(db, current_user, org_id)
+    framework = _framework_or_404(db, org_id, framework_uuid)
+    leaves = set(_leaf_ids([_node_dict(node) for node in _nodes(db, int(_version(db, framework).id))]))
+    unknown = [node for node in node_uuids if node not in leaves]
+    if unknown:
+        raise HTTPException(status_code=422, detail="Only requirements in this framework can be flagged")
+    framework.flagged_node_uuids = list(dict.fromkeys(node_uuids))
+    framework.update_date = _now_string()
+    db.add(framework)
+    db.commit()
+    return {"framework_uuid": framework.framework_uuid, "flagged_node_uuids": framework.flagged_node_uuids}
+
+
 def publish_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
     require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
@@ -483,164 +494,6 @@ def publish_framework(db: Session, current_user: PublicUser, org_id: int, framew
     return result
 
 
-def _eligible_user_ids(db: Session, org_id: int, payload: RequirementAssignmentCreate) -> list[int]:
-    if bool(payload.user_id) == bool(payload.usergroup_id):
-        raise HTTPException(status_code=422, detail="Choose one learner or one group")
-    if payload.usergroup_id:
-        group = db.exec(select(UserGroup).where(UserGroup.id == payload.usergroup_id, UserGroup.org_id == org_id)).first()
-        if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
-        return list(dict.fromkeys(db.exec(select(UserGroupUser.user_id).where(
-            UserGroupUser.usergroup_id == group.id, UserGroupUser.org_id == org_id,
-        )).all()))
-    membership = db.exec(select(UserOrganization).where(
-        UserOrganization.user_id == payload.user_id, UserOrganization.org_id == org_id,
-    )).first()
-    if not membership:
-        raise HTTPException(status_code=404, detail="Learner is not in this organization")
-    return [int(payload.user_id)]
-
-
-def _recompute_enrollment(db: Session, enrollment: RequirementEnrollment) -> None:
-    leaf_ids = set((enrollment.framework_snapshot or {}).get("leaf_node_uuids") or [])
-    active = db.exec(select(RequirementAttainmentSource.node_uuid).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id,
-        RequirementAttainmentSource.revoked_at.is_(None),
-    )).all()
-    complete = bool(leaf_ids) and leaf_ids.issubset(set(active))
-    enrollment.status = RequirementEnrollmentStatus.COMPLETED if complete else RequirementEnrollmentStatus.ACTIVE
-    enrollment.completed_at = enrollment.completed_at or _now() if complete else None
-    enrollment.update_date = _now_string()
-    db.add(enrollment)
-
-
-def _upsert_source(
-    db: Session, enrollment: RequirementEnrollment, node_uuid: str, *, step_progress: StepProgress,
-    title: str, evidence: dict, verified_by: int | None, verified_at: datetime | None, active: bool,
-) -> None:
-    source = db.exec(select(RequirementAttainmentSource).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid,
-        RequirementAttainmentSource.step_progress_id == step_progress.id,
-    )).first()
-    now = _now()
-    if not source:
-        source = RequirementAttainmentSource(
-            source_uuid=f"requirement_source_{uuid4()}", enrollment_id=int(enrollment.id),
-            node_uuid=node_uuid, step_progress_id=int(step_progress.id),  # type: ignore[arg-type]
-            creation_date=now.isoformat(), update_date=now.isoformat(),
-        )
-    source.objective_title = title
-    source.evidence_snapshot = evidence
-    source.verified_by_user_id = verified_by
-    source.verified_at = verified_at
-    source.revoked_at = None if active else now
-    source.update_date = now.isoformat()
-    db.add(source)
-
-
-def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
-    from src.services.goals.credit import backfill_steps
-    backfill_steps(db, enrollment)
-
-
-def assign_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementAssignmentCreate) -> dict:
-    require_org_admin(current_user.id, org_id, db, "run_assignments")
-    framework = _framework_or_404(db, org_id, framework_uuid)
-    if not framework.published_version:
-        raise HTTPException(status_code=409, detail="Publish this framework before assigning it")
-    version = _version(db, framework, framework.published_version)
-    user_ids = _eligible_user_ids(db, org_id, payload)
-    now = _now_string()
-    batch = RequirementAssignmentBatch(
-        batch_uuid=f"requirement_batch_{uuid4()}", org_id=org_id,
-        framework_id=int(framework.id), version_id=int(version.id),
-        usergroup_id=payload.usergroup_id, user_id=payload.user_id,
-        created_by_user_id=current_user.id, creation_date=now, update_date=now,
-    )
-    db.add(batch)
-    db.flush()
-    snapshot = _snapshot(db, framework, version)
-    enrollments = []
-    for user_id in user_ids:
-        enrollment = RequirementEnrollment(
-            enrollment_uuid=f"requirement_enrollment_{uuid4()}", batch_id=int(batch.id),
-            org_id=org_id, framework_id=int(framework.id), version_id=int(version.id),
-            user_id=user_id, framework_snapshot=snapshot, creation_date=now, update_date=now,
-        )
-        db.add(enrollment)
-        db.flush()
-        enrollments.append(enrollment)
-        _backfill(db, enrollment)
-    db.commit()
-    return {"batch_uuid": batch.batch_uuid, "enrollment_count": len(enrollments), "version": version.version_number}
-
-
-def sync_group_batches(db: Session, org_id: int, framework_id: int | None = None) -> None:
-    statement = select(RequirementAssignmentBatch).where(
-        RequirementAssignmentBatch.org_id == org_id,
-        RequirementAssignmentBatch.active == True,  # noqa: E712
-        RequirementAssignmentBatch.usergroup_id.is_not(None),
-    )
-    if framework_id:
-        statement = statement.where(RequirementAssignmentBatch.framework_id == framework_id)
-    for batch in db.exec(statement).all():
-        enrollment_rows = db.exec(select(RequirementEnrollment).where(
-            RequirementEnrollment.batch_id == batch.id,
-        )).all()
-        existing = {item.user_id for item in enrollment_rows}
-        user_ids = set(db.exec(select(UserGroupUser.user_id).where(
-            UserGroupUser.usergroup_id == batch.usergroup_id,
-            UserGroupUser.org_id == org_id,
-        )).all())
-        framework = db.get(RequirementFramework, batch.framework_id)
-        version = db.get(RequirementFrameworkVersion, batch.version_id)
-        snapshot = _snapshot(db, framework, version)
-        now = _now_string()
-        for enrollment in enrollment_rows:
-            if enrollment.user_id not in user_ids and enrollment.status == RequirementEnrollmentStatus.ACTIVE:
-                enrollment.status = RequirementEnrollmentStatus.WITHDRAWN
-                enrollment.update_date = now
-                db.add(enrollment)
-            elif enrollment.user_id in user_ids and enrollment.status == RequirementEnrollmentStatus.WITHDRAWN:
-                enrollment.status = RequirementEnrollmentStatus.ACTIVE
-                enrollment.update_date = now
-                db.add(enrollment)
-                _recompute_enrollment(db, enrollment)
-        for user_id in user_ids - existing:
-            enrollment = RequirementEnrollment(
-                enrollment_uuid=f"requirement_enrollment_{uuid4()}", batch_id=int(batch.id), org_id=org_id,
-                framework_id=batch.framework_id, version_id=batch.version_id, user_id=user_id,
-                framework_snapshot=snapshot, creation_date=now, update_date=now,
-            )
-            db.add(enrollment)
-            db.flush()
-            _backfill(db, enrollment)
-
-
-def migrate_enrollments(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementEnrollmentMigrate) -> dict:
-    require_org_admin(current_user.id, org_id, db, "build_plans")
-    framework = _framework_or_404(db, org_id, framework_uuid)
-    if not framework.published_version:
-        raise HTTPException(status_code=409, detail="No published version is available")
-    version = _version(db, framework, framework.published_version)
-    statement = select(RequirementEnrollment).where(
-        RequirementEnrollment.framework_id == framework.id,
-        RequirementEnrollment.status == RequirementEnrollmentStatus.ACTIVE,
-        RequirementEnrollment.version_id != version.id,
-    )
-    if payload.enrollment_uuids:
-        statement = statement.where(RequirementEnrollment.enrollment_uuid.in_(payload.enrollment_uuids))
-    enrollments = db.exec(statement).all()
-    snapshot = _snapshot(db, framework, version)
-    for enrollment in enrollments:
-        enrollment.version_id = int(version.id)
-        enrollment.framework_snapshot = snapshot
-        _recompute_enrollment(db, enrollment)
-        _backfill(db, enrollment)
-    db.commit()
-    return {"updated": len(enrollments), "version": version.version_number}
-
-
 def _org_nodes(db: Session, org_id: int) -> list[tuple[RequirementFramework, RequirementNode]]:
     """Every node in the organization's current framework versions, with its framework."""
     if not _available(db):
@@ -661,6 +514,8 @@ def parent_node_uuids(db: Session, org_id: int) -> set[str]:
 
 def report(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str | None = None, version_number: int | None = None, usergroup_id: int | None = None, node_uuid: str | None = None, status: str | None = None) -> dict:
     require_org_admin(current_user.id, org_id, db, "see_reports")
+    from src.services.requirement_tracking import sync_group_batches
+
     framework = _framework_or_404(db, org_id, framework_uuid) if framework_uuid else None
     sync_group_batches(db, org_id, int(framework.id) if framework else None)
     statement = select(RequirementEnrollment).where(

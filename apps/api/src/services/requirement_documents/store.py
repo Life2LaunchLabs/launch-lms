@@ -55,7 +55,8 @@ def _ordered(nodes: list[dict]) -> list[dict]:
 
 
 def _node_doc(node: dict, has_children: bool) -> dict:
-    metadata = node.get("metadata") or {}
+    # stored nodes keep numbering and rule in metadata; read views give them beside it
+    metadata = {**(node.get("metadata") or {}), **{key: node[key] for key in ("numbering", "rule") if node.get(key)}}
     numbering, rule, values = node_numbering(metadata), node_rule(metadata), node_fields(metadata)
     return {
         "node_uuid": node["node_uuid"],

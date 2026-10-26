@@ -58,27 +58,17 @@ test('framework.manual: existing hierarchy is editable and publish preserves sup
   expect(published.source_metadata).toEqual(saved.source_metadata)
 })
 
-test('framework.generated: deliberate level conversion can be canceled and generated codes still work', async ({ page }) => {
+test('framework.generated: old levels become each group\'s numbering and generate the codes', async ({ page }) => {
   test.setTimeout(60_000)
   const levels = ['Subject', 'Domain', 'Standard'].map((name, index) => ({ level_uuid: `level-${randomUUID()}`, name, code_style: index === 0 ? 'upper_alpha' : 'decimal', metadata_fields: [] }))
-  const { framework } = await freshFramework(page, levels)
+  const { framework, url, authorization } = await freshFramework(page, levels)
+  expect(framework.source_metadata.requirement_levels).toBeUndefined()
+  expect(framework.source_metadata.numbering).toBe('upper_alpha')
+  expect(framework.nodes.map((node: any) => [node.code, node.numbering])).toEqual([['A', 'decimal'], ['A.1', 'decimal'], ['A.1.1', 'custom']])
   await page.goto(frameworkPath(framework.framework_uuid, 'spec'))
-  await expect(page.getByLabel('Generated requirement code')).toHaveText('A')
-  await page.getByText('A.1.1 · Resume and portfolio', { exact: true }).click()
-  await expect(page.getByLabel('Generated requirement code')).toHaveText('A.1.1')
-  await page.getByRole('button', { name: 'Save specification' }).click()
-  await expect(page.getByText('Framework specification saved.', { exact: true })).toBeVisible()
-  const manual = await freshFramework(page)
-  await page.goto(frameworkPath(manual.framework.framework_uuid, 'levels'))
-  for (const name of ['Subject', 'Domain', 'Standard']) {
-    await page.getByRole('button', { name: 'Add level', exact: true }).click()
-    await page.getByLabel('Level name', { exact: true }).last().fill(name)
-  }
-  page.once('dialog', async (dialog) => { expect(dialog.message()).toContain('replaces all supplied requirement codes'); await dialog.dismiss() })
-  await page.getByRole('button', { name: 'Save levels' }).click()
-  const preserved = await (await page.request.get(manual.url, { headers: { authorization: manual.authorization } })).json()
-  expect(preserved.source_metadata.requirement_levels).toEqual([])
-  expect(preserved.nodes.map((node: any) => node.code)).toEqual(['HS.HECPS', 'HS.HECPS.D', 'HS.HECPS.D.2'])
+  await expect(page.getByText('A.1.1 · Resume and portfolio', { exact: true })).toBeVisible()
+  const read = await (await page.request.get(url, { headers: { authorization } })).json()
+  expect(read.nodes.map((node: any) => node.code)).toEqual(['A', 'A.1', 'A.1.1'])
 })
 
 test('framework.list: Requirements lists frameworks with coverage and opens coverage by plan', async ({ page }, info) => {

@@ -170,13 +170,12 @@ class RequirementFrameworkUpdate(SQLModel):
     nodes: list[RequirementNodeInput] | None = None
 
 
-class RequirementAssignmentCreate(SQLModel):
-    user_id: int | None = None
-    usergroup_id: int | None = None
-
-
 class RequirementEnrollmentMigrate(SQLModel):
     enrollment_uuids: list[str] | None = None
+
+
+class RequirementFlagsUpdate(SQLModel):
+    node_uuids: list[str] = Field(default_factory=list)
 
 
 class RequirementMappingUpdate(SQLModel):

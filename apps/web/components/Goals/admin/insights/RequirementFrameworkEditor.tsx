@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Link from 'next/link'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowLeft, BookCopy, CalendarDays, CheckCircle2, ClipboardCheck, Link2, ListTree, Loader2, Lock, Plus, Save, Send, Settings2, Table2, Trash2, Type, Users } from 'lucide-react'
+import { ArrowLeft, BookCopy, CalendarDays, CheckCircle2, ClipboardCheck, Link2, ListTree, Loader2, Lock, Plus, Save, Settings2, Table2, Trash2, Type } from 'lucide-react'
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -14,9 +14,8 @@ import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
 import { Textarea } from '@components/ui/textarea'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { requirementsApi } from '@services/goals/requirements'
-import { swrFetcher } from '@services/utils/ts/requests'
 import { cn } from '@/lib/utils'
 import type { FrameworkSubpage } from '@services/routing/paths'
 import FrameworkCoverage from '../requirements/FrameworkCoverage'
@@ -85,7 +84,7 @@ export function RequirementFrameworkDetail({ orgslug, orgId, token, frameworkUui
   // Staff read frameworks; only admins change them (the API says which with can_edit). Copies from the marketplace stay editable.
   const canEdit = framework.can_edit !== false
   const tabs = [{ id: 'plans' as const, label: 'Coverage by plan', icon: Table2 }, { id: 'details' as const, label: 'Details', icon: Settings2 }, { id: 'levels' as const, label: 'Levels', icon: ListTree }, { id: 'spec' as const, label: 'Spec', icon: ClipboardCheck }]
-  const editors = <>{activeSubpage === 'details' ? <FrameworkDetails framework={framework} orgId={orgId} token={token} refresh={refresh} canEdit={canEdit} /> : null}{activeSubpage === 'levels' ? <FrameworkLevels framework={framework} orgId={orgId} token={token} refresh={refresh} /> : null}{activeSubpage === 'spec' ? <FrameworkSpec framework={framework} orgId={orgId} token={token} refresh={refresh} /> : null}</>
+  const editors = <>{activeSubpage === 'details' ? <FrameworkDetails framework={framework} orgId={orgId} token={token} refresh={refresh} /> : null}{activeSubpage === 'levels' ? <FrameworkLevels framework={framework} orgId={orgId} token={token} refresh={refresh} /> : null}{activeSubpage === 'spec' ? <FrameworkSpec framework={framework} orgId={orgId} token={token} refresh={refresh} /> : null}</>
   return <main className="min-h-full bg-[#f8f8f8]">
     <header className="bg-card px-4 nice-shadow sm:px-10">
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 pt-6 text-xs font-bold text-muted-foreground"><Link href={getUriWithOrg(orgslug, routePaths.org.admin.plans())} className="hover:text-foreground">Plans</Link><span aria-hidden="true">›</span><Link href={getUriWithOrg(orgslug, routePaths.org.admin.requirements())} className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft size={14} className="sm:hidden" />Requirements</Link></nav>
@@ -105,13 +104,13 @@ export function RequirementFrameworkDetail({ orgslug, orgId, token, frameworkUui
   </main>
 }
 
-function FrameworkDetails({ framework, orgId, token, refresh, canEdit = true }: any) {
+function FrameworkDetails({ framework, orgId, token, refresh }: any) {
   const [name, setName] = React.useState(framework.name)
   const [description, setDescription] = React.useState(framework.description || '')
   const [saving, setSaving] = React.useState(false)
   React.useEffect(() => { setName(framework.name); setDescription(framework.description || '') }, [framework.name, framework.description])
   const save = async () => { if (!name.trim()) return; setSaving(true); try { await requirementsApi.update(orgId, framework.framework_uuid, { name, description }, token); await refresh(); toast.success(framework.status === 'published' ? 'Draft version created.' : 'Framework details saved.') } catch (error: any) { toast.error(error?.message || 'Could not save framework details.') } finally { setSaving(false) } }
-  return <div className="mx-auto max-w-4xl space-y-5"><section className="rounded-xl border border-border bg-card p-6 shadow-xs"><h2 className="text-lg font-bold">Framework details</h2><p className="mt-1 text-sm text-muted-foreground">The name and purpose administrators see when assigning and reporting on this framework.</p><div className="mt-6 space-y-5"><div className="space-y-2"><Label htmlFor="framework-detail-name">Name</Label><Input id="framework-detail-name" value={name} onChange={(event) => setName(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="framework-detail-description">Description</Label><Textarea id="framework-detail-description" value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-32" /></div><Button onClick={() => void save()} disabled={saving || !name.trim()}>{saving ? <Loader2 className="animate-spin" /> : <Save />}Save details</Button></div></section>{!canEdit ? null : framework.published_version ? <AssignmentPanel framework={framework} orgId={orgId} token={token} refresh={refresh} /> : <section className="rounded-xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">Publish the first version before assigning this framework.</section>}</div>
+  return <div className="mx-auto max-w-4xl space-y-5"><section className="rounded-xl border border-border bg-card p-6 shadow-xs"><h2 className="text-lg font-bold">Framework details</h2><p className="mt-1 text-sm text-muted-foreground">The name and purpose staff see when linking plan steps and reporting on this framework.</p><div className="mt-6 space-y-5"><div className="space-y-2"><Label htmlFor="framework-detail-name">Name</Label><Input id="framework-detail-name" value={name} onChange={(event) => setName(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="framework-detail-description">Description</Label><Textarea id="framework-detail-description" value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-32" /></div><Button onClick={() => void save()} disabled={saving || !name.trim()}>{saving ? <Loader2 className="animate-spin" /> : <Save />}Save details</Button></div></section></div>
 }
 
 function frameworkLevels(framework: any): RequirementLevel[] {
@@ -186,17 +185,6 @@ function NodeMetadataField({ field, value, onChange }: { field: MetadataFieldDef
   if (field.type === 'boolean') return <label className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-bold"><input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />{field.name}{field.required ? <span className="text-red-600">*</span> : null}</label>
   const icon = field.type === 'date' ? <CalendarDays size={14} /> : field.type === 'link' ? <Link2 size={14} /> : <Type size={14} />
   return <div className="space-y-2"><Label htmlFor={id} className="flex items-center gap-1.5">{icon}{field.name}{field.required ? <span className="text-red-600">*</span> : null}</Label><Input id={id} type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : field.type === 'link' ? 'url' : 'text'} value={value ?? ''} onChange={(event) => onChange(event.target.value)} /></div>
-}
-
-function AssignmentPanel({ framework, orgId, token, refresh }: any) {
-  const peopleKey = `${getAPIUrl()}orgs/${orgId}/users?page=1&limit=100`
-  const groupsKey = `${getAPIUrl()}usergroups/org/${orgId}?org_id=${orgId}`
-  const { data: people } = useSWR(token ? peopleKey : null, (url) => swrFetcher(url, token))
-  const { data: groups } = useSWR(token ? groupsKey : null, (url) => swrFetcher(url, token))
-  const [target, setTarget] = React.useState(''), [saving, setSaving] = React.useState(false)
-  const assign = async () => { const [type, id] = target.split(':'); if (!id) return; setSaving(true); try { const result = await requirementsApi.assign(orgId, framework.framework_uuid, type === 'group' ? { usergroup_id: Number(id) } : { user_id: Number(id) }, token); toast.success(`Assigned to ${result.enrollment_count} learner${result.enrollment_count === 1 ? '' : 's'}.`); setTarget(''); await refresh() } catch (error: any) { toast.error(error?.message || 'Could not assign the framework.') } finally { setSaving(false) } }
-  const memberships = people?.items || []
-  return <section className="rounded-xl border border-border bg-card p-6 shadow-xs"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="flex items-center gap-2 text-lg font-bold"><Users size={18} />Direct assignments</h2><p className="mt-1 text-sm text-muted-foreground">Requirements apply only after this framework is assigned to a learner or group.</p></div><div className="flex min-w-[360px] gap-2"><select value={target} onChange={(event) => setTarget(event.target.value)} className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm"><option value="">Choose a learner or group</option><optgroup label="Learners">{memberships.map((membership: any) => { const user = membership.user || membership; return <option key={`user:${user.id}`} value={`user:${user.id}`}>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</option> })}</optgroup><optgroup label="Groups">{(groups || []).map((group: any) => <option key={`group:${group.id}`} value={`group:${group.id}`}>{group.name}</option>)}</optgroup></select><button onClick={() => void assign()} disabled={!target || saving} className="flex items-center gap-2 rounded-lg bg-black px-4 text-xs font-bold text-white disabled:opacity-40">{saving ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}Assign</button></div></div></section>
 }
 
 function Loading() { return <div className="flex min-h-48 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> }
