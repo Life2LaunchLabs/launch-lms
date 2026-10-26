@@ -22,12 +22,9 @@ export interface ResourceChannel {
   name: string
   description: string | null
   thumbnail_image: string | null
-  // Who sees it in its own org; `listed` puts it in the Library for every org.
   audience: 'org' | 'groups' | 'staff'
   comment_rule: 'all' | 'staff' | 'off'
-  hold_links: boolean
   listed: boolean
-  listed_at?: string | null
   color: string | null
   owner_org_id?: number | null
   owner_org_uuid?: string | null

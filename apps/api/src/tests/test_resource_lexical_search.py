@@ -7,9 +7,8 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.organizations import Organization
+from src.db.resource_library import OrgSavedChannel, OrgSavedResource
 from src.db.resources import (
-    OrgSavedChannel,
-    OrgSavedResource,
     Resource,
     ResourceChannel,
     ResourceChannelResource,

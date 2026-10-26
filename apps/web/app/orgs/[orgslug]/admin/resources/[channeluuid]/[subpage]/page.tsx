@@ -465,7 +465,7 @@ function ResourceChannelAccessTab({
             dialogTitle="Make Channel Restricted?"
             dialogTrigger={
               <div className="h-[200px] w-full cursor-pointer rounded-lg bg-slate-100 transition-all hover:bg-slate-200">
-                {!channel.audience === 'org' && (
+                {channel.audience !== 'org' && (
                   <div className="absolute mx-3 my-3 w-fit rounded-lg bg-green-200 px-3 py-1 text-sm font-bold text-green-600">
                     Active
                   </div>
@@ -484,7 +484,7 @@ function ResourceChannelAccessTab({
           />
         </div>
 
-        {!channel.audience === 'org' && (
+        {channel.audience !== 'org' && (
           <>
             <div className="mb-3 flex flex-col rounded-md bg-gray-50 px-3 py-3 sm:px-5">
               <h1 className="text-lg font-bold text-gray-800 sm:text-xl">Groups</h1>

@@ -9,12 +9,12 @@ from migrations.versions.g4h5i6j7k8l9_add_resource_notes_and_review_ratings impo
 )
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.organizations import Organization
+from src.db.resource_library import ResourceCommentReport
 from src.db.resources import (
     Resource,
     ResourceChannel,
     ResourceChannelResource,
     ResourceComment,
-    ResourceCommentReport,
     ResourceNoteBlock,
     ResourceNoteBlockCreate,
     ResourceNoteBlockUpdate,
@@ -26,6 +26,7 @@ from src.db.resources import (
 )
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
+from src.services import resource_comments
 from src.services import resources as resource_service
 
 
@@ -305,14 +306,14 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
         db.add(legacy)
         db.commit()
 
-        review = await resource_service.create_review(
+        review = await resource_comments.create_review(
             None,
             resource.resource_uuid,
             ResourceReviewCreate(content="Very useful", rating=5),
             _public(owner),
             db,
         )
-        visible = await resource_service.list_comments(None, resource.resource_uuid, _public(owner), db)
+        visible = await resource_comments.list_comments(None, resource.resource_uuid, _public(owner), db)
         membership = db.exec(
             select(UserSavedResource).where(
                 UserSavedResource.user_id == owner.id,
@@ -324,7 +325,7 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
         assert membership is not None
         assert [item["rating"] for item in visible] == [None, 5]
         with pytest.raises(HTTPException) as exc:
-            await resource_service.create_review(
+            await resource_comments.create_review(
                 None,
                 resource.resource_uuid,
                 ResourceReviewCreate(content="A second review", rating=4),

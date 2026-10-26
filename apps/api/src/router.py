@@ -55,6 +55,7 @@ from src.routers import mcp as mcp_router_module
 from src.routers import marketplace as marketplace_router_module
 from src.routers import plan_joining as plan_joining_router_module
 from src.routers import payments as payments_router_module
+from src.routers import resource_library as resource_library_router_module
 from src.routers import resources as resources_router_module
 from src.routers import sso as sso_router_module
 from src.routers import trending as trending_router_module
@@ -222,6 +223,7 @@ v1_router.include_router(
     prefix="/resources",
     tags=["resources"],
 )
+v1_router.include_router(resource_library_router_module.router, prefix="/resources", tags=["resources"])
 v1_router.include_router(
     media.router,
     prefix="/media",

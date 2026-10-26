@@ -8,9 +8,8 @@ from sqlmodel import Session, SQLModel, create_engine
 from src.db.goals import GoalTemplate
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
+from src.db.resource_library import ResourceCommentReport, OrgSavedChannel, OrgSavedResource
 from src.db.resources import (
-    OrgSavedChannel,
-    OrgSavedResource,
     Resource,
     ResourceChannel,
     ResourceChannelCreate,
@@ -18,7 +17,6 @@ from src.db.resources import (
     ResourceChannelUpdate,
     ResourceComment,
     ResourceCommentCreate,
-    ResourceCommentReport,
     ResourceTag,
     ResourceTagLink,
     UserSavedResource,
@@ -27,6 +25,8 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.users import PublicUser, User
+from src.services import resource_comments as comments
+from src.services import resource_library as library
 from src.services import resources as service
 
 NOW = "2026-01-01T00:00:00+00:00"
@@ -118,20 +118,20 @@ async def test_an_org_saves_library_channels_and_resources_into_its_resources():
         _resource(db, 21, PARTNER, 2)
         _resource(db, 30, PARTNER, 3)
 
-        found = await service.library(None, PLAIN, _user(STAFF), db)
+        found = await library.library(None, PLAIN, _user(STAFF), db)
         assert [card["channel_uuid"] for card in found["channels"]] == ["channel_2"]
         assert {row["resource_uuid"] for row in found["resources"]} == {"resource_20", "resource_21"}
 
         # Not in the Library, or already theirs: no save.
         for channel_uuid in ("channel_3", "channel_1"):
             with pytest.raises(HTTPException):
-                await service.save_channel_for_org(None, PLAIN, channel_uuid, _user(STAFF), db)
+                await library.save_channel_for_org(None, PLAIN, channel_uuid, _user(STAFF), db)
         with pytest.raises(HTTPException):
-            await service.save_channel_for_org(None, PLAIN, "channel_2", _user(LEARNER), db)
+            await library.save_channel_for_org(None, PLAIN, "channel_2", _user(LEARNER), db)
 
-        saved = await service.save_channel_for_org(None, PLAIN, "channel_2", _user(STAFF), db)
+        saved = await library.save_channel_for_org(None, PLAIN, "channel_2", _user(STAFF), db)
         assert saved["saved"] is True and saved["save_count"] == 1
-        workspace = await service.org_workspace(None, PLAIN, _user(STAFF), db)
+        workspace = await library.org_workspace(None, PLAIN, _user(STAFF), db)
         assert [card["channel_uuid"] for card in workspace["channels"]] == ["channel_1", "channel_2"]
         assert {row["resource_uuid"] for row in workspace["resources"]} == {"resource_10", "resource_20", "resource_21"}
         assert workspace["can_list"] is False
@@ -141,13 +141,13 @@ async def test_an_org_saves_library_channels_and_resources_into_its_resources():
         assert {row["resource_uuid"] for row in learner_view} == {"resource_10", "resource_20", "resource_21"}
 
         # Saving one resource keeps it after the channel is unsaved; unlisting drops it from Plain's resources.
-        await service.save_resource_for_org(None, PLAIN, "resource_20", _user(STAFF), db)
-        await service.unsave_channel_for_org(None, PLAIN, "channel_2", _user(STAFF), db)
-        workspace = await service.org_workspace(None, PLAIN, _user(STAFF), db)
+        await library.save_resource_for_org(None, PLAIN, "resource_20", _user(STAFF), db)
+        await library.unsave_channel_for_org(None, PLAIN, "channel_2", _user(STAFF), db)
+        workspace = await library.org_workspace(None, PLAIN, _user(STAFF), db)
         assert {row["resource_uuid"] for row in workspace["resources"]} == {"resource_10", "resource_20"}
         db.get(ResourceChannel, 2).listed = False
         db.commit()
-        workspace = await service.org_workspace(None, PLAIN, _user(STAFF), db)
+        workspace = await library.org_workspace(None, PLAIN, _user(STAFF), db)
         assert {row["resource_uuid"] for row in workspace["resources"]} == {"resource_10"}
 
 
@@ -171,7 +171,7 @@ async def test_comment_rules_held_links_reports_and_moderation():
         _resource(db, 10, PARTNER, 1)
         _resource(db, 20, PARTNER, 2)
         _resource(db, 30, PARTNER, 3)
-        post = lambda user_id, resource_id, text: service.create_comment(None, f"resource_{resource_id}", ResourceCommentCreate(content=text), _user(user_id), db)  # noqa: E731
+        post = lambda user_id, resource_id, text: comments.create_comment(None, f"resource_{resource_id}", ResourceCommentCreate(content=text), _user(user_id), db)  # noqa: E731
 
         with pytest.raises(HTTPException):
             await post(LEARNER, 30, "Hello")
@@ -184,24 +184,24 @@ async def test_comment_rules_held_links_reports_and_moderation():
         held = await post(LEARNER, 10, "See www.example.com for more")
         assert (plain["status"], held["status"]) == ("live", "held")
         # Others don't see the held comment; its author and the owner's staff do.
-        assert [c["comment_uuid"] for c in await service.list_comments(None, "resource_10", _user(GROUPIE), db)] == [plain["comment_uuid"]]
-        assert len(await service.list_comments(None, "resource_10", _user(LEARNER), db)) == 2
+        assert [c["comment_uuid"] for c in await comments.list_comments(None, "resource_10", _user(GROUPIE), db)] == [plain["comment_uuid"]]
+        assert len(await comments.list_comments(None, "resource_10", _user(LEARNER), db)) == 2
 
-        await service.report_comment(None, plain["comment_uuid"], _user(GROUPIE), db)
-        await service.report_comment(None, plain["comment_uuid"], _user(GROUPIE), db)
-        queue = await service.list_channel_comments(None, "channel_1", _user(P_STAFF), db)
+        await comments.report_comment(None, plain["comment_uuid"], _user(GROUPIE), db)
+        await comments.report_comment(None, plain["comment_uuid"], _user(GROUPIE), db)
+        queue = await comments.list_channel_comments(None, "channel_1", _user(P_STAFF), db)
         assert {c["comment_uuid"] for c in queue["needs_look"]} == {plain["comment_uuid"], held["comment_uuid"]}
         assert next(c for c in queue["needs_look"] if c["comment_uuid"] == plain["comment_uuid"])["report_count"] == 1
         with pytest.raises(HTTPException):
-            await service.list_channel_comments(None, "channel_1", _user(STAFF), db)
+            await comments.list_channel_comments(None, "channel_1", _user(STAFF), db)
         with pytest.raises(HTTPException):
-            await service.moderate_comment(None, held["comment_uuid"], "approve", _user(STAFF), db)
+            await comments.moderate_comment(None, held["comment_uuid"], "approve", _user(STAFF), db)
 
-        await service.moderate_comment(None, held["comment_uuid"], "approve", _user(P_STAFF), db)
-        await service.moderate_comment(None, plain["comment_uuid"], "hide", _user(P_STAFF), db)
-        queue = await service.list_channel_comments(None, "channel_1", _user(P_STAFF), db)
+        await comments.moderate_comment(None, held["comment_uuid"], "approve", _user(P_STAFF), db)
+        await comments.moderate_comment(None, plain["comment_uuid"], "hide", _user(P_STAFF), db)
+        queue = await comments.list_channel_comments(None, "channel_1", _user(P_STAFF), db)
         assert queue["needs_look"] == []
-        assert [c["comment_uuid"] for c in await service.list_comments(None, "resource_10", _user(GROUPIE), db)] == [held["comment_uuid"]]
+        assert [c["comment_uuid"] for c in await comments.list_comments(None, "resource_10", _user(GROUPIE), db)] == [held["comment_uuid"]]
 
 
 @pytest.mark.asyncio
@@ -215,6 +215,6 @@ async def test_resource_detail_lists_the_plans_that_use_it():
         ]}]}
         db.add(GoalTemplate(id=1, org_id=PLAIN, template_uuid="template_1", title="Career plan", document=document, creation_date=NOW, update_date=NOW))
         db.commit()
-        detail = await service.resource_detail(None, PLAIN, "resource_10", _user(STAFF), db)
+        detail = await library.resource_detail(None, PLAIN, "resource_10", _user(STAFF), db)
         assert detail["used_in"][0]["template_uuid"] == "template_1" and detail["used_in"][0]["steps"] == ["Explore careers"]
         assert detail["can_edit"] is True
