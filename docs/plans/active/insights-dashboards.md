@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I7 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: built (I1 to I8), merging · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -116,6 +116,18 @@ charts, templates and questions), `list_dashboards` (with the plans or groups to
 409 with the current dashboard), `capture_dashboard` and `save_capture_rule` (fields left out of a change
 keep their value). Every tool acts as the connected person, through the same services as the app, so it
 sees and may share only what they could in Insights.
+
+## Learner dashboards (I8)
+
+A learner dashboard is one learner, picked from the active learners the viewer counts (`objects` with scope
+learner lists them by name with their groups). Plan starts, completion, time to finish and the review
+measures now work on it. New measures in `services/insights/measures_learner.py`: steps done (on any scope,
+placed on the step's `completed_at`, else its last move to done), plan progress (today, the share of steps
+done in running plans), and two only for a learner: days active and check-ins (messages staff wrote in
+conversations the learner is in; staff-only notes left out). The starter "Learner overview" is a fourth
+starter; starters are now made once each, so organizations already using Insights get it the next time
+they open it. Web: `/admin/insights/learner/[key]`, Learners in the rail, and Insights links on a
+learner's thread header and profile.
 
 ## Acceptance
 

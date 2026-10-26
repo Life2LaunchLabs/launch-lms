@@ -30,7 +30,7 @@ INSIGHTS_TOOLS = [
     Tool(
         "list_dashboards",
         "List Insights dashboards",
-        "The Insights dashboards shared with you or yours, with their scope, revision and editor_url. With scope plan or group, also the plans or groups you can open one on (their keys).",
+        "The Insights dashboards shared with you or yours, with their scope, revision and editor_url. With scope plan, group or learner, also the plans, groups or learners you can open one on (their keys).",
         {"properties": {"scope": _SCOPE}},
         insights_mcp.list_dashboards,
         scope="insights:read",

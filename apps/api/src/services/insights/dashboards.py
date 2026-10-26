@@ -116,14 +116,17 @@ def _owner_admin(db: Session, org_id: int) -> int | None:
 
 
 def ensure_starters(db: Session, org_id: int) -> None:
-    """The first time an organization opens Insights, give it the starter dashboards, shared with staff.
+    """Give an organization each starter dashboard once, shared with staff.
 
-    Any row, deleted or not, means the organization has been here, so deleting a starter keeps it gone.
+    Any row made from a starter, deleted or not, means the organization has had it, so deleting a starter
+    keeps it gone; a starter added later still reaches organizations that already use Insights.
     """
-    if db.exec(select(InsightDashboard.id).where(InsightDashboard.org_id == org_id)).first() is not None:
+    had = set(db.exec(select(InsightDashboard.source_template).where(InsightDashboard.org_id == org_id, col(InsightDashboard.source_template).like("starter:%"))).all())
+    missing = [key for key in library.STARTERS if f"starter:{key}" not in had]
+    if not missing:
         return
     owner, now = _owner_admin(db, org_id), _now()
-    for key in library.STARTERS:
+    for key in missing:
         item = library.template(key)
         if item is None:
             continue

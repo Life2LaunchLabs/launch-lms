@@ -223,11 +223,11 @@ export const routePaths = {
       requirements: () => PLANS_TAB_PATHS.requirements,
       /** One framework under Plans › Requirements: details, levels, spec, or coverage by plan. */
       requirementFrameworkPlans: frameworkPage,
-      // Insights: dashboards about the organization, one plan or one group; reports by group; learners' evidence by group.
+      // Insights: dashboards about the organization, one plan, one group or one learner; reports by group; learners' evidence by group.
       /** The organization's dashboards; `dashboard` opens one of them. */
       insights: (dashboard?: string | null) => withQuery('/admin/insights', { d: dashboard || null }),
-      /** A plan or group dashboard, for one plan or group (`key`); without it the first one the viewer can open. */
-      insightsScope: (scope: 'plan' | 'group', key?: string | null, dashboard?: string | null) =>
+      /** A plan, group or learner dashboard, for one of them (`key`); without it the first one the viewer can open. */
+      insightsScope: (scope: 'plan' | 'group' | 'learner', key?: string | null, dashboard?: string | null) =>
         withQuery(`/admin/insights/${scope}${key ? `/${encodeURIComponent(key)}` : ''}`, { d: dashboard || null }),
       /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
       /** The capture log, optionally narrowed to one dashboard. */

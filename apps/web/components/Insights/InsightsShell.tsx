@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { BarChart3, Camera, ChevronDown, ClipboardCheck, ListTree, Lock, Plus, User } from 'lucide-react'
+import { BarChart3, Camera, ChevronDown, ClipboardCheck, ListTree, Lock, Plus } from 'lucide-react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { Scope } from '@services/insights/insights'
@@ -16,7 +16,7 @@ export type InsightsPlace = { dashboard: string | null; scope: Scope } | 'captur
 const item = 'flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13.5px] font-semibold text-foreground transition-colors hover:bg-muted'
 const eyebrow = 'mb-1 mt-4 px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground first:mt-0'
 
-/** The dashboards rail: the organization's own, then one plan or group at a time, then the group reports. */
+/** The dashboards rail: the organization's own, then one plan, group or learner at a time, then the reports. */
 function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
   const { orgslug } = useInsightsContext()
   const { data: dashboards } = useDashboards()
@@ -24,7 +24,7 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
   const href = (path: string) => getUriWithOrg(orgslug, path)
   const current = typeof place === 'object' ? place : null
   const count = (scope: Scope) => dashboards?.filter((dashboard) => dashboard.scope === scope).length || 0
-  const scopeItem = (scope: 'plan' | 'group', label: string) => <Link key={scope} href={href(admin.insightsScope(scope))}
+  const scopeItem = (scope: 'plan' | 'group' | 'learner', label: string) => <Link key={scope} href={href(admin.insightsScope(scope))}
     aria-current={current?.scope === scope ? 'page' : undefined} className={cn(item, current?.scope === scope && 'bg-muted')}>
     <ScopeGlyph scope={scope} /><span className="min-w-0 flex-1"><b className="block truncate">{label}</b>
       <span className="block truncate text-[11.5px] font-medium text-muted-foreground">{count(scope)} view{count(scope) === 1 ? '' : 's'}</span></span>
@@ -46,10 +46,7 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
     <span className={eyebrow}>One at a time</span>
     {scopeItem('plan', 'Plans')}
     {scopeItem('group', 'Groups')}
-    <span className={cn(item, 'cursor-default text-muted-foreground hover:bg-transparent')}>
-      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-muted" aria-hidden="true"><User size={15} /></span>
-      <span className="flex-1">Learners</span><span className="rounded-full bg-muted px-2 py-px text-[10.5px] font-bold">Next</span>
-    </span>
+    {scopeItem('learner', 'Learners')}
     <button type="button" onClick={onNew} className={cn(item, 'mt-2 text-muted-foreground hover:text-foreground')}>
       <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-dashed border-border" aria-hidden="true"><Plus size={15} /></span>New dashboard
     </button>

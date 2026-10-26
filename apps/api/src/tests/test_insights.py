@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.badges import BadgeAward
-from src.db.conversations import Conversation, ConversationMessage
+from src.db.conversations import Conversation, ConversationMember, ConversationMessage
 from src.db.goal_sharing import PlanActivity
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.organizations import Organization
@@ -45,7 +45,7 @@ def db() -> Session:
     SQLModel.metadata.create_all(engine_, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__, UserGroupStaff.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__,
-        PlanActivity.__table__, BadgeAward.__table__, Conversation.__table__, ConversationMessage.__table__,
+        PlanActivity.__table__, BadgeAward.__table__, Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__,
     ])
     session = Session(engine_)
     session.add(Organization(id=1, org_uuid="org_1", name="Riverside", slug="riverside", email="r@example.com"))
@@ -190,7 +190,7 @@ def test_staff_without_see_reports_count_only_their_groups(db):
 def test_no_measure_counts_anyone_outside_the_viewers_learners(db, key):
     measure = MEASURES[key]
     scope = measure.scopes[0]
-    ctx = engine.context(db, _user(ANA), 1, scope, CL if scope == "plan" else None, today=TODAY)
+    ctx = engine.context(db, _user(ANA), 1, scope, {"plan": CL, "learner": f"user_{FALL[0]}"}.get(scope), today=TODAY)
     spec = CardSpec(measure=key, range="all")
     drilled = engine.drill(ctx, spec, "all") if measure.drill else {"people": []}
     assert {person["id"] for person in drilled["people"]} <= set(FALL)

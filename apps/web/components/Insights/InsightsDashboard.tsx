@@ -50,7 +50,7 @@ function ObjectSwitcher({ scope, objects, current, onPick }: { scope: Scope; obj
       <DropdownMenuLabel>{SCOPE_LABELS[scope].many}</DropdownMenuLabel>
       {objects.map((item) => <DropdownMenuItem key={item.key} onSelect={() => onPick(item.key)} className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        <span className="text-[11.5px] text-muted-foreground">{item.learners}</span>
+        <span className="truncate text-[11.5px] text-muted-foreground">{scope === 'learner' ? item.detail : item.learners}</span>
         {item.key === current.key ? <Check size={14} aria-hidden="true" /> : null}
       </DropdownMenuItem>)}
     </DropdownMenuContent>
@@ -160,15 +160,26 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   </>
 }
 
-/** A dashboard page: the org's (`scope` org), or a plan's or group's for the one picked (`objectKey`). */
-export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: { scope: 'org' | 'plan' | 'group'; objectKey?: string | null; dashboardUuid?: string | null }) {
+const EMPTY_ONE: Record<'plan' | 'group' | 'learner', string> = {
+  plan: 'Its dashboards fill in once your learners start it.',
+  group: 'You can see a group here once it has learners you work with.',
+  learner: 'You can see a learner here while they are active and you work with them.',
+}
+const EMPTY_ALL: Record<'plan' | 'group' | 'learner', string> = {
+  plan: 'Once your learners start plans, each plan gets these dashboards.',
+  group: 'Make a group in Threads, and each group gets these dashboards.',
+  learner: 'Once learners join, each one gets these dashboards.',
+}
+
+/** A dashboard page: the org's (`scope` org), or a plan's, group's or learner's for the one picked (`objectKey`). */
+export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: { scope: 'org' | 'plan' | 'group' | 'learner'; objectKey?: string | null; dashboardUuid?: string | null }) {
   const router = useRouter()
   const { orgId, orgslug, token, ready } = useInsightsContext()
   const { data: dashboards } = useDashboards()
   const inScope = (dashboards || []).filter((item) => item.scope === scope)
   const chosen = inScope.find((item) => item.dashboard_uuid === dashboardUuid) || inScope[0]
   const { data: objects } = useSWR(ready && scope !== 'org' ? insightKeys.objects(orgId, scope) : null,
-    () => insightsApi.objects(orgId, scope as 'plan' | 'group', token), { revalidateOnFocus: false })
+    () => insightsApi.objects(orgId, scope as 'plan' | 'group' | 'learner', token), { revalidateOnFocus: false })
   // A plan or group asked for by key that the viewer can't open (or that has no learners here) isn't swapped for another.
   const object = objectKey ? objects?.find((item) => item.key === objectKey) : objects?.[0]
   const { data: dashboard } = useSWR(ready && chosen ? insightKeys.dashboard(orgId, chosen.dashboard_uuid) : null,
@@ -183,10 +194,10 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
     if (!dashboards || (scope !== 'org' && !objects)) return <div className="space-y-4"><span className="block h-9 w-72 animate-pulse rounded-lg bg-muted" />
       <div className="grid grid-cols-12 gap-4">{[3, 3, 3, 3, 7, 5].map((span, index) => <CardSkeleton key={index} span={span} />)}</div></div>
     if (scope !== 'org' && !object && objectKey) return <Empty title={`Nothing to show for this ${SCOPE_LABELS[scope].one.toLowerCase()} yet`}
-      detail={scope === 'plan' ? 'Its dashboards fill in once your learners start it.' : 'You can see a group here once it has learners you work with.'}
+      detail={EMPTY_ONE[scope]}
       action={objects?.length ? <Link href={scopeHref(objects[0].key)} className={ghostButton}>See {objects[0].label}</Link> : undefined} />
     if (scope !== 'org' && !object) return <Empty title={`No ${SCOPE_LABELS[scope].many.toLowerCase()} to show yet`}
-      detail={scope === 'plan' ? 'Once your learners start plans, each plan gets these dashboards.' : 'Make a group in Threads, and each group gets these dashboards.'} />
+      detail={EMPTY_ALL[scope]} />
     if (!chosen) return <Empty title={`No ${SCOPE_LABELS[scope].one.toLowerCase()} dashboards yet`} detail="Make one from a template or start blank."
       action={<NewButton scope={scope} />} />
     const effective = range ?? dashboard?.document.range ?? '90d'
@@ -198,7 +209,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
             <div className="min-w-0">
               {scope === 'org' ? <h1 className="truncate text-[26px] font-extrabold leading-tight tracking-tight">{chosen.title}</h1>
                 : <ObjectSwitcher scope={scope} objects={objects!} current={object!} onPick={(key) => router.push(scopeHref(key, chosen.dashboard_uuid))} />}
-              <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : `${object!.learners} learner${object!.learners === 1 ? '' : 's'}${object!.external ? ' · from another organization' : ''}`}</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : scope === 'learner' ? object!.detail : `${object!.learners} learner${object!.learners === 1 ? '' : 's'}${object!.external ? ' · from another organization' : ''}`}</p>
             </div>
           </div>
           {dashboard && !draft ? <div className="flex items-center gap-2">

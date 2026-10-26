@@ -2,7 +2,8 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { Building2, Check, DoorOpen, Lock, Route, UserPlus, Users, X } from 'lucide-react'
+import Link from 'next/link'
+import { BarChart3, Building2, Check, DoorOpen, Lock, Route, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ChatWorkspace from '@components/Connect/workspace/ChatWorkspace'
 import type { TimelineItem } from '@components/Connect/workspace/feed'
@@ -120,7 +121,9 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   const art = <PersonAvatar user={thread.person as any} size="md" />
   const others = thread.with.filter((person) => person.id !== thread.person.id)
   const sub = thread.kind === 'staff' ? ROLE_LABELS[thread.role] : others.length ? `With ${names(others, me)}` : ROLE_LABELS[thread.role]
-  const header = <Header art={art} title={thread.person.name} sub={sub} actions={actions} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
+  const insights = thread.kind === 'learner' && thread.person.user_uuid ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('learner', thread.person.user_uuid))}
+    aria-label={`${thread.person.name}'s Insights`} title="Insights" className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><BarChart3 size={16} /></Link> : null
+  const header = <Header art={art} title={thread.person.name} sub={sub} actions={insights ? <>{insights}{actions}</> : actions} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
   if (thread.kind === 'staff' || !thread.chat_uuid) return <Shell>{header}<div className="border-b border-border" />
     {thread.chat_uuid ? <ChatWorkspace key={thread.chat_uuid} source={{ chatUuid: thread.chat_uuid }} orgslug={orgslug} token={token} hideTopics empty="Nothing here yet. Say hello." />
       : <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">You can’t message {thread.person.name.split(' ')[0]} directly.</p>}

@@ -102,8 +102,8 @@ def api_library(org_id: int, scope: Literal["org", "plan", "group", "learner"] =
 
 
 @router.get("/objects")
-def api_objects(org_id: int, scope: Literal["plan", "group"] = Query(default="plan"), db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """The plans or groups the viewer can open a dashboard on, for the switcher."""
+def api_objects(org_id: int, scope: Literal["plan", "group", "learner"] = Query(default="plan"), db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The plans, groups or learners the viewer can open a dashboard on, for the switcher."""
     return {"objects": context.objects(db, context.population(db, user, org_id), scope)}
 
 
