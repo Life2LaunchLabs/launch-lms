@@ -118,7 +118,7 @@ export function BarsBody({ result, drill, linkFor }: { result: CardResult; drill
   return <ul className="space-y-1.5">
     {result.rows.map((row) => <li key={row.key} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-2.5 text-[13px]">
       <span className="min-w-0 font-semibold text-foreground"><RowLabel row={row} href={linkFor(row)} /></span>
-      <button type="button" onClick={() => drill(row.drill, row.label)} disabled={!row.drill} aria-label={`${row.label}: ${row.text}. See who`}
+      <button type="button" onClick={() => drill(row.drill, row.label)} disabled={!row.drill} aria-label={`${row.label}: ${row.text}${row.drill ? '. See who' : ''}`}
         className="group/bar h-5 rounded-[4px] text-left disabled:cursor-default">
         <span className={cn('block h-full rounded-[4px] bg-[var(--viz-series)] transition-opacity group-hover/bar:opacity-80', row.few && 'opacity-50')}
           style={{ width: `${Math.max(2, ((row.v || 0) / max) * 100)}%` }} />
@@ -142,7 +142,7 @@ function Stack({ parts, drill, label }: { parts: Array<{ key: string; label: str
   if (!total) return <div className="h-5 rounded-[4px] bg-muted" />
   return <div className="flex h-5 gap-[2px]" role="group" aria-label={label}>
     {parts.filter((part) => part.v > 0).map((part) => <button key={part.key} type="button" onClick={() => drill(part.drill, `${label}: ${part.label}`)}
-      title={`${part.label}: ${part.v.toLocaleString()}`} aria-label={`${part.label}: ${part.v}. See who`}
+      title={`${part.label}: ${part.v.toLocaleString()}`} aria-label={`${part.label}: ${part.v}${part.drill ? '. See who' : ''}`}
       className="h-full first:rounded-l-[4px] last:rounded-r-[4px] hover:opacity-80" style={{ width: `${(part.v / total) * 100}%`, background: part.color }} />)}
   </div>
 }

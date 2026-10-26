@@ -107,7 +107,7 @@ launch-lms/
 | `/trail` | Learning paths |
 | `/code` | Code execution (Judge0) |
 | `/analytics` | Course analytics |
-| `/insights` | Insights cards: run a dashboard's cards, drill into a number, the measure registry |
+| `/insights` | Insights: dashboards, running their cards, drilling into a number, the measure registry, captures and their read-only links |
 | `/search` | Global search |
 | `/instance` | Public instance metadata |
 | `/plans` | Plan definitions (public) |
@@ -155,7 +155,7 @@ launch-lms/
 
 ### App Router Layout
 - `app/orgs/[orgslug]/admin/` — org admin dashboard (superadmins additionally see platform controls: org management, users, news)
-  - `admin/insights/` — Insights: dashboards for the org (`?d=`), one plan (`plan/[key]`) or one group (`group/[key]`), with group reports, coverage and evidence in the same rail (`components/Insights/`)
+  - `admin/insights/` — Insights: dashboards for the org (`?d=`), one plan (`plan/[key]`) or one group (`group/[key]`), with captures (`captures/`), group reports, coverage and evidence in the same rail (`components/Insights/`); a capture's read-only link is `insights/shared/[token]`
   - `admin/threads/` — Threads (formerly People): the list, each thread, and profiles under `threads/profiles/`; threads also open in the admin side panel beside Coach (`components/Threads/`)
 - `app/auth/` — login, register, email verification
 - `app/editor/` — course editor

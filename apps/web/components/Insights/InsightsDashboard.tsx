@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Check, ChevronDown, Copy, Lock, MoreHorizontal, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { Camera, Check, ChevronDown, Copy, Lock, MoreHorizontal, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
@@ -18,6 +18,7 @@ import CardEditor, { type EditorTarget } from './CardEditor'
 import { AddCardTile, CardControls, EditBar, draftFrom, moveCard, type EditDraft } from './DashboardEditing'
 import InsightCard, { CardSkeleton, spanClass } from './InsightCard'
 import InsightsShell, { useNewDashboard } from './InsightsShell'
+import CaptureButton from './CaptureModal'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 
@@ -79,6 +80,7 @@ function DashboardMenu({ dashboard, scopeRoot }: { dashboard: Dashboard; scopeRo
     <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card hover:bg-muted" aria-label="More"><MoreHorizontal size={16} /></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem onSelect={duplicate}><Copy size={14} className="mr-2" />Duplicate</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => router.push(getUriWithOrg(orgslug, routePaths.org.admin.insightsCaptures(dashboard.dashboard_uuid)))}><Camera size={14} className="mr-2" />Its captures</DropdownMenuItem>
       {dashboard.editable ? <><DropdownMenuSeparator /><DropdownMenuItem onSelect={remove} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem></> : null}
     </DropdownMenuContent>
   </DropdownMenu>
@@ -197,6 +199,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
           </div>
           {dashboard && !draft ? <div className="flex items-center gap-2">
             <button type="button" onClick={() => setDraft(draftFrom(dashboard))} className={ghostButton}><Pencil size={14} aria-hidden="true" />Edit</button>
+            {dashboard.document.cards.length ? <CaptureButton dashboard={dashboard} scopeKey={object?.key || null} objectLabel={object?.label || null} range={effective} className={ghostButton} /> : null}
             <DashboardMenu dashboard={dashboard} scopeRoot={scopeHref(object?.key)} />
           </div> : null}
         </div>

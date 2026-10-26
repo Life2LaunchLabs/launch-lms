@@ -144,6 +144,8 @@ export const routePaths = {
     portfolioBadges: () => '/portfolio/badges',
     /** One badge a learner earned, by its short code: the badge, who earned it, and its certificate. */
     badgeAward: (code: string) => `/b/${encodeURIComponent(code)}`,
+    /** A captured dashboard's read-only link: no sign-in, small numbers hidden. */
+    insightsShared: (token: string) => `/insights/shared/${encodeURIComponent(token)}`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
     search: (query?: string) => withQuery('/discover', { q: query }),
@@ -228,6 +230,9 @@ export const routePaths = {
       insightsScope: (scope: 'plan' | 'group', key?: string | null, dashboard?: string | null) =>
         withQuery(`/admin/insights/${scope}${key ? `/${encodeURIComponent(key)}` : ''}`, { d: dashboard || null }),
       /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
+      /** The capture log, optionally narrowed to one dashboard. */
+      insightsCaptures: (dashboard?: string | null) => withQuery('/admin/insights/captures', { d: dashboard || null }),
+      insightsCapture: (captureUuid: string) => `/admin/insights/captures/${encodeURIComponent(captureUuid)}`,
       insightsReport: (groupId?: string | number | null, frameworks?: string[] | 'all' | null) =>
         withQuery('/admin/insights/reports', { group: groupId == null ? null : String(groupId), fw: frameworksParam(frameworks) }),
       insightsReportPrint: (groupId: string | number, frameworks?: string[] | 'all' | null) =>

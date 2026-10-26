@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I5 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I6 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -75,6 +75,27 @@ organization who started the plan; totals and organization names only, never a l
 across learners by template key and sort in plan order; the step and organization breakdowns only fit plan
 dashboards. Ranked headlines now pick leader and laggard by value, so versions and steps read right. The
 plan page has an Insights button for its owner.
+
+## Captures (I6)
+
+`InsightCapture` (`db/insights.py`) is a dashboard frozen at a moment: the cards and every card's result as
+the capturer saw them, the plan or group and its name, the dates asked for and covered, a note, whose
+learners it counted, and `attachments` (material made with it, registered in `captures.ATTACHMENTS`; a
+requirement report adds each learner's evidence). Nothing re-runs when a capture opens, and captures outlive
+their dashboard. `services/insights/captures.py` holds the rules:
+
+- Its maker opens it; so does anyone with See reports who can see its dashboard. Staff without See reports
+  see only their own.
+- Only its maker changes the note; the numbers never change.
+- Its maker or an admin turns on a read-only link (7, 30 or 90 days, or until turned off). The link shows the
+  cards with no drill keys or row links, no names, and any number resting on fewer than ten shown as
+  "fewer than 10" and left out of the headline (`shield`); attachments show only when their kind is public.
+
+API: `POST /dashboards/{uuid}/captures`, `GET /captures` (filters: dashboard, scope, key, mine, scheduled),
+`GET /captures/{uuid}`, `PUT /captures/{uuid}/note`, `PUT /captures/{uuid}/link`, and `GET /shared/{token}`
+with no sign-in. Web: Capture on a dashboard's header, the log at `/admin/insights/captures`, one capture at
+`/admin/insights/captures/[uuid]` (print and the link), and the link at `/insights/shared/[token]`.
+Scheduled captures (rules, the scheduler, email) follow as I6b.
 
 ## Acceptance
 
