@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I6 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I7 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -104,6 +104,18 @@ with addresses makes one each run. Emails list the shielded headlines. A rule th
 deleted, owner gone, plan or group no longer theirs) turns itself off with the reason. API: `GET /rules`,
 `POST /dashboards/{uuid}/rules`, `PUT|DELETE /rules/{uuid}`, `POST /rules/{uuid}/run`. Web: Schedule
 captures in a dashboard's menu, and Schedules above the capture log.
+
+## Claude tools (I7)
+
+Ten MCP tools in `services/insights/mcp.py`, listed in `services/mcp/insights_tools.py` under two new scopes,
+`insights:read` and `insights:write` (connections made before them must reconnect). Read:
+`get_dashboard_schema` (the guide, the card spec's JSON Schema, and for a scope the measures, breakdowns,
+charts, templates and questions), `list_dashboards` (with the plans or groups to open one on),
+`get_dashboard` (with `run`, each card's numbers for a key), `validate_dashboard`, `preview_card` and
+`list_captures`. Write: `create_dashboard`, `save_dashboard` (the revision is the etag; a stale one gets
+409 with the current dashboard), `capture_dashboard` and `save_capture_rule` (fields left out of a change
+keep their value). Every tool acts as the connected person, through the same services as the app, so it
+sees and may share only what they could in Insights.
 
 ## Acceptance
 

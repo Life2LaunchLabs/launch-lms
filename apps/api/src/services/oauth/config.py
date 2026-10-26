@@ -13,6 +13,8 @@ SCOPES = {
     "activities:write": "Edit activities in draft plan versions",
     "plans:read": "See your organization's plan templates and requirement frameworks",
     "plans:write": "Create and edit plan templates and requirement frameworks",
+    "insights:read": "See your organization's Insights dashboards, their numbers, and captures",
+    "insights:write": "Make and edit Insights dashboards, and take and schedule captures",
     "coach:read": "Platform admins: see the Coach policy",
     "coach:write": "Platform admins: edit the Coach draft (a person releases it)",
 }
