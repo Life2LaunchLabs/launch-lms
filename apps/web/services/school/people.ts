@@ -13,7 +13,7 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
 }
 
 /** What someone is to the organization. Helpers aren't members: a learner brought them onto one plan. */
-export type OrgRole = 'admin' | 'staff' | 'learner' | 'helper'
+export type OrgRole = 'admin' | 'staff' | 'learner' | 'helper' | 'applicant' // applicant: asking for a plan, not one of the org's people yet
 /** People hides alumni unless asked. */
 export type PeopleStatusFilter = 'active' | 'alumni' | 'all'
 
@@ -193,4 +193,4 @@ export const peopleApi = {
     request<HelperRequest>(helperBase(`/${q(invitationUuid)}/${approve ? 'approve' : 'decline'}?org_id=${orgId}`), token, 'POST'),
 }
 
-export const ROLE_LABELS: Record<OrgRole, string> = { admin: 'Admin', staff: 'Staff', learner: 'Learner', helper: 'Helper' }
+export const ROLE_LABELS: Record<OrgRole, string> = { admin: 'Admin', staff: 'Staff', learner: 'Learner', helper: 'Helper', applicant: 'Asking for a plan' }

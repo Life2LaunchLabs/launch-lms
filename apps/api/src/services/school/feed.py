@@ -17,7 +17,7 @@ from sqlalchemy import String, and_, func, literal, or_, union_all
 from sqlmodel import Session, col, select
 
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage
-from src.db.goals import Goal, GoalAssignment, GoalStatus, GoalStep, StepCompleter, StepProgress, StepStatus
+from src.db.goals import Goal, GoalAssignment, GoalStatus, GoalStep, GoalTemplate, StepCompleter, StepProgress, StepStatus
 from src.db.goal_sharing import PlanCollaborator, PlanInvitation
 from src.db.school import UserGroupStaff
 from src.db.user_organizations import UserOrganization
@@ -29,7 +29,7 @@ from src.security.superadmin import is_user_superadmin
 from src.services.connect import chats, people
 from src.services.goals import access, helper_requests
 from src.services.goals.sharing_roles import _now
-from src.services.school import chats as school_chats, directory, group_chats, roles
+from src.services.school import chats as school_chats, directory, group_chats, plan_requests, roles
 
 ACTIVE_CAP = 30
 PAGE = directory.PAGE
@@ -124,7 +124,7 @@ def _preview(row: dict) -> str:
     if counts["turn_ins"]:
         parts.append(_plural(counts["turn_ins"], f"Turned in “{row['_step_title']}”", "Turned in {} steps"))
     if counts["approvals"]:
-        parts.append(_plural(counts["approvals"], row["_approval"], "{} helpers to approve"))
+        parts.append(_plural(counts["approvals"], row["_approval"], "{} requests to answer"))
     if counts["messages"] and (parts or not row["_last"]):
         parts.append(_plural(counts["messages"], "1 new message", "{} new messages"))
     if parts:
@@ -219,6 +219,16 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
             entry["_approval"] = f"{(helper or {}).get('name') or 'A helper'} asks to help on “{goal.title}”"
             touch(entry, invitation.creation_date)
 
+    applicants: set[int] = set()
+    if admin or plan_requests.can_decide(db, viewer, org_id):
+        for request in plan_requests.waiting(db, org_id):
+            entry = row("person", int(request.user_id))
+            entry["counts"]["approvals"] += 1
+            template = db.get(GoalTemplate, request.template_id)
+            entry["_approval"] = f"Asks for “{template.title if template else 'a plan'}”"
+            applicants.add(int(request.user_id))
+            touch(entry, request.creation_date)
+
     members = {int(user_id): int(role_id) for user_id, role_id in db.exec(select(UserOrganization.user_id, UserOrganization.role_id).where(UserOrganization.org_id == org_id)).all()}
     staff_roles = roles.staff_role_ids(db, org_id)
     found = []
@@ -230,7 +240,7 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
             if not person:
                 continue
             role_id = members.get(entry["_id"])
-            entry.update(person=person, role=directory._label(role_id, staff_roles) if role_id is not None else "helper")
+            entry.update(person=person, role=directory._label(role_id, staff_roles) if role_id is not None else plan_requests.APPLICANT if entry["_id"] in applicants else "helper")
             name_fields = (person.get("name"), person.get("username"))
         else:
             entry.update(person=None, role=None)

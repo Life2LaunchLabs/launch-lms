@@ -2,6 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { PersonSummary } from '@services/goals/types'
 import type { HelperRequest, OrgRole } from '@services/school/people'
+import type { JoinRequest } from '@services/goals/planJoining'
 
 const q = encodeURIComponent
 const base = (orgId: number, path: string) => `${getAPIUrl()}school/orgs/${orgId}/threads${path}`
@@ -63,6 +64,8 @@ export interface PersonThread {
   review: ReviewItem[]
   questions: QuestionItem[]
   requests: ThreadRequest[]
+  /** Plans they asked for in Discover, waiting on an answer (for staff who decide). */
+  plan_requests: JoinRequest[]
   past_due: PastDueItem[]
 }
 

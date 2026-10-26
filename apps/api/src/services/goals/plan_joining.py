@@ -349,8 +349,8 @@ def decide(db: Session, current_user: PublicUser, request_uuid: str, accept: boo
     require_org_admin(current_user.id, row.org_id, db, "manage_learners")
     if row.status != JoinRequestStatus.REQUESTED.value:
         raise HTTPException(status_code=409, detail="This request was already decided")
+    template = db.get(GoalTemplate, row.template_id)
     if accept:
-        template = db.get(GoalTemplate, row.template_id)
         offer = _offer_or_404(db, template.template_uuid, row.org_id) if template else None
         if offer is None:
             raise HTTPException(status_code=404, detail="Plan not found")
@@ -359,5 +359,8 @@ def decide(db: Session, current_user: PublicUser, request_uuid: str, accept: boo
     row.status = (JoinRequestStatus.ACCEPTED if accept else JoinRequestStatus.REJECTED).value
     row.decided_by_user_id, row.decided_at, row.update_date = current_user.id, datetime.utcnow(), _now()
     db.add(row)
+    from src.services.school import plan_requests
+
+    plan_requests.tell_learner(db, row, int(current_user.id), template.title if template else "the plan", accept)  # type: ignore[arg-type]
     db.commit()
     return _request_dict(db, row)

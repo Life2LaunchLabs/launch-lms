@@ -30,7 +30,7 @@ from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.connect import chats, cohort, people, visibility, workspace
 from src.services.goals import assignment_messages, assignment_status, helper_requests
 from src.services.goals.sharing_roles import _stamp
-from src.services.school import chats as school_chats, feed, group_chats, roles, views
+from src.services.school import chats as school_chats, feed, group_chats, plan_requests, roles, views
 
 FILTERS = ("review", "questions", "requests", "past_due", "staff_only")
 # How far back open questions are looked for.
@@ -152,7 +152,7 @@ def _staff_thread(db: Session, current_user: PublicUser, org_id: int, user: User
     conversation = chats.ensure_direct(db, int(current_user.id), int(user.id))  # type: ignore[arg-type]
     db.commit()
     return {"kind": "staff", "person": people.person(db, user.id), "role": role, "chat_uuid": conversation.conversation_uuid if conversation else None,
-            "with": [], "plans": [], "focus": None, "steps": [], "counts": _empty_counts(), "review": [], "questions": [], "requests": [], "past_due": []}
+            "with": [], "plans": [], "focus": None, "steps": [], "counts": _empty_counts(), "review": [], "questions": [], "requests": [], "plan_requests": [], "past_due": []}
 
 
 def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: int, goal_uuid: str | None = None) -> dict:
@@ -164,11 +164,16 @@ def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: i
     viewer = int(current_user.id)  # type: ignore[arg-type]
     user = db.get(User, user_id)
     role = roles.org_role(db, org_id, user_id) if user else None
+    deciding = plan_requests.can_decide(db, viewer, org_id)
+    asked = plan_requests.cards(db, org_id, user_id) if user and deciding else []
+    if not role and asked:
+        role = plan_requests.APPLICANT  # asking for a plan before they're one of the organization's people
     if not user or not role or user_id == viewer:
         raise HTTPException(status_code=404, detail="Person not found")
     if role in roles.STAFF_ROLES:
         return _staff_thread(db, current_user, org_id, user, role)
-    views._require(db, current_user, org_id, user_id)
+    if role != plan_requests.APPLICANT:
+        views._require(db, current_user, org_id, user_id)
     conversation = school_chats.school_chat(db, org_id, user_id)
     db.commit()
     admin = is_org_admin(viewer, org_id, db)
@@ -208,11 +213,12 @@ def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: i
     in_scope = [assignments[int(goal.assignment_id)] for goal in ([focus] if focus else goals) if goal.assignment_id and int(goal.assignment_id) in assignments]
     staff = [user_id for assignment in in_scope if _value(assignment.status) != "ended" for user_id in assignment.staff_user_ids]
     staff += [row.user_id for row in school_chats.team(db, org_id, user_id)]
-    counts = {"review": len(scoped(review)), "questions": len(scoped(questions)), "requests": len(scoped(requests)), "past_due": len(scoped(past_due)),
+    asked = [] if focus else asked  # a request isn't about a plan they have yet
+    counts = {"review": len(scoped(review)), "questions": len(scoped(questions)), "requests": len(scoped(requests)) + len(asked), "past_due": len(scoped(past_due)),
               "staff_only": _staff_only(db, conversation, focus)}
     return {"kind": "learner", "person": people.person(db, user_id), "role": role, "chat_uuid": conversation.conversation_uuid, "with": _people(db, staff, viewer),
             "plans": plans, "focus": focus.goal_uuid if focus else None, "steps": plan_steps(db, focus, conversation, viewer) if focus else [], "counts": counts,
-            "review": scoped(review), "questions": scoped(questions), "requests": scoped(requests), "past_due": scoped(past_due)}
+            "review": scoped(review), "questions": scoped(questions), "requests": scoped(requests), "plan_requests": asked, "past_due": scoped(past_due)}
 
 
 # A group's thread -------------------------------------------------------------------------

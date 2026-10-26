@@ -15,7 +15,7 @@ import { ROLE_LABELS } from '@services/school/people'
 import { threadKeys, threadsApi, type OrgLogEntry, type PersonThread, type ThreadFilter } from '@services/school/threads'
 import { shortDate } from '@services/assignments/status'
 import { ContextBar, FilterChips, type StepOption } from './ContextBar'
-import { AskedCard, PastDueCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
+import { AskedCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
@@ -109,10 +109,12 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
       node: <PastDueCard line={line} learner={thread.person} orgId={orgId} token={token} /> })))
     if (filter === 'all' || filter === 'requests') cards.push(...(step ? [] : thread.requests).map((request) => ({ key: `ask:${request.invitation_uuid}`, at: request.creation_date,
       node: <RequestCard request={request} orgId={orgId} token={token} onDone={() => void mutate()} /> })))
+    if (filter === 'all' || filter === 'requests') cards.push(...(focus ? [] : thread.plan_requests || []).map((request) => ({ key: `plan:${request.request_uuid}`, at: request.creation_date,
+      node: <PlanRequestCard request={request} token={token} onDone={() => void mutate()} /> })))
     if (filter === 'review') cards.push(...onStep(thread.review).map((item) => ({ key: `review:${item.step_uuid}`, at: item.submitted_at,
       node: <ReviewCard item={item} reviewHref={turnInHref(item)} /> })))
     return cards
-  }, [thread, filter, step, orgId, token, mutate])
+  }, [thread, filter, step, focus, orgId, token, mutate])
 
   if (!thread) return <Loading actions={actions} />
   const art = <PersonAvatar user={thread.person as any} size="md" />

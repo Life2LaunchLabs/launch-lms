@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from src.db.coach import CoachPlaybook, CoachPolicy, CoachProviderKey
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, ConversationReaction
 from src.db.coach_notes import CoachNote
+from src.db.plan_joining import PlanJoinRequest
 from src.db.goals import (
     Goal,
     GoalAssignment,
@@ -64,6 +65,8 @@ def _session() -> Session:
         Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, ConversationMessageRef.__table__, ConversationReaction.__table__,
         # Marketplace permission to use another organization's template (services/goals/template_marketplace.py).
         GoalTemplateListing.__table__, GoalTemplateAuthorization.__table__, GoalTemplateLearnerAccess.__table__,
+        # Learners asking for a plan show in Threads (services/school/plan_requests.py).
+        PlanJoinRequest.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))
