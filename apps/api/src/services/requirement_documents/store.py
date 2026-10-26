@@ -28,6 +28,7 @@ from src.db.requirements import (
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
 from src.services import requirements
+from src.services.requirement_codes import DEFAULT_NUMBERING, node_fields, node_numbering, node_rule, upgrade_levels
 from src.services.requirement_documents.models import DOCUMENT_FORMAT, DOCUMENT_FORMAT_VERSION, RequirementFrameworkDocument
 
 
@@ -53,33 +54,41 @@ def _ordered(nodes: list[dict]) -> list[dict]:
     return ordered
 
 
-def _document(name: str, description: str, levels: list[dict], nodes: list[dict]) -> dict:
+def _node_doc(node: dict, has_children: bool) -> dict:
+    metadata = node.get("metadata") or {}
+    numbering, rule, values = node_numbering(metadata), node_rule(metadata), node_fields(metadata)
     return {
-        "format": DOCUMENT_FORMAT,
-        "format_version": DOCUMENT_FORMAT_VERSION,
-        "framework": {"name": name, "description": description or "", "levels": levels},
-        "nodes": [
-            {
-                "node_uuid": node["node_uuid"],
-                "parent_node_uuid": node.get("parent_node_uuid"),
-                "code": node.get("code") or "",
-                "title": node["title"],
-                "description": node.get("description") or "",
-                **({"metadata": node["metadata"]} if node.get("metadata") else {}),
-            }
-            for node in _ordered(nodes)
-        ],
+        "node_uuid": node["node_uuid"],
+        "parent_node_uuid": node.get("parent_node_uuid"),
+        "code": node.get("code") or "",
+        "title": node["title"],
+        "description": node.get("description") or "",
+        **({"numbering": numbering} if has_children and numbering != DEFAULT_NUMBERING else {}),
+        **({"rule": rule} if has_children and rule["kind"] == "any" else {}),
+        **({"metadata": values} if values else {}),
     }
 
 
-def _levels(source_metadata: dict | None) -> list[dict]:
-    return list(requirements._normalize_source_metadata(source_metadata).get("requirement_levels") or [])
+def _document(name: str, description: str, structure: dict, nodes: list[dict]) -> dict:
+    parents = {node.get("parent_node_uuid") for node in nodes if node.get("parent_node_uuid")}
+    return {
+        "format": DOCUMENT_FORMAT,
+        "format_version": DOCUMENT_FORMAT_VERSION,
+        "framework": {"name": name, "description": description or "", "numbering": structure.get("numbering") or DEFAULT_NUMBERING,
+                      "fields": [{key: field[key] for key in ("field_uuid", "name", "type", "applies", "required") if key in field} for field in structure.get("fields") or []]},
+        "nodes": [_node_doc(node, node["node_uuid"] in parents) for node in _ordered(nodes)],
+    }
+
+
+def _structure(source_metadata: dict | None) -> dict:
+    return requirements._normalize_source_metadata(source_metadata)
 
 
 def export_document(db: Session, framework: RequirementFramework) -> dict:
     version = requirements._version(db, framework)
     nodes = [requirements._node_dict(node) for node in requirements._nodes(db, int(version.id))]  # type: ignore[arg-type]
-    return _document(framework.name, framework.description, _levels(framework.source_metadata), nodes)
+    meta, nodes = upgrade_levels(framework.source_metadata, nodes)  # not yet migrated: read in the new shape
+    return _document(framework.name, framework.description, _structure(meta), nodes)
 
 
 def document_etag(document: dict) -> str:
@@ -173,15 +182,12 @@ def _check(db: Session, raw, framework: RequirementFramework | None) -> tuple[Re
     if not document.framework.name.strip():
         errors.append({"path": "framework.name", "message": "Give the framework a name"})
 
-    levels = []
-    for depth, level in enumerate(document.framework.levels):
-        data = level.model_dump(exclude_none=True)
-        data["level_uuid"] = level.level_uuid or f"requirement_level_{uuid4()}"
-        data["code_style"] = level.code_style or requirements._default_code_style(depth)
-        data["metadata_fields"] = [
-            {**field.model_dump(exclude_none=True), "field_uuid": field.field_uuid or f"metadata_field_{uuid4()}"} for field in level.metadata_fields
-        ]
-        levels.append(data)
+    structure: dict = {
+        "numbering": document.framework.numbering,
+        "fields": [field.model_dump(exclude_none=True) for field in document.framework.fields],
+    }
+    if document.framework.levels:  # the old shape: one numbering per depth, fields per level
+        structure["requirement_levels"] = [level.model_dump(exclude_none=True) for level in document.framework.levels]
 
     known = _known_node_uuids(db, framework)
     ids: dict[str, str] = {}
@@ -211,28 +217,31 @@ def _check(db: Session, raw, framework: RequirementFramework | None) -> tuple[Re
             RequirementNodeInput(
                 node_uuid=resolved_ids[i], parent_node_uuid=parent, code=node.code, title=node.title.strip(),
                 description=node.description, position=position, metadata=dict(node.metadata),
+                numbering=node.numbering, rule=node.rule.model_dump(exclude_none=True) if node.rule else None,
             )
         )
     stored_metadata = dict(framework.source_metadata or {}) if framework else {}
-    source_metadata = {**stored_metadata, "requirement_levels": levels}
+    stored_metadata.pop("requirement_levels", None)
+    source_metadata = {**stored_metadata, **structure}
     normalized: list[dict] = []
     if not errors:
         try:
             normalized = requirements._validate_nodes(inputs, source_metadata)
+            source_metadata = requirements._upgraded_metadata(source_metadata, inputs)
+            # saved as numbered here, so old levels' numbering is kept on the nodes
+            inputs = [RequirementNodeInput(**node) for node in normalized]
         except HTTPException as exc:
             errors.append({"path": "nodes", "message": str(exc.detail)})
 
-    if normalized and levels:
-        by_uuid = {node["node_uuid"]: node for node in normalized}
+    if normalized:
+        parents = {node["parent_node_uuid"] for node in normalized if node["parent_node_uuid"]}
         index_of = {resolved_ids[i]: i for i in range(len(resolved_ids))}
         for node in normalized:
-            depth, parent = 0, node["parent_node_uuid"]
-            while parent:
-                depth, parent = depth + 1, by_uuid[parent]["parent_node_uuid"]
-            fields = levels[depth]["metadata_fields"] if depth < len(levels) else []
+            kind = "groups" if node["node_uuid"] in parents else "requirements"
+            fields = [field for field in source_metadata.get("fields") or [] if field.get("applies", "all") in ("all", kind)]
             missing = [field["name"] for field in fields if field.get("required") and node["metadata"].get(field["field_uuid"]) in (None, "", [])]
             if missing:
-                errors.append({"path": f"nodes[{index_of[node['node_uuid']]}].metadata", "message": f"Fill in the required {levels[depth]['name']} fields: {', '.join(missing)}"})
+                errors.append({"path": f"nodes[{index_of[node['node_uuid']]}].metadata", "message": f"Fill in the required fields: {', '.join(missing)}"})
 
     if framework is not None and normalized:
         links = framework_links(db, framework)
@@ -245,7 +254,7 @@ def _check(db: Session, raw, framework: RequirementFramework | None) -> tuple[Re
             elif node_uuid in parents:
                 warnings.append({"path": "nodes", "message": f"A linked requirement now has children; only leaf requirements earn credit ({names})"})
 
-    prepared.update(inputs=inputs, source_metadata=source_metadata, normalized=normalized, levels=levels)
+    prepared.update(inputs=inputs, source_metadata=source_metadata, normalized=normalized)
     return document, report(), prepared
 
 
@@ -280,7 +289,7 @@ def save_framework_document(db: Session, current_user: PublicUser, org_id: int, 
     document, report, prepared = _check(db, raw, framework)
     if document is None or not report["valid"]:
         raise _reject(report)
-    candidate = _document(document.framework.name.strip(), document.framework.description, prepared["levels"], prepared["normalized"])
+    candidate = _document(document.framework.name.strip(), document.framework.description, prepared["source_metadata"], prepared["normalized"])
     if candidate == current["document"]:
         return {**current, "changed": False, "warnings": report["warnings"]}
     requirements.update_framework(

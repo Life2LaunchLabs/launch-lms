@@ -74,7 +74,7 @@ RESOURCES = [
         "uri": "launch-lms://requirement-framework-document/guide",
         "name": "requirement-framework-authoring-guide",
         "title": "Requirement framework authoring guide",
-        "description": "How Launch LMS requirement frameworks, levels, codes and versions work.",
+        "description": "How Launch LMS requirement frameworks, categories, numbering, rules and versions work.",
         "mimeType": "text/markdown",
     },
     {

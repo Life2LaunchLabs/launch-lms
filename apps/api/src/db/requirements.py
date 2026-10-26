@@ -4,6 +4,8 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import false as sa_false
+from sqlalchemy import true as sa_true
 from sqlmodel import Field, SQLModel
 
 
@@ -33,6 +35,12 @@ class RequirementFramework(SQLModel, table=True):
     published_version: int | None = None
     library_published_version: int | None = None
     library_snapshot: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # set by the owner org when it shares the framework: whether orgs may copy it as their own or only use it as is
+    library_editable: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default=sa_true()))
+    # a copy of a framework its publisher shares as is: used unchanged, never edited
+    locked: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=sa_false()))
+    # gaps staff flagged to fill (leaf node uuids); shared by the org's staff, not part of any version
+    flagged_node_uuids: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     archived: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -140,6 +148,9 @@ class RequirementNodeInput(SQLModel):
     description: str = ""
     position: int = 0
     metadata_json: dict = Field(default_factory=dict, alias="metadata")
+    # how this node's children are numbered, and when it counts as met; kept in metadata
+    numbering: str | None = None
+    rule: dict | None = None
 
 
 class RequirementFrameworkCreate(SQLModel):

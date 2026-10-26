@@ -62,8 +62,8 @@ def api_publish_requirement_framework(framework_uuid: str, org_id: int, db: Sess
 
 
 @router.post("/{framework_uuid}/publish-to-library")
-def api_publish_requirement_to_library(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return requirement_service.publish_framework_to_library(db, current_user, org_id, framework_uuid)
+def api_publish_requirement_to_library(framework_uuid: str, org_id: int, editable: bool = True, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.publish_framework_to_library(db, current_user, org_id, framework_uuid, editable)
 
 
 @router.post("/{framework_uuid}/assignments")
