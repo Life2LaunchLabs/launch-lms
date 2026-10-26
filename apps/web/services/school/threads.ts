@@ -92,6 +92,9 @@ export type OrgLogEntry =
   | { kind: 'staff_joined'; at: string; person: PersonSummary | null; role: 'admin' | 'staff' }
   | { kind: 'learners_joined'; at: string; count: number; people: PersonSummary[] }
   | { kind: 'invited'; at: string; role: 'staff' | 'learner'; count: number; by: PersonSummary | null; pending: number }
+  /** Asking another organization to run its plan (incoming: they asked you), and the answer. */
+  | { kind: 'plan_asked'; at: string; incoming: boolean; org: { name: string }; plan: string }
+  | { kind: 'plan_answered'; at: string; incoming: boolean; org: { name: string }; plan: string; approved: boolean }
 export interface OrgThread { kind: 'org'; org: { id: number; name: string; slug: string; logo_image: string | null }; can_post: false; entries: OrgLogEntry[] }
 
 const focusQuery = (name: string, value?: string | null) => value ? `?${name}=${q(value)}` : ''

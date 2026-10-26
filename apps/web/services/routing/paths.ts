@@ -6,7 +6,7 @@ export type PersonTab = 'overview' | 'portfolio' | 'plans' | 'access'
 export type OrgTab = 'overview' | 'invites' | 'join'
 
 /** The Plans area's tabs, each its own page, always in this order. */
-export type PlansTabId = 'plans' | 'discover' | 'assignments' | 'requirements'
+export type PlansTabId = 'plans' | 'discover' | 'assignments' | 'requirements' | 'requests'
 /** A requirement framework's pages under Plans › Requirements. */
 export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans'
 
@@ -15,6 +15,7 @@ const PLANS_TAB_PATHS: Record<PlansTabId, string> = {
   discover: '/admin/plans/discover',
   assignments: '/admin/plans/assignments',
   requirements: '/admin/plans/requirements',
+  requests: '/admin/plans/requests',
 }
 
 function frameworkPage(frameworkUuid: string, subpage: FrameworkSubpage = 'details'): string {

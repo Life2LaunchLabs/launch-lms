@@ -7,6 +7,7 @@ import { RequirementFrameworkDetail } from '@components/Goals/admin/insights/Req
 import FrameworkList from '@components/Goals/admin/requirements/FrameworkList'
 import { useStaff } from '@components/Goals/admin/assignments/shared'
 import DiscoverHome from '@components/Plans/discover/DiscoverHome'
+import MarketplaceRequests from '@components/Plans/requests/MarketplaceRequests'
 import PlanLibrary, { LibraryLoading, usePlanLibrary } from '@components/Plans/library/PlanLibrary'
 import type { FrameworkSubpage } from '@services/routing/paths'
 import PlansPage from './PlansPage'
@@ -33,6 +34,11 @@ export function AssignmentsTab({ orgslug }: { orgslug: string }) {
 export function RequirementsTab({ orgslug }: { orgslug: string }) {
   const { orgId, token } = useStaff()
   return <PlansPage tab="requirements"><FrameworkList orgslug={orgslug} orgId={orgId} token={token} /></PlansPage>
+}
+
+/** Requests: other organizations asking to run your plans, and what you asked for (admins). */
+export function RequestsTab() {
+  return <PlansPage tab="requests"><MarketplaceRequests /></PlansPage>
 }
 
 /** One requirement framework, under Plans › Requirements: coverage by plan, details, levels and spec. */

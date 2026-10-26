@@ -14,10 +14,11 @@ from collections import defaultdict
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, func, or_, select
 
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, StepProgress, StepStatus
+from src.db.template_marketplace import GoalTemplateAuthorization
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.organizations import Organization
 from src.db.school import UserGroupStaff
@@ -385,8 +386,24 @@ def org_log(db: Session, org_id: int) -> list[dict]:
     for (_, by, role), rows in invited.items():
         entries.append({"kind": "invited", "at": _iso(rows[-1].created_at), "role": role, "count": len(rows), "by": people.person(db, by) if by else None,
                         "pending": sum(1 for row in rows if row.status == "pending")})
+    entries += _plan_requests_log(db, org_id)
     entries.sort(key=lambda entry: entry["at"] or "")
     return entries[-LOG_LIMIT:]
+
+
+def _plan_requests_log(db: Session, org_id: int) -> list[dict]:
+    """Asking another organization to run its plan, either way, and its answer."""
+    entries = []
+    rows = db.exec(select(GoalTemplateAuthorization).where(or_(GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.issuer_org_id == org_id))).all()
+    for row in rows:
+        template = db.get(GoalTemplate, row.template_id)
+        incoming = row.creator_org_id == org_id
+        other = db.get(Organization, row.issuer_org_id if incoming else row.creator_org_id)
+        line = {"incoming": incoming, "org": {"name": other.name if other else "Another organization"}, "plan": template.title if template else "a plan"}
+        entries.append({"kind": "plan_asked", "at": row.creation_date, **line})
+        if row.decided_at and row.status in ("approved", "rejected"):
+            entries.append({"kind": "plan_answered", "at": _iso(row.decided_at), "approved": row.status == "approved", **line})
+    return entries
 
 
 def org_thread(db: Session, current_user: PublicUser, org_id: int) -> dict:
@@ -413,6 +430,11 @@ def _log_line(entry: dict) -> str:
         return f"{name(entry['person'])} joined as {entry['role']}"
     if entry["kind"] == "learners_joined":
         return f"{entry['count']} learner{'s' if entry['count'] != 1 else ''} joined"
+    if entry["kind"] == "plan_asked":
+        return f"{entry['org']['name']} asked to run “{entry['plan']}”" if entry["incoming"] else f"You asked {entry['org']['name']} to run “{entry['plan']}”"
+    if entry["kind"] == "plan_answered":
+        verb = "approved" if entry["approved"] else "declined"
+        return f"You {verb} {entry['org']['name']} running “{entry['plan']}”" if entry["incoming"] else f"{entry['org']['name']} {verb} your request for “{entry['plan']}”"
     return f"{name(entry['by'])} invited {entry['count']} {entry['role']}{'s' if entry['count'] != 1 and entry['role'] == 'learner' else ''}"
 
 
