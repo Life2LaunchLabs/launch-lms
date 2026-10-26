@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowDown, ArrowUp, Check, ChevronDown, Globe, Lock, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ChevronDown, FileSpreadsheet, Globe, Lock, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { useLibrarySave } from './LibraryTab'
 import { Loading, SearchBox, useResourceFilter } from './listing'
 import { ChannelComments, NeedsLookCard } from './comments'
+import { ImportModal } from './ImportModal'
 import { ResourceModal } from './modals'
 import { AudienceIcon, ChannelCover, OrgChip, ResourceListRow, SaveButton, listClass, useResourcesContext } from './pieces'
 
@@ -32,6 +33,7 @@ export default function ChannelPage({ channelUuid }: { channelUuid: string }) {
   const { data: workspace } = useSWR(ready ? resourceKeys.workspace(orgId) : null, () => resourcesApi.workspace(orgId, token))
   const [adding, setAdding] = React.useState(false)
   const [picking, setPicking] = React.useState(false)
+  const [importing, setImporting] = React.useState(false)
   const [groupsOpen, setGroupsOpen] = React.useState(false)
   const [tab, setTab] = React.useState<'resources' | 'comments'>('resources')
   const filter = useResourceFilter(channel?.resources || [])
@@ -126,6 +128,7 @@ export default function ChannelPage({ channelUuid }: { channelUuid: string }) {
             <div className="flex flex-wrap items-center gap-2">
               {channel.resources.length > 4 ? <SearchBox value={filter.query} onChange={filter.setQuery} label="Search this channel" /> : null}
               {editable ? <>
+                <button type="button" onClick={() => setImporting(true)} className={smallActionClass}><FileSpreadsheet aria-hidden="true" />Import</button>
                 <button type="button" onClick={() => setPicking(true)} className={smallActionClass}><Plus aria-hidden="true" />Add yours</button>
                 <button type="button" onClick={() => setAdding(true)} className={cn(primaryActionClass, 'h-8 px-3 text-[13px]')}><Plus size={15} aria-hidden="true" />New resource</button>
               </> : null}
@@ -155,6 +158,7 @@ export default function ChannelPage({ channelUuid }: { channelUuid: string }) {
       <ResourceModal open={adding} setOpen={setAdding} channels={workspace?.channels || []} presetChannel={channelUuid} />
       <PickResourcesModal open={picking} setOpen={setPicking} channel={channel} candidates={(workspace?.resources || []).filter((resource) => !order.includes(resource.resource_uuid))} />
       <GroupsModal open={groupsOpen} setOpen={setGroupsOpen} channel={channel} />
+      <ImportModal open={importing} setOpen={setImporting} channel={channel} />
     </> : null}
   </div></div>
 }

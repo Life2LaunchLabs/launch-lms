@@ -17,7 +17,7 @@
     "apps/api/src/services/payments/payments_stripe.py": 834,
     "apps/api/src/services/portfolio.py": 1496,
     "apps/api/src/services/requirements.py": 663,
-    "apps/api/src/services/resources.py": 1388,
+    "apps/api/src/services/resources.py": 1300,
     "apps/api/src/services/setup/setup.py": 642,
     "apps/api/src/services/sso/sso.py": 725,
     "apps/api/src/services/superadmin/orgs.py": 516,
@@ -36,8 +36,7 @@
     "apps/web/components/Learning/editor/LearningActivityEditor.tsx": 2906,
     "apps/web/components/Learning/editor/VisualFlowEditor.tsx": 1092,
     "apps/web/components/Objects/Media/MediaPickerDialog.tsx": 888,
-    "apps/web/components/Objects/Portfolio/ProfilePortfolio.tsx": 938,
-    "apps/web/services/resources/resources.ts": 507
+    "apps/web/components/Objects/Portfolio/ProfilePortfolio.tsx": 938
   },
   "policy": "Existing production files over 500 lines may not grow; new production files are limited to 500 lines.",
   "schema_version": 1

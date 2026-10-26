@@ -31,7 +31,6 @@ from src.services.resources import (
     delete_tag,
     delete_user_channel,
     get_resource,
-    import_resources_csv,
     list_channel_resources,
     list_channels,
     list_note_blocks,
@@ -455,18 +454,3 @@ async def api_delete_note_block(
     db_session: Session = Depends(get_db_session),
 ):
     return await delete_note_block(request, note_uuid, current_user, db_session)
-
-
-@router.post("/org/{org_id}/import")
-async def api_import_resources_csv(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    org_id: int,
-    channel_uuid: str | None = None,
-    file: UploadFile = File(...),
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    result = await import_resources_csv(request, org_id, file, current_user, db_session, channel_uuid=channel_uuid)
-    background_tasks.add_task(backfill_resource_search_documents, org_id)
-    return result

@@ -1,5 +1,3 @@
-import csv
-import io
 import re
 from time import perf_counter
 from collections.abc import Iterable
@@ -1258,92 +1256,6 @@ async def unsave_resource_for_user(request: Request, resource_uuid: str, current
         db_session.delete(saved)
         db_session.commit()
     return {"detail": "Resource removed from saved resources"}
-
-
-async def import_resources_csv(
-    request: Request,
-    org_id: int,
-    file: UploadFile,
-    current_user: PublicUser,
-    db_session: Session,
-    channel_uuid: str | None = None,
-) -> dict:
-    _get_org_or_404(org_id, db_session)
-    _require_staff(current_user, org_id, db_session)
-    target_channel = _get_channel_or_404(channel_uuid, db_session) if channel_uuid else None
-    if target_channel and target_channel.org_id != org_id:
-        raise HTTPException(status_code=400, detail="Channel does not belong to this organization")
-    raw = await file.read()
-    try:
-        decoded = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="CSV must be UTF-8 encoded")
-    reader = csv.DictReader(io.StringIO(decoded))
-    created = 0
-    updated = 0
-    errors: list[dict] = []
-    resource_uuids: list[str] = []
-    for idx, row in enumerate(reader, start=2):
-        external_url = (row.get("external_url") or row.get("link") or row.get("url") or "").strip()
-        if not external_url:
-            errors.append({"row": idx, "error": "link is required"})
-            continue
-        enrichment = enrich_resource_metadata(external_url)
-        resource_type_value = (row.get("resource_type") or "other").strip().lower()
-        if resource_type_value not in {item.value for item in ResourceTypeEnum}:
-            resource_type_value = "other"
-        title = (row.get("title") or "").strip() or enrichment.get("title") or enrichment.get("provider_name") or external_url
-        payload = ResourceCreate(
-            title=title,
-            description=(row.get("description") or "").strip() or enrichment.get("description") or None,
-            resource_type=resource_type_value,
-            provider_name=(row.get("provider_name") or "").strip() or enrichment.get("provider_name") or None,
-            provider_url=(row.get("provider_url") or "").strip() or enrichment.get("provider_url") or None,
-            external_url=external_url,
-            cover_image_url=(row.get("cover_image_url") or "").strip() or enrichment.get("cover_image_url") or None,
-            estimated_time=int(row.get("estimated_time")) if (row.get("estimated_time") or "").strip().isdigit() else None,
-            is_featured=(row.get("is_featured") or "").strip().lower() in {"1", "true", "yes"},
-            is_live=(row.get("is_live") or "").strip().lower() in {"1", "true", "yes"},
-            access_mode=(row.get("access_mode") or "free").strip().lower(),
-        )
-        existing = db_session.exec(
-            select(Resource).where(Resource.org_id == org_id, Resource.external_url == external_url)
-        ).first()
-        if existing:
-            await update_resource(request, existing.resource_uuid, ResourceUpdate(**payload.model_dump()), current_user, db_session)
-            resource = existing
-            updated += 1
-        else:
-            created_row = await create_resource(request, org_id, payload, current_user, db_session, enrich_metadata=True)
-            resource = _get_resource_or_404(created_row["resource_uuid"], db_session)
-            created += 1
-        resource_uuids.append(resource.resource_uuid)
-        channels_to_link: list[ResourceChannel] = []
-        if target_channel:
-            channels_to_link.append(target_channel)
-        channel_names = [item.strip() for item in (row.get("channels") or "").split("|") if item.strip()]
-        for channel_name in channel_names:
-            channel = db_session.exec(
-                select(ResourceChannel).where(ResourceChannel.org_id == org_id, ResourceChannel.name == channel_name)
-            ).first()
-            if not channel:
-                channel = ResourceChannel(
-                    org_id=org_id,
-                    channel_uuid=f"channel_{uuid4()}",
-                    name=channel_name,
-                    description=None,
-                    color=None,
-                    creation_date=_now(),
-                    update_date=_now(),
-                )
-                db_session.add(channel)
-                db_session.commit()
-                db_session.refresh(channel)
-            channels_to_link.append(channel)
-        unique_channels = {channel.channel_uuid: channel for channel in channels_to_link}.values()
-        for channel in unique_channels:
-            await add_resource_to_channel(request, channel.channel_uuid, resource.resource_uuid, current_user, db_session)
-    return {"created": created, "updated": updated, "errors": errors, "resource_uuids": resource_uuids}
 
 
 async def upload_resource_thumbnail(request: Request, resource_uuid: str, thumbnail: UploadFile, current_user: PublicUser, db_session: Session) -> dict:

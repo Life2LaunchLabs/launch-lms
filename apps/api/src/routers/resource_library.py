@@ -1,12 +1,13 @@
 """Resource routes for staff's view of their resources and the Library, org saves, and comments with moderation."""
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.resources import ResourceCommentCreate, ResourceCommentUpdate, ResourceReviewCreate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.services.search.resource_search import backfill_resource_search_documents
 from src.services.resource_comments import (
     create_comment,
     create_review,
@@ -17,6 +18,7 @@ from src.services.resource_comments import (
     report_comment,
     update_comment,
 )
+from src.services.resource_import import ImportRequest, fill_in_imported, import_rows, read_spreadsheet
 from src.services.resource_library import (
     get_channel,
     library,
@@ -128,6 +130,34 @@ async def api_unsave_resource_for_org(
     db_session: Session = Depends(get_db_session),
 ):
     return await unsave_resource_for_org(request, org_id, resource_uuid, current_user, db_session)
+
+
+@router.post("/org/{org_id}/import/read")
+async def api_read_spreadsheet(
+    request: Request,
+    org_id: int,
+    file: UploadFile = File(...),
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await read_spreadsheet(request, org_id, file, current_user, db_session)
+
+
+@router.post("/org/{org_id}/import")
+async def api_import_rows(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    org_id: int,
+    data: ImportRequest,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    result = await import_rows(request, org_id, data, current_user, db_session)
+    fill_in = result.pop("_fill_in", None)
+    if fill_in:
+        background_tasks.add_task(fill_in_imported, org_id, fill_in)
+        background_tasks.add_task(backfill_resource_search_documents, org_id)
+    return result
 
 
 @router.put("/channels/{channel_uuid}/order")

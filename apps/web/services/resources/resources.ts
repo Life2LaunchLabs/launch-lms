@@ -483,21 +483,6 @@ export async function deleteResourceReview(commentUuid: string, accessToken: str
   return getResponseMetadata(result)
 }
 
-export async function importResourcesCsv(
-  orgId: number,
-  formData: FormData,
-  accessToken: string,
-  channelUuid?: string
-) {
-  const search = new URLSearchParams()
-  if (channelUuid) search.set('channel_uuid', channelUuid)
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/org/${orgId}/import${search.toString() ? `?${search.toString()}` : ''}`,
-    RequestBodyFormWithAuthHeader('POST', formData, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
 export async function getResourceUrlPreview(url: string, accessToken?: string) {
   const result: any = await fetch(
     `${getAPIUrl()}utils/link-preview?url=${encodeURIComponent(url)}`,
