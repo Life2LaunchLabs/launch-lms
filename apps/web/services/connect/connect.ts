@@ -95,17 +95,18 @@ export interface StepReminderCard {
 /** Plan tags say whether they're the chat's quiet scope, a plan from outside the chat, or one you can't see. */
 type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean }
 
-/** A plan, step, person or organization a message tags inline, as the reader sees it now. */
+/** A plan, step, person, organization or resource a message tags inline, as the reader sees it now. */
 export type MessageRef =
   | ({ kind: 'plan'; key: string; goal_uuid: string; title: string } & PlanRefFlags)
   | ({ kind: 'step'; key: string; goal_uuid: string; step_uuid: string; title: string; plan_title: string; status: string } & PlanRefFlags)
   | ({ kind: 'user'; key: string } & PersonSummary)
   | { kind: 'org'; key: string; id: number; org_uuid: string; name: string; slug: string; logo_image?: string | null }
+  | { kind: 'resource'; key: string; resource_uuid: string; title: string; url: string; resource_type: string; provider_name?: string | null }
 
 export interface ChatMessage {
   message_uuid: string
   kind: 'text' | 'card'
-  /** Text with tags as tokens: <plan:goal>, <step:goal/step>, <user:uuid>, <org:uuid>. */
+  /** Text with tags as tokens: <plan:goal>, <step:goal/step>, <user:uuid>, <org:uuid>, <resource:uuid>. */
   body: string
   /** The text with tags written out as names. */
   preview: string

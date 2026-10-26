@@ -11,6 +11,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatAudience, type ChatFilter, type ChatMessage, type ChatTopic, type MessageAudience, type MessageRef } from '@services/connect/connect'
 import { isGoalsKey } from '@services/goals/goals'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import useAdminStatus from '@components/Hooks/useAdminStatus'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
 import { planPalette } from '@components/Goals/planColors'
 import { schoolApi, schoolKeys } from '@services/school/school'
@@ -111,6 +112,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   // Only plans under way: the ones on the Plans page, not finished ones or invitations.
   const live = React.useMemo(() => steps ? topics : topics.filter((item) => item.status === 'active'), [steps, topics])
   const session = useLHSession() as any
+  const { isAdmin: isStaff } = useAdminStatus()
   const { getGoalColor } = useGoalColors(live, session?.data?.user?.id)
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
@@ -212,7 +214,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       : chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
       {chat.can_post_staff_only ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
-      <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
+      <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token} resources={Boolean(isStaff)}
         placeholder={staffOnly ? 'Only staff will see this' : step ? `Comment on ${step.title}` : plan ? `Message ${title ? `${title} ` : ''}about ${plan.title}` : `Message ${title || chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}

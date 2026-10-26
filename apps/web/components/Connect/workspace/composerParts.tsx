@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import type { ChatTopic, FoundPerson, TopicStep } from '@services/connect/connect'
 import type { PersonSummary } from '@services/goals/types'
-import { StepMark, orgToken, planToken, stepToken, userToken } from './tags'
+import { StepMark, orgToken, planToken, resourceToken, stepToken, userToken } from './tags'
 
 export type TagOrg = { org_uuid: string; name: string }
 
@@ -54,6 +54,17 @@ export function chipFor(option: Option): HTMLElement {
   span.dataset.token = org ? orgToken(option.org.org_uuid) : userToken(option.person.user_uuid || '')
   span.className = cn(PILL, org ? ORG_PILL : PERSON_PILL)
   span.textContent = `@${org ? option.org.name : option.person.name}`
+  return span
+}
+
+/** A shared resource as it sits in the message: its title, going out as a token. */
+export function resourceChip(resource: { resource_uuid: string; title: string }): HTMLElement {
+  const span = document.createElement('span')
+  span.contentEditable = 'false'
+  span.dataset.kind = 'resource'
+  span.dataset.token = resourceToken(resource.resource_uuid)
+  span.className = PLAN_CHIP
+  span.append(el('span', 'text-muted-foreground', '↗'), document.createTextNode(resource.title))
   return span
 }
 
