@@ -14,13 +14,21 @@ async function capture(page: Page, info: TestInfo, name: string) {
 
 const cards = (page: Page) => page.getByTestId('insight-card')
 
+/** The dashboards rail; on a phone it sits behind a toggle, so open it first. */
+async function rail(page: Page) {
+  const toggle = page.getByRole('button', { name: 'All dashboards and reports' })
+  const nav = page.getByRole('navigation', { name: 'Dashboards' })
+  await expect(toggle.or(nav).first()).toBeVisible()
+  if (await toggle.isVisible() && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
+  return nav
+}
+
 test('insights.dashboards: the org overview runs its cards, opens who is behind a number, and changes dates', async ({ page }, testInfo) => {
   test.setTimeout(60_000)
   await page.goto(insightsPath)
   await assertActualApp(page)
   await expect(page.getByRole('heading', { name: 'Org overview', level: 1 })).toBeVisible()
-  const rail = page.getByRole('navigation', { name: 'Dashboards' })
-  await expect(rail.getByRole('link', { name: 'Org overview' })).toHaveAttribute('aria-current', 'page')
+  await expect((await rail(page)).getByRole('link', { name: 'Org overview' })).toHaveAttribute('aria-current', 'page')
   await expect(cards(page).first()).toBeVisible()
   expect(await cards(page).count()).toBeGreaterThanOrEqual(6)
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
@@ -59,7 +67,7 @@ test('insights.new: New dashboard makes a personal one from a template, and edit
   test.setTimeout(60_000)
   await page.goto(insightsPath)
   await assertActualApp(page)
-  await page.getByRole('navigation', { name: 'Dashboards' }).getByRole('button', { name: 'New dashboard' }).click()
+  await (await rail(page)).getByRole('button', { name: 'New dashboard' }).click()
   const dialog = page.getByRole('dialog', { name: 'New dashboard' })
   await dialog.getByRole('button', { name: /^Plan/ }).click()
   await dialog.getByRole('button', { name: /Badge issuing/ }).click()
