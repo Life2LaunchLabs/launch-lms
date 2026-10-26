@@ -131,3 +131,15 @@ test('requirements.long-codes: framework tree and learner tree preserve readable
     await capture(page, testInfo, `${prefix}-long-codes.png`)
   }
 })
+
+test('requirements.home: the Home card shows each framework and opens its Insights dashboard', async ({ page }) => {
+  await page.goto(`/orgs/${fixture.org_slug}/admin`)
+  await assertActualApp(page)
+  const card = page.getByRole('region', { name: 'Requirements' })
+  await expect(card).toBeVisible()
+  const row = card.locator(`a[href*="/admin/insights/framework/${fixture.framework_uuid}"]`)
+  await expect(row).toContainText(/learners? tracked/)
+  await row.click()
+  await expect(page).toHaveURL(new RegExp(`/admin/insights/framework/${fixture.framework_uuid}`))
+  await expect(page.getByRole('heading', { name: 'Learners tracked' })).toBeVisible()
+})

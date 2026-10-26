@@ -79,7 +79,7 @@ def test_layout_is_kept_per_member_and_hidden_widgets_are_not_built():
     with _session() as db:
         _assign(db, VISIT, staff=(ADMIN, NEWCOMER), start_date=TODAY)
         saved = admin_home.save_layout(db, _user(NEWCOMER), 1, AdminHomeLayout(order=["attention", "today", "attention"], hidden=["messages"]))
-        assert saved == {"order": ["attention", "today", "waiting", "messages", "creator"], "hidden": ["messages"]}
+        assert saved == {"order": ["attention", "today", "waiting", "messages", "creator", "requirements"], "hidden": ["messages"]}
         membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == NEWCOMER)).one()
         assert membership.preferences["admin_home"] == saved
 
@@ -179,3 +179,25 @@ def test_getting_started_picks_up_what_setup_already_did():
         # An invitation counts: the staff step is done as soon as someone's invited.
         assert steps["staff"]["done"] and "staff member" in steps["staff"]["note"]
         assert steps["groups"]["done"] and steps["groups"]["note"] == f"{len(db.exec(select(UserGroup.id).where(UserGroup.org_id == 1)).all())} groups"
+
+
+def test_requirements_card_shows_progress_on_each_framework_to_those_who_see_reports():
+    from src.db.requirements import RequirementAssignmentBatch, RequirementAttainmentSource, RequirementEnrollment, RequirementFrameworkVersion
+
+    with _session() as db:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[model.__table__ for model in (RequirementFrameworkVersion, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource)])  # type: ignore[attr-defined]
+        assert "requirements" not in admin_home.home(db, _user(ADMIN), 1)["widgets"]
+        db.add(RequirementFramework(id=1, framework_uuid="fw_grad", org_id=1, name="Graduation"))
+        db.add(RequirementFrameworkVersion(id=1, version_uuid="fwv_1", framework_id=1, version_number=1))
+        db.add(RequirementAssignmentBatch(id=1, batch_uuid="batch_1", org_id=1, framework_id=1, version_id=1))
+        snapshot = {"leaf_node_uuids": ["a", "b"]}
+        db.add(RequirementEnrollment(id=1, enrollment_uuid="enr_1", batch_id=1, org_id=1, framework_id=1, version_id=1, user_id=LEARNER, framework_snapshot=snapshot, status="completed"))
+        db.add(RequirementEnrollment(id=2, enrollment_uuid="enr_2", batch_id=1, org_id=1, framework_id=1, version_id=1, user_id=OTHER, framework_snapshot=snapshot))
+        db.add_all([RequirementAttainmentSource(source_uuid=f"src_{node}", enrollment_id=1, node_uuid=node) for node in ("a", "b")])
+        db.commit()
+
+        home = admin_home.home(db, _user(ADMIN), 1)
+        assert home["widgets"][-1] == "requirements"
+        assert home["requirements"] == {"frameworks": [{"framework_uuid": "fw_grad", "name": "Graduation", "learners": 2, "progress": 0.5, "completed": 1}], "total": 1}
+        # Staff without the reports permission don't get it.
+        assert "requirements" not in admin_home.home(db, _user(NEWCOMER), 1)["widgets"]

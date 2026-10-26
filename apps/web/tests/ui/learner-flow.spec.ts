@@ -120,6 +120,33 @@ test('framework.flags: flagged gaps open Discover filtered to plans that cover t
   await expect(page.getByTestId('discover-covers-filter')).toHaveCount(0)
 })
 
+test('start.requirements: a library framework picked at /start ranks the starter plans by what they cover', async ({ page }, info) => {
+  test.setTimeout(60_000)
+  const { framework, authorization, url } = await freshFramework(page)
+  const name = `Start framework ${randomUUID().slice(0, 8)}`
+  expect((await page.request.patch(url, { headers: { authorization }, data: { name } })).ok()).toBe(true)
+  for (const action of ['publish', 'publish-to-library']) {
+    const response = await page.request.post(url.replace(`/${framework.framework_uuid}?`, `/${framework.framework_uuid}/${action}?`), { headers: { authorization } })
+    expect(response.ok()).toBe(true)
+  }
+  await page.goto('/start')
+  await page.evaluate(() => window.sessionStorage.removeItem('l2l_start'))
+  await page.reload()
+  await page.getByRole('button', { name: 'Skip intro' }).click()
+  await page.getByRole('radio', { name: /Teacher or counselor/ }).click()
+  await page.getByRole('button', { name: /Continue/ }).click()
+  await expect(page.getByRole('heading', { name: 'Working toward requirements?' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Skip for now' })).toBeVisible()
+  await page.getByRole('radio', { name: new RegExp(name) }).click()
+  await capture(page, info, 'start-requirements.png')
+  await page.getByRole('button', { name: /Continue/ }).click()
+  await expect(page.getByRole('heading', { name: 'Start with a few plans' })).toBeVisible()
+  await expect(page.getByText(`the ones covering the most of ${name} first`)).toBeVisible()
+  const plans = page.getByRole('button', { pressed: false }).filter({ hasText: 'steps' })
+  if (await plans.count()) await expect(page.getByTestId('start-plan-covers').first()).toContainText(/Covers (none yet|\d+ of 1)/)
+  await page.evaluate(() => window.sessionStorage.removeItem('l2l_start'))
+})
+
 test('goals.invitation: organization and personal inviter are visible with the role', async ({ page }, info) => {
   test.setTimeout(60_000)
   await page.goto(`${orgPath}/plans`)

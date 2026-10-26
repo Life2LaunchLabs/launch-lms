@@ -145,7 +145,7 @@ async def save_activity(request: Request, db_session: Session, ctx: AccessContex
 
 def _framework_editor_url(db_session: Session, ctx: AccessContext, framework_uuid: str) -> str:
     org = learning._get_org(db_session, ctx.org_id)
-    return f"{frontend_url()}/orgs/{org.slug}/admin/plans/requirements/{quote(framework_uuid)}/details"
+    return f"{frontend_url()}/orgs/{org.slug}/admin/plans/requirements/{quote(framework_uuid)}/edit"
 
 
 def _with_framework_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:

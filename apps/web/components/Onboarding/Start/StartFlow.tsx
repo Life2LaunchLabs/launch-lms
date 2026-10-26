@@ -16,7 +16,6 @@ import { validatePasswordStrength } from '@components/Auth/PasswordStrengthIndic
 import { signup } from '@services/auth/auth'
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { requirementsApi } from '@services/goals/requirements'
 import { inviteBatchUsers } from '@services/organizations/invites'
 import { createUserGroup } from '@services/usergroups/usergroups'
 import { startApi, startKeys, type SetUpResult } from '@services/onboarding/start'
@@ -26,7 +25,7 @@ import TierCompare from './TierCompare'
 import TourScene from './TourScene'
 import { PALETTE, ROLES, ROLE_IDS, groupSuggestions, type StartRole } from './roles'
 
-type Step = 't0' | 't1' | 't2' | 't3' | 'role' | 'plans' | 'account' | 'you' | 'tier' | 'learners' | 'staff' | 'groups' | 'reqs' | 'done'
+type Step = 't0' | 't1' | 't2' | 't3' | 'role' | 'reqs' | 'plans' | 'account' | 'you' | 'tier' | 'learners' | 'staff' | 'groups' | 'done'
 
 export interface StartState {
   step: Step
@@ -40,7 +39,8 @@ export interface StartState {
   learners: string[]
   staff: string[]
   groups: string[]
-  frameworks: string[]
+  /** A library framework to track, picked before the plans so they're ranked by what they cover. */
+  framework: string | null
   /** The space set_up made, once it has. */
   space: SetUpResult['org'] | null
   /** What has already gone to the server, so going back and forward doesn't send it twice. */
@@ -50,7 +50,7 @@ export interface StartState {
 const STORAGE_KEY = 'l2l_start'
 const fresh = (): StartState => ({
   step: 't0', role: null, picked: [], name: '', orgOn: false, org: '', color: '#2F66D6', trial: null,
-  learners: [], staff: [], groups: [], frameworks: [], space: null, sent: [],
+  learners: [], staff: [], groups: [], framework: null, space: null, sent: [],
 })
 
 const TOUR = [
@@ -63,13 +63,14 @@ const ROLE_ICONS: Record<StartRole, React.ReactNode> = {
   parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, district: <Building2 size={18} />,
 }
 const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i
-const order = (state: StartState): Step[] => ['t0', 't1', 't2', 't3', 'role', 'plans', 'account', 'you', 'tier', ...(state.trial ? ['staff', 'groups', 'reqs'] as Step[] : ['learners'] as Step[]), 'done']
-const previewPage: Partial<Record<Step, PreviewPage>> = { plans: 'plans', account: 'plans', you: 'invite', learners: 'people', staff: 'people', groups: 'groups', reqs: 'requirements' }
+const order = (state: StartState): Step[] => ['t0', 't1', 't2', 't3', 'role', 'reqs', 'plans', 'account', 'you', 'tier', ...(state.trial ? ['staff', 'groups'] as Step[] : ['learners'] as Step[]), 'done']
+const previewPage: Partial<Record<Step, PreviewPage>> = { reqs: 'requirements', plans: 'plans', account: 'plans', you: 'invite', learners: 'people', staff: 'people', groups: 'groups' }
 const usernameFrom = (email: string) => `${email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user'}${Math.floor(1000 + Math.random() * 9000)}`
 
 /**
- * Getting started: a short tour, then the role, plans and account, then making the space theirs and
- * the people in it. The space itself is made once, at the tier step, from everything picked so far.
+ * Getting started: a short tour, then the role, an optional requirement framework, plans (ranked by how
+ * much of it they cover) and account, then making the space theirs and the people in it. The space itself
+ * is made once, at the tier step, from everything picked so far, on Free or the Full trial alike.
  */
 export default function StartFlow() {
   const org = useOrg() as any
@@ -106,10 +107,9 @@ export default function StartFlow() {
   const role = state.role ? ROLES[state.role] : null
   const spaceName = state.space?.name || (state.orgOn ? state.org.trim() || 'Your organization' : state.name.trim() ? `${state.name.trim().split(' ')[0]}’s space` : 'Your space')
 
-  const { data: plans = [] } = useSWR(state.role ? startKeys.suggested(state.role) : null, () => startApi.suggested(state.role as StartRole))
-  const { data: frameworkLibrary = [] } = useSWR(state.space && token && state.trial ? ['start-frameworks', state.space.id] : null,
-    async () => { try { return await requirementsApi.library(state.space!.id, '', token) } catch { return [] } })
-  const frameworks = (frameworkLibrary as any[]).slice(0, 5).map((item) => ({ id: item.framework_uuid as string, title: item.name as string, sub: `${item.owner_org_name || 'Life2Launch'} · ${item.node_count || 0} requirements` }))
+  const { data: frameworks = [] } = useSWR(startKeys.frameworks(), async () => { try { return await startApi.frameworks() } catch { return [] } }, { revalidateOnFocus: false })
+  const framework = frameworks.find((item) => item.framework_uuid === state.framework) || null
+  const { data: plans = [] } = useSWR(state.role ? startKeys.suggested(state.role, framework?.framework_uuid) : null, () => startApi.suggested(state.role as StartRole, framework?.framework_uuid))
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
@@ -121,28 +121,26 @@ export default function StartFlow() {
     if (!token || !state.role) throw new Error('Sign in first.')
     const result = await startApi.setUp({
       role: state.role, name: state.name.trim(), org_name: state.orgOn ? state.org.trim() : '',
-      color: state.orgOn ? state.color : '', plan_uuids: state.picked, trial,
+      color: state.orgOn ? state.color : '', plan_uuids: state.picked, framework_uuid: framework?.framework_uuid || null, trial,
     }, token)
     const next: StartState = { ...state, space: result.org, trial }
     setState({ ...next, step: order(next)[order(next).indexOf('tier') + 1] })
   })
 
   /** Sends what's new on a people step, then moves on. */
-  const finishStep = (kind: 'learners' | 'staff' | 'groups' | 'reqs') => run(async () => {
+  const finishStep = (kind: 'learners' | 'staff' | 'groups') => run(async () => {
     const space = state.space
     if (!space || !token) throw new Error('Your space isn’t ready yet. Go back a step and try again.')
-    const items = { learners: state.learners, staff: state.staff, groups: state.groups, reqs: state.frameworks }[kind].filter((item) => !state.sent.includes(`${kind}:${item}`))
+    const items = { learners: state.learners, staff: state.staff, groups: state.groups }[kind].filter((item) => !state.sent.includes(`${kind}:${item}`))
     if (items.length) {
       if (kind === 'learners' || kind === 'staff') {
         const result = await inviteBatchUsers(space.id, { emails: items, role_id: kind === 'staff' ? 2 : 4, source: 'manual' }, token)
         if (!result.success) throw new Error(result.data?.detail?.message || result.data?.detail || 'Could not send the invites.')
-      } else if (kind === 'groups') {
+      } else {
         for (const name of items) {
           const result = await createUserGroup({ org_id: space.id, name, description: '' }, token)
           if (!result.success) throw new Error(result.data?.detail || `Could not make ${name}.`)
         }
-      } else {
-        for (const uuid of items) await requirementsApi.copyFromLibrary(space.id, uuid, token)
       }
     }
     setState((current) => ({ ...current, sent: [...current.sent, ...items.map((item) => `${kind}:${item}`)] }))
@@ -161,7 +159,7 @@ export default function StartFlow() {
     if (step === 'role' || step === 'done') return <RoleStage role={state.role} done={step === 'done'} spaceName={spaceName} />
     if (step === 'tier') return <TierCompare />
     return <div className="flex h-full items-center justify-center p-2 lg:p-6"><div className="h-full max-h-[560px] w-full">
-      <SitePreview state={state} page={previewPage[step] || 'plans'} plans={plans} spaceName={spaceName} frameworks={frameworks} />
+      <SitePreview state={state} page={previewPage[step] || 'plans'} plans={plans} spaceName={spaceName} framework={framework} />
     </div></div>
   })()
 
@@ -213,14 +211,26 @@ export default function StartFlow() {
         </button>)}
       </div>
       <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} /></>
-    if (step === 'plans') return <><Eyebrow>Plans</Eyebrow><h1 className={H1}>Start with a few plans</h1><p className={LEDE}>Picked from Discover for {role?.audience}. Add as many as you like.</p>
+    if (step === 'reqs') return <><Eyebrow>Optional</Eyebrow><h1 className={H1}>Working toward requirements?</h1>
+      <p className={LEDE}>Pick the standards or graduation requirements you report on. We’ll suggest plans that cover them and track who’s met what.</p>
+      <div role="radiogroup" aria-label="Requirements to track" className="mt-6 space-y-2">{frameworks.length ? frameworks.map((item) => { const on = state.framework === item.framework_uuid; return <button key={item.framework_uuid} type="button" role="radio" aria-checked={on}
+        onClick={() => patch({ framework: on ? null : item.framework_uuid })}
+        className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white p-2.5 text-left transition', on ? 'border-sky-600 ring-2 ring-sky-600/20' : 'border-border hover:border-foreground/25')}>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><ListChecks size={18} /></span>
+        <span className="min-w-0 flex-1"><b className="block truncate text-sm">{item.name}</b><span className="block truncate text-[12.5px] text-muted-foreground">{item.owner_org_name || 'Life2Launch'} · {item.requirement_count} {item.requirement_count === 1 ? 'requirement' : 'requirements'}</span></span>
+        <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border', on ? 'border-transparent bg-sky-600 text-white' : 'border-border')}>{on ? <Check size={12} /> : null}</span>
+      </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No shared frameworks yet. You can add your own under Requirements once you’re in.</p>}</div>
+      <Nav back={() => move(-1)} next={() => move(1)} label={framework ? 'Continue' : 'Skip for now'} /></>
+    if (step === 'plans') return <><Eyebrow>Plans</Eyebrow><h1 className={H1}>Start with a few plans</h1>
+      <p className={LEDE}>{framework ? `Picked from Discover, the ones covering the most of ${framework.name} first.` : `Picked from Discover for ${role?.audience}.`} Add as many as you like.</p>
       <div className="mt-6 space-y-2">
         {plans.length ? plans.map((plan) => { const on = state.picked.includes(plan.template_uuid); return <button key={plan.template_uuid} type="button" aria-pressed={on}
           onClick={() => patch({ picked: on ? state.picked.filter((uuid) => uuid !== plan.template_uuid) : [...state.picked, plan.template_uuid] })}
           className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white p-2.5 text-left transition', on ? 'border-[#2F66D6] ring-2 ring-[#2F66D6]/20' : 'border-border hover:border-foreground/25')}>
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><Layers3 size={18} /></span>
           <span className="min-w-0 flex-1"><b className="flex items-center gap-1.5 text-[14px]"><span className="truncate">{plan.title}</span>{plan.badge ? <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"><Award size={10} />Badge</span> : null}</b>
-            <span className="block truncate text-[12.5px] text-muted-foreground">{plan.step_count} steps{plan.creator_org ? ` · ${plan.creator_org.name}` : ''}</span></span>
+            <span className="block truncate text-[12.5px] text-muted-foreground">{plan.step_count} steps{plan.creator_org ? ` · ${plan.creator_org.name}` : ''}</span>
+            {plan.requirement_count ? <CoverMeter covers={plan.covers || 0} of={plan.requirement_count} /> : null}</span>
           <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', on ? 'bg-[#2F66D6] text-white' : 'bg-muted')}>{on ? <Check size={14} /> : <Plus size={14} />}</span>
         </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No shared plans yet. You can build your own once you’re in.</p>}
         <p className="flex items-center gap-1.5 pt-1 text-[13px] text-muted-foreground"><Compass size={15} />More in <b className="text-foreground">Discover</b> once you’re in.</p>
@@ -272,15 +282,6 @@ export default function StartFlow() {
         <AddList placeholder="Name a group" items={state.groups} onChange={(groups) => patch({ groups })} chips={suggestions} />
         <Nav back={() => move(-1)} next={() => void finishStep('groups')} busy={busy} label={state.groups.length ? 'Continue' : 'Skip for now'} /></>
     }
-    if (step === 'reqs') return <><Eyebrow>Optional</Eyebrow><h1 className={H1}>Track requirements too?</h1><p className={LEDE}>Link plan steps to the standards you report on. Learners see what counts, and you see coverage.</p>
-      <div className="mt-6 space-y-2">{frameworks.length ? frameworks.map((framework) => { const on = state.frameworks.includes(framework.id); return <button key={framework.id} type="button" aria-pressed={on}
-        onClick={() => patch({ frameworks: on ? state.frameworks.filter((id) => id !== framework.id) : [...state.frameworks, framework.id] })}
-        className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white p-2.5 text-left', on ? 'border-sky-600 ring-2 ring-sky-600/20' : 'border-border')}>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><ListChecks size={18} /></span>
-        <span className="min-w-0 flex-1"><b className="block truncate text-sm">{framework.title}</b><span className="block truncate text-[12.5px] text-muted-foreground">{framework.sub}</span></span>
-        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full', on ? 'bg-sky-600 text-white' : 'bg-muted')}>{on ? <Check size={14} /> : <Plus size={14} />}</span>
-      </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No shared frameworks yet. You can add your own under Requirements.</p>}</div>
-      <Nav back={() => move(-1)} next={() => void finishStep('reqs')} busy={busy} label={state.frameworks.length ? `Add ${state.frameworks.length}` : 'Not now'} /></>
     return <><Eyebrow>All set</Eyebrow><h1 className={H1}>You’re all set{state.name.trim() ? `, ${state.name.trim().split(' ')[0]}` : ''}</h1>
       <p className={LEDE}>{spaceName} is ready. Your Home page has what to do next.</p>
       <Nav back={() => move(-1)} next={open} label="Let’s go" /></>
@@ -293,6 +294,14 @@ const INPUT = 'h-11 w-full rounded-xl border border-border bg-white px-3 text-[1
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <div className="mb-2.5 text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{children}</div>
+}
+
+/** How much of the picked framework a plan counts toward. */
+function CoverMeter({ covers, of }: { covers: number; of: number }) {
+  return <span className="mt-1.5 flex items-center gap-2" data-testid="start-plan-covers">
+    <span className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"><i className="block h-full rounded-full bg-sky-600" style={{ width: `${Math.round((covers / of) * 100)}%` }} /></span>
+    <span className="text-[11.5px] font-semibold text-muted-foreground">{covers ? `Covers ${covers} of ${of}` : 'Covers none yet'}</span>
+  </span>
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

@@ -53,7 +53,7 @@ def test_create_framework_numbers_codes_and_replaces_placeholders(world):
     assert nodes[1]["parent_node_uuid"] == nodes[0]["node_uuid"]
     listed = call("list_requirement_frameworks")["structuredContent"]["frameworks"][0]
     assert [(item["code"], item["leaf"]) for item in listed["requirements"]] == [("A", False), ("A.1", True), ("A.2", True)]
-    assert listed["editor_url"].endswith(f"/admin/plans/requirements/{listed['framework_uuid']}/details")
+    assert listed["editor_url"].endswith(f"/admin/plans/requirements/{listed['framework_uuid']}/edit")
 
 
 def test_validation_reports_paths(world):
