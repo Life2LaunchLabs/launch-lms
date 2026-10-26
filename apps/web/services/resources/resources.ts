@@ -22,9 +22,12 @@ export interface ResourceChannel {
   name: string
   description: string | null
   thumbnail_image: string | null
-  public: boolean
-  shared: boolean
-  is_starred: boolean
+  // Who sees it in its own org; `listed` puts it in the Library for every org.
+  audience: 'org' | 'groups' | 'staff'
+  comment_rule: 'all' | 'staff' | 'off'
+  hold_links: boolean
+  listed: boolean
+  listed_at?: string | null
   color: string | null
   owner_org_id?: number | null
   owner_org_uuid?: string | null
@@ -126,7 +129,7 @@ export interface ResourceComment {
   comment_uuid: string
   content: string
   rating: number | null
-  is_locked: boolean
+  status: 'live' | 'held' | 'hidden'
   creation_date: string
   update_date: string
   author?: {

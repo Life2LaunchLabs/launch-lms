@@ -134,12 +134,12 @@ export default function ResourceChannelCard({
         <div className="flex items-center justify-between border-t border-border pt-1.5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="text-[10px] font-bold uppercase tracking-wider">
-              {channel.public ? 'Public' : 'Restricted'}
+              {channel.audience === 'org' ? 'Everyone' : channel.audience === 'groups' ? 'Chosen groups' : 'Staff only'}
             </span>
-            {channel.is_starred && (
+            {channel.listed && (
               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
                 <Star size={11} className="fill-current" />
-                Starred
+                Library
               </span>
             )}
           </div>

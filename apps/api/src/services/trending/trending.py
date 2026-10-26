@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.resources import (
     Resource,
+    ChannelAudience,
     ResourceChannel,
     ResourceChannelResource,
     ResourceComment,
@@ -67,7 +68,7 @@ def _get_trending_resources(
         .outerjoin(max_comment_subq, max_comment_subq.c.resource_id == Resource.id)
         .where(Resource.org_id == org.id)
         .where(Resource.is_live == True)
-        .where(ResourceChannel.public == True)
+        .where(ResourceChannel.audience == ChannelAudience.org)
         .group_by(
             Resource.resource_uuid,
             Resource.title,

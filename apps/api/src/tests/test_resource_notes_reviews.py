@@ -11,7 +11,10 @@ from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.organizations import Organization
 from src.db.resources import (
     Resource,
+    ResourceChannel,
+    ResourceChannelResource,
     ResourceComment,
+    ResourceCommentReport,
     ResourceNoteBlock,
     ResourceNoteBlockCreate,
     ResourceNoteBlockUpdate,
@@ -21,6 +24,7 @@ from src.db.resources import (
     UserSavedResourceChannel,
     UserSavedResourceUpdate,
 )
+from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services import resources as resource_service
 
@@ -41,6 +45,10 @@ def _session() -> Session:
             MediaAsset.__table__,
             ResourceNoteBlock.__table__,
             ResourceComment.__table__,
+            ResourceCommentReport.__table__,
+            ResourceChannel.__table__,
+            ResourceChannelResource.__table__,
+            UserOrganization.__table__,
         ],
     )
     return Session(engine)
@@ -275,6 +283,9 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
 
     with _session() as db:
         resource, owner, _ = _seed(db)
+        db.add(ResourceChannel(id=1, org_id=1, channel_uuid="channel-1", name="Guides", comment_rule="all", hold_links=True))
+        db.add(ResourceChannelResource(channel_id=1, resource_id=resource.id))
+        db.commit()
         await resource_service.get_resource(None, resource.resource_uuid, _public(owner), db)
         assert db.exec(
             select(UserSavedResource).where(

@@ -6,12 +6,12 @@ from sqlalchemy import true as sa_true
 from sqlmodel import Session, and_, func, or_, select, text
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization, OrganizationDiscoverRead
-from src.db.resources import ResourceChannel, ResourceChannelRead
+from src.db.resources import ResourceChannelRead
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
 from src.security.org_auth import is_org_member
 from src.services.orgs.orgs import _build_discover_org_read
-from src.services.resources import _channel_is_accessible, list_resources
+from src.services.resources import _channel_is_accessible, _org_channels, list_resources
 
 T = TypeVar('T')
 
@@ -98,17 +98,6 @@ async def search_across_org(
                     detail="API token does not have search permission",
                 )
 
-    resource_channels_query = (
-        select(ResourceChannel)
-        .where(or_(ResourceChannel.org_id == org.id, ResourceChannel.shared == sa_true()))
-        .where(
-            or_(
-                text('LOWER(resourcechannel.name) LIKE LOWER(:pattern)'),
-                text('LOWER(resourcechannel.description) LIKE LOWER(:pattern)')
-            )
-        )
-        .params(pattern=f"%{search_query}%")
-    )
     organizations_query = select(Organization).where(
         or_(
             text('LOWER(organization.name) LIKE LOWER(:pattern)'),
@@ -154,42 +143,29 @@ async def search_across_org(
         # This prevents user directory scraping attacks
         users = []
     else:
-        candidate_channels = db_session.exec(resource_channels_query).all()
+        # The org's own channels and the Library channels it saved, as this person may open them.
+        needle = search_query.replace('\\', '').lower()
         raw_channels = [
             channel
-            for channel in candidate_channels
-            if _channel_is_accessible(channel, db_session, current_user)
+            for channel in _org_channels(int(org.id), db_session)  # type: ignore[arg-type]
+            if (needle in channel.name.lower() or needle in (channel.description or "").lower())
+            and _channel_is_accessible(channel, db_session, current_user)
         ][offset:offset + limit]
-        channel_org_ids = list({c.org_id for c in raw_channels})
-        channel_owner_orgs: dict[int, Organization] = {}
-        if channel_org_ids:
-            channel_owner_orgs = {
-                o.id: o
-                for o in db_session.exec(
-                    select(Organization).where(Organization.id.in_(channel_org_ids))  # type: ignore[arg-type]
-                ).all()
-                if o.id is not None
-            }
+        channel_owner_orgs: dict[int, Organization] = {
+            o.id: o
+            for o in db_session.exec(
+                select(Organization).where(Organization.id.in_({c.org_id for c in raw_channels}))  # type: ignore[arg-type]
+            ).all()
+            if o.id is not None
+        } if raw_channels else {}
         resource_channels = [
-            ResourceChannelRead(
-                id=ch.id,
-                org_id=ch.org_id,
-                channel_uuid=ch.channel_uuid,
-                name=ch.name,
-                description=ch.description,
-                thumbnail_image=ch.thumbnail_image,
-                public=ch.public,
-                shared=ch.shared,
-                is_starred=ch.is_starred,
-                color=ch.color,
-                creation_date=ch.creation_date,
-                update_date=ch.update_date,
-                owner_org_id=channel_owner_orgs[ch.org_id].id if ch.org_id in channel_owner_orgs else None,
-                owner_org_uuid=channel_owner_orgs[ch.org_id].org_uuid if ch.org_id in channel_owner_orgs else None,
-                owner_org_slug=channel_owner_orgs[ch.org_id].slug if ch.org_id in channel_owner_orgs else None,
-                owner_org_name=channel_owner_orgs[ch.org_id].name if ch.org_id in channel_owner_orgs else None,
-                is_shared_from_other_org=ch.org_id != org.id,
-            )
+            ResourceChannelRead.model_validate(ch).model_copy(update={
+                "owner_org_id": channel_owner_orgs[ch.org_id].id if ch.org_id in channel_owner_orgs else None,
+                "owner_org_uuid": channel_owner_orgs[ch.org_id].org_uuid if ch.org_id in channel_owner_orgs else None,
+                "owner_org_slug": channel_owner_orgs[ch.org_id].slug if ch.org_id in channel_owner_orgs else None,
+                "owner_org_name": channel_owner_orgs[ch.org_id].name if ch.org_id in channel_owner_orgs else None,
+                "is_shared_from_other_org": ch.org_id != org.id,
+            })
             for ch in raw_channels
         ]
         discover_orgs = db_session.exec(organizations_query.offset(offset).limit(limit)).all()
