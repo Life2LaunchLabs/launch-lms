@@ -23,8 +23,8 @@ export function PlansHome({ orgslug }: { orgslug: string }) {
   return <PlansPage tab="plans">{library ? <PlanLibrary orgslug={orgslug} orgId={orgId} token={token} library={library} /> : <LibraryLoading />}</PlansPage>
 }
 
-export function DiscoverTab({ orgslug }: { orgslug: string }) {
-  return <PlansPage tab="discover"><DiscoverHome orgslug={orgslug} /></PlansPage>
+export function DiscoverTab({ orgslug, frameworkUuid = null, covers = [] }: { orgslug: string; frameworkUuid?: string | null; covers?: string[] }) {
+  return <PlansPage tab="discover"><DiscoverHome orgslug={orgslug} frameworkUuid={frameworkUuid} covers={covers} /></PlansPage>
 }
 
 export function AssignmentsTab({ orgslug }: { orgslug: string }) {

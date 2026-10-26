@@ -22,6 +22,8 @@ export interface DiscoverPlan extends MarketplaceTemplate {
   status: DiscoverStatus
   /** The plan as it is here once added: your copy of an editable plan, or the creator's locked plan. */
   local_template_uuid: string | null
+  /** With a `covers` filter: the requirements asked about that this plan's steps count toward. */
+  covers?: string[]
 }
 
 export interface DiscoverCollection {
@@ -75,14 +77,18 @@ export function addedAsListItems(added: AddedPlan[]): TemplateListItem[] {
 export const isDiscoverKey = (key: unknown) => typeof key === 'string' && key.startsWith(discoverUrl())
 
 export const discoverKeys = {
-  page: (orgId: number, query = '') => withOrg(discoverUrl(query ? `?q=${q(query)}` : ''), orgId),
+  /** `covers` narrows to plans whose steps count toward any of these requirements, most covered first. */
+  page: (orgId: number, query = '', covers: string[] = []) => {
+    const params = [query ? `q=${q(query)}` : '', ...covers.map((uuid) => `covers=${q(uuid)}`)].filter(Boolean).join('&')
+    return withOrg(discoverUrl(params ? `?${params}` : ''), orgId)
+  },
   added: (orgId: number) => withOrg(discoverUrl('/added'), orgId),
   plan: (orgId: number, uuid: string) => withOrg(discoverUrl(`/plans/${q(uuid)}`), orgId),
   collection: (orgId: number, uuid: string) => withOrg(discoverUrl(`/collections/${q(uuid)}`), orgId),
 }
 
 export const discoverApi = {
-  page: (orgId: number, query = '', token?: string) => request<DiscoverPage>(discoverKeys.page(orgId, query), token),
+  page: (orgId: number, query = '', token?: string, covers: string[] = []) => request<DiscoverPage>(discoverKeys.page(orgId, query, covers), token),
   added: (orgId: number, token?: string) => request<AddedPlan[]>(discoverKeys.added(orgId), token),
   plan: (orgId: number, uuid: string, token?: string) => request<DiscoverPlanDetail>(discoverKeys.plan(orgId, uuid), token),
   collection: (orgId: number, uuid: string, token?: string) => request<DiscoverCollectionDetail>(discoverKeys.collection(orgId, uuid), token),

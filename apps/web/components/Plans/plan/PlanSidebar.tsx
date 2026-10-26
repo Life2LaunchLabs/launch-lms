@@ -3,14 +3,14 @@
 import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { ListChecks, Plus, Users } from 'lucide-react'
+import { Check, ChevronDown, Flag, ListChecks, Plus, Users } from 'lucide-react'
 import { PersonAvatar, personName } from '@components/Goals/admin/live/ui'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { templateKeys, templatesApi, type TemplateDetail } from '@services/goals/templates'
 import type { TemplateDocument } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import { documentSteps } from '@components/Plans/editor/documentOps'
-import { leafNodes, useRequirementFrameworks } from '@components/Plans/editor/StepRequirementLinks'
+import { leafNodes, useRequirementFrameworks, type RequirementNode } from '@components/Plans/editor/StepRequirementLinks'
 import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { smallActionClass, smallPrimaryClass } from '@components/Plans/shared/actions'
 import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
@@ -31,14 +31,18 @@ export default function PlanSidebar({ orgslug, orgId, token, editing, document, 
   </aside>
 }
 
-/** The frameworks the plan's steps count toward, with how much of each it covers. */
+/**
+ * The frameworks the plan's steps count toward, with how much of each it covers, and the gaps staff flagged on
+ * each as a ticklist: ticked once a step in this plan links one.
+ */
 function RequirementsCard({ orgslug, orgId, token, document, canEdit }: { orgslug: string; orgId: number; token?: string; document: TemplateDocument; canEdit: boolean }) {
   const frameworks = useRequirementFrameworks(orgId, token)
   const linked = new Set(documentSteps(document).flatMap(({ step }) => step.requirement_node_uuids || []))
   const coverage = frameworks.map((framework) => {
     const leaves = leafNodes(framework.nodes)
-    return { ...framework, total: leaves.length, covered: leaves.filter((node) => linked.has(node.node_uuid)).length }
-  }).filter((framework) => framework.covered > 0)
+    const flagged = leaves.filter((node) => (framework.flagged_node_uuids || []).includes(node.node_uuid))
+    return { ...framework, total: leaves.length, covered: leaves.filter((node) => linked.has(node.node_uuid)).length, flagged }
+  }).filter((framework) => framework.covered > 0 || (canEdit && framework.flagged.length > 0))
   if (!coverage.length) {
     if (!canEdit || !frameworks.length) return null
     return <AsideCard icon={<ListChecks size={16} />} title="Requirements" tag={<Tag>None</Tag>}>
@@ -46,13 +50,36 @@ function RequirementsCard({ orgslug, orgId, token, document, canEdit }: { orgslu
     </AsideCard>
   }
   return <AsideCard icon={<ListChecks size={16} />} title="Requirements">
-    <p className="mt-2 text-[13.5px] text-muted-foreground">Steps in this plan count toward:</p>
+    <p className="mt-2 text-[13.5px] text-muted-foreground">{coverage.some((framework) => framework.covered) ? 'Steps in this plan count toward:' : 'Gaps you flagged, to cover when you edit a step:'}</p>
     <ul className="mt-2.5 flex flex-col gap-2">{coverage.map((framework) => <li key={framework.framework_uuid} className="rounded-xl border border-border px-3 py-2.5">
-      <div className="flex justify-between gap-2 text-[13px]"><b className="truncate">{framework.name}</b><span className="shrink-0 text-xs text-muted-foreground">{framework.covered} of {plural(framework.total, 'requirement')}</span></div>
+      <div className="flex justify-between gap-2 text-[13px]">
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(framework.framework_uuid, 'plans'))} className="truncate font-bold hover:underline">{framework.name}</Link>
+        <span className="shrink-0 text-xs text-muted-foreground">{framework.covered} of {plural(framework.total, 'requirement')}</span>
+      </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-600" style={{ width: `${framework.total ? framework.covered / framework.total * 100 : 0}%` }} /></div>
+      {framework.flagged.length ? <FlaggedList nodes={framework.flagged} linked={linked} /> : null}
     </li>)}</ul>
     <Link href={getUriWithOrg(orgslug, insightsRoutes.coverage())} className={smallActionClass + ' mt-3'}>Coverage report</Link>
   </AsideCard>
+}
+
+/** "8 flagged · 3 covered here", opening to the flagged requirements, ticked where this plan covers them. */
+function FlaggedList({ nodes, linked }: { nodes: RequirementNode[]; linked: Set<string> }) {
+  const [open, setOpen] = React.useState(false)
+  const here = nodes.filter((node) => linked.has(node.node_uuid)).length
+  return <div className="mt-2">
+    <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex w-full items-center gap-1.5 text-left text-xs font-semibold text-amber-700 hover:underline">
+      <Flag size={12} aria-hidden="true" />{nodes.length} flagged · {here} covered here
+      <ChevronDown size={13} className={cn('ml-auto transition-transform', open && 'rotate-180')} aria-hidden="true" />
+    </button>
+    {open ? <ul className="mt-1.5 flex flex-col gap-1">{nodes.map((node) => {
+      const done = linked.has(node.node_uuid)
+      return <li key={node.node_uuid} className="flex items-start gap-2 text-xs leading-snug">
+        <span className={cn('mt-px grid h-3.5 w-3.5 shrink-0 place-items-center rounded border', done ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border')} role="img" aria-label={done ? 'Covered here' : 'Not covered yet'}>{done ? <Check size={10} /> : null}</span>
+        <span className={cn('min-w-0', done && 'text-muted-foreground line-through')}>{node.code ? <b className="mr-1 font-semibold">{node.code}</b> : null}{node.title}</span>
+      </li>
+    })}</ul> : null}
+  </div>
 }
 
 /** The groups and learners this plan is assigned to, newest first, with Assign. */

@@ -45,7 +45,7 @@ export function ByLine({ org, partner }: { org: DiscoverPlan['creator_org']; par
 }
 
 /** A plan in Discover: the square cover (Added or Requested in the corner), the title, then steps, a collection it's in and a medal when it earns a badge. */
-export function DiscoverPlanCard({ orgslug, plan, tag, className }: { orgslug: string; plan: DiscoverPlan; tag?: string; className?: string }) {
+export function DiscoverPlanCard({ orgslug, plan, tag, className, coversOf }: { orgslug: string; plan: DiscoverPlan; tag?: string; className?: string; coversOf?: number }) {
   const state = plan.status === 'added' ? { icon: Check, label: 'Added' } : plan.status === 'own' ? { icon: Check, label: 'Yours' } : plan.status === 'requested' ? { icon: Clock, label: 'Requested' } : null
   return <Link href={discoverPlanHref(orgslug, plan.template_uuid)} className={cn('group block min-w-0 rounded-2xl outline-offset-4', className)} data-testid="discover-plan-card">
     <PlanCover plan={plan} iconSize={46} className="aspect-square w-full rounded-2xl transition group-hover:-translate-y-0.5 group-hover:shadow-[0_1px_2px_hsl(200_30%_10%/.06),0_8px_28px_hsl(200_30%_10%/.08)]">
@@ -62,6 +62,9 @@ export function DiscoverPlanCard({ orgslug, plan, tag, className }: { orgslug: s
         {plan.badge ? <Medal size={18} className="text-[hsl(38_85%_42%)]" aria-label={`Earns ${plan.badge.name}`} /> : null}
       </span>
     </span>
+    {coversOf && plan.covers?.length ? <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11.5px] font-semibold text-emerald-700" data-testid="discover-plan-covers">
+      <Check size={12} aria-hidden="true" />Covers {plan.covers.length} of {coversOf}
+    </span> : null}
   </Link>
 }
 

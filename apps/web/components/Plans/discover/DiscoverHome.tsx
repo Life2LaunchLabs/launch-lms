@@ -1,10 +1,11 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { ListChecks, Loader2, Search, Star } from 'lucide-react'
+import { ListChecks, Loader2, Search, Star, X } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { discoverApi, discoverKeys, type DiscoverPlan } from '@services/goals/discover'
 import { requirementsApi } from '@services/goals/requirements'
@@ -14,21 +15,24 @@ import { primaryActionClass, smallActionClass } from '@components/Plans/shared/a
 import { SectionHeader, planGridClass } from '@components/Plans/library/PlanCards'
 import { cn } from '@/lib/utils'
 import { plural } from '@components/Plans/plan/planVersions'
+import { useRequirementFrameworks } from '@components/Plans/editor/StepRequirementLinks'
 import { CollectionAction, DiscoverCollectionCard, DiscoverPlanCard, Row, discoverCollectionHref, useDiscoverContext } from './parts'
 
 const OTHER = 'More plans'
+const NONE: string[] = []
 const FRAMEWORK_TINTS = ['#2F66D6', '#6B3FE0', '#C9501E', '#0B8077']
 
 /**
  * Discover: the one marketplace. A partner collection up top, shared collections (the main way in),
- * requirement frameworks, then plans by category. Searching shows matching collections and plans.
+ * requirement frameworks, then plans by category. Searching shows matching collections and plans. Coming from a
+ * framework with `covers` (its flagged gaps, or one requirement), it lists only the plans that count toward them.
  */
-export default function DiscoverHome({ orgslug }: { orgslug: string }) {
+export default function DiscoverHome({ orgslug, frameworkUuid = null, covers = NONE }: { orgslug: string; frameworkUuid?: string | null; covers?: string[] }) {
   const { orgId, token, ready } = useDiscoverContext()
   const [query, setQuery] = React.useState('')
   const [debounced, setDebounced] = React.useState('')
   React.useEffect(() => { const timer = window.setTimeout(() => setDebounced(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
-  const { data: page } = useSWR(ready ? discoverKeys.page(orgId, debounced) : null, () => discoverApi.page(orgId, debounced, token), { keepPreviousData: true })
+  const { data: page } = useSWR(ready ? discoverKeys.page(orgId, debounced, covers) : null, () => discoverApi.page(orgId, debounced, token, covers), { keepPreviousData: true })
 
   return <div className="pb-10">
     <label className="flex h-[52px] items-center gap-2.5 rounded-full border border-border bg-card px-5 text-muted-foreground shadow-[0_1px_2px_hsl(200_30%_10%/.06),0_8px_28px_hsl(200_30%_10%/.08)] focus-within:border-foreground/30">
@@ -36,7 +40,12 @@ export default function DiscoverHome({ orgslug }: { orgslug: string }) {
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans, collections and partners" aria-label="Search Discover" autoComplete="off"
         className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground" />
     </label>
+    {covers.length ? <CoversFilter orgslug={orgslug} covers={covers} frameworkUuid={frameworkUuid} /> : null}
     {!page ? <div className="flex min-h-[240px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
+      : covers.length ? <Section title="Plans" count={page.plans.length}>
+        {page.plans.length ? <PlanGrid orgslug={orgslug} plans={page.plans} coversOf={covers.length} />
+          : <p className="rounded-[20px] border-[1.5px] border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">No shared plan covers {covers.length === 1 ? 'this requirement' : 'these requirements'} yet.</p>}
+      </Section>
       : debounced ? <Results orgslug={orgslug} plans={page.plans} collections={page.collections} query={debounced} />
         : <Browse orgslug={orgslug} page={page} />}
   </div>
@@ -59,8 +68,24 @@ function Results({ orgslug, plans, collections, query }: { orgslug: string; plan
   </>
 }
 
-function PlanGrid({ orgslug, plans }: { orgslug: string; plans: DiscoverPlan[] }) {
-  return <ul className={planGridClass}>{plans.map((plan) => <li key={plan.template_uuid} className="min-w-0"><DiscoverPlanCard orgslug={orgslug} plan={plan} /></li>)}</ul>
+function PlanGrid({ orgslug, plans, coversOf }: { orgslug: string; plans: DiscoverPlan[]; coversOf?: number }) {
+  return <ul className={planGridClass}>{plans.map((plan) => <li key={plan.template_uuid} className="min-w-0"><DiscoverPlanCard orgslug={orgslug} plan={plan} coversOf={coversOf} /></li>)}</ul>
+}
+
+/** The requirements filter as a chip: which framework and how many requirements, with a way back to all of Discover. */
+function CoversFilter({ orgslug, covers, frameworkUuid }: { orgslug: string; covers: string[]; frameworkUuid: string | null }) {
+  const router = useRouter()
+  const { orgId, token } = useDiscoverContext()
+  const framework = useRequirementFrameworks(orgId, token).find((item) => item.framework_uuid === frameworkUuid)
+  const single = covers.length === 1 ? framework?.nodes?.find((node) => node.node_uuid === covers[0]) : undefined
+  const label = single ? `Covers ${single.code ? `${single.code} ` : ''}${single.title}` : `Covers ${plural(covers.length, 'requirement')}${framework ? ` from ${framework.name}` : ''}`
+  return <div className="mt-4 flex flex-wrap items-center gap-2">
+    <span className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-full bg-emerald-50 py-1.5 pl-3 pr-1.5 text-[13px] font-semibold text-emerald-800" data-testid="discover-covers-filter">
+      <ListChecks size={14} aria-hidden="true" /><span className="truncate">{label}</span>
+      <button type="button" onClick={() => router.replace(getUriWithOrg(orgslug, routePaths.org.admin.discover()))} aria-label="Clear the requirements filter" className="grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-emerald-100"><X size={13} /></button>
+    </span>
+    {frameworkUuid ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(frameworkUuid, 'plans'))} className="text-[13px] font-semibold text-muted-foreground hover:underline">Back to the framework</Link> : null}
+  </div>
 }
 
 function Browse({ orgslug, page }: { orgslug: string; page: Awaited<ReturnType<typeof discoverApi.page>> }) {
