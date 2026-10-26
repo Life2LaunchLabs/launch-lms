@@ -1,6 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { goalAdminUrl } from './admin'
+import type { Numbering, Rule, TreeNode } from './requirementTree'
 import type { StepStatus, StepTypeKey } from './types'
 
 const q = encodeURIComponent
@@ -35,10 +36,29 @@ export interface GroupRequirements {
   not_enrolled: number
 }
 
+/** A published plan as coverage lists it, with what its card shows. */
+export interface CoveragePlan { template_uuid: string; title: string; mapped: boolean; thumbnail_image?: string; icon?: any; color?: string | null }
+export interface CoveringStep { template_uuid: string; step_key: string; title: string; step_types: StepTypeKey[] }
+
 export interface Coverage {
-  framework: { framework_uuid: string; name: string; description: string; version: number; status: string }
-  templates: Array<{ template_uuid: string; title: string; mapped: boolean }>
-  nodes: Array<RequirementNode & { covered_by: Array<{ template_uuid: string; step_key: string; title: string; step_types: StepTypeKey[] }> }>
+  framework: { framework_uuid: string; name: string; description: string; version: number; status: string; locked?: boolean; flagged_node_uuids?: string[] }
+  templates: CoveragePlan[]
+  nodes: Array<RequirementNode & { numbering?: Numbering; rule?: Rule; covered_by: CoveringStep[] }>
+}
+
+export type FieldType = 'text' | 'number' | 'link' | 'date' | 'boolean'
+/** A value nodes record: on every node, on groups (nodes with children) or on requirements (leaves). */
+export interface FrameworkField { field_uuid: string; name: string; type: FieldType; applies: 'all' | 'groups' | 'requirements'; required: boolean }
+
+/** One framework with the nodes of its current version (a draft while one is open). */
+export interface FrameworkDetail {
+  framework_uuid: string; org_id: number; name: string; description?: string
+  version: number; status: string; published_version?: number | null; versions?: Array<{ version: number; status: string; published_at?: string | null }>
+  source_framework_uuid?: string | null
+  source_metadata: { numbering?: Numbering; fields?: FrameworkField[]; source_url?: string; [key: string]: unknown }
+  nodes: TreeNode[]
+  publisher?: FrameworkPublisher; can_edit?: boolean; locked?: boolean; library_editable?: boolean
+  flagged_node_uuids: string[]; library_published_version?: number | null; published_to_library?: boolean
 }
 
 /** How much of a framework's requirements (leaf nodes) the org's published templates cover. */
@@ -63,12 +83,12 @@ export const requirementsApi = {
   list: (orgId: number, token?: string) => request<any[]>(frameworksKey(orgId), token),
   /** The list with each framework's coverage summary, for Plans › Requirements. */
   listWithCoverage: (orgId: number, token?: string) => request<FrameworkListItem[]>(frameworksCoverageKey(orgId), token),
-  get: (orgId: number, uuid: string, token?: string, version?: number) => request(frameworks(`/${q(uuid)}?org_id=${orgId}${version ? `&version=${version}` : ''}`), token),
+  get: (orgId: number, uuid: string, token?: string, version?: number) => request<FrameworkDetail>(frameworks(`/${q(uuid)}?org_id=${orgId}${version ? `&version=${version}` : ''}`), token),
   create: (orgId: number, data: any, token?: string) => request(frameworks(''), token, 'POST', { ...data, org_id: orgId }),
   library: (orgId: number, query = '', token?: string) => request<any[]>(frameworks(`/library?org_id=${orgId}&q=${q(query)}`), token),
   copyFromLibrary: (orgId: number, uuid: string, token?: string) => request(frameworks(`/library/${q(uuid)}/copy?org_id=${orgId}`), token, 'POST'),
   publishToLibrary: (orgId: number, uuid: string, token?: string) => request(frameworks(`/${q(uuid)}/publish-to-library?org_id=${orgId}`), token, 'POST'),
-  update: (orgId: number, uuid: string, data: any, token?: string) => request(frameworks(`/${q(uuid)}?org_id=${orgId}`), token, 'PATCH', data),
+  update: (orgId: number, uuid: string, data: any, token?: string) => request<FrameworkDetail>(frameworks(`/${q(uuid)}?org_id=${orgId}`), token, 'PATCH', data),
   publish: (orgId: number, uuid: string, token?: string) => request(frameworks(`/${q(uuid)}/publish?org_id=${orgId}`), token, 'POST'),
   /** Replace the requirements flagged as gaps to fill; [] clears them all. */
   setFlags: (orgId: number, uuid: string, nodeUuids: string[], token?: string) => request<{ framework_uuid: string; flagged_node_uuids: string[] }>(frameworks(`/${q(uuid)}/flags?org_id=${orgId}`), token, 'PUT', { node_uuids: nodeUuids }),

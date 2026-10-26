@@ -13,7 +13,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { frameworksCoverageKey, requirementsApi, type FrameworkListItem } from '@services/goals/requirements'
 import { isOn, matchesSearch, type FilterSpec } from '@/lib/admin/filters'
 import { cn } from '@/lib/utils'
-import { CreateFramework } from '../insights/RequirementFrameworkEditor'
+import { CreateFramework } from '@components/Requirements/CreateFramework'
 import { EmptyState, PageLoader } from '../live/ui'
 import SourceChip from './SourceChip'
 
@@ -52,9 +52,9 @@ export default function FrameworkList({ orgslug, orgId, token }: { orgslug: stri
     if (isOn(filters.values, 'gaps') && !item.coverage?.gaps) return false
     return true
   })
-  const open = (uuid: string, subpage: 'plans' | 'spec' = 'plans') => router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(uuid, subpage)))
+  const open = (uuid: string, subpage: 'plans' | 'edit' = 'plans') => router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(uuid, subpage)))
   const actions = <>
-    {isAdmin ? <CreateFramework orgId={orgId} token={token} refresh={() => mutate()} onCreated={(uuid: string) => open(uuid, 'spec')} trigger={<button type="button" className="inline-flex h-10 items-center gap-2 rounded-full bg-black px-4 text-sm font-medium text-white hover:bg-black/85"><Plus size={16} weight="bold" aria-hidden="true" />Create framework</button>} /> : null}
+    {isAdmin ? <CreateFramework orgId={orgId} token={token} refresh={() => mutate()} onCreated={(uuid: string) => open(uuid, 'edit')} trigger={<button type="button" className="inline-flex h-10 items-center gap-2 rounded-full bg-black px-4 text-sm font-medium text-white hover:bg-black/85"><Plus size={16} weight="bold" aria-hidden="true" />Create framework</button>} /> : null}
     <Link href={getUriWithOrg(orgslug, routePaths.org.admin.discover())} className="inline-flex h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 hover:border-gray-300"><Storefront size={16} aria-hidden="true" />Add from Discover</Link>
   </>
   const hidden = frameworks.length - shown.length

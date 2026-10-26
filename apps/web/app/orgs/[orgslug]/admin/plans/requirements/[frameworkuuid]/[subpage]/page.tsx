@@ -3,7 +3,7 @@ import { RequirementFrameworkPage } from '@components/Plans/shell/PlansTabs'
 import type { FrameworkSubpage } from '@services/routing/paths'
 
 // Kept here: a value exported from a client module reaches a server component only as a reference.
-const subpages = new Set(['plans', 'details', 'levels', 'spec'])
+const subpages = new Set(['plans', 'details', 'levels', 'spec', 'edit'])
 
 // Frameworks moved here from /admin/insights/frameworks; the old URLs redirect (services/routing/legacyRedirects.ts).
 export default async function RequirementFrameworkSubpage({ params }: { params: Promise<{ orgslug: string; frameworkuuid: string; subpage: string }> }) {

@@ -4,7 +4,6 @@ import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { Users } from 'lucide-react'
-import AdminTabPage from '@components/Admin/AdminTabPage'
 import InsightsShell from '@components/Insights/InsightsShell'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -14,7 +13,6 @@ import { EmptyState, PageLoader } from '../live/ui'
 import GroupReport from './GroupReport'
 import GroupReportPrint from './GroupReportPrint'
 import GroupRequirementsGrid from './GroupRequirementsGrid'
-import { RequirementFrameworkDetail } from './RequirementFrameworkEditor'
 import RequirementsExplorer from './RequirementsExplorer'
 
 type InsightsView = 'reports' | 'engagement' | 'coverage' | 'evidence'
@@ -82,7 +80,3 @@ export function InsightsEvidencePage({ orgslug, groupId }: { orgslug: string; gr
   </InsightsTabs>
 }
 
-export function RequirementFrameworkPage({ orgslug, frameworkUuid, subpage }: { orgslug: string; frameworkUuid: string; subpage: 'details' | 'levels' | 'spec' }) {
-  const { orgId, token } = useOrgAndToken()
-  return <AdminTabPage tab="insights"><RequirementFrameworkDetail orgslug={orgslug} orgId={orgId} token={token} frameworkUuid={frameworkUuid} activeSubpage={subpage} /></AdminTabPage>
-}
