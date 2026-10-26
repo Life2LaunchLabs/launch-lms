@@ -18,6 +18,7 @@ import { getUserGroups, linkResourcesToUserGroup, unLinkResourcesToUserGroup } f
 import { cn } from '@/lib/utils'
 import { useLibrarySave } from './LibraryTab'
 import { Loading, SearchBox, useResourceFilter } from './listing'
+import { ChannelComments, NeedsLookCard } from './comments'
 import { ResourceModal } from './modals'
 import { AudienceIcon, ChannelCover, OrgChip, ResourceListRow, SaveButton, listClass, useResourcesContext } from './pieces'
 
@@ -32,6 +33,7 @@ export default function ChannelPage({ channelUuid }: { channelUuid: string }) {
   const [adding, setAdding] = React.useState(false)
   const [picking, setPicking] = React.useState(false)
   const [groupsOpen, setGroupsOpen] = React.useState(false)
+  const [tab, setTab] = React.useState<'resources' | 'comments'>('resources')
   const filter = useResourceFilter(channel?.resources || [])
   const save = useLibrarySave()
 
@@ -112,9 +114,15 @@ export default function ChannelPage({ channelUuid }: { channelUuid: string }) {
           </DropdownMenu> : null}
         </header>
 
-        <section aria-labelledby="channel-resources-title" className="mt-7">
-          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
-            <h2 id="channel-resources-title" className="flex items-center gap-2 text-[17px] font-bold tracking-tight">Resources<span className="text-[13px] font-semibold text-muted-foreground">{channel.resources.length}</span></h2>
+        {editable ? <div role="tablist" aria-label="Channel" className="mt-6 flex gap-1 border-b border-border">
+          {([['resources', 'Resources', channel.resources.length], ['comments', 'Comments', channel.needs_look]] as const).map(([id, label, count]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            className={cn('-mb-px inline-flex items-center gap-1.5 border-b-[3px] px-3.5 py-2.5 text-sm font-bold', tab === id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            {label}{count ? <span className={cn('rounded-full px-[7px] py-px text-[11px]', id === 'comments' ? 'bg-amber-100 text-amber-900' : 'bg-muted')}>{count}</span> : null}
+          </button>)}
+        </div> : null}
+        {editable && tab === 'comments' ? <div className="mt-5"><ChannelComments channel={channel} onUpdate={update} /></div> : <section aria-labelledby="channel-resources-title" className={editable ? 'mt-5' : 'mt-7'}>
+          <div className={cn('mb-3.5 flex flex-wrap items-center gap-3', editable ? 'justify-end' : 'justify-between')}>
+            <h2 id="channel-resources-title" className={cn('flex items-center gap-2 text-[17px] font-bold tracking-tight', editable && 'sr-only')}>Resources<span className="text-[13px] font-semibold text-muted-foreground">{channel.resources.length}</span></h2>
             <div className="flex flex-wrap items-center gap-2">
               {channel.resources.length > 4 ? <SearchBox value={filter.query} onChange={filter.setQuery} label="Search this channel" /> : null}
               {editable ? <>
@@ -136,9 +144,10 @@ export default function ChannelPage({ channelUuid }: { channelUuid: string }) {
           </ul> : <p className="rounded-[22px] border-[1.5px] border-dashed border-border px-5 py-8 text-center text-muted-foreground">
             {channel.resources.length ? 'Nothing matches.' : editable ? 'No resources here yet. Add a new one, or one you already have.' : 'No resources here yet.'}
           </p>}
-        </section>
+        </section>}
       </div>
       <aside className="space-y-4">
+        {editable && channel.needs_look && tab !== 'comments' ? <NeedsLookCard count={channel.needs_look} onOpen={() => setTab('comments')} /> : null}
         <AboutCard channel={channel} orgName={orgName} />
       </aside>
     </div>

@@ -218,3 +218,4 @@ async def test_resource_detail_lists_the_plans_that_use_it():
         detail = await library.resource_detail(None, PLAIN, "resource_10", _user(STAFF), db)
         assert detail["used_in"][0]["template_uuid"] == "template_1" and detail["used_in"][0]["steps"] == ["Explore careers"]
         assert detail["can_edit"] is True
+        assert (detail["comment_rule"], detail["hold_links"]) == ("all", True)

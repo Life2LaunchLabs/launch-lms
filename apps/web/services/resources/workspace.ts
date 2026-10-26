@@ -79,6 +79,9 @@ export type ResourceDetail = ResourceRow & {
   can_edit: boolean
   added_by: { first_name?: string; last_name?: string; username?: string } | null
   used_in: Array<Omit<PlanCover, 'thumbnail_image'> & { template_uuid: string; title: string; thumbnail_image: string | null; steps: string[] }>
+  /** The most open rule among its channels, and whether any of them holds comments with links. */
+  comment_rule: ChannelCard['comment_rule']
+  hold_links: boolean
 }
 
 /** Any SWR key under /resources, for revalidating after a change. */
