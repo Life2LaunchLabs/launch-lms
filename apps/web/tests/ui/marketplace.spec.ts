@@ -8,8 +8,9 @@ const orgPath = `/orgs/${fixture.org_slug}`
 const PARTNER_SLUG = 'marketplace-partner-ui'
 
 const discoverTab = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link').filter({ hasText: 'Discover' })
-// Requests from other organizations wait behind a button in the Plans header.
-const requestsButton = (page: Page) => page.getByRole('button', { name: /^\d+ requests? waiting$/ })
+// Requests from other organizations wait in Plans › Requests; the tab's count says how many.
+const requestsTab = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link').filter({ hasText: 'Requests' })
+const requestsCount = (count: number) => new RegExp(`^Requests\\s*${count || ''}$`)
 
 /** Opens Plans › Discover and returns the API base and the bearer header the page uses. */
 async function openMarketplace(page: Page, query = '') {
@@ -29,7 +30,7 @@ test('marketplace.discover: Discover is one page with search', async ({ page }) 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
 })
 
-test('marketplace.requests: a request to use a listed template shows in the Plans header and can be declined', async ({ page }) => {
+test('marketplace.requests: a request to use a listed template shows in Plans › Requests and can be declined', async ({ page }) => {
   const { api, authorization } = await openMarketplace(page)
   const headers = { authorization }
 
@@ -53,17 +54,16 @@ test('marketplace.requests: a request to use a listed template shows in the Plan
   const before = await waiting()
   expect(before).toBeGreaterThan(0)
   await page.reload()
-  await expect(requestsButton(page)).toHaveAccessibleName(`${before} request${before === 1 ? '' : 's'} waiting`)
-  await requestsButton(page).click()
+  await expect(requestsTab(page)).toHaveText(requestsCount(before))
+  await requestsTab(page).click()
+  await expect(page).toHaveURL(/\/admin\/plans\/requests$/)
   const incoming = page.getByTestId('marketplace-incoming')
   const row = incoming.getByTestId('marketplace-request-row').filter({ hasText: 'Marketplace Partner' }).filter({ hasText: template.title })
   await expect(row).toHaveCount(1)
   await row.getByRole('button', { name: 'Decline' }).click()
   await expect(row).toHaveCount(0)
-  // The header's count follows: one fewer waiting (none hides the button).
-  await page.keyboard.press('Escape')
-  if (before === 1) await expect(requestsButton(page)).toHaveCount(0)
-  else await expect(requestsButton(page)).toHaveAccessibleName(`${before - 1} request${before - 1 === 1 ? '' : 's'} waiting`)
+  // The tab's count follows: one fewer waiting (none shows no count).
+  await expect(requestsTab(page)).toHaveText(requestsCount(before - 1))
   expect(await waiting()).toBe(before - 1)
 
   // Leave the template unlisted for the other scenarios.

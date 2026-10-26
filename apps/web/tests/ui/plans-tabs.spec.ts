@@ -21,7 +21,7 @@ test('plans.tabs: Plans opens on the org’s plans, with Plans and Discover firs
   const names = await tabNames(page)
   expect(names.slice(0, 2)).toEqual(['Plans', 'Discover'])
   expect(names).not.toContain('Badges')
-  for (const name of names.slice(2)) expect(['Assignments', 'Requirements']).toContain(name)
+  for (const name of names.slice(2)) expect(['Assignments', 'Requirements', 'Requests']).toContain(name)
   await expect(plansTabs(page).filter({ hasText: 'Plans' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('button', { name: 'Reorder tabs' })).toHaveCount(0)
 
