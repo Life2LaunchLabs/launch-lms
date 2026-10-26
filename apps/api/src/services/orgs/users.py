@@ -27,7 +27,7 @@ from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
 from src.security.access.access import is_staff_role, org_access, require_role_capacity
 from src.security.access.catalog import LIMITS
-from src.security.org_auth import get_user_org, is_org_member, require_org_owner_admin, staff_permissions
+from src.security.org_auth import is_org_member, require_org_owner_admin, staff_permissions
 from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
@@ -761,15 +761,8 @@ async def preview_batch_users(
     )).first()
     if not role:
         raise HTTPException(status_code=400, detail="Role is not available in this organization")
-    if is_staff_role(role):
-        inviter_membership = get_user_org(current_user.id, org.id, db_session)
-        from src.security.superadmin import is_user_superadmin
-        if not is_user_superadmin(current_user.id, db_session) and (
-            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
-        ):
-            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
     from src.services.orgs import staff_setup
-    staff_setup.clean(db_session, int(org.id), int(role.id or invite_request.role_id), invite_request.permissions, invite_request.assignments)
+    staff_setup.clean(db_session, int(org.id), role, current_user.id, invite_request.permissions, invite_request.assignments)
     if invite_request.usergroup_id and invite_request.new_usergroup_name:
         raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
     if invite_request.usergroup_id:
@@ -879,18 +872,9 @@ async def invite_batch_users(
     if not role:
         raise HTTPException(status_code=400, detail="Role is not available in this organization")
 
-    # Only full administrators may grant dashboard-bearing roles. Maintainers can
-    # still invite learners when their normal RBAC permissions allow it.
-    if is_staff_role(role):
-        inviter_membership = get_user_org(current_user.id, org.id, db_session)
-        from src.security.superadmin import is_user_superadmin
-        if not is_user_superadmin(current_user.id, db_session) and (
-            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
-        ):
-            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
-
+    # Only full administrators may grant dashboard-bearing roles (staff_setup.clean checks).
     from src.services.orgs import staff_setup
-    invite_permissions, invite_assignments = staff_setup.clean(db_session, int(org.id), int(role.id or invite_request.role_id), invite_request.permissions, invite_request.assignments)
+    invite_permissions, invite_assignments = staff_setup.clean(db_session, int(org.id), role, current_user.id, invite_request.permissions, invite_request.assignments)
     invite_note = invite_request.note.strip()
 
     if invite_request.usergroup_id and invite_request.new_usergroup_name:

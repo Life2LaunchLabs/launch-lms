@@ -50,7 +50,7 @@ from src.security.org_auth import is_org_admin, require_org_admin, require_org_m
 from src.services.goals import access, plan_issuers, templates
 from src.services.orgs import member_status
 from src.services.goals.assignment_staff import _apply_staff, _collaborators, _drop_staff, require_assignment_manager
-from src.services.goals.assignment_summary import assignment_dict, collaborators_of
+from src.services.goals.assignment_summary import assignment_dict
 from src.services.goals.document import iter_steps
 from src.services.goals.issue import _step_due, issue_goal, stage_schedule
 
@@ -398,24 +398,6 @@ def update(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
         _sync_chats(db, assignment)
     db.commit()
     return assignment_dict(db, assignment)
-
-
-def add_staff(db: Session, assignment: GoalAssignment, user_id: int, role_key: str) -> bool:
-    """Put someone on a running assignment's staff in a role (no-op if they're on it already), and on its learners' goals.
-
-    Used when a staff invitation that names the assignment is accepted; the caller commits.
-    """
-    if _value(assignment.status) == AssignmentStatus.ENDED.value or user_id in set(assignment.staff_user_ids or []):
-        return False
-    collaborators = [*collaborators_of(assignment), {"user_id": user_id, "role_key": role_key}]
-    assignment.collaborators, assignment.staff_user_ids = collaborators, [int(item["user_id"]) for item in collaborators]
-    assignment.update_date = _now()
-    db.add(assignment)
-    db.flush()
-    for goal in db.exec(select(Goal).where(Goal.assignment_id == assignment.id).order_by(col(Goal.id))).all():
-        _apply_staff(db, assignment, goal)
-    _sync_chats(db, assignment)
-    return True
 
 
 def save_schedule(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, payload: AssignmentScheduleSave) -> dict:

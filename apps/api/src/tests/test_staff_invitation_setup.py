@@ -9,6 +9,7 @@ from sqlmodel import select
 from src.db.goal_templates import GoalAssignmentUpdate
 from src.db.goals import GoalAssignment
 from src.db.organization_invitations import InviteAssignment, OrganizationInvitation
+from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.services.goals import access, assignments
 from src.services.orgs import invite_landing, staff_setup
@@ -22,6 +23,10 @@ def _session():
     return db
 
 
+def _role(db, role_id: int) -> Role:
+    return Role(id=role_id, name=str(role_id), org_id=1, rights={"dashboard": {"action_access": role_id in (1, 2)}})
+
+
 def _invitation(db, role_id: int = 2, **values) -> OrganizationInvitation:
     invitation = OrganizationInvitation(invitation_uuid="org_invitation_1", org_id=1, email="coach@example.com", email_normalized="coach@example.com",
                                         role_id=role_id, created_by_user_id=ADMIN, expires_at=datetime.utcnow() + timedelta(days=30), **values)
@@ -33,25 +38,29 @@ def _invitation(db, role_id: int = 2, **values) -> OrganizationInvitation:
 def test_clean_keeps_staff_setup_in_order_and_refuses_what_doesnt_fit():
     with _session() as db:
         uuid = _assign(db, VISIT)["assignment_uuid"]
-        permissions, picked = staff_setup.clean(db, 1, 2, ["review_work", "build_plans"], [
+        permissions, picked = staff_setup.clean(db, 1, _role(db, 2), ADMIN, ["review_work", "build_plans"], [
             InviteAssignment(assignment_uuid=uuid, role_key="comment"), InviteAssignment(assignment_uuid=uuid, role_key="lead")])
         assert permissions == ["build_plans", "review_work"]
         assert picked == [{"assignment_uuid": uuid, "role_key": "comment"}]
         # Admins can do everything; learners get neither.
         for role_id in (1, 4):
             with pytest.raises(HTTPException) as refused:
-                staff_setup.clean(db, 1, role_id, ["review_work"], [])
+                staff_setup.clean(db, 1, _role(db, role_id), ADMIN, ["review_work"], [])
             assert refused.value.status_code == 400
-        assert staff_setup.clean(db, 1, 1, None, []) == (None, [])
+        assert staff_setup.clean(db, 1, _role(db, 1), ADMIN, None, []) == (None, [])
         with pytest.raises(HTTPException) as refused:
-            staff_setup.clean(db, 1, 2, ["fly_planes"], [])
+            staff_setup.clean(db, 1, _role(db, 2), ADMIN, ["fly_planes"], [])
         assert refused.value.status_code == 422
         with pytest.raises(HTTPException) as refused:
-            staff_setup.clean(db, 1, 2, None, [InviteAssignment(assignment_uuid=uuid, role_key="boss")])
+            staff_setup.clean(db, 1, _role(db, 2), ADMIN, None, [InviteAssignment(assignment_uuid=uuid, role_key="boss")])
         assert refused.value.status_code == 422
         with pytest.raises(HTTPException) as refused:
-            staff_setup.clean(db, 2, 2, None, [InviteAssignment(assignment_uuid=uuid)])
+            staff_setup.clean(db, 1, _role(db, 2), ADMIN, None, [InviteAssignment(assignment_uuid="assignment_elsewhere")])
         assert refused.value.status_code == 400
+        # Only admins invite staff.
+        with pytest.raises(HTTPException) as refused:
+            staff_setup.clean(db, 1, _role(db, 2), LEARNER, None, [])
+        assert refused.value.status_code == 403
 
 
 def test_accepting_gives_the_permissions_and_puts_them_on_each_assignment_in_their_role():
