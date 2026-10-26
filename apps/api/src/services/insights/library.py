@@ -24,6 +24,9 @@ TEMPLATES: list[dict] = [
         card("groups", 6, "learner_status", by="group"),
         card("joined", 7, "new_learners", by="time"),
         card("joined_groups", 5, "new_learners", by="group"),
+        card("waiting", 4, "waiting_for_review"),
+        card("turnaround", 4, "review_turnaround"),
+        card("retention", 4, "retention", range="12m"),
     ]},
     {"key": "org.board", "scope": "org", "title": "Board summary", "description": "Totals for a board or funder: who you reached, what they finished, what they earned.", "cards": [
         card("active", 3, "active_learners", range="12m"),
@@ -43,6 +46,16 @@ TEMPLATES: list[dict] = [
         card("status", 5, "learner_status"),
         card("versions", 6, "completion_rate", by="version"),
         card("groups", 6, "completion_rate", by="group"),
+        card("steps", 12, "step_reach", by="step"),
+        card("reach", 7, "plan_reach", by="time", range="12m"),
+        card("orgs", 5, "plan_reach", by="org", range="12m"),
+    ]},
+    {"key": "plan.reviews", "scope": "plan", "title": "Reviews", "description": "What waits for review, how long reviews take, and which steps are sent back.", "cards": [
+        card("waiting", 4, "waiting_for_review"),
+        card("turnaround", 4, "review_turnaround"),
+        card("sent_back", 4, "sent_back_rate"),
+        card("sent_back_steps", 7, "sent_back_rate", by="step"),
+        card("waiting_steps", 5, "waiting_for_review", by="step"),
     ]},
     {"key": "plan.badge", "scope": "plan", "title": "Badge issuing", "description": "How many earned the badge, and how.", "cards": [
         card("badges", 4, "badges_awarded"),
@@ -63,6 +76,8 @@ TEMPLATES: list[dict] = [
     {"key": "group.weekly", "scope": "group", "title": "Weekly check-in", "description": "Who needs a look this week.", "cards": [
         card("status", 6, "learner_status"),
         card("active_days", 6, "active_learners", by="time", range="28d"),
+        card("waiting", 6, "waiting_for_review"),
+        card("turnaround", 6, "review_turnaround", range="28d"),
     ]},
 ]
 
@@ -84,6 +99,14 @@ QUESTIONS: list[dict] = [
     {"key": "joined", "text": "How many new learners joined?", "spec": {"measure": "new_learners", "by": "time"}},
     {"key": "badges_route", "text": "How many badges were awarded, and how?", "spec": {"measure": "badges_awarded", "by": "route"}},
     {"key": "badges_plans", "text": "Which badges are earned most?", "spec": {"measure": "badges_awarded", "by": "plan"}},
+    {"key": "drop_off", "text": "Where do learners drop off?", "spec": {"measure": "step_reach", "by": "step"}},
+    {"key": "sent_back_steps", "text": "Which step is sent back most?", "spec": {"measure": "sent_back_rate", "by": "step"}},
+    {"key": "sent_back_plans", "text": "Which plans are sent back most?", "spec": {"measure": "sent_back_rate", "by": "plan"}},
+    {"key": "review_time", "text": "How long do reviews take?", "spec": {"measure": "review_turnaround", "by": "time"}},
+    {"key": "waiting", "text": "What is waiting for review?", "spec": {"measure": "waiting_for_review", "by": "plan"}},
+    {"key": "retention", "text": "Do learners stay active after joining?", "spec": {"measure": "retention", "by": "group"}},
+    {"key": "issuing_orgs", "text": "Which organizations use this plan?", "spec": {"measure": "plan_reach", "by": "org"}},
+    {"key": "reach_time", "text": "How many learners start this plan, everywhere?", "spec": {"measure": "plan_reach", "by": "time", "compare": "year"}},
     {"key": "finished_weekly", "text": "How many plans are finished each week?", "spec": {"measure": "plans_finished", "by": "time"}},
 ]
 

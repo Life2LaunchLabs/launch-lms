@@ -141,11 +141,25 @@ def ranked(measure: Measure, rows: list[dict], dimension_plural: str) -> str:
         return f"Too few {dimension_plural} have enough to compare yet"
     if len(enough) == 1:
         return f"Only {enough[0]['label']} has enough {measure.base[1]} to compare" if measure.kind in ("rate", "median") else phrase(measure, enough[0]["v"]) + f" in {enough[0]['label']}"
-    best, worst = enough[0], enough[-1]
+    # Rows of a natural-order breakdown (versions, steps) come in their own order, so pick by value.
+    ordered = sorted(enough, key=lambda row: row["v"], reverse=measure.direction != "down")
+    best, worst = ordered[0], ordered[-1]
     if not real_change(measure, {"v": best["v"], "n": max(best.get("n", 0), MIN_N)}, {"v": worst["v"], "n": max(worst.get("n", 0), MIN_N)}):
         return f"All {len(enough)} {dimension_plural} are about the same"
     template = measure.rank or "{a} leads ({av}); {b} trails ({bv})"
     return template.format(a=best["label"], av=fmt(measure, best["v"]), b=worst["label"], bv=fmt(measure, worst["v"]))
+
+
+def funnel(measure: Measure, rows: list[dict]) -> str:
+    """Steps in plan order: where the biggest share of learners stops, when the drop is real."""
+    enough = [row for row in rows if row.get("v") is not None and row.get("n", 0) >= MIN_N]
+    if len(enough) < 2:
+        return too_few(measure, max((row.get("n", 0) for row in rows), default=0)) or f"Too few steps have enough {measure.base[1]} to compare yet"
+    drops = [(before["v"] - after["v"], before, after) for before, after in zip(enough, enough[1:])]
+    drop, before, after = max(drops, key=lambda item: item[0])
+    if drop * 100 < 3:
+        return f"Learners keep going: {fmt(measure, enough[-1]['v'])} reach the last step, {enough[-1]['label']}"
+    return f"The biggest drop is at {after['label']}: {fmt(measure, before['v'])} finish {before['label']}, {fmt(measure, after['v'])} finish {after['label']}"
 
 
 def split(measure: Measure, rows: list[dict]) -> str:

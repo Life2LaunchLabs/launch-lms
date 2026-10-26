@@ -75,7 +75,7 @@ def _kept(ctx: Ctx, spec: CardSpec, measure: Measure, facts: Iterable[Fact]) -> 
     settled = ctx.today - timedelta(days=measure.settle_days) if measure.settle_days else None
     out = []
     for fact in facts:
-        if fact.user_id not in people:
+        if fact.user_id not in people and not measure.cross_org:
             continue
         if kind == "plan" and key not in _values(fact, "plan"):
             continue
@@ -200,8 +200,10 @@ def _grouped(facts: list[Fact], field: str) -> dict[str, list[Fact]]:
     return out
 
 
-def _sorted_keys(measure: Measure, field: str, cells: dict[str, dict]) -> list[str]:
+def _sorted_keys(ctx: Ctx, measure: Measure, field: str, cells: dict[str, dict]) -> list[str]:
     if DIMENSIONS[field].order == "natural":
+        if DIMENSIONS[field].sort:
+            return DIMENSIONS[field].sort(ctx, list(cells))  # type: ignore[misc]
         order = NATURAL_ORDER.get(field)
         return sorted(cells, key=lambda key: order.index(key) if order and key in order else len(order or []))
     reverse = measure.direction != "down"
@@ -218,7 +220,7 @@ def _labels(ctx: Ctx, field: str, keys: list[str]) -> dict[str, str]:
 def _rows(ctx: Ctx, measure: Measure, field: str, current: list[Fact], previous: list[Fact], extra: dict | None = None) -> tuple[list[dict], dict | None]:
     groups, before = _grouped(current, field), _grouped(previous, field)
     cells = {key: _cell(measure, facts) for key, facts in groups.items()}
-    keys = _sorted_keys(measure, field, cells)
+    keys = _sorted_keys(ctx, measure, field, cells)
     shown, rest = keys[:sentences.TOP_ROWS], keys[sentences.TOP_ROWS:]
     names = _labels(ctx, field, shown)
     links_to = DIMENSIONS[field].links_to
@@ -275,7 +277,8 @@ def run(ctx: Ctx, spec: CardSpec, inherit=None) -> dict:
         headline = sentences.series(measure, result["series"]["points"], value, prior, against, compare if isinstance(compare, str) else "", periods)
     elif shape == "ranked":
         result["rows"], result["more"] = _rows(ctx, measure, spec.by, current, previous)  # type: ignore[arg-type]
-        headline = sentences.ranked(measure, result["rows"], DIMENSIONS[spec.by].plural)  # type: ignore[index]
+        headline = (sentences.funnel(measure, result["rows"]) if measure.funnel and spec.by == "step"
+                    else sentences.ranked(measure, result["rows"], DIMENSIONS[spec.by].plural))  # type: ignore[index]
     elif shape == "split":
         result["rows"], _ = _rows(ctx, measure, measure.implicit_by, current, [])  # type: ignore[arg-type]
         headline = sentences.split(measure, result["rows"])
@@ -284,7 +287,7 @@ def run(ctx: Ctx, spec: CardSpec, inherit=None) -> dict:
         outer = spec.by
         result["rows"], result["more"] = _rows(ctx, measure, outer, current, previous)  # type: ignore[arg-type]
         col_cells = {key: _cell(measure, facts) for key, facts in _grouped(current, inner).items()}  # type: ignore[arg-type]
-        col_keys = _sorted_keys(measure, inner, col_cells)[:sentences.TOP_ROWS]  # type: ignore[arg-type]
+        col_keys = _sorted_keys(ctx, measure, inner, col_cells)[:sentences.TOP_ROWS]  # type: ignore[arg-type]
         col_names = _labels(ctx, inner, col_keys)  # type: ignore[arg-type]
         result["columns"] = [{"key": key, "label": col_names.get(key, "Unknown")} for key in col_keys]
         columns = len(col_keys)

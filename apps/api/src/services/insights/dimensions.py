@@ -11,7 +11,8 @@ from dataclasses import dataclass
 
 from sqlmodel import col, select
 
-from src.db.goals import GoalTemplate, GoalTemplateVersion
+from src.db.goals import Goal, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion
+from src.db.organizations import Organization
 from src.db.usergroups import UserGroup
 from src.services.insights.context import Ctx
 
@@ -31,6 +32,10 @@ class Dimension:
     # A row of this dimension opens that object's dashboard.
     links_to: str | None = None
     labels: Callable[[Ctx, list[str]], dict[str, str]] | None = None
+    # For "natural" order: the keys in their own order (steps in plan order); else NATURAL_ORDER or the keys sorted.
+    sort: Callable[[Ctx, list[str]], list[str]] | None = None
+    # The dashboards it makes sense on (steps belong to one plan); None for every scope.
+    scopes: tuple[str, ...] | None = None
 
 
 def _plans(ctx: Ctx, keys: list[str]) -> dict[str, str]:
@@ -49,6 +54,35 @@ def _versions(ctx: Ctx, keys: list[str]) -> dict[str, str]:
     return {uuid: f"v{semver or number}" for uuid, semver, number in rows}
 
 
+def _plan_steps(ctx: Ctx) -> dict[str, tuple[tuple[int, int], str]]:
+    """The scope plan's steps by template key: (stage position, step position) and the latest title."""
+    def load() -> dict[str, tuple[tuple[int, int], str]]:
+        rows = ctx.db.exec(select(GoalStep.template_key, GoalStep.title, GoalStep.position, GoalStage.position, GoalStep.id)
+                           .join(Goal, Goal.id == GoalStep.goal_id).join(GoalStage, GoalStage.id == GoalStep.stage_id, isouter=True)
+                           .where(Goal.template_id == ctx.scope.id, col(GoalStep.template_key).is_not(None))).all() if ctx.scope.kind == "plan" else []
+        out: dict[str, tuple[tuple[int, int], str, int]] = {}
+        for key, title, position, stage, step_id in rows:
+            if key not in out or step_id > out[key][2]:
+                out[key] = ((stage or 0, position or 0), title, step_id)
+        return {key: (place, title) for key, (place, title, _) in out.items()}
+    return ctx.once("plan_steps", load)
+
+
+def _steps(ctx: Ctx, keys: list[str]) -> dict[str, str]:
+    steps = _plan_steps(ctx)
+    return {key: steps[key][1] for key in keys if key in steps}
+
+
+def _step_order(ctx: Ctx, keys: list[str]) -> list[str]:
+    steps = _plan_steps(ctx)
+    return sorted(keys, key=lambda key: steps[key][0] if key in steps else (10**6, 0))
+
+
+def _orgs(ctx: Ctx, keys: list[str]) -> dict[str, str]:
+    ids = [int(key) for key in keys if key.isdigit()]
+    return {str(org_id): name for org_id, name in ctx.db.exec(select(Organization.id, Organization.name).where(col(Organization.id).in_(ids))).all()} if ids else {}
+
+
 def _fixed(labels: dict[str, str]) -> Callable[[Ctx, list[str]], dict[str, str]]:
     return lambda ctx, keys: labels
 
@@ -60,6 +94,8 @@ DIMENSIONS: dict[str, Dimension] = {dimension.key: dimension for dimension in (
     Dimension("version", "Version", "versions", order="natural", labels=_versions),
     Dimension("status", "Status", "statuses", order="natural", labels=_fixed(STATUS_LABELS)),
     Dimension("route", "How it was earned", "routes", labels=_fixed(ROUTE_LABELS)),
+    Dimension("step", "Step", "steps", order="natural", labels=_steps, sort=_step_order, scopes=("plan",)),
+    Dimension("org", "Organization", "organizations", labels=_orgs, scopes=("plan",)),
 )}
 
 # The order fixed-list dimensions show in.

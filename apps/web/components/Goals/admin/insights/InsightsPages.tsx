@@ -3,8 +3,9 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { BarChart3, ClipboardCheck, ListTree, MessageCircle, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
+import InsightsShell from '@components/Insights/InsightsShell'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -15,7 +16,6 @@ import GroupReportPrint from './GroupReportPrint'
 import GroupRequirementsGrid from './GroupRequirementsGrid'
 import { RequirementFrameworkDetail } from './RequirementFrameworkEditor'
 import RequirementsExplorer from './RequirementsExplorer'
-import { insightsRoutes } from './reportRoutes'
 
 type InsightsView = 'reports' | 'engagement' | 'coverage' | 'evidence'
 
@@ -25,19 +25,11 @@ function useOrgAndToken() {
   return { orgId: Number(org?.id), token: session?.data?.tokens?.access_token }
 }
 
-/**
- * Insights: reports by group (print or send them) and, until they move
- * into Plans → Requirements, how templates cover requirement frameworks and each group's learner evidence.
- */
-function InsightsTabs({ orgslug, view, children }: { orgslug: string; view: InsightsView; children: React.ReactNode }) {
-  const tabs = [
-    { id: 'reports', label: 'Reports', icon: <BarChart3 size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insights()) },
-    // Engagement isn't designed yet, so it gets no tab until it is (its page stays for old links).
-    ...(view === 'engagement' ? [{ id: 'engagement', label: 'Engagement', icon: <MessageCircle size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.engagement()) }] : []),
-    { id: 'coverage', label: 'Coverage', icon: <ListTree size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.coverage()) },
-    { id: 'evidence', label: 'Learner evidence', icon: <ClipboardCheck size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insightsEvidence()) },
-  ]
-  return <AdminTabPage tab="insights" variant="underline" tabs={tabs} activeTab={view}>{children}</AdminTabPage>
+/** The group reports, coverage and evidence pages sit in the Insights rail beside the dashboards. */
+function InsightsTabs({ view, children }: { orgslug?: string; view: InsightsView; children: React.ReactNode }) {
+  return <InsightsShell place={view === 'engagement' ? 'reports' : view}>
+    <div className="-mx-4 overflow-hidden rounded-[22px] border border-border bg-card sm:mx-0">{children}</div>
+  </InsightsShell>
 }
 
 /** Reports by group: plans and badges, who's behind and what's left, optional frameworks; print or send. */

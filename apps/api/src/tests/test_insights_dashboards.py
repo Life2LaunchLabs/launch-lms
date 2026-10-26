@@ -62,7 +62,7 @@ def test_deleting_every_starter_does_not_bring_them_back(db):
 
 def test_personal_dashboards_are_only_the_owners(db):
     made = dashboards.create_dashboard(db, _user(ANA), 1, scope="group", template="group.weekly")
-    assert made["title"] == "Weekly check-in" and made["mine"] and [card["key"] for card in made["document"]["cards"]] == ["status", "active_days"]
+    assert made["title"] == "Weekly check-in" and made["mine"] and [card["key"] for card in made["document"]["cards"]] == ["status", "active_days", "waiting", "turnaround"]
     assert made["dashboard_uuid"] in {item["dashboard_uuid"] for item in dashboards.list_dashboards(db, _user(ANA), 1, "group")}
     assert made["dashboard_uuid"] not in {item["dashboard_uuid"] for item in dashboards.list_dashboards(db, _user(ADMIN), 1)}
     assert _codes(dashboards.get_dashboard, db, _user(REPORTS), 1, made["dashboard_uuid"]) == 404

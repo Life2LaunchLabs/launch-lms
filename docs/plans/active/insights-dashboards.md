@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I2 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I5 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -46,6 +46,36 @@ soft delete. `services/insights/dashboards.py` holds the rules:
 API: `GET /library`, `GET /objects` (plans or groups for the switcher), `GET|POST /dashboards`, `GET|PUT|DELETE /dashboards/{uuid}`,
 `POST /dashboards/{uuid}/duplicate`, all with `org_id`.
 
+## Insights page (I3)
+
+`components/Insights/`: a rail (the org's dashboards; Plans and Groups, one at a time; then group reports,
+requirement coverage and learner evidence), and the open dashboard. A plan or group dashboard has a switcher
+for which plan or group, and tabs for the dashboards of that kind. Cards run in one request per dashboard
+and date range. Lines and columns use Recharts; ranked bars, splits and heatmaps are HTML so every value is
+a button that opens the learners behind it, and a plan or group row links to its own dashboard. Chart
+colors are tokens in `insights.css`, with their own dark steps.
+
+Routes: `/admin/insights?d=`, `/admin/insights/plan/[key]?d=`, `/admin/insights/group/[key]?d=`. Group
+reports moved to `/admin/insights/reports`; old `?group=` links redirect.
+
+## Editing (I4)
+
+Edit turns the dashboard into a draft: cards move, resize (small, medium, large, wide), change or go, and
+Add a card opens the card editor on the question library or a blank card. The editor maps each choice to one
+spec field (show, by, and by, who, dates, compare, size, headline, chart) and re-runs a live preview, so
+server validation shows on the card itself. Done saves the whole document at the opened revision; a stale
+revision keeps the draft and says so, and a viewer who can't save over the dashboard gets their own copy.
+
+## More measures (I5)
+
+`measures_steps.py` adds step reach (plan dashboards; by step it reads as a funnel and the headline names the
+biggest drop), sent back, review turnaround (hours from hand-in to decision, from `PlanActivity`), waiting
+for review (today), retention (active again 30 to 60 days after joining) and reach (learners at every
+organization who started the plan; totals and organization names only, never a list of people). Steps match
+across learners by template key and sort in plan order; the step and organization breakdowns only fit plan
+dashboards. Ranked headlines now pick leader and laggard by value, so versions and steps read right. The
+plan page has an Insights button for its owner.
+
 ## Acceptance
 
 - Every measure has exact numbers on the `test_insights` fixture, and a staff viewer never counts a learner
@@ -53,6 +83,8 @@ API: `GET /library`, `GET /objects` (plans or groups for the switcher), `GET|POS
 - Changes are called only when real (thresholds in `sentences.real_change`); too few rows say so.
 - A bad spec on a dashboard returns its errors without failing the other cards.
 - Every template and question validates on its scope, and every starter runs without errors.
+- `tests/ui/insights.spec.ts`: the org overview runs its cards, opens who is behind a number, changes dates; a
+  group dashboard switches groups; New dashboard makes one from a template.
 
 ## Sequence
 

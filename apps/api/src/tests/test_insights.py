@@ -15,7 +15,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from src.db.badges import BadgeAward
 from src.db.conversations import Conversation, ConversationMessage
 from src.db.goal_sharing import PlanActivity
-from src.db.goals import Goal, GoalAssignment, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
+from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.school import UserGroupStaff
@@ -44,7 +44,7 @@ def db() -> Session:
     engine_ = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine_, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__, UserGroupStaff.__table__,
-        GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStep.__table__, StepProgress.__table__,
+        GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__,
         PlanActivity.__table__, BadgeAward.__table__, Conversation.__table__, ConversationMessage.__table__,
     ])
     session = Session(engine_)
@@ -189,7 +189,8 @@ def test_staff_without_see_reports_count_only_their_groups(db):
 @pytest.mark.parametrize("key", list(MEASURES))
 def test_no_measure_counts_anyone_outside_the_viewers_learners(db, key):
     measure = MEASURES[key]
-    ctx = engine.context(db, _user(ANA), 1, today=TODAY)
+    scope = measure.scopes[0]
+    ctx = engine.context(db, _user(ANA), 1, scope, CL if scope == "plan" else None, today=TODAY)
     spec = CardSpec(measure=key, range="all")
     drilled = engine.drill(ctx, spec, "all") if measure.drill else {"people": []}
     assert {person["id"] for person in drilled["people"]} <= set(FALL)

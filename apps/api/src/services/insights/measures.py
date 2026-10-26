@@ -66,6 +66,10 @@ class Measure:
     drill: bool = True
     # The breakdown always applied (a snapshot's statuses), on top of any the card asks for.
     implicit_by: str | None = None
+    # Broken down by step, rows read as a funnel: the headline names the biggest drop.
+    funnel: bool = False
+    # Counts learners at every organization (a plan's reach): totals only, never the viewer's population or names.
+    cross_org: bool = False
     keywords: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -289,3 +293,8 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
         keywords=("credentials", "issued"),
     ),
 )}
+
+# Steps, reviews, retention and reach live beside these; importing them here keeps one registry.
+from src.services.insights.measures_steps import MEASURES as _MORE  # noqa: E402
+
+MEASURES.update(_MORE)
