@@ -6,12 +6,9 @@ from src.core.events.database import get_db_session
 from src.db.resources import (
     ResourceChannelCreate,
     ResourceChannelUpdate,
-    ResourceCommentCreate,
-    ResourceCommentUpdate,
     ResourceCreate,
     ResourceNoteBlockCreate,
     ResourceNoteBlockUpdate,
-    ResourceReviewCreate,
     ResourceTagCreate,
     ResourceTagUpdate,
     ResourceUpdate,
@@ -19,20 +16,16 @@ from src.db.resources import (
     UserSavedResourceUpdate,
 )
 from src.db.users import PublicUser
-from src.security.access.access import require_feature
 from src.security.auth import get_current_user
-from src.security.org_auth import require_org_role_permission
+from src.security.org_auth import require_org_admin
 from src.services.resources import (
     add_resource_to_channel,
     create_channel,
-    create_comment,
     create_note_block,
-    create_review,
     create_resource,
     create_tag,
     create_user_channel,
     delete_channel,
-    delete_comment,
     delete_note_block,
     delete_resource,
     delete_tag,
@@ -41,7 +34,6 @@ from src.services.resources import (
     import_resources_csv,
     list_channel_resources,
     list_channels,
-    list_comments,
     list_note_blocks,
     list_resources,
     list_tags,
@@ -49,7 +41,6 @@ from src.services.resources import (
     save_resource_for_user,
     unsave_resource_for_user,
     update_channel,
-    update_comment,
     update_note_block,
     update_resource,
     update_tag,
@@ -67,8 +58,8 @@ from src.services.search.resource_search import (
 )
 
 router = APIRouter()
-# Authoring resources is the resource partner program; reading, saving and notes stay open to members.
-PUBLISHING = [Depends(require_feature("resource_publishing"))]
+# Any staff member adds the resources their org uses; listing a channel in the Library is the resource
+# partner program (checked in update_channel).
 
 
 class LinkResourceRequest(BaseModel):
@@ -97,7 +88,7 @@ async def api_list_tags(
     return await list_tags(request, org_id, current_user, db_session)
 
 
-@router.post("/org/{org_id}/tags", dependencies=PUBLISHING)
+@router.post("/org/{org_id}/tags")
 async def api_create_tag(
     request: Request,
     org_id: int,
@@ -108,7 +99,7 @@ async def api_create_tag(
     return await create_tag(request, org_id, tag_data, current_user, db_session)
 
 
-@router.put("/tags/{tag_uuid}", dependencies=PUBLISHING)
+@router.put("/tags/{tag_uuid}")
 async def api_update_tag(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -122,7 +113,7 @@ async def api_update_tag(
     return tag
 
 
-@router.delete("/tags/{tag_uuid}", dependencies=PUBLISHING)
+@router.delete("/tags/{tag_uuid}")
 async def api_delete_tag(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -135,7 +126,7 @@ async def api_delete_tag(
     return result
 
 
-@router.post("/channels", dependencies=PUBLISHING)
+@router.post("/channels")
 async def api_create_channel(
     request: Request,
     org_id: int,
@@ -146,7 +137,7 @@ async def api_create_channel(
     return await create_channel(request, org_id, channel_data, current_user, db_session)
 
 
-@router.put("/channels/{channel_uuid}", dependencies=PUBLISHING)
+@router.put("/channels/{channel_uuid}")
 async def api_update_channel(
     request: Request,
     channel_uuid: str,
@@ -157,7 +148,7 @@ async def api_update_channel(
     return await update_channel(request, channel_uuid, channel_data, current_user, db_session)
 
 
-@router.delete("/channels/{channel_uuid}", dependencies=PUBLISHING)
+@router.delete("/channels/{channel_uuid}")
 async def api_delete_channel(
     request: Request,
     channel_uuid: str,
@@ -167,7 +158,7 @@ async def api_delete_channel(
     return await delete_channel(request, channel_uuid, current_user, db_session)
 
 
-@router.put("/channels/{channel_uuid}/thumbnail", dependencies=PUBLISHING)
+@router.put("/channels/{channel_uuid}/thumbnail")
 async def api_upload_channel_thumbnail(
     request: Request,
     channel_uuid: str,
@@ -235,23 +226,23 @@ async def api_resource_search_index_status(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_update")
+    require_org_admin(current_user.id, org_id, db_session)
     return resource_search_index_status(org_id, db_session)
 
 
-@router.post("/org/{org_id}/search-index/backfill", status_code=202, dependencies=PUBLISHING)
+@router.post("/org/{org_id}/search-index/backfill", status_code=202)
 async def api_backfill_resource_search_index(
     org_id: int,
     background_tasks: BackgroundTasks,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_update")
+    require_org_admin(current_user.id, org_id, db_session)
     background_tasks.add_task(backfill_resource_search_documents, org_id)
     return {"detail": "Resource search backfill queued", **resource_search_index_status(org_id, db_session)}
 
 
-@router.post("/", dependencies=PUBLISHING)
+@router.post("/")
 async def api_create_resource(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -270,14 +261,13 @@ async def api_create_resource(
 async def api_get_resource(
     request: Request,
     resource_uuid: str,
-    include_private: bool = False,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await get_resource(request, resource_uuid, current_user, db_session, include_private=include_private)
+    return await get_resource(request, resource_uuid, current_user, db_session)
 
 
-@router.put("/{resource_uuid}", dependencies=PUBLISHING)
+@router.put("/{resource_uuid}")
 async def api_update_resource(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -291,7 +281,7 @@ async def api_update_resource(
     return resource
 
 
-@router.delete("/{resource_uuid}", dependencies=PUBLISHING)
+@router.delete("/{resource_uuid}")
 async def api_delete_resource(
     request: Request,
     resource_uuid: str,
@@ -301,7 +291,7 @@ async def api_delete_resource(
     return await delete_resource(request, resource_uuid, current_user, db_session)
 
 
-@router.put("/{resource_uuid}/thumbnail", dependencies=PUBLISHING)
+@router.put("/{resource_uuid}/thumbnail")
 async def api_upload_resource_thumbnail(
     request: Request,
     resource_uuid: str,
@@ -318,14 +308,13 @@ async def api_upload_resource_thumbnail(
 async def api_list_channel_resources(
     request: Request,
     channel_uuid: str,
-    include_private: bool = False,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await list_channel_resources(request, channel_uuid, current_user, db_session, include_private=include_private)
+    return await list_channel_resources(request, channel_uuid, current_user, db_session)
 
 
-@router.post("/channels/{channel_uuid}/resources", dependencies=PUBLISHING)
+@router.post("/channels/{channel_uuid}/resources")
 async def api_add_resource_to_channel(
     request: Request,
     channel_uuid: str,
@@ -336,7 +325,7 @@ async def api_add_resource_to_channel(
     return await add_resource_to_channel(request, channel_uuid, link_data.resource_uuid, current_user, db_session, sort_order=link_data.sort_order)
 
 
-@router.delete("/channels/{channel_uuid}/resources/{resource_uuid}", dependencies=PUBLISHING)
+@router.delete("/channels/{channel_uuid}/resources/{resource_uuid}")
 async def api_remove_resource_from_channel(
     request: Request,
     channel_uuid: str,
@@ -468,91 +457,7 @@ async def api_delete_note_block(
     return await delete_note_block(request, note_uuid, current_user, db_session)
 
 
-@router.get("/{resource_uuid}/reviews")
-async def api_list_reviews(
-    request: Request,
-    resource_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await list_comments(request, resource_uuid, current_user, db_session)
-
-
-@router.post("/{resource_uuid}/reviews")
-async def api_create_review(
-    request: Request,
-    resource_uuid: str,
-    review_data: ResourceReviewCreate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await create_review(request, resource_uuid, review_data, current_user, db_session)
-
-
-@router.put("/reviews/{comment_uuid}")
-async def api_update_review(
-    request: Request,
-    comment_uuid: str,
-    review_data: ResourceCommentUpdate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await update_comment(request, comment_uuid, review_data, current_user, db_session)
-
-
-@router.delete("/reviews/{comment_uuid}")
-async def api_delete_review(
-    request: Request,
-    comment_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await delete_comment(request, comment_uuid, current_user, db_session)
-
-
-@router.get("/{resource_uuid}/comments")
-async def api_list_comments(
-    request: Request,
-    resource_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await list_comments(request, resource_uuid, current_user, db_session)
-
-
-@router.post("/{resource_uuid}/comments")
-async def api_create_comment(
-    request: Request,
-    resource_uuid: str,
-    comment_data: ResourceCommentCreate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await create_comment(request, resource_uuid, comment_data, current_user, db_session)
-
-
-@router.put("/comments/{comment_uuid}")
-async def api_update_comment(
-    request: Request,
-    comment_uuid: str,
-    comment_data: ResourceCommentUpdate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await update_comment(request, comment_uuid, comment_data, current_user, db_session)
-
-
-@router.delete("/comments/{comment_uuid}")
-async def api_delete_comment(
-    request: Request,
-    comment_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return await delete_comment(request, comment_uuid, current_user, db_session)
-
-
-@router.post("/org/{org_id}/import", dependencies=PUBLISHING)
+@router.post("/org/{org_id}/import")
 async def api_import_resources_csv(
     request: Request,
     background_tasks: BackgroundTasks,

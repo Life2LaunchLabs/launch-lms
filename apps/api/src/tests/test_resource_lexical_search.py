@@ -7,6 +7,7 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.organizations import Organization
+from src.db.resource_library import OrgSavedChannel, OrgSavedResource
 from src.db.resources import (
     Resource,
     ResourceChannel,
@@ -106,7 +107,7 @@ async def test_resource_service_ranks_only_visible_candidates_before_pagination(
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, Resource.__table__, ResourceChannel.__table__, ResourceChannelResource.__table__,
-        ResourceTag.__table__, ResourceTagLink.__table__,
+        ResourceTag.__table__, ResourceTagLink.__table__, OrgSavedChannel.__table__, OrgSavedResource.__table__,
         PersistentResourceSearchDocument.__table__,
     ])
     with Session(engine) as db:
@@ -114,8 +115,8 @@ async def test_resource_service_ranks_only_visible_candidates_before_pagination(
         visible = Resource(id=1, org_id=1, resource_uuid="visible", title="Myers-Briggs Personality Assessment", resource_type="assessment", external_url="https://example.com/visible", creation_date="2", update_date="2")
         fallback = Resource(id=2, org_id=1, resource_uuid="fallback", title="Personality strengths guide", resource_type="guide", external_url="https://example.com/fallback", creation_date="1", update_date="1")
         hidden_exact = Resource(id=3, org_id=1, resource_uuid="hidden", title="Personality quiz", resource_type="assessment", external_url="https://example.com/hidden", creation_date="3", update_date="3")
-        public_channel = ResourceChannel(id=1, org_id=1, channel_uuid="public", name="Public", public=True)
-        private_channel = ResourceChannel(id=2, org_id=1, channel_uuid="private", name="Private", public=False)
+        public_channel = ResourceChannel(id=1, org_id=1, channel_uuid="public", name="Public", audience="org")
+        private_channel = ResourceChannel(id=2, org_id=1, channel_uuid="private", name="Private", audience="staff")
         db.add_all([visible, fallback, hidden_exact, public_channel, private_channel])
         db.add_all([
             ResourceChannelResource(channel_id=1, resource_id=1),
@@ -124,7 +125,7 @@ async def test_resource_service_ranks_only_visible_candidates_before_pagination(
         ])
         db.commit()
 
-        monkeypatch.setattr(resource_service, "_channel_is_accessible", lambda channel, *_args: channel.public)
+        monkeypatch.setattr(resource_service, "_channel_is_accessible", lambda channel, *_args: channel.audience == "org")
         monkeypatch.setattr(resource_service, "_serialize_resource", lambda resource, *_args: {"resource_uuid": resource.resource_uuid})
         results = await resource_service.list_resources(
             SimpleNamespace(), 1, SimpleNamespace(id=7), db,

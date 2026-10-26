@@ -153,7 +153,7 @@ function ResourceChannelGeneralTab({
 }) {
   const [name, setName] = useState(channel.name)
   const [description, setDescription] = useState(channel.description || '')
-  const [isPublic, setIsPublic] = useState(channel.public)
+  const [isPublic, setIsPublic] = useState(channel.audience === 'org')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async () => {
@@ -166,7 +166,7 @@ function ResourceChannelGeneralTab({
         {
           name: name.trim(),
           description: description.trim() || null,
-          public: isPublic,
+          audience: isPublic ? 'org' : 'groups',
         },
         accessToken
       )
@@ -363,7 +363,7 @@ function ResourceChannelAccessTab({
     try {
       const result = await updateResourceChannel(
         channel.channel_uuid,
-        { public: value },
+        { audience: value ? 'org' : 'groups' },
         accessToken
       )
       if (result.success) {
@@ -386,7 +386,7 @@ function ResourceChannelAccessTab({
     try {
       const result = await updateResourceChannel(
         channel.channel_uuid,
-        { shared: value },
+        { listed: value },
         accessToken
       )
       if (result.success) {
@@ -441,7 +441,7 @@ function ResourceChannelAccessTab({
             dialogTitle="Make Channel Public?"
             dialogTrigger={
               <div className="h-[200px] w-full cursor-pointer rounded-lg bg-slate-100 transition-all hover:bg-slate-200">
-                {channel.public && (
+                {channel.audience === 'org' && (
                   <div className="absolute mx-3 my-3 w-fit rounded-lg bg-green-200 px-3 py-1 text-sm font-bold text-green-600">
                     Active
                   </div>
@@ -465,7 +465,7 @@ function ResourceChannelAccessTab({
             dialogTitle="Make Channel Restricted?"
             dialogTrigger={
               <div className="h-[200px] w-full cursor-pointer rounded-lg bg-slate-100 transition-all hover:bg-slate-200">
-                {!channel.public && (
+                {channel.audience !== 'org' && (
                   <div className="absolute mx-3 my-3 w-fit rounded-lg bg-green-200 px-3 py-1 text-sm font-bold text-green-600">
                     Active
                   </div>
@@ -484,7 +484,7 @@ function ResourceChannelAccessTab({
           />
         </div>
 
-        {!channel.public && (
+        {channel.audience !== 'org' && (
           <>
             <div className="mb-3 flex flex-col rounded-md bg-gray-50 px-3 py-3 sm:px-5">
               <h1 className="text-lg font-bold text-gray-800 sm:text-xl">Groups</h1>
@@ -543,11 +543,11 @@ function ResourceChannelAccessTab({
             <label className="inline-flex items-center gap-3">
               <input
                 type="checkbox"
-                checked={channel.shared}
+                checked={channel.listed}
                 onChange={(e) => handleSetShared(e.target.checked)}
               />
               <span className="text-sm font-medium text-slate-700">
-                {channel.shared ? 'Enabled' : 'Disabled'}
+                {channel.listed ? 'Enabled' : 'Disabled'}
               </span>
             </label>
           </div>

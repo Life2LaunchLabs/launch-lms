@@ -27,7 +27,7 @@ describe('the schedule', () => {
   })
 
   test('a schedule needs an end, stages in order and steps due after they start', () => {
-    const scheduled = { ...defaultSchedule(document, '2026-10-26'), mode: 'sched' as const }
+    const scheduled = { ...defaultSchedule(document, '2035-10-29'), mode: 'sched' as const }
     expect(scheduleProblem(scheduled)).toBe(null)
     expect(scheduleProblem({ ...scheduled, end: '' })).toBe('A schedule needs an end date.')
     expect(scheduleProblem({ ...scheduled, starts: ['2026-10-26', '2026-10-20'] })).toBe('Stages have to start in order.')
@@ -117,10 +117,10 @@ describe('the steps', () => {
   })
 
   test('Review lists the dates, staff and message', () => {
-    const schedule = { ...defaultSchedule(document, '2026-10-26'), mode: 'sched' as const }
+    const schedule = { ...defaultSchedule(document, '2035-10-29'), mode: 'sched' as const }
     const html = renderToStaticMarkup(<ReviewStep template={{ template_uuid: 't1', title: 'College & Career Launch', published_version: 3 } as any} document={document}
       picks={[{ kind: 'group', id: 4, name: 'Seniors', count: 20 }]} schedule={schedule} staff={[me]} welcome="See you Monday" goTo={() => undefined} />)
-    expect(html).toContain('Monday, Oct 26')
+    expect(html).toContain('Monday, Oct 29')
     expect(html).toContain('Apply')
     expect(html).toContain('Henry Ker')
     expect(html).toContain('See you Monday')

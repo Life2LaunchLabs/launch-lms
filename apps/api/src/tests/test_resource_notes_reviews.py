@@ -9,8 +9,11 @@ from migrations.versions.g4h5i6j7k8l9_add_resource_notes_and_review_ratings impo
 )
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.organizations import Organization
+from src.db.resource_library import ResourceCommentReport
 from src.db.resources import (
     Resource,
+    ResourceChannel,
+    ResourceChannelResource,
     ResourceComment,
     ResourceNoteBlock,
     ResourceNoteBlockCreate,
@@ -21,7 +24,9 @@ from src.db.resources import (
     UserSavedResourceChannel,
     UserSavedResourceUpdate,
 )
+from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
+from src.services import resource_comments
 from src.services import resources as resource_service
 
 
@@ -41,6 +46,10 @@ def _session() -> Session:
             MediaAsset.__table__,
             ResourceNoteBlock.__table__,
             ResourceComment.__table__,
+            ResourceCommentReport.__table__,
+            ResourceChannel.__table__,
+            ResourceChannelResource.__table__,
+            UserOrganization.__table__,
         ],
     )
     return Session(engine)
@@ -275,6 +284,9 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
 
     with _session() as db:
         resource, owner, _ = _seed(db)
+        db.add(ResourceChannel(id=1, org_id=1, channel_uuid="channel-1", name="Guides", comment_rule="all", hold_links=True))
+        db.add(ResourceChannelResource(channel_id=1, resource_id=resource.id))
+        db.commit()
         await resource_service.get_resource(None, resource.resource_uuid, _public(owner), db)
         assert db.exec(
             select(UserSavedResource).where(
@@ -294,14 +306,14 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
         db.add(legacy)
         db.commit()
 
-        review = await resource_service.create_review(
+        review = await resource_comments.create_review(
             None,
             resource.resource_uuid,
             ResourceReviewCreate(content="Very useful", rating=5),
             _public(owner),
             db,
         )
-        visible = await resource_service.list_comments(None, resource.resource_uuid, _public(owner), db)
+        visible = await resource_comments.list_comments(None, resource.resource_uuid, _public(owner), db)
         membership = db.exec(
             select(UserSavedResource).where(
                 UserSavedResource.user_id == owner.id,
@@ -313,7 +325,7 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
         assert membership is not None
         assert [item["rating"] for item in visible] == [None, 5]
         with pytest.raises(HTTPException) as exc:
-            await resource_service.create_review(
+            await resource_comments.create_review(
                 None,
                 resource.resource_uuid,
                 ResourceReviewCreate(content="A second review", rating=4),

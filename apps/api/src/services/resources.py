@@ -12,12 +12,14 @@ from urllib.request import urlopen
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile
-from sqlalchemy import func, or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from sqlmodel import Session, select
 from src.db.media import MediaAsset, MediaOwnerType, MediaType
 from src.db.organizations import Organization
+from src.db.resource_library import OrgSavedChannel, OrgSavedResource
 from src.db.resources import (
+    ChannelAudience,
+    CommentStatus,
     Resource,
     ResourceChannel,
     ResourceChannelCreate,
@@ -25,16 +27,12 @@ from src.db.resources import (
     ResourceChannelResource,
     ResourceChannelUpdate,
     ResourceComment,
-    ResourceCommentCreate,
-    ResourceCommentReadWithAuthor,
-    ResourceCommentUpdate,
     ResourceCreate,
     ResourceNoteBlock,
     ResourceNoteBlockCreate,
     ResourceNoteBlockRead,
     ResourceNoteBlockUpdate,
     ResourceRead,
-    ResourceReviewCreate,
     ResourceTag,
     ResourceTagCreate,
     ResourceTagLink,
@@ -50,12 +48,12 @@ from src.db.resources import (
     UserSavedResourceRead,
     UserSavedResourceUpdate,
 )
-from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
-from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
-from src.security.org_auth import require_org_membership, require_org_role_permission
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
+from src.security.access.access import ensure_feature
+from src.security.org_auth import is_org_admin, is_org_member, require_org_admin, require_org_membership
+from src.security.superadmin import is_user_superadmin
 from src.services.shared_content import owner_org_payload
 from src.services.analytics.analytics import track
 from src.services.analytics.events import RESOURCE_OPENED, RESOURCE_SAVED, RESOURCE_SEARCH_QUERY
@@ -200,43 +198,105 @@ def _serialize_user_channel(channel: UserResourceChannel, db_session: Session, u
     }
 
 
+def _is_staff(current_user, org_id: int, db_session: Session) -> bool:
+    """Staff (or admins) of the organization, and superadmins: they see and edit everything it owns."""
+    return not _user_is_anonymous(current_user) and is_org_admin(current_user.id, org_id, db_session)
+
+
+def _require_staff(current_user, org_id: int, db_session: Session) -> None:
+    if _user_is_anonymous(current_user):
+        raise HTTPException(status_code=401, detail="Sign in to change resources")
+    require_org_admin(current_user.id, org_id, db_session)
+
+
 def _channel_is_accessible(channel: ResourceChannel, db_session: Session, current_user) -> bool:
-    if channel.public:
-        return True
+    """Who sees a channel: its org's staff, anyone signed in when it's in the Library, else its audience."""
     if _user_is_anonymous(current_user):
         return False
-    if channel.shared:
+    if channel.listed or _is_staff(current_user, channel.org_id, db_session):
         return True
-    membership = db_session.exec(
-        select(UserOrganization).where(
-            UserOrganization.user_id == current_user.id,
-            UserOrganization.org_id == channel.org_id,
-        )
-    ).first()
-    if membership and getattr(membership, "role_id", None) in ADMIN_OR_MAINTAINER_ROLE_IDS:
+    if channel.audience == ChannelAudience.staff or not is_org_member(current_user.id, channel.org_id, db_session):
+        return False
+    if channel.audience == ChannelAudience.org:
         return True
     linked_usergroups = db_session.exec(
         select(UserGroupResource.usergroup_id).where(UserGroupResource.resource_uuid == channel.channel_uuid)
     ).all()
     if not linked_usergroups:
-        return membership is not None
-    usergroup_membership = db_session.exec(
+        return False
+    return db_session.exec(
         select(UserGroupUser).where(
             UserGroupUser.user_id == current_user.id,
             UserGroupUser.usergroup_id.in_(linked_usergroups),
         )
-    ).first()
-    return usergroup_membership is not None
+    ).first() is not None
+
+
+def _channels_of(resource_id: int, db_session: Session) -> list[ResourceChannel]:
+    return list(db_session.exec(
+        select(ResourceChannel)
+        .join(ResourceChannelResource, ResourceChannel.id == ResourceChannelResource.channel_id)
+        .where(ResourceChannelResource.resource_id == resource_id)
+    ).all())
 
 
 def _resource_in_accessible_channel(resource: Resource, db_session: Session, current_user) -> bool:
-    channel_ids = db_session.exec(
-        select(ResourceChannelResource.channel_id).where(ResourceChannelResource.resource_id == resource.id)
+    if _is_staff(current_user, resource.org_id, db_session):
+        return True
+    return any(_channel_is_accessible(channel, db_session, current_user) for channel in _channels_of(resource.id, db_session))
+
+
+def _in_library(resource: Resource, db_session: Session) -> bool:
+    return any(channel.listed for channel in _channels_of(resource.id, db_session))
+
+
+def _org_saved_channel_ids(org_id: int, db_session: Session) -> set[int]:
+    """Library channels the organization saved and that are still listed."""
+    return set(db_session.exec(
+        select(OrgSavedChannel.channel_id)
+        .join(ResourceChannel, ResourceChannel.id == OrgSavedChannel.channel_id)
+        .where(OrgSavedChannel.org_id == org_id, ResourceChannel.listed == True)  # noqa: E712
+    ).all())
+
+
+def _org_saved_resource_ids(org_id: int, db_session: Session) -> set[int]:
+    """Library resources the organization saved one by one and that are still in the Library."""
+    rows = db_session.exec(
+        select(OrgSavedResource.resource_id)
+        .join(ResourceChannelResource, ResourceChannelResource.resource_id == OrgSavedResource.resource_id)
+        .join(ResourceChannel, ResourceChannel.id == ResourceChannelResource.channel_id)
+        .where(OrgSavedResource.org_id == org_id, ResourceChannel.listed == True)  # noqa: E712
     ).all()
-    if not channel_ids:
-        return False
-    channels = db_session.exec(select(ResourceChannel).where(ResourceChannel.id.in_(channel_ids))).all()
-    return any(_channel_is_accessible(channel, db_session, current_user) for channel in channels)
+    return set(rows)
+
+
+def _org_channels(org_id: int, db_session: Session) -> list[ResourceChannel]:
+    """The organization's own channels, then the Library channels it saved."""
+    own = db_session.exec(
+        select(ResourceChannel).where(ResourceChannel.org_id == org_id).order_by(ResourceChannel.creation_date.asc())
+    ).all()
+    saved_ids = _org_saved_channel_ids(org_id, db_session)
+    saved = db_session.exec(select(ResourceChannel).where(ResourceChannel.id.in_(saved_ids)).order_by(ResourceChannel.name.asc())).all() if saved_ids else []
+    return [*own, *[channel for channel in saved if channel.org_id != org_id]]
+
+
+def _org_resource_ids(org_id: int, db_session: Session, current_user, include_private: bool = False) -> set[int]:
+    """What the organization's people may open: resources in its channels and saved Library channels they see,
+    plus Library resources it saved. ``include_private`` (staff) adds its own resources in no channel."""
+    channels = [
+        channel for channel in _org_channels(org_id, db_session)
+        if (include_private and channel.org_id == org_id) or _channel_is_accessible(channel, db_session, current_user)
+    ]
+    ids: set[int] = set()
+    if channels:
+        ids |= set(db_session.exec(
+            select(ResourceChannelResource.resource_id).where(ResourceChannelResource.channel_id.in_([c.id for c in channels]))
+        ).all())
+    if not _user_is_anonymous(current_user):
+        ids |= _org_saved_resource_ids(org_id, db_session)
+    if include_private:
+        ids |= set(db_session.exec(select(Resource.id).where(Resource.org_id == org_id)).all())
+    return ids
 
 
 def _get_or_create_saved_resource(user_id: int, resource_id: int, db_session: Session) -> UserSavedResource:
@@ -291,7 +351,7 @@ def _resource_counts_map(
     ).all()
     comment_counts_raw = db_session.exec(
         select(ResourceComment.resource_id, func.count(ResourceComment.id))
-        .where(ResourceComment.resource_id.in_(resource_ids))
+        .where(ResourceComment.resource_id.in_(resource_ids), ResourceComment.status == CommentStatus.live)
         .group_by(ResourceComment.resource_id)
     ).all()
     rating_summaries_raw = db_session.exec(
@@ -303,6 +363,7 @@ def _resource_counts_map(
         .where(
             ResourceComment.resource_id.in_(resource_ids),
             ResourceComment.rating.is_not(None),
+            ResourceComment.status == CommentStatus.live,
         )
         .group_by(ResourceComment.resource_id)
     ).all()
@@ -424,20 +485,15 @@ def _set_resource_tags(resource_id: int, tag_ids: list[int], db_session: Session
 
 
 async def list_channels(request: Request, org_id: int, current_user, db_session: Session, include_private: bool = False) -> dict:
+    """The organization's channels and the Library channels it saved, as this person may see them.
+
+    ``include_private`` (every channel, whatever its audience) only works for the org's staff.
+    """
     _get_org_or_404(org_id, db_session)
-    channels = db_session.exec(
-        select(ResourceChannel).where(
-            or_(
-                ResourceChannel.org_id == org_id,
-                ResourceChannel.shared == True,
-            )
-        ).order_by(
-            ResourceChannel.is_starred.desc(), ResourceChannel.name.asc()
-        )
-    ).all()
+    include_private = include_private and _is_staff(current_user, org_id, db_session)
     visible_channels = [
         _serialize_channel(channel, db_session, current_user, org_id)
-        for channel in channels
+        for channel in _org_channels(org_id, db_session)
         if include_private or _channel_is_accessible(channel, db_session, current_user)
     ]
     user_channels: list[dict] = []
@@ -461,7 +517,7 @@ async def list_tags(request: Request, org_id: int, current_user, db_session: Ses
 
 async def create_tag(request: Request, org_id: int, tag_data: ResourceTagCreate, current_user: PublicUser, db_session: Session) -> dict:
     _get_org_or_404(org_id, db_session)
-    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
+    _require_staff(current_user, org_id, db_session)
     tag_name = _normalize_tag_name(tag_data.name)
     if not tag_name:
         raise HTTPException(status_code=400, detail="Tag name is required")
@@ -493,7 +549,7 @@ async def update_tag(
     tag = db_session.exec(select(ResourceTag).where(ResourceTag.tag_uuid == tag_uuid)).first()
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
-    require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_update")
+    _require_staff(current_user, tag.org_id, db_session)
     updates = tag_data.model_dump(exclude_unset=True)
     if "name" in updates:
         tag_name = _normalize_tag_name(updates["name"] or "")
@@ -521,7 +577,7 @@ async def delete_tag(request: Request, tag_uuid: str, current_user: PublicUser, 
     tag = db_session.exec(select(ResourceTag).where(ResourceTag.tag_uuid == tag_uuid)).first()
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
-    require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_delete")
+    _require_staff(current_user, tag.org_id, db_session)
     resource_ids = list(db_session.exec(
         select(ResourceTagLink.resource_id).where(ResourceTagLink.tag_id == tag.id)
     ).all())
@@ -533,7 +589,7 @@ async def delete_tag(request: Request, tag_uuid: str, current_user: PublicUser, 
 
 async def create_channel(request: Request, org_id: int, channel_data: ResourceChannelCreate, current_user: PublicUser, db_session: Session) -> dict:
     _get_org_or_404(org_id, db_session)
-    require_org_role_permission(current_user.id, org_id, db_session, "resource_channels", "action_create")
+    _require_staff(current_user, org_id, db_session)
     channel = ResourceChannel(
         **channel_data.model_dump(),
         org_id=org_id,
@@ -549,8 +605,14 @@ async def create_channel(request: Request, org_id: int, channel_data: ResourceCh
 
 async def update_channel(request: Request, channel_uuid: str, channel_data: ResourceChannelUpdate, current_user: PublicUser, db_session: Session) -> dict:
     channel = _get_channel_or_404(channel_uuid, db_session)
-    require_org_role_permission(current_user.id, channel.org_id, db_session, "resource_channels", "action_update")
+    _require_staff(current_user, channel.org_id, db_session)
     updates = channel_data.model_dump(exclude_unset=True)
+    listed = updates.pop("listed", None)
+    if listed is not None and listed != channel.listed:
+        if listed and not is_user_superadmin(current_user.id, db_session):
+            ensure_feature(channel.org_id, "resource_publishing", db_session)
+        channel.listed = listed
+        channel.listed_at = _now() if listed else None
     for key, value in updates.items():
         setattr(channel, key, value)
     channel.update_date = _now()
@@ -562,7 +624,7 @@ async def update_channel(request: Request, channel_uuid: str, channel_data: Reso
 
 async def delete_channel(request: Request, channel_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
     channel = _get_channel_or_404(channel_uuid, db_session)
-    require_org_role_permission(current_user.id, channel.org_id, db_session, "resource_channels", "action_delete")
+    _require_staff(current_user, channel.org_id, db_session)
     db_session.delete(channel)
     db_session.commit()
     return {"detail": "Channel deleted"}
@@ -616,16 +678,27 @@ async def list_resources(
         statement = statement.where(Resource.provider_name == provider)
     if access in {"free", "paid", "restricted"}:
         statement = statement.where(Resource.access_mode == access)
-    resources = db_session.exec(statement.order_by(Resource.creation_date.desc())).all()
+    include_private = include_private and _is_staff(current_user, org_id, db_session)
     if channel_uuid:
         channel = _get_channel_or_404(channel_uuid, db_session)
-        if not include_private and not _channel_is_accessible(channel, db_session, current_user):
+        if not (include_private and channel.org_id == org_id) and not _channel_is_accessible(channel, db_session, current_user):
             raise HTTPException(status_code=403, detail="You do not have access to this channel")
-        resource_ids = db_session.exec(
+        scope = set(db_session.exec(
             select(ResourceChannelResource.resource_id).where(ResourceChannelResource.channel_id == channel.id)
-        ).all()
-        resources = [resource for resource in resources if resource.id in set(resource_ids)]
-    elif user_channel_uuid:
+        ).all())
+    else:
+        scope = _org_resource_ids(org_id, db_session, current_user, include_private)
+        if saved_only and not _user_is_anonymous(current_user):
+            # A learner's own saves stay theirs while they can still open them, wherever they found them.
+            saved_ids = set(db_session.exec(select(UserSavedResource.resource_id).where(UserSavedResource.user_id == current_user.id)).all()) - scope
+            scope |= {
+                resource.id for resource in db_session.exec(select(Resource).where(Resource.id.in_(saved_ids))).all()
+                if _resource_in_accessible_channel(resource, db_session, current_user)
+            } if saved_ids else set()
+    resources = db_session.exec(
+        statement.where(Resource.id.in_(scope)).order_by(Resource.creation_date.desc())
+    ).all() if scope else []
+    if user_channel_uuid:
         if _user_is_anonymous(current_user):
             return []
         user_channel = _get_user_channel_or_404(user_channel_uuid, db_session)
@@ -640,30 +713,6 @@ async def list_resources(
             )
         ).all()
         resources = [resource for resource in resources if resource.id in set(resource_ids)]
-    elif not include_private:
-        visible_channels = db_session.exec(
-            select(ResourceChannel).where(
-                or_(
-                    ResourceChannel.org_id == org_id,
-                    ResourceChannel.shared == True,
-                )
-            )
-        ).all()
-        visible_channel_ids = [
-            channel.id
-            for channel in visible_channels
-            if channel.id is not None and _channel_is_accessible(channel, db_session, current_user)
-        ]
-        visible_resource_ids = set()
-        if visible_channel_ids:
-            visible_resource_ids = set(
-                db_session.exec(
-                    select(ResourceChannelResource.resource_id).where(
-                        ResourceChannelResource.channel_id.in_(visible_channel_ids)  # type: ignore
-                    )
-                ).all()
-            )
-        resources = [resource for resource in resources if resource.id in visible_resource_ids]
     if saved_only or completed_only:
         if _user_is_anonymous(current_user):
             return []
@@ -739,7 +788,7 @@ async def create_resource(
     enrich_metadata: bool = True,
 ) -> dict:
     _get_org_or_404(org_id, db_session)
-    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
+    _require_staff(current_user, org_id, db_session)
     payload = resource_data.model_dump()
     tag_uuids = payload.pop("tag_uuids", [])
     resolved_tags = _resolve_resource_tags(org_id, tag_uuids, db_session)
@@ -767,7 +816,7 @@ async def create_resource(
 
 async def update_resource(request: Request, resource_uuid: str, resource_data: ResourceUpdate, current_user: PublicUser, db_session: Session) -> dict:
     resource = _get_resource_or_404(resource_uuid, db_session)
-    require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_update")
+    _require_staff(current_user, resource.org_id, db_session)
     updates = resource_data.model_dump(exclude_unset=True)
     tag_uuids = updates.pop("tag_uuids", None)
     for key, value in updates.items():
@@ -786,15 +835,15 @@ async def update_resource(request: Request, resource_uuid: str, resource_data: R
 
 async def delete_resource(request: Request, resource_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
     resource = _get_resource_or_404(resource_uuid, db_session)
-    require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_delete")
+    _require_staff(current_user, resource.org_id, db_session)
     db_session.delete(resource)
     db_session.commit()
     return {"detail": "Resource deleted"}
 
 
-async def get_resource(request: Request, resource_uuid: str, current_user, db_session: Session, include_private: bool = False) -> dict:
+async def get_resource(request: Request, resource_uuid: str, current_user, db_session: Session) -> dict:
     resource = _get_resource_or_404(resource_uuid, db_session)
-    if not include_private and not _resource_in_accessible_channel(resource, db_session, current_user):
+    if not _resource_in_accessible_channel(resource, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this resource")
     serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
     await track(
@@ -806,9 +855,9 @@ async def get_resource(request: Request, resource_uuid: str, current_user, db_se
     return serialized
 
 
-async def list_channel_resources(request: Request, channel_uuid: str, current_user, db_session: Session, include_private: bool = False) -> list[dict]:
+async def list_channel_resources(request: Request, channel_uuid: str, current_user, db_session: Session) -> list[dict]:
     channel = _get_channel_or_404(channel_uuid, db_session)
-    if not include_private and not _channel_is_accessible(channel, db_session, current_user):
+    if not _channel_is_accessible(channel, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this channel")
     resource_ids = db_session.exec(
         select(ResourceChannelResource.resource_id)
@@ -826,7 +875,7 @@ async def list_channel_resources(request: Request, channel_uuid: str, current_us
 async def add_resource_to_channel(request: Request, channel_uuid: str, resource_uuid: str, current_user: PublicUser, db_session: Session, sort_order: int = 0) -> dict:
     channel = _get_channel_or_404(channel_uuid, db_session)
     resource = _get_resource_or_404(resource_uuid, db_session)
-    require_org_role_permission(current_user.id, channel.org_id, db_session, "resource_channels", "action_update")
+    _require_staff(current_user, channel.org_id, db_session)
     existing = db_session.exec(
         select(ResourceChannelResource).where(
             ResourceChannelResource.channel_id == channel.id,
@@ -854,7 +903,7 @@ async def add_resource_to_channel(request: Request, channel_uuid: str, resource_
 async def remove_resource_from_channel(request: Request, channel_uuid: str, resource_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
     channel = _get_channel_or_404(channel_uuid, db_session)
     resource = _get_resource_or_404(resource_uuid, db_session)
-    require_org_role_permission(current_user.id, channel.org_id, db_session, "resource_channels", "action_update")
+    _require_staff(current_user, channel.org_id, db_session)
     link = db_session.exec(
         select(ResourceChannelResource).where(
             ResourceChannelResource.channel_id == channel.id,
@@ -1211,152 +1260,6 @@ async def unsave_resource_for_user(request: Request, resource_uuid: str, current
     return {"detail": "Resource removed from saved resources"}
 
 
-async def list_comments(request: Request, resource_uuid: str, current_user, db_session: Session) -> list[dict]:
-    resource = _get_resource_or_404(resource_uuid, db_session)
-    if not _resource_in_accessible_channel(resource, db_session, current_user):
-        raise HTTPException(status_code=403, detail="You do not have access to this resource")
-    rows = db_session.exec(
-        select(ResourceComment, User)
-        .join(User, User.id == ResourceComment.author_id)
-        .where(ResourceComment.resource_id == resource.id)
-        .order_by(ResourceComment.creation_date.asc())
-    ).all()
-    return [
-        ResourceCommentReadWithAuthor(
-            **comment.model_dump(),
-            author={
-                "id": user.id,
-                "user_uuid": user.user_uuid,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "avatar_image": user.avatar_image,
-            },
-        ).model_dump()
-        for comment, user in rows
-    ]
-
-
-async def create_comment(request: Request, resource_uuid: str, comment_data: ResourceCommentCreate, current_user: PublicUser, db_session: Session) -> dict:
-    resource = _get_resource_or_404(resource_uuid, db_session)
-    if not _resource_in_accessible_channel(resource, db_session, current_user):
-        raise HTTPException(status_code=403, detail="You do not have access to this resource")
-    comment = ResourceComment(
-        resource_id=resource.id,
-        author_id=current_user.id,
-        comment_uuid=f"resourcecomment_{uuid4()}",
-        content=comment_data.content,
-        rating=comment_data.rating,
-        creation_date=_now(),
-        update_date=_now(),
-    )
-    db_session.add(comment)
-    db_session.commit()
-    db_session.refresh(comment)
-    return ResourceCommentReadWithAuthor(
-        **comment.model_dump(),
-        author={
-            "id": current_user.id,
-            "user_uuid": current_user.user_uuid,
-            "username": current_user.username,
-            "first_name": current_user.first_name,
-            "last_name": current_user.last_name,
-            "avatar_image": current_user.avatar_image,
-        },
-    ).model_dump()
-
-
-async def create_review(
-    request: Request,
-    resource_uuid: str,
-    review_data: ResourceReviewCreate,
-    current_user: PublicUser,
-    db_session: Session,
-) -> dict:
-    resource = _get_resource_or_404(resource_uuid, db_session)
-    content = review_data.content.strip()
-    if not content:
-        raise HTTPException(status_code=400, detail="Review text is required")
-    existing = db_session.exec(
-        select(ResourceComment).where(
-            ResourceComment.resource_id == resource.id,
-            ResourceComment.author_id == current_user.id,
-            ResourceComment.rating.is_not(None),
-        )
-    ).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="You have already reviewed this resource")
-    _get_or_create_saved_resource(current_user.id, resource.id, db_session)
-    try:
-        return await create_comment(
-            request,
-            resource_uuid,
-            ResourceCommentCreate(content=content, rating=review_data.rating),
-            current_user,
-            db_session,
-        )
-    except IntegrityError:
-        db_session.rollback()
-        raise HTTPException(status_code=409, detail="You have already reviewed this resource") from None
-
-
-async def update_comment(request: Request, comment_uuid: str, comment_data: ResourceCommentUpdate, current_user: PublicUser, db_session: Session) -> dict:
-    comment = db_session.exec(select(ResourceComment).where(ResourceComment.comment_uuid == comment_uuid)).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-    resource = db_session.exec(select(Resource).where(Resource.id == comment.resource_id)).first()
-    if not resource:
-        raise HTTPException(status_code=404, detail="Resource not found")
-    can_moderate = True
-    try:
-        require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_update")
-    except HTTPException:
-        can_moderate = False
-    if comment.author_id != current_user.id and not can_moderate:
-        raise HTTPException(status_code=403, detail="You cannot edit this comment")
-    if comment_data.content is not None:
-        comment.content = comment_data.content
-    if comment_data.rating is not None:
-        comment.rating = comment_data.rating
-    if comment.author_id == current_user.id and comment.rating is not None:
-        _get_or_create_saved_resource(current_user.id, resource.id, db_session)
-    comment.update_date = _now()
-    db_session.add(comment)
-    db_session.commit()
-    db_session.refresh(comment)
-    user = db_session.exec(select(User).where(User.id == comment.author_id)).first()
-    return ResourceCommentReadWithAuthor(
-        **comment.model_dump(),
-        author={
-            "id": user.id,
-            "user_uuid": user.user_uuid,
-            "username": user.username,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "avatar_image": user.avatar_image,
-        } if user else None,
-    ).model_dump()
-
-
-async def delete_comment(request: Request, comment_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
-    comment = db_session.exec(select(ResourceComment).where(ResourceComment.comment_uuid == comment_uuid)).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-    resource = db_session.exec(select(Resource).where(Resource.id == comment.resource_id)).first()
-    if not resource:
-        raise HTTPException(status_code=404, detail="Resource not found")
-    can_moderate = True
-    try:
-        require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_update")
-    except HTTPException:
-        can_moderate = False
-    if comment.author_id != current_user.id and not can_moderate:
-        raise HTTPException(status_code=403, detail="You cannot delete this comment")
-    db_session.delete(comment)
-    db_session.commit()
-    return {"detail": "Comment deleted"}
-
-
 async def import_resources_csv(
     request: Request,
     org_id: int,
@@ -1366,7 +1269,7 @@ async def import_resources_csv(
     channel_uuid: str | None = None,
 ) -> dict:
     _get_org_or_404(org_id, db_session)
-    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
+    _require_staff(current_user, org_id, db_session)
     target_channel = _get_channel_or_404(channel_uuid, db_session) if channel_uuid else None
     if target_channel and target_channel.org_id != org_id:
         raise HTTPException(status_code=400, detail="Channel does not belong to this organization")
@@ -1429,8 +1332,6 @@ async def import_resources_csv(
                     channel_uuid=f"channel_{uuid4()}",
                     name=channel_name,
                     description=None,
-                    public=True,
-                    is_starred=False,
                     color=None,
                     creation_date=_now(),
                     update_date=_now(),
@@ -1448,7 +1349,7 @@ async def import_resources_csv(
 async def upload_resource_thumbnail(request: Request, resource_uuid: str, thumbnail: UploadFile, current_user: PublicUser, db_session: Session) -> dict:
     resource = _get_resource_or_404(resource_uuid, db_session)
     org = _get_org_or_404(resource.org_id, db_session)
-    require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_update")
+    _require_staff(current_user, resource.org_id, db_session)
     filename = await upload_file(
         file=thumbnail,
         directory=f"resources/{resource.resource_uuid}/thumbnails",
@@ -1469,7 +1370,7 @@ async def upload_resource_thumbnail(request: Request, resource_uuid: str, thumbn
 async def upload_channel_thumbnail(request: Request, channel_uuid: str, thumbnail: UploadFile, current_user: PublicUser, db_session: Session) -> dict:
     channel = _get_channel_or_404(channel_uuid, db_session)
     org = _get_org_or_404(channel.org_id, db_session)
-    require_org_role_permission(current_user.id, channel.org_id, db_session, "resource_channels", "action_update")
+    _require_staff(current_user, channel.org_id, db_session)
     filename = await upload_file(
         file=thumbnail,
         directory=f"resource_channels/{channel.channel_uuid}/thumbnails",

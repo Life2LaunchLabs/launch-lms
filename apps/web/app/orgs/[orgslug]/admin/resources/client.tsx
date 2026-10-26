@@ -47,8 +47,7 @@ function CreateResourceChannelForm({
         {
           name: name.trim(),
           description: description.trim() || null,
-          public: isPublic,
-          is_starred: false,
+          audience: isPublic ? 'org' : 'groups',
         },
         accessToken
       )
