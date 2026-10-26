@@ -2,7 +2,7 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { Building2, Check, Lock, Route, UserPlus, Users, X } from 'lucide-react'
+import { Building2, Check, DoorOpen, Lock, Route, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ChatWorkspace from '@components/Connect/workspace/ChatWorkspace'
 import type { TimelineItem } from '@components/Connect/workspace/feed'
@@ -15,7 +15,7 @@ import { ROLE_LABELS } from '@services/school/people'
 import { threadKeys, threadsApi, type OrgLogEntry, type PersonThread, type ThreadFilter } from '@services/school/threads'
 import { shortDate } from '@services/assignments/status'
 import { ContextBar, FilterChips, type StepOption } from './ContextBar'
-import { AskedCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
+import { AskedCard, JoinRequestCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
@@ -199,6 +199,8 @@ function logLine(entry: OrgLogEntry) {
   if (entry.kind === 'org_created') return { icon: Building2, text: <>{entry.org.name} was created</> }
   if (entry.kind === 'staff_joined') return { icon: UserPlus, text: <><b>{entry.person?.name || 'Someone'}</b> joined as {entry.role}</> }
   if (entry.kind === 'learners_joined') return { icon: Users, text: <><b>{entry.count} learner{entry.count === 1 ? '' : 's'}</b> joined{entry.people.length ? `: ${entry.people.map((person) => person.name.split(' ')[0]).join(', ')}${entry.count > entry.people.length ? ' and others' : ''}` : ''}</> }
+  if (entry.kind === 'join_asked') return { icon: DoorOpen, text: <><b>{entry.who.name}</b> asked to join</> }
+  if (entry.kind === 'join_answered') return { icon: entry.approved ? Check : X, text: <><b>{entry.by?.name || 'Someone'}</b> {entry.approved ? 'approved' : 'declined'} <b>{entry.who.name}</b></> }
   if (entry.kind === 'plan_asked') return { icon: Route, text: entry.incoming ? <><b>{entry.org.name}</b> asked to run <b>{entry.plan}</b></> : <>You asked <b>{entry.org.name}</b> to run <b>{entry.plan}</b></> }
   if (entry.kind === 'plan_answered') {
     const verb = entry.approved ? 'approved' : 'declined'
@@ -208,7 +210,7 @@ function logLine(entry: OrgLogEntry) {
 }
 
 function OrgThreadView({ orgId, token, actions, onProfile }: ThreadViewProps) {
-  const { data: thread } = useSWR(token ? threadKeys.org(orgId) : null, () => threadsApi.org(orgId, token))
+  const { data: thread, mutate } = useSWR(token ? threadKeys.org(orgId) : null, () => threadsApi.org(orgId, token))
   const scroller = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [thread?.entries.length])
   if (!thread) return <Loading actions={actions} />
@@ -216,6 +218,9 @@ function OrgThreadView({ orgId, token, actions, onProfile }: ThreadViewProps) {
     <Header art={<Mark icon={Building2} />} title={thread.org.name} sub="What changed in your organization" actions={actions} onProfile={onProfile ? () => onProfile({ org: true }) : undefined} />
     <div className="border-b border-border" />
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
+      {thread.join_requests?.length ? <div className="mx-auto mb-4 flex w-full max-w-[46rem] flex-col gap-2">
+        {thread.join_requests.map((request) => <JoinRequestCard key={request.request_uuid} request={request} token={token} onDone={() => void mutate()} />)}
+      </div> : null}
       <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1">
         {thread.entries.map((entry, index) => {
           const { icon: Icon, text } = logLine(entry)

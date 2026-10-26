@@ -11,6 +11,7 @@ import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
+import AskToJoin from './AskToJoin'
 import InviteCard, { usePrefillInvitedEmail, useInvitePreview } from './InviteCard'
 import type { InvitePreview } from '@services/organizations/invites'
 
@@ -248,6 +249,7 @@ const NoTokenScreen = ({ org }: NoTokenScreenProps) => {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Mail size={22} /></div>
         <h1 className="mt-5 text-2xl font-bold text-gray-900">{t('auth.invite_required')}</h1>
         <p className="mt-2 text-sm leading-6 text-gray-500">Ask an administrator of {activeOrg?.name} to send an invitation to your email address, then use the link in that message.</p>
+        {activeOrg?.id ? <AskToJoin org={activeOrg} /> : null}
       </div>
     </div>
   )
