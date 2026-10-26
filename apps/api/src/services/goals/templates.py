@@ -342,6 +342,10 @@ def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates are published with each release")
+    if make_live:
+        from src.services.goals import plan_resources
+
+        plan_resources.ensure_listed_shareable(db, template, template.document or {})
     version = publish_draft(db, template, current_user.id, note, semver=semver, make_live=make_live)
     moved = drafts.move_assignments(db, template, version, current_user.id) if make_live else None
     db.commit()
@@ -361,6 +365,9 @@ def restore(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
     )).first()
     if not earlier:
         raise HTTPException(status_code=404, detail="Version not found")
+    from src.services.goals import plan_resources
+
+    plan_resources.ensure_listed_shareable(db, template, earlier.document or {})
     _store(db, template, working_copy(db, template, earlier.document))
     template.draft = None
     db.flush()

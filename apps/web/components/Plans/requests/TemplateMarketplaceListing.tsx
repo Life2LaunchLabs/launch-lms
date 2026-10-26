@@ -17,6 +17,7 @@ import {
   type TemplateListingMode,
 } from '@services/learning/marketplace'
 import { cn } from '@/lib/utils'
+import ListingResources from './ListingResources'
 
 /** Where a copied template came from, as the API adds it to an owned template. */
 export type TemplateProvenanceInfo = { template_uuid: string; title: string; version: number | null; org: MarketplaceOrg | null }
@@ -75,6 +76,7 @@ export default function TemplateMarketplaceListing({ orgId, token, template }: {
     }
   }
   const changed = listing ? listing.mode !== mode || listing.access !== access : false
+  const waiting = (listing?.private_resources || []).some((item) => !item.fix)
   return <section className="rounded-xl border border-border bg-card p-6 shadow-xs" aria-label="Marketplace listing" data-testid="template-marketplace-listing">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -98,6 +100,7 @@ export default function TemplateMarketplaceListing({ orgId, token, template }: {
       </label>)}
     </fieldset>
     {!published ? <p className="mt-4 text-sm text-amber-700">Release a version of the template before listing it.</p> : null}
+    {listing ? <ListingResources orgId={orgId} token={token} templateUuid={template.template_uuid} listing={listing} onChange={(next) => void reload(next, false)} /> : null}
     {listing?.listed ? <p className="mt-4 text-sm text-muted-foreground" data-testid="template-marketplace-listed">
       Other organizations see it in{' '}
       <Link className="font-semibold text-foreground underline" href={getUriWithOrg(org?.slug || '', routePaths.org.admin.discover())}>Plans › Discover</Link>
@@ -112,7 +115,7 @@ export default function TemplateMarketplaceListing({ orgId, token, template }: {
       {listing?.listed ? <>
         <button type="button" disabled={saving || !changed} onClick={() => void save(true)} className="inline-flex h-9 items-center rounded-lg bg-black px-4 text-xs font-bold text-white disabled:opacity-50">Save listing</button>
         <button type="button" disabled={saving} onClick={() => void save(false)} className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-xs font-bold disabled:opacity-50">Take out of the marketplace</button>
-      </> : <button type="button" disabled={saving || !published} onClick={() => void save(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-black px-4 text-xs font-bold text-white disabled:opacity-50"><Storefront size={14} />Publish to marketplace</button>}
+      </> : <button type="button" disabled={saving || !published || waiting} onClick={() => void save(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-black px-4 text-xs font-bold text-white disabled:opacity-50"><Storefront size={14} />Publish to marketplace</button>}
     </div>
   </section>
 }

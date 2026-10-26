@@ -35,7 +35,7 @@ from src.db.users import PublicUser
 from src.security.access.access import ensure_feature
 from src.security.org_auth import require_org_admin
 from src.security.superadmin import is_user_superadmin
-from src.services.goals import templates
+from src.services.goals import plan_resources, templates
 from src.services.goals.document import iter_steps
 
 APPROVED = TemplateAuthorizationStatus.APPROVED.value
@@ -109,10 +109,15 @@ def _usage_counts(db: Session, template: GoalTemplate) -> dict:
 
 
 def get_listing(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
+    """The listing, and the resources other organizations couldn't open (plan_resources.py)."""
     require_reader(db, current_user, org_id)
     template = templates.template_or_404(db, org_id, template_uuid)
     live = templates.published_version(db, template)
-    return {**listing_dict(listing_of(db, template)), "usage": _usage_counts(db, template), "published_version": live.number if live else None}
+    listing = listing_of(db, template)
+    return {**listing_dict(listing), "usage": _usage_counts(db, template), "published_version": live.number if live else None,
+            # The live version's, and the draft's so they can be settled before it's released.
+            "private_resources": plan_resources.private_resources(db, template, [live.document or {}, template.document or {}], listing.resource_overrides if listing else None) if live else [],
+            "can_list_resources": plan_resources.can_list_resources(db, current_user.id, org_id)}
 
 
 def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, payload: TemplateListingUpdate) -> dict:
@@ -124,8 +129,10 @@ def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
             ensure_feature(org_id, "plan_publishing", db)
         if template.system_type:
             raise HTTPException(status_code=409, detail="System templates can't be listed in the marketplace")
-        if templates.published_version(db, template) is None:
+        live = templates.published_version(db, template)
+        if live is None:
             raise HTTPException(status_code=422, detail="Release a version of the template before listing it in the marketplace")
+        plan_resources.ensure_shareable(db, template, live.document or {}, listing_of(db, template))
     listing = listing_of(db, template)
     now = _now()
     if listing is None:
