@@ -1,12 +1,18 @@
 """Plan templates other organizations share: listings, permission to use them, copies (see services/goals/template_marketplace)."""
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from src.core.events.database import get_db_session
 from src.db.template_marketplace import TemplateAuthorizationRequest, TemplateInvite, TemplateListingUpdate
 from src.security.auth import get_current_user
-from src.services.goals import plan_issuers, template_marketplace
+from src.services.goals import plan_issuers, plan_resources, template_marketplace
 
 router = APIRouter()
+
+
+class ResourceFix(BaseModel):
+    fix: str | None = None  # "swap", "remove", or None to undo
+    replacement_uuid: str | None = None
 
 
 @router.get("/requests/summary")
@@ -42,6 +48,19 @@ def api_set_template_listing(
 ) -> dict:
     """The creator lists a template: locked (run as-is) or open (copy and change), with open or request access."""
     return template_marketplace.set_listing(db_session, current_user, org_id, template_uuid, payload)
+
+
+@router.put("/templates/{template_uuid}/listing/resources/{resource_uuid}")
+def api_set_listing_resource(
+    template_uuid: str,
+    resource_uuid: str,
+    payload: ResourceFix,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    """For other organizations only: swap a resource that isn't in the Library for one that is, or remove it."""
+    return plan_resources.set_override(db_session, current_user, org_id, template_uuid, resource_uuid, payload.fix, payload.replacement_uuid)
 
 
 @router.post("/templates/{template_uuid}/authorizations/invite")

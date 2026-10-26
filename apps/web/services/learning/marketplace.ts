@@ -16,6 +16,22 @@ export interface TemplateListing {
   listed_at: string | null
   usage?: { approved: number; requested: number }
   published_version?: number | null
+  /** The live version's resources other organizations couldn't open, and what's set for them (on your own listing). */
+  private_resources?: ListingResource[]
+  /** A resource partner can list a resource's channel in the Library instead. */
+  can_list_resources?: boolean
+}
+
+export interface ListingResource {
+  resource_uuid: string
+  title: string
+  resource_type: string
+  url: string
+  /** The publisher's own channels it's in. */
+  channels: Array<{ channel_uuid: string; name: string }>
+  /** For other organizations: swapped for a Library resource, removed, or not settled yet. */
+  fix: 'swap' | 'remove' | null
+  swap: { resource_uuid: string; title: string; url: string } | null
 }
 
 export interface TemplateAuthorization {
@@ -88,6 +104,8 @@ export const templateMarketplaceApi = {
   summary: (orgId: number, accessToken?: string) => marketplaceRequest<MarketplaceRequestsSummary>(`requests/summary?org_id=${orgId}`, accessToken),
   browse: (orgId: number, query = '', accessToken?: string, creatorOrgId?: number | null) => marketplaceRequest<MarketplaceTemplate[]>(`templates?${qs({ org_id: orgId, q: query, creator_org_id: creatorOrgId })}`, accessToken),
   listing: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken),
+  fixResource: (orgId: number, templateUuid: string, resourceUuid: string, fix: 'swap' | 'remove' | null, replacementUuid: string | null, accessToken?: string) =>
+    marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing/resources/${encodeURIComponent(resourceUuid)}?org_id=${orgId}`, accessToken, 'PUT', { fix, replacement_uuid: replacementUuid }),
   setListing: (orgId: number, templateUuid: string, data: { listed: boolean; mode: TemplateListingMode; access: TemplateListingAccess }, accessToken?: string) =>
     marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken, 'PUT', data),
   copy: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<{ template_uuid: string; title: string }>(`templates/${encodeURIComponent(templateUuid)}/copy?org_id=${orgId}`, accessToken, 'POST'),

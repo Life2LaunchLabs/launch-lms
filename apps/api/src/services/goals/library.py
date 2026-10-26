@@ -93,7 +93,9 @@ def copy_into(db: Session, current_user: PublicUser, org_id: int, source: GoalTe
     """A new draft template of the organization's own from another template's document, with copies of its activities (flushed, not committed)."""
     from src.services.requirements import mappable_nodes, parent_node_uuids
 
-    document = deepcopy(source_document)
+    from src.services.goals import plan_resources
+
+    document = plan_resources.for_org(db, source, org_id, deepcopy(source_document))
     now = datetime.now().isoformat()
     copied = GoalTemplate(
         template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={}, thumbnail_image=source.thumbnail_image, icon=source.icon, color=source.color,

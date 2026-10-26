@@ -217,6 +217,9 @@ def set_live(db: Session, current_user: PublicUser, org_id: int, template_uuid: 
         )).first()
         if version is None:
             raise HTTPException(status_code=404, detail="Version not found")
+        from src.services.goals import plan_resources
+
+        plan_resources.ensure_listed_shareable(db, template, version.document or {})
         template.published_version_id = version.id
         db.add(template)
         db.flush()

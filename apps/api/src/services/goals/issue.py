@@ -93,7 +93,11 @@ def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, pos
 
 
 def build_stages(db: Session, goal: Goal, document: dict, schedule: dict, first_position: int = 0) -> None:
-    """A template document's stages and steps on a live goal, with step order links (flushed, not committed)."""
+    """A template document's stages and steps on a live goal, with step order links (flushed, not committed).
+    Another organization's goal gets the listing's resource swaps (plan_resources.py)."""
+    from src.services.goals import plan_resources
+
+    document = plan_resources.for_org(db, db.get(GoalTemplate, goal.template_id) if goal.template_id else None, goal.org_id, document)
     now = _now()
     keys_to_uuids: dict[str, str] = {}
     built: list[tuple[dict, GoalStep]] = []

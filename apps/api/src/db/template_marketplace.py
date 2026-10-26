@@ -20,7 +20,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -54,6 +54,8 @@ class GoalTemplateListing(SQLModel, table=True):
     mode: str = Field(default=TemplateListingMode.LOCKED.value, sa_column=Column(String, nullable=False, server_default="locked"))
     access: str = Field(default=TemplateListingAccess.REQUEST.value, sa_column=Column(String, nullable=False, server_default="request"))
     listed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    # For other organizations only: each resource not in the Library swapped for one that is, or removed (null).
+    resource_overrides: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     creation_date: str = ""
     update_date: str = ""
 
