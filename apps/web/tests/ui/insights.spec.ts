@@ -112,7 +112,7 @@ test('insights.captures: Capture keeps the dashboard with a note, the log lists 
   const link = await share.getByRole('textbox', { name: 'Link' }).inputValue()
   expect(link).toContain('/insights/shared/')
 
-  await page.getByRole('navigation', { name: 'Dashboards' }).getByRole('link', { name: 'Captures' }).click()
+  await (await rail(page)).getByRole('link', { name: 'Captures' }).click()
   await expect(page.getByRole('heading', { name: 'Captures', level: 1 })).toBeVisible()
   await expect(page.getByTestId('capture-row').first()).toContainText('End of term check')
 
