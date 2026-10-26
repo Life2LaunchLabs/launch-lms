@@ -323,7 +323,7 @@ function RoleStage({ role, done, spaceName }: { role: StartRole | null; done: bo
       animate={{ scale: [0.8, 2.2], opacity: [0.5, 0] }} transition={{ duration: 2.4, repeat: Infinity, delay: ring * 0.8 }} />)}</div> : null}
     <AnimatePresence mode="wait">
       {role ? <motion.div key={role} initial={{ scale: 0.4, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.6, opacity: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }}>
-        <Critter role={role} cheer={done} className="h-44 w-44 sm:h-60 sm:w-60" />
+        <Critter role={role} cheer={done} className="h-44 w-60 sm:h-64 sm:w-[22rem]" />
       </motion.div> : <motion.div key="unknown" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="flex h-40 w-40 items-center justify-center rounded-full bg-muted text-7xl font-black text-muted-foreground/50">?</motion.div>}
     </AnimatePresence>
     <motion.div key={`${role}-${done}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
