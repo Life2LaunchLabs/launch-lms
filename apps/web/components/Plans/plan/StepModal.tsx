@@ -121,6 +121,7 @@ export default function StepModal({ target, setTarget, orgslug, orgId, token, ed
     <button type="button" className={smallGhostClass + ' h-10 px-4 text-sm'} onClick={close}>Cancel</button>
     <button type="button" className={smallPrimaryClass + ' h-10 px-4 text-sm'} onClick={() => void save()} disabled={busy || editing.saving || editing.stale || !!problem}>{busy ? <Loader2 className="animate-spin" /> : null}{existing ? 'Save' : 'Add step'}</button>
   </>
+  const planLinked = new Set(documentSteps(document).filter(({ step }) => step.key !== existing?.key).flatMap(({ step }) => step.requirement_node_uuids || []))
   const fields = <StepEditor value={draft} onChange={setDraft} mode="template" others={stepChoices(document, existing?.key)} typeLocked orgId={orgId} token={token} />
 
   return <PlanDialog open onOpenChange={(open) => !open && close()} size="wide" footer={footer} bodyClassName="p-0"
@@ -129,7 +130,7 @@ export default function StepModal({ target, setTarget, orgslug, orgId, token, ed
       <div className="flex min-w-0 flex-col gap-4 p-[22px] md:overflow-y-auto md:border-r md:border-border">
         {existing || readOnly ? typePill : <button type="button" onClick={() => setType(null)} className="self-start">{typePill}</button>}
         {readOnly ? <fieldset disabled className="min-w-0">{fields}</fieldset> : fields}
-        {frameworks.length ? <StepRequirementLinks value={links} onChange={setLinks} frameworks={frameworks} readOnly={readOnly} /> : null}
+        {frameworks.length ? <StepRequirementLinks value={links} onChange={setLinks} frameworks={frameworks} readOnly={readOnly} planLinked={planLinked} /> : null}
       </div>
       <div className="flex min-w-0 flex-col items-center gap-3 bg-muted/60 p-[22px] md:overflow-y-auto">
         <div className="flex w-full justify-between text-xs font-bold uppercase tracking-[.06em] text-muted-foreground"><span>What learners see</span><span>Live preview</span></div>

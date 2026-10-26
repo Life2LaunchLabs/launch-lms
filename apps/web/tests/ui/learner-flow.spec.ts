@@ -100,6 +100,26 @@ test('framework.list: Requirements lists frameworks with coverage and opens cove
   await capture(page, info, 'framework-coverage-by-plan.png')
 })
 
+test('framework.flags: flagged gaps open Discover filtered to plans that cover them', async ({ page }, info) => {
+  test.setTimeout(60_000)
+  const { framework, nodes, url, authorization } = await freshFramework(page)
+  const flagsUrl = url.replace(`/requirement-frameworks/${framework.framework_uuid}?`, `/requirement-frameworks/${framework.framework_uuid}/flags?`)
+  expect((await page.request.put(flagsUrl, { headers: { authorization }, data: { node_uuids: [nodes[2].node_uuid] } })).ok()).toBe(true)
+  await page.goto(frameworkPath(framework.framework_uuid, 'plans'))
+  await assertActualApp(page)
+  await page.getByRole('tab', { name: /Flagged · 1/ }).click()
+  await expect(page.getByRole('tree', { name: 'Requirements' }).getByRole('button', { name: /Resume and portfolio/ })).toBeVisible()
+  await page.getByRole('link', { name: 'Find plans for them' }).click()
+  await expect(page).toHaveURL(/\/admin\/plans\/discover\?.*covers=/)
+  const filter = page.getByTestId('discover-covers-filter')
+  await expect(filter).toContainText('HS.HECPS.D.2 Resume and portfolio')
+  await expect(page.getByText(/No shared plan covers this requirement yet|Covers 1 of 1/).first()).toBeVisible()
+  await capture(page, info, 'discover-covering-flags.png')
+  await filter.getByRole('button', { name: 'Clear the requirements filter' }).click()
+  await expect(page).toHaveURL(/\/admin\/plans\/discover$/)
+  await expect(page.getByTestId('discover-covers-filter')).toHaveCount(0)
+})
+
 test('goals.invitation: organization and personal inviter are visible with the role', async ({ page }, info) => {
   test.setTimeout(60_000)
   await page.goto(`${orgPath}/plans`)

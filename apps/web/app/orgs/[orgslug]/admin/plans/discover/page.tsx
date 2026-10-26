@@ -1,6 +1,7 @@
 import { DiscoverTab } from '@components/Plans/shell/PlansTabs'
 
-export default async function DiscoverRoute({ params }: { params: Promise<{ orgslug: string }> }) {
+export default async function DiscoverRoute({ params, searchParams }: { params: Promise<{ orgslug: string }>; searchParams: Promise<{ fw?: string; covers?: string }> }) {
   const { orgslug } = await params
-  return <DiscoverTab orgslug={orgslug} />
+  const { fw, covers } = await searchParams
+  return <DiscoverTab orgslug={orgslug} frameworkUuid={fw || null} covers={(covers || '').split(',').filter(Boolean)} />
 }
