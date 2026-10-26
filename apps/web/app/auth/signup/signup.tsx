@@ -11,6 +11,8 @@ import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
+import InviteCard, { usePrefillInvitedEmail, useInvitePreview } from './InviteCard'
+import type { InvitePreview } from '@services/organizations/invites'
 
 interface SignUpClientProps {
   org: any
@@ -26,25 +28,28 @@ function SignUpClient(props: SignUpClientProps) {
   const joinMethod = config?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
   const invitationToken = invitationParam || ''
+  const preview = useInvitePreview(props.org?.id, invitationToken, inviteCode)
+  usePrefillInvitedEmail(preview)
+  const card = preview ? <InviteCard preview={preview} /> : null
 
   return (
     <AuthLayout org={props.org} welcomeText={t('auth.invited_to_join')}>
       <>
           {joinMethod == 'open' &&
             (session.status == 'authenticated' ? (
-              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
+              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
             ) : (
               <div className="flex-1 flex flex-row">
-                <OpenSignUpComponent />
+                <OpenSignUpComponent header={card} />
               </div>
             ))}
           {joinMethod == 'inviteOnly' &&
             (inviteCode || invitationToken ? (
               session.status == 'authenticated' ? (
-                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
+                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
               ) : (
                 <div className="flex-1 flex flex-row">
-                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} />
+                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} header={card} />
                 </div>
               )
             ) : (
@@ -59,9 +64,10 @@ interface JoinScreenProps {
   inviteCode: string
   invitationToken: string
   org: any
+  preview: InvitePreview | null
 }
 
-const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProps) => {
+const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinScreenProps) => {
   const { t } = useTranslation()
   const session = useLHSession() as any
   const contextOrg = useOrg() as any
@@ -186,6 +192,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProp
             <p className="text-gray-500 mt-1">{t('auth.join_organization_desc')}</p>
           </div>
 
+          {preview && <InviteCard preview={preview} signedInEmail={session.data?.user?.email} />}
           {/* Join Card */}
           <div className="bg-white rounded-xl p-6 nice-shadow">
             <div className="flex flex-col items-center gap-6">
