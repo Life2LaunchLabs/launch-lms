@@ -33,7 +33,8 @@ from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
 from src.services.orgs.invites import get_invite_code, redeem_join_link
-from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
+from src.services.orgs import staff_setup
+from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.avatars import (
     upload_avatar,
@@ -302,18 +303,10 @@ async def create_user_with_organization_invitation(
         )
     validate_invitation_acceptance(invitation, db_session)
 
-    user = await create_user(
-        request,
-        db_session,
-        current_user,
-        user_object,
-        org_id,
-        signup_provider="invite",
-        membership_role_id=invitation.role_id,
-        reserved_invitation_id=invitation.id,
-    )
+    user = await create_user(request, db_session, current_user, user_object, org_id, signup_provider="invite",
+                             membership_role_id=invitation.role_id, reserved_invitation_id=invitation.id)
 
-    audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+    staff_setup.accepted(db_session, invitation, int(user.id), request)
 
     if invitation.usergroup_id:
         await add_users_to_usergroup(
