@@ -3,6 +3,7 @@ import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/req
 import type { PersonSummary } from '@services/goals/types'
 import type { HelperRequest, OrgRole } from '@services/school/people'
 import type { JoinRequest } from '@services/goals/planJoining'
+import type { OrgJoinRequest } from '@services/organizations/joinRequests'
 
 const q = encodeURIComponent
 const base = (orgId: number, path: string) => `${getAPIUrl()}school/orgs/${orgId}/threads${path}`
@@ -95,7 +96,16 @@ export type OrgLogEntry =
   /** Asking another organization to run its plan (incoming: they asked you), and the answer. */
   | { kind: 'plan_asked'; at: string; incoming: boolean; org: { name: string }; plan: string }
   | { kind: 'plan_answered'; at: string; incoming: boolean; org: { name: string }; plan: string; approved: boolean }
-export interface OrgThread { kind: 'org'; org: { id: number; name: string; slug: string; logo_image: string | null }; can_post: false; entries: OrgLogEntry[] }
+  | { kind: 'join_asked'; at: string; who: { name: string } }
+  | { kind: 'join_answered'; at: string; who: { name: string }; approved: boolean; by: PersonSummary | null }
+export interface OrgThread {
+  kind: 'org'
+  org: { id: number; name: string; slug: string; logo_image: string | null }
+  can_post: false
+  entries: OrgLogEntry[]
+  /** People asking to join, for staff who answer. */
+  join_requests: OrgJoinRequest[]
+}
 
 const focusQuery = (name: string, value?: string | null) => value ? `?${name}=${q(value)}` : ''
 

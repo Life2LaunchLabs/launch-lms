@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { BellRing, Check, ClipboardCheck, Clock, Hand, MessageCircleQuestion, Route } from 'lucide-react'
+import { BellRing, Check, ClipboardCheck, Clock, DoorOpen, Hand, MessageCircleQuestion, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { reviewHref } from '@components/Goals/admin/live/ui'
@@ -11,6 +11,7 @@ import { routePaths } from '@services/config/config'
 import { goalAdminApi } from '@services/goals/admin'
 import { peopleApi } from '@services/school/people'
 import { planJoiningApi, type JoinRequest } from '@services/goals/planJoining'
+import { joinRequestsApi, type OrgJoinRequest } from '@services/organizations/joinRequests'
 import { shortDate } from '@services/assignments/status'
 import type { PersonSummary } from '@services/goals/types'
 import type { AskedItem, PastDueItem, ReviewItem, ThreadRequest } from '@services/school/threads'
@@ -142,6 +143,33 @@ export function PlanRequestCard({ request, token, onDone }: { request: JoinReque
     {request.message ? <span className="text-muted-foreground">“{request.message}”</span> : null}
     <span className="flex gap-2">
       <button type="button" disabled={busy} onClick={() => decide(true)} className={primary}><Check size={14} aria-hidden="true" />Accept</button>
+      <button type="button" disabled={busy} onClick={() => decide(false)} className={plain}>Decline</button>
+    </span>
+  </Notice>
+}
+
+/** Someone asking to join; approving takes a learner seat (or, with no account yet, sends them an invitation). */
+export function JoinRequestCard({ request, token, onDone }: { request: OrgJoinRequest; token?: string; onDone: () => void }) {
+  const [busy, setBusy] = React.useState(false)
+  const name = request.person?.name || request.name || request.email
+  const decide = async (approve: boolean) => {
+    if (!token) return
+    setBusy(true)
+    try {
+      const answered = await joinRequestsApi.answer(request.request_uuid, approve, token)
+      toast.success(!approve ? 'Declined. They’ve been emailed.' : answered.invited ? `Invited ${request.email} to sign up.` : `${name} is a learner now.`)
+      onDone()
+    } catch (error: any) {
+      toast.error(error?.message || 'That didn’t go through')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return <Notice icon={DoorOpen} tone="warn">
+    <span><b>{name}</b> asked to join{request.person ? '' : ` · ${request.email}`}</span>
+    {request.message ? <span className="text-muted-foreground">“{request.message}”</span> : null}
+    <span className="flex gap-2">
+      <button type="button" disabled={busy} onClick={() => decide(true)} className={primary}><Check size={14} aria-hidden="true" />Approve</button>
       <button type="button" disabled={busy} onClick={() => decide(false)} className={plain}>Decline</button>
     </span>
   </Notice>

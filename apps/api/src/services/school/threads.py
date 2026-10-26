@@ -386,9 +386,22 @@ def org_log(db: Session, org_id: int) -> list[dict]:
     for (_, by, role), rows in invited.items():
         entries.append({"kind": "invited", "at": _iso(rows[-1].created_at), "role": role, "count": len(rows), "by": people.person(db, by) if by else None,
                         "pending": sum(1 for row in rows if row.status == "pending")})
-    entries += _plan_requests_log(db, org_id)
+    entries += _plan_requests_log(db, org_id) + _join_requests_log(db, org_id)
     entries.sort(key=lambda entry: entry["at"] or "")
     return entries[-LOG_LIMIT:]
+
+
+def _join_requests_log(db: Session, org_id: int) -> list[dict]:
+    """People asking to join, and the answers."""
+    from src.db.organization_join_requests import OrganizationJoinRequest
+
+    entries = []
+    for row in db.exec(select(OrganizationJoinRequest).where(OrganizationJoinRequest.org_id == org_id)).all():
+        who = {"name": row.name or row.email}
+        entries.append({"kind": "join_asked", "at": row.creation_date, "who": who})
+        if row.decided_at:
+            entries.append({"kind": "join_answered", "at": _iso(row.decided_at), "who": who, "approved": row.status == "approved", "by": people.person(db, row.decided_by_user_id)})
+    return entries
 
 
 def _plan_requests_log(db: Session, org_id: int) -> list[dict]:
@@ -412,14 +425,22 @@ def org_thread(db: Session, current_user: PublicUser, org_id: int) -> dict:
     org = db.get(Organization, org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    return {"kind": ORG, "org": {"id": org.id, "name": org.name, "slug": org.slug, "logo_image": org.logo_image}, "can_post": False, "entries": org_log(db, org_id)}
+    from src.services.orgs import join_requests
+
+    asking = join_requests.list_requests(db, current_user, org_id) if plan_requests.can_decide(db, int(current_user.id), org_id) else []  # type: ignore[arg-type]
+    return {"kind": ORG, "org": {"id": org.id, "name": org.name, "slug": org.slug, "logo_image": org.logo_image}, "can_post": False, "entries": org_log(db, org_id),
+            "join_requests": asking}
 
 
-def _org_row(db: Session, org_id: int) -> dict:
+def _org_row(db: Session, org_id: int, viewer: int) -> dict:
+    from src.services.orgs import join_requests
+
     org = db.get(Organization, org_id)
     log = org_log(db, org_id)
     last = log[-1] if log else None
-    return {"key": ORG, "kind": ORG, "title": org.name if org else "", "at": last["at"] if last else None, "preview": _log_line(last) if last else ""}
+    asking = len(join_requests.waiting(db, org_id)) if plan_requests.can_decide(db, viewer, org_id) else 0
+    preview = f"{asking} {'person' if asking == 1 else 'people'} asking to join" if asking else _log_line(last) if last else ""
+    return {"key": ORG, "kind": ORG, "title": org.name if org else "", "at": last["at"] if last else None, "preview": preview, "unread": asking}
 
 
 def _log_line(entry: dict) -> str:
@@ -430,6 +451,10 @@ def _log_line(entry: dict) -> str:
         return f"{name(entry['person'])} joined as {entry['role']}"
     if entry["kind"] == "learners_joined":
         return f"{entry['count']} learner{'s' if entry['count'] != 1 else ''} joined"
+    if entry["kind"] == "join_asked":
+        return f"{entry['who']['name']} asked to join"
+    if entry["kind"] == "join_answered":
+        return f"{name(entry['by'])} {'approved' if entry['approved'] else 'declined'} {entry['who']['name']}"
     if entry["kind"] == "plan_asked":
         return f"{entry['org']['name']} asked to run “{entry['plan']}”" if entry["incoming"] else f"You asked {entry['org']['name']} to run “{entry['plan']}”"
     if entry["kind"] == "plan_answered":
@@ -441,6 +466,6 @@ def _log_line(entry: dict) -> str:
 def pinned(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     """The rows on top of every staff member's Threads list: the all-staff room and the organization."""
     viewer = int(current_user.id)  # type: ignore[arg-type]
-    rows = [_room_row(db, org_id, viewer), _org_row(db, org_id)]
+    rows = [_room_row(db, org_id, viewer), _org_row(db, org_id, viewer)]
     db.commit()
     return rows
