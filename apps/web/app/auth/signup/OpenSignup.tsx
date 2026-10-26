@@ -186,7 +186,9 @@ function OpenSignUpComponent({
         return
       }
       window.sessionStorage.setItem(welcomeSignupPasswordKey(email), formik.values.password)
-      router.push(`/welcome?email=${encodeURIComponent(email)}`)
+      // An invitation or join link rides along, so the new account joins that organization.
+      const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
+      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
       return
     }
     setStep('details')
@@ -197,7 +199,7 @@ function OpenSignUpComponent({
     if (!age.ok()) return
     setIsGoogleLoading(true)
 
-    const callbackUrl = postSignupUrl
+    const callbackUrl = invitationToken || inviteCode ? `${window.location.pathname}${window.location.search}` : postSignupUrl // back to the join screen
     const res = await signIn('google', {
       callbackUrl,
       orgSlug: org?.slug,

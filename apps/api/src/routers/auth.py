@@ -56,6 +56,9 @@ router = APIRouter()
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
+    invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
+    invite_code: str | None = None
+    org_id: int | None = None
 
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
@@ -172,17 +175,14 @@ async def complete_welcome_signup(
         profile=profile_preset,
     )
 
+    from src.services.auth import welcome
     from src.services.users.users import create_user
 
-    user_read = await create_user(
-        request,
-        db_session,
-        AnonymousUser(),
-        user_create,
-        owner_org.id or 0,
-        signup_provider="onboarding",
-        send_verification=False,
-    )
+    org = welcome.invited_org(db_session, body.invitation_token, body.invite_code, body.org_id)
+    if org is None:
+        user_read = await create_user(request, db_session, AnonymousUser(), user_create, owner_org.id or 0, signup_provider="onboarding", send_verification=False)
+    else:
+        user_read = await welcome.create_invited_account(request, db_session, user_create, org, body.invitation_token, body.invite_code)
 
     user = db_session.exec(select(User).where(User.id == user_read.id)).first()
     if not user:
@@ -198,8 +198,8 @@ async def complete_welcome_signup(
     db_session.refresh(user)
 
     onboarding_payload = {
-        "org_slug": owner_org.slug,
-        "redirect_url": _starter_plan_redirect_url(owner_org, int(user.id), db_session),  # type: ignore[arg-type]
+        "org_slug": (org or owner_org).slug,
+        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _starter_plan_redirect_url(owner_org, int(user.id), db_session),  # type: ignore[arg-type]
     }
 
     access_token = create_access_token(

@@ -210,12 +210,14 @@ async def join_org(
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
 
-            if invitation and invitation.usergroup_id:
+            # A join link made for a group puts its people in that group, as on invite-only orgs.
+            usergroup_id = invitation.usergroup_id if invitation else inviteCode.get("usergroup_id") if inviteCode else None
+            if usergroup_id:
                 await add_users_to_usergroup(
                     request,
                     db_session,
                     InternalUser(id=0),
-                    int(invitation.usergroup_id),
+                    int(usergroup_id),
                     str(user.id),
                 )
 
