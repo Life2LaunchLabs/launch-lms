@@ -17,6 +17,14 @@ from src.db.conversations import Conversation, ConversationMember, ConversationM
 from src.db.goal_sharing import PlanActivity
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.organizations import Organization
+from src.db.requirements import (
+    RequirementAssignmentBatch,
+    RequirementAttainmentSource,
+    RequirementEnrollment,
+    RequirementFramework,
+    RequirementFrameworkVersion,
+    RequirementNode,
+)
 from src.db.roles import Role
 from src.db.school import UserGroupStaff
 from src.db.user_organizations import UserOrganization
@@ -46,6 +54,8 @@ def db() -> Session:
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__, UserGroupStaff.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__,
         PlanActivity.__table__, BadgeAward.__table__, Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__,
+        RequirementFramework.__table__, RequirementFrameworkVersion.__table__, RequirementNode.__table__, RequirementAssignmentBatch.__table__,
+        RequirementEnrollment.__table__, RequirementAttainmentSource.__table__,
     ])
     session = Session(engine_)
     session.add(Organization(id=1, org_uuid="org_1", name="Riverside", slug="riverside", email="r@example.com"))

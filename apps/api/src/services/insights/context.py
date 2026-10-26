@@ -3,7 +3,8 @@
 The population is resolved once per request and every measure starts from it, so no measure can count a
 learner the viewer couldn't see. Admins, and staff with the See reports permission, count every learner in
 the organization; other staff count the learners in the groups they staff (the rule Threads uses) and the
-learners on assignments that list them as staff. A dashboard's scope (one plan, group or learner) narrows
+learners on assignments that list them as staff. A dashboard's scope (one plan, group, learner or requirement
+framework) narrows
 that further as a locked filter.
 """
 
@@ -16,6 +17,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.goals import Goal, GoalAssignment, GoalTemplate
+from src.db.requirements import RequirementEnrollment, RequirementEnrollmentStatus, RequirementFramework
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
@@ -26,7 +28,7 @@ from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.insights.spec import CustomRange
 from src.services.school.chats import students_of
 
-SCOPES = ("org", "plan", "group", "learner")
+SCOPES = ("org", "plan", "group", "learner", "framework")
 PRESET_DAYS = {"28d": 28, "90d": 90, "12m": 365}
 DEFAULT_RANGE = "90d"
 
@@ -152,7 +154,7 @@ class Scope:
 
 
 def scope(db: Session, pop: Population, kind: str, key: str | None) -> Scope:
-    """The plan, group or learner a dashboard shows, checked against what the viewer may see."""
+    """The plan, group, learner or framework a dashboard shows, checked against what the viewer may see."""
     if kind not in SCOPES:
         raise HTTPException(status_code=422, detail=f"Scope is one of: {', '.join(SCOPES)}")
     if kind == "org":
@@ -175,6 +177,11 @@ def scope(db: Session, pop: Population, kind: str, key: str | None) -> Scope:
             if not members & set(pop.status):
                 raise HTTPException(status_code=404, detail="Group not found")
         return Scope("group", key, int(group.id), group.name)  # type: ignore[arg-type]
+    if kind == "framework":
+        framework = db.exec(select(RequirementFramework).where(RequirementFramework.framework_uuid == key, RequirementFramework.org_id == pop.org_id)).first()
+        if not framework:
+            raise HTTPException(status_code=404, detail="Requirement framework not found")
+        return Scope("framework", key, int(framework.id), framework.name)  # type: ignore[arg-type]
     user = db.exec(select(User).where(User.user_uuid == key)).first()
     if not user or int(user.id) not in pop.status:  # type: ignore[arg-type]
         raise HTTPException(status_code=404, detail="Learner not found")
@@ -183,10 +190,11 @@ def scope(db: Session, pop: Population, kind: str, key: str | None) -> Scope:
 
 
 def objects(db: Session, pop: Population, kind: str) -> list[dict]:
-    """The plans, groups or learners this viewer can open a dashboard on, most learners first (learners by name).
+    """The plans, groups, learners or frameworks this viewer can open a dashboard on, most learners first (learners by name).
 
     Plans are the organization's own (not archived) and any plan its learners have started; groups are the
-    organization's, or for staff without See reports the ones that hold their learners.
+    organization's, or for staff without See reports the ones that hold their learners; frameworks are the
+    organization's (not archived), counting the learners tracked on each.
     """
     if kind == "plan":
         counts: dict[int, set[int]] = {}
@@ -208,10 +216,18 @@ def objects(db: Session, pop: Population, kind: str) -> list[dict]:
                 for group in groups if pop.see_reports or int(group.id) in members]  # type: ignore[arg-type]
     elif kind == "learner":
         return _learner_objects(db, pop)
+    elif kind == "framework":
+        tracked: dict[int, set[int]] = {}
+        for framework_id, user_id in db.exec(select(RequirementEnrollment.framework_id, RequirementEnrollment.user_id).where(
+                RequirementEnrollment.org_id == pop.org_id, RequirementEnrollment.status != RequirementEnrollmentStatus.WITHDRAWN)).all():
+            if int(user_id) in pop.status:
+                tracked.setdefault(int(framework_id), set()).add(int(user_id))
+        frameworks = db.exec(select(RequirementFramework).where(RequirementFramework.org_id == pop.org_id, RequirementFramework.archived == False)).all()  # noqa: E712
+        rows = [{"key": framework.framework_uuid, "label": framework.name, "learners": len(tracked.get(int(framework.id), ()))} for framework in frameworks]  # type: ignore[arg-type]
     elif kind == "org":
         return []
     else:
-        raise HTTPException(status_code=422, detail="Objects are plans, groups or learners")
+        raise HTTPException(status_code=422, detail="Objects are plans, groups, learners or frameworks")
     return sorted(rows, key=lambda row: (-row["learners"], row["label"].lower()))
 
 

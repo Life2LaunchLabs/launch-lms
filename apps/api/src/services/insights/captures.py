@@ -268,3 +268,7 @@ def shield(result: dict, spec: dict | None = None) -> dict:
         headline = sentences.funnel(measure, out["rows"]) if measure.funnel and by == "step" else sentences.ranked(measure, out["rows"], DIMENSIONS[by].plural)
     out["headline"] = out["auto_headline"] = headline
     return out
+
+
+# Kinds other parts of the product attach; importing them here registers them.
+from src.services.insights import evidence as _evidence  # noqa: E402,F401

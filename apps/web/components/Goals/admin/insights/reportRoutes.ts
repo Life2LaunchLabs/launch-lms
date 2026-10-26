@@ -9,8 +9,6 @@ export const insightsRoutes = {
   /** The clean page to print a group's report from. */
   reportPrint: (groupId: number | string, frameworks: string[] = []) => admin.insightsReportPrint(groupId, frameworks),
   engagement: () => admin.insightsEngagement(),
-  /** Framework coverage by template. */
-  coverage: () => admin.insightsCoverage(),
 }
 
 /** The `fw` query value as framework uuids. */

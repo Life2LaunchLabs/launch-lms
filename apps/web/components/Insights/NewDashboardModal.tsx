@@ -18,6 +18,7 @@ const SCOPES: Array<{ scope: Scope; detail: string }> = [
   { scope: 'plan', detail: 'Any one plan, picked when you open it' },
   { scope: 'group', detail: 'Any one group, picked when you open it' },
   { scope: 'learner', detail: 'Any one learner, picked when you open it' },
+  { scope: 'framework', detail: 'Any one requirement framework, picked when you open it' },
 ]
 const VISIBILITY_DETAIL: Record<Visibility, string> = {
   me: 'Only you see it.',

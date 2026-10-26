@@ -1,6 +1,7 @@
-import { InsightsCoveragePage } from '@components/Goals/admin/insights/InsightsPages'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/routing/paths'
 
-export default async function InsightsCoverage({ params }: { params: Promise<{ orgslug: string }> }) {
-  const { orgslug } = await params
-  return <InsightsCoveragePage orgslug={orgslug} />
+// Coverage by plan moved to each framework's page under Plans › Requirements.
+export default function InsightsCoverage() {
+  redirect(routePaths.org.admin.requirements())
 }

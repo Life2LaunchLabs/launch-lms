@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { isCardError, type CaptureAttachment, type CardOutcome, type DashboardCard } from '@services/insights/insights'
+import EvidenceAttachment from './EvidenceAttachment'
 import InsightCard from './InsightCard'
 
 // A capture's cards as they were: the stored results, drawn by the same cards, with nothing to click into
@@ -42,7 +43,9 @@ export const capturedOn = (iso: string) => new Date(iso).toLocaleString(undefine
  * Material captured with the dashboard. Each kind can register how it reads (`ATTACHMENT_VIEWS`); any other
  * kind shows its name and how many rows it holds.
  */
-export const ATTACHMENT_VIEWS: Record<string, React.ComponentType<{ attachment: CaptureAttachment }>> = {}
+export const ATTACHMENT_VIEWS: Record<string, React.ComponentType<{ attachment: CaptureAttachment }>> = {
+  requirement_evidence: EvidenceAttachment,
+}
 
 export function Attachments({ attachments }: { attachments: CaptureAttachment[] }) {
   if (!attachments.length) return null

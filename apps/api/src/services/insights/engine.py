@@ -22,7 +22,7 @@ from src.services.insights import sentences
 from src.services.insights.context import Ctx, Window, compared, compared_label, population, scope, window
 from src.services.insights.dimensions import DIMENSIONS, NATURAL_ORDER
 from src.services.insights.measures import MEASURES, Fact, Measure
-from src.services.insights.spec import CardSpec, Target, check
+from src.services.insights.spec import BOUND, CardSpec, Target, check
 
 SHAPE_CHARTS: dict[str, tuple[str, ...]] = {
     "single": ("number", "table"),
@@ -82,6 +82,8 @@ def _kept(ctx: Ctx, spec: CardSpec, measure: Measure, facts: Iterable[Fact]) -> 
         if kind == "group" and key not in _values(fact, "group"):
             continue
         if kind == "learner" and fact.user_id != ctx.scope.id:
+            continue
+        if kind == "framework" and key not in _values(fact, "framework"):
             continue
         if settled and fact.at > settled:
             continue
@@ -422,7 +424,7 @@ def registry(ctx: Ctx) -> dict:
     return {
         "measures": [{
             "key": measure.key, "label": measure.label, "definition": measure.definition, "kind": measure.kind, "unit": measure.unit,
-            "direction": measure.direction, "dims": [dim for dim in measure.dims if dim != {"plan": "plan", "group": "group"}.get(ctx.scope.kind)],
+            "direction": measure.direction, "dims": [dim for dim in measure.dims if dim != BOUND.get(ctx.scope.kind)],
             "scopes": list(measure.scopes), "snapshot": measure.snapshot, "available": measure.needs != "see_reports" or ctx.pop.see_reports,
             "keywords": list(measure.keywords),
         } for measure in MEASURES.values() if ctx.scope.kind in measure.scopes],

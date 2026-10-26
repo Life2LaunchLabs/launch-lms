@@ -59,7 +59,7 @@ def _insights_url(db: Session, ctx: AccessContext, dashboard: dict | None = None
     base = f"{frontend_url()}/orgs/{org.slug}/admin/insights"
     if dashboard is None:
         return base
-    path = f"/{dashboard['scope']}/{quote(key, safe='')}" if dashboard["scope"] in ("plan", "group") and key else ""
+    path = f"/{dashboard['scope']}/{quote(key, safe='')}" if dashboard["scope"] in ("plan", "group", "learner", "framework") and key else ""
     return f"{base}{path}?{urlencode({'d': dashboard['dashboard_uuid']})}"
 
 
@@ -86,7 +86,7 @@ async def get_dashboard_schema(request: Request, db: Session, ctx: AccessContext
 async def list_dashboards(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     items = dashboards.list_dashboards(db, ctx.user, ctx.org_id, args.get("scope"))
     out = {"dashboards": [_dashboard(db, ctx, item) for item in items]}
-    if args.get("scope") in ("plan", "group", "learner"):
+    if args.get("scope") in ("plan", "group", "learner", "framework"):
         out["objects"] = context.objects(db, context.population(db, ctx.user, ctx.org_id), args["scope"])
     return out
 
@@ -96,7 +96,7 @@ async def get_dashboard(request: Request, db: Session, ctx: AccessContext, args:
     item = dashboards.get_dashboard(db, ctx.user, ctx.org_id, str(args["dashboard_uuid"]))
     out = _dashboard(db, ctx, item, args.get("key"))
     if args.get("run"):
-        if item["scope"] in ("plan", "group", "learner") and not args.get("key"):
+        if item["scope"] in ("plan", "group", "learner", "framework") and not args.get("key"):
             raise HTTPException(status_code=422, detail=f"A {item['scope']} dashboard runs on one {item['scope']}: pass its key")
         document = item["document"] or {}
         run_ctx = engine.context(db, ctx.user, ctx.org_id, item["scope"], args.get("key"))

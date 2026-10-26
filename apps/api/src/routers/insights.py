@@ -18,7 +18,7 @@ public_router = APIRouter()
 
 
 class ScopeRef(BaseModel):
-    kind: Literal["org", "plan", "group", "learner"] = "org"
+    kind: Literal["org", "plan", "group", "learner", "framework"] = "org"
     key: str | None = None
 
 
@@ -34,7 +34,7 @@ class RunCards(BaseModel):
 
 
 class DashboardCreate(BaseModel):
-    scope: Literal["org", "plan", "group", "learner"] = "org"
+    scope: Literal["org", "plan", "group", "learner", "framework"] = "org"
     title: str | None = Field(default=None, max_length=120)
     description: str = Field(default="", max_length=500)
     visibility: Literal["me", "staff", "admins"] = "me"
@@ -78,7 +78,7 @@ class DrillRequest(BaseModel):
 
 
 @router.get("/registry")
-def api_registry(org_id: int, scope: Literal["org", "plan", "group", "learner"] = Query(default="org"), key: str | None = None,
+def api_registry(org_id: int, scope: Literal["org", "plan", "group", "learner", "framework"] = Query(default="org"), key: str | None = None,
                  db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return engine.registry(engine.context(db, user, org_id, scope, key))
 
@@ -96,19 +96,19 @@ def api_drill(org_id: int, payload: DrillRequest, db: Session = Depends(get_db_s
 
 
 @router.get("/library")
-def api_library(org_id: int, scope: Literal["org", "plan", "group", "learner"] = Query(default="org"),
+def api_library(org_id: int, scope: Literal["org", "plan", "group", "learner", "framework"] = Query(default="org"),
                 db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return dashboards.library_for(db, user, org_id, scope)
 
 
 @router.get("/objects")
-def api_objects(org_id: int, scope: Literal["plan", "group", "learner"] = Query(default="plan"), db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """The plans, groups or learners the viewer can open a dashboard on, for the switcher."""
+def api_objects(org_id: int, scope: Literal["plan", "group", "learner", "framework"] = Query(default="plan"), db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The plans, groups, learners or requirement frameworks the viewer can open a dashboard on, for the switcher."""
     return {"objects": context.objects(db, context.population(db, user, org_id), scope)}
 
 
 @router.get("/dashboards")
-def api_list_dashboards(org_id: int, scope: Literal["org", "plan", "group", "learner"] | None = None,
+def api_list_dashboards(org_id: int, scope: Literal["org", "plan", "group", "learner", "framework"] | None = None,
                         db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return {"dashboards": dashboards.list_dashboards(db, user, org_id, scope)}
 
@@ -147,7 +147,7 @@ def api_capture_dashboard(org_id: int, dashboard_uuid: str, payload: CaptureCrea
 
 
 @router.get("/captures")
-def api_list_captures(org_id: int, dashboard: str | None = None, scope: Literal["org", "plan", "group", "learner"] | None = None, key: str | None = None,
+def api_list_captures(org_id: int, dashboard: str | None = None, scope: Literal["org", "plan", "group", "learner", "framework"] | None = None, key: str | None = None,
                       mine: bool = False, scheduled: bool | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return {"captures": captures.list_captures(db, user, org_id, dashboard_uuid=dashboard, scope=scope, key=key, mine=mine, scheduled=scheduled)}
 

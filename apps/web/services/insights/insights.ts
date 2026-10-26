@@ -15,7 +15,9 @@ async function request<T = any>(target: string, token?: string, method = 'GET', 
   return errorHandling(response)
 }
 
-export type Scope = 'org' | 'plan' | 'group' | 'learner'
+export type Scope = 'org' | 'plan' | 'group' | 'learner' | 'framework'
+/** A dashboard about one thing, picked when it opens. */
+export type ObjectScope = Exclude<Scope, 'org'>
 export type Visibility = 'me' | 'staff' | 'admins'
 export type Preset = '28d' | '90d' | '12m' | 'all'
 export type DateRange = Preset | { start: string; end: string }
@@ -237,7 +239,7 @@ export const insightsApi = {
   duplicate: (orgId: number, uuid: string, title?: string, token?: string) =>
     request<Dashboard>(url(orgId, `/dashboards/${q(uuid)}/duplicate`), token, 'POST', { title: title || null }),
   remove: (orgId: number, uuid: string, token?: string) => request<{ deleted: boolean }>(url(orgId, `/dashboards/${q(uuid)}`), token, 'DELETE'),
-  objects: (orgId: number, scope: 'plan' | 'group' | 'learner', token?: string) =>
+  objects: (orgId: number, scope: ObjectScope, token?: string) =>
     request<{ objects: InsightObject[] }>(url(orgId, '/objects', { scope }), token).then((body) => body.objects),
   library: (orgId: number, scope: Scope, token?: string) =>
     request<{ templates: LibraryTemplate[]; questions: LibraryQuestion[] }>(url(orgId, '/library', { scope }), token),
@@ -273,5 +275,6 @@ export const SCOPE_LABELS: Record<Scope, { one: string; many: string }> = {
   plan: { one: 'Plan', many: 'Plans' },
   group: { one: 'Group', many: 'Groups' },
   learner: { one: 'Learner', many: 'Learners' },
+  framework: { one: 'Requirement framework', many: 'Requirements' },
 }
 export const VISIBILITY_LABELS: Record<Visibility, string> = { me: 'Only me', staff: 'Staff', admins: 'Admins' }

@@ -96,7 +96,7 @@ def test_the_learner_starter_runs_and_reaches_organizations_already_using_insigh
     db.commit()
     listed = dashboards.list_dashboards(db, _user(ADMIN), 1, "learner")
     assert [entry["source_template"] for entry in listed] == ["starter:learner.overview"]
-    assert len(dashboards.list_dashboards(db, _user(ADMIN), 1)) == 4
+    assert len(dashboards.list_dashboards(db, _user(ADMIN), 1)) == len(library.STARTERS)
 
 
 def test_the_switcher_lists_the_viewers_active_learners_with_their_groups(db):

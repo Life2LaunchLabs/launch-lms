@@ -92,10 +92,22 @@ TEMPLATES: list[dict] = [
         card("sent_back", 4, "sent_back_rate"),
         card("turnaround", 4, "review_turnaround"),
     ]},
+    {"key": "framework.progress", "scope": "framework", "title": "Requirement progress",
+     "description": "Who is tracked, how far each category and group is, which plans credit requirements, and who has met them all.", "cards": [
+        card("tracked", 3, "learners_tracked"),
+        card("progress", 3, "requirement_progress"),
+        card("met", 3, "requirements_met", range="all"),
+        card("completed", 3, "frameworks_completed", range="all"),
+        card("categories", 6, "requirement_progress", by="category"),
+        card("groups", 6, "requirement_progress", by="group"),
+        card("met_weeks", 7, "requirements_met", by="time"),
+        card("plans", 5, "requirements_met", by="plan", range="all"),
+        card("category_groups", 12, "requirement_progress", by="category", by2="group"),
+    ]},
 ]
 
 # Starter dashboards: each is made once for an organization, the first time it opens Insights after the starter exists.
-STARTERS = ("org.overview", "plan.performance", "group.progress", "learner.overview")
+STARTERS = ("org.overview", "plan.performance", "group.progress", "learner.overview", "framework.progress")
 
 QUESTIONS: list[dict] = [
     {"key": "active_weekly", "text": "How many learners are active each week?", "spec": {"measure": "active_learners", "by": "time", "compare": "year"}},
@@ -124,6 +136,10 @@ QUESTIONS: list[dict] = [
     {"key": "how_far", "text": "How far along are the running plans?", "spec": {"measure": "plan_progress", "by": "plan"}},
     {"key": "days_active", "text": "How often is this learner active?", "spec": {"measure": "days_active", "by": "time"}},
     {"key": "check_ins", "text": "How often does staff check in?", "spec": {"measure": "check_ins", "by": "time"}},
+    {"key": "requirements_far", "text": "How far along are learners on their requirements?", "spec": {"measure": "requirement_progress", "by": "framework"}},
+    {"key": "requirements_categories", "text": "Which categories of requirements are furthest behind?", "spec": {"measure": "requirement_progress", "by": "category"}},
+    {"key": "requirements_plans", "text": "Which plans credit the most requirements?", "spec": {"measure": "requirements_met", "by": "plan", "range": "all"}},
+    {"key": "requirements_weekly", "text": "How many requirements are met each week?", "spec": {"measure": "requirements_met", "by": "time"}},
     {"key": "finished_weekly", "text": "How many plans are finished each week?", "spec": {"measure": "plans_finished", "by": "time"}},
 ]
 

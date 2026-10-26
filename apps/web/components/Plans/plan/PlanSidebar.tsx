@@ -13,7 +13,6 @@ import { documentSteps } from '@components/Plans/editor/documentOps'
 import { leafNodes, useRequirementFrameworks, type RequirementNode } from '@components/Plans/editor/StepRequirementLinks'
 import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { smallActionClass, smallPrimaryClass } from '@components/Plans/shared/actions'
-import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { AsideCard, Tag } from './AsideCard'
 import PlanBadgeCard from './PlanBadgeCard'
@@ -59,7 +58,7 @@ function RequirementsCard({ orgslug, orgId, token, document, canEdit }: { orgslu
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-600" style={{ width: `${framework.total ? framework.covered / framework.total * 100 : 0}%` }} /></div>
       {framework.flagged.length ? <FlaggedList nodes={framework.flagged} linked={linked} /> : null}
     </li>)}</ul>
-    <Link href={getUriWithOrg(orgslug, insightsRoutes.coverage())} className={smallActionClass + ' mt-3'}>Coverage report</Link>
+    <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('framework', coverage.length === 1 ? coverage[0].framework_uuid : null))} className={smallActionClass + ' mt-3'}>Progress in Insights</Link>
   </AsideCard>
 }
 

@@ -8,8 +8,11 @@ import { Camera, Loader2 } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Label } from '@components/ui/label'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { RANGE_LABELS, insightsApi, type Dashboard, type DateRange } from '@services/insights/insights'
+import { RANGE_LABELS, insightsApi, type Dashboard, type DateRange, type Scope } from '@services/insights/insights'
 import { useInsightsContext } from './shared'
+
+// The dashboards a capture can carry each learner's requirement evidence on (the API's ATTACHMENTS scopes).
+const EVIDENCE_SCOPES: Scope[] = ['framework', 'group', 'learner']
 
 /** Capture: freeze the dashboard as it shows now (these dates, this plan or group), with a note. */
 export default function CaptureButton({ dashboard, scopeKey, objectLabel, range, className }: {
@@ -28,13 +31,15 @@ function CaptureForm({ dashboard, scopeKey, objectLabel, range, close }: { dashb
   const router = useRouter()
   const { orgId, orgslug, token, ready } = useInsightsContext()
   const [note, setNote] = React.useState('')
+  const evidenceOffered = EVIDENCE_SCOPES.includes(dashboard.scope)
+  const [evidence, setEvidence] = React.useState(dashboard.scope === 'framework')
   const [saving, setSaving] = React.useState(false)
   const dates = typeof range === 'string' ? RANGE_LABELS[range] : `${range.start} to ${range.end}`
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     setSaving(true)
     try {
-      const made = await insightsApi.capture(orgId, dashboard.dashboard_uuid, { key: scopeKey, range, note }, token)
+      const made = await insightsApi.capture(orgId, dashboard.dashboard_uuid, { key: scopeKey, range, note, attach: evidenceOffered && evidence ? ['requirement_evidence'] : [] }, token)
       await mutate((key) => Array.isArray(key) && key[0] === 'insights' && key[2] === 'captures')
       close()
       toast.success('Captured')
@@ -58,6 +63,10 @@ function CaptureForm({ dashboard, scopeKey, objectLabel, range, close }: { dashb
         placeholder="What is this for? End of term, the board meeting…"
         className="w-full rounded-xl border border-border bg-card px-3 py-2 text-[14px] outline-none focus:border-foreground" />
     </div>
+    {evidenceOffered ? <label className="flex items-start gap-2.5 text-[13.5px]">
+      <input type="checkbox" checked={evidence} onChange={(event) => setEvidence(event.target.checked)} className="mt-0.5 h-4 w-4 accent-foreground" />
+      <span><b className="block font-semibold">Include requirement evidence</b><span className="text-muted-foreground">Each learner&apos;s credited requirements with the plan and step that credited them, to read or download as a spreadsheet. A read-only link leaves it out.</span></span>
+    </label> : null}
     <p className="text-[12px] text-muted-foreground">It counts the learners you can see. Unsaved edits to the dashboard aren&apos;t included.</p>
     <div className="flex justify-end gap-2">
       <button type="button" onClick={close} className="inline-flex h-10 items-center rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-muted">Cancel</button>
