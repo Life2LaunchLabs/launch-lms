@@ -73,7 +73,7 @@ test('requirements.export: Insights group evidence keeps pending evidence and sh
 
 test('insights.report: a group report includes a framework as a draft section and prints on its own page', async ({ page }, testInfo) => {
   test.setTimeout(60_000)
-  await page.goto(`${insightsPath}?group=${fixture.group_id}`)
+  await page.goto(`${insightsPath}/reports?group=${fixture.group_id}`)
   await assertActualApp(page)
   await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
   await expect(page.getByRole('heading', { name: 'Plans and badges' })).toBeVisible()

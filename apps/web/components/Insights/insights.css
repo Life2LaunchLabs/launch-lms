@@ -1,0 +1,35 @@
+/* Insights chart tokens: one series hue, the last-year ghost, chart ink, and the status steps for learner
+   status. Dark mode has its own steps (validated against the dark card surface), not a flip. */
+.insights-viz {
+  --viz-series: #2a78d6;
+  --viz-series-soft: #cde2fb;
+  --viz-ghost: #b4b2a9;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-muted: #898781;
+  --viz-ink: #0b0b0b;
+  --viz-ink-2: #52514e;
+  --viz-good: #0ca30c;
+  --viz-warning: #fab219;
+  --viz-serious: #ec835a;
+  --viz-critical: #d03b3b;
+  --viz-neutral: #898781;
+  --viz-up: #006300;
+  --viz-down: #b42323;
+  --viz-surface: #ffffff;
+}
+@media screen {
+  html.dark .insights-viz {
+    --viz-series: #3987e5;
+    --viz-series-soft: #184f95;
+    --viz-ghost: #6c6b66;
+    --viz-grid: #2c2c2a;
+    --viz-axis: #383835;
+    --viz-muted: #898781;
+    --viz-ink: #f0efec;
+    --viz-ink-2: #c3c2b7;
+    --viz-up: #0ca30c;
+    --viz-down: #e66767;
+    --viz-surface: hsl(199 29% 13%);
+  }
+}

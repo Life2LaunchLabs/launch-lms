@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I2 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I3 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -46,6 +46,18 @@ soft delete. `services/insights/dashboards.py` holds the rules:
 API: `GET /library`, `GET /objects` (plans or groups for the switcher), `GET|POST /dashboards`, `GET|PUT|DELETE /dashboards/{uuid}`,
 `POST /dashboards/{uuid}/duplicate`, all with `org_id`.
 
+## Insights page (I3)
+
+`components/Insights/`: a rail (the org's dashboards; Plans and Groups, one at a time; then group reports,
+requirement coverage and learner evidence), and the open dashboard. A plan or group dashboard has a switcher
+for which plan or group, and tabs for the dashboards of that kind. Cards run in one request per dashboard
+and date range. Lines and columns use Recharts; ranked bars, splits and heatmaps are HTML so every value is
+a button that opens the learners behind it, and a plan or group row links to its own dashboard. Chart
+colors are tokens in `insights.css`, with their own dark steps.
+
+Routes: `/admin/insights?d=`, `/admin/insights/plan/[key]?d=`, `/admin/insights/group/[key]?d=`. Group
+reports moved to `/admin/insights/reports`; old `?group=` links redirect.
+
 ## Acceptance
 
 - Every measure has exact numbers on the `test_insights` fixture, and a staff viewer never counts a learner
@@ -53,6 +65,8 @@ API: `GET /library`, `GET /objects` (plans or groups for the switcher), `GET|POS
 - Changes are called only when real (thresholds in `sentences.real_change`); too few rows say so.
 - A bad spec on a dashboard returns its errors without failing the other cards.
 - Every template and question validates on its scope, and every starter runs without errors.
+- `tests/ui/insights.spec.ts`: the org overview runs its cards, opens who is behind a number, changes dates; a
+  group dashboard switches groups; New dashboard makes one from a template.
 
 ## Sequence
 
