@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
@@ -10,6 +11,7 @@ from src.db.goals import Goal
 from src.db.goal_sharing import PlanCollaborator
 from src.db.portfolio import Portfolio
 from src.db.portfolio_people import PortfolioPerson
+from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.goals.sharing_roles import user_summary
 
@@ -17,6 +19,7 @@ from src.services.goals.sharing_roles import user_summary
 SETTINGS_KEY = "connect"
 MIN_SEARCH = 2
 MAX_RESULTS = 20
+LEARNER_NAME_MAX = 60
 
 
 def person(db: Session, user_id: int | None) -> dict | None:
@@ -25,6 +28,39 @@ def person(db: Session, user_id: int | None) -> dict | None:
     if summary:
         summary.pop("email", None)
     return summary
+
+
+def learner_name(db: Session, user_id: int | None, org_id: int | None) -> str | None:
+    """What learners in this organization call a staff member, when they set it."""
+    if not user_id or not org_id:
+        return None
+    return db.exec(select(UserOrganization.learner_name).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first() or None
+
+
+def as_learners_see(db: Session, summary: dict | None, org_id: int | None) -> dict | None:
+    """A person as a learner in this organization sees them: staff go by the name they chose for learners."""
+    name = learner_name(db, summary["id"], org_id) if summary else None
+    return {**summary, "name": name} if summary and name else summary
+
+
+def my_learner_name(db: Session, current_user: PublicUser, org_id: int) -> dict:
+    """The viewer's own name for learners here; only staff have one."""
+    from src.services.school import roles as school_roles
+
+    staff = school_roles.is_staff(db, org_id, current_user.id)
+    return {"staff": staff, "learner_name": learner_name(db, current_user.id, org_id) if staff else None}
+
+
+def save_learner_name(db: Session, current_user: PublicUser, org_id: int, name: str | None) -> dict:
+    from src.services.school import roles as school_roles
+
+    membership = db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, UserOrganization.user_id == current_user.id)).first()
+    if not membership or not school_roles.is_staff(db, org_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Only staff choose what learners call them.")
+    membership.learner_name = " ".join((name or "").split())[:LEARNER_NAME_MAX] or None
+    db.add(membership)
+    db.commit()
+    return my_learner_name(db, current_user, org_id)
 
 
 def discoverable(user: User | None) -> bool:

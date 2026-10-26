@@ -11,6 +11,7 @@ from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.access.access import org_access
+from src.services.connect import people
 from src.services.goals import admin_home, admin_home_glance, assignment_steps, assignment_versions, assignments, plan_cards, review, staff_views
 
 router = APIRouter()
@@ -67,6 +68,20 @@ def api_home_pins_get(org_id: int, db: Session = Depends(get_db_session), user: 
 @router.put("/home/pins")
 def api_home_pins(org_id: int, payload: HomePins, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return admin_home.save_pins(db, user, org_id, payload.pins)
+
+
+class LearnerName(BaseModel):
+    learner_name: str | None = Field(default=None, max_length=people.LEARNER_NAME_MAX)
+
+
+@router.get("/me/learner-name")
+def api_learner_name_get(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return people.my_learner_name(db, user, org_id)
+
+
+@router.put("/me/learner-name")
+def api_learner_name(org_id: int, payload: LearnerName, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return people.save_learner_name(db, user, org_id, payload.learner_name)
 
 
 # Plans tabs -----------------------------------------------------------------------------
