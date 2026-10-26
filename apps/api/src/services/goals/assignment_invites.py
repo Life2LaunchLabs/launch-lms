@@ -10,12 +10,13 @@ from datetime import datetime
 
 from sqlmodel import Session, col, select
 
-from src.db.goal_sharing import PlanInvitation, PlanInvitationKind, PlanInvitationStatus
+from src.db.goal_sharing import PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
 from src.db.goals import Goal
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.services.goals import access
 from src.services.goals.assignment_staff import require_assignment_manager
+from src.services.goals.invitation_emails import send_plan_invitation
 from src.services.messages import create_inbox_message
 
 
@@ -39,6 +40,8 @@ def resend(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
             action_data={"invitation_uuid": invitation.invitation_uuid, "goal_uuid": goal.goal_uuid, "goal_title": goal.title},
             dedupe_key=f"goal_invitation:{invitation.invitation_uuid}:{now}",
         )
+        role = db.get(PlanRole, invitation.role_id)
+        send_plan_invitation(db, goal, invitation, role.name if role else "Learner")
         invitation.update_date = now
         db.add(invitation)
         access.log(db, goal, int(current_user.id), "invitation.resent", {"invitation_uuid": invitation.invitation_uuid})

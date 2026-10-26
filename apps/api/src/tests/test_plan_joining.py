@@ -124,6 +124,18 @@ def test_a_plan_by_request_waits_for_the_organization_to_accept():
         assert db.exec(select(PlanJoinRequest).where(PlanJoinRequest.template_id == second.id)).all() == []
 
 
+def test_an_alumnus_given_a_plan_they_asked_for_is_active_again():
+    db, (first, _second) = _setup()
+    with db:
+        _offer(db, first, 1, "request")
+        db.add(UserOrganization(user_id=NEWCOMER, org_id=1, role_id=4, status="alumni", creation_date=NOW, update_date=NOW))
+        db.commit()
+        asked = plan_joining.join(db, _user(NEWCOMER), first.template_uuid, PlanJoin(org_id=1))
+        plan_joining.decide(db, _user(ADMIN), asked["request_uuid"], True)
+        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == NEWCOMER, UserOrganization.org_id == 1)).one()
+        assert membership.status == "active"
+
+
 def test_the_plan_page_is_public_for_a_plan_with_a_badge_and_lists_who_offers_it():
     db, (first, _) = _setup()
     with db:
