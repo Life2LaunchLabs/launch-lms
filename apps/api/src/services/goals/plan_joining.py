@@ -246,11 +246,16 @@ def _offer_or_404(db: Session, template_uuid: str, org_id: int) -> Offer:
     return found[0]
 
 
-def _ensure_learner(db: Session, org_id: int, user_id: int) -> None:
-    """The learner joins the organization as a learner, when not already a member (flushed)."""
+def ensure_learner(db: Session, org_id: int, user_id: int) -> None:
+    """The learner joins the organization as a learner, when not already a member (flushed).
+
+    Alumni taking on a plan are active again, when there's room: a plan only goes to active learners.
+    """
     from src.security.access.access import require_capacity
+    from src.services.orgs import member_status
 
     if db.exec(select(UserOrganization.id).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first():
+        member_status.reactivate(db, org_id, member_status.alumni_ids(db, org_id, [user_id]))
         return
     require_capacity("learners", org_id, db)
     now = _now()
@@ -261,7 +266,7 @@ def _ensure_learner(db: Session, org_id: int, user_id: int) -> None:
 def _issue(db: Session, offer: Offer, user_id: int) -> Goal:
     from src.services.goals.issue import issue_goal
 
-    _ensure_learner(db, offer.org_id, user_id)
+    ensure_learner(db, offer.org_id, user_id)
     return issue_goal(db, offer.template, offer.version, subject_user_id=user_id, owner_user_id=user_id, org_id=offer.org_id,
                       source=GoalSource.JOINED, actor_user_id=user_id)
 

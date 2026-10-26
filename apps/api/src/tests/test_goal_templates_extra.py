@@ -143,7 +143,11 @@ def _publish(db: Session, document: dict) -> GoalTemplate:
     return templates.template_or_404(db, 1, created["template_uuid"])
 
 
-def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_learner():
+def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_learner(monkeypatch):
+    from src.services.goals import invitation_emails
+
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(invitation_emails, "send_email", lambda to, subject, body: sent.append((to, body)))
     with _session() as db:
         template = _published(db, {"type": "task", "title": "Visit"})
         result = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(subject_email=" New@Example.com "))
@@ -161,6 +165,20 @@ def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_lea
         from src.services.goals import assignment_invites
         assert assignment_invites.resend(db, _user(ADMIN), 1, result["assignment_uuid"]) == {"sent": 1}
         assert len(db.exec(select(InboxMessage)).all()) == 2
+        # Each time, the address gets an email too, pointing at its chats on the organization's site.
+        assert [to for to, _body in sent] == ["new@example.com", "new@example.com"]
+        assert "/signup?email=new%40example.com" in sent[0][1] and goal.title in sent[0][1]
+        # Signing up with that address and accepting makes them the organization's learner.
+        from src.db.user_organizations import UserOrganization
+        from src.db.users import PublicUser, User
+        from src.services.goals import sharing
+
+        db.add(User(id=77, user_uuid="user_77", username="newbie", email="new@example.com", first_name="N", last_name="Ew"))
+        db.commit()
+        newbie = PublicUser(id=77, user_uuid="user_77", username="newbie", email="new@example.com", first_name="N", last_name="Ew")
+        assert sharing.respond_to_invitation(db, newbie, invitation.invitation_uuid, True)["status"] == "accepted"
+        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == 77, UserOrganization.org_id == 1)).one()
+        assert membership.role_id == 4
 
 
 def test_assigning_by_email_to_someone_with_an_account_issues_their_goal():
