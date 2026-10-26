@@ -6,15 +6,15 @@ import { Award, BarChart3, Home, Layers3, ListChecks, Lock, Users, UsersRound } 
 import { cn } from '@/lib/utils'
 import { AVATAR_COLORS, initials, slugify } from './roles'
 import type { StartState } from './StartFlow'
-import type { SuggestedPlan } from '@services/onboarding/start'
+import type { StartFramework, SuggestedPlan } from '@services/onboarding/start'
 
 export type PreviewPage = 'plans' | 'people' | 'groups' | 'requirements' | 'invite'
 
 const hue = (title: string) => [...title].reduce((total, char) => total + char.charCodeAt(0), 0) % 360
 
 /** The new space as it fills in: the same window through setup, showing whatever the step changes. */
-export default function SitePreview({ state, page, plans, spaceName, frameworks }: {
-  state: StartState; page: PreviewPage; plans: SuggestedPlan[]; spaceName: string; frameworks: Array<{ id: string; title: string }>
+export default function SitePreview({ state, page, plans, spaceName, framework }: {
+  state: StartState; page: PreviewPage; plans: SuggestedPlan[]; spaceName: string; framework: StartFramework | null
 }) {
   const accent = state.orgOn ? state.color : '#2F66D6'
   const picked = state.picked.map((uuid) => plans.find((plan) => plan.template_uuid === uuid)).filter((plan): plan is SuggestedPlan => !!plan)
@@ -23,7 +23,7 @@ export default function SitePreview({ state, page, plans, spaceName, frameworks 
     ['home', 'Home', <Home key="h" size={14} />], ['plans', 'Plans', <Layers3 key="p" size={14} />, picked.length],
     ['people', 'People', <Users key="u" size={14} />, full ? state.staff.length : state.learners.length],
     ...(full ? [['groups', 'Groups', <UsersRound key="g" size={14} />, state.groups.length] as [PreviewPage, string, React.ReactNode, number]] : []),
-    ...(full && (page === 'requirements' || state.frameworks.length) ? [['requirements', 'Requirements', <ListChecks key="r" size={14} />, state.frameworks.length] as [PreviewPage, string, React.ReactNode, number]] : []),
+    ...(page === 'requirements' || framework ? [['requirements', 'Requirements', <ListChecks key="r" size={14} />, framework ? 1 : 0] as [PreviewPage, string, React.ReactNode, number]] : []),
     ['insights', 'Insights', <BarChart3 key="i" size={14} />],
   ]
   const mark = <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[11px] font-black text-white" style={{ background: accent }}>{initials(spaceName)}</span>
@@ -41,7 +41,7 @@ export default function SitePreview({ state, page, plans, spaceName, frameworks 
       </aside>
       <div className="min-w-0 flex-1 overflow-hidden p-4">
         {page === 'plans' ? <PlansPage picked={picked} /> : page === 'groups' ? <GroupsPage groups={state.groups} staff={state.staff.length} />
-          : page === 'requirements' ? <RequirementsPage chosen={frameworks.filter((item) => state.frameworks.includes(item.id))} />
+          : page === 'requirements' ? <RequirementsPage chosen={framework ? [{ id: framework.framework_uuid, title: framework.name }] : []} />
             : <PeoplePage full={full} people={full ? state.staff : state.learners} name={state.name} />}
       </div>
     </div>}
@@ -107,8 +107,7 @@ function RequirementsPage({ chosen }: { chosen: Array<{ id: string; title: strin
     <Head title="Requirements" sub="What your plans count toward" action="+ Add" />
     <div className="space-y-1.5">
       <AnimatePresence>{chosen.map((item) => <motion.div key={item.id} layout {...enter} className="flex items-center gap-2 rounded-xl border border-border p-2.5">
-        <ListChecks size={14} className="text-sky-700" /><span className="min-w-0 flex-1"><b className="block truncate text-[11px]">{item.title}</b><span className="text-[10px] text-muted-foreground">Not linked to any steps yet</span></span>
-        <span className="text-[10px] text-muted-foreground">0% covered</span>
+        <ListChecks size={14} className="text-sky-700" /><span className="min-w-0 flex-1"><b className="block truncate text-[11px]">{item.title}</b><span className="text-[10px] text-muted-foreground">Plans you add count toward it</span></span>
       </motion.div>)}</AnimatePresence>
       {chosen.length ? null : <p className="rounded-xl border border-dashed border-border p-4 text-center text-[11px] text-muted-foreground">Frameworks you track show up here</p>}
     </div>

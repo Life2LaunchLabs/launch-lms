@@ -35,7 +35,7 @@ class StepProgressBulk(SQLModel):
 
 
 # The admin Home's widgets, in their default order (see services/goals/admin_home.py).
-ADMIN_HOME_WIDGETS = ("waiting", "today", "messages", "attention", "creator")
+ADMIN_HOME_WIDGETS = ("waiting", "today", "messages", "attention", "creator", "requirements")
 
 
 class AdminHomeLayout(SQLModel):

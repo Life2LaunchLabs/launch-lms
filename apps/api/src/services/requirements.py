@@ -306,29 +306,10 @@ def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: 
 def list_framework_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
     from src.services.goals.template_marketplace import require_reader
 
+    from src.services.requirement_library import library_frameworks
+
     require_reader(db, current_user, org_id)  # staff browse the marketplace too; copying stays admin only
-    owner = _owner_org(db)
-    items = db.exec(select(RequirementFramework).where(
-        RequirementFramework.org_id == owner.id,
-        RequirementFramework.library_published_version.is_not(None),
-        RequirementFramework.archived == False,  # noqa: E712
-    ).order_by(RequirementFramework.name)).all()
-    needle = query.strip().lower()
-    results = []
-    for item in items:
-        snapshot = dict(item.library_snapshot or {})
-        if needle and needle not in f"{snapshot.get('name', '')} {snapshot.get('description', '')}".lower():
-            continue
-        results.append({
-            "framework_uuid": item.framework_uuid, "name": snapshot.get("name", item.name),
-            "description": snapshot.get("description", item.description),
-            "version": snapshot.get("version", item.library_published_version),
-            "node_count": len(snapshot.get("nodes") or []),
-            "requirement_count": len(_leaf_ids(snapshot.get("nodes") or [])),
-            "editable": item.library_editable,
-            "owner_org_name": owner.name,
-        })
-    return results
+    return library_frameworks(db, query)
 
 
 def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:

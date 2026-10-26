@@ -22,4 +22,6 @@ export const homeLinks = {
   messages: () => routePaths.org.connect(),
   edit: (item: HomeCreator['recent_edits'][number]) => admin.template(item.uuid),
   templates: () => admin.plans(),
+  /** A framework's dashboard in Insights; with none, the Requirements list there. */
+  insightsFramework: (frameworkUuid?: string) => admin.insightsScope('framework', frameworkUuid || null),
 }

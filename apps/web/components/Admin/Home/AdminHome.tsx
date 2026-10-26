@@ -11,7 +11,7 @@ import { adminHomeApi, adminHomeKey, type AdminHome as AdminHomeData, type HomeW
 import { ADMIN_HOME_WIDGETS, type AdminVisibility, type AdminWidget } from '@/lib/admin/registry'
 import { arrangeWidgets, layoutOf, moveWidget, toggleWidget, type ArrangedWidget } from '@/lib/admin/homeLayout'
 import { cn } from '@/lib/utils'
-import { CreatorWidget, MessagesWidget } from './OrgWidgets'
+import { CreatorWidget, MessagesWidget, RequirementsWidget } from './OrgWidgets'
 import { AttentionWidget, TodayWidget, WaitingWidget } from './StaffWidgets'
 import { LockedWidget } from './WidgetCard'
 import GettingStarted from './GettingStarted'
@@ -125,6 +125,7 @@ function renderWidget(id: HomeWidgetId, data: AdminHomeData, orgslug: string, ti
   if (id === 'messages' && data.messages) return <MessagesWidget data={data.messages} orgslug={orgslug} title={title} />
   if (id === 'attention' && data.attention) return <AttentionWidget data={data.attention} orgslug={orgslug} title={title} />
   if (id === 'creator' && data.creator) return <CreatorWidget data={data.creator} orgslug={orgslug} title={title} />
+  if (id === 'requirements' && data.requirements) return <RequirementsWidget data={data.requirements} orgslug={orgslug} title={title} />
   return null
 }
 

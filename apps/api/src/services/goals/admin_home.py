@@ -8,9 +8,11 @@ Each widget is built from the service that already owns its data:
 - ``messages``: the viewer's latest chats in this org (``connect.chats``).
 - ``attention``: assignments with learners behind or work waiting on staff, from the same matrices.
 - ``creator``: starts and completions of the org's own templates and the badges they earn (``admin_home_creator``).
+- ``requirements``: how learners are doing on each requirement framework, linking to Insights (``admin_home_requirements``).
 
 Which widgets a viewer gets follows their role: staff work for anyone who staffs an assignment or
-administers the org, creator metrics for admins of an org that makes templates. Each
+administers the org, creator metrics for admins of an org that makes templates, requirement progress
+for those who see reports in an org that tracks a framework. Each
 member orders and hides widgets for themselves; the layout lives on their membership row.
 """
 
@@ -27,7 +29,7 @@ from src.db.goals import DONE_STEP_STATUSES, AssignmentStatus, GoalAssignment, G
 from src.db.requirements import RequirementFramework
 from src.db.users import PublicUser
 from src.security.org_auth import get_user_org, is_org_admin, require_org_membership
-from src.services.goals import admin_home_creator, admin_home_start, review, staff_views
+from src.services.goals import admin_home_creator, admin_home_requirements, admin_home_start, review, staff_views
 
 # How far ahead "today and upcoming" looks.
 UPCOMING_DAYS = 7
@@ -218,6 +220,8 @@ def home(db: Session, current_user: PublicUser, org_id: int) -> dict:
     creates = admin and admin_home_creator.creates(db, org_id)
     if creates:
         widgets.append("creator")
+    if is_org_admin(current_user.id, org_id, db, "see_reports") and admin_home_requirements.has_frameworks(db, org_id):
+        widgets.append("requirements")
     layout = get_layout(db, current_user.id, org_id)
     shown = set(widgets) - set(layout["hidden"])
     cache: dict = {}
@@ -232,4 +236,6 @@ def home(db: Session, current_user: PublicUser, org_id: int) -> dict:
         result["messages"] = messages(db, current_user, org_id)
     if "creator" in shown:
         result["creator"] = admin_home_creator.metrics(db, org_id)
+    if "requirements" in shown:
+        result["requirements"] = admin_home_requirements.requirements(db, org_id)
     return result

@@ -121,6 +121,7 @@ export const ADMIN_HOME_WIDGETS: AdminWidget[] = [
     description: 'Starts, completions and recent edits of what your org makes.',
     requires: { right: 'learning_activities.action_update' },
   },
+  { id: 'requirements', label: 'Requirements', description: 'How learners are doing on each requirement framework, with the details in Insights.', requires: { right: STAFF } },
 ]
 
 export type { AccessRequest }

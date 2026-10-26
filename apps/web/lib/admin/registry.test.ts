@@ -46,7 +46,7 @@ test('a teacher (staff without admin rights) gets Home, Plans (with its four tab
   assert.equal(plans.href, '/admin/plans')
   assert.equal(plans.inPageTabs, true)
   assert.equal(plans.pill, 'New')
-  assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention'])
+  assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention', 'requirements'])
 })
 
 test('an admin gets every tab in job order and gated pages show what to request', () => {

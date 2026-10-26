@@ -9,7 +9,7 @@ async function request<T>(url: string, token?: string, method = 'GET', body: any
 }
 
 /** The Home widgets the API builds, in their default order. */
-export type HomeWidgetId = 'waiting' | 'today' | 'messages' | 'attention' | 'creator'
+export type HomeWidgetId = 'waiting' | 'today' | 'messages' | 'attention' | 'creator' | 'requirements'
 export interface HomeLayout { order: HomeWidgetId[]; hidden: HomeWidgetId[] }
 
 /** An assignment as a Home row names it. */
@@ -41,6 +41,12 @@ export interface HomeCreator {
   recent_edits: Array<{ kind: 'template'; uuid: string; title: string; status: string; update_date: string }>
 }
 
+/** How learners are doing on each requirement framework (the most tracked first); the card links to Insights. */
+export interface HomeRequirements {
+  frameworks: Array<{ framework_uuid: string; name: string; learners: number; progress: number | null; completed: number }>
+  total: number
+}
+
 export interface AdminHome {
   /** The widgets this viewer gets, by role and what the org does. */
   widgets: HomeWidgetId[]
@@ -52,6 +58,7 @@ export interface AdminHome {
   messages?: { chats: ChatSummary[]; unread: number }
   attention?: { assignments: HomeAttentionRow[]; total: number }
   creator?: HomeCreator
+  requirements?: HomeRequirements
   /** The getting-started checklist, for admins until it's done or dismissed. */
   getting_started?: GettingStarted | null
 }

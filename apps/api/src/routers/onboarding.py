@@ -1,4 +1,4 @@
-"""Getting started (/start): plans to suggest for a role, and setting up the new space in one call."""
+"""Getting started (/start): frameworks to track, plans to suggest for a role, and setting up the new space in one call."""
 
 from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session
@@ -11,10 +11,16 @@ from src.services.orgs import onboarding
 router = APIRouter()
 
 
+@router.get("/frameworks")
+def api_frameworks(db: Session = Depends(get_db_session)):
+    """Requirement frameworks in the library. No sign-in needed: it's shown before the account step."""
+    return onboarding.frameworks(db)
+
+
 @router.get("/suggested")
-def api_suggested(role: str, db: Session = Depends(get_db_session)):
-    """Shared plans anyone may add, for this role. No sign-in needed: it's shown before the account step."""
-    return onboarding.suggested(db, role)
+def api_suggested(role: str, framework: str | None = None, db: Session = Depends(get_db_session)):
+    """Shared plans anyone may add, for this role, ranked by how much of ``framework`` they cover. No sign-in needed."""
+    return onboarding.suggested(db, role, framework)
 
 
 @router.post("/set-up")

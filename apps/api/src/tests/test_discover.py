@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
+from src.db.organizations import Organization
 from src.db.plan_collections import PlanCollection, PlanCollectionCreate, PlanCollectionItem
 from src.db.template_marketplace import TemplateListingUpdate
 from src.db.users import User
@@ -154,3 +155,48 @@ def test_covers_lists_only_plans_counting_toward_those_requirements_most_first()
         page = discover.discover(db, _user(ADMIN), PARTNER, covers=["gap_a", "gap_b"])
         assert [(plan["template_uuid"], plan["covers"]) for plan in page["plans"]] == [(both.template_uuid, ["gap_a", "gap_b"]), (one.template_uuid, ["gap_a"])]
         assert page["collections"] == [] and neither.template_uuid not in {plan["template_uuid"] for plan in page["plans"]}
+
+
+def test_start_ranks_plans_by_how_much_of_the_chosen_framework_they_cover_and_set_up_copies_it_once():
+    import asyncio
+
+    from src.db.organization_config import OrganizationConfig
+    from src.db.requirements import RequirementEnrollment, RequirementFramework, RequirementFrameworkCreate, RequirementFrameworkVersion, RequirementNode, RequirementNodeInput
+    from src.services import requirements as requirement_service
+    from src.services.orgs import onboarding
+
+    db = _world()
+    for model in (OrganizationConfig, RequirementFramework, RequirementFrameworkVersion, RequirementNode, RequirementEnrollment):
+        model.__table__.create(db.get_bind(), checkfirst=True)
+    db.add(User(id=NEWCOMER, user_uuid="user_20", username="dana", email="dana@example.com", first_name="", last_name="", creation_date=NOW, update_date=NOW))
+    db.commit()
+    nodes = [RequirementNodeInput(node_uuid="grad_a", code="A", title="Career"), RequirementNodeInput(node_uuid="grad_a1", parent_node_uuid="grad_a", code="A.1", title="Resume"),
+             RequirementNodeInput(node_uuid="grad_a2", parent_node_uuid="grad_a", code="A.2", title="Interview", position=1)]
+    made = requirement_service.create_framework(db, _user(ADMIN), RequirementFrameworkCreate(org_id=1, name="Graduation", nodes=nodes))
+    requirement_service.publish_framework(db, _user(ADMIN), 1, made["framework_uuid"])
+    requirement_service.publish_framework_to_library(db, _user(ADMIN), 1, made["framework_uuid"])
+    fw = made["framework_uuid"]
+    with db:
+        money, careers = _shared(db, "Money basics"), _shared(db, "Careers")
+        live = templates.published_version(db, careers)
+        live.document = {**live.document, "stages": [{**stage, "steps": [{**step, "requirement_node_uuids": ["grad_a1", "grad_a2"]} for step in stage["steps"]]} for stage in live.document["stages"]]}
+        db.add(live)
+        db.commit()
+        collections.create_collection(db, _user(ADMIN), 1, PlanCollectionCreate(name="Money", categories=["Financial literacy"], template_uuids=[money.template_uuid]))
+
+        assert onboarding.frameworks(db) == [{"framework_uuid": fw, "name": "Graduation", "description": "", "requirement_count": 2, "owner_org_name": db.get(Organization, 1).name}]
+        # A parent sees money first, unless they track graduation: then the plan covering it leads, with its meter.
+        assert [plan["title"] for plan in onboarding.suggested(db, "parent")][:2] == ["Money basics", "Careers"]
+        ranked = onboarding.suggested(db, "parent", fw)
+        assert [(plan["title"], plan["covers"], plan["requirement_count"]) for plan in ranked] == [("Careers", 2, 2), ("Money basics", 0, 2)]
+        assert "covers" not in onboarding.suggested(db, "parent", "fw_missing")[0]
+
+        payload = onboarding.SetUpRequest(role="parent", name="Dana Ruiz", framework_uuid=fw, plan_uuids=[careers.template_uuid])
+        first = asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))
+        space = first["org"]["id"]
+        copy = db.exec(select(RequirementFramework).where(RequirementFramework.org_id == space)).one()
+        assert first["framework"] == {"framework_uuid": copy.framework_uuid, "name": "Graduation"} and copy.source_framework_uuid == fw
+        assert asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))["framework"]["framework_uuid"] == copy.framework_uuid
+        assert len(db.exec(select(RequirementFramework).where(RequirementFramework.org_id == space)).all()) == 1
+        # The copy keeps the library's requirements, so the plan still counts toward them.
+        assert {node.node_uuid for node in db.exec(select(RequirementNode)).all()} >= {"grad_a1", "grad_a2"}
