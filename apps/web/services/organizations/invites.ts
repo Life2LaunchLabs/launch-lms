@@ -55,3 +55,20 @@ export async function revokeUserInvitation(
   )
   return getResponseMetadata(result)
 }
+
+export interface InvitePreview {
+  kind: 'invitation' | 'link'
+  status: 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired' | 'used_up'
+  org: { id: number; name: string; slug: string; logo_image?: string | null; org_uuid: string }
+  role: 'learner' | 'staff' | 'admin'
+  group: string | null
+  email: string | null
+  inviter: { name: string; avatar_image?: string | null; user_uuid: string } | null
+}
+
+/** Who sent an invitation or join link, to what and for whom; public, since the token is the secret. */
+export async function getInvitePreview(org_id: number, token: { invitation?: string; inviteCode?: string }): Promise<InvitePreview | null> {
+  const query = token.invitation ? `invitation=${encodeURIComponent(token.invitation)}` : `invite_code=${encodeURIComponent(token.inviteCode || '')}`
+  const result = await fetch(`${getAPIUrl()}orgs/${org_id}/invite-preview?${query}`)
+  return result.ok ? result.json() : null
+}
