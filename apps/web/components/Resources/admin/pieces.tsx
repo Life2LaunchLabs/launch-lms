@@ -17,10 +17,10 @@ import { cn } from '@/lib/utils'
 /** The org, session token and slug every Resources page needs. */
 export function useResourcesContext() {
   const org = useOrg() as { id?: number; slug?: string; name?: string } | null
-  const session = useLHSession() as { data?: { tokens?: { access_token?: string } } }
+  const session = useLHSession() as { data?: { tokens?: { access_token?: string }; user?: { id?: number } } }
   const orgId = Number(org?.id)
   const token = session?.data?.tokens?.access_token
-  return { orgId, orgslug: org?.slug || '', orgName: org?.name || 'your organization', token, ready: Boolean(orgId && token) }
+  return { orgId, orgslug: org?.slug || '', orgName: org?.name || 'your organization', token, userId: Number(session?.data?.user?.id || 0), ready: Boolean(orgId && token) }
 }
 
 export const channelHref = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.admin.resources.channel(uuid))

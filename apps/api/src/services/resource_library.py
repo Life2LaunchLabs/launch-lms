@@ -24,7 +24,7 @@ from src.security.superadmin import is_user_superadmin
 from src.services.shared_content import owner_org_payload
 from src.services.search.resource_search import rank_resources
 from src.services import resources as base
-from src.services.resource_comments import _author, _report_counts
+from src.services.resource_comments import _author, _comment_rule, _report_counts
 
 
 def _orgs_by_id(org_ids: set[int], db_session: Session) -> dict[int, Organization]:
@@ -311,10 +311,13 @@ async def resource_detail(request: Request, org_id: int, resource_uuid: str, cur
             plans.append({"template_uuid": template.template_uuid, "title": template.title, "icon": template.icon, "color": template.color,
                           "thumbnail_image": template.thumbnail_image, "steps": steps})
     added_by = db_session.get(User, resource.created_by_user_id) if resource.created_by_user_id else None
+    comment_rule, hold_links = _comment_rule(resource, db_session)
     return {
         **_resource_rows([resource], org_id, db_session)[0],
         "description": resource.description,
         "can_edit": base._is_staff(current_user, resource.org_id, db_session),
         "added_by": _author(added_by),
         "used_in": plans,
+        "comment_rule": comment_rule,
+        "hold_links": hold_links,
     }

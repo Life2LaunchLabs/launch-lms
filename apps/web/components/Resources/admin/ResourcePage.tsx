@@ -15,6 +15,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isResourcesKey, resourceKeys, resourcesApi, typeLabel, type ResourceDetail } from '@services/resources/workspace'
 import { useLibrarySave } from './LibraryTab'
 import { Loading } from './listing'
+import { ResourceComments } from './comments'
 import { ResourceModal } from './modals'
 import { OrgChip, SaveButton, TypeTile, channelHref, domainOf, useResourcesContext } from './pieces'
 
@@ -77,6 +78,7 @@ export default function ResourcePage({ resourceUuid }: { resourceUuid: string })
             </DropdownMenuContent>
           </DropdownMenu> : null}
         </header>
+        <ResourceComments resource={resource} />
       </div>
       <aside className="space-y-4">
         <ChannelsCard resource={resource} channels={workspace?.channels || []} />
