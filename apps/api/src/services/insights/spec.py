@@ -97,6 +97,8 @@ def check(spec: CardSpec, scope: str, *, see_reports: bool) -> list[dict]:
             errors.append({"field": field, "message": f"{measure.label} can't be broken down by {key!r}. It can by: {', '.join(measure.dims) or 'nothing'}."})
         elif key == bound:
             errors.append({"field": field, "message": f"This dashboard already shows one {key}, so breaking down by {key} has one row."})
+        elif DIMENSIONS[key].scopes and scope not in DIMENSIONS[key].scopes:  # type: ignore[operator]
+            errors.append({"field": field, "message": f"Breaking down by {DIMENSIONS[key].label.lower()} works on a {' or '.join(DIMENSIONS[key].scopes)} dashboard."})  # type: ignore[arg-type]
         elif DIMENSIONS[key].needs == "see_reports" and not see_reports:
             errors.append({"field": field, "message": f"Breaking down by {DIMENSIONS[key].label.lower()} needs the See reports permission."})
     if spec.by2 is not None:

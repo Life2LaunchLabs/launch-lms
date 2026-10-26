@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Archive, ArchiveRestore, ChevronDown, Clock, Compass, Globe, History, ImageIcon, Info, Lock, MoreVertical, Settings2 } from 'lucide-react'
+import Link from 'next/link'
+import { Archive, BarChart3, ArchiveRestore, ChevronDown, Clock, Compass, Globe, History, ImageIcon, Info, Lock, MoreVertical, Settings2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { OrgMark, type OrgMarkSource } from '@components/Plans/shared/OrgMark'
 import { PlanCover } from '@components/Plans/shared/PlanCover'
@@ -14,6 +15,8 @@ export type PlanMenu = {
   versions?: () => void
   visibility?: () => void
   discover?: string | null
+  /** The plan's Insights dashboards. */
+  insights?: string | null
   archive?: { archived: boolean; run: () => void } | null
 }
 
@@ -63,7 +66,11 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
         </div>
         {collections ? <div className="mt-2.5 flex flex-wrap gap-1.5">{collections}</div> : null}
       </div>
-      <MoreMenu menu={menu} />
+      <div className="flex shrink-0 items-center gap-2">
+        {menu.insights ? <Link href={menu.insights} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
+          <BarChart3 size={16} aria-hidden="true" /><span className="hidden sm:inline">Insights</span><span className="sr-only sm:hidden">Insights</span></Link> : null}
+        <MoreMenu menu={menu} />
+      </div>
     </div>
     {!live ? <Note tone="warn" icon={<Clock size={17} aria-hidden="true" />}><b className="text-foreground">No live version.</b> {hadVersions ? 'You turned it off, so no one new can be assigned it.' : 'Publish your draft to start assigning it.'}
       {hadVersions && canSwitchLive ? <button type="button" onClick={menu.versions} className="ml-1.5 font-bold text-foreground underline underline-offset-2">Pick a version</button> : null}</Note> : null}

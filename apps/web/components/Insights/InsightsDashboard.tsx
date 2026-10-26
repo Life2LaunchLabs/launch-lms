@@ -163,7 +163,8 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
   const chosen = inScope.find((item) => item.dashboard_uuid === dashboardUuid) || inScope[0]
   const { data: objects } = useSWR(ready && scope !== 'org' ? insightKeys.objects(orgId, scope) : null,
     () => insightsApi.objects(orgId, scope as 'plan' | 'group', token), { revalidateOnFocus: false })
-  const object = objects?.find((item) => item.key === objectKey) || objects?.[0]
+  // A plan or group asked for by key that the viewer can't open (or that has no learners here) isn't swapped for another.
+  const object = objectKey ? objects?.find((item) => item.key === objectKey) : objects?.[0]
   const { data: dashboard } = useSWR(ready && chosen ? insightKeys.dashboard(orgId, chosen.dashboard_uuid) : null,
     () => insightsApi.dashboard(orgId, chosen!.dashboard_uuid, token), { revalidateOnFocus: false })
   const [range, setRange] = React.useState<DateRange | null>(null)
@@ -175,6 +176,9 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
   const body = () => {
     if (!dashboards || (scope !== 'org' && !objects)) return <div className="space-y-4"><span className="block h-9 w-72 animate-pulse rounded-lg bg-muted" />
       <div className="grid grid-cols-12 gap-4">{[3, 3, 3, 3, 7, 5].map((span, index) => <CardSkeleton key={index} span={span} />)}</div></div>
+    if (scope !== 'org' && !object && objectKey) return <Empty title={`Nothing to show for this ${SCOPE_LABELS[scope].one.toLowerCase()} yet`}
+      detail={scope === 'plan' ? 'Its dashboards fill in once your learners start it.' : 'You can see a group here once it has learners you work with.'}
+      action={objects?.length ? <Link href={scopeHref(objects[0].key)} className={ghostButton}>See {objects[0].label}</Link> : undefined} />
     if (scope !== 'org' && !object) return <Empty title={`No ${SCOPE_LABELS[scope].many.toLowerCase()} to show yet`}
       detail={scope === 'plan' ? 'Once your learners start plans, each plan gets these dashboards.' : 'Make a group in Threads, and each group gets these dashboards.'} />
     if (!chosen) return <Empty title={`No ${SCOPE_LABELS[scope].one.toLowerCase()} dashboards yet`} detail="Make one from a template or start blank."

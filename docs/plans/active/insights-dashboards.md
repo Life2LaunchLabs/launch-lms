@@ -1,6 +1,6 @@
 # Insights dashboards
 
-Status: building (I4 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
+Status: building (I5 of I8) · Prototype: "Insights v3" artifact · Design: "Insights: how cards work, and the build plan" doc
 
 ## Objective
 
@@ -65,6 +65,16 @@ Add a card opens the card editor on the question library or a blank card. The ed
 spec field (show, by, and by, who, dates, compare, size, headline, chart) and re-runs a live preview, so
 server validation shows on the card itself. Done saves the whole document at the opened revision; a stale
 revision keeps the draft and says so, and a viewer who can't save over the dashboard gets their own copy.
+
+## More measures (I5)
+
+`measures_steps.py` adds step reach (plan dashboards; by step it reads as a funnel and the headline names the
+biggest drop), sent back, review turnaround (hours from hand-in to decision, from `PlanActivity`), waiting
+for review (today), retention (active again 30 to 60 days after joining) and reach (learners at every
+organization who started the plan; totals and organization names only, never a list of people). Steps match
+across learners by template key and sort in plan order; the step and organization breakdowns only fit plan
+dashboards. Ranked headlines now pick leader and laggard by value, so versions and steps read right. The
+plan page has an Insights button for its owner.
 
 ## Acceptance
 

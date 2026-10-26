@@ -83,6 +83,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
     versions: canEdit && template.versions?.length ? () => setVersionsOpen(true) : undefined,
     visibility: visibility.shown ? () => setVisibilityOpen(true) : undefined,
     discover: owned ? null : getUriWithOrg(orgslug, routePaths.org.admin.discoverPlan(template.template_uuid)),
+    insights: owned ? getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('plan', template.template_uuid)) : null,
     archive: canEdit ? { archived, run: () => void toggleArchived() } : null,
   }
 
