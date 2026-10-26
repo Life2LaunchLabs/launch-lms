@@ -33,6 +33,7 @@ from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
 from src.services.orgs.invites import get_invite_code, redeem_join_link
+from src.services.orgs import staff_setup
 from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.avatars import (
@@ -314,6 +315,7 @@ async def create_user_with_organization_invitation(
     )
 
     audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+    staff_setup.apply(db_session, invitation, int(user.id))
 
     if invitation.usergroup_id:
         await add_users_to_usergroup(

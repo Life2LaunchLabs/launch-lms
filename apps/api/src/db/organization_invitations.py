@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import Column, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, Column, ForeignKey, Index, Integer, String, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -34,6 +34,12 @@ class OrganizationInvitation(SQLModel, table=True):
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True),
     )
     invite_code_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    # Staff invitations: the permissions they start with (None means the defaults) and the assignments they
+    # join as [{"assignment_uuid", "role_key"}], both applied when they accept (services/orgs/staff_setup.py).
+    permissions: list[str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    assignments: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # A note from the inviter, shown in the email, on the invitation and on the new member's Home.
+    note: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
     source: str = Field(default="manual", sa_column=Column(String, nullable=False, index=True))
     batch_uuid: str | None = Field(default=None, index=True)
     status: str = Field(default="pending", sa_column=Column(String, nullable=False, index=True))
@@ -78,6 +84,11 @@ class OrganizationJoinLink(SQLModel, table=True):
     revoked_at: datetime | None = None
 
 
+class InviteAssignment(BaseModel):
+    assignment_uuid: str
+    role_key: str = "review"
+
+
 class InviteUsersRequest(BaseModel):
     emails: list[str] = PydanticField(min_length=1, max_length=500)
     role_id: int
@@ -85,6 +96,10 @@ class InviteUsersRequest(BaseModel):
     new_usergroup_name: str | None = None
     source: str = "manual"
     batch_uuid: str | None = None
+    # Staff only: their permissions (None for the defaults) and assignments to join, each with a Lead, Review or Comment role.
+    permissions: list[str] | None = None
+    assignments: list[InviteAssignment] = PydanticField(default_factory=list, max_length=50)
+    note: str = PydanticField(default="", max_length=1000)
 
 
 class InviteRecipientResult(BaseModel):

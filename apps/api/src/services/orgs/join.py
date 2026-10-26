@@ -11,6 +11,7 @@ from src.security.access.access import require_capacity
 from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
+from src.services.orgs import staff_setup
 from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
 from src.services.messages import resolve_action_by_dedupe
 
@@ -151,6 +152,7 @@ async def join_org(
 
             if invitation:
                 audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+                staff_setup.apply(db_session, invitation, int(user.id))
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
@@ -206,6 +208,7 @@ async def join_org(
 
             if invitation:
                 audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+                staff_setup.apply(db_session, invitation, int(user.id))
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)

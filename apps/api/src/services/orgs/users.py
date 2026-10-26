@@ -768,6 +768,8 @@ async def preview_batch_users(
             not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
         ):
             raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
+    from src.services.orgs import staff_setup
+    staff_setup.clean(db_session, int(org.id), int(role.id or invite_request.role_id), invite_request.permissions, invite_request.assignments)
     if invite_request.usergroup_id and invite_request.new_usergroup_name:
         raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
     if invite_request.usergroup_id:
@@ -887,6 +889,10 @@ async def invite_batch_users(
         ):
             raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
 
+    from src.services.orgs import staff_setup
+    invite_permissions, invite_assignments = staff_setup.clean(db_session, int(org.id), int(role.id or invite_request.role_id), invite_request.permissions, invite_request.assignments)
+    invite_note = invite_request.note.strip()
+
     if invite_request.usergroup_id and invite_request.new_usergroup_name:
         raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
     if invite_request.new_usergroup_name is not None and not invite_request.new_usergroup_name.strip():
@@ -981,6 +987,9 @@ async def invite_batch_users(
             created_by_user_id=current_user.id,
             source=invite_request.source,
             batch_uuid=invite_request.batch_uuid,
+            permissions=invite_permissions,
+            assignments=invite_assignments,
+            note=invite_note,
             expires_at=expires_at,
             created_at=now,
             updated_at=now,
@@ -1016,6 +1025,7 @@ async def invite_batch_users(
                 invitation.email,
                 invitation.invitation_uuid,
                 base_url,
+                setup=staff_setup.describe(db_session, invitation),
             ))
         except Exception:
             logging.exception("Failed to send organization invitation to %s", invitation.email)
@@ -1169,9 +1179,11 @@ async def resend_invited_user(
     inviter = db_session.exec(select(User).where(User.id == current_user.id)).first()
     if not inviter:
         raise HTTPException(status_code=401, detail="Authentication required")
+    from src.services.orgs import staff_setup
     invitation.email_sent = bool(send_direct_invitation_email(
         OrganizationRead.model_validate(org), UserRead.model_validate(inviter), invitation.email,
         invitation.invitation_uuid, get_base_url_from_request(request),
+        setup=staff_setup.describe(db_session, invitation),
     ))
     invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
     invitation.delivery_attempts += 1

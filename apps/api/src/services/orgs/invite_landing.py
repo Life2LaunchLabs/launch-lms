@@ -1,7 +1,8 @@
 """What someone sees before signing up from an invitation email or a join link.
 
 The invitation token (or the link's code) is the secret, so anyone holding it may see who sent it,
-the organization, the role, the group and the address it was sent to, which fills in the signup form.
+the organization, the role, the group and the address it was sent to, which fills in the signup form. A staff
+invitation also shows the inviter's note, the permissions it gives and the assignments it adds them to.
 """
 
 import hashlib
@@ -31,7 +32,10 @@ def preview(db: Session, org_id: int, invitation: str | None = None, invite_code
             raise HTTPException(status_code=404, detail="Invitation not found")
         expired = found.status == "pending" and found.expires_at <= datetime.utcnow()
         status = "expired" if expired else found.status
-        return _card(db, org, "invitation", status, found.role_id, found.usergroup_id, found.created_by_user_id, found.email)
+        from src.services.orgs import staff_setup
+
+        return {**_card(db, org, "invitation", status, found.role_id, found.usergroup_id, found.created_by_user_id, found.email),
+                **staff_setup.describe(db, found)}
     link = db.exec(select(OrganizationJoinLink).where(
         OrganizationJoinLink.org_id == org_id,
         OrganizationJoinLink.token_hash == hashlib.sha256(str(invite_code).encode()).hexdigest(),
