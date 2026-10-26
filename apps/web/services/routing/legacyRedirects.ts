@@ -82,7 +82,12 @@ function legacyAdminPath(parts: string[]): string | null {
     return admin.plans()
   }
 
-  if (area === 'resources' && n === 2 && a !== 'tags') return admin.content.resourceChannel(a, 'general')
+  if (area === 'resources') {
+    // A channel's settings pages and tags became the channel page and Your resources.
+    if (a === 'tags') return admin.resources.root()
+    if (n === 2 && a !== 'library') return admin.resources.channel(decode(a))
+    if (n === 3 && a !== 'channel' && a !== 'item') return admin.resources.channel(decode(a))
+  }
   return null
 }
 

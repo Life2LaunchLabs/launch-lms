@@ -234,10 +234,11 @@ export const routePaths = {
       insightsEvidence: (groupId?: string | number | null) => withQuery('/admin/insights/evidence', { group: groupId == null ? null : String(groupId) }),
       /** Old name for `requirementFrameworkPlans`; frameworks moved from Insights to Plans › Requirements. */
       requirementFramework: frameworkPage,
-      content: {
-        resources: () => '/admin/resources',
-        resourceTags: () => '/admin/resources/tags',
-        resourceChannel: (channelUuid: string, subpage: string) => `/admin/resources/${channelUuid}/${subpage}`,
+      resources: {
+        root: () => '/admin/resources',
+        library: () => '/admin/resources/library',
+        channel: (channelUuid: string) => `/admin/resources/channel/${encodeURIComponent(channelUuid)}`,
+        item: (resourceUuid: string) => `/admin/resources/item/${encodeURIComponent(resourceUuid)}`,
       },
       organization: {
         general: () => '/admin/org/settings/general',
