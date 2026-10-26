@@ -13,8 +13,9 @@ export interface RouteAccessClassification {
 const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/start', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
 const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
-// A badge award (its short link, and the older /badges/<uuid> that redirects to it) and the plan page that is its badge's criteria: all shared outside the app.
-const PUBLIC_SHARED_PATH_RE = /^\/(?:b\/[^/]+|badges\/[^/]+|discover\/(?:plans|collections)\/[^/]+)$/
+// A badge award (its short link, and the older /badges/<uuid> that redirects to it), the plan page that is its badge's criteria,
+// and an Insights capture's read-only link: all shared outside the app.
+const PUBLIC_SHARED_PATH_RE = /^\/(?:b\/[^/]+|badges\/[^/]+|discover\/(?:plans|collections)\/[^/]+|insights\/shared\/[^/]+)$/
 const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/work(?:\/[^/]+)?)?$/
 const SPECIAL_PREFIXES = ['/payments/stripe/connect/oauth', '/health']
 const SPECIAL_EXACT_PATHS = new Set(['/sitemap.xml', '/robots.txt', '/redirect_from_auth'])
