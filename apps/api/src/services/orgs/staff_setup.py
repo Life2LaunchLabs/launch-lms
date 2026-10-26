@@ -117,7 +117,7 @@ def describe(db: Session, invitation: OrganizationInvitation) -> dict:
         template = db.get(GoalTemplate, assignment.template_id)
         group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
         person = db.get(User, assignment.user_id) if assignment.user_id else None
-        who = group.name if group else " ".join(part for part in (person.first_name, person.last_name) if part) if person else assignment.subject_email or ""
+        who = group.name if group else (" ".join(part for part in (person.first_name, person.last_name) if part) or person.username) if person else assignment.subject_email or ""
         rows.append({"assignment_uuid": assignment.assignment_uuid, "plan": template.title if template else "", "assigned_to": who,
                      "role": item.get("role_key"), "role_label": ROLE_LABELS.get(item.get("role_key"), "")})
     return {"permissions": [{"key": key, "label": STAFF_PERMISSIONS[key]} for key in keys if key in STAFF_PERMISSIONS],

@@ -23,6 +23,7 @@ import Critter from './Critter'
 import SitePreview, { type PreviewPage } from './SitePreview'
 import TierCompare from './TierCompare'
 import TourScene from './TourScene'
+import { H1, LEDE, TOUR } from './tour'
 import { PALETTE, ROLES, ROLE_IDS, groupSuggestions, type StartRole } from './roles'
 
 type Step = 't0' | 't1' | 't2' | 't3' | 'role' | 'reqs' | 'plans' | 'account' | 'you' | 'tier' | 'learners' | 'staff' | 'groups' | 'done'
@@ -53,12 +54,6 @@ const fresh = (): StartState => ({
   learners: [], staff: [], groups: [], framework: null, space: null, sent: [],
 })
 
-const TOUR = [
-  { title: 'Welcome to Life2Launch', lede: 'Where young people map out what’s next and take charge of getting there.' },
-  { title: 'You guide. They go.', lede: 'Hand someone a plan and they move through it on their own. You see every step land, and know exactly when it’s your turn.' },
-  { title: 'Step in right where it counts', lede: 'Review work, answer questions and cheer them on in one conversation, tied to the plan they’re on.' },
-  { title: 'Celebrate every launch', lede: 'Finished plans add up to a portfolio they own, with badges and real work to show schools and employers.' },
-]
 const ROLE_ICONS: Record<StartRole, React.ReactNode> = {
   parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, district: <Building2 size={18} />,
 }
@@ -288,8 +283,6 @@ export default function StartFlow() {
   }
 }
 
-const H1 = 'text-[clamp(30px,3.4vw,44px)] font-extrabold leading-[1.05] tracking-[-0.035em]'
-const LEDE = 'mt-3 text-[16.5px] leading-normal text-muted-foreground'
 const INPUT = 'h-11 w-full rounded-xl border border-border bg-white px-3 text-[15px] outline-none transition placeholder:text-muted-foreground/70 focus:border-foreground/40'
 
 function Eyebrow({ children }: { children: React.ReactNode }) {

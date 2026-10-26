@@ -41,8 +41,9 @@ async def create_invited_account(request: Request, db_session: Session, user_cre
 
 
 def invited_redirect_url(db_session: Session, owner_org: Organization, org: Organization, user_id: int) -> str | None:
-    """Where an invited account goes: the inviting organization, staff to its admin; None for a learner of the owner org (the starter plan)."""
+    """Where an invited account goes: the inviting organization (learners), the tour and profile step before Home (staff and admins);
+    None for a learner of the owner org (the starter plan)."""
     role_id = db_session.exec(select(UserOrganization.role_id).where(UserOrganization.user_id == user_id, UserOrganization.org_id == org.id)).first()
     if org.id == owner_org.id and role_id == LEARNER_ROLE_ID:
         return None
-    return f"/orgs/{org.slug}/admin" if role_id in (1, 2) else f"/orgs/{org.slug}"
+    return f"/orgs/{org.slug}/joined?tour=1" if role_id in (1, 2) else f"/orgs/{org.slug}"

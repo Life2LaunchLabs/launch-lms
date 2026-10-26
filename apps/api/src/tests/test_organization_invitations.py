@@ -379,7 +379,7 @@ async def test_existing_user_joining_from_a_group_join_link_lands_in_the_group(s
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("role_id", "redirect"), [(4, "/orgs/school"), (2, "/orgs/school/admin")])
+@pytest.mark.parametrize(("role_id", "redirect"), [(4, "/orgs/school"), (2, "/orgs/school/joined?tour=1"), (1, "/orgs/school/joined?tour=1")])
 async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session: Session, monkeypatch, role_id: int, redirect: str):
     from starlette.responses import Response
 

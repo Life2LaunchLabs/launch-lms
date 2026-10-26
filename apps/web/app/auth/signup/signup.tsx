@@ -50,7 +50,7 @@ function SignUpClient(props: SignUpClientProps) {
                 <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
               ) : (
                 <div className="flex-1 flex flex-row">
-                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} header={card} />
+                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} header={card} postSignupUrl={joinedUrl(props.org, preview, true)} />
                 </div>
               )
             ) : (
@@ -59,6 +59,12 @@ function SignUpClient(props: SignUpClientProps) {
       </>
     </AuthLayout>
   )
+}
+
+/** Where staff and admins go after accepting: the tour (new accounts) and profile step before Home; undefined for learners. */
+function joinedUrl(org: any, preview: InvitePreview | null, newAccount: boolean): string | undefined {
+  if (!org?.slug || !preview || preview.kind !== 'invitation' || preview.role === 'learner') return undefined
+  return getUriWithOrg(org.slug, newAccount ? '/joined?tour=1' : '/joined')
 }
 
 interface JoinScreenProps {
@@ -79,6 +85,8 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
   const [success, setSuccess] = useState('')
   const [showMessage, setShowMessage] = useState(false)
   const router = useRouter()
+  // Staff and admins set up their profile first; learners go straight in.
+  const after = joinedUrl(activeOrg, preview, false) || getUriWithOrg(activeOrg.slug, '/')
 
   const join = async () => {
     setIsSubmitting(true)
@@ -102,7 +110,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
       setSuccess(typeof res.data === 'string' ? res.data : t('auth.join_organization_success'))
       setShowMessage(true)
       setTimeout(() => {
-        router.push(getUriWithOrg(activeOrg.slug, '/'))
+        router.push(after)
       }, 2000)
     } else {
       const detail = res.data?.detail
@@ -111,7 +119,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
         setSuccess(t('auth.join_organization_success'))
         setShowMessage(true)
         setTimeout(() => {
-          router.push(getUriWithOrg(activeOrg.slug, '/'))
+          router.push(after)
         }, 1500)
         setIsSubmitting(false)
         return
