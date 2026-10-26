@@ -65,16 +65,18 @@ test('insights.scopes: a group dashboard switches groups and lists its views; ol
 
 test('insights.new: New dashboard makes a personal one from a template, and editing adds a card from the library', async ({ page }) => {
   test.setTimeout(60_000)
+  // Every project and retry shares the database, so each run names its own dashboard.
+  const name = `Badge check ${Date.now().toString(36)}`
   await page.goto(insightsPath)
   await assertActualApp(page)
   await (await rail(page)).getByRole('button', { name: 'New dashboard' }).click()
   const dialog = page.getByRole('dialog', { name: 'New dashboard' })
   await dialog.getByRole('button', { name: /^Plan/ }).click()
   await dialog.getByRole('button', { name: /Badge issuing/ }).click()
-  await dialog.getByRole('textbox', { name: 'Name' }).fill('Badge check')
+  await dialog.getByRole('textbox', { name: 'Name' }).fill(name)
   await dialog.getByRole('button', { name: 'Make dashboard' }).click()
   await expect(page).toHaveURL(/\/admin\/insights\/plan\?d=dashboard_/)
-  await expect(page.getByRole('navigation', { name: 'Plan dashboards' }).getByRole('link', { name: 'Badge check' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: 'Plan dashboards' }).getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
   await expect(cards(page).first()).toBeVisible()
   const before = await cards(page).count()
 
