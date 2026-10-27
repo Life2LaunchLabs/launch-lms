@@ -350,7 +350,7 @@ services:
 volumes:
   content_data:
 ```
-Alternatively, switch to S3 storage (`LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`).
+The planned fix is S3-compatible storage on DigitalOcean Spaces: set `LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`, `LAUNCHLMS_S3_API_ENDPOINT_URL=https://<region>.digitaloceanspaces.com`, `LAUNCHLMS_S3_API_BUCKET_NAME`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. The bucket stays private: `/content/...` is served by the API (`routers/content_files.py`, with access checks and Range support). Copy existing files with `uv run python scripts/sync_content_to_s3.py` (from `apps/api`, `--dry-run` first), and check the keys with `GET /api/v1/health/storage`.
 
 ---
 

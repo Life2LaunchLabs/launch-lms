@@ -8,6 +8,7 @@ Follows the same pattern as upload_content.py and frontend media.ts:
 """
 
 import logging
+import mimetypes
 import os
 
 import boto3
@@ -266,11 +267,13 @@ def upload_to_s3(file_path: str, content: bytes) -> bool:
     if not s3_client:
         return False
 
+    content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
     try:
         s3_client.put_object(
             Bucket=get_s3_bucket_name(),
             Key=file_path,
             Body=content,
+            ContentType=content_type,
         )
         return True
     except ClientError as e:
@@ -325,3 +328,25 @@ def delete_storage_directory(dir_path: str) -> bool:
     return success
 
 
+
+
+def check_storage() -> dict:
+    """Write, read back and remove a small file, so a wrong key or bucket shows up at deploy time."""
+    path = "content/.healthcheck"
+    kind = get_content_delivery_type()
+    try:
+        if kind == "s3api":
+            s3_client = get_storage_client()
+            if s3_client is None or not upload_to_s3(path, b"ok"):
+                return {"type": kind, "ok": False, "detail": "Could not write to the bucket"}
+            s3_client.head_object(Bucket=get_s3_bucket_name(), Key=path)
+            s3_client.delete_object(Bucket=get_s3_bucket_name(), Key=path)
+        else:
+            os.makedirs("content", exist_ok=True)
+            with open(path, "wb") as f:
+                f.write(b"ok")
+            os.remove(path)
+    except Exception as e:  # noqa: BLE001 - any failure means storage isn't usable
+        logger.error("Storage check failed: %s", e)
+        return {"type": kind, "ok": False, "detail": "Storage check failed; see the API logs"}
+    return {"type": kind, "ok": True}
