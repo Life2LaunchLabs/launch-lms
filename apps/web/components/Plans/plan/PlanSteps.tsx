@@ -1,37 +1,187 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { DragDropContext, Draggable, Droppable, type DraggableProvidedDragHandleProps, type DropResult } from '@hello-pangea/dnd'
 import { ArrowDown, ArrowUp, Clock3, GripVertical, Layers3, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
-import { STEP_TYPE_ORDER, stepDefinition } from '@components/Goals/steps'
+import { draftProblem, savedConfig } from '@components/Goals/edit/StepEditor'
+import { stepDefinition } from '@components/Goals/steps'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { Input } from '@components/ui/input'
-import { addStage, mapStage, moveStage, moveStep, removeStage } from '@components/Plans/editor/documentOps'
+import { addStage, addStep, documentSteps, draftToStep, insertStep, mapStage, mapStep, moveStage, moveStep, newKey, removeStage, removeStep, stepChoices, stepToDraft } from '@components/Plans/editor/documentOps'
 import { useRequirementFrameworks } from '@components/Plans/editor/StepRequirementLinks'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/actions'
-import type { TemplateDocument, TemplateStage, TemplateStep } from '@services/goals/types'
+import { templatesApi } from '@services/goals/templates'
+import type { ActivityConfig, StepTypeKey, TemplateDocument, TemplateStage, TemplateStep } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import PlanDialog from './PlanDialog'
-import StepModal, { type StepTarget } from './StepModal'
+import InlineStep, { freshStep, StepTypeRow, type OpenStep } from './InlineStep'
+import StepModal, { templateActivityHref, type StepTarget } from './StepModal'
 import { plural } from './planVersions'
 
 type Props = { orgslug: string; orgId: number; token?: string; editing: TemplateEditing; document: TemplateDocument; editMode: boolean }
+type Spot = { stageKey: string; index: number }
 
 const defaultStageTitle = (index: number) => `Stage ${index + 1}`
+// Popups the open step owns: clicking in them doesn't close it.
+// Controls marked data-step-action (opening a step, adding one) close the open step themselves.
+const KEEP_OPEN = '[data-inline-step], [data-step-action], [data-step-types], [data-radix-popper-content-wrapper], [role="dialog"], [role="alertdialog"], [role="menu"], [data-step-toast]'
+
+/** The step as it saves: the typed draft over what the document has (an activity keeps the activity it made). */
+function stepFrom(open: OpenStep, previous?: TemplateStep): TemplateStep {
+  const step: TemplateStep = { ...draftToStep({ ...open.draft, config: savedConfig(open.draft) }, previous || ({ key: open.key, materials: [], requirement_node_uuids: [] } as unknown as TemplateStep)), requirement_node_uuids: open.links }
+  if (previous?.type === 'activity' && step.type === 'activity') step.config = previous.config
+  return step
+}
+
+/** Why the open step can't save yet: the editor's reasons, or a due week the stage's length doesn't reach. */
+function stepProblem(open: OpenStep, stageWeeks: number | null | undefined): string | null {
+  const due = open.draft.due_week
+  if (due && !stageWeeks) return 'Give the stage a length to set a due week'
+  if (due && stageWeeks && due > stageWeeks) return `The stage is only ${plural(stageWeeks, 'week')} long`
+  return draftProblem(open.draft)
+}
+
+const activityUuidOf = (step?: TemplateStep | null) => step?.type === 'activity' ? (step.config as ActivityConfig).activity_uuid || '' : ''
 
 /**
  * The plan's steps. One stage reads as a plain list; from two on, each has a "Stage N" heading.
- * While editing, a step opens in the step editor, steps drag between stages, and stages are added
- * under the list. Otherwise a step opens to show everything it's set to.
+ * Editors change steps where they sit: a step opens in place, Add step (or the + between two steps)
+ * shows the step types, and every change saves into the draft as you type. Otherwise a step opens
+ * to show everything it's set to.
  */
 export default function PlanSteps({ orgslug, orgId, token, editing, document, editMode }: Props) {
+  const router = useRouter()
   const frameworks = useRequirementFrameworks(orgId, token)
   const [target, setTarget] = React.useState<StepTarget>(null)
-  const stages = document.stages
+  const [open, setOpenState] = React.useState<OpenStep | null>(null)
+  const [adding, setAdding] = React.useState<Spot | null>(null)
+  const openRef = React.useRef<OpenStep | null>(null)
+  const spot = React.useRef<Spot | null>(null)
+  const dirty = React.useRef(false)
+  const setOpen = (next: OpenStep | null) => { openRef.current = next; setOpenState(next) }
+  const template = editing.template!
+  const save = editing.save
+  const inDocument = (key: string) => documentSteps(document).some(({ step }) => step.key === key)
+  const stageWeeksOf = (key: string) => (documentSteps(document).find(({ step }) => step.key === key)?.stage || document.stages.find((stage) => stage.key === spot.current?.stageKey))?.duration_weeks
+  const problemOf = (current: OpenStep) => stepProblem(current, stageWeeksOf(current.key))
+
+  // A new step shows where it was added before it's saved.
+  const stages = React.useMemo(() => {
+    if (!open || !spot.current || inDocument(open.key)) return document.stages
+    const where = spot.current
+    return document.stages.map((stage) => stage.key === where.stageKey ? { ...stage, steps: [...stage.steps.slice(0, where.index), stepFrom(open), ...stage.steps.slice(where.index)] } : stage)
+  }, [document, open]) // eslint-disable-line react-hooks/exhaustive-deps
   const staged = stages.length > 1
   const count = stages.reduce((total, stage) => total + stage.steps.length, 0)
-  const save = editing.save
+
+  /** Saves the open step if it changed and is complete (a new step waits for its title). */
+  const persist = async (current: OpenStep | null = openRef.current) => {
+    if (!current || !dirty.current || problemOf(current)) return !dirty.current
+    dirty.current = false
+    const where = spot.current
+    const saved = await save((doc) => documentSteps(doc).some(({ step }) => step.key === current.key)
+      ? mapStep(doc, current.key, (previous) => stepFrom(current, previous))
+      : where && doc.stages.some((stage) => stage.key === where.stageKey) ? insertStep(doc, where.stageKey, where.index, stepFrom(current)) : addStep(doc, doc.stages[0].key as string, stepFrom(current)))
+    if (!saved) dirty.current = true
+    return saved
+  }
+  // Changes save a moment after typing stops.
+  React.useEffect(() => {
+    if (!open || !dirty.current) return
+    const timer = window.setTimeout(() => void persist(), 700)
+    return () => window.clearTimeout(timer)
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Closes the open step, saving it. A new step with no title is dropped. */
+  const close = (): boolean => {
+    const current = openRef.current
+    if (!current) return true
+    const problem = dirty.current ? problemOf(current) : null
+    // Typed work is never thrown away: a step that can't save yet stays open until it can (or is deleted).
+    if (problem && current.draft.title.trim()) { toast.error(`${problem} first, or delete the step.`); return false }
+    setOpen(null)
+    if (!problem) void persist(current)
+    else dirty.current = false
+    return true
+  }
+  const openStep = (stageKey: string, step: TemplateStep) => {
+    if (openRef.current?.key === step.key || !close()) return
+    setAdding(null)
+    spot.current = null
+    dirty.current = false
+    setOpen({ ...stepToOpen(step), key: step.key as string })
+    void stageKey
+  }
+  const startAdding = (where: Spot) => { if (close()) setAdding(where) }
+  const pick = (type: StepTypeKey) => {
+    if (!adding) return
+    spot.current = adding
+    dirty.current = false
+    setAdding(null)
+    setOpen(freshStep(newKey('step'), type))
+  }
+  const change = (next: OpenStep) => { dirty.current = true; setOpen(next) }
+
+  // Clicking away closes the step (or the type row).
+  React.useEffect(() => {
+    if (!open && !adding) return
+    const away = (event: MouseEvent) => {
+      const element = event.target as Element | null
+      // A control that swapped itself out on click (a chip turning into its input) is gone by now. While a menu
+      // or dialog is up the page ignores the pointer, so its clicks land on the page itself.
+      if (!element?.closest || !element.isConnected || element.closest(KEEP_OPEN) || window.document.querySelector('[role="menu"], [role="dialog"], [role="alertdialog"]')) return
+      setAdding(null)
+      close()
+    }
+    window.document.addEventListener('click', away)
+    return () => window.document.removeEventListener('click', away)
+  })
+  // Unsaved typing is saved when leaving the page.
+  React.useEffect(() => () => { if (dirty.current) void persist() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const duplicate = async () => {
+    const current = openRef.current
+    if (!current || !(await persist(current))) return
+    const key = newKey('step')
+    const title = `${current.draft.title.trim()} (copy)`
+    const copied = await save((doc) => {
+      const found = documentSteps(doc).find(({ step }) => step.key === current.key)
+      if (!found) return doc
+      const index = found.stage.steps.findIndex((step) => step.key === current.key)
+      return insertStep(doc, found.stage.key as string, index + 1, { ...stepFrom(current, found.step), key, title })
+    }, 'Step duplicated.')
+    if (copied) { dirty.current = false; setOpen({ ...current, key, draft: { ...current.draft, title }, isNew: false }) }
+  }
+  const remove = async () => {
+    const current = openRef.current
+    if (!current) return
+    const found = documentSteps(document).find(({ step }) => step.key === current.key)
+    dirty.current = false
+    setOpen(null)
+    if (!found) return
+    const activity = found.step.type === 'activity'
+    if (activity && !window.confirm(`Delete "${found.step.title}" and its pages from the draft?`)) return
+    const index = found.stage.steps.findIndex((step) => step.key === current.key)
+    if (!(await save((doc) => removeStep(doc, current.key)))) return
+    if (activity) { toast.success('Step deleted.'); return }
+    toast((shown) => <span data-step-toast="" className="flex items-center gap-3 text-sm">Deleted “{found.step.title || 'Untitled step'}”.
+      <button type="button" className="font-bold text-brand-ink underline" onClick={() => { toast.dismiss(shown.id); void save((doc) => insertStep(doc, found.stage.key as string, index, found.step), 'Step restored.') }}>Undo</button>
+    </span>, { duration: 5000 })
+  }
+  const openActivity = async () => {
+    const current = openRef.current
+    if (!current) return
+    const named = current.draft.title.trim() ? current : { ...current, draft: { ...current.draft, title: 'New activity' } }
+    dirty.current = true
+    setOpen(named)
+    if (!(await persist(named))) return
+    const fresh = await templatesApi.get(orgId, template.template_uuid, token)
+    const uuid = activityUuidOf(documentSteps(fresh.document).find(({ step }) => step.key === named.key)?.step)
+    if (uuid) router.push(templateActivityHref(orgslug, template.template_uuid, uuid))
+  }
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result
@@ -40,6 +190,20 @@ export default function PlanSteps({ orgslug, orgId, token, editing, document, ed
   }
   // Splitting names the first stage too, unless it already has a name of its own (older plans call it "Steps").
   const split = () => save((current) => addStage(['', 'steps'].includes(current.stages[0].title.trim().toLowerCase()) ? mapStage(current, current.stages[0].key as string, (stage) => ({ ...stage, title: defaultStageTitle(0) })) : current, defaultStageTitle(current.stages.length), null))
+  const isAdding = (stageKey: string, index: number) => adding?.stageKey === stageKey && adding.index === index
+  const typeRow = <StepTypeRow onPick={pick} onClose={() => setAdding(null)} />
+
+  const inlineStep = (step: TemplateStep, drag?: DraggableProvidedDragHandleProps | null) => {
+    const current = open!
+    const stored = documentSteps(document).find((item) => item.step.key === step.key)?.step
+    const activityUuid = activityUuidOf(stored)
+    return <InlineStep value={{ ...current, activityUuid, isNew: !stored }} onChange={change} onClose={() => void close()} onDuplicate={() => void duplicate()} onDelete={() => void remove()} onOpenActivity={() => void openActivity()}
+      activityHref={activityUuid ? templateActivityHref(orgslug, template.template_uuid, activityUuid) : ''} orgId={orgId} token={token} templateUuid={template.template_uuid}
+      frameworks={frameworks} planLinked={new Set(documentSteps(document).filter((item) => item.step.key !== step.key).flatMap((item) => item.step.requirement_node_uuids || []))}
+      others={stepChoices(document, step.key)} saving={editing.saving} autoFocus={!stored} dragHandle={drag}
+      problem={current.draft.title.trim() ? problemOf(current) : null} stageWeeks={stageWeeksOf(step.key as string) ?? null}
+      onStageWeeks={(weeks) => { const stageKey = (documentSteps(document).find((item) => item.step.key === step.key)?.stage.key || spot.current?.stageKey) as string; void save((doc) => mapStage(doc, stageKey, (stage) => ({ ...stage, duration_weeks: weeks }))) }} />
+  }
 
   let body: React.ReactNode
   if (!editMode) {
@@ -48,32 +212,36 @@ export default function PlanSteps({ orgslug, orgId, token, editing, document, ed
       <ol className="flex flex-col gap-2">{stage.steps.map((step) => <li key={step.key}><StepRow step={step} onOpen={() => setTarget({ stageKey: stage.key as string, stepKey: step.key })} /></li>)}</ol>
     </div>) : <p className="text-sm text-muted-foreground">No steps yet.</p>
   } else if (!count && !staged) {
-    body = <button type="button" onClick={() => setTarget({ stageKey: stages[0].key as string })}
+    const first = { stageKey: stages[0].key as string, index: 0 }
+    body = adding ? typeRow : <button type="button" data-step-action="" onClick={() => startAdding(first)} disabled={editing.stale}
       className="flex w-full flex-col items-center gap-3 rounded-[22px] border-2 border-dashed border-brand/45 bg-brand-soft/60 px-6 py-[38px] transition-colors hover:border-brand hover:bg-brand-soft">
       <span className="grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-[0_10px_24px_hsl(var(--brand)/.4)]"><Plus size={26} aria-hidden="true" /></span>
       <b className="text-lg">Add your first step</b>
       <span className="text-sm text-muted-foreground">Tasks, write-ups, uploads, events, decisions and more</span>
-      <span className="mt-1 flex gap-1.5" aria-hidden="true">{STEP_TYPE_ORDER.slice(0, 7).map((type) => { const definition = stepDefinition(type); const Icon = definition.icon; return <i key={type} className="grid h-7 w-7 place-items-center rounded-lg text-white" style={{ background: definition.color }}><Icon size={15} /></i> })}</span>
     </button>
   } else {
     body = <DragDropContext onDragEnd={onDragEnd}>
-      {stages.map((stage, index) => <div key={stage.key}>
+      {stages.map((stage, index) => { const stageKey = stage.key as string; return <div key={stageKey}>
         {staged ? <StageHeading stage={stage} index={index} editing={editing} count={stages.length} /> : null}
-        <Droppable droppableId={stage.key as string}>{(list, over) => <ol ref={list.innerRef} {...list.droppableProps} className={cn('flex min-h-2 flex-col gap-2 rounded-2xl transition-colors', over.isDraggingOver && 'bg-brand-soft/50')}>
-          {stage.steps.map((step, stepIndex) => <Draggable key={step.key} draggableId={step.key as string} index={stepIndex} isDragDisabled={editing.saving}>{(drag, snapshot) =>
-            <li ref={drag.innerRef} {...drag.draggableProps} style={drag.draggableProps.style}>
-              <StepRow step={step} dragHandle={drag.dragHandleProps} dragging={snapshot.isDragging} onOpen={() => setTarget({ stageKey: stage.key as string, stepKey: step.key })} />
-            </li>}</Draggable>)}
+        <Droppable droppableId={stageKey}>{(list, over) => <ol ref={list.innerRef} {...list.droppableProps} className={cn('flex min-h-2 flex-col rounded-2xl transition-colors', over.isDraggingOver && 'bg-brand-soft/50')}>
+          {stage.steps.map((step, stepIndex) => <React.Fragment key={step.key}>
+            {isAdding(stageKey, stepIndex) ? <li className="py-1">{typeRow}</li> : <Gap first={stepIndex === 0} disabled={editing.stale} onClick={() => startAdding({ stageKey, index: stepIndex })} />}
+            <Draggable draggableId={step.key as string} index={stepIndex} isDragDisabled={editing.saving || open?.key === step.key}>{(drag, snapshot) =>
+              <li ref={drag.innerRef} {...drag.draggableProps} style={drag.draggableProps.style}>
+                {open?.key === step.key ? inlineStep(step, drag.dragHandleProps)
+                  : <StepRow step={step} dragHandle={drag.dragHandleProps} dragging={snapshot.isDragging} onOpen={() => openStep(stageKey, step)} />}
+              </li>}</Draggable>
+          </React.Fragment>)}
           {list.placeholder}
         </ol>}</Droppable>
         <div className="mt-2.5 flex flex-col gap-1.5">
-          <button type="button" onClick={() => setTarget({ stageKey: stage.key as string })} disabled={editing.stale}
+          {isAdding(stageKey, stage.steps.length) ? typeRow : <button type="button" data-step-action="" onClick={() => startAdding({ stageKey, index: stage.steps.length })} disabled={editing.stale}
             className="flex w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-border p-3.5 text-sm font-bold text-muted-foreground transition-colors hover:border-brand hover:text-brand-ink">
             <Plus size={18} aria-hidden="true" />{staged ? `Add step to ${stage.title}` : 'Add step'}
-          </button>
+          </button>}
           {staged ? null : <StageDivider onClick={() => void split()} icon={<Layers3 size={15} aria-hidden="true" />}>Split into stages</StageDivider>}
         </div>
-      </div>)}
+      </div> })}
       {staged ? <StageDivider onClick={() => void save((current) => addStage(current, defaultStageTitle(current.stages.length), null))} icon={<Plus size={15} aria-hidden="true" />}>Add stage {stages.length + 1}</StageDivider> : null}
     </DragDropContext>
   }
@@ -84,8 +252,23 @@ export default function PlanSteps({ orgslug, orgId, token, editing, document, ed
       <span className="text-[13px] text-muted-foreground">{count ? `${plural(count, 'step')}${staged ? ` · ${plural(stages.length, 'stage')}` : ''}` : ''}{editMode && count ? ' · Click a step to edit it' : ''}</span>
     </div>
     {body}
-    <StepModal target={target} setTarget={setTarget} orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} frameworks={frameworks} readOnly={!editMode} />
+    {editMode ? null : <StepModal target={target} setTarget={setTarget} orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} frameworks={frameworks} readOnly />}
   </section>
+}
+
+/** The open form of a saved step. */
+function stepToOpen(step: TemplateStep): OpenStep {
+  return { key: step.key as string, draft: stepToDraft(step), links: step.requirement_node_uuids || [], isNew: false, activityUuid: activityUuidOf(step) }
+}
+
+/** The space between two steps; hovering shows a + that adds a step there. */
+function Gap({ first, disabled, onClick }: { first: boolean; disabled: boolean; onClick: () => void }) {
+  return <li className={cn('group/gap relative flex items-center justify-center', first ? 'h-0' : 'h-2')}>
+    {first ? null : <button type="button" data-step-action="" onClick={onClick} disabled={disabled} aria-label="Add a step here"
+      className="absolute z-10 flex h-5 w-full items-center gap-2 px-6 opacity-0 transition-opacity before:h-px before:flex-1 before:bg-brand/50 after:h-px after:flex-1 after:bg-brand/50 hover:opacity-100 focus-visible:opacity-100">
+      <i className="grid h-5 w-5 place-items-center rounded-full bg-brand text-white"><Plus size={12} aria-hidden="true" /></i>
+    </button>}
+  </li>
 }
 
 /** One step: its type's colored tile, title, and a line with the type and how it's finished. */
@@ -93,12 +276,12 @@ function StepRow({ step, onOpen, dragHandle, dragging }: { step: TemplateStep; o
   const definition = stepDefinition(step.type)
   const Icon = definition.icon
   const line = [definition.label, step.completed_by === 'staff' ? 'Done by staff' : null, step.due_week ? `Due week ${step.due_week}` : null, step.after?.length ? `After ${plural(step.after.length, 'step')}` : null].filter(Boolean).join(' · ')
-  const tags = [step.review_required ? 'Needs review' : null, step.staff_guide || step.staff_materials?.length ? 'Staff guide' : null].filter(Boolean)
+  const tags = [step.review_required ? 'Needs review' : null, step.requirement_node_uuids?.length ? plural(step.requirement_node_uuids.length, 'requirement') : null, step.staff_guide || step.staff_materials?.length ? 'Staff guide' : null].filter(Boolean)
   return <div className={cn('group relative grid grid-cols-[18px_40px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border bg-card py-3 pl-2 pr-3.5 transition hover:border-foreground/20 hover:shadow-[0_1px_2px_hsl(200_30%_10%/.06),0_8px_28px_hsl(200_30%_10%/.08)] motion-safe:animate-[plan-rise_.3s_both]',
     dragging && 'shadow-xl ring-2 ring-brand/40')}>
     {dragHandle ? <span {...dragHandle} aria-label={`Move ${step.title}`} className="relative z-10 grid cursor-grab place-items-center text-muted-foreground opacity-40 hover:opacity-100 active:cursor-grabbing"><GripVertical size={14} /></span> : <span aria-hidden="true" />}
     <span className="grid h-10 w-10 place-items-center rounded-xl text-white" style={{ background: definition.color }}><Icon size={20} aria-hidden="true" /></span>
-    <button type="button" onClick={onOpen} className="min-w-0 text-left after:absolute after:inset-0 after:rounded-2xl">
+    <button type="button" data-step-action="" onClick={onOpen} className="min-w-0 text-left after:absolute after:inset-0 after:rounded-2xl">
       <b className="block truncate text-[14.5px]">{step.title || 'Untitled step'}</b>
       <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">{line}</span>
     </button>

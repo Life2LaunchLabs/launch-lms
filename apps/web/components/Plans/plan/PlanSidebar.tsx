@@ -45,7 +45,7 @@ function RequirementsCard({ orgslug, orgId, token, document, canEdit }: { orgslu
   if (!coverage.length) {
     if (!canEdit || !frameworks.length) return null
     return <AsideCard icon={<ListChecks size={16} />} title="Requirements" tag={<Tag>None</Tag>}>
-      <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">Link steps to graduation or state requirements to track progress toward them. Open a step while editing to link it.</p>
+      <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">Link steps to graduation or state requirements to track progress toward them. Open a step and use its Requirements button to link it.</p>
     </AsideCard>
   }
   return <AsideCard icon={<ListChecks size={16} />} title="Requirements">
