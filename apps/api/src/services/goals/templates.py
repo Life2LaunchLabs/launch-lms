@@ -136,13 +136,17 @@ def template_dict(db: Session, template: GoalTemplate, *, with_document: bool = 
 
 
 def set_cover(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, payload: TemplateCover) -> dict:
-    """Change the plan's icon or color. Covers aren't versioned: every version shows the current one."""
+    """Change the plan's image, icon or color. Covers aren't versioned: every version shows the current one."""
     require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates keep their cover")
+    image = (payload.thumbnail_image or "").strip()
+    if image and not image.startswith(("https://", "/content/")):
+        raise HTTPException(status_code=422, detail="thumbnail_image: use an uploaded image (/content/...) or an https address")
     for field in payload.model_fields_set:
-        setattr(template, field, getattr(payload, field))
+        value = getattr(payload, field)
+        setattr(template, field, (value or "").strip() if field == "thumbnail_image" else value)
     template.update_date = _now()
     db.add(template)
     db.commit()

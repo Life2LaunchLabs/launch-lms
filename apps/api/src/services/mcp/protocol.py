@@ -33,6 +33,8 @@ Activities: add one by giving a new step type "activity" in a template document 
 
 Badges are an optional part of a plan: the template document's `badge` block (kind, skills, certificate style, optional name and image, extra Open Badges fields). Everything else about the badge comes from the plan (title, description, criteria, requirements, version), and finishing the plan earns it. It is drafted and published with the plan.
 
+Where plans show up: save_collection groups plans (list_collections first); a collection's categories decide where /start and Discover suggest its plans, and the platform organization's starter collections fill every organization's New plan picker. set_plan_listing lists a plan in Discover for other organizations (locked or open, open or by request), and set_plan_cover sets its image or icon. Change these only when the admin asks.
+
 Media: upload_media puts an image, video or PDF (from a public URL or base64) into the organization's media library and returns the `url` to use for badge images, activity image blocks and video pages; list_media finds what is already there. Only upload media the organization may use.
 
 Typical flow: requirements write-up -> framework -> template whose steps link to it, with a `badge` block if finishing it should earn a badge -> publish_plan_template when the admin asks.
