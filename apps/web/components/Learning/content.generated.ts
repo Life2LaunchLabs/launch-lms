@@ -1,6 +1,21 @@
 // Generated from apps/api/src/services/learning_content/models.py — do not edit.
 // Regenerate: cd apps/api && uv run python cli.py generate-learning-types
 
+/** How the player presents an activity (`settings.design`). */
+export interface ActivityDesign {
+  /** `line` (the default; `bar` is its older name), `segments` (one per page), `dots`, `count` ("3 of 8") or `none`. */
+  progress?: "bar" | "line" | "segments" | "dots" | "count" | "none"
+  /** Learners can go back a page; on by default. */
+  allow_back?: boolean
+  /** Reopening continues where they left off; on by default. */
+  resume?: boolean
+  /** How pages come in; `slide` by default. */
+  transition?: "slide" | "fade" | "rise" | "none"
+  background?: Record<string, any>
+  exit?: Record<string, any>
+  [key: string]: any
+}
+
 export interface AllOf {
   op: "and" | "or"
   conditions: Array<Comparison | AllOf | Negation>
@@ -22,12 +37,25 @@ export interface BlockDesign {
   placement?: "inline" | "footer"
   /** Choice questions only: how options are drawn. Cards show each option's `icon` and `description`. */
   style?: "list" | "pills" | "scale" | "cards"
+  /** Version 3: how the block comes in. Replaces `entrance`; blocks rise in, staggered in page order, by default. */
+  motion?: "rise" | "fade" | "pop" | "slide_left" | "slide_right" | "zoom" | "none"
+  /** Version 3: seconds to wait before the block comes in. */
+  motion_delay?: number
 }
 
 /** Set by the platform on system activities; not editable by admins. */
 export interface BlockSystem {
   locked?: boolean
   reason?: string
+}
+
+/** One way through a branch. `rule` empty: the Default path, taken when no other rule matches. */
+export interface BranchPath {
+  id: string
+  label?: string
+  rule?: Comparison | AllOf | Negation
+  /** Page uuids, in order. No branches inside a path. */
+  pages?: Array<string>
 }
 
 export interface ButtonBlock {
@@ -45,6 +73,37 @@ export interface ButtonContent {
   action?: "continue" | "revisit"
   /** revisit only: an earlier page on the route (uuid or new-page placeholder). */
   revisit_page_uuid?: string
+}
+
+/** A few words shown together, from `start` (seconds) until the next chunk or `end`. */
+export interface CaptionChunk {
+  id: string
+  start: number
+  end?: number
+  words?: string
+  /** The words as Tiptap JSON when some of them are styled. */
+  text?: Record<string, any>
+}
+
+export interface CaptionPosition {
+  /** Percent from the left. */
+  x?: number
+  /** Percent from the top. */
+  y?: number
+}
+
+/** Version 3: cards the learner swipes or taps through. */
+export interface CardDeckBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "card_deck"
+  content: CardDeckContent
+}
+
+export interface CardDeckContent {
+  cards: Array<DeckCard>
 }
 
 /** Bars that grow in, such as steps done each week. */
@@ -77,6 +136,15 @@ export interface ChoiceOption {
   [key: string]: any
 }
 
+/** Version 3: on two-column pages, blocks after it go in the second column. */
+export interface ColumnBreakBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "column_break"
+}
+
 export interface Comparison {
   op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "contains" | "exists"
   left: ConditionOperand
@@ -87,6 +155,13 @@ export interface ConditionOperand {
   source: "answer" | "variable" | "fact" | "context"
   /** Answer keys start with the page uuid, e.g. `<page>.result.option_ids`, `<page>.result.questions.<block>.inputs.<input>.text` or `<page>.button`. */
   key: string
+}
+
+export interface DeckCard {
+  id: string
+  title?: string
+  body?: string
+  image?: string
 }
 
 /** Shows a learner's earlier answer or a profile variable in place. */
@@ -121,6 +196,21 @@ export interface FlowNode {
   id: string
   type: "page" | "split" | "join" | "complete"
   page_uuid?: string
+}
+
+/** Version 3: the page's one heading. Every version 3 page has exactly one. */
+export interface HeadingBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "heading"
+  content: HeadingContent
+}
+
+export interface HeadingContent {
+  text?: string
+  size?: "s" | "m" | "l" | "xl"
 }
 
 export interface ImageBlock {
@@ -161,12 +251,47 @@ export interface Negation {
   condition: Comparison | AllOf | Negation
 }
 
+/** Version 3: one big number with a label, such as "3 in 4 teens". */
+export interface NumberBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "number"
+  content: NumberContent
+}
+
+export interface NumberContent {
+  /** Counts up as the page opens when it is a number. */
+  value?: number | string
+  prefix?: string
+  suffix?: string
+  label?: string
+  /** Read the value from a variable or an earlier answer instead. */
+  binding?: DisplayBinding
+}
+
 /** Where a choice question's options come from when they aren't typed in. */
 export interface OptionsSource {
   /** `goal_templates`: plan templates the learner can start from, ranked by the goal's wording, with a search for more. The run must belong to a goal. */
   kind: "goal_templates"
   /** How many options show before "See more". */
   limit?: number
+}
+
+/** A page's look (the page's `design`). */
+export interface PageDesign {
+  /** `color`, `gradient_to`, `image`, `scene`, `intensity`. */
+  background?: Record<string, any>
+  /** Where the blocks sit; middle by default. */
+  valign?: "top" | "middle" | "bottom"
+  /** Two columns on wide screens, split at the column break. */
+  columns?: 1 | 2
+  /** How the page comes in; the activity's when empty. */
+  transition?: "slide" | "fade" | "rise" | "none"
+  celebrate?: boolean
+  auto_advance_ms?: number
+  [key: string]: any
 }
 
 /** Show different blocks depending on an earlier question's answer. */
@@ -254,10 +379,30 @@ export interface QuoteContent {
   binding?: DisplayBinding
 }
 
-/** Standard page content (version 2). */
+/** The order of an activity's pages: a stack of pages and branches, one level deep. At a branch the first path whose rule matches is taken, else the Default path; then the activity carries on after the branch. Replaces `flow` (older activities are converted when they are read). */
+export interface Sequence {
+  version?: 1
+  items?: Array<SequencePage | SequenceBranch>
+}
+
+export interface SequenceBranch {
+  type: "branch"
+  id: string
+  label?: string
+  /** Editor hint: what the paths' rules look at. */
+  on?: ConditionOperand
+  paths: Array<BranchPath>
+}
+
+export interface SequencePage {
+  type: "page"
+  page_uuid: string
+}
+
+/** Standard page content. Version 2 is the older shape; version 3 adds the page heading (exactly one) and new blocks, with layout in the page's `design` (`PageDesign`). In version 3 buttons only continue and pages have no variants: branches do that job. */
 export interface StandardPageContent {
-  version?: 2
-  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock>
+  version?: 2 | 3
+  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock | HeadingBlock | NumberBlock | CardDeckBlock | ColumnBreakBlock>
   /** Label for the page's continue action. */
   action_label?: string
   variants?: PageVariants
@@ -315,7 +460,7 @@ export interface TextInputField {
 }
 
 export interface VariantOverride {
-  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock>
+  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock | HeadingBlock | NumberBlock | CardDeckBlock | ColumnBreakBlock>
   [key: string]: any
 }
 
@@ -325,12 +470,26 @@ export interface VariantSource {
   [key: string]: any
 }
 
+export interface VideoCaptions {
+  chunks?: Array<CaptionChunk>
+  /** Font, size, colour and backdrop shared by every chunk. */
+  look?: Record<string, any>
+  phone?: CaptionPosition
+  desktop?: CaptionPosition
+  language?: string
+  source?: "generated" | "edited" | "manual"
+}
+
 export interface VideoPageContent {
   video_url?: string
   heading?: string
   allow_scrubbing?: boolean
+  captions?: VideoCaptions
   [key: string]: any
 }
 
 export type Block = TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock
+/** Every block type, version 3's included. */
+export type AnyBlock = Block | StatBlock | QuoteBlock | ChartBlock | MedalBlock | HeadingBlock | NumberBlock | CardDeckBlock | ColumnBreakBlock
+export type SequenceItem = SequencePage | SequenceBranch
 export type Condition = Comparison | AllOf | Negation

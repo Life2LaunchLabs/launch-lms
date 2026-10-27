@@ -159,3 +159,55 @@ async def test_live_run_navigation_matches_the_preview_engine():
     assert live_done["current_page_uuid"] is None and preview_done["current_page_uuid"] is None
     for key in ("passed", "score", "max_score", "score_percent", "pending_manual_grades"):
         assert live_done["result"][key] == preview_done["result"][key], key
+
+
+def _sequenced(document: dict, new_page: str | None = None) -> dict:
+    """The world's activity with its flow replaced by a sequence: P1, then P2 for makers or P3."""
+    rule = {"op": "contains", "left": {"source": "answer", "key": f"{P1}.result.option_ids"}, "right": "opt_make"}
+    document = deepcopy(document)
+    settings = document["activity"]["settings"]
+    settings.pop("flow")
+    settings["sequence"] = {
+        "version": 1,
+        "items": [
+            {"type": "page", "page_uuid": P1},
+            {"type": "branch", "id": "br_interest", "on": {"source": "answer", "key": f"{P1}.result.option_ids"},
+             "paths": [{"id": "make", "rule": rule, "pages": [P2]}, {"id": "default", "rule": None, "pages": [P3]}]},
+            *([{"type": "page", "page_uuid": new_page}] if new_page else []),
+        ],
+    }
+    return document
+
+
+async def test_a_saved_sequence_routes_live_runs_like_the_preview():
+    from src.db.goals import Goal, GoalStep
+    from src.services.learning_documents.models import ActivityDocumentSave
+    from src.db.learning_requests import LearningResponseSubmit
+    from src.services.learning import runtime
+    from src.services.learning.run_navigation import _run_navigation
+    from src.tests.test_learning_documents import _text
+
+    session, alice, _ = _world()
+    current = await store.get_activity_document(_request(), "learning_activity_draft", alice, session)
+    document = _sequenced(current["document"], "new-wrap")
+    document["pages"].append({"page_uuid": "new-wrap", "title": "Wrap up", "content": {"version": 2, "blocks": [_text("blk_wrap0001", "Nice work.")]}})
+    saved = await store.save_activity_document(_request(), "learning_activity_draft", ActivityDocumentSave(document=document, base_etag=current["etag"]), alice, session)
+    document = saved["document"]
+    wrap = document["pages"][-1]["page_uuid"]
+    assert wrap.startswith("learning_page_") and document["activity"]["settings"]["sequence"]["items"][-1]["page_uuid"] == wrap
+
+    session.add(Goal(id=1, goal_uuid="goal_1", org_id=1, title="Career Ready", owner_user_id=alice.id, subject_user_id=alice.id))
+    session.add(GoalStep(id=1, step_uuid="goal_step_1", goal_id=1, title="Career interests", type="activity", activity_id=50))
+    run = LearningRun(run_uuid="learning_run_live", activity_id=50, org_id=1, goal_id=1, goal_step_id=1, user_id=alice.id)
+    session.add(run)
+    session.commit()
+    preview = engine.start(document)
+    assert _run_navigation(session, run)["path"] == preview["run"]["navigation"]["path"] == [P1, P3, wrap]
+
+    submitted = await runtime.submit_response(
+        _request(), LearningResponseSubmit(run_uuid="learning_run_live", page_uuid=P1, answer=_answer("opt_make")), alice, session
+    )
+    stepped = engine.step(document, preview["state"], "submit", P1, _answer("opt_make"))["run"]["navigation"]
+    for key in ("path", "current_page_uuid", "completed", "total"):
+        assert submitted.navigation[key] == stepped[key], key
+    assert stepped["path"] == [P1, P2, wrap]

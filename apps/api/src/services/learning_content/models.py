@@ -1,4 +1,4 @@
-"""Typed models for learning page content and activity flows.
+"""Typed models for learning page content, activity sequences and (older) flows.
 
 These are the single source for the shape of standard-page content and the
 branching flow: the page API and Activity Documents validate with them, the
@@ -66,6 +66,8 @@ class BlockDesign(BaseModel):
     entrance: Literal["rise", "fade", "none"] | None = Field(default=None, description="How the block enters; blocks rise in, staggered in page order, by default.")
     placement: Literal["inline", "footer"] | None = Field(default=None, description="Continue buttons only: `footer` draws the button beside Continue as a secondary action.")
     style: Literal["list", "pills", "scale", "cards"] | None = Field(default=None, description="Choice questions only: how options are drawn. Cards show each option's `icon` and `description`.")
+    motion: Literal["rise", "fade", "pop", "slide_left", "slide_right", "zoom", "none"] | None = Field(default=None, description="Version 3: how the block comes in. Replaces `entrance`; blocks rise in, staggered in page order, by default.")
+    motion_delay: float | None = Field(default=None, ge=0, le=10, description="Version 3: seconds to wait before the block comes in.")
 
 
 class BlockSystem(BaseModel):
@@ -327,8 +329,70 @@ class MedalBlock(_Block):
     content: MedalContent
 
 
+class HeadingContent(BaseModel):
+    model_config = STRICT
+
+    text: str = Field(default="", max_length=300)
+    size: Literal["s", "m", "l", "xl"] | None = None
+
+
+class HeadingBlock(_Block):
+    """Version 3: the page's one heading. Every version 3 page has exactly one."""
+
+    type: Literal["heading"]
+    content: HeadingContent
+
+
+class NumberContent(BaseModel):
+    model_config = STRICT
+
+    value: float | str | None = Field(default=None, description="Counts up as the page opens when it is a number.")
+    prefix: str = Field(default="", max_length=12)
+    suffix: str = Field(default="", max_length=24)
+    label: str = Field(default="", max_length=120)
+    binding: DisplayBinding | None = Field(default=None, description="Read the value from a variable or an earlier answer instead.")
+
+
+class NumberBlock(_Block):
+    """Version 3: one big number with a label, such as \"3 in 4 teens\"."""
+
+    type: Literal["number"]
+    content: NumberContent
+
+
+class DeckCard(BaseModel):
+    model_config = STRICT
+
+    id: str = Field(min_length=1)
+    title: str = Field(default="", max_length=160)
+    body: str = Field(default="", max_length=1200)
+    image: str = Field(default="", max_length=2000)
+
+
+class CardDeckContent(BaseModel):
+    model_config = STRICT
+
+    cards: list[DeckCard] = Field(min_length=1, max_length=12)
+
+
+class CardDeckBlock(_Block):
+    """Version 3: cards the learner swipes or taps through."""
+
+    type: Literal["card_deck"]
+    content: CardDeckContent
+
+
+class ColumnBreakBlock(_Block):
+    """Version 3: on two-column pages, blocks after it go in the second column."""
+
+    type: Literal["column_break"]
+
+
 Block = Annotated[
-    Union[TextBlock, ImageBlock, ButtonBlock, QuestionBlock, PortfolioPreviewBlock, StatBlock, QuoteBlock, ChartBlock, MedalBlock],
+    Union[
+        TextBlock, ImageBlock, ButtonBlock, QuestionBlock, PortfolioPreviewBlock, StatBlock, QuoteBlock, ChartBlock, MedalBlock,
+        HeadingBlock, NumberBlock, CardDeckBlock, ColumnBreakBlock,
+    ],
     Field(discriminator="type"),
 ]
 
@@ -356,11 +420,14 @@ class PageVariants(BaseModel):
 
 
 class StandardPageContent(BaseModel):
-    """Standard page content (version 2)."""
+    """Standard page content. Version 2 is the older shape; version 3 adds the
+    page heading (exactly one) and new blocks, with layout in the page's
+    ``design`` (``PageDesign``). In version 3 buttons only continue and pages
+    have no variants: branches do that job."""
 
     model_config = OPEN
 
-    version: Literal[2] = 2
+    version: Literal[2, 3] = 2
     blocks: list[Block] = Field(default_factory=list)
     action_label: str | None = Field(default=None, description="Label for the page's continue action.")
     variants: PageVariants | None = None
@@ -378,7 +445,46 @@ class StandardPageContent(BaseModel):
                 raise ValueError("Pages with variants cannot contain a question block")
             if self.variants.overrides and not (self.variants.source and self.variants.source.page_uuid):
                 raise ValueError("Variants need a source question page")
+        if self.version == 3:
+            if sum(block.type == "heading" for block in self.blocks) != 1:
+                raise ValueError("A version 3 page has exactly one heading block")
+            if sum(block.type == "column_break" for block in self.blocks) > 1:
+                raise ValueError("A page has at most one column break")
+            if self.variants is not None:
+                raise ValueError("Version 3 pages have no variants; use a branch")
+            if any(block.type == "button" and block.content and block.content.action == "revisit" for block in self.blocks):
+                raise ValueError("Version 3 buttons only continue")
         return self
+
+
+class CaptionPosition(BaseModel):
+    model_config = STRICT
+
+    x: float = Field(default=50, ge=0, le=100, description="Percent from the left.")
+    y: float = Field(default=82, ge=0, le=100, description="Percent from the top.")
+
+
+class CaptionChunk(BaseModel):
+    """A few words shown together, from ``start`` (seconds) until the next chunk or ``end``."""
+
+    model_config = STRICT
+
+    id: str = Field(min_length=1)
+    start: float = Field(ge=0)
+    end: float | None = Field(default=None, ge=0)
+    words: str = Field(default="", max_length=400)
+    text: dict[str, Any] | None = Field(default=None, description="The words as Tiptap JSON when some of them are styled.")
+
+
+class VideoCaptions(BaseModel):
+    model_config = STRICT
+
+    chunks: list[CaptionChunk] = Field(default_factory=list, max_length=2000)
+    look: dict[str, Any] = Field(default_factory=dict, description="Font, size, colour and backdrop shared by every chunk.")
+    phone: CaptionPosition | None = None
+    desktop: CaptionPosition | None = None
+    language: str | None = Field(default=None, max_length=20)
+    source: Literal["generated", "edited", "manual"] | None = None
 
 
 class VideoPageContent(BaseModel):
@@ -387,6 +493,7 @@ class VideoPageContent(BaseModel):
     video_url: str | None = None
     heading: str | None = None
     allow_scrubbing: bool | None = None
+    captions: VideoCaptions | None = None
 
 
 # Flow -----------------------------------------------------------------------
@@ -454,6 +561,80 @@ class Flow(BaseModel):
     entry: str
     nodes: list[FlowNode]
     edges: list[FlowEdge]
+
+
+# Sequence -------------------------------------------------------------------
+
+class SequencePage(BaseModel):
+    model_config = STRICT
+
+    type: Literal["page"]
+    page_uuid: str = Field(min_length=1)
+
+
+class BranchPath(BaseModel):
+    """One way through a branch. ``rule`` empty: the Default path, taken when no other rule matches."""
+
+    model_config = STRICT
+
+    id: str = Field(min_length=1)
+    label: str | None = Field(default=None, max_length=120)
+    rule: Condition | None = None
+    pages: list[str] = Field(default_factory=list, description="Page uuids, in order. No branches inside a path.")
+
+
+class SequenceBranch(BaseModel):
+    model_config = STRICT
+
+    type: Literal["branch"]
+    id: str = Field(min_length=1)
+    label: str | None = Field(default=None, max_length=120)
+    on: ConditionOperand | None = Field(default=None, description="Editor hint: what the paths' rules look at.")
+    paths: list[BranchPath] = Field(min_length=1)
+
+
+SequenceItem = Annotated[Union[SequencePage, SequenceBranch], Field(discriminator="type")]
+
+
+class Sequence(BaseModel):
+    """The order of an activity's pages: a stack of pages and branches, one
+    level deep. At a branch the first path whose rule matches is taken, else
+    the Default path; then the activity carries on after the branch. Replaces
+    ``flow`` (older activities are converted when they are read)."""
+
+    model_config = STRICT
+
+    version: Literal[1] = 1
+    items: list[SequenceItem] = Field(default_factory=list)
+
+
+TRANSITIONS = Literal["slide", "fade", "rise", "none"]
+
+
+class PageDesign(BaseModel):
+    """A page's look (the page's ``design``)."""
+
+    model_config = OPEN
+
+    background: dict[str, Any] | None = Field(default=None, description="`color`, `gradient_to`, `image`, `scene`, `intensity`.")
+    valign: Literal["top", "middle", "bottom"] | None = Field(default=None, description="Where the blocks sit; middle by default.")
+    columns: Literal[1, 2] | None = Field(default=None, description="Two columns on wide screens, split at the column break.")
+    transition: TRANSITIONS | None = Field(default=None, description="How the page comes in; the activity's when empty.")
+    celebrate: bool | None = None
+    auto_advance_ms: int | None = Field(default=None, ge=0)
+
+
+class ActivityDesign(BaseModel):
+    """How the player presents an activity (``settings.design``)."""
+
+    model_config = OPEN
+
+    progress: Literal["bar", "line", "segments", "dots", "count", "none"] | None = Field(default=None, description="`line` (the default; `bar` is its older name), `segments` (one per page), `dots`, `count` (\"3 of 8\") or `none`.")
+    allow_back: bool | None = Field(default=None, description="Learners can go back a page; on by default.")
+    resume: bool | None = Field(default=None, description="Reopening continues where they left off; on by default.")
+    transition: TRANSITIONS | None = Field(default=None, description="How pages come in; `slide` by default.")
+    background: dict[str, Any] | None = None
+    exit: dict[str, Any] | None = None
 
 
 def content_error(model: type[BaseModel], value: Any) -> str | None:

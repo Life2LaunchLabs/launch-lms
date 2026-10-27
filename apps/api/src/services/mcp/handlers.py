@@ -127,7 +127,7 @@ def _refuse_removing_learner_work(db_session: Session, activity: LearningActivit
         titles = ", ".join(f"\"{page.title}\" ({page.page_uuid})" for page in blocked)
         raise HTTPException(status_code=409, detail={
             "message": f"Learners have progress or answers on {titles}, and removing a page deletes them. The connector never deletes learner work: "
-                       "keep the page (set required: false and route the flow around it to retire it), or remove it in the Launch LMS editor.",
+                       "keep the page (set required: false and leave it out of the sequence to retire it), or remove it in the Launch LMS editor.",
             "page_uuids": [page.page_uuid for page in blocked],
         })
 

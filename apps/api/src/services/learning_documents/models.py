@@ -1,4 +1,8 @@
-"""Activity Document v1: the canonical, lossless JSON form of one learning activity.
+"""Activity Document v2: the canonical, lossless JSON form of one learning activity.
+
+Version 2 adds ``settings.sequence`` (pages and one-level branches, replacing
+``settings.flow``), version 3 page content and the page and player design. Version 1
+documents still validate; their flows are converted when read.
 
 The same document is used for single-activity export/import, the document API,
 the Claude connector, and preview sessions.
@@ -11,10 +15,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.services.learning_content.models import Flow, StandardPageContent, VideoPageContent
+from src.services.learning_content.models import ActivityDesign, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
 
 DOCUMENT_FORMAT = "launch-lms.activity"
-DOCUMENT_FORMAT_VERSION = 1
+DOCUMENT_FORMAT_VERSION = 2
 MAX_PAGES = 300
 GUIDE_PATH = Path(__file__).with_name("authoring_guide.md")
 NEW_PAGE_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
@@ -55,7 +59,7 @@ class ActivityDocumentActivity(BaseModel):
     thumbnail_image: str = ""
     settings: dict[str, Any] = Field(
         default_factory=dict,
-        description="Activity settings: `flow` (branching graph), `grading`, `outcomes`, …",
+        description="Activity settings: `sequence` (page order and branches), `grading`, `outcomes`, `design` (how the player presents it). Older activities may carry `flow` instead of `sequence`.",
     )
 
 
@@ -63,7 +67,7 @@ class ActivityDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     format: Literal["launch-lms.activity"] = DOCUMENT_FORMAT
-    format_version: Literal[1] = DOCUMENT_FORMAT_VERSION
+    format_version: Literal[1, 2] = DOCUMENT_FORMAT_VERSION
     activity: ActivityDocumentActivity
     pages: list[ActivityDocumentPage] = Field(min_length=1, max_length=MAX_PAGES)
 
@@ -95,14 +99,21 @@ def activity_document_json_schema() -> dict:
     defs["StandardPageContent"] = _inline(StandardPageContent, defs)
     defs["VideoPageContent"] = _inline(VideoPageContent, defs)
     defs["Flow"] = _inline(Flow, defs)
+    defs["Sequence"] = _inline(Sequence, defs)
+    defs["ActivityDesign"] = _inline(ActivityDesign, defs)
+    defs["PageDesign"] = _inline(PageDesign, defs)
+    page_design = {"$ref": "#/$defs/PageDesign"}
     page = defs["ActivityDocumentPage"]["properties"]
+    page["design"] = page_design
     page["content"] = {
         "description": "StandardPageContent for standard pages, VideoPageContent for video pages.",
         "anyOf": [{"$ref": "#/$defs/StandardPageContent"}, {"$ref": "#/$defs/VideoPageContent"}],
     }
     settings = defs["ActivityDocumentActivity"]["properties"]["settings"]
     settings["properties"] = {
-        "flow": {"$ref": "#/$defs/Flow"},
+        "sequence": {"$ref": "#/$defs/Sequence"},
+        "flow": {"$ref": "#/$defs/Flow", "description": "Older activities only; write `sequence` instead. Ignored when `sequence` is set."},
+        "design": {"$ref": "#/$defs/ActivityDesign"},
         "grading": {
             "type": "object",
             "properties": {
@@ -113,8 +124,8 @@ def activity_document_json_schema() -> dict:
         },
     }
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    schema["$id"] = "https://launch-lms.dev/schemas/activity-document-v1.json"
-    schema["title"] = "Launch LMS Activity Document v1"
+    schema["$id"] = "https://launch-lms.dev/schemas/activity-document-v2.json"
+    schema["title"] = "Launch LMS Activity Document v2"
     return schema
 
 
