@@ -33,6 +33,8 @@ Activities: add one by giving a new step type "activity" in a template document 
 
 Badges are an optional part of a plan: the template document's `badge` block (kind, skills, certificate style, optional name and image, extra Open Badges fields). Everything else about the badge comes from the plan (title, description, criteria, requirements, version), and finishing the plan earns it. It is drafted and published with the plan.
 
+Media: upload_media puts an image, video or PDF (from a public URL or base64) into the organization's media library and returns the `url` to use for badge images, activity image blocks and video pages; list_media finds what is already there. Only upload media the organization may use.
+
 Typical flow: requirements write-up -> framework -> template whose steps link to it, with a `badge` block if finishing it should earn a badge -> publish_plan_template when the admin asks.
 
 Insights dashboards show an organization's numbers as cards: the whole organization, one plan, one group or one learner. Read get_dashboard_schema for the scope first (the measures, breakdowns, templates and questions), write the whole document, validate_dashboard until clean, preview_card a card you are unsure of, then create_dashboard or save_dashboard with the revision you read. Tools see only what the admin sees in Insights. capture_dashboard freezes a dashboard with a note; save_capture_rule schedules captures and sends them to staff or by email, only when the admin asks.

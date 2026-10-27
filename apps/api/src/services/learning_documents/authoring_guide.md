@@ -94,6 +94,7 @@ Use `"scoring": { "mode": "manual" }` when a staff member should grade it.
 Image upload: `{ "kind": "image_upload", "content": { "label": "Photo of your project" }, "scoring": { "mode": "manual", "points": 1 }, "completion": { "required": true } }`.
 
 Image: `{ "type": "image", "content": { "src": "https://…", "alt": "…" }, "design": { "height": 220, "fit": "cover" } }`.
+For `src` (and a video page's `video_url`), upload the file with `upload_media` and use the `url` it returns, so the media lives in the organization's library instead of on another site.
 Buttons: a `continue` button completes the page like the Continue action, and
 the flow can route on which one was pressed (see below):
 `{ "id": "btn_more", "type": "button", "content": { "label": "Show me more", "action": "continue" } }`.

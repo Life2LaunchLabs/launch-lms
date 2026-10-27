@@ -130,7 +130,7 @@ earn a badge (an Open Badges 3.0 credential). Leave it out for a plan without on
 `Certification` or `Award`; `style` is the certificate's look (`classic`,
 `modern` or `minimal`). Everything else comes from the plan: its title (unless
 `name` overrides it) and description, its cover image (unless `image_url`
-does), its steps as the criteria, the requirement nodes its steps link to as
+does; get one from `upload_media`), its steps as the criteria, the requirement nodes its steps link to as
 the alignment, the organization as creator and the published version. The
 badge is drafted and published with the plan, and each award keeps the version
 it was earned on.
