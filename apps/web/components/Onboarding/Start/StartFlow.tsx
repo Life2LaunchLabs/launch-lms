@@ -7,6 +7,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import '@/styles/admin-dark.css'
+import AdminSurface from '@components/Utils/AdminSurface'
 import { Button } from '@components/ui/button'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -165,7 +167,8 @@ export default function StartFlow() {
   const preview = state.step in previewPage
 
   if (!restored) return null
-  return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-[#14202a]">
+  return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-foreground">
+    <AdminSurface />
     <header className="flex min-h-[68px] items-center gap-4 px-6 py-3.5">
       <span className="flex items-center gap-2.5 text-[17px] font-extrabold"><img src="/images/start/l2l.webp" alt="" className="h-[30px] w-[30px] rounded-lg" />Life2Launch</span>
       <span className="ml-auto text-[13px] text-muted-foreground">
@@ -314,7 +317,7 @@ function Dots({ steps, current }: { steps: Step[]; current: Step }) {
   return <div className="mb-6 flex h-2.5 items-center" aria-label={`Step ${at + 1} of ${steps.length}`}>
     {steps.map((step, index) => { const distance = Math.abs(index - at); return <motion.i key={step} className="block shrink-0 rounded-full"
       animate={{ width: distance > 3 ? 0 : index === at ? 30 : 8, marginRight: distance > 3 ? 0 : 6, opacity: distance > 3 ? 0 : distance === 3 ? 0.6 : 1, scale: distance === 3 ? 0.6 : 1,
-        backgroundColor: index === at ? '#14202a' : index < at ? 'rgba(20,32,42,0.4)' : 'rgba(20,32,42,0.18)' }} style={{ height: 8 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} /> })}
+        backgroundColor: index === at ? 'hsl(var(--foreground))' : index < at ? 'hsl(var(--foreground) / 0.4)' : 'hsl(var(--foreground) / 0.18)' }} style={{ height: 8 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} /> })}
   </div>
 }
 
@@ -429,7 +432,7 @@ function PreviewSheet({ children }: { children: React.ReactNode }) {
       <span className="h-6 w-6 rounded-full bg-[#2F66D6]" />See your space
     </button>
     <AnimatePresence>
-      {open ? <motion.div key="sheet" role="dialog" aria-modal="true" aria-label="Your space" className="fixed inset-0 z-40 flex flex-col bg-[#fbfaf7]/95 p-4 backdrop-blur"
+      {open ? <motion.div key="sheet" role="dialog" aria-modal="true" aria-label="Your space" className="fixed inset-0 z-40 flex flex-col bg-background/95 p-4 backdrop-blur"
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.25 }}>
         <div className="mb-3 flex items-center justify-between"><b className="text-[15px]">Your space so far</b>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/5"><X size={16} /></button></div>

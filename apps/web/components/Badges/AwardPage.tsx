@@ -21,7 +21,7 @@ const ACTION = 'inline-flex min-h-11 items-center gap-2 rounded-full border bord
 
 /** What the server's check found, as the tag above the heading says it. */
 function CheckTag({ revoked, check }: { revoked: boolean; check: AwardCheck | null }) {
-  if (revoked) return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-red-100 px-2.5 py-1 text-xs font-black text-red-800 dark:bg-red-950 dark:text-red-200"><Ban size={13} aria-hidden="true" />Revoked</span>
+  if (revoked) return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-red-100 px-2.5 py-1 text-xs font-black text-red-800 dark:bg-red-500/15 dark:text-red-300"><Ban size={13} aria-hidden="true" />Revoked</span>
   if (check?.verified) return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-[#DDF1E8] px-2.5 py-1 text-xs font-black text-[#0B5F57]"><ShieldCheck size={13} aria-hidden="true" />Verified Open Badge</span>
   return <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-muted px-2.5 py-1 text-xs font-black text-muted-foreground">Open Badge</span>
 }
@@ -29,7 +29,7 @@ function CheckTag({ revoked, check }: { revoked: boolean; check: AwardCheck | nu
 /** One line of the issuer card: a check the server made, passed or not. */
 function CheckLine({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return <li className="flex items-start gap-2">
-    <span className={cn('mt-0.5 grid size-5 shrink-0 place-items-center rounded-full', ok ? 'bg-[#DDF1E8] text-[#0B5F57]' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200')}>
+    <span className={cn('mt-0.5 grid size-5 shrink-0 place-items-center rounded-full', ok ? 'bg-[#DDF1E8] text-[#0B5F57]' : 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300')}>
       {ok ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : <X size={12} strokeWidth={3} aria-hidden="true" />}
     </span>
     <span>{children}</span>
@@ -75,7 +75,7 @@ export default function AwardPage({ orgslug, award, check = null, pageUrl }: { o
       </div>
     </header>
     <main className="mx-auto flex max-w-[1056px] flex-col gap-6 px-4 pb-24 pt-8 sm:px-6">
-      {revoked ? <p role="status" className="m-0 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+      {revoked ? <p role="status" className="m-0 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-900 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300">
         <b>{org?.name || 'The issuer'} revoked this {kind}{award.revoked_at ? ` on ${longDate(award.revoked_at)}` : ''}.</b> It no longer counts as earned.{award.revoked_reason ? ` Reason: ${award.revoked_reason}` : ''}
       </p> : null}
       <div ref={certificate} className={cn(revoked && 'opacity-50 grayscale')} aria-label={`${badge.name} certificate`}>

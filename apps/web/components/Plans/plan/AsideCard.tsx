@@ -15,5 +15,5 @@ export function AsideCard({ icon, title, tag, children }: { icon: React.ReactNod
 /** A small rounded label: muted, or green for something live. */
 export function Tag({ tone = 'muted', children }: { tone?: 'muted' | 'live'; children: React.ReactNode }) {
   return <span className={cn('inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-2 py-[3px] text-[11.5px] font-bold',
-    tone === 'live' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-muted text-muted-foreground')}>{children}</span>
+    tone === 'live' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-muted text-muted-foreground')}>{children}</span>
 }

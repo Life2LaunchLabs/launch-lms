@@ -24,7 +24,7 @@ const plain = cn(button, 'border border-border hover:bg-muted')
 function Notice({ icon: Icon, tone, children }: { icon: React.ElementType; tone?: 'warn' | 'bad' | 'good'; children: React.ReactNode }) {
   return <div className={cn('flex gap-3 rounded-2xl border px-3.5 py-3', tone === 'bad' ? 'border-red-200 dark:border-red-500/30' : 'border-border')}>
     <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full',
-      tone === 'bad' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : tone === 'warn' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
+      tone === 'bad' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : tone === 'warn' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
         : tone === 'good' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-muted text-muted-foreground')}>
       <Icon size={15} aria-hidden="true" />
     </span>

@@ -120,7 +120,7 @@ export function PlanAction({ orgslug, plan }: { orgslug: string; plan: DiscoverP
   }
   if (plan.status === 'requested') {
     return <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex h-10 items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-[13.5px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-200"><Clock size={14} />Requested · waiting on {plan.creator_org?.name || 'its creator'}</span>
+      <span className="inline-flex h-10 items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-[13.5px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"><Clock size={14} />Requested · waiting on {plan.creator_org?.name || 'its creator'}</span>
       {canAdd ? <button type="button" className={smallGhostClass + ' h-10 px-4 text-sm'} disabled={busy} onClick={() => void cancel()}>Cancel request</button> : null}
     </div>
   }
@@ -139,7 +139,7 @@ export function CollectionAction({ orgslug, collection }: { orgslug: string; col
   if (collection.status === 'added' && collection.local_collection_uuid) {
     return <button type="button" className={primaryActionClass} onClick={() => router.push(collectionHref(orgslug, collection.local_collection_uuid!))}><ArrowRight size={16} />Open in my plans</button>
   }
-  if (collection.status === 'requested') return <span className="inline-flex h-10 items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-[13.5px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-200"><Clock size={14} />Requested · waiting on {collection.creator_org?.name || 'its creator'}</span>
+  if (collection.status === 'requested') return <span className="inline-flex h-10 items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-[13.5px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"><Clock size={14} />Requested · waiting on {collection.creator_org?.name || 'its creator'}</span>
   if (!canAdd) return <span className="text-sm text-muted-foreground">Only admins can add plans.</span>
   const add = async () => {
     setBusy(true)

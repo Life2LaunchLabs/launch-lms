@@ -15,7 +15,7 @@ import { firstName, personLabel, plural } from '@services/assignments/status'
 const PILL: Record<PillTone, string> = {
   running: 'bg-good-soft text-good',
   soon: 'bg-brand-soft text-brand-ink',
-  paused: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  paused: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
   ended: 'bg-muted text-muted-foreground',
 }
 
