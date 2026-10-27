@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from src.services.goals import mcp_collections as goal_collections
 from src.services.goals import mcp_library as goal_library
 from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
@@ -14,6 +15,8 @@ _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'lau
 _TEMPLATE_DOCUMENT = {"type": "object", "description": "A Goal Template Document (format 'launch-lms.goal-template', format_version 1): template details and stages of typed steps. See get_plan_template_schema."}
 _FRAMEWORK_DOCUMENT = {"type": "object", "description": "A Requirement Framework Document (format 'launch-lms.requirement-framework', format_version 1). See get_requirement_framework_schema."}
 _LIBRARY_KIND = {"type": "string", "enum": ["plan_template", "requirement_framework"]}
+_LISTING_MODE = {"type": "string", "enum": ["locked", "open"], "description": "Plans only. locked: other organizations assign it as is (badge plans); open: they can copy and change it. Default open in publish_to_library, locked in set_plan_listing."}
+_LISTING_ACCESS = {"type": "string", "enum": ["open", "request"], "description": "Plans only. open: any organization can add it; request: they ask and you approve. Default open in publish_to_library, request in set_plan_listing."}
 _PERSONA = {
     "type": "object",
     "description": "Optional learner variables to preview with, e.g. {\"user.first_name\": \"Sam\", \"user.details.variables.grade\": \"9\"}.",
@@ -263,9 +266,57 @@ TOOLS = [
         "Publish to the global library",
         "Publish (or refresh) a snapshot of one of this organization's plan templates or published requirement frameworks to the shared library. Only the platform's owner organization can do this. Only call it when the admin asks.",
         {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string"},
-                        "editable": {"type": "boolean", "description": "Frameworks only. False for an official standard: orgs use it as is and can't change it. Default true: orgs copy it as their own."}},
+                        "editable": {"type": "boolean", "description": "Frameworks only. False for an official standard: orgs use it as is and can't change it. Default true: orgs copy it as their own."},
+                        "mode": _LISTING_MODE, "access": _LISTING_ACCESS},
          "required": ["kind", "uuid"]},
         goal_library.publish_to_library,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "list_collections",
+        "List plan collections",
+        "List the organization's plan collections with their plans, categories and whether each is a starter collection, plus the categories to pick from.",
+        {"properties": {}},
+        goal_collections.list_collections,
+        scope="plans:read",
+    ),
+    Tool(
+        "save_collection",
+        "Save a plan collection",
+        "Create a plan collection (omit collection_uuid) or change one. Collections group plans without owning them; their categories (up to 3) apply to every plan inside "
+        "and decide where /start and Discover suggest them. `template_uuids` is the whole plan list when given. `starter` (platform organization only) makes the collection "
+        "a category of the New plan picker every organization sees: its plans with a live version are offered as ready-to-edit copies. Only save when the admin asks.",
+        {"properties": {
+            "collection_uuid": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "categories": {"type": "array", "items": {"type": "string"}, "description": "Up to 3, from list_collections' categories."},
+            "starter": {"type": "boolean"},
+            "template_uuids": {"type": "array", "items": {"type": "string"}},
+        }},
+        goal_collections.save_collection,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "set_plan_listing",
+        "Set how a plan is shared",
+        "List or unlist a plan's live version in Discover for other organizations (needs the plan publishing program), and say how they may use it: "
+        "`mode` locked (assign as is, e.g. badge plans) or open (copy and change), `access` open (add without asking) or request. Only when the admin asks.",
+        {"properties": {"template_uuid": {"type": "string"}, "listed": {"type": "boolean", "description": "Default true."}, "mode": _LISTING_MODE, "access": _LISTING_ACCESS},
+         "required": ["template_uuid"]},
+        goal_collections.set_plan_listing,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "set_plan_cover",
+        "Set a plan's cover",
+        "Set the plan's cover image (a url from upload_media, or \"\" to go back to the icon), icon or color. Covers aren't versioned: every version shows the current one.",
+        {"properties": {"template_uuid": {"type": "string"}, "thumbnail_image": {"type": "string"}, "icon": {"type": "string"}, "color": {"type": "string"}},
+         "required": ["template_uuid"]},
+        goal_collections.set_plan_cover,
         scope="plans:write",
         read_only=False,
     ),

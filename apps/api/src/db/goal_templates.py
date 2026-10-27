@@ -101,6 +101,8 @@ class StepSettle(SQLModel):
 
 
 class TemplateCover(SQLModel):
-    """A plan's cover when it has no image."""
+    """A plan's cover: its image, else the icon on the color."""
     icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
     color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]
+    # An uploaded image (/content/...) or an https address; "" goes back to the icon.
+    thumbnail_image: str | None = Field(default=None, max_length=1000)

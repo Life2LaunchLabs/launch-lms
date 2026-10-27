@@ -44,7 +44,7 @@ async def copy_from_library(request: Request, db_session: Session, ctx: AccessCo
 async def publish_to_library(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     kind = _kind(args)
     if kind == "plan_template":
-        library.publish_to_library(db_session, ctx.user, ctx.org_id, args["uuid"])
+        library.publish_to_library(db_session, ctx.user, ctx.org_id, args["uuid"], args.get("mode") or "open", args.get("access") or "open")
     else:
         from src.services import requirements
 
