@@ -13,6 +13,23 @@ export interface ActivityDesign {
   transition?: "slide" | "fade" | "rise" | "none"
   background?: Record<string, any>
   exit?: Record<string, any>
+  /** An ending screen with a message, the score and a celebration. */
+  ending?: ActivityEnding
+  [key: string]: any
+}
+
+/** The screen after the last page. Without it the activity closes straight away. */
+export interface ActivityEnding {
+  /** Shown when they finish (or pass a graded activity). */
+  title?: string
+  message?: string
+  /** Graded activities they haven't passed yet. */
+  not_yet_title?: string
+  not_yet_message?: string
+  /** Show the score on graded activities; on by default. */
+  show_score?: boolean
+  /** Confetti when they finish or pass; on by default. */
+  celebrate?: boolean
   [key: string]: any
 }
 

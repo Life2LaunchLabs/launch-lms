@@ -11,8 +11,10 @@ import { motion, useReducedMotion } from 'motion/react'
 
 export type SceneKind = 'none' | 'starfield' | 'aurora' | 'drift' | 'confetti'
 export type Intensity = 'low' | 'medium' | 'high'
-export type PageBackground = { color?: string; gradient_to?: string; scene?: SceneKind; intensity?: Intensity }
+export type PageBackground = { color?: string; gradient_to?: string; image?: string; scene?: SceneKind; intensity?: Intensity }
 export type Entrance = 'rise' | 'fade' | 'none'
+export type Motion = 'rise' | 'fade' | 'pop' | 'slide_left' | 'slide_right' | 'zoom' | 'none'
+export type Transition = 'slide' | 'fade' | 'rise' | 'none'
 
 export const SCENES: { value: SceneKind; label: string }[] = [
   { value: 'none', label: 'None' }, { value: 'starfield', label: 'Starfield' }, { value: 'aurora', label: 'Aurora' },
@@ -52,6 +54,14 @@ export function isDarkColor(color?: string): boolean | null {
 
 /** The surface's style and text tone for a background; ``tone`` is a class that flips text colour. */
 export function backgroundLook(background: PageBackground): { style?: React.CSSProperties; tone: string } {
+  if (background.image) {
+    // A photo sits under a scrim so light text stays readable on any picture.
+    const tint = background.color || 'rgba(2, 6, 23, 0.45)'
+    return {
+      style: { backgroundColor: background.color || '#0f172a', backgroundImage: `linear-gradient(${tint}, ${tint}), url("${String(background.image).replace(/"/g, '%22')}")`, backgroundSize: 'cover', backgroundPosition: 'center' },
+      tone: 'dark learning-tone-dark',
+    }
+  }
   if (!background.color) return { tone: '' }
   const style: React.CSSProperties = background.gradient_to
     ? { backgroundColor: background.color, backgroundImage: `linear-gradient(160deg, ${background.color}, ${background.gradient_to})` }
@@ -117,15 +127,36 @@ export function Celebration({ active }: { active: boolean }) {
   return <Confetti />
 }
 
+const MOTION_FROM: Record<Exclude<Motion, 'none'>, Record<string, number>> = {
+  rise: { opacity: 0, y: 14 },
+  fade: { opacity: 0 },
+  pop: { opacity: 0, scale: 0.85 },
+  slide_left: { opacity: 0, x: 36 },
+  slide_right: { opacity: 0, x: -36 },
+  zoom: { opacity: 0, scale: 1.15 },
+}
+
 /**
- * A block's entrance. Blocks rise in, staggered in page order, unless the block chooses
- * fade or none. Reduced motion shows them at once.
+ * A version 3 block's motion: how it comes in, after its own delay (seconds) or, without one,
+ * staggered in page order. Older blocks keep their ``entrance``. Reduced motion shows them at once.
  */
-export function EntranceMotion({ entrance = 'rise', index, children }: { entrance?: Entrance; index: number; children: React.ReactNode }) {
+export function BlockMotion({ design, index, children }: { design?: any; index: number; children: React.ReactNode }) {
   const still = useReducedMotion()
-  if (still || entrance === 'none') return <>{children}</>
-  const from = entrance === 'fade' ? { opacity: 0 } : { opacity: 0, y: 14 }
-  return <motion.div initial={from} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, delay: 0.08 + Math.min(index, 8) * 0.07, ease: [0.22, 1, 0.36, 1] }}>
+  const kind: Motion = design?.motion || design?.entrance || 'rise'
+  if (still || kind === 'none' || !(kind in MOTION_FROM)) return <>{children}</>
+  const delay = Number.isFinite(Number(design?.motion_delay)) && design?.motion_delay !== undefined && design?.motion_delay !== null
+    ? Number(design.motion_delay) : 0.08 + Math.min(index, 8) * 0.07
+  const spring = kind === 'pop' ? { type: 'spring' as const, stiffness: 320, damping: 18, delay } : { duration: 0.36, delay, ease: [0.22, 1, 0.36, 1] as const }
+  return <motion.div initial={MOTION_FROM[kind as Exclude<Motion, 'none'>]} animate={{ opacity: 1, x: 0, y: 0, scale: 1 }} transition={spring}>
     {children}
   </motion.div>
+}
+
+/** How a page comes in and goes out: the page's own transition, else the activity's, else a slide. */
+export function pageTransition(page: any, settings: any, still: boolean) {
+  const kind: Transition = page?.design?.transition || settings?.design?.transition || 'slide'
+  if (still || kind === 'none') return { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 }, transition: { duration: 0 } }
+  if (kind === 'fade') return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.24 } }
+  if (kind === 'rise') return { initial: { y: 28, opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: -16, opacity: 0 }, transition: { duration: 0.26, ease: 'easeOut' as const } }
+  return { initial: { x: 36, opacity: 0 }, animate: { x: 0, opacity: 1 }, exit: { x: -24, opacity: 0 }, transition: { duration: 0.18, ease: 'easeOut' as const } }
 }
