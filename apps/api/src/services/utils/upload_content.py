@@ -2,11 +2,10 @@ import logging
 import os
 from typing import Literal
 
-import boto3
-from botocore.exceptions import ClientError
 from config.config import get_launchlms_config
 from fastapi import HTTPException, UploadFile
 from src.security.file_validation import validate_upload
+from src.services.utils.storage import upload_to_s3
 
 logger = logging.getLogger(__name__)
 
@@ -87,41 +86,13 @@ async def upload_content(
                 detail=f"File format {file_format} not allowed",
             )
 
-    ensure_directory_exists(f"content/{type_of_dir}/{uuid}/{directory}")
+    path = f"content/{type_of_dir}/{uuid}/{directory}/{file_and_format}"
 
     if content_delivery == "filesystem":
-        # upload file to server
-        with open(
-            f"content/{type_of_dir}/{uuid}/{directory}/{file_and_format}",
-            "wb",
-        ) as f:
+        ensure_directory_exists(f"content/{type_of_dir}/{uuid}/{directory}")
+        with open(path, "wb") as f:
             f.write(file_binary)
-            f.close()
 
     elif content_delivery == "s3api":
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=launchlms_config.hosting_config.content_delivery.s3api.endpoint_url,
-        )
-
-        bucket_name = launchlms_config.hosting_config.content_delivery.s3api.bucket_name or "launch-lms-media"
-        local_path = f"content/{type_of_dir}/{uuid}/{directory}/{file_and_format}"
-        s3_key = local_path
-
-        # Write to local temp file for S3 upload
-        with open(local_path, "wb") as f:
-            f.write(file_binary)
-
-        try:
-            s3.upload_file(local_path, bucket_name, s3_key)
-            s3.head_object(Bucket=bucket_name, Key=s3_key)
-            logger.debug("S3 upload successful: %s", s3_key)
-        except ClientError as e:
-            logger.error("S3 upload failed: %s", e)
+        if not upload_to_s3(path, file_binary):
             raise HTTPException(status_code=500, detail="File upload to storage failed")
-        finally:
-            # Clean up local temp file after S3 upload
-            try:
-                os.remove(local_path)
-            except OSError:
-                pass

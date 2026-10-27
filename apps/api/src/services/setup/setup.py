@@ -6,8 +6,6 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-import boto3
-from botocore.exceptions import ClientError
 from config.config import get_launchlms_config
 from fastapi import HTTPException
 from sqlmodel import Session, select
@@ -28,6 +26,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import User, UserCreate, UserRead
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.security.security import security_hash_password
+from src.services.utils.storage import is_s3_enabled, upload_to_s3
 from src.services.utils.upload_content import ensure_directory_exists
 
 
@@ -84,47 +83,15 @@ def _store_org_asset_from_branding(org_uuid: str, directory: str, filename_prefi
         logging.warning("Default branding asset not found: %s", source_path)
         return ""
 
-    launchlms_config = get_launchlms_config()
     filename = f"{uuid4()}_{filename_prefix}{source_path.suffix.lower()}"
-    local_path = Path("content") / "orgs" / org_uuid / directory / filename
-    ensure_directory_exists(str(local_path.parent))
-
-    if launchlms_config.hosting_config.content_delivery.type == "filesystem":
-        local_path.write_bytes(source_path.read_bytes())
-        return filename
-
-    if launchlms_config.hosting_config.content_delivery.type == "s3api":
-        content = source_path.read_bytes()
-        local_path.write_bytes(content)
-
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=launchlms_config.hosting_config.content_delivery.s3api.endpoint_url,
-        )
-        bucket_name = (
-            launchlms_config.hosting_config.content_delivery.s3api.bucket_name
-            or "launch-lms-media"
-        )
-
-        try:
-            s3.upload_file(str(local_path), bucket_name, str(local_path))
-            s3.head_object(Bucket=bucket_name, Key=str(local_path))
-        except ClientError as exc:
-            logging.error("Failed to upload default org branding asset to S3: %s", exc)
+    path = Path("content") / "orgs" / org_uuid / directory / filename
+    if is_s3_enabled():
+        if not upload_to_s3(str(path), source_path.read_bytes()):
             raise HTTPException(status_code=500, detail="Failed to upload default org branding asset")
-        finally:
-            try:
-                local_path.unlink()
-            except OSError:
-                pass
-
         return filename
-
-    logging.warning(
-        "Unsupported content delivery type for default org branding: %s",
-        launchlms_config.hosting_config.content_delivery.type,
-    )
-    return ""
+    ensure_directory_exists(str(path.parent))
+    path.write_bytes(source_path.read_bytes())
+    return filename
 
 
 def _apply_default_org_branding(org: Organization, org_settings: OrganizationConfig, db_session: Session) -> None:

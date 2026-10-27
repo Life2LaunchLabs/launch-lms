@@ -250,7 +250,7 @@ async def head_content_file(
     if safe_path is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    _check_content_access(safe_path, current_user, db_session)
+    await _check_content_access(safe_path, current_user, db_session)
 
     s3_key = f"content/{safe_path}"
     s3_client = get_storage_client()
