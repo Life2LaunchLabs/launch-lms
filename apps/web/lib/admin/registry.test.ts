@@ -37,9 +37,9 @@ const FULL_FEATURES: Record<string, FeatureAccess> = {
 }
 const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
-test('a teacher (staff without admin rights) gets Home, Plans (with its four tabs), People and Resources', () => {
+test('a teacher (staff without admin rights) gets Home, Plans (with its four tabs), People, Resources and Opportunities', () => {
   const tabs = visibleAdminTabs(access({ rights: [STAFF], features: FULL_FEATURES }))
-  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'resources'])
+  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'resources', 'opportunities'])
   const plans = tabs.find((tab) => tab.id === 'plans')!
   assert.deepEqual(ids(plans.children!), ['plans', 'discover', 'assignments', 'requirements'])
   assert.equal(plans.href, '/admin/plans')
@@ -49,7 +49,7 @@ test('a teacher (staff without admin rights) gets Home, Plans (with its four tab
 
 test('an admin gets every tab in job order and gated pages show what to request', () => {
   const tabs = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES }))
-  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'resources', 'organization'])
+  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'resources', 'opportunities', 'organization'])
   // Any staff member adds resources; only listing in the Library needs the resource partner program.
   assert.equal(tabs.find((tab) => tab.id === 'resources')!.visibility.state, 'open')
   const organization = tabs.find((tab) => tab.id === 'organization')!

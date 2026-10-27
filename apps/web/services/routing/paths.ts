@@ -227,6 +227,8 @@ export const routePaths = {
       requirementFrameworkPlans: frameworkPage,
       // Insights: dashboards about the organization, one plan, group, learner or requirement framework; reports by group.
       /** The organization's dashboards; `dashboard` opens one of them. */
+      /** Opportunities: a coming-soon page for now. */
+      opportunities: () => '/admin/opportunities',
       insights: (dashboard?: string | null) => withQuery('/admin/insights', { d: dashboard || null }),
       /** A plan, group, learner or framework dashboard, for one of them (`key`); without it the first one the viewer can open. */
       insightsScope: (scope: 'plan' | 'group' | 'learner' | 'framework', key?: string | null, dashboard?: string | null) =>
