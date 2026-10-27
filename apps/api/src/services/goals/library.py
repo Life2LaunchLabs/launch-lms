@@ -41,8 +41,8 @@ def library_status(db: Session, template: GoalTemplate) -> dict:
     }
 
 
-def publish_to_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    """List the template in the marketplace open to copy without asking (plan publishers only)."""
+def publish_to_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, mode: str = "open", access: str = "open") -> dict:
+    """List the template in the marketplace (plan publishers only): by default open to copy without asking."""
     from src.db.template_marketplace import TemplateListingUpdate
     from src.services.goals import template_marketplace
 
@@ -54,7 +54,7 @@ def publish_to_library(db: Session, current_user: PublicUser, org_id: int, templ
     if templates.published_version(db, template) is None:
         # The connector shares what it built: its draft becomes the first live version.
         templates.publish(db, current_user, org_id, template_uuid, "Shared in the library")
-    template_marketplace.set_listing(db, current_user, org_id, template_uuid, TemplateListingUpdate(listed=True, mode="open", access="open"))
+    template_marketplace.set_listing(db, current_user, org_id, template_uuid, TemplateListingUpdate(listed=True, mode=mode, access=access))
     db.refresh(template)
     return {**templates.template_dict(db, template), **library_status(db, template)}
 
