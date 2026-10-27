@@ -8,6 +8,32 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Breakpoints follow the content area, not the window. Inside a .page-frame (the admin and learner content columns)
+   sm: … 2xl: are container queries against that frame, so opening the Threads/Coach panel or the side menu narrows
+   the layout the way a narrower window would. Outside a frame (menus, dialogs portaled to body) they stay viewport
+   queries. The frame's own classes are outside it too, so they still read the window. */
+.page-frame { container: page / inline-size; }
+@custom-variant sm {
+  @media (width >= 40rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 40rem) { @slot; }
+}
+@custom-variant md {
+  @media (width >= 48rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 48rem) { @slot; }
+}
+@custom-variant lg {
+  @media (width >= 64rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 64rem) { @slot; }
+}
+@custom-variant xl {
+  @media (width >= 80rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 80rem) { @slot; }
+}
+@custom-variant 2xl {
+  @media (width >= 96rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 96rem) { @slot; }
+}
+
 /* Root layout fade-in (replaces framer-motion) */
 @keyframes fadeIn {
   from { opacity: 0; }

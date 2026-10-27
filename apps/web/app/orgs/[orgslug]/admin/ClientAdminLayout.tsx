@@ -38,7 +38,7 @@ function ClientAdminLayout({
                     ) : (
                         <DashLeftMenu />
                     )}
-                    <div className="relative isolate flex min-w-0 w-full md:h-[100dvh] md:overflow-y-auto">{children}</div>
+                    <div className="page-frame relative isolate flex min-w-0 w-full md:h-[100dvh] md:overflow-y-auto">{children}</div>
                 </div>
             </HubShell>
         </AdminAuthorization>
