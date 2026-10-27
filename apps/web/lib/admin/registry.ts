@@ -9,7 +9,7 @@ import type { HomeSectionId } from '../../services/goals/adminHome.ts'
  */
 export type AdminRequirement = { feature?: string; right?: string }
 
-export type AdminTabId = 'home' | 'plans' | 'people' | 'insights' | 'resources' | 'organization'
+export type AdminTabId = 'home' | 'plans' | 'people' | 'insights' | 'resources' | 'opportunities' | 'organization'
 export type { PlansTabId } from '../../services/routing/paths.ts'
 
 export type AdminNavItem = {
@@ -70,6 +70,8 @@ export const ADMIN_TABS: AdminTab[] = [
   },
   // Any staff member adds the resources their org uses; listing a channel in the Library is the resource partner program.
   { id: 'resources', label: 'Resources', labelKey: 'common.resources', href: admin.resources.root(), match: [admin.resources.root()], requires: { right: STAFF } },
+  // Not built yet: a coming-soon page that says what it will be.
+  { id: 'opportunities', label: 'Opportunities', href: admin.opportunities(), pill: 'Soon', match: [admin.opportunities()], requires: { right: STAFF } },
   {
     id: 'organization',
     label: 'Organization',
