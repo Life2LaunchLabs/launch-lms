@@ -70,9 +70,9 @@ def version_status(db: Session, template: GoalTemplate) -> dict:
         .where(GoalAssignment.template_id == template.id).group_by(GoalAssignment.version_id)
     ).all())
     return {
-        "versioned": not template.system_type,
+        "versioned": not templates.release_managed(template),
         "published_version": _version_summary(current, template) if current else None,
-        "has_unpublished_changes": bool(not template.system_type and (current is None or current.content_hash != templates.fingerprint(db, template))),
+        "has_unpublished_changes": bool(not templates.release_managed(template) and (current is None or current.content_hash != templates.fingerprint(db, template))),
         "versions": [{**_version_summary(item, template), "assignment_count": assigned.get(item.id, 0)} for item in templates._versions(db, template)],
     }
 
@@ -206,7 +206,7 @@ async def restore_plan_template_version(request: Request, db_session: Session, c
 
 
 def _save_draft(db: Session, ctx: AccessContext, template: GoalTemplate, document: dict) -> None:
-    if template.system_type:
+    if templates.release_managed(template):
         raise HTTPException(status_code=409, detail="System templates are updated with each release")
     templates.save_template(db, ctx.user, ctx.org_id, template.template_uuid, document, templates.etag(template))
     db.refresh(template)

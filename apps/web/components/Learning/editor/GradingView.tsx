@@ -12,7 +12,8 @@ import {
 } from '@components/ui/dropdown-menu'
 import { findQuestionBlocks, getBlockCompletion, getBlockScoring } from '@components/Learning/schema'
 import { pageHeading } from './PageRail'
-import { PAGE_TEMPLATES, type PageDraft } from './pageTemplates'
+import type { ServedPageTemplates } from '@services/learning/pageTemplates'
+import { PAGE_TEMPLATES, fromServed, type PageDraft } from './pageTemplates'
 import { Toggle } from './EditorDialogs'
 
 // Grading: every question pulled out of its page, in route order, with the
@@ -41,7 +42,7 @@ const COUNTS: Record<string, Array<{ value: Count; label: string; help: string }
   ],
 }
 
-const ADD = [
+const ADD: Array<{ template: keyof ServedPageTemplates['defaults']; label: string; icon: typeof ListChecks }> = [
   { template: 'quick_check', label: 'Choice with a right answer', icon: ListChecks },
   { template: 'pick_few', label: 'Pick a few', icon: ListChecks },
   { template: 'short_answer', label: 'Written answer', icon: TextCursorInput },
@@ -110,8 +111,10 @@ export function gradingQuestions(pages: any[], pageOrder: string[]): Question[] 
   })
 }
 
-export function GradingView({ pages, pageOrder, grading, onPatchGrading, onPatchBlock, onAddQuestion, onShowOnPage }: {
+export function GradingView({ pages, pageOrder, grading, defaults, onPatchGrading, onPatchBlock, onAddQuestion, onShowOnPage }: {
   pages: any[]
+  /** Add question's published defaults (the page templates plan); missing picks use the built-in page. */
+  defaults?: ServedPageTemplates['defaults']
   pageOrder: string[]
   grading: any
   onPatchGrading: (patch: any) => void
@@ -161,8 +164,11 @@ export function GradingView({ pages, pageOrder, grading, onPatchGrading, onPatch
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {ADD.map(({ template, label, icon: Icon }) => {
+              // The published default for this kind of question, else the built-in one.
+              const served = defaults?.[template]
               const found = PAGE_TEMPLATES.find((item) => item.id === template)
-              return found ? <DropdownMenuItem key={template} onSelect={() => onAddQuestion(found.make())}><Icon size={14} className="mr-2" />{label}</DropdownMenuItem> : null
+              const make = served ? () => fromServed(served) : found?.make
+              return make ? <DropdownMenuItem key={template} onSelect={() => onAddQuestion(make())}><Icon size={14} className="mr-2" />{label}</DropdownMenuItem> : null
             })}
           </DropdownMenuContent>
         </DropdownMenu>

@@ -62,6 +62,13 @@ TOOLS = [
         handlers.get_activity_schema,
     ),
     Tool(
+        "list_page_templates",
+        "List page templates",
+        "Get the page templates every activity editor offers under New page, by category, with the default page for each kind of question. Start new pages from one: copy its content and design, then change the words.",
+        {"properties": {}},
+        handlers.list_page_templates,
+    ),
+    Tool(
         "list_variables",
         "List learner variables",
         "List the learner variables this organization defines, usable in branch rules, display bindings and preview personas.",

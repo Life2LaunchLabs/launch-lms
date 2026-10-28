@@ -20,6 +20,7 @@ from src.db.learning_previews import LearningActivityPreview
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning
+from src.services.goals.templates import RELEASE_MANAGED
 from src.services.learning_documents.document import export_document, prepare_document
 from src.services.learning_documents.store import activity_pages, template_by_uuid
 from src.services.learning_preview import engine
@@ -69,7 +70,7 @@ async def create_preview(
         raise HTTPException(status_code=422, detail="Pass activity_uuid or template_uuid")
     org_id = activity.org_id if activity else template["org_id"]  # type: ignore[index]
     user = learning._require_org_admin(db_session, current_user, org_id)
-    system = learning._is_system_activity(db_session, activity) if activity else template["system_type"] is not None  # type: ignore[index]
+    system = learning._is_system_activity(db_session, activity) if activity else template["system_type"] in RELEASE_MANAGED  # type: ignore[index]
     existing = activity_pages(db_session, activity) if activity else []
     raw = payload.document if payload.document is not None else export_document(activity, existing) if activity else None
     if raw is None:

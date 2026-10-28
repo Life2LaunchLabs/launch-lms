@@ -54,6 +54,13 @@ async def get_activity_schema(request: Request, db_session: Session, ctx: Access
     return {"guide": authoring_guide(), "schema": activity_document_json_schema()}
 
 
+async def list_page_templates(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    from src.services.learning.page_templates import served
+
+    require_org_admin(ctx.user.id, ctx.org_id, db_session, "build_plans")
+    return served(db_session, ctx.user)
+
+
 async def audit_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     from src.services.learning_content.migrate_v3 import audit_activities as audit
 
