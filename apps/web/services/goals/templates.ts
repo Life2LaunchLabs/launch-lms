@@ -151,7 +151,7 @@ export const templatesApi = {
   unarchive: (orgId: number, templateUuid: string, token?: string) => request<GoalTemplate>(withOrg(templateUrl(templateUuid, '/unarchive'), orgId), token, 'POST'),
   activity: (orgId: number, templateUuid: string, activityUuid: string, token?: string) => request<{ template: { template_uuid: string; title: string; org_id: number }; activity: any }>(withOrg(templateUrl(templateUuid, `/activities/${q(activityUuid)}`), orgId), token),
 
-  setCover: (orgId: number, templateUuid: string, data: { icon?: GoalIcon | null; color?: string | null }, token?: string) => request<PlanCover>(withOrg(templateUrl(templateUuid, '/cover'), orgId), token, 'PUT', data),
+  setCover: (orgId: number, templateUuid: string, data: { icon?: GoalIcon | null; color?: string | null; thumbnail_image?: string }, token?: string) => request<PlanCover>(withOrg(templateUrl(templateUuid, '/cover'), orgId), token, 'PUT', data),
   starters: (orgId: number, token?: string) => request<PlanStarters>(templateKeys.starters(orgId), token),
   useStarter: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(`/starters/${q(templateUuid)}/use`), orgId), token, 'POST'),
 

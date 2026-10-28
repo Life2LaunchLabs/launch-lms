@@ -5,27 +5,17 @@ from __future__ import annotations
 
 import base64
 import binascii
-import io
-import mimetypes
-from urllib.parse import urljoin, urlparse
 
-import httpx
-from fastapi import HTTPException, Request, UploadFile
+from fastapi import HTTPException, Request
 from sqlmodel import Session
 
 from src.db.media import MediaAsset, MediaOwnerType, MediaType
 from src.services import media
 from src.services.mcp.tool import Tool
 from src.services.oauth.server import AccessContext
-from src.services.utils.link_preview import _validate_url
+from src.services.media_download import MAX_BYTES, MB, download, filename, store
 
-MB = 1024 * 1024
-# What one connector call may bring in. Videos are the large ones; anything bigger belongs in the web upload.
-MAX_BYTES = {MediaType.image: 15 * MB, MediaType.video: 250 * MB, MediaType.document: 25 * MB}
 MAX_BASE64_BYTES = 15 * MB
-EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp",
-              "video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov", "application/pdf": ".pdf"}
-_HEADERS = {"User-Agent": "LaunchLMS Media Library/1.0", "Accept": "*/*"}
 
 
 def _media_type(value) -> MediaType:
@@ -35,45 +25,11 @@ def _media_type(value) -> MediaType:
         raise HTTPException(status_code=422, detail="media_type must be image, video or document")
 
 
-def _filename(name: str, content_type: str, media_type: MediaType) -> str:
-    """A name whose extension says what the file is: the given one when it has one, else from its type."""
-    name = (name or "").strip().rsplit("/", 1)[-1] or f"connector-{media_type.value}"
-    if "." in name and len(name.rsplit(".", 1)[-1]) <= 5:
-        return name
-    return name + (EXTENSIONS.get(content_type) or mimetypes.guess_extension(content_type or "") or "")
-
-
-async def download(url: str, limit: int) -> tuple[bytes, str, str]:
-    """Fetch a public file, checking every redirect against private addresses and stopping past ``limit`` bytes."""
-    current = _validate_url(url)
-    async with httpx.AsyncClient(follow_redirects=False, timeout=60, headers=_HEADERS) as client:
-        for _ in range(6):
-            async with client.stream("GET", current) as response:
-                if response.is_redirect:
-                    location = response.headers.get("location")
-                    if not location:
-                        break
-                    current = _validate_url(urljoin(current, location))
-                    continue
-                if response.status_code >= 400:
-                    raise HTTPException(status_code=400, detail=f"The URL returned HTTP {response.status_code}")
-                declared = response.headers.get("content-length")
-                if declared and declared.isdigit() and int(declared) > limit:
-                    raise HTTPException(status_code=413, detail=f"File is over the {limit // MB} MB limit for the connector")
-                body = bytearray()
-                async for chunk in response.aiter_bytes():
-                    body.extend(chunk)
-                    if len(body) > limit:
-                        raise HTTPException(status_code=413, detail=f"File is over the {limit // MB} MB limit for the connector")
-                content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
-                return bytes(body), content_type, urlparse(current).path
-    raise HTTPException(status_code=400, detail="Too many redirects")
-
-
 def asset_dict(asset: MediaAsset) -> dict:
     return {
         "asset_uuid": asset.asset_uuid, "url": asset.url, "media_type": getattr(asset.media_type, "value", asset.media_type),
         "title": asset.title, "folder": asset.folder, "mime_type": asset.mime_type, "size_bytes": asset.size_bytes,
+        **({"credit": asset.credit} if asset.credit else {}),
     }
 
 
@@ -84,7 +40,7 @@ async def upload_media(request: Request, db_session: Session, ctx: AccessContext
         raise HTTPException(status_code=422, detail="Give either url or data_base64")
     if url:
         content, content_type, path = await download(url, MAX_BYTES[media_type])
-        name = _filename(str(args.get("filename") or path), content_type, media_type)
+        name = filename(str(args.get("filename") or path), content_type, media_type)
     else:
         try:
             content = base64.b64decode(str(data), validate=True)
@@ -94,12 +50,8 @@ async def upload_media(request: Request, db_session: Session, ctx: AccessContext
             raise HTTPException(status_code=413, detail="Send files over 15 MB by url instead")
         if not args.get("filename"):
             raise HTTPException(status_code=422, detail="filename is required with data_base64, e.g. cover.jpg")
-        name = _filename(str(args["filename"]), "", media_type)
-    upload = UploadFile(file=io.BytesIO(content), filename=name, headers={"content-type": mimetypes.guess_type(name)[0] or ""})  # type: ignore[arg-type]
-    asset = await media.upload_media_asset(
-        MediaOwnerType.org, ctx.org_id, media_type, upload, ctx.user, db_session,
-        title=args.get("title") or None, folder=args.get("folder") or "Connector",
-    )
+        name = filename(str(args["filename"]), "", media_type)
+    asset = await store(db_session, ctx.user, ctx.org_id, media_type, content, name, title=args.get("title") or None, folder=args.get("folder") or "Connector")
     return asset_dict(asset)
 
 
@@ -110,6 +62,21 @@ async def list_media(request: Request, db_session: Session, ctx: AccessContext, 
     if query:
         assets = [asset for asset in assets if query in (asset.title or "").lower()]
     return {"assets": [asset_dict(asset) for asset in assets[:100]]}
+
+
+async def search_stock_media(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    from src.services import stock_media
+
+    return await stock_media.search(db_session, ctx.user, ctx.org_id, str(args.get("query") or ""), str(args.get("kind") or "photo"),
+                                    args.get("orientation") or None, int(args.get("page") or 1))
+
+
+async def add_stock_media(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    from src.services import stock_media
+
+    asset = await stock_media.import_item(db_session, ctx.user, ctx.org_id, str(args["id"]), str(args.get("kind") or "photo"),
+                                          title=args.get("title") or None, folder=args.get("folder") or None)
+    return asset_dict(asset)
 
 
 _MEDIA_TYPE = {"type": "string", "enum": ["image", "video", "document"], "description": "image (jpg, png, gif, webp), video (mp4, webm, mov) or document (pdf)."}
@@ -139,5 +106,34 @@ MEDIA_TOOLS = [
         "List the organization's media library (newest first, up to 100) to reuse an image or video already uploaded.",
         {"properties": {"media_type": _MEDIA_TYPE, "folder": {"type": "string"}, "query": {"type": "string", "description": "Filter on title."}}},
         list_media,
+    ),
+    Tool(
+        "search_stock_media",
+        "Search stock photos and videos",
+        "Search free stock photos or videos (Pexels) for plan covers, badge art and activity pages. Each result has an id, a preview_url to look at, "
+        "its size (and a video's duration in seconds) and the photographer's credit. Prefer real, candid, young and energetic shots over posed ones; "
+        "search several phrasings and pick the strongest.",
+        {"properties": {
+            "query": {"type": "string", "description": "What should be in the picture, e.g. \"teen skateboarding sunset\"."},
+            "kind": {"type": "string", "enum": ["photo", "video"], "description": "Default photo."},
+            "orientation": {"type": "string", "enum": ["landscape", "portrait", "square"], "description": "portrait for phone-first activity pages, landscape for covers."},
+            "page": {"type": "integer", "description": "1-based; 24 results a page."},
+        }, "required": ["query"]},
+        search_stock_media,
+    ),
+    Tool(
+        "add_stock_media",
+        "Add a stock photo or video",
+        "Copy one search_stock_media result into the organization's media library (folder Stock) with its credit, and return the `url` to use, "
+        "as with upload_media.",
+        {"properties": {
+            "id": {"type": "string", "description": "The result's id."},
+            "kind": {"type": "string", "enum": ["photo", "video"], "description": "Default photo."},
+            "title": {"type": "string"},
+            "folder": {"type": "string"},
+        }, "required": ["id"]},
+        add_stock_media,
+        scope="activities:write",
+        read_only=False,
     ),
 ]

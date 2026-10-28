@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import Column, ForeignKey, Integer, Text
+from sqlalchemy import JSON, Column, ForeignKey, Integer, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -31,6 +31,8 @@ class MediaAssetBase(SQLModel):
     mime_type: str | None = None
     size_bytes: int | None = None
     folder: str | None = None
+    # Who made it, for stock media: {provider, name, url, source_url}. Shown as a small credit under the image.
+    credit: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
 
 
 class MediaAsset(MediaAssetBase, table=True):
