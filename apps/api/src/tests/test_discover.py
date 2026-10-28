@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_collections import PlanCollection, PlanCollectionCreate, PlanCollectionItem
 from src.db.template_marketplace import TemplateListingUpdate
@@ -200,3 +201,30 @@ def test_start_ranks_plans_by_how_much_of_the_chosen_framework_they_cover_and_se
         assert len(db.exec(select(RequirementFramework).where(RequirementFramework.org_id == space)).all()) == 1
         # The copy keeps the library's requirements, so the plan still counts toward them.
         assert {node.node_uuid for node in db.exec(select(RequirementNode)).all()} >= {"grad_a1", "grad_a2"}
+
+
+def test_an_outside_partners_collection_is_featured_before_the_platforms_own():
+    from src.tests.plan_world import _create_org, _create_user
+
+    db = _world()
+    with db:
+        own = [_shared(db, title) for title in ("Resume", "Interview", "Budget")]
+        collections.create_collection(db, _user(ADMIN), 1, PlanCollectionCreate(name="Job ready", template_uuids=[plan.template_uuid for plan in own]))
+        _create_org(db, org_id=9, slug="skills")
+        config = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 9)).one()
+        config.config = {**config.config, "partners": ["badge_publisher", "plan_publisher"]}
+        db.add(config)
+        db.commit()
+        partner_admin = _create_user(db, user_id=30, username="pat", org_id=9)
+        uuids = []
+        for title in ("Adaptability", "Collaboration"):
+            created = templates.create_template(db, partner_admin, 9, {"template": {"title": title}, "stages": [{"key": "start", "title": "Start", "steps": [dict(step) for step in STEPS]}]})
+            templates.publish(db, partner_admin, 9, created["template_uuid"], "First")
+            market.set_listing(db, partner_admin, 9, created["template_uuid"], TemplateListingUpdate(listed=True, mode="open", access="open"))
+            uuids.append(created["template_uuid"])
+        collections.create_collection(db, partner_admin, 9, PlanCollectionCreate(name="Employability skills", template_uuids=uuids))
+
+        page = discover.discover(db, _user(ADMIN), PARTNER)
+        # The platform's own collection is bigger, but the outside partner's leads and is featured.
+        assert [item["name"] for item in page["collections"]] == ["Employability skills", "Job ready"]
+        assert page["featured"]["name"] == "Employability skills"
