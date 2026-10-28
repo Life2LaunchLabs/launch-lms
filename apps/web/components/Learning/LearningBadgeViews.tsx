@@ -1,6 +1,7 @@
 'use client'
 
 import { LearningTextStyle } from '@components/Learning/textMarks'
+import { CaptionOverlay } from '@components/Learning/player/Captions'
 import React from 'react'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
@@ -840,6 +841,7 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
           </div>
         )}
       </div>
+      <CaptionOverlay captions={page.content?.captions} time={answer?.videoCurrentTime} />
     </div>
   )
 }

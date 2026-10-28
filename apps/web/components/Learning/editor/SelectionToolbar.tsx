@@ -173,8 +173,10 @@ function TransitionMenu({ design, onPatchPage }: { design: any; onPatchPage: (pa
   )
 }
 
-function VideoPageTools({ page, onReplaceVideo, onPatchPage }: ToolbarProps) {
+function VideoPageTools({ page, textEditor, onReplaceVideo, onPatchPage }: ToolbarProps) {
   const content = page.content || {}
+  // A caption being edited: style its words like any text.
+  if (textEditor) return <><Name>Caption</Name><TextTools editor={textEditor} /></>
   return (
     <>
       <Name>Video page</Name>

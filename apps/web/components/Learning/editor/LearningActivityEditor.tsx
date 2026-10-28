@@ -6,7 +6,6 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import YouTube from 'react-youtube'
 import {
   AlignCenter,
   AlignLeft,
@@ -105,6 +104,7 @@ import { PageRail, followLabel, pageHeading, type RailMode } from './PageRail'
 import { NewPageDialog } from './EditorDialogs'
 import { ActivitySettingsDialog } from './ActivitySettings'
 import { GradingView } from './GradingView'
+import { VideoCaptionsCanvas } from './VideoCaptionsCanvas'
 import type { PageDraft } from './pageTemplates'
 import { flowVariables } from './flowVariables'
 import { branchVariable, freshRule, operandOf } from './branchRules'
@@ -1290,7 +1290,7 @@ function CanvasFrame({
             className="h-full"
           >
             {page.page_type === 'video' ? (
-              <VideoCanvasPage page={page} onRequestVideo={onRequestVideo} onPatchPage={onPatchPage} />
+              <VideoCaptionsCanvas page={page} device={device} onRequestVideo={onRequestVideo} onPatchPage={onPatchPage} onTextEditorReady={onTextEditorReady} />
             ) : (
               <StandardCanvasPage
                 page={page}
@@ -2055,59 +2055,6 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
 
 // The surrounding LearningActivitySurface already draws the theater chrome
 // (progress bar, footer) for video pages — this is just the editable body.
-function VideoCanvasPage({ page, onRequestVideo, onPatchPage }: any) {
-  const videoUrl = page.content?.video_url || ''
-  const youtubeId = getEditorYouTubeId(videoUrl)
-  const storeDuration = (rawDuration: number) => {
-    const duration = Math.round(rawDuration || 0)
-    if (duration > 0 && duration !== Number(page.content?.video_duration_seconds || 0)) {
-      onPatchPage({ content: { ...(page.content || {}), video_duration_seconds: duration } })
-    }
-  }
-  return (
-    <div className="flex w-full max-w-3xl flex-col gap-4 px-6 text-white">
-      <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 text-center">
-        {videoUrl && youtubeId ? (
-          <div className="pointer-events-none aspect-video h-full max-w-full overflow-hidden rounded-xl">
-            <YouTube
-              videoId={youtubeId}
-              className="h-full"
-              iframeClassName="h-full w-full"
-              opts={{ height: '100%', width: '100%', playerVars: { controls: 0, playsinline: 1 } }}
-              onReady={(event: any) => storeDuration(event.target?.getDuration?.() || 0)}
-            />
-          </div>
-        ) : videoUrl ? (
-          <video
-            src={videoUrl}
-            className="h-full w-full rounded-xl object-contain"
-            muted
-            preload="metadata"
-            onLoadedMetadata={(event) => {
-              storeDuration(event.currentTarget.duration)
-            }}
-          />
-        ) : (
-          <p className="text-sm font-bold text-white/50">Upload a video or add an external link</p>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={onRequestVideo}
-        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15"
-      >
-        <Upload size={16} />
-        {videoUrl ? 'Change video' : 'Choose video'}
-      </button>
-    </div>
-  )
-}
-
-function getEditorYouTubeId(url: string) {
-  const match = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/)
-  return match?.[1] || ''
-}
-
 function CanvasControls({ zoom, setZoom, handMode, setHandMode }: any) {
   return (
     <>
