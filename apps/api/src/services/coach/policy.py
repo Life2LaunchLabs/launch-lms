@@ -61,7 +61,7 @@ ABILITY_GROUPS = (
 )
 ABILITIES = (
     ("read_page", "reads", "The page the learner is on", "The goal in view, its stages and steps, and the learner's saved answers. Never reviewer or staff notes, files, or other people on a goal."),
-    ("read_portfolio", "reads", "Who the learner is", "Their portfolio: headline, bio, strengths, values, what they do now and their projects."),
+    ("read_portfolio", "reads", "Who the learner is", "Their portfolio (headline, bio, strengths, values, what they do now and their projects) and your learner details."),
     ("read_goals", "reads", "What the learner is working on", "Their own active goals here and personal ones, with progress and next steps, and the last few they finished."),
     ("read_memory", "reads", "What it remembers about the learner", "Saved memories, which the learner can see and edit in Account › Memory."),
     ("read_resources", "reads", "Organization resources", "Courses, badges and other resources the learner can open."),

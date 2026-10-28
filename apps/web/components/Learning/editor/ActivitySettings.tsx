@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { ActivityDesignFields } from './DesignInspector'
 import { EditorModal, ProgressPicker, Toggle } from './EditorDialogs'
 import { pageHeading } from './PageRail'
+import { keptLabel } from './TheirInfo'
 import { FieldLabel, IconButton, TextField } from './ui'
 
 // Activity settings: title, progress, grading, what the activity keeps and the
@@ -66,9 +67,9 @@ export function ActivitySettingsDialog({
           {kept.length ? kept.map((item) => (
             <div key={item.key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
               <span className="min-w-0 truncate">Page {item.number}: {item.title}</span>
-              <span className="shrink-0 text-xs text-gray-500">{item.targets.join(', ')}</span>
+              <span className="shrink-0 text-xs text-gray-500">{item.targets.map((target: string) => keptLabel(target, learningVariables || [])).join(', ')}</span>
             </div>
-          )) : <p className="text-sm text-gray-500">Nothing yet. A question can keep its answer in what you know about the learner.</p>}
+          )) : <p className="text-sm text-gray-500">Nothing yet. Use Keep answer on a question to keep it in their portfolio or your learner details.</p>}
         </section>
         <ActivityDesignFields activity={activity} pages={pages || []} onPatchActivity={onPatchActivity} />
         <section>
@@ -91,10 +92,12 @@ export function keptAnswers(pages: any[], pageOrder: string[]) {
     return (page?.content?.blocks || []).filter((block: any) => block?.type === 'question').flatMap((block: any) => {
       const bindings = block.completion?.variable_bindings || {}
       const targets = [
+        ...(bindings.keep || []),
+        ...[bindings.image || []].flat(),
         ...(bindings.selected || []),
         ...Object.values(bindings.inputs || {}).flat(),
         ...Object.values(bindings.options || {}).flat(),
-      ].map((binding: any) => String(binding?.target || '').replace(/^user\.details\.variables\./, '')).filter(Boolean)
+      ].map((binding: any) => String(binding?.target || '')).filter((target, index, all) => target && all.indexOf(target) === index)
       return targets.length ? [{ key: `${uuid}:${block.id}`, number: index + 1, title: pageHeading(page), targets }] : []
     })
   })
