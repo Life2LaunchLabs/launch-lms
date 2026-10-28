@@ -118,3 +118,12 @@ export async function decideLearningRun(runUuid: string, data: { passed: boolean
   )
   return errorHandling(result)
 }
+
+/** Captions made from a video page's uploaded video (returned, not saved). */
+export async function generateLearningCaptions(pageUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-pages/${pageUuid}/captions`,
+    RequestBodyWithAuthHeader('POST', {}, null, accessToken)
+  )
+  return errorHandling(result)
+}
