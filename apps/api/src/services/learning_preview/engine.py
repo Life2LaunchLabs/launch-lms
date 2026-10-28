@@ -15,7 +15,8 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.services import learning
-from src.services.learning_flow import continue_buttons, resolve_flow
+from src.services.learning_flow import continue_buttons
+from src.services.learning_sequence import resolve_activity, routes
 
 PREVIEW_ACTIVITY_ID = -1
 DEFAULT_PERSONA = {
@@ -98,11 +99,12 @@ def _answers(state: dict) -> dict:
 
 
 def _route(document: dict, state: dict):
-    flow = (document["activity"].get("settings") or {}).get("flow")
-    if not flow:
+    settings = document["activity"].get("settings") or {}
+    if not routes(settings):
         return [page["page_uuid"] for page in document["pages"]], True, []
-    resolved = resolve_flow(
-        flow,
+    resolved = resolve_activity(
+        settings,
+        document["pages"],
         {
             "answers": _answers(state),
             "variables": state["variables"],

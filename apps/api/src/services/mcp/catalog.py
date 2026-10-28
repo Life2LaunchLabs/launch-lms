@@ -50,14 +50,14 @@ TOOLS = [
     Tool(
         "get_activity_schema",
         "Activity format guide",
-        "Get the authoring guide and JSON Schema for Activity Documents: blocks, questions, branching flow and variants. Read it before writing or editing pages.",
+        "Get the authoring guide and JSON Schema for Activity Documents: blocks, questions, sequences and branches. Read it before writing or editing pages.",
         {"properties": {}},
         handlers.get_activity_schema,
     ),
     Tool(
         "list_variables",
         "List learner variables",
-        "List the learner variables this organization defines, usable in flow conditions, display bindings and preview personas.",
+        "List the learner variables this organization defines, usable in branch rules, display bindings and preview personas.",
         {"properties": {}},
         handlers.list_variables,
     ),

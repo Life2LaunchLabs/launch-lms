@@ -1,4 +1,4 @@
-"""Typed models for learning page content and activity flows.
+"""Typed models for learning page content, activity sequences and (older) flows.
 
 These are the single source for the shape of standard-page content and the
 branching flow: the page API and Activity Documents validate with them, the
@@ -17,6 +17,29 @@ import re
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+from src.services.learning_content.activity_models import (  # noqa: F401  re-exported
+    ConditionOperand,
+    Comparison,
+    AllOf,
+    Negation,
+    Condition,
+    FlowNode,
+    FlowEdge,
+    Flow,
+    SequencePage,
+    BranchPath,
+    SequenceBranch,
+    SequenceItem,
+    Sequence,
+    TRANSITIONS,
+    PageDesign,
+    ActivityDesign,
+    CaptionPosition,
+    CaptionChunk,
+    VideoCaptions,
+    VideoPageContent,
+)
 
 STRICT = ConfigDict(extra="forbid")
 OPEN = ConfigDict(extra="allow")
@@ -66,6 +89,8 @@ class BlockDesign(BaseModel):
     entrance: Literal["rise", "fade", "none"] | None = Field(default=None, description="How the block enters; blocks rise in, staggered in page order, by default.")
     placement: Literal["inline", "footer"] | None = Field(default=None, description="Continue buttons only: `footer` draws the button beside Continue as a secondary action.")
     style: Literal["list", "pills", "scale", "cards"] | None = Field(default=None, description="Choice questions only: how options are drawn. Cards show each option's `icon` and `description`.")
+    motion: Literal["rise", "fade", "pop", "slide_left", "slide_right", "zoom", "none"] | None = Field(default=None, description="Version 3: how the block comes in. Replaces `entrance`; blocks rise in, staggered in page order, by default.")
+    motion_delay: float | None = Field(default=None, ge=0, le=10, description="Version 3: seconds to wait before the block comes in.")
 
 
 class BlockSystem(BaseModel):
@@ -327,8 +352,70 @@ class MedalBlock(_Block):
     content: MedalContent
 
 
+class HeadingContent(BaseModel):
+    model_config = STRICT
+
+    text: str = Field(default="", max_length=300)
+    size: Literal["s", "m", "l", "xl"] | None = None
+
+
+class HeadingBlock(_Block):
+    """Version 3: the page's one heading. Every version 3 page has exactly one."""
+
+    type: Literal["heading"]
+    content: HeadingContent
+
+
+class NumberContent(BaseModel):
+    model_config = STRICT
+
+    value: float | str | None = Field(default=None, description="Counts up as the page opens when it is a number.")
+    prefix: str = Field(default="", max_length=12)
+    suffix: str = Field(default="", max_length=24)
+    label: str = Field(default="", max_length=120)
+    binding: DisplayBinding | None = Field(default=None, description="Read the value from a variable or an earlier answer instead.")
+
+
+class NumberBlock(_Block):
+    """Version 3: one big number with a label, such as \"3 in 4 teens\"."""
+
+    type: Literal["number"]
+    content: NumberContent
+
+
+class DeckCard(BaseModel):
+    model_config = STRICT
+
+    id: str = Field(min_length=1)
+    title: str = Field(default="", max_length=160)
+    body: str = Field(default="", max_length=1200)
+    image: str = Field(default="", max_length=2000)
+
+
+class CardDeckContent(BaseModel):
+    model_config = STRICT
+
+    cards: list[DeckCard] = Field(min_length=1, max_length=12)
+
+
+class CardDeckBlock(_Block):
+    """Version 3: cards the learner swipes or taps through."""
+
+    type: Literal["card_deck"]
+    content: CardDeckContent
+
+
+class ColumnBreakBlock(_Block):
+    """Version 3: on two-column pages, blocks after it go in the second column."""
+
+    type: Literal["column_break"]
+
+
 Block = Annotated[
-    Union[TextBlock, ImageBlock, ButtonBlock, QuestionBlock, PortfolioPreviewBlock, StatBlock, QuoteBlock, ChartBlock, MedalBlock],
+    Union[
+        TextBlock, ImageBlock, ButtonBlock, QuestionBlock, PortfolioPreviewBlock, StatBlock, QuoteBlock, ChartBlock, MedalBlock,
+        HeadingBlock, NumberBlock, CardDeckBlock, ColumnBreakBlock,
+    ],
     Field(discriminator="type"),
 ]
 
@@ -356,11 +443,14 @@ class PageVariants(BaseModel):
 
 
 class StandardPageContent(BaseModel):
-    """Standard page content (version 2)."""
+    """Standard page content. Version 2 is the older shape; version 3 adds the
+    page heading (exactly one) and new blocks, with layout in the page's
+    ``design`` (``PageDesign``). In version 3 buttons only continue and pages
+    have no variants: branches do that job."""
 
     model_config = OPEN
 
-    version: Literal[2] = 2
+    version: Literal[2, 3] = 2
     blocks: list[Block] = Field(default_factory=list)
     action_label: str | None = Field(default=None, description="Label for the page's continue action.")
     variants: PageVariants | None = None
@@ -378,82 +468,16 @@ class StandardPageContent(BaseModel):
                 raise ValueError("Pages with variants cannot contain a question block")
             if self.variants.overrides and not (self.variants.source and self.variants.source.page_uuid):
                 raise ValueError("Variants need a source question page")
+        if self.version == 3:
+            if sum(block.type == "heading" for block in self.blocks) != 1:
+                raise ValueError("A version 3 page has exactly one heading block")
+            if sum(block.type == "column_break" for block in self.blocks) > 1:
+                raise ValueError("A page has at most one column break")
+            if self.variants is not None:
+                raise ValueError("Version 3 pages have no variants; use a branch")
+            if any(block.type == "button" and block.content and block.content.action == "revisit" for block in self.blocks):
+                raise ValueError("Version 3 buttons only continue")
         return self
-
-
-class VideoPageContent(BaseModel):
-    model_config = OPEN
-
-    video_url: str | None = None
-    heading: str | None = None
-    allow_scrubbing: bool | None = None
-
-
-# Flow -----------------------------------------------------------------------
-
-class ConditionOperand(BaseModel):
-    model_config = STRICT
-
-    source: Literal["answer", "variable", "fact", "context"]
-    key: str = Field(description="Answer keys start with the page uuid, e.g. `<page>.result.option_ids`, `<page>.result.questions.<block>.inputs.<input>.text` or `<page>.button`.")
-
-
-class Comparison(BaseModel):
-    model_config = STRICT
-
-    op: Literal["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "exists"]
-    left: ConditionOperand
-    right: Any = None
-
-
-class AllOf(BaseModel):
-    model_config = STRICT
-
-    op: Literal["and", "or"]
-    conditions: list[Condition]
-
-
-class Negation(BaseModel):
-    model_config = STRICT
-
-    op: Literal["not"]
-    condition: Condition
-
-
-Condition = Annotated[Union[Comparison, AllOf, Negation], Field(union_mode="left_to_right")]
-
-
-class FlowNode(BaseModel):
-    model_config = STRICT
-
-    id: str = Field(min_length=1)
-    type: Literal["page", "split", "join", "complete"]
-    page_uuid: str | None = None
-
-
-class FlowEdge(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    from_: str = Field(alias="from")
-    to: str
-    priority: int = 0
-    condition: Condition | None = None
-    merge: bool | None = Field(default=None, description="Editor hint: the edge rejoins a branch.")
-    order: int | None = Field(default=None, description="Editor hint: branch display order.")
-
-
-class Flow(BaseModel):
-    """Optional branching graph. Without it pages run in order. Must be
-    acyclic with exactly one ``complete`` node; a node with several outgoing
-    edges needs exactly one edge without a condition (the default) and
-    distinct priorities (higher wins)."""
-
-    model_config = STRICT
-
-    version: Literal[1] = 1
-    entry: str
-    nodes: list[FlowNode]
-    edges: list[FlowEdge]
 
 
 def content_error(model: type[BaseModel], value: Any) -> str | None:
