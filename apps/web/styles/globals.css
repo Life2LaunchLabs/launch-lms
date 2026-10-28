@@ -3025,3 +3025,9 @@
 .cert-minimal .cert-name { font-size: 3.3cqw; margin-top: .6cqw; max-height: 8.4cqw; }
 .cert-minimal .cert-description { margin-top: 1.8cqw; max-width: 68cqw; flex: 0 1 auto; min-height: 0; }
 .cert-minimal .cert-foot { padding-top: 2cqw; border-top: .12cqw solid #d9e1e5; }
+
+/* Activity video captions: each chunk eases in. */
+@keyframes caption-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}

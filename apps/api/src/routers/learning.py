@@ -77,6 +77,18 @@ async def api_upload_page_media(
     return await learning_service.upload_page_media(request, page_uuid, current_user, db_session, media)
 
 
+@pages_router.post("/{page_uuid}/captions")
+async def api_generate_captions(
+    page_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    """Captions for a video page's uploaded video (not saved: the editor shows them and saves the page)."""
+    from src.services.learning.captions import generate_captions
+
+    return await generate_captions(page_uuid, current_user, db_session)
+
+
 @variables_router.get("/")
 async def api_list_learning_variables(
     request: Request,
