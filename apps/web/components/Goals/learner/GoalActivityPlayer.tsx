@@ -37,7 +37,9 @@ export default function GoalActivityPlayer({ orgslug, goalUuid, stepUuid, activi
   const finish = (run: any) => {
     const grading = activity.settings?.grading || {}
     const result = getActivityResult(run)
-    if (result?.status === 'pending') toast.success('Activity submitted for review.')
+    // An activity with an ending screen has already told them how it went.
+    if (activity.settings?.design?.ending) { /* nothing more to say */ }
+    else if (result?.status === 'pending') toast.success('Activity submitted for review.')
     else if (result?.status === 'failed') toast.error(grading.failure_message || 'Activity finished. Review your answers and try again when you are ready.')
     else toast.success(grading.success_message || 'Step done. Nice work.')
     void mutate((key) => isGoalsKey(key))

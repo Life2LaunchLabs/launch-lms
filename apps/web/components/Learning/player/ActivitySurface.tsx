@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import React from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowLeft, ChevronRight, X } from 'lucide-react'
 import { VideoPlaybackStatus } from '@components/Learning/LearningBadgeViews'
-import { backgroundLook, Celebration, resolveBackground, Scene } from './design'
+import { backgroundLook, Celebration, pageTransition, resolveBackground, Scene } from './design'
 
 /** How an activity's X behaves: a plain close by default, or a labelled exit that can ask first and route somewhere. */
 export type ActivityExit = { label?: string; confirm?: string; to_page_uuid?: string }
@@ -19,25 +19,46 @@ export type TimedPage = {
   onHold: (held: boolean) => void
 }
 
-/** The progress bar: one bar by default, or a segment per page when the activity asks for it or has timed pages. */
-function Progress({ pages, pageIndex, settings, timed, onDark }: { pages: any[]; pageIndex: number; settings?: any; timed?: TimedPage; onDark: boolean }) {
+export type ProgressStyle = 'line' | 'segments' | 'dots' | 'count' | 'none'
+
+/** The activity's progress style; timed pages always use segments so each can fill as it plays. */
+export function progressStyle(pages: any[], settings?: any): ProgressStyle {
+  const chosen = settings?.design?.progress
+  if (pages.some((item) => Number(item?.design?.auto_advance_ms) > 0)) return 'segments'
+  if (chosen === 'segments' || chosen === 'dots' || chosen === 'count' || chosen === 'none') return chosen
+  return 'line'
+}
+
+/** Where the learner is: a line (the default), a segment or dot per page, a count, or nothing. */
+export function Progress({ pages, pageIndex, settings, timed, onDark }: { pages: any[]; pageIndex: number; settings?: any; timed?: TimedPage; onDark: boolean }) {
   const track = onDark ? 'bg-white/25' : 'bg-muted'
-  const segments = settings?.design?.progress === 'segments' || pages.some((item) => Number(item?.design?.auto_advance_ms) > 0)
-  if (!segments) {
-    const progress = ((pageIndex + 1) / Math.max(1, pages.length)) * 100
-    return <div className={`h-2 flex-1 overflow-hidden rounded-full ${track}`}>
-      <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
+  const style = progressStyle(pages, settings)
+  const total = Math.max(1, pages.length)
+  const count = <span className={`text-sm font-medium tabular-nums ${onDark ? 'text-white/80' : 'text-muted-foreground'}`}>{pageIndex + 1}/{total}</span>
+  if (style === 'none') return <div className="flex-1" data-progress="none" />
+  if (style === 'count') return <div className="flex flex-1 justify-center" data-progress="count"><span className={`text-sm font-semibold tabular-nums ${onDark ? 'text-white/80' : 'text-muted-foreground'}`}>{pageIndex + 1} of {total}</span></div>
+  if (style === 'dots') {
+    return <div className="flex flex-1 items-center justify-center gap-1.5" data-progress="dots" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={pageIndex + 1}>
+      {pages.map((item, index) => <i key={item?.page_uuid || index} className={`block h-[7px] rounded-full transition-all ${index === pageIndex ? 'w-[22px] bg-[var(--org-primary-color)]' : index < pageIndex ? 'w-[7px] bg-[var(--org-primary-color)] opacity-45' : `w-[7px] ${track}`}`} />)}
     </div>
   }
-  return <div className="flex h-2 flex-1 gap-1" data-progress="segments">
-    {pages.map((item, index) => {
-      const fill = index < pageIndex ? 1 : index > pageIndex ? 0 : timed ? timed.fraction : 1
-      return <div key={item?.page_uuid || index} className={`h-full flex-1 overflow-hidden rounded-full ${track}`}>
-        <div className="h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${Math.round(fill * 100)}%` }} />
-      </div>
-    })}
-  </div>
+  if (style === 'segments') {
+    return <><div className="flex h-2 flex-1 gap-1" data-progress="segments">
+      {pages.map((item, index) => {
+        const fill = index < pageIndex ? 1 : index > pageIndex ? 0 : timed ? timed.fraction : 1
+        return <div key={item?.page_uuid || index} className={`h-full flex-1 overflow-hidden rounded-full ${track}`}>
+          <div className="h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${Math.round(fill * 100)}%` }} />
+        </div>
+      })}
+    </div>{count}</>
+  }
+  const progress = ((pageIndex + 1) / total) * 100
+  return <><div className={`h-2 flex-1 overflow-hidden rounded-full ${track}`} data-progress="line">
+    <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
+  </div>{count}</>
 }
+
+const VALIGN: Record<string, string> = { top: 'items-start', middle: 'items-center', bottom: 'items-end' }
 
 /**
  * The frame every activity plays in: a full-bleed background (colour, gradient and scene),
@@ -68,6 +89,11 @@ export function LearningActivitySurface({
   const exit: ActivityExit = settings?.design?.exit || {}
   const chromeButton = `rounded-full p-2 transition ${onDark ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`
   const holdTimer = React.useRef<number | undefined>(undefined)
+  const still = Boolean(useReducedMotion())
+  const enter = pageTransition(page, settings, still)
+  const wide = page?.design?.columns === 2
+  const valign = VALIGN[page?.design?.valign] || VALIGN.middle
+  const canGoBack = settings?.design?.allow_back !== false
 
   const leave = () => {
     if (exit.confirm && !window.confirm(exit.confirm)) return
@@ -100,30 +126,29 @@ export function LearningActivitySurface({
   } : {}
 
   return (
-    <main data-learning-activity-surface className={`relative flex w-full min-w-0 items-center justify-center overflow-hidden px-4 py-4 text-foreground sm:py-6 ${isVideoPage ? 'bg-black' : 'bg-[var(--org-page-background)]'} ${look.tone} ${className}`} style={look.style}>
+    <main data-learning-activity-surface className={`@container relative flex w-full min-w-0 items-center justify-center overflow-hidden px-4 py-4 text-foreground sm:py-6 ${isVideoPage ? 'bg-black' : 'bg-[var(--org-page-background)]'} ${look.tone} ${className}`} style={look.style}>
       <Scene scene={background.scene} intensity={background.intensity} />
       <Celebration key={page?.page_uuid} active={Boolean(page?.design?.celebrate)} />
-      <div className={`relative flex h-full min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden ${isVideoPage ? '' : 'max-w-3xl'}`}>
+      <div className={`relative flex h-full min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden ${isVideoPage ? '' : wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
         <div className="relative z-10 shrink-0 px-4">
           <div className={`mx-auto flex h-14 w-full items-center gap-3 ${isVideoPage ? 'max-w-3xl' : ''}`}>
             {close}
-            {onPrevious && pageIndex > 0 ? <button type="button" onClick={onPrevious} aria-label="Back" className={chromeButton}><ArrowLeft size={20} /></button> : null}
+            {onPrevious && canGoBack && pageIndex > 0 ? <button type="button" onClick={onPrevious} aria-label="Back" className={chromeButton}><ArrowLeft size={20} /></button> : null}
             <Progress pages={pages} pageIndex={pageIndex} settings={settings} timed={timed} onDark={onDark} />
-            <span className={`text-sm font-medium ${onDark ? 'text-white/80' : 'text-muted-foreground'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
           </div>
         </div>
         <div data-timed-page={timed ? '' : undefined} {...press} className={`relative ${isVideoPage ? 'flex min-h-0 flex-1 items-center justify-center overflow-hidden p-0' : 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-8'} ${timed ? 'select-none' : ''}`}>
-          <div className={`${isVideoPage ? 'flex h-full w-full items-center justify-center overflow-hidden' : 'mx-auto flex min-h-full w-full max-w-2xl items-center overflow-visible'}`}>
+          <div className={`${isVideoPage ? 'flex h-full w-full items-center justify-center overflow-hidden' : `mx-auto flex min-h-full w-full ${wide ? 'max-w-5xl' : 'max-w-2xl'} ${valign} overflow-visible`}`}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={page?.page_uuid || pageIndex}
                 data-learning-page-heading
                 tabIndex={-1}
                 className={isVideoPage ? 'flex h-full w-full items-center justify-center' : 'w-full'}
-                initial={{ x: 36, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -24, opacity: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+                initial={enter.initial}
+                animate={enter.animate}
+                exit={enter.exit}
+                transition={enter.transition}
               >
                 {page ? children : <div className="flex min-h-[420px] items-center justify-center text-muted-foreground">No page selected</div>}
               </motion.div>

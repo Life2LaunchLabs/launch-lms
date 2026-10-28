@@ -1,5 +1,6 @@
 'use client'
 
+import { LearningTextStyle } from '@components/Learning/textMarks'
 import React from 'react'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
@@ -30,7 +31,9 @@ import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSe
 import ChoiceOptions from './player/ChoiceOptions'
 import SourcedChoiceOptions from '@components/Learning/player/OptionSources'
 import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
-import { EntranceMotion } from './player/design'
+import { BlockMotion } from './player/design'
+import PageBlock, { PAGE_BLOCKS } from './player/PageBlocks'
+import BlockLayout from './player/BlockLayout'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
@@ -70,21 +73,9 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, run, pages,
 
   // Buttons placed in the footer render beside Continue instead (see footerButtons).
   const inline = blocks.filter((block: LearningBlock) => !isFooterButton(block))
-  const renderBlock = (block: LearningBlock) => <EntranceMotion key={block.id} entrance={block.design?.entrance} index={inline.indexOf(block)}><StandardBlockView block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} /></EntranceMotion>
+  const renderBlock = (block: LearningBlock) => <BlockMotion key={block.id} design={block.design} index={inline.indexOf(block)}><StandardBlockView block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} /></BlockMotion>
 
-  return (
-    <div className="learning-info-block-stack">
-      <div className="learning-info-reorder-list">
-        {inline.map((block: LearningBlock, index: number) => {
-          const group = block.design?.group
-          if (!group) return renderBlock(block)
-          if (index > 0 && inline[index - 1]?.design?.group === group) return null
-          const members = inline.filter((item: LearningBlock) => item.design?.group === group)
-          return <div key={group} className="my-3 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">{members.map(renderBlock)}</div>
-        })}
-      </div>
-    </div>
-  )
+  return <BlockLayout blocks={inline} page={page} renderBlock={renderBlock} />
 }
 
 /** A continue button the author placed in the footer, beside Continue. */
@@ -112,6 +103,7 @@ export function buildQuestionVirtualPage(page: any, block: any) {
 function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
   const blockStyle = getStandardBlockStyle(block)
   if (STORY_BLOCKS.has(block.type)) return <StoryBlock block={block} run={run} style={blockStyle} />
+  if (PAGE_BLOCKS.has(block.type)) return <PageBlock block={block} run={run} style={blockStyle} />
 
   if (block.type === 'text') {
     const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run)
@@ -514,6 +506,7 @@ function InfoTextBlock({ block, blockId }: any) {
         showOnlyWhenEditable: false,
       }),
       InfoTextAlign,
+      LearningTextStyle,
     ],
     content,
     onUpdate: ({ editor }) => {

@@ -50,6 +50,10 @@ export function removeStage(document: TemplateDocument, stageKey: string): Templ
 
 export const addStep = (document: TemplateDocument, stageKey: string, step: TemplateStep): TemplateDocument => mapStage(document, stageKey, (stage) => ({ ...stage, steps: [...stage.steps, step] }))
 
+/** Puts a step at ``index`` in a stage (the end when past it). */
+export const insertStep = (document: TemplateDocument, stageKey: string, index: number, step: TemplateStep): TemplateDocument =>
+  mapStage(document, stageKey, (stage) => ({ ...stage, steps: [...stage.steps.slice(0, index), step, ...stage.steps.slice(index)] }))
+
 export const removeStep = (document: TemplateDocument, stepKey: string): TemplateDocument =>
   withoutRefs({ ...document, stages: document.stages.map((stage) => ({ ...stage, steps: stage.steps.filter((step) => step.key !== stepKey) })) }, new Set([stepKey]))
 

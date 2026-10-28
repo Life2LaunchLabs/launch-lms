@@ -12,6 +12,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { assignmentReviewsKey, goalAdminApi, inboxKey, type ActivityReview, type StaffNoteView } from '@services/goals/admin'
 import { cn } from '@/lib/utils'
 import { ActivityAggregateGradeForm } from '@components/Goals/admin/live/ActivityGrading'
+import { decideLearningRun } from '@services/learning/learning'
 import ReviewEvidence from './ReviewEvidence'
 import { EmptyState, gradeActivityReview, PageLoader, PersonAvatar, pendingScores, personName, StatusPill, timeAgo } from './ui'
 
@@ -207,5 +208,9 @@ function GradeActivity({ review, token, onDone }: { review: ActivityReview; toke
     setSaving(true)
     try { await gradeActivityReview(review, scores, questionFeedback, feedback, token); toast.success(`${personName(review.user)} graded.`); await onDone() } catch (error: any) { toast.error(error?.message || 'Could not save these grades.') } finally { setSaving(false) }
   }
-  return <div className="p-4"><ActivityAggregateGradeForm review={review} scores={scores} setScores={setScores} feedback={feedback} setFeedback={setFeedback} saving={saving} onConfirm={(notes: Record<string, string>) => void grade(notes)} /></div>
+  const decide = async (passed: boolean) => {
+    setSaving(true)
+    try { await decideLearningRun(review.run_uuid, { passed, note: feedback.trim() || undefined }, token); toast.success(passed ? `${personName(review.user)} passed.` : `${personName(review.user)} can try again.`); await onDone() } catch (error: any) { toast.error(error?.message || 'Could not save that.') } finally { setSaving(false) }
+  }
+  return <div className="p-4"><ActivityAggregateGradeForm review={review} scores={scores} setScores={setScores} feedback={feedback} setFeedback={setFeedback} saving={saving} onConfirm={(notes: Record<string, string>) => void grade(notes)} onDecide={(passed: boolean) => void decide(passed)} /></div>
 }

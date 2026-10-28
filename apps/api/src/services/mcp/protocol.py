@@ -50,14 +50,14 @@ RESOURCES = [
         "uri": "launch-lms://activity-document/guide",
         "name": "activity-authoring-guide",
         "title": "Activity authoring guide",
-        "description": "How Launch LMS activities, blocks, questions and branching flows are written.",
+        "description": "How Launch LMS activities, blocks, questions and branches are written.",
         "mimeType": "text/markdown",
     },
     {
         "uri": "launch-lms://activity-document/schema",
         "name": "activity-document-schema",
         "title": "Activity Document JSON Schema",
-        "description": "JSON Schema for Activity Document v1.",
+        "description": "JSON Schema for Activity Document v2.",
         "mimeType": "application/schema+json",
     },
     {

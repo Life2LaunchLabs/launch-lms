@@ -26,7 +26,7 @@ from src.services.learning_documents.models import (
     DocumentIssue,
 )
 from src.services.learning_documents.references import rewrite_page_references
-from src.services.learning_content.models import Flow
+from src.services.learning_content.models import Flow, PageDesign, content_error
 from src.services.learning_content.recovery import content_issues
 from src.services.learning_flow import (
     FlowValidationError,
@@ -36,6 +36,7 @@ from src.services.learning_flow import (
     validate_flow,
 )
 from src.services.learning_page_convert import iter_block_stacks, normalize_question_settings
+from src.services.learning_sequence import sequence_page_uuids, validate_player_settings, validate_sequence
 from src.services.learning_portfolio_actions import PortfolioActionError, validate_outcomes
 
 STORED_PAGE_PREFIX = "learning_page_"
@@ -168,11 +169,17 @@ def prepare_document(
         activity["settings"]["flow"] = converted_flow
 
     stored_content = {page["page_uuid"]: page.get("content") for page in (baseline or {}).get("pages") or []}
+    stored_design = {page["page_uuid"]: page.get("design") for page in (baseline or {}).get("pages") or []}
     stored_flow = (((baseline or {}).get("activity") or {}).get("settings") or {}).get("flow")
     carried_flow = content_issues(Flow, stored_flow) if stored_flow else []
     for index, page in enumerate(pages):
         content = page["content"] = normalize_question_settings(deepcopy(page.get("content") or {}))
         prefix = f"pages[{index}].content"
+        design_error = content_error(PageDesign, page.get("design") or {})
+        if design_error and design_error == content_error(PageDesign, stored_design.get(page["page_uuid"]) or {}):
+            result.warnings.append(DocumentIssue(path=f"pages[{index}].design", message=f"Existing issue (save allowed): {design_error}"))
+        elif design_error:
+            result.errors.append(DocumentIssue(path=f"pages[{index}].design", message=design_error))
         page_type = LearningPageType(page["page_type"])
         if page_type == LearningPageType.STANDARD and not isinstance(content.get("blocks"), list):
             result.errors.append(DocumentIssue(path=f"{prefix}.blocks", message="Standard pages need a blocks array"))
@@ -211,9 +218,16 @@ def prepare_document(
                 DocumentIssue(path=f"pages[{index}]", message=f"References {page_uuid}, which is not in this activity")
             )
 
+    sequence = activity["settings"].get("sequence")
+    try:
+        for page_uuid in validate_sequence(sequence, page_ids, {page["page_uuid"] for page in pages if page["required"]}):
+            result.warnings.append(DocumentIssue(path="activity.settings.sequence", message=f"Page {page_uuid} isn't in the sequence, so learners never see it"))
+        validate_player_settings(activity["settings"])
+    except FlowValidationError as exc:
+        result.errors.extend(DocumentIssue(path="activity.settings.sequence", message=problem) for problem in exc.problems)
     try:
         validate_flow(
-            deepcopy(activity["settings"].get("flow")),
+            None if sequence else deepcopy(activity["settings"].get("flow")),
             page_ids,
             {page["page_uuid"] for page in pages if page["required"]},
             carried=carried_flow,
@@ -223,7 +237,7 @@ def prepare_document(
             result.warnings.append(DocumentIssue(path="activity.settings.flow", message=f"Existing issue (save allowed): {issue}"))
     except FlowValidationError as exc:
         result.errors.extend(DocumentIssue(path="activity.settings.flow", message=problem) for problem in exc.problems)
-    result.errors.extend(_button_route_issues(activity["settings"].get("flow"), pages))
+    result.errors.extend(_button_route_issues(None if sequence else activity["settings"].get("flow"), pages, sequence))
     try:
         validate_outcomes(activity["settings"].get("outcomes"), allow_system_blocks)
     except PortfolioActionError as exc:
@@ -239,10 +253,12 @@ def prepare_document(
     return result
 
 
-def _button_route_issues(flow: dict | None, pages: list[dict]) -> list[DocumentIssue]:
-    """Revisits must point back along the route; button edges must name real buttons."""
+def _button_route_issues(flow: dict | None, pages: list[dict], sequence: dict | None = None) -> list[DocumentIssue]:
+    """Revisits must point back along the route; button edges and rules must name real buttons."""
     issues: list[DocumentIssue] = []
     order = {page["page_uuid"]: index for index, page in enumerate(pages)}
+    if sequence:
+        order = {uuid: index for index, uuid in enumerate(sequence_page_uuids(sequence))}
     continue_buttons: dict[str, set[str]] = {}
     for index, page in enumerate(pages):
         for stack in iter_block_stacks(page["content"]):
@@ -255,14 +271,17 @@ def _button_route_issues(flow: dict | None, pages: list[dict]) -> list[DocumentI
                     continue
                 target = str(button.get("revisit_page_uuid") or "")
                 source_node, target_node = (page_node_id(flow, page["page_uuid"]), page_node_id(flow, target)) if flow else (None, None)
-                earlier = node_reaches(flow, target_node, source_node) if source_node and target_node else order.get(target, len(pages)) < index
+                earlier = node_reaches(flow, target_node, source_node) if source_node and target_node else order.get(target, len(pages)) < order.get(page["page_uuid"], index)
                 if not earlier or target == page["page_uuid"]:
                     issues.append(DocumentIssue(path=f"pages[{index}].content.blocks[{block.get('id')}]", message="A revisit button must point to a page learners pass before this one"))
-    for index, edge in enumerate((flow or {}).get("edges", [])):
-        condition = edge.get("condition") or {}
+    rules = [(f"activity.settings.flow.edges[{index}]", edge.get("condition") or {}) for index, edge in enumerate((flow or {}).get("edges", []))]
+    for index, item in enumerate((sequence or {}).get("items") or []):
+        for path_index, path in enumerate(item.get("paths") or []):
+            rules.append((f"activity.settings.sequence.items[{index}].paths[{path_index}]", path.get("rule") or {}))
+    for where, condition in rules:
         key = str((condition.get("left") or {}).get("key") or "")
         if key.endswith(".button") and condition.get("right") not in continue_buttons.get(key[: -len(".button")], set()):
-            issues.append(DocumentIssue(path=f"activity.settings.flow.edges[{index}]", message=f"Routes on button {condition.get('right')!r}, which is not a continue button on that page"))
+            issues.append(DocumentIssue(path=where, message=f"Routes on button {condition.get('right')!r}, which is not a continue button on that page"))
     return issues
 
 

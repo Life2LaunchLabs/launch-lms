@@ -16,6 +16,11 @@ class LearningResponseSubmit(SQLModel):
     button: str | None = None
 
 
+class LearningRunDecision(SQLModel):
+    passed: bool
+    note: str | None = ""
+
+
 class LearningResponseGrade(SQLModel):
     score: float
     feedback: str | None = ""

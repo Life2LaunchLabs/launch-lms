@@ -119,7 +119,7 @@ def test_read_tools_walk_template_to_activity(mcp):
     assert activity["etag"] and activity["editor_url"] == editor_url
     assert activity["context"]["template_name"] == "Career Ready"
     schema = call("get_activity_schema")["structuredContent"]
-    assert "Branching flow" in schema["guide"] and "QuestionBlock" in schema["schema"]["$defs"]
+    assert "Sequence and branches" in schema["guide"] and "QuestionBlock" in schema["schema"]["$defs"]
 
 
 def test_preview_and_save_round_trip_with_conflict_handling(mcp):

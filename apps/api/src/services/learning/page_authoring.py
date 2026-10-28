@@ -17,6 +17,7 @@ from src.db.users import AnonymousUser, PublicUser
 from src.services.learning_content.models import StandardPageContent
 from src.services.learning_content.recovery import split_issues
 from src.services.learning_page_convert import iter_block_stacks
+from src.services.learning_sequence import append_page, remove_page
 from src.services.utils.upload_content import upload_file
 from src.services.learning import access_rules, lookups
 
@@ -97,6 +98,10 @@ async def create_page(
         update_date=now,
     )
     db_session.add(page)
+    if (activity.settings or {}).get("sequence"):
+        # New pages go at the end of a stored sequence, as they go at the end of the list.
+        activity.settings = {**activity.settings, "sequence": append_page(activity.settings["sequence"], page.page_uuid)}
+        db_session.add(activity)
     db_session.commit()
     db_session.refresh(page)
     return lookups._serialize_page(page)
@@ -173,6 +178,9 @@ async def delete_page(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Activities must keep at least one page",
             )
+    if (activity.settings or {}).get("sequence"):
+        activity.settings = {**activity.settings, "sequence": remove_page(activity.settings["sequence"], page.page_uuid)}
+        db_session.add(activity)
     db_session.delete(page)
     db_session.commit()
     return {"detail": "Learning page deleted"}

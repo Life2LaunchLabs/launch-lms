@@ -62,6 +62,9 @@ class LearningActivityRead(LearningActivityBase):
     creation_date: str
     update_date: str
     pages: list["LearningPageRead"] = Field(default_factory=list)
+    # The order editors work on: the stored sequence, else the flow converted, else the pages in order.
+    sequence: dict | None = None
+    sequence_flags: list[dict] = Field(default_factory=list)
 
 
 class LearningPageBase(SQLModel):

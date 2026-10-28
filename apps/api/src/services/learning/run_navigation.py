@@ -12,9 +12,7 @@ from src.db.learning import (
 from src.db.goals import Goal
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.users import User
-from src.services.learning_flow import (
-    resolve_flow,
-)
+from src.services.learning_sequence import resolve_activity, routes
 from src.services.learning_page_convert import (
     find_question_block,
     find_question_blocks,
@@ -139,12 +137,16 @@ def _flow_context(db_session: Session, run: LearningRun) -> dict:
 
 
 def _resolved_activity_flow(db_session: Session, run: LearningRun):
+    """The run's route through the activity's sequence (an older flow is converted on the way),
+    or None when the pages simply run in order."""
     activity = db_session.get(LearningActivity, run.activity_id)
-    flow = (activity.settings or {}).get("flow") if activity else None
-    return (
-        resolve_flow(flow, _flow_context(db_session, run))
-        if flow
-        else None
+    if not activity or not routes(activity.settings):
+        return None
+    pages = sorted(_run_pages(db_session, run), key=lambda page: (page.order, page.id or 0))
+    return resolve_activity(
+        activity.settings,
+        [{"page_uuid": page.page_uuid, "content": page.content} for page in pages],
+        _flow_context(db_session, run),
     )
 
 

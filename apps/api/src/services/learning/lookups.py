@@ -11,6 +11,7 @@ from src.db.learning import (
     LearningRun,
 )
 from src.services.learning import access_rules
+from src.services.learning_sequence import activity_sequence
 
 
 def _require_activity_editor(db_session: Session, user, activity: LearningActivity) -> None:
@@ -39,9 +40,13 @@ def _serialize_page(page: LearningPage) -> LearningPageRead:
 def _serialize_activity(
     activity: LearningActivity, pages: list[LearningPage] | None = None
 ) -> LearningActivityRead:
+    serialized = [_serialize_page(page) for page in (pages or [])]
+    converted = activity_sequence(activity.settings, [{"page_uuid": page.page_uuid, "content": page.content} for page in serialized]) if pages else None
     return LearningActivityRead(
         **activity.model_dump(),
-        pages=[_serialize_page(page) for page in (pages or [])],
+        pages=serialized,
+        sequence=converted.sequence if converted else None,
+        sequence_flags=converted.flags if converted else [],
     )
 
 

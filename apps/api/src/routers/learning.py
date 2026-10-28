@@ -12,7 +12,7 @@ from src.db.learning import (
     LearningVariableRead,
     LearningVariableUpdate,
 )
-from src.db.learning_requests import LearningPageComplete, LearningResponseGrade, LearningResponseSubmit
+from src.db.learning_requests import LearningPageComplete, LearningResponseGrade, LearningResponseSubmit, LearningRunDecision
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
 from src.services import learning as learning_service
@@ -116,6 +116,17 @@ async def api_delete_learning_variable(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.delete_learning_variable(request, variable_uuid, current_user, db_session)
+
+
+@runs_router.post("/{run_uuid}/decision")
+async def api_decide_learning_run(
+    request: Request,
+    run_uuid: str,
+    payload: LearningRunDecision,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await learning_service.decide_run(request, run_uuid, payload.passed, payload.note, current_user, db_session)
 
 
 @runs_router.post("/complete-page")

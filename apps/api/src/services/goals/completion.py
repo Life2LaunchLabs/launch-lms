@@ -249,9 +249,8 @@ def on_run_changed(db: Session, run: LearningRun) -> None:
     if not step:
         return
     finished = run.status == LearningRunStatus.COMPLETED
-    waiting = grading._has_pending_required_manual_grades(db, run) or (
-        (run.data or {}).get("completion_result", {}).get("reason") == "pending_manual_grades"
-    )
+    result = (run.data or {}).get("completion_result") or {}
+    waiting = grading._has_pending_required_manual_grades(db, run) or result.get("reason") == "pending_manual_grades" or bool(result.get("awaiting_staff_decision"))
     if finished and not waiting:
         _auto(db, step, StepStatus.COMPLETED)
     elif waiting:
