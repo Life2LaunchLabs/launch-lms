@@ -402,9 +402,9 @@ export function cloneJson<T>(value: T): T {
 export function getActivityGradingSettings(activity: any) {
   const grading = activity.settings?.grading || {}
   return {
+    finish: grading.finish === 'complete' ? 'complete' : 'pass', if_not_passed: grading.if_not_passed || 'try_again', show_score: grading.show_score !== false,
     minimum_score_percent: Number(grading.minimum_score_percent ?? 70),
-    success_message: grading.success_message || 'Activity passed.',
-    failure_message: grading.failure_message || 'You need a higher score to complete this activity.',
+    success_message: grading.success_message || 'Activity passed.', failure_message: grading.failure_message || 'You need a higher score to complete this activity.',
   }
 }
 

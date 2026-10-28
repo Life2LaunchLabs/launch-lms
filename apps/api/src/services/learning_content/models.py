@@ -39,6 +39,8 @@ from src.services.learning_content.activity_models import (  # noqa: F401  re-ex
     CaptionChunk,
     VideoCaptions,
     VideoPageContent,
+    QuestionFeedback,
+    ActivityGrading,
 )
 
 STRICT = ConfigDict(extra="forbid")
@@ -237,7 +239,10 @@ class QuestionScoring(BaseModel):
     score_policy: str | None = None
     correct_option_ids: list[str] | None = None
     accepted_answers: list[str] | None = None
+    match: Literal["exact", "contains"] | None = Field(default=None, description="Accepted answers: the whole answer (default) or any of the words.")
     rubric: str | None = None
+    partial_credit: bool | None = Field(default=None, description="Several right choices: a share of the points per right pick (default) or all or nothing.")
+    feedback: QuestionFeedback | None = Field(default=None, description="Shown to the learner after they answer.")
 
 
 class QuestionCompletion(BaseModel):

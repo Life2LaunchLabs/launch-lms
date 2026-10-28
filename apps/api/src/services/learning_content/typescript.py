@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.services.learning_content.models import ActivityDesign, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
+from src.services.learning_content.models import ActivityDesign, ActivityGrading, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
 
 OUTPUT = Path(__file__).resolve().parents[4] / "web" / "components" / "Learning" / "generated" / "content.ts"
 HEADER = """// Generated from apps/api/src/services/learning_content/models.py â€” do not edit.
@@ -23,7 +23,7 @@ HEADER = """// Generated from apps/api/src/services/learning_content/models.py â
 
 def _collect() -> dict:
     defs: dict = {}
-    for model in (StandardPageContent, VideoPageContent, Flow, Sequence, PageDesign, ActivityDesign):
+    for model in (StandardPageContent, VideoPageContent, Flow, Sequence, PageDesign, ActivityDesign, ActivityGrading):
         schema = model.model_json_schema(ref_template="#/$defs/{model}")
         defs.update(schema.pop("$defs", {}))
         defs[model.__name__] = schema

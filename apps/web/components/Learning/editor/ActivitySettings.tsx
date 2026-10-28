@@ -55,13 +55,11 @@ export function ActivitySettingsDialog({
         </section>
         <section className="space-y-3">
           <FieldLabel>Grading</FieldLabel>
-          {hasScoredQuestions ? (
-            <div className="space-y-3 rounded-xl border border-gray-200 p-3.5">
-              <TextField label="They pass at (%)" type="number" value={String(gradingSettings.minimum_score_percent ?? 70)} onChange={(value) => onPatchGrading({ minimum_score_percent: Math.max(0, Math.min(100, Number(value))) })} />
-              <TextField label="When they pass" value={gradingSettings.success_message || ''} onChange={(value) => onPatchGrading({ success_message: value })} />
-              <TextField label="When they don't yet" value={gradingSettings.failure_message || ''} onChange={(value) => onPatchGrading({ failure_message: value })} />
-            </div>
-          ) : <p className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-600">No scored questions, so they finish it with no pass mark.</p>}
+          <div className="space-y-3 rounded-xl border border-gray-200 p-3.5">
+            <p className="text-sm text-gray-600">{hasScoredQuestions ? `They pass at ${gradingSettings.minimum_score_percent}%. Points, right answers and the pass mark are set in Grading.` : 'No scored questions, so they finish it with no pass mark. Grading in the header sets points and right answers.'}</p>
+            {hasScoredQuestions && <TextField label="When they pass" value={gradingSettings.success_message || ''} onChange={(value) => onPatchGrading({ success_message: value })} />}
+            {hasScoredQuestions && <TextField label="When they don't yet" value={gradingSettings.failure_message || ''} onChange={(value) => onPatchGrading({ failure_message: value })} />}
+          </div>
         </section>
         <section className="space-y-2">
           <FieldLabel>What it keeps</FieldLabel>

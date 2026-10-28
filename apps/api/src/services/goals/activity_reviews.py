@@ -44,7 +44,9 @@ def activity_reviews(db: Session, goals: list[Goal]) -> list[dict]:
     for (run_id, activity_id), rows in grouped.items():
         pending = [(page, attempt) for page, attempt in rows if (attempt.result or {}).get("grading_status") == "pending"]
         run, activity = run_by_id.get(run_id), activities.get(activity_id)
-        if not pending or not run or not activity:
+        # Runs below the pass mark on a "staff decide" activity wait here too.
+        deciding = bool(run and ((run.data or {}).get("completion_result") or {}).get("awaiting_staff_decision"))
+        if not (pending or deciding) or not run or not activity:
             continue
         goal = goal_by_id[int(run.goal_id)]  # type: ignore[arg-type]
         user = db.get(User, run.user_id)
@@ -65,7 +67,9 @@ def activity_reviews(db: Session, goals: list[Goal]) -> list[dict]:
             "pending_max_score": sum(_points(attempt) for _, attempt in pending),
             "max_score": sum(float((attempt.result or {}).get("max_score") or 0) for _, attempt in rows),
             "minimum_score_percent": float((activity.settings or {}).get("grading", {}).get("minimum_score_percent", 70)),
-            "submitted_at": max(attempt.submitted_at for _, attempt in pending),
+            "awaiting_decision": deciding and not pending,
+            "score_percent": ((run.data or {}).get("completion_result") or {}).get("score_percent"),
+            "submitted_at": max(attempt.submitted_at for _, attempt in (pending or rows)),
         })
     result.sort(key=lambda item: item["submitted_at"])
     return result

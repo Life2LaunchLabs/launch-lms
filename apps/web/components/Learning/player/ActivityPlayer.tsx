@@ -81,6 +81,7 @@ export function ActivityPlayer({
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
+  const [feedback, setFeedback] = React.useState<{ correct: boolean | null; messages: string[]; run: any } | null>(null)
   // The finished run while its ending screen shows (activities with ``settings.design.ending``).
   const [ended, setEnded] = React.useState<any>(null)
   const ending = activity.settings?.design?.ending
@@ -144,26 +145,34 @@ export function ActivityPlayer({
       const nextRun = submitting ? await runtime.submit(page.page_uuid, answer, button) : await runtime.complete(page.page_uuid, button)
       setRun(nextRun)
       if (submitting) onEvent?.({ type: 'answer_submitted', page_uuid: page.page_uuid, page_title: page.title, answer, run: nextRun })
-      const nextNavigation = nextRun?.navigation
-      // Go to the first page the route still needs; when every page is done
-      // (a retake or review), step to the page after this one on the route.
-      const nextPages = routedPages(activity, nextRun)
-      const position = nextPages.findIndex((item: any) => item.page_uuid === page.page_uuid)
-      // A finished run that reached its last page is done, even with optional pages skipped on the way.
-      const done = nextRun?.status === 'completed' && position === nextPages.length - 1
-      const nextPageUuid = done ? undefined : nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
-      const destination = nextPageUuid ? nextPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
-      if (destination >= 0) {
-        setIndex(destination)
-      } else {
-        onEvent?.({ type: 'finished', run: nextRun })
-        if (ending) setEnded(nextRun)
-        else onFinish(nextRun)
-      }
+      const said = submitting ? answerFeedback(nextRun, page.page_uuid) : null
+      if (said) setFeedback({ ...said, run: nextRun }); else goOn(nextRun)
     } catch (error: any) {
       const message = error?.message || 'Could not complete page'
       onEvent?.({ type: 'error', page_uuid: page.page_uuid, message })
       toast.error(message)
+    }
+  }
+
+  // After an answer (and any feedback on it), go to the next page or finish.
+  const goOn = (nextRun: any) => {
+    setFeedback(null)
+    if (!page) return
+    const nextNavigation = nextRun?.navigation
+    // Go to the first page the route still needs; when every page is done
+    // (a retake or review), step to the page after this one on the route.
+    const nextPages = routedPages(activity, nextRun)
+    const position = nextPages.findIndex((item: any) => item.page_uuid === page.page_uuid)
+    // A finished run that reached its last page is done, even with optional pages skipped on the way.
+    const done = nextRun?.status === 'completed' && position === nextPages.length - 1
+    const nextPageUuid = done ? undefined : nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
+    const destination = nextPageUuid ? nextPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
+    if (destination >= 0) {
+      setIndex(destination)
+    } else {
+      onEvent?.({ type: 'finished', run: nextRun })
+      if (ending) setEnded(nextRun)
+      else onFinish(nextRun)
     }
   }
 
@@ -180,7 +189,7 @@ export function ActivityPlayer({
     if (event.key !== 'Enter' || event.nativeEvent.isComposing || !(target instanceof HTMLInputElement)) return
     if (['checkbox', 'radio', 'file', 'button', 'submit'].includes(target.type) || !unlocked || footerButtons(page, run)) return
     event.preventDefault()
-    void completeAndNext()
+    if (feedback) goOn(feedback.run); else void completeAndNext()
   }
   const timed = useAutoAdvance(ended ? undefined : page, unlocked, () => void completeAndNext(), index > 0 ? () => setIndex(index - 1) : undefined)
 
@@ -210,13 +219,13 @@ export function ActivityPlayer({
       onBack={onClose}
       actionLabel={page?.content?.action_label || (index === pages.length - 1 ? finishLabel : 'Continue')}
       actionDisabled={!unlocked}
-      onAction={() => completeAndNext()}
+      onAction={() => feedback ? goOn(feedback.run) : completeAndNext()}
       interactionState={answer}
       className={className}
       settings={activity.settings}
       onPrevious={() => navigateToPage(pages[index - 1]?.page_uuid)}
       onExit={exitTo ? exit : undefined}
-      footer={footerButtons(page, run, unlocked ? completeAndNext : undefined)}
+      footer={feedback ? undefined : footerButtons(page, run, unlocked ? completeAndNext : undefined)}
       timed={timed}
     >
       <div className="contents" onKeyDown={enterToContinue}>
@@ -231,7 +240,27 @@ export function ActivityPlayer({
         onButton={unlocked ? completeAndNext : undefined}
         responseMediaOwner={responseMediaOwner}
       />
+      {feedback && <AnswerFeedback {...feedback} />}
       </div>
     </LearningActivitySurface>
+  )
+}
+
+/** What the latest answer on a page said back: the author's feedback for a right or wrong answer. */
+export function answerFeedback(run: any, pageUuid: string): { correct: boolean | null; messages: string[] } | null {
+  const attempt = (run?.attempts || []).filter((item: any) => item.page_uuid === pageUuid).at(-1)
+  const result = attempt?.result || {}
+  const messages = [result.feedback_message, ...Object.values(result.questions || {}).map((item: any) => item?.feedback_message)]
+    .filter((message, index, all): message is string => typeof message === 'string' && Boolean(message.trim()) && all.indexOf(message) === index)
+  return messages.length ? { correct: attempt?.is_correct ?? null, messages } : null
+}
+
+function AnswerFeedback({ correct, messages }: { correct: boolean | null; messages: string[] }) {
+  const tone = correct === false ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-green-300 bg-green-50 text-green-950'
+  return (
+    <div role="status" className={`mt-4 rounded-2xl border px-4 py-3 text-sm leading-6 ${tone}`}>
+      <b className="block">{correct === false ? 'Not quite' : correct ? 'Right' : 'Thanks'}</b>
+      {messages.map((message) => <p key={message}>{message}</p>)}
+    </div>
   )
 }

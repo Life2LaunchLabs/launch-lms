@@ -33,6 +33,21 @@ export interface ActivityEnding {
   [key: string]: any
 }
 
+/** How an activity is finished (`settings.grading`). */
+export interface ActivityGrading {
+  /** `complete`: done once answered; `pass` (default): reach the pass mark when questions have points. */
+  finish?: "complete" | "pass"
+  /** The pass mark; 70 by default. */
+  minimum_score_percent?: number
+  /** `try_again` (default) starts over, `redo_missed` reopens the pages they missed, `staff_decide` waits in the review queue. */
+  if_not_passed?: "try_again" | "redo_missed" | "staff_decide"
+  /** Show the score at the end; on by default. */
+  show_score?: boolean
+  success_message?: string
+  failure_message?: string
+  [key: string]: any
+}
+
 export interface AllOf {
   op: "and" | "or"
   conditions: Array<Comparison | AllOf | Negation>
@@ -368,6 +383,12 @@ export interface QuestionContent {
   [key: string]: any
 }
 
+/** What a learner sees after answering a graded question. */
+export interface QuestionFeedback {
+  correct?: string
+  incorrect?: string
+}
+
 /** Choices: `{mode: points, points, score_policy: select_all, correct_option_ids}` or a survey `{mode: off, points: 0}`. Text: `completion | manual | accepted_answers` (+ `accepted_answers`, `rubric`). Image upload: `manual`. */
 export interface QuestionScoring {
   mode?: "points" | "off" | "completion" | "manual" | "accepted_answers"
@@ -375,7 +396,13 @@ export interface QuestionScoring {
   score_policy?: string
   correct_option_ids?: Array<string>
   accepted_answers?: Array<string>
+  /** Accepted answers: the whole answer (default) or any of the words. */
+  match?: "exact" | "contains"
   rubric?: string
+  /** Several right choices: a share of the points per right pick (default) or all or nothing. */
+  partial_credit?: boolean
+  /** Shown to the learner after they answer. */
+  feedback?: QuestionFeedback
   [key: string]: any
 }
 

@@ -36,7 +36,11 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         str(value)
         for value in scoring.get("correct_option_ids") or []
     }
-    if not correct_options:
+    if scoring.get("mode") == "completion":
+        # Counts when answered: no right answer.
+        is_correct = True
+        score_fraction = 1.0
+    elif not correct_options:
         is_correct = None
         score_fraction = None
     else:
@@ -44,11 +48,14 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         true_positives = len(selected_options & correct_options)
         false_positives = len(selected_options - correct_options)
         is_correct = selected_options == correct_options
-        # Select-all-that-apply partial credit: omitted correct answers earn
-        # nothing, while incorrect selections cancel an earned correct choice.
-        score_fraction = max(
-            0.0, min(1.0, (true_positives - false_positives) / len(correct_options))
-        )
+        if scoring.get("partial_credit") is False:
+            score_fraction = 1.0 if is_correct else 0.0
+        else:
+            # Select-all-that-apply partial credit: omitted correct answers earn
+            # nothing, while incorrect selections cancel an earned correct choice.
+            score_fraction = max(
+                0.0, min(1.0, (true_positives - false_positives) / len(correct_options))
+            )
     points = answer_validation._as_float(scoring.get("points"), 1.0)
     score = points * score_fraction if score_fraction is not None else None
     return {
@@ -62,7 +69,17 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         "points": points,
         "max_score": points,
         "grading_status": "graded",
+        **_feedback(scoring, is_correct),
     }
+
+
+def _feedback(scoring: dict, is_correct: bool | None) -> dict:
+    """The author's message for a right or wrong answer, shown to the learner after they answer."""
+    feedback = scoring.get("feedback")
+    if not isinstance(feedback, dict) or is_correct is None:
+        return {}
+    message = str(feedback.get("correct" if is_correct else "incorrect") or "").strip()
+    return {"feedback_message": message} if message else {}
 
 
 def _grade_text_block(page: LearningPage, question: dict, answer: dict) -> dict:
@@ -104,12 +121,15 @@ def _grade_text_block(page: LearningPage, question: dict, answer: dict) -> dict:
         str(value).strip().lower() for value in scoring.get("accepted_answers", [])
     ]
     if mode == "accepted_answers" and expected:
-        is_correct = first_text.lower() in expected
+        typed = first_text.strip().lower()
+        # ``match: contains`` is right when the answer includes any of the words.
+        is_correct = any(word and word in typed for word in expected) if scoring.get("match") == "contains" else typed in expected
         return {
             **base,
             "is_correct": is_correct,
             "score": points if is_correct else 0.0,
             "grading_status": "graded",
+            **_feedback(scoring, is_correct),
         }
 
     return {**base, "is_correct": None, "score": None, "grading_status": "not_required"}
@@ -242,7 +262,14 @@ def _activity_grading_settings(activity: LearningActivity) -> dict:
             grading.get("failure_message")
             or "You need a higher score to complete this activity."
         ),
+        # ``complete``: done once answered; ``pass``: the pass mark counts (when there are points).
+        "finish": "complete" if grading.get("finish") == "complete" else "pass",
+        "if_not_passed": grading.get("if_not_passed") if grading.get("if_not_passed") in IF_NOT_PASSED else "try_again",
+        "show_score": grading.get("show_score") is not False,
     }
+
+
+IF_NOT_PASSED = ("try_again", "redo_missed", "staff_decide")
 
 
 def _activity_score_summary(
@@ -313,9 +340,10 @@ def _activity_meets_completion_rules(
     db_session: Session, run: LearningRun, activity: LearningActivity
 ) -> tuple[bool, dict]:
     summary = _activity_score_summary(db_session, run, activity)
+    settings = _activity_grading_settings(activity)
     grading = {
-        **_activity_grading_settings(activity),
-        "mode": "pass_fail" if summary["max_score"] > 0 else "completion",
+        **settings,
+        "mode": "pass_fail" if summary["max_score"] > 0 and settings["finish"] == "pass" else "completion",
     }
     if summary["pending_manual_grades"] > 0:
         return False, {
@@ -324,10 +352,37 @@ def _activity_meets_completion_rules(
             "passed": False,
             "reason": "pending_manual_grades",
         }
-    if summary["max_score"] <= 0:
+    if grading["mode"] == "completion":
         return True, {**summary, "grading": grading, "passed": True}
     passed = summary["score_percent"] >= grading["minimum_score_percent"]
-    return passed, {**summary, "grading": grading, "passed": passed}
+    if passed:
+        return True, {**summary, "grading": grading, "passed": True}
+    if (run.data or {}).get("staff_decision") == "passed":
+        return True, {**summary, "grading": grading, "passed": True, "passed_by_staff": True}
+    policy = grading["if_not_passed"]
+    return False, {
+        **summary,
+        "grading": grading,
+        "passed": False,
+        "if_not_passed": policy,
+        "missed_page_uuids": _missed_page_uuids(db_session, run, activity),
+        **({"awaiting_staff_decision": True} if policy == "staff_decide" else {}),
+    }
+
+
+def _missed_page_uuids(db_session: Session, run: LearningRun, activity: LearningActivity) -> list[str]:
+    """Pages whose latest answer earned less than full marks, in page order."""
+    pages = db_session.exec(
+        select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order)  # type: ignore[arg-type]
+    ).all()
+    latest = lookups._latest_attempts(db_session, run.id or 0)
+    missed = []
+    for page in pages:
+        possible = sum(_question_block_points(page, question) for question in run_navigation._question_blocks(page))
+        attempt = latest.get(page.id or 0)
+        if possible > 0 and attempt and answer_validation._as_float(attempt.score, 0.0) < possible:
+            missed.append(page.page_uuid)
+    return missed
 
 
 def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -> bool:

@@ -432,5 +432,7 @@ def start_activity(db: Session, current_user: PublicUser, goal_uuid: str, step_u
         db.commit()
         db.refresh(run)
     _mark_started(db, goal, step, current_user.id)
+    from src.services.learning.run_decisions import retake_on_start
+    retake_on_start(db, run)
     db.refresh(run)
     return {"goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid, "activity_uuid": activity.activity_uuid, "run": run_navigation._serialize_run(db, run).model_dump()}
