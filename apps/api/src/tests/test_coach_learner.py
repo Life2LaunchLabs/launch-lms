@@ -5,7 +5,9 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.coach import CoachPolicy
 from src.db.goals import Goal, GoalStage, GoalStatus, GoalStep, StepProgress, StepStatus
+from src.db.learning import LearningVariable
 from src.db.portfolio import Portfolio, PortfolioContentStatus, ProfileTrait, ProjectItem, TimelineEntry
+from src.db.users import User
 from src.services.coach import learner
 from src.services.coach.policy import CoachRuntime
 from src.services.hub_advisor import AdvisorMessage
@@ -18,6 +20,7 @@ def _db() -> Session:
     SQLModel.metadata.create_all(engine, tables=[
         Portfolio.__table__, ProfileTrait.__table__, ProjectItem.__table__, TimelineEntry.__table__,
         Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__, CoachPolicy.__table__,
+        User.__table__, LearningVariable.__table__,
     ])
     return Session(engine)
 

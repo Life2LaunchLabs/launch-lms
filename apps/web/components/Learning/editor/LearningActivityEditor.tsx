@@ -133,6 +133,7 @@ import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewMod
 import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
 import PageBlock, { PAGE_BLOCKS } from '@components/Learning/player/PageBlocks'
 import { LearningTextStyle } from '@components/Learning/textMarks'
+import { DisplayBindingNode } from '@components/Learning/displayBindingNode'
 import { SelectionToolbar, type InsertType } from './SelectionToolbar'
 import type { Sequence } from '@components/Learning/generated/content'
 
@@ -814,7 +815,7 @@ export default function LearningActivityEditor({
     setSelectingVideoPageUuid(null)
   }
 
-  const createVariableFromKey = async (rawKey: string, valueType = 'text') => {
+  const createVariableFromKey = async (rawKey: string, valueType = 'text', label?: string) => {
     const key = String(rawKey || '').trim()
     if (!key || !orgId || !accessToken) return null
     if (learningVariables.some((variable) => String(variable.key) === key)) {
@@ -825,7 +826,7 @@ export default function LearningActivityEditor({
       const variable = await createLearningVariable({
         org_id: orgId,
         key,
-        label: key.split('.').at(-1) || key,
+        label: label || key.split('.').at(-1) || key,
         value_type: valueType,
         options: [],
       }, accessToken)
@@ -1045,6 +1046,7 @@ export default function LearningActivityEditor({
               onReplaceVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
               onBackgroundImage={() => selectedPage && setPickingBackgroundFor(selectedPage.page_uuid)}
               onShowDesktop={() => setDevice('desktop')}
+              info={{ variables: learningVariables, pages, pageOrder, onCreateDetail: (key, label) => createVariableFromKey(key, 'text', label) }}
             />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               {variantKey !== 'default' && (
@@ -1440,8 +1442,8 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
   const contentReadOnly = Boolean(readOnly || block.system?.locked)
 
   const content = block.type === 'text' ? (
-    block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding'
-      ? <div className="rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">{block.content.nodes[0].content[0].attrs?.binding?.fallback || 'Dynamic value'}</div>
+    wholeBlockBinding(block)
+      ? <div className="rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">{(block as any).content.nodes[0].content[0].attrs?.binding?.fallback || 'Dynamic value'}</div>
       : <TextBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
   ) : block.type === 'image' ? (
     <ImageBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onPatch={onPatch} onRequestImageUpload={onRequestImageUpload} />
@@ -1899,6 +1901,7 @@ function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onP
       }),
       LearningTextAlign,
       LearningTextStyle,
+      DisplayBindingNode,
     ],
     content: { type: 'doc', content: nodes },
     editorProps: {
@@ -2293,6 +2296,12 @@ function getTextBlockListTitle(block: any): string {
   return title || 'Text block'
 }
 
+/** An older text block that is nothing but one dynamic value (inline "Their info" chips carry a label). */
+function wholeBlockBinding(block: any) {
+  const only = block.content?.nodes?.length === 1 && block.content.nodes[0]?.content?.length === 1 ? block.content.nodes[0].content[0] : null
+  return only?.type === 'displayBinding' && !only.attrs?.label
+}
+
 function getEditorNodePlainText(node: any): string {
   if (!node) return ''
   if (Array.isArray(node)) return node.map(getEditorNodePlainText).join(' ')
@@ -2309,7 +2318,7 @@ function getEditorNodePlainText(node: any): string {
 function BlockInspector({ block, page, pages, learningVariables, onCreateVariableKey, onPatchBlock, onPatchPage, onToggleSideBySide, onRequestImageUpload }: any) {
   const design = block.design || {}
   const patchDesign = (patch: any) => onPatchBlock(block.id, { design: { ...design, ...patch } })
-  const textBinding = block.type === 'text' && block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding'
+  const textBinding = block.type === 'text' && wholeBlockBinding(block)
     ? block.content.nodes[0].content[0].attrs?.binding
     : null
   const useStaticText = () => {

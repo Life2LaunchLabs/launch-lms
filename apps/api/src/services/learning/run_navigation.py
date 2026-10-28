@@ -12,6 +12,7 @@ from src.db.learning import (
 from src.db.goals import Goal
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.users import User
+from src.services.learning import learner_details
 from src.services.learning_sequence import resolve_activity, routes
 from src.services.learning_page_convert import (
     find_question_block,
@@ -238,6 +239,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                         "user.portfolio.location_label": portfolio.location_label or "",
                     }
                 )
+                render_context["variables"].update(learner_details.traits(db_session, int(user.id)))  # type: ignore[arg-type]
                 timelines = db_session.exec(
                     select(TimelineEntry)
                     .where(TimelineEntry.portfolio_id == portfolio.id)
@@ -249,6 +251,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                     {"value": item.timeline_uuid, "label": item.title}
                     for item in timelines
                 ]
+            render_context["variables"].update(learner_details.detail_variables(db_session, run.org_id, user))
             # Dynamic option collections use the same {value,label,...} contract as
             # timeline_options, so standard question blocks can consume new domain
             # lists without adding one-off response shapes.
