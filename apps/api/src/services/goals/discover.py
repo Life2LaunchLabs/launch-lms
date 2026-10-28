@@ -27,6 +27,7 @@ from src.db.users import PublicUser
 from src.security.access.access import orgs_with_feature
 from src.security.org_auth import require_org_admin
 from src.services.goals import collections, template_marketplace as market, templates
+from src.services.orgs.owner import owner_org
 
 APPROVED = TemplateAuthorizationStatus.APPROVED.value
 REQUESTED = TemplateAuthorizationStatus.REQUESTED.value
@@ -145,8 +146,10 @@ def discover(db: Session, current_user: PublicUser, org_id: int, query: str = ""
         plans = sorted((plan for plan in plans if plan["covers"]), key=lambda plan: -len(plan["covers"]))
         return {"featured": None, "collections": [], "plans": plans, "categories": list(collections.CATEGORIES)}
     shared = [item for item in catalog["collections"] if _matches(needle, item["name"], item["description"], (item["creator_org"] or {}).get("name", ""), *item["categories"])]
-    # Partners' collections lead; among them, the largest is the one featured.
-    shared.sort(key=lambda item: (not item["partner"], -item["plan_count"], item["name"]))
+    # Partners' collections lead, outside partners before the platform's own; the first is the one featured.
+    owner = owner_org(db)
+    shared.sort(key=lambda item: (not item["partner"], (item["creator_org"] or {}).get("id") == (owner.id if owner else None),
+                                  -item["plan_count"], item["name"]))
     featured = next((item for item in shared if item["partner"] and item["status"] != "own"), None)
     return {"featured": featured, "collections": shared, "plans": plans, "categories": list(collections.CATEGORIES)}
 
