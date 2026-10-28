@@ -32,6 +32,39 @@
                 "confirm": "Skip the rest? You can fill it in on the goal's page.",
                 "to_page_uuid": "learning_page_launch_ready"
               }
+            },
+            "sequence": {
+              "version": 1,
+              "items": [
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_title"
+                },
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_why"
+                },
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_size"
+                },
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_start"
+                },
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_help"
+                },
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_template"
+                },
+                {
+                  "type": "page",
+                  "page_uuid": "learning_page_launch_ready"
+                }
+              ]
             }
           }
         },
@@ -42,25 +75,14 @@
             "title": "What do you want to work toward?",
             "required": false,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_title_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "What do you want to work toward?"
-                        }
-                      ]
-                    }
+                    "text": "What do you want to work toward?",
+                    "size": "xl"
                   }
                 },
                 {
@@ -125,25 +147,14 @@
             "title": "Why does it matter to you?",
             "required": false,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_why_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Why does it matter to you?"
-                        }
-                      ]
-                    }
+                    "text": "Why does it matter to you?",
+                    "size": "xl"
                   }
                 },
                 {
@@ -208,25 +219,14 @@
             "title": "How big does it feel?",
             "required": false,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_size_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "How big does it feel?"
-                        }
-                      ]
-                    }
+                    "text": "How big does it feel?",
+                    "size": "xl"
                   }
                 },
                 {
@@ -298,25 +298,14 @@
             "title": "Where are you starting from?",
             "required": false,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_start_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Where are you starting from?"
-                        }
-                      ]
-                    }
+                    "text": "Where are you starting from?",
+                    "size": "xl"
                   }
                 },
                 {
@@ -391,25 +380,14 @@
             "title": "How should Coach help?",
             "required": false,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_help_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "How should Coach help?"
-                        }
-                      ]
-                    }
+                    "text": "How should Coach help?",
+                    "size": "xl"
                   }
                 },
                 {
@@ -484,25 +462,14 @@
             "title": "Start from a plan?",
             "required": false,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_template_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Start from a plan?"
-                        }
-                      ]
-                    }
+                    "text": "Start from a plan?",
+                    "size": "xl"
                   }
                 },
                 {
@@ -574,25 +541,14 @@
             "title": "You're set",
             "required": true,
             "content": {
-              "version": 2,
+              "version": 3,
               "blocks": [
                 {
                   "id": "blk_launch_ready_heading",
-                  "type": "text",
-                  "design": {},
+                  "type": "heading",
                   "content": {
-                    "node": {
-                      "type": "heading",
-                      "attrs": {
-                        "level": 1
-                      },
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "You're set."
-                        }
-                      ]
-                    }
+                    "text": "You're set.",
+                    "size": "xl"
                   }
                 },
                 {

@@ -83,16 +83,16 @@ def test_seed_pages_keep_admin_edits_and_regain_missing_bindings():
         starter.sync_starter_template(db)
         name_page = db.exec(select(LearningPage).where(LearningPage.page_uuid == "learning_page_starter_name")).one()
         content = json.loads(json.dumps(name_page.content))
-        content["blocks"][0]["content"]["node"]["content"][0]["text"] = "Edited by an admin"
-        content["blocks"][1]["completion"]["variable_bindings"] = {}
+        content["blocks"][1]["content"]["node"]["content"][0]["text"] = "Edited by an admin"
+        content["blocks"][2]["completion"]["variable_bindings"] = {}
         name_page.content, name_page.title = content, "Your name"
         db.add(name_page)
         db.commit()
         starter.sync_starter_template(db)
         db.refresh(name_page)
         assert name_page.title == "Your name"
-        assert name_page.content["blocks"][0]["content"]["node"]["content"][0]["text"] == "Edited by an admin"
-        assert name_page.content["blocks"][1]["completion"]["variable_bindings"]["inputs"]["first_name"] == {"target": "user.first_name"}
+        assert name_page.content["blocks"][1]["content"]["node"]["content"][0]["text"] == "Edited by an admin"
+        assert name_page.content["blocks"][2]["completion"]["variable_bindings"]["inputs"]["first_name"] == {"target": "user.first_name"}
         # Seed edits change the content, so the next sync publishes it.
         assert _state(db)["versions"] == 2
 
