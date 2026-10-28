@@ -7,7 +7,7 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
-from src.db.goals import GoalAssignment
+from src.db.goals import AssignmentStatus, GoalAssignment
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupCreate, UserGroupRead, UserGroupUpdate
 from src.db.users import (
@@ -254,7 +254,7 @@ async def read_usergroup_overview(
     assignments = db_session.exec(select(GoalAssignment).where(
         GoalAssignment.org_id == org_id,
         GoalAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
-        GoalAssignment.active == True,  # noqa: E712
+        GoalAssignment.status == AssignmentStatus.ACTIVE.value,
     )).all()
     active_group_ids = {assignment.usergroup_id for assignment in assignments}
     assigned_group_ids = {
