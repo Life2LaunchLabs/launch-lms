@@ -58,7 +58,6 @@ interface OrgRow {
   user_count: number
   badge_count: number
   pending_request_count: number
-  custom_domains: string[]
   admin_users: { username: string }[]
   creation_date: string
   update_date: string
@@ -247,13 +246,6 @@ export default function OrgsTable() {
                             </p>
                             <p className="text-xs text-gray-400 font-mono truncate">
                               {row.slug}
-                              {row.custom_domains.length > 0 && (
-                                <span className="ml-2 text-emerald-600">
-                                  {row.custom_domains[0]}
-                                  {row.custom_domains.length > 1 &&
-                                    ` +${row.custom_domains.length - 1}`}
-                                </span>
-                              )}
                             </p>
                           </div>
                         </Link>
