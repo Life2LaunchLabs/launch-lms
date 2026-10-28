@@ -1,6 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 import {
   RequestBodyWithAuthHeader,
+  errorHandling,
   getResponseMetadata,
 } from '@services/utils/ts/requests'
 
@@ -240,3 +241,22 @@ export type ActivityAudit = {
 }
 
 export const activityAuditPath = (notes = false) => `${getAPIUrl()}superadmin/learning-content/audit${notes ? '?notes=true' : ''}`
+
+/** A platform-wide API key (Platform › Settings); the key itself is never sent back. */
+export type PlatformKey = {
+  key: string
+  label: string
+  help_url: string
+  env: string
+  source: 'platform' | 'environment' | 'none'
+  last4: string
+  updated_at: string | null
+}
+
+export async function savePlatformKey(name: string, value: string, accessToken: string): Promise<PlatformKey[]> {
+  const result = await fetch(
+    `${getAPIUrl()}superadmin/settings/keys/${encodeURIComponent(name)}`,
+    RequestBodyWithAuthHeader('PUT', { value }, null, accessToken)
+  )
+  return errorHandling(result)
+}

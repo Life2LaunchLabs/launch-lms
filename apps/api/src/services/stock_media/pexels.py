@@ -3,8 +3,6 @@ StockItem dicts: {provider, id, kind, alt, width, height, duration, preview_url,
 
 from __future__ import annotations
 
-import os
-
 import httpx
 from fastapi import HTTPException
 
@@ -15,7 +13,9 @@ MAX_VIDEO_HEIGHT = 1080
 
 
 def api_key() -> str:
-    return os.environ.get(KEY_ENV, "").strip()
+    from src.services import platform_secrets
+
+    return platform_secrets.get("pexels")
 
 
 async def _get(path: str, params: dict | None = None) -> dict:

@@ -31,7 +31,7 @@ def _provider(name: str):
     if provider is None:
         raise HTTPException(status_code=422, detail=f"Unknown stock provider: {name}")
     if not provider.api_key():
-        raise HTTPException(status_code=503, detail=f"Stock search isn't set up: add {provider.KEY_ENV} to the API's environment")
+        raise HTTPException(status_code=503, detail=f"Stock search isn't set up: add a Pexels key in Platform › Settings (or {provider.KEY_ENV} in the API's environment)")
     return provider
 
 

@@ -66,6 +66,7 @@ from src.routers.orgs import invite_landing as org_invite_landing
 from src.routers.orgs import join_requests as org_join_requests
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.superadmin import router as superadmin_router
+from src.routers.platform_keys import router as platform_keys_router
 from src.routers.coach_admin import router as coach_admin_router
 from src.routers.coach_reports import router as coach_reports_router
 from src.routers.utils import router as utils_router
@@ -311,6 +312,13 @@ v1_router.include_router(
 v1_router.include_router(
     superadmin_router,
     prefix="/superadmin",
+    tags=["superadmin"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+v1_router.include_router(
+    platform_keys_router,
+    prefix="/superadmin/settings/keys",
     tags=["superadmin"],
     dependencies=[Depends(get_non_api_token_user)],
 )

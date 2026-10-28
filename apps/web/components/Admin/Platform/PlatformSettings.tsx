@@ -7,6 +7,7 @@ import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl } from '@services/config/config'
 import ActivityFormatAudit from './ActivityFormatAudit'
+import PlatformKeys from '@components/Admin/Platform/PlatformKeys'
 import { WelcomeMessageTemplate, welcomeMessageTemplateApi } from '@services/messages/messages'
 import { swrFetcher } from '@services/utils/ts/requests'
 
@@ -71,6 +72,7 @@ export default function PlatformSettings() {
         </div>
       </div>
       <ActivityFormatAudit />
+      <PlatformKeys token={token} />
     </div>
   )
 }
