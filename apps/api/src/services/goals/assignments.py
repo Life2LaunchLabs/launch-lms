@@ -176,12 +176,6 @@ def _sync_chats(db: Session, assignment: GoalAssignment) -> None:
     cohort.sync(db, assignment)
 
 
-def sync_group(db: Session, usergroup_id: int) -> None:
-    """Issue goals from the group's active assignments to members who joined after them (flushed, not committed)."""
-    for assignment in db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == usergroup_id, GoalAssignment.active == True)).all():  # noqa: E712
-        sync_assignment(db, assignment)
-
-
 def _member(db: Session, org_id: int, user_id: int) -> bool:
     return db.exec(select(UserOrganization.id).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first() is not None
 

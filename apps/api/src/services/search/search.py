@@ -9,6 +9,7 @@ from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannelRead
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
+from src.security.access.access import owner_org_id
 from src.security.org_auth import is_org_member
 from src.services.orgs.orgs import _build_discover_org_read
 from src.services.resources import _channel_is_accessible, _org_channels, list_resources
@@ -125,6 +126,7 @@ async def search_across_org(
         .params(pattern=f"%{search_query}%")
     )
 
+    owner_id = owner_org_id(db_session)
     if isinstance(current_user, AnonymousUser):
         organizations_query = organizations_query.where(Organization.explore == sa_true())
         organizations = [
@@ -135,6 +137,7 @@ async def search_across_org(
                 ).first(),
                 False,
                 db_session.exec(select(func.count()).where(UserOrganization.org_id == discover_org.id)).one(),
+                owner_id,
             )
             for discover_org in db_session.exec(organizations_query.offset(offset).limit(limit)).all()
         ]
@@ -201,6 +204,7 @@ async def search_across_org(
                     org_config,
                     discover_org.id in member_org_ids if discover_org.id is not None else False,
                     member_counts_map.get(discover_org.id or 0, 0),
+                    owner_id,
                 )
             )
 
