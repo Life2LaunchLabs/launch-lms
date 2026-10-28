@@ -441,12 +441,15 @@ def resolve_activity(settings: dict | None, pages: list[dict], context: dict) ->
 
 
 def validate_player_settings(settings: dict) -> None:
-    """``settings.design``: how the player presents the activity."""
-    from src.services.learning_content.models import ActivityDesign, content_error
+    """``settings.design`` (how the player presents the activity) and ``settings.grading``."""
+    from src.services.learning_content.models import ActivityDesign, ActivityGrading, content_error
 
     error = content_error(ActivityDesign, settings.get("design") or {})
     if error:
         raise FlowValidationError(f"Invalid activity design: {error}")
+    error = content_error(ActivityGrading, settings.get("grading") or {})
+    if error:
+        raise FlowValidationError(f"Invalid grading: {error}")
 
 
 def sequence_changed_by(stored: dict | None, patch: dict) -> dict:

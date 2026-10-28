@@ -205,3 +205,25 @@ class ActivityDesign(BaseModel):
     background: dict[str, Any] | None = None
     exit: dict[str, Any] | None = None
     ending: ActivityEnding | None = Field(default=None, description="An ending screen with a message, the score and a celebration.")
+
+
+class QuestionFeedback(BaseModel):
+    """What a learner sees after answering a graded question."""
+
+    model_config = STRICT
+
+    correct: str | None = Field(default=None, max_length=1000)
+    incorrect: str | None = Field(default=None, max_length=1000)
+
+
+class ActivityGrading(BaseModel):
+    """How an activity is finished (``settings.grading``)."""
+
+    model_config = OPEN
+
+    finish: Literal["complete", "pass"] | None = Field(default=None, description="`complete`: done once answered; `pass` (default): reach the pass mark when questions have points.")
+    minimum_score_percent: float | None = Field(default=None, ge=0, le=100, description="The pass mark; 70 by default.")
+    if_not_passed: Literal["try_again", "redo_missed", "staff_decide"] | None = Field(default=None, description="`try_again` (default) starts over, `redo_missed` reopens the pages they missed, `staff_decide` waits in the review queue.")
+    show_score: bool | None = Field(default=None, description="Show the score at the end; on by default.")
+    success_message: str | None = Field(default=None, max_length=1000)
+    failure_message: str | None = Field(default=None, max_length=1000)

@@ -71,6 +71,9 @@ export interface ActivityReview {
   attempt_history: any[]
   pending_attempt_uuids: string[]
   submitted_at: string
+  /** Fully graded but under the pass mark, with staff deciding what happens next. */
+  awaiting_decision?: boolean
+  score_percent?: number | null
   [key: string]: any
 }
 export interface StepReview extends ReviewItem { review_type: 'step'; progress_uuid: string; step: { title: string; type: StepTypeKey; stage_title: string | null; reviewer_guidance: string } }

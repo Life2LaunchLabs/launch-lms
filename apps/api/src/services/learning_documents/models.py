@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.services.learning_content.models import ActivityDesign, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
+from src.services.learning_content.models import ActivityDesign, ActivityGrading, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
 
 DOCUMENT_FORMAT = "launch-lms.activity"
 DOCUMENT_FORMAT_VERSION = 2
@@ -101,6 +101,7 @@ def activity_document_json_schema() -> dict:
     defs["Flow"] = _inline(Flow, defs)
     defs["Sequence"] = _inline(Sequence, defs)
     defs["ActivityDesign"] = _inline(ActivityDesign, defs)
+    defs["ActivityGrading"] = _inline(ActivityGrading, defs)
     defs["PageDesign"] = _inline(PageDesign, defs)
     page_design = {"$ref": "#/$defs/PageDesign"}
     page = defs["ActivityDocumentPage"]["properties"]
@@ -114,14 +115,7 @@ def activity_document_json_schema() -> dict:
         "sequence": {"$ref": "#/$defs/Sequence"},
         "flow": {"$ref": "#/$defs/Flow", "description": "Older activities only; write `sequence` instead. Ignored when `sequence` is set."},
         "design": {"$ref": "#/$defs/ActivityDesign"},
-        "grading": {
-            "type": "object",
-            "properties": {
-                "minimum_score_percent": {"type": "number"},
-                "success_message": {"type": "string"},
-                "failure_message": {"type": "string"},
-            },
-        },
+        "grading": {"$ref": "#/$defs/ActivityGrading"},
     }
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = "https://launch-lms.dev/schemas/activity-document-v2.json"

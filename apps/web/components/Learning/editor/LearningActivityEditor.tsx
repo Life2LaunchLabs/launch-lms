@@ -17,6 +17,7 @@ import {
   ChevronRight,
   FileText,
   GripVertical,
+  ClipboardCheck,
   Hand,
   Image as ImageIcon,
   Layers3,
@@ -103,6 +104,7 @@ import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageRail, followLabel, pageHeading, type RailMode } from './PageRail'
 import { NewPageDialog } from './EditorDialogs'
 import { ActivitySettingsDialog } from './ActivitySettings'
+import { GradingView } from './GradingView'
 import type { PageDraft } from './pageTemplates'
 import { flowVariables } from './flowVariables'
 import { branchVariable, freshRule, operandOf } from './branchRules'
@@ -156,6 +158,7 @@ export default function LearningActivityEditor({
     },
   }))
   const [railMode, setRailMode] = React.useState<RailMode>('pages')
+  const [grading, setGrading] = React.useState(false)
   const [newPageOpen, setNewPageOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [inspectorOpen, setInspectorOpen] = React.useState(false)
@@ -403,6 +406,11 @@ export default function LearningActivityEditor({
     setBlocks(selectedPage.page_uuid, getEditorBlocks(selectedPage, variantKey).map((block) => block.id === blockId && !block.system?.locked ? ({ ...block, ...patch } as LearningBlock) : block))
   }, [selectedPage, setBlocks, variantKey])
 
+  const patchPageBlock = (pageUuid: string, blockId: string, patch: any) => {
+    const page = pages.find((item) => item.page_uuid === pageUuid)
+    if (page) setBlocks(pageUuid, getEditorBlocks(page, 'default').map((block) => block.id === blockId ? ({ ...block, ...patch } as LearningBlock) : block))
+  }
+
   const removeBlock = (blockId: string) => {
     if (!selectedPage) return
     const target = getEditorBlocks(selectedPage, variantKey).find((block) => block.id === blockId)
@@ -592,6 +600,7 @@ export default function LearningActivityEditor({
       changeSequence(insertAfter(sequence, page.page_uuid, selectedPage?.page_uuid))
       setSelection({ pageUuid: page.page_uuid, blockId: null })
       setRailMode('pages')
+      setGrading(false)
       setLastSavedAt(new Date())
       return page
     } catch (error: any) {
@@ -912,6 +921,8 @@ export default function LearningActivityEditor({
         onTitle={(title: string) => patchActivityBasics({ title })}
         onSettings={() => setSettingsOpen(true)}
         onPreview={() => setPreviewOpen(true)}
+        grading={grading}
+        onGrading={() => setGrading((on) => !on)}
       />
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -956,7 +967,17 @@ export default function LearningActivityEditor({
         mediaType="image"
         accessToken={accessToken}
       />
-      {railMode !== 'pages' ? (
+      {grading ? (
+        <GradingView
+          pages={pages}
+          pageOrder={pageOrder}
+          grading={gradingSettings}
+          onPatchGrading={patchGradingSettings}
+          onPatchBlock={patchPageBlock}
+          onAddQuestion={(draft) => { void addPage(draft) }}
+          onShowOnPage={(pageUuid, blockId) => { setGrading(false); setRailMode('pages'); setSelection({ pageUuid, blockId }) }}
+        />
+      ) : railMode !== 'pages' ? (
         <div className="flex min-h-0 flex-1">
           <PageRail
               mode={railMode}
@@ -1149,7 +1170,7 @@ export default function LearningActivityEditor({
   )
 }
 
-function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastSavedAt, onBack, onTitle, onSettings, onPreview }: any) {
+function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastSavedAt, onBack, onTitle, onSettings, onPreview, grading, onGrading }: any) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -1172,6 +1193,10 @@ function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastS
           <DeviceModeButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={<Smartphone size={14} />} label="Phone" />
           <DeviceModeButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={<Monitor size={14} />} label="Desktop" />
         </div>
+        <button onClick={onGrading} aria-pressed={grading} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-bold transition ${grading ? 'border-sky-600 bg-sky-50 text-sky-800' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}>
+          <ClipboardCheck size={16} />
+          Grading
+        </button>
         <button onClick={onSettings} className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
           <Settings2 size={16} />
           Activity settings

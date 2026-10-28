@@ -32,3 +32,4 @@ from src.services.learning.variable_definitions import (  # noqa: F401
 )
 from src.services.learning.runtime import complete_page, submit_response  # noqa: F401
 from src.services.learning.response_review import list_learning_responses, grade_learning_response  # noqa: F401
+from src.services.learning.run_decisions import decide_run  # noqa: F401

@@ -109,3 +109,12 @@ export async function gradeLearningResponse(attemptUuid: string, data: { score: 
   return errorHandling(result)
 }
 
+
+/** Staff decide on a run that didn't reach the pass mark: pass it, or reopen it to try again. */
+export async function decideLearningRun(runUuid: string, data: { passed: boolean; note?: string }, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-runs/${runUuid}/decision`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
