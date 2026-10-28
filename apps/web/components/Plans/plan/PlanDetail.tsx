@@ -26,8 +26,9 @@ import VisibilityChip, { useVisibility } from './VisibilityChip'
 export type PlanPanel = 'settings' | 'versions' | 'visibility' | null
 
 /**
- * One plan on one page. The header and steps show the live version; the draft is its own bar, and
- * steps change only while editing it. The sidebar has the badge, requirements and assignments.
+ * One plan on one page. Editors change it in place: steps open where they sit and every change goes
+ * into the draft, which the draft bar publishes. Others see the live version. The sidebar has the
+ * badge, requirements and assignments.
  */
 export default function PlanDetail({ orgslug, templateUuid, panel = null }: { orgslug: string; templateUuid: string; panel?: PlanPanel }) {
   const org = useOrg() as { id?: number; name?: string; org_uuid?: string; logo_image?: string } | null
@@ -45,24 +46,14 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
   const template = editing.template!
   const canAssign = useCanEditPlans() === true
   const visibility = useVisibility(orgId, token, template)
-  const [editMode, setEditMode] = React.useState(false)
   const [versionsOpen, setVersionsOpen] = React.useState(panel === 'versions')
   const [settingsOpen, setSettingsOpen] = React.useState(panel === 'settings')
   const [visibilityOpen, setVisibilityOpen] = React.useState(panel === 'visibility')
   const owned = Number(template.org_id) === orgId
   const readOnly = !!template.read_only
   const canEdit = owned && !readOnly && !template.system_type
-  // A plan that was never published is all draft: open it ready to edit.
-  const opened = React.useRef(false)
-  React.useEffect(() => {
-    if (opened.current) return
-    opened.current = true
-    if (canEdit && !template.live_version && template.draft && !template.versions?.length) setEditMode(true)
-  }, [canEdit, template])
-
-  const drafting = editMode && canEdit && !!template.draft
-  // The live view: the live version's steps; with nothing live yet, the draft is all there is.
-  const document = drafting || !template.live_document ? template.document : template.live_document
+  // Editors work on the draft right on the page (the first change starts one); everyone else sees the live version.
+  const document = canEdit || !template.live_document ? template.document : template.live_document
   const basedOn = template.based_on as { org?: { name?: string } | null; version?: number | null } | null | undefined
   const liveIsOriginal = !!basedOn?.org && template.live_version?.number === 1
   const by = !owned ? { name: template.owner_org?.name || 'another organization' }
@@ -96,12 +87,12 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
       </nav>
       <div className="mt-3.5 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <main className="min-w-0">
-          <PlanHeader editing={editing} editMode={drafting} by={by} canSwitchLive={canEdit && !!template.versions?.length} note={note} menu={menu}
+          <PlanHeader editing={editing} editMode={canEdit} by={by} canSwitchLive={canEdit && !!template.versions?.length} note={note} menu={menu}
             collections={owned ? <PlanCollections orgslug={orgslug} orgId={orgId} token={token} template={template} canEdit={canEdit} /> : null}
             visibility={<VisibilityChip orgId={orgId} token={token} template={template} open={visibilityOpen} setOpen={setVisibilityOpen} />} />
-          {canEdit ? <DraftBar orgId={orgId} token={token} editing={editing} editMode={drafting} setEditMode={setEditMode} canAssign={canAssign} onVisibility={menu.visibility} /> : null}
+          {canEdit ? <DraftBar orgId={orgId} token={token} editing={editing} canAssign={canAssign} onVisibility={menu.visibility} /> : null}
           <StaleTemplateBanner editing={editing} />
-          <PlanSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} editMode={drafting} />
+          <PlanSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} editMode={canEdit} />
         </main>
         <PlanSidebar orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} canAssign={canAssign} canEdit={canEdit} />
       </div>

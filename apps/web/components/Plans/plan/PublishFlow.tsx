@@ -23,7 +23,7 @@ type Props = {
   editing: TemplateEditing
   changes?: DraftChanges
   canAssign: boolean
-  onPublished: () => void
+  onPublished?: () => void
   /** Opens "Who can find it", when the viewer has it. */
   onVisibility?: (() => void) | null
 }
@@ -62,7 +62,7 @@ export default function PublishFlow({ open, setOpen, orgId, token, editing, chan
       const result = await templatesApi.publish(orgId, template.template_uuid, { make_live: makeLive }, token)
       await editing.replace(result)
       await globalMutate(isTemplatesKey)
-      onPublished()
+      onPublished?.()
       setDone({ semver: result.versions?.[0]?.semver || semver, live: makeLive, moved: result.moved?.plans || 0, first: !versions.length })
     } catch (error: any) { toast.error(error?.message || 'Could not publish the version.') } finally { setBusy(false) }
   }
