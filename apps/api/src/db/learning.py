@@ -220,4 +220,16 @@ class LearningRunRead(BaseModel):
     render_context: dict = Field(default_factory=dict)
 
 
+class LearningContentBackup(SQLModel, table=True):
+    """What the version 3 migration replaced: an activity's settings or a page's content, kept for one release."""
+
+    __table_args__ = (UniqueConstraint("kind", "ref_uuid", "migration"),)
+    id: int | None = Field(default=None, primary_key=True)
+    kind: str  # "activity" (its settings) or "page" (its content)
+    ref_uuid: str = Field(index=True)
+    migration: str = "v3"
+    data: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    creation_date: str = ""
+
+
 LearningActivityRead.model_rebuild()

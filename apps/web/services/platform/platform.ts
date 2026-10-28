@@ -217,3 +217,26 @@ export async function updatePlanRequest(
   )
   return getResponseMetadata(result)
 }
+
+// ============================================================================
+// Activity format audit (the version 3 migration)
+// ============================================================================
+
+export type ActivityAuditFlag = { code: string; message: string; review: boolean; page_uuid?: string }
+export type ActivityAuditRow = {
+  activity_uuid: string
+  title: string
+  frozen: boolean
+  org_slug: string | null
+  org_name: string | null
+  editor_url: string | null
+  review: number
+  codes: Record<string, number>
+  flags: ActivityAuditFlag[]
+}
+export type ActivityAudit = {
+  summary: { activities: number; sequences: number; pages_converted: number; pages_kept_v2: number; flags: Record<string, number> }
+  activities: ActivityAuditRow[]
+}
+
+export const activityAuditPath = (notes = false) => `${getAPIUrl()}superadmin/learning-content/audit${notes ? '?notes=true' : ''}`

@@ -6,6 +6,7 @@ import { Loader2, RotateCcw, Save } from 'lucide-react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl } from '@services/config/config'
+import ActivityFormatAudit from './ActivityFormatAudit'
 import { WelcomeMessageTemplate, welcomeMessageTemplateApi } from '@services/messages/messages'
 import { swrFetcher } from '@services/utils/ts/requests'
 
@@ -69,6 +70,7 @@ export default function PlatformSettings() {
           <div className="flex gap-2"><button type="button" onClick={() => void reset()} disabled={busy !== null || !data?.customized} className="inline-flex h-10 items-center gap-2 rounded-xl border border-black/15 px-4 text-sm font-bold text-gray-700 disabled:opacity-40"><RotateCcw size={15} />Reset</button><button type="button" onClick={() => void save()} disabled={busy !== null || !subject.trim() || !body.trim()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gray-950 px-4 text-sm font-bold text-white disabled:opacity-40">{busy === 'save' ? <Loader2 className="animate-spin" size={15} /> : <Save size={15} />}Save</button></div>
         </div>
       </div>
+      <ActivityFormatAudit />
     </div>
   )
 }

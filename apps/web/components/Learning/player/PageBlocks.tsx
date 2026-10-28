@@ -27,9 +27,10 @@ function Heading({ block }: { block: any }) {
   const words = text.split(/\s+/).filter(Boolean)
   const size = HEADING_SIZE[block.content?.size || 'l'] || HEADING_SIZE.l
   const design = block.design || {}
-  return <h2 className={`font-extrabold leading-[1.08] tracking-tight text-foreground [text-wrap:balance] ${size}`} style={{ color: design.text_color || undefined, textAlign: design.align || undefined }}>
+  // The words animate in as separate spans, so the heading is named once with aria-label (and
+  // the text appears once on the page, which keeps it findable by its words).
+  return <h2 aria-label={reduce ? undefined : text} className={`font-extrabold leading-[1.08] tracking-tight text-foreground [text-wrap:balance] ${size}`} style={{ color: design.text_color || undefined, textAlign: design.align || undefined }}>
     {reduce ? text : <>
-      <span className="sr-only">{text}</span>
       <span aria-hidden="true">
         {words.map((word, index) => <motion.span key={index} className="inline-block" initial={{ opacity: 0, y: '0.45em' }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: index * 0.045, ease: [0.22, 1, 0.36, 1] }}>{word}{index < words.length - 1 ? ' ' : ''}</motion.span>)}

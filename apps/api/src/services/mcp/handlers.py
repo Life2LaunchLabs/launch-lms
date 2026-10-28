@@ -54,6 +54,13 @@ async def get_activity_schema(request: Request, db_session: Session, ctx: Access
     return {"guide": authoring_guide(), "schema": activity_document_json_schema()}
 
 
+async def audit_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    from src.services.learning_content.migrate_v3 import audit_activities as audit
+
+    require_org_admin(ctx.user.id, ctx.org_id, db_session, "build_plans")
+    return {"activities": audit(db_session, org_id=ctx.org_id, only_review=not args.get("notes"))}
+
+
 async def list_variables(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     learning._require_org_admin(db_session, ctx.user, ctx.org_id)
     variables = db_session.exec(
