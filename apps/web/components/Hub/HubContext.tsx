@@ -39,6 +39,9 @@ export type HubCoachIntent = {
   resource?: string
 }
 
+/** Which of the panel's tabs shows, where it has more than Coach (staff have Threads beside it). */
+export type HubTab = 'coach' | 'threads'
+
 export type HubContextValue = {
   surface: HubSurface | null
   // eslint-disable-next-line no-unused-vars
@@ -55,6 +58,12 @@ export type HubContextValue = {
   unread: boolean
   // eslint-disable-next-line no-unused-vars
   attach: (resource: Resource) => void
+  tab: HubTab
+  /** Whether the panel has a Threads tab. */
+  hasThreads: boolean
+  /** Brings the panel out on Threads, with this thread open (null: the list; left out: as it was). */
+  // eslint-disable-next-line no-unused-vars
+  openThreads: (target?: unknown) => void
   editRun: HubEditRun | null
   setEditRun: Dispatch<SetStateAction<HubEditRun | null>>
   editOperations: HubEditOperation[]

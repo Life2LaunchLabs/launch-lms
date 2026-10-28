@@ -380,7 +380,7 @@ async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_s
     from src.db.users import AnonymousUser, PublicUser
     from src.routers.auth import get_welcome_onboarding
     from src.services.goals.starter import ensure_starter_goal, starter_checklist
-    from src.tests.test_badge_marketplace import _create_user as create_user
+    from src.tests.plan_world import _create_user as create_user
     from src.tests.test_goal_starter import _session
 
     db = _session()

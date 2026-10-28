@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { cn } from '@/lib/utils'
 import { RESOURCE_TYPES } from './ResourceShelves'
 
-export type DiscoverFilters = { type: '' | 'badges' | 'resources'; resourceTypes: string[]; saved: boolean }
+export type DiscoverFilters = { type: '' | 'plans' | 'resources'; resourceTypes: string[]; saved: boolean }
 
 export const filtersApplied = (filters: DiscoverFilters) => Boolean(filters.type || filters.resourceTypes.length || filters.saved)
 
@@ -17,7 +17,7 @@ type Props = {
   filters: DiscoverFilters
   // eslint-disable-next-line no-unused-vars
   onFilters: (filters: DiscoverFilters) => void
-  showBadges: boolean
+  showPlans: boolean
   showResources: boolean
   signedIn: boolean
 }
@@ -26,7 +26,7 @@ type Props = {
  * Discover's search: a full-width field with a filter button beside it. Filters live in
  * the button's menu; chips appear under the field only once a filter is applied.
  */
-export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, showBadges, showResources, signedIn }: Props) {
+export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, showPlans, showResources, signedIn }: Props) {
   const [draft, setDraft] = React.useState(query)
   const [lastQuery, setLastQuery] = React.useState(query)
   // Keep the field in step when the URL's query changes from elsewhere (a chip, back button).
@@ -37,10 +37,10 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
     return () => window.clearTimeout(timer)
   }, [draft, query, onQuery])
 
-  const both = showBadges && showResources
-  const resourceFilters = showResources && filters.type !== 'badges'
+  const both = showPlans && showResources
+  const resourceFilters = showResources && filters.type !== 'plans'
   const active = [
-    ...(filters.type ? [{ key: 'type', label: filters.type === 'badges' ? 'Badges' : 'Resources', clear: () => onFilters({ ...filters, type: '', resourceTypes: filters.type === 'resources' ? [] : filters.resourceTypes }) }] : []),
+    ...(filters.type ? [{ key: 'type', label: filters.type === 'plans' ? 'Plans' : 'Resources', clear: () => onFilters({ ...filters, type: '', resourceTypes: filters.type === 'resources' ? [] : filters.resourceTypes }) }] : []),
     ...filters.resourceTypes.map((value) => ({ key: value, label: RESOURCE_TYPES.find((item) => item.value === value)?.label || value, clear: () => onFilters({ ...filters, resourceTypes: filters.resourceTypes.filter((item) => item !== value) }) })),
     ...(filters.saved ? [{ key: 'saved', label: 'Saved', clear: () => onFilters({ ...filters, saved: false }) }] : []),
   ]
@@ -50,7 +50,7 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
     <form role="search" onSubmit={(event) => { event.preventDefault(); onQuery(draft.trim()) }} className="flex gap-2">
       <label className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border-2 border-border bg-card px-4 transition-colors focus-within:border-[var(--org-primary-color)]">
         <Search size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-        <input type="search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={both ? 'Search badges and resources' : showResources ? 'Search resources' : 'Search badges'} aria-label="Search Discover" className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
+        <input type="search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={both ? 'Search plans and resources' : showResources ? 'Search resources' : 'Search plans'} aria-label="Search Discover" className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
         {draft ? <button type="button" onClick={() => { setDraft(''); onQuery('') }} aria-label="Clear search" className="rounded-full p-1 text-muted-foreground hover:bg-raised hover:text-foreground"><X size={16} /></button> : null}
       </label>
       {both || showResources ? <DropdownMenu>
@@ -63,9 +63,9 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
         <DropdownMenuContent align="end" className="w-60">
           {both ? <>
             <DropdownMenuLabel>Show</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={filters.type || 'all'} onValueChange={(value) => onFilters({ ...filters, type: value === 'all' ? '' : value as DiscoverFilters['type'], resourceTypes: value === 'badges' ? [] : filters.resourceTypes, saved: value === 'badges' ? false : filters.saved })}>
+            <DropdownMenuRadioGroup value={filters.type || 'all'} onValueChange={(value) => onFilters({ ...filters, type: value === 'all' ? '' : value as DiscoverFilters['type'], resourceTypes: value === 'plans' ? [] : filters.resourceTypes, saved: value === 'plans' ? false : filters.saved })}>
               <DropdownMenuRadioItem value="all">Everything</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="badges">Badges</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="plans">Plans</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="resources">Resources</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </> : null}

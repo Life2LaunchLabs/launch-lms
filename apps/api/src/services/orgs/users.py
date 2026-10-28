@@ -21,15 +21,13 @@ from src.db.organizations import (
     OrganizationUser,
 )
 from src.db.roles import Role, RoleRead
-from src.db.learning import LearningBadge, LearningBadgeStatus
 from src.db.user_organizations import UserOrganization
-from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
 from src.security.access.access import is_staff_role, org_access, require_role_capacity
 from src.security.access.catalog import LIMITS
-from src.security.org_auth import get_user_org, is_org_member, require_org_owner_admin, staff_permissions
+from src.security.org_auth import is_org_member, require_org_owner_admin, staff_permissions
 from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
@@ -327,26 +325,10 @@ async def get_organization_users(
     if membership is not None:
         base_statement = base_statement.where(UserOrganization.status == membership)
 
-    # Active means an open plan from the organization or a published badge is assigned.
+    # Active means an open plan from the organization.
     # "Assigned to me" narrows to learners on the plans the current staff member staffs.
     if active is not None or assigned_to_me:
         assigned_user_ids = learners_on_plans(db_session, int(org_id), current_user.id if assigned_to_me else None)
-        if active is not None and not assigned_to_me:
-            badge_group_ids = set(db_session.exec(
-                select(UserGroupResource.usergroup_id)
-                .join(LearningBadge, LearningBadge.badge_uuid == UserGroupResource.resource_uuid)
-                .where(
-                    UserGroupResource.org_id == int(org_id),
-                    LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-                )
-            ).all())
-            if badge_group_ids:
-                assigned_user_ids.update(db_session.exec(
-                    select(UserGroupUser.user_id).where(
-                        UserGroupUser.usergroup_id.in_(badge_group_ids)  # type: ignore[union-attr]
-                    )
-                ).all())
-
         if active is False:
             base_statement = base_statement.where(User.id.not_in(assigned_user_ids))
         else:
@@ -779,13 +761,8 @@ async def preview_batch_users(
     )).first()
     if not role:
         raise HTTPException(status_code=400, detail="Role is not available in this organization")
-    if is_staff_role(role):
-        inviter_membership = get_user_org(current_user.id, org.id, db_session)
-        from src.security.superadmin import is_user_superadmin
-        if not is_user_superadmin(current_user.id, db_session) and (
-            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
-        ):
-            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
+    from src.services.orgs import staff_setup
+    staff_setup.clean(db_session, int(org.id), role, current_user.id, invite_request.permissions, invite_request.assignments)
     if invite_request.usergroup_id and invite_request.new_usergroup_name:
         raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
     if invite_request.usergroup_id:
@@ -895,15 +872,10 @@ async def invite_batch_users(
     if not role:
         raise HTTPException(status_code=400, detail="Role is not available in this organization")
 
-    # Only full administrators may grant dashboard-bearing roles. Maintainers can
-    # still invite learners when their normal RBAC permissions allow it.
-    if is_staff_role(role):
-        inviter_membership = get_user_org(current_user.id, org.id, db_session)
-        from src.security.superadmin import is_user_superadmin
-        if not is_user_superadmin(current_user.id, db_session) and (
-            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
-        ):
-            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
+    # Only full administrators may grant dashboard-bearing roles (staff_setup.clean checks).
+    from src.services.orgs import staff_setup
+    invite_permissions, invite_assignments = staff_setup.clean(db_session, int(org.id), role, current_user.id, invite_request.permissions, invite_request.assignments)
+    invite_note = invite_request.note.strip()
 
     if invite_request.usergroup_id and invite_request.new_usergroup_name:
         raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
@@ -999,6 +971,9 @@ async def invite_batch_users(
             created_by_user_id=current_user.id,
             source=invite_request.source,
             batch_uuid=invite_request.batch_uuid,
+            permissions=invite_permissions,
+            assignments=invite_assignments,
+            note=invite_note,
             expires_at=expires_at,
             created_at=now,
             updated_at=now,
@@ -1034,6 +1009,7 @@ async def invite_batch_users(
                 invitation.email,
                 invitation.invitation_uuid,
                 base_url,
+                setup=staff_setup.describe(db_session, invitation),
             ))
         except Exception:
             logging.exception("Failed to send organization invitation to %s", invitation.email)
@@ -1187,9 +1163,11 @@ async def resend_invited_user(
     inviter = db_session.exec(select(User).where(User.id == current_user.id)).first()
     if not inviter:
         raise HTTPException(status_code=401, detail="Authentication required")
+    from src.services.orgs import staff_setup
     invitation.email_sent = bool(send_direct_invitation_email(
         OrganizationRead.model_validate(org), UserRead.model_validate(inviter), invitation.email,
         invitation.invitation_uuid, get_base_url_from_request(request),
+        setup=staff_setup.describe(db_session, invitation),
     ))
     invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
     invitation.delivery_attempts += 1

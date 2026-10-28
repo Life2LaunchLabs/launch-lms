@@ -1,0 +1,269 @@
+/* ─── Admin dark mode ───
+   Much of the admin UI is written with Tailwind's fixed palette (bg-white, text-gray-900,
+   bg-amber-50 …) rather than the theme tokens. AdminSurface marks <html> with
+   data-surface="admin"; when the learner's theme is dark, the rules below re-point that
+   palette at the dark tokens so those pages follow the Appearance setting without
+   rewriting every class. New admin code should still use the tokens (bg-card,
+   text-foreground, border-border …). Print stays light.
+   Because the light and dark ends swap, a dark: variant written for the plain palette
+   (dark:bg-amber-950, dark:text-amber-200) comes out light here. In dark: variants use the
+   300-600 shades, which don't move: dark:bg-amber-500/15, dark:border-amber-500/30,
+   dark:text-amber-300. The admin surface also covers onboarding (/auth/start, /joined). */
+
+@media screen {
+html.dark[data-surface='admin'] {
+  /* Neutrals turn over: the light end becomes surfaces and lines, the dark end text. */
+  --admin-n50: hsl(198 30% 13%);
+  --admin-n100: hsl(199 26% 18%);
+  --admin-n200: hsl(201 24% 24%);
+  --admin-n300: hsl(201 20% 32%);
+  --admin-n400: hsl(199 13% 52%);
+  --admin-n500: hsl(199 13% 62%);
+  --admin-n600: hsl(199 15% 72%);
+  --admin-n700: hsl(200 25% 82%);
+  --admin-n800: hsl(204 35% 89%);
+  --admin-n900: hsl(204 45% 95%);
+  --admin-n950: hsl(204 50% 97%);
+  --color-gray-50: var(--admin-n50);
+  --color-gray-100: var(--admin-n100);
+  --color-gray-200: var(--admin-n200);
+  --color-gray-300: var(--admin-n300);
+  --color-gray-400: var(--admin-n400);
+  --color-gray-500: var(--admin-n500);
+  --color-gray-600: var(--admin-n600);
+  --color-gray-700: var(--admin-n700);
+  --color-gray-800: var(--admin-n800);
+  --color-gray-900: var(--admin-n900);
+  --color-gray-950: var(--admin-n950);
+  --color-slate-50: var(--admin-n50);
+  --color-slate-100: var(--admin-n100);
+  --color-slate-200: var(--admin-n200);
+  --color-slate-300: var(--admin-n300);
+  --color-slate-400: var(--admin-n400);
+  --color-slate-500: var(--admin-n500);
+  --color-slate-600: var(--admin-n600);
+  --color-slate-700: var(--admin-n700);
+  --color-slate-800: var(--admin-n800);
+  --color-slate-900: var(--admin-n900);
+  --color-slate-950: var(--admin-n950);
+  --color-zinc-50: var(--admin-n50);
+  --color-zinc-100: var(--admin-n100);
+  --color-zinc-200: var(--admin-n200);
+  --color-zinc-300: var(--admin-n300);
+  --color-zinc-400: var(--admin-n400);
+  --color-zinc-500: var(--admin-n500);
+  --color-zinc-600: var(--admin-n600);
+  --color-zinc-700: var(--admin-n700);
+  --color-zinc-800: var(--admin-n800);
+  --color-zinc-900: var(--admin-n900);
+  --color-zinc-950: var(--admin-n950);
+  --color-neutral-50: var(--admin-n50);
+  --color-neutral-100: var(--admin-n100);
+  --color-neutral-200: var(--admin-n200);
+  --color-neutral-300: var(--admin-n300);
+  --color-neutral-400: var(--admin-n400);
+  --color-neutral-500: var(--admin-n500);
+  --color-neutral-600: var(--admin-n600);
+  --color-neutral-700: var(--admin-n700);
+  --color-neutral-800: var(--admin-n800);
+  --color-neutral-900: var(--admin-n900);
+  --color-neutral-950: var(--admin-n950);
+  --color-stone-50: var(--admin-n50);
+  --color-stone-100: var(--admin-n100);
+  --color-stone-200: var(--admin-n200);
+  --color-stone-300: var(--admin-n300);
+  --color-stone-400: var(--admin-n400);
+  --color-stone-500: var(--admin-n500);
+  --color-stone-600: var(--admin-n600);
+  --color-stone-700: var(--admin-n700);
+  --color-stone-800: var(--admin-n800);
+  --color-stone-900: var(--admin-n900);
+  --color-stone-950: var(--admin-n950);
+
+  /* Hues: light tints become dark tints of the same hue, dark shades become light ones;
+     300-600 (the saturated middle buttons and icons use) stay as they are. */
+  --color-red-50: color-mix(in oklab, oklch(63.7% 0.237 25.331) 12%, hsl(var(--card)));
+  --color-red-100: color-mix(in oklab, oklch(63.7% 0.237 25.331) 18%, hsl(var(--card)));
+  --color-red-200: color-mix(in oklab, oklch(63.7% 0.237 25.331) 30%, hsl(var(--card)));
+  --color-red-700: oklch(80.8% 0.114 19.571);
+  --color-red-800: oklch(88.5% 0.062 18.334);
+  --color-red-900: oklch(93.6% 0.032 17.717);
+  --color-red-950: oklch(97.1% 0.013 17.38);
+  --color-orange-50: color-mix(in oklab, oklch(70.5% 0.213 47.604) 12%, hsl(var(--card)));
+  --color-orange-100: color-mix(in oklab, oklch(70.5% 0.213 47.604) 18%, hsl(var(--card)));
+  --color-orange-200: color-mix(in oklab, oklch(70.5% 0.213 47.604) 30%, hsl(var(--card)));
+  --color-orange-700: oklch(83.7% 0.128 66.29);
+  --color-orange-800: oklch(90.1% 0.076 70.697);
+  --color-orange-900: oklch(95.4% 0.038 75.164);
+  --color-orange-950: oklch(98% 0.016 73.684);
+  --color-amber-50: color-mix(in oklab, oklch(76.9% 0.188 70.08) 12%, hsl(var(--card)));
+  --color-amber-100: color-mix(in oklab, oklch(76.9% 0.188 70.08) 18%, hsl(var(--card)));
+  --color-amber-200: color-mix(in oklab, oklch(76.9% 0.188 70.08) 30%, hsl(var(--card)));
+  --color-amber-700: oklch(87.9% 0.169 91.605);
+  --color-amber-800: oklch(92.4% 0.12 95.746);
+  --color-amber-900: oklch(96.2% 0.059 95.617);
+  --color-amber-950: oklch(98.7% 0.022 95.277);
+  --color-yellow-50: color-mix(in oklab, oklch(79.5% 0.184 86.047) 12%, hsl(var(--card)));
+  --color-yellow-100: color-mix(in oklab, oklch(79.5% 0.184 86.047) 18%, hsl(var(--card)));
+  --color-yellow-200: color-mix(in oklab, oklch(79.5% 0.184 86.047) 30%, hsl(var(--card)));
+  --color-yellow-700: oklch(90.5% 0.182 98.111);
+  --color-yellow-800: oklch(94.5% 0.129 101.54);
+  --color-yellow-900: oklch(97.3% 0.071 103.193);
+  --color-yellow-950: oklch(98.7% 0.026 102.212);
+  --color-lime-50: color-mix(in oklab, oklch(76.8% 0.233 130.85) 12%, hsl(var(--card)));
+  --color-lime-100: color-mix(in oklab, oklch(76.8% 0.233 130.85) 18%, hsl(var(--card)));
+  --color-lime-200: color-mix(in oklab, oklch(76.8% 0.233 130.85) 30%, hsl(var(--card)));
+  --color-lime-700: oklch(89.7% 0.196 126.665);
+  --color-lime-800: oklch(93.8% 0.127 124.321);
+  --color-lime-900: oklch(96.7% 0.067 122.328);
+  --color-lime-950: oklch(98.6% 0.031 120.757);
+  --color-green-50: color-mix(in oklab, oklch(72.3% 0.219 149.579) 12%, hsl(var(--card)));
+  --color-green-100: color-mix(in oklab, oklch(72.3% 0.219 149.579) 18%, hsl(var(--card)));
+  --color-green-200: color-mix(in oklab, oklch(72.3% 0.219 149.579) 30%, hsl(var(--card)));
+  --color-green-700: oklch(87.1% 0.15 154.449);
+  --color-green-800: oklch(92.5% 0.084 155.995);
+  --color-green-900: oklch(96.2% 0.044 156.743);
+  --color-green-950: oklch(98.2% 0.018 155.826);
+  --color-emerald-50: color-mix(in oklab, oklch(69.6% 0.17 162.48) 12%, hsl(var(--card)));
+  --color-emerald-100: color-mix(in oklab, oklch(69.6% 0.17 162.48) 18%, hsl(var(--card)));
+  --color-emerald-200: color-mix(in oklab, oklch(69.6% 0.17 162.48) 30%, hsl(var(--card)));
+  --color-emerald-700: oklch(84.5% 0.143 164.978);
+  --color-emerald-800: oklch(90.5% 0.093 164.15);
+  --color-emerald-900: oklch(95% 0.052 163.051);
+  --color-emerald-950: oklch(97.9% 0.021 166.113);
+  --color-teal-50: color-mix(in oklab, oklch(70.4% 0.14 182.503) 12%, hsl(var(--card)));
+  --color-teal-100: color-mix(in oklab, oklch(70.4% 0.14 182.503) 18%, hsl(var(--card)));
+  --color-teal-200: color-mix(in oklab, oklch(70.4% 0.14 182.503) 30%, hsl(var(--card)));
+  --color-teal-700: oklch(85.5% 0.138 181.071);
+  --color-teal-800: oklch(91% 0.096 180.426);
+  --color-teal-900: oklch(95.3% 0.051 180.801);
+  --color-teal-950: oklch(98.4% 0.014 180.72);
+  --color-cyan-50: color-mix(in oklab, oklch(71.5% 0.143 215.221) 12%, hsl(var(--card)));
+  --color-cyan-100: color-mix(in oklab, oklch(71.5% 0.143 215.221) 18%, hsl(var(--card)));
+  --color-cyan-200: color-mix(in oklab, oklch(71.5% 0.143 215.221) 30%, hsl(var(--card)));
+  --color-cyan-700: oklch(86.5% 0.127 207.078);
+  --color-cyan-800: oklch(91.7% 0.08 205.041);
+  --color-cyan-900: oklch(95.6% 0.045 203.388);
+  --color-cyan-950: oklch(98.4% 0.019 200.873);
+  --color-sky-50: color-mix(in oklab, oklch(68.5% 0.169 237.323) 12%, hsl(var(--card)));
+  --color-sky-100: color-mix(in oklab, oklch(68.5% 0.169 237.323) 18%, hsl(var(--card)));
+  --color-sky-200: color-mix(in oklab, oklch(68.5% 0.169 237.323) 30%, hsl(var(--card)));
+  --color-sky-700: oklch(82.8% 0.111 230.318);
+  --color-sky-800: oklch(90.1% 0.058 230.902);
+  --color-sky-900: oklch(95.1% 0.026 236.824);
+  --color-sky-950: oklch(97.7% 0.013 236.62);
+  --color-blue-50: color-mix(in oklab, oklch(62.3% 0.214 259.815) 12%, hsl(var(--card)));
+  --color-blue-100: color-mix(in oklab, oklch(62.3% 0.214 259.815) 18%, hsl(var(--card)));
+  --color-blue-200: color-mix(in oklab, oklch(62.3% 0.214 259.815) 30%, hsl(var(--card)));
+  --color-blue-700: oklch(80.9% 0.105 251.813);
+  --color-blue-800: oklch(88.2% 0.059 254.128);
+  --color-blue-900: oklch(93.2% 0.032 255.585);
+  --color-blue-950: oklch(97% 0.014 254.604);
+  --color-indigo-50: color-mix(in oklab, oklch(58.5% 0.233 277.117) 12%, hsl(var(--card)));
+  --color-indigo-100: color-mix(in oklab, oklch(58.5% 0.233 277.117) 18%, hsl(var(--card)));
+  --color-indigo-200: color-mix(in oklab, oklch(58.5% 0.233 277.117) 30%, hsl(var(--card)));
+  --color-indigo-700: oklch(78.5% 0.115 274.713);
+  --color-indigo-800: oklch(87% 0.065 274.039);
+  --color-indigo-900: oklch(93% 0.034 272.788);
+  --color-indigo-950: oklch(96.2% 0.018 272.314);
+  --color-violet-50: color-mix(in oklab, oklch(60.6% 0.25 292.717) 12%, hsl(var(--card)));
+  --color-violet-100: color-mix(in oklab, oklch(60.6% 0.25 292.717) 18%, hsl(var(--card)));
+  --color-violet-200: color-mix(in oklab, oklch(60.6% 0.25 292.717) 30%, hsl(var(--card)));
+  --color-violet-700: oklch(81.1% 0.111 293.571);
+  --color-violet-800: oklch(89.4% 0.057 293.283);
+  --color-violet-900: oklch(94.3% 0.029 294.588);
+  --color-violet-950: oklch(96.9% 0.016 293.756);
+  --color-purple-50: color-mix(in oklab, oklch(62.7% 0.265 303.9) 12%, hsl(var(--card)));
+  --color-purple-100: color-mix(in oklab, oklch(62.7% 0.265 303.9) 18%, hsl(var(--card)));
+  --color-purple-200: color-mix(in oklab, oklch(62.7% 0.265 303.9) 30%, hsl(var(--card)));
+  --color-purple-700: oklch(82.7% 0.119 306.383);
+  --color-purple-800: oklch(90.2% 0.063 306.703);
+  --color-purple-900: oklch(94.6% 0.033 307.174);
+  --color-purple-950: oklch(97.7% 0.014 308.299);
+  --color-fuchsia-50: color-mix(in oklab, oklch(66.7% 0.295 322.15) 12%, hsl(var(--card)));
+  --color-fuchsia-100: color-mix(in oklab, oklch(66.7% 0.295 322.15) 18%, hsl(var(--card)));
+  --color-fuchsia-200: color-mix(in oklab, oklch(66.7% 0.295 322.15) 30%, hsl(var(--card)));
+  --color-fuchsia-700: oklch(83.3% 0.145 321.434);
+  --color-fuchsia-800: oklch(90.3% 0.076 319.62);
+  --color-fuchsia-900: oklch(95.2% 0.037 318.852);
+  --color-fuchsia-950: oklch(97.7% 0.017 320.058);
+  --color-pink-50: color-mix(in oklab, oklch(65.6% 0.241 354.308) 12%, hsl(var(--card)));
+  --color-pink-100: color-mix(in oklab, oklch(65.6% 0.241 354.308) 18%, hsl(var(--card)));
+  --color-pink-200: color-mix(in oklab, oklch(65.6% 0.241 354.308) 30%, hsl(var(--card)));
+  --color-pink-700: oklch(82.3% 0.12 346.018);
+  --color-pink-800: oklch(89.9% 0.061 343.231);
+  --color-pink-900: oklch(94.8% 0.028 342.258);
+  --color-pink-950: oklch(97.1% 0.014 343.198);
+  --color-rose-50: color-mix(in oklab, oklch(64.5% 0.246 16.439) 12%, hsl(var(--card)));
+  --color-rose-100: color-mix(in oklab, oklch(64.5% 0.246 16.439) 18%, hsl(var(--card)));
+  --color-rose-200: color-mix(in oklab, oklch(64.5% 0.246 16.439) 30%, hsl(var(--card)));
+  --color-rose-700: oklch(81% 0.117 11.638);
+  --color-rose-800: oklch(89.2% 0.058 10.001);
+  --color-rose-900: oklch(94.1% 0.03 12.58);
+  --color-rose-950: oklch(96.9% 0.015 12.422);
+}
+
+/* White surfaces become cards. Translucent white on photos and colored headers stays. */
+html.dark[data-surface='admin'] :is(.bg-white, .hover\:bg-white:hover, .focus\:bg-white:focus) {
+  background-color: hsl(var(--card));
+}
+/* The selected tab or open trigger sits a step above its track. */
+html.dark[data-surface='admin'] :is(.data-\[state\=active\]\:bg-white[data-state='active'], .data-\[state\=open\]\:bg-white[data-state='open']) {
+  background-color: hsl(var(--accent));
+}
+html.dark[data-surface='admin'] :is(.bg-white\/95, .bg-white\/90, .hover\:bg-white\/90:hover) {
+  background-color: hsl(var(--card) / 0.92);
+}
+html.dark[data-surface='admin'] :is(.bg-white\/80, .bg-white\/70, .bg-white\/60) {
+  background-color: hsl(var(--card) / 0.75);
+}
+html.dark[data-surface='admin'] .to-white {
+  --tw-gradient-to: hsl(var(--card));
+}
+html.dark[data-surface='admin'] .from-white {
+  --tw-gradient-from: hsl(var(--card));
+}
+
+/* The light page backgrounds admin pages paint themselves. */
+html.dark[data-surface='admin'] :is(.bg-\[\#f8f8f8\], .bg-\[\#fcfbfc\], .bg-\[\#f6f7f9\], .bg-\[\#f2f4f7\], .bg-\[\#fbfaf7\]) {
+  background-color: hsl(var(--background));
+}
+html.dark[data-surface='admin'] :is(.bg-\[\#EDEFF5\], .bg-\[\#E3E7F0\], .bg-\[\#e8ecf1\], .bg-\[\#f3f6fc\], .bg-\[\#e8eef6\], .bg-\[\#f3f1ec\]) {
+  background-color: hsl(var(--muted));
+}
+html.dark[data-surface='admin'] :is(.text-\[\#3A4152\], .text-\[\#27323d\], .text-\[\#3c3f43\]) {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Black ink and hairlines become light. */
+html.dark[data-surface='admin'] :is(.text-black, .hover\:text-black:hover) {
+  color: hsl(var(--foreground));
+}
+html.dark[data-surface='admin'] .border-black {
+  border-color: hsl(var(--foreground));
+}
+html.dark[data-surface='admin'] :is(.border-black\/5, .border-black\/10) {
+  border-color: hsl(var(--foreground) / 0.1);
+}
+html.dark[data-surface='admin'] .border-black\/15 {
+  border-color: hsl(var(--foreground) / 0.15);
+}
+html.dark[data-surface='admin'] :is(.ring-black\/5, .ring-black\/10) {
+  --tw-ring-color: hsl(var(--foreground) / 0.1);
+}
+html.dark[data-surface='admin'] :is(.focus\:ring-black:focus, .focus\:border-black:focus) {
+  --tw-ring-color: hsl(var(--ring));
+  border-color: hsl(var(--ring));
+}
+
+/* Solid dark buttons, chips and bars invert like the learner's primary: light fill, dark ink. */
+html.dark[data-surface='admin'] .bg-black:not(img, video) {
+  background-color: hsl(var(--primary));
+}
+html.dark[data-surface='admin'] :is(.hover\:bg-black\/90:hover, .hover\:bg-black\/85:hover) {
+  background-color: hsl(var(--primary) / 0.88);
+}
+html.dark[data-surface='admin'] :is(.bg-black, .bg-gray-700, .bg-gray-800, .bg-gray-900, .bg-gray-950, .bg-slate-800, .bg-slate-900, .bg-zinc-900, .bg-neutral-900):is(.text-white, .hover\:text-white:hover) {
+  color: hsl(var(--primary-foreground));
+}
+}

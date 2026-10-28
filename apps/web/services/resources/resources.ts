@@ -22,9 +22,9 @@ export interface ResourceChannel {
   name: string
   description: string | null
   thumbnail_image: string | null
-  public: boolean
-  shared: boolean
-  is_starred: boolean
+  audience: 'org' | 'groups' | 'staff'
+  comment_rule: 'all' | 'staff' | 'off'
+  listed: boolean
   color: string | null
   owner_org_id?: number | null
   owner_org_uuid?: string | null
@@ -126,7 +126,7 @@ export interface ResourceComment {
   comment_uuid: string
   content: string
   rating: number | null
-  is_locked: boolean
+  status: 'live' | 'held' | 'hidden'
   creation_date: string
   update_date: string
   author?: {
@@ -479,21 +479,6 @@ export async function deleteResourceReview(commentUuid: string, accessToken: str
   const result: any = await fetch(
     `${getAPIUrl()}resources/reviews/${commentUuid}`,
     RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
-export async function importResourcesCsv(
-  orgId: number,
-  formData: FormData,
-  accessToken: string,
-  channelUuid?: string
-) {
-  const search = new URLSearchParams()
-  if (channelUuid) search.set('channel_uuid', channelUuid)
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/org/${orgId}/import${search.toString() ? `?${search.toString()}` : ''}`,
-    RequestBodyFormWithAuthHeader('POST', formData, null, accessToken)
   )
   return getResponseMetadata(result)
 }

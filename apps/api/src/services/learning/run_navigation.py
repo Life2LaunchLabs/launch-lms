@@ -3,9 +3,6 @@
 from sqlmodel import Session, select
 from src.db.learning import (
     LearningActivity,
-    LearningBadge,
-    LearningBadgeAward,
-    LearningBadgeStatus,
     LearningPage,
     LearningPageProgress,
     LearningResponseAttempt,
@@ -15,9 +12,8 @@ from src.db.learning import (
 from src.db.goals import Goal
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.users import User
-from src.services.learning_flow import (
-    resolve_flow,
-)
+from src.services.learning import learner_details
+from src.services.learning_sequence import resolve_activity, routes
 from src.services.learning_page_convert import (
     find_question_block,
     find_question_blocks,
@@ -142,12 +138,16 @@ def _flow_context(db_session: Session, run: LearningRun) -> dict:
 
 
 def _resolved_activity_flow(db_session: Session, run: LearningRun):
+    """The run's route through the activity's sequence (an older flow is converted on the way),
+    or None when the pages simply run in order."""
     activity = db_session.get(LearningActivity, run.activity_id)
-    flow = (activity.settings or {}).get("flow") if activity else None
-    return (
-        resolve_flow(flow, _flow_context(db_session, run))
-        if flow
-        else None
+    if not activity or not routes(activity.settings):
+        return None
+    pages = sorted(_run_pages(db_session, run), key=lambda page: (page.order, page.id or 0))
+    return resolve_activity(
+        activity.settings,
+        [{"page_uuid": page.page_uuid, "content": page.content} for page in pages],
+        _flow_context(db_session, run),
     )
 
 
@@ -239,6 +239,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                         "user.portfolio.location_label": portfolio.location_label or "",
                     }
                 )
+                render_context["variables"].update(learner_details.traits(db_session, int(user.id)))  # type: ignore[arg-type]
                 timelines = db_session.exec(
                     select(TimelineEntry)
                     .where(TimelineEntry.portfolio_id == portfolio.id)
@@ -250,39 +251,25 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                     {"value": item.timeline_uuid, "label": item.title}
                     for item in timelines
                 ]
+            render_context["variables"].update(learner_details.detail_variables(db_session, run.org_id, user))
             # Dynamic option collections use the same {value,label,...} contract as
             # timeline_options, so standard question blocks can consume new domain
             # lists without adding one-off response shapes.
-            started_badge_ids = set(db_session.exec(
-                select(Goal.badge_id).where(Goal.subject_user_id == user.id, Goal.badge_id.is_not(None))  # type: ignore[union-attr]
-            ).all())
-            earned_badge_ids = {
-                item.badge_id
-                for item in db_session.exec(
-                    select(LearningBadgeAward).where(
-                        LearningBadgeAward.user_id == user.id
-                    )
-                ).all()
-            }
-            available_badges = db_session.exec(
-                select(LearningBadge)
-                .where(
-                    LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-                    LearningBadge.public == True,  # noqa: E712
-                    LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]
-                )
-                .order_by(LearningBadge.creation_date.desc())  # type: ignore
-            ).all()
-            render_context["variables"]["learning.available_badge_options"] = [
+            from src.services.goals import plan_joining
+
+            cards = plan_joining._cards(db_session, plan_joining.offers(db_session), int(user.id))
+            options: dict[str, dict] = {}
+            for card in cards:
+                if card["state"] in ("none", "requested"):
+                    options.setdefault(card["template_uuid"], card)
+            render_context["variables"]["learning.available_plan_options"] = [
                 {
-                    "value": item.badge_uuid,
-                    "label": item.name,
-                    "description": item.description or "",
-                    "image": item.thumbnail_image or "",
+                    "value": card["template_uuid"],
+                    "label": card["title"],
+                    "description": card["description"],
+                    "image": card["thumbnail_image"] or (card["badge"] or {}).get("image_url") or "",
                 }
-                for item in available_badges
-                if (item.id or 0) not in started_badge_ids
-                and (item.id or 0) not in earned_badge_ids
+                for card in options.values()
             ][:6]
     if run.goal_id:
         # Activities run inside a goal can show it: its title, why and numbers so far.

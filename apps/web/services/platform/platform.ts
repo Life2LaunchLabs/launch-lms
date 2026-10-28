@@ -1,6 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 import {
   RequestBodyWithAuthHeader,
+  errorHandling,
   getResponseMetadata,
 } from '@services/utils/ts/requests'
 
@@ -216,4 +217,46 @@ export async function updatePlanRequest(
     RequestBodyWithAuthHeader('PUT', { status, message }, null, access_token)
   )
   return getResponseMetadata(result)
+}
+
+// ============================================================================
+// Activity format audit (the version 3 migration)
+// ============================================================================
+
+export type ActivityAuditFlag = { code: string; message: string; review: boolean; page_uuid?: string }
+export type ActivityAuditRow = {
+  activity_uuid: string
+  title: string
+  frozen: boolean
+  org_slug: string | null
+  org_name: string | null
+  editor_url: string | null
+  review: number
+  codes: Record<string, number>
+  flags: ActivityAuditFlag[]
+}
+export type ActivityAudit = {
+  summary: { activities: number; sequences: number; pages_converted: number; pages_kept_v2: number; flags: Record<string, number> }
+  activities: ActivityAuditRow[]
+}
+
+export const activityAuditPath = (notes = false) => `${getAPIUrl()}superadmin/learning-content/audit${notes ? '?notes=true' : ''}`
+
+/** A platform-wide API key (Platform › Settings); the key itself is never sent back. */
+export type PlatformKey = {
+  key: string
+  label: string
+  help_url: string
+  env: string
+  source: 'platform' | 'environment' | 'none'
+  last4: string
+  updated_at: string | null
+}
+
+export async function savePlatformKey(name: string, value: string, accessToken: string): Promise<PlatformKey[]> {
+  const result = await fetch(
+    `${getAPIUrl()}superadmin/settings/keys/${encodeURIComponent(name)}`,
+    RequestBodyWithAuthHeader('PUT', { value }, null, accessToken)
+  )
+  return errorHandling(result)
 }

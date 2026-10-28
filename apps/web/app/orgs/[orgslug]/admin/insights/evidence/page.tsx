@@ -1,7 +1,7 @@
-import { InsightsEvidencePage } from '@components/Goals/admin/insights/InsightsPages'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/routing/paths'
 
-export default async function InsightsEvidence({ params, searchParams }: { params: Promise<{ orgslug: string }>; searchParams: Promise<{ group?: string }> }) {
-  const [{ orgslug }, { group }] = await Promise.all([params, searchParams])
-  const groupId = Number(group)
-  return <InsightsEvidencePage orgslug={orgslug} groupId={Number.isInteger(groupId) && groupId > 0 ? groupId : null} />
+// Learner evidence moved to the requirement framework dashboards, where a capture carries it.
+export default function InsightsEvidence() {
+  redirect(routePaths.org.admin.insightsScope('framework'))
 }

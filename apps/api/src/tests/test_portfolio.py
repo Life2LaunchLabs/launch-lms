@@ -1,8 +1,10 @@
+from datetime import date
+
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 from src.db.goals import Goal, GoalStatus
-from src.db.learning import LearningBadgeAward
+from src.db.badges import BadgeAward
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
 from src.db.portfolio import (
@@ -33,7 +35,7 @@ from src.services.learning_portfolio_actions import (
     PortfolioActionError,
     apply_portfolio_outcomes,
 )
-from src.tests.test_badge_marketplace import _create_badge, _create_tables
+from src.tests.plan_world import _create_tables
 
 
 def _session():
@@ -55,11 +57,11 @@ def _session():
     ):
         model.__table__.create(engine)
     from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalStory, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
-    from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
+    from src.db.learning import LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
     from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
     from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 
-    for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt, BadgeIssuerLearnerLink,
+    for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt,
                   PlanRole, PlanCollaborator, PlanActivity, OrganizationPlanRole, GoalTemplate, GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory,
                   # Goals keep their chats in step.
                   Conversation, ConversationMember, ConversationMessage, ConversationMessageRef):
@@ -123,7 +125,7 @@ def test_checklist_is_the_learners_starter_goal():
         assert [item["complete"] for item in checklist["items"]] == [True, True, False, False, False, False]
         assert checklist["completed"] == 2
         # Finishing the checklist awards nothing: Launch Ready is a goal, not a badge.
-        assert db.exec(select(LearningBadgeAward)).all() == []
+        assert db.exec(select(BadgeAward)).all() == []
 
 
 def test_portfolio_steps_on_other_goals_finish_when_the_portfolio_has_it():
@@ -144,25 +146,40 @@ def test_portfolio_steps_on_other_goals_finish_when_the_portfolio_has_it():
         assert progress_view(db, step).status == "completed"
 
 
-def test_portfolio_badges_are_the_earned_ones():
+def _badge_plan(db, template_id: int) -> tuple:
+    """A plan whose live release earns a badge."""
+    from src.db.goals import GoalTemplate, GoalTemplateVersion
+
+    document = {"template": {"title": f"Plan {template_id}"}, "stages": [], "badge": {"kind": "Badge", "skills": ["Grit"]}}
+    template = GoalTemplate(id=template_id, template_uuid=f"goal_template_{template_id}", org_id=1, title=f"Plan {template_id}", document=document,
+                            published_version_id=template_id, creation_date="", update_date="")
+    version = GoalTemplateVersion(id=template_id, version_uuid=f"version_{template_id}", template_id=template_id, org_id=1, number=1, semver="1.0.0",
+                                  document=document, content_hash="", note="", creation_date="")
+    db.add_all([template, version])
+    return template, version
+
+
+def test_portfolio_badges_are_the_earned_ones_and_open_plans_with_a_badge_are_worked_toward():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
-        started = _create_badge(db, badge_id=5, org_id=1)
-        earned = _create_badge(db, badge_id=6, org_id=1)
-        abandoned = _create_badge(db, badge_id=7, org_id=1)
-        for goal_id, badge, status in ((10, started, GoalStatus.ACTIVE), (11, earned, GoalStatus.ACTIVE), (12, abandoned, GoalStatus.ARCHIVED)):
-            db.add(Goal(id=goal_id, goal_uuid=f"goal_{goal_id}", title=badge.name, status=status, owner_user_id=1, subject_user_id=1, badge_id=badge.id))
-        db.add(LearningBadgeAward(award_uuid="award_6", badge_id=earned.id, org_id=1, user_id=1))
+        for template_id in (5, 6, 7):
+            _badge_plan(db, template_id)
+        for goal_id, template_id, status in ((10, 5, GoalStatus.ACTIVE), (11, 6, GoalStatus.ACTIVE), (12, 7, GoalStatus.ARCHIVED)):
+            db.add(Goal(id=goal_id, goal_uuid=f"goal_{goal_id}", title=f"Plan {template_id}", status=status, owner_user_id=1, subject_user_id=1,
+                        template_id=template_id, version_id=template_id))
+        db.add(BadgeAward(award_uuid="award_6", template_id=6, user_id=1, issuing_org_id=1, earned_on=date.today(),
+                          achievement={"template_uuid": "goal_template_6", "name": "Plan 6", "kind": "Badge", "skills": ["Grit"]}))
         db.commit()
 
         badges = service.get_owner_shell(_public(user), db)["badges"]
 
-        # Badges still being worked toward are goals, not portfolio entries.
-        assert [item["badge_uuid"] for item in badges["earned"]] == ["badge_6"]
-        assert [item["badge_uuid"] for item in badges["featured"]] == ["badge_6"]
-        assert "inProgress" not in badges
+        assert [item["award_uuid"] for item in badges["earned"]] == ["award_6"]
+        assert [item["award_uuid"] for item in badges["featured"]] == ["award_6"]
+        assert badges["earned"][0]["skills"] == ["Grit"] and badges["earned"][0]["issuer"]["slug"]
+        # Still being worked toward: the open plan whose badge isn't held yet (not the earned one, not the archived one).
+        assert [item["goal_uuid"] for item in badges["working_toward"]] == ["goal_10"]
 
 
 def test_private_by_default_and_created_project_is_public_after_portfolio_publish():

@@ -3,6 +3,8 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getAuthBrandingOrgSlug } from '@services/org/orgResolution'
 import SignUpClient from './signup'
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import OrgNotFound from '@components/Objects/StyledElements/Error/OrgNotFound'
 
@@ -24,7 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-const SignUp = async () => {
+const SignUp = async ({ searchParams }: { searchParams: Promise<{ mode?: string }> }) => {
+  // Making an organization moved to /start.
+  if ((await searchParams).mode === 'create-org') redirect(routePaths.auth.orgSignup())
   const orgslug = await getAuthBrandingOrgSlug()
 
   if (!orgslug) {

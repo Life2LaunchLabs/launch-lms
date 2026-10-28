@@ -93,7 +93,7 @@ def summarize(world: dict) -> dict:
             {
                 "user_id": user_id,
                 "name": f"{user.first_name} {user.last_name}".strip() or user.username,
-                "badges": count("learningbadgeaward", "user_id", user_id),
+                "badges": count("badge_award", "user_id", user_id),
                 "activity_runs": count("learningrun", "user_id", user_id),
                 "projects": sum(
                     1

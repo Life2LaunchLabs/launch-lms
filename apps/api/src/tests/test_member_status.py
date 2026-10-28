@@ -25,7 +25,7 @@ def db(monkeypatch):
     monkeypatch.setattr("src.security.access.access.owner_org_id", lambda *_args: None)
     session = _school_session()
     for model in (OrganizationInvitation, OrganizationJoinLink):
-        model.__table__.create(session.get_bind())
+        model.__table__.create(session.get_bind(), checkfirst=True)
     session.add_all([
         Role(id=1, name="Admin", rights=STAFF, role_uuid="role_admin"),
         Role(id=2, name="Staff", rights=STAFF, role_uuid="role_staff"),

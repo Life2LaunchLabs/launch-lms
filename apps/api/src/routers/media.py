@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.media import (
@@ -14,6 +15,7 @@ from src.db.media import (
 from src.db.users import PublicUser, UserRead
 from src.routers.users import _invalidate_session_cache
 from src.security.auth import get_current_user
+from src.services import stock_media
 from src.services.media import (
     apply_media_asset_to_user_avatar,
     create_link_media_asset,
@@ -27,6 +29,39 @@ from src.services.media import (
 )
 
 router = APIRouter()
+
+
+class StockImport(BaseModel):
+    org_id: int
+    id: str = Field(min_length=1, max_length=40)
+    kind: str = "photo"
+    provider: str = "pexels"
+    title: str | None = Field(default=None, max_length=200)
+    folder: str | None = Field(default=None, max_length=120)
+
+
+@router.get("/stock/search")
+async def api_search_stock_media(
+    org_id: int,
+    q: str,
+    kind: str = "photo",
+    orientation: str | None = None,
+    page: int = 1,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Search free stock photos or videos (Pexels) to add to the organization's media library."""
+    return await stock_media.search(db_session, current_user, org_id, q, kind, orientation, page)
+
+
+@router.post("/stock/import", response_model=MediaAssetRead)
+async def api_import_stock_media(
+    body: StockImport,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Copy one stock photo or video into the organization's media library, with its credit."""
+    return await stock_media.import_item(db_session, current_user, body.org_id, body.id, body.kind, body.provider, body.title, body.folder)
 
 
 @router.get("", response_model=list[MediaAssetRead])

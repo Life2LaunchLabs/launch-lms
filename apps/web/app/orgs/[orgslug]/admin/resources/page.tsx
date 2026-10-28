@@ -1,6 +1,5 @@
-import ResourcesDashClient from './client'
+import ResourcesHome from '@components/Resources/admin/ResourcesHome'
 
-export default async function ResourcesDashPage(props: { params: Promise<{ orgslug: string }> }) {
-  const { orgslug } = await props.params
-  return <ResourcesDashClient orgslug={orgslug} />
+export default function ResourcesRoute() {
+  return <ResourcesHome tab="mine" />
 }

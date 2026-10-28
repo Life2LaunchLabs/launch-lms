@@ -1,6 +1,6 @@
 import type { AccessRequest, FeatureAccess } from '../../services/plans/plans.ts'
 import { routePaths } from '../../services/routing/paths.ts'
-import type { HomeWidgetId } from '../../services/goals/adminHome.ts'
+import type { HomeSectionId } from '../../services/goals/adminHome.ts'
 
 /**
  * The one list of admin tabs and Home widgets. The sidebar, the mobile menu, page titles and the
@@ -9,7 +9,7 @@ import type { HomeWidgetId } from '../../services/goals/adminHome.ts'
  */
 export type AdminRequirement = { feature?: string; right?: string }
 
-export type AdminTabId = 'home' | 'plans' | 'people' | 'insights' | 'content' | 'organization'
+export type AdminTabId = 'home' | 'plans' | 'people' | 'insights' | 'resources' | 'opportunities' | 'organization'
 export type { PlansTabId } from '../../services/routing/paths.ts'
 
 export type AdminNavItem = {
@@ -45,22 +45,21 @@ export const ADMIN_TABS: AdminTab[] = [
     id: 'plans',
     label: 'Plans',
     href: admin.plans(),
-    pill: 'New',
-    // The five pages are tabs inside Plans (in each viewer's own order), not sidebar entries.
+    // Plans, Discover, Assignments and Requirements are tabs inside Plans, not sidebar entries.
     inPageTabs: true,
     match: [],
     requires: { right: STAFF },
     children: [
-      // Every org, free included, can assign its templates (a solo coach assigning to a client).
-      { id: 'assignments', label: 'Assignments', labelKey: 'common.assignments', href: admin.plans('assignments'), match: [admin.plans('assignments'), '/admin/plans/assignments', '/admin/plans/review', '/admin/plans/live'], requires: {} },
-      // Every other /admin/plans/<uuid> page is a template.
-      { id: 'templates', label: 'Templates', href: admin.plans('templates'), match: [admin.plans('templates'), '/admin/plans/'], requires: {} },
-      { id: 'badges', label: 'Badges', href: admin.plans('badges'), match: [admin.plans('badges')], requires: {} },
+      // Every other /admin/plans/<uuid> page is a plan.
+      { id: 'plans', label: 'Plans', href: admin.plans('plans'), match: [admin.plans('plans'), '/admin/plans/'], requires: {} },
+      { id: 'discover', label: 'Discover', href: admin.plans('discover'), match: [admin.plans('discover')], requires: {} },
+      // Every org, free included, can assign its plans (a solo coach assigning to a client).
+      { id: 'assignments', label: 'Assignments', labelKey: 'common.assignments', href: admin.plans('assignments'), match: [admin.plans('assignments'), '/admin/plans/review', '/admin/plans/live'], requires: {} },
       { id: 'requirements', label: 'Requirements', href: admin.plans('requirements'), match: [admin.plans('requirements')], requires: {} },
-      { id: 'marketplace', label: 'Marketplace', href: admin.plans('marketplace'), match: [admin.plans('marketplace')], requires: {} },
     ],
   },
-  { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },
+  // Threads took over People: profiles still live under /admin/users.
+  { id: 'people', label: 'Threads', href: admin.threads.root(), match: [admin.threads.root(), '/admin/users'], requires: { right: STAFF } },
   {
     id: 'insights',
     label: 'Insights',
@@ -68,16 +67,10 @@ export const ADMIN_TABS: AdminTab[] = [
     match: [admin.insights()],
     requires: { right: 'users.action_read' },
   },
-  {
-    id: 'content',
-    label: 'Content',
-    href: admin.content.resources(),
-    match: [],
-    requires: { right: 'organizations.action_read' },
-    children: [
-      { id: 'resources', label: 'Resources', labelKey: 'common.resources', href: admin.content.resources(), match: [admin.content.resources()], requires: { feature: 'resource_publishing' } },
-    ],
-  },
+  // Any staff member adds the resources their org uses; listing a channel in the Library is the resource partner program.
+  { id: 'resources', label: 'Resources', labelKey: 'common.resources', href: admin.resources.root(), match: [admin.resources.root()], requires: { right: STAFF } },
+  // Not built yet: a coming-soon page that says what it will be.
+  { id: 'opportunities', label: 'Opportunities', href: admin.opportunities(), pill: 'Soon', match: [admin.opportunities()], requires: { right: STAFF } },
   {
     id: 'organization',
     label: 'Organization',
@@ -88,6 +81,7 @@ export const ADMIN_TABS: AdminTab[] = [
     children: [
       { id: 'general', label: 'General', labelKey: 'dashboard.organization.settings.tabs.general', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
       { id: 'branding', label: 'Branding', labelKey: 'dashboard.organization.settings.tabs.branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
+      { id: 'discover', label: 'Learner Discover', href: admin.organization.discover(), match: [admin.organization.discover()], requires: {} },
       { id: 'messaging', label: 'Messaging', href: admin.organization.messaging(), match: [admin.organization.messaging()], requires: {} },
       { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
       { id: 'plan', label: 'Plan & access', href: admin.organization.plan(), match: [admin.organization.plan()], requires: {} },
@@ -109,25 +103,14 @@ export function adminTab(id: AdminTabId): AdminTab {
   return ADMIN_TABS.find((tab) => tab.id === id)!
 }
 
-export type AdminWidgetId = HomeWidgetId
-export type AdminWidget = { id: AdminWidgetId; label: string; description: string; requires: AdminRequirement }
-
-/**
- * Home widgets, in default page order. `GET /goal-admin/home` says which ones a viewer gets (by what
- * they staff and what the org makes) and carries their data; these requirements hide or lock them
- * like the tabs. Each member reorders and hides them for themselves.
- */
-export const ADMIN_HOME_WIDGETS: AdminWidget[] = [
-  { id: 'waiting', label: 'Waiting on you', description: 'Work to review, grade or confirm, and chat reports.', requires: { right: STAFF } },
-  { id: 'today', label: 'Today and upcoming', description: 'Steps closing and stages opening this week in the assignments you staff.', requires: { right: STAFF } },
-  { id: 'messages', label: 'Recent messages', description: 'Your latest chats in this organization.', requires: { right: STAFF } },
-  { id: 'attention', label: 'Assignments needing attention', description: 'Learners behind, overdue steps and work waiting on staff.', requires: { right: STAFF } },
-  {
-    id: 'creator',
-    label: 'How your templates and badges do',
-    description: 'Starts, completions and recent edits of what your org makes.',
-    requires: { right: 'learning_activities.action_update' },
-  },
+/** Home's sections as Customize lists them, in page order. `GET /goal-admin/home` says which ones a viewer gets. */
+export const HOME_SECTIONS: Array<{ id: HomeSectionId; label: string; description: string }> = [
+  { id: 'needs', label: 'Needs you', description: 'Threads with something waiting on you.' },
+  { id: 'assignments', label: 'Your assignments', description: 'Where learners are on the assignments you’re on.' },
+  { id: 'continue', label: 'Continue', description: 'Plans, requirements and resources edited last.' },
+  { id: 'week', label: 'This week', description: 'Steps closing and stages opening on your assignments.' },
+  { id: 'glance', label: 'At a glance', description: 'Insight cards you pinned.' },
+  { id: 'requirements', label: 'Requirements', description: 'How learners are doing on each requirement framework.' },
 ]
 
 export type { AccessRequest }

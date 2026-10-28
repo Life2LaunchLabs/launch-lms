@@ -1,19 +1,21 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, PanelRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import ChatPane from '@components/Connect/ChatPane'
+import { useHub } from '@components/Hub/HubContext'
+import ThreadView, { type ThreadTarget } from '@components/Threads/ThreadView'
 import ChatReports from '@components/Admin/Users/ChatReports'
 import WaitingOnYou from '@components/Admin/Users/WaitingOnYou'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import type { GroupView } from '@services/routing/paths'
-import PeopleList from './PeopleList'
-import PersonProfile, { type PersonTab } from './PersonProfile'
-import GroupPane from './GroupPane'
-import { usePeopleContext, useRefreshPeople } from './usePeople'
+import { profileHref } from '@components/Threads/profiles/ProfileFrame'
+import PeopleList, { threadHref } from './PeopleList'
+import { usePeopleContext } from './usePeople'
 
-/** What's open beside the list: nothing yet, a chat, someone (their conversation or their plans), or a group. */
-export type PeopleSelection = { kind: 'none' } | { kind: 'chat'; uuid: string } | { kind: 'person'; username: string; tab?: PersonTab } | { kind: 'group'; id: number; view?: GroupView }
+/** What's open beside the list: nothing yet, or a thread. Profiles have their own pages. */
+export type PeopleSelection = { kind: 'none' } | { kind: 'thread'; target: ThreadTarget }
 
 /**
  * People: the organization's people and groups in one list, with whoever has something new for
@@ -23,28 +25,40 @@ export type PeopleSelection = { kind: 'none' } | { kind: 'chat'; uuid: string } 
  */
 export default function PeopleView({ orgslug, selection }: { orgslug: string; selection: PeopleSelection }) {
   const { orgId, token, isAdmin } = usePeopleContext()
-  const refreshList = useRefreshPeople()
   const open = selection.kind !== 'none'
-  const listHref = getUriWithOrg(orgslug, routePaths.org.admin.people.root())
-  const personHref = React.useCallback((person: { username: string }) => getUriWithOrg(orgslug, routePaths.org.admin.people.user(person.username)), [orgslug])
-  const onChanged = React.useCallback(() => { void refreshList() }, [refreshList])
+  const listHref = getUriWithOrg(orgslug, routePaths.org.admin.threads.root())
 
   return <div className="flex h-[calc(100dvh-4rem)] w-full overflow-hidden bg-background md:h-[100dvh]" data-people>
     <section aria-label="People and groups" className={cn('flex min-h-0 w-full flex-col md:w-[360px] md:shrink-0 md:border-r md:border-border', open && 'hidden md:flex')}>
       <PeopleList orgslug={orgslug} selection={selection} />
     </section>
-    <section aria-label={selection.kind === 'person' ? 'Person' : selection.kind === 'group' ? 'Group' : 'Chat'} className={cn('min-h-0 min-w-0 flex-1 flex-col overflow-hidden', open ? 'flex' : 'hidden md:flex')}>
-      {selection.kind === 'chat' ? <ChatPane key={selection.uuid} orgslug={orgslug} chatUuid={selection.uuid} listHref={listHref} personHref={personHref} onChanged={onChanged} />
-        : selection.kind === 'person' ? <PersonProfile key={selection.username} orgslug={orgslug} username={selection.username} tab={selection.tab} />
-        : selection.kind === 'group' ? <GroupPane key={selection.id} orgslug={orgslug} groupId={selection.id} view={selection.view} />
+    <section aria-label="Thread" className={cn('min-h-0 min-w-0 flex-1 flex-col overflow-hidden', open ? 'flex' : 'hidden md:flex')}>
+      {selection.kind === 'thread' ? <OpenThread key={JSON.stringify(selection.target)} orgslug={orgslug} target={selection.target} listHref={listHref} />
         : <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#f8f8f8] p-6 dark:bg-background">
           {/* Admins keep their oversight here: chat reports, and every student waiting on staff (not just theirs). */}
           {isAdmin && orgId ? <>
             <ChatReports orgId={orgId} orgslug={orgslug} token={token} />
             <WaitingOnYou orgId={orgId} orgslug={orgslug} token={token} everyone />
           </> : null}
-          <p className="mx-auto max-w-sm pt-6 text-center text-sm text-muted-foreground">Pick a person or a group. New activity floats to the top of the list, and approvals and turned-in steps wait in that person&rsquo;s conversation.</p>
+          <p className="mx-auto max-w-sm pt-6 text-center text-sm text-muted-foreground">Pick a thread. New activity floats to the top of the list, and work to review, questions and helpers to approve wait in each thread.</p>
         </div>}
     </section>
   </div>
+}
+
+const icon = 'grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground'
+
+/** The open thread on the Threads page: back to the list on a phone, beside the page, and its profile. */
+function OpenThread({ orgslug, target, listHref }: { orgslug: string; target: ThreadTarget; listHref: string }) {
+  const { orgId, token } = usePeopleContext()
+  const router = useRouter()
+  // On wide screens the thread stays beside the profile; on a phone the profile gets the screen.
+  const hub = useHub()
+  return <ThreadView target={target} orgId={orgId} orgslug={orgslug} token={token}
+    onProfile={(who) => { if (hub?.hasThreads && !window.matchMedia('(max-width: 767px)').matches) hub.openThreads(target); router.push(profileHref(orgslug, who)) }}
+    onOpen={(next) => router.push(threadHref(orgslug, next))}
+    actions={<>
+      <Link href={listHref} aria-label="All threads" title="All threads" className={cn(icon, 'md:hidden')}><ArrowLeft size={18} /></Link>
+      {hub?.hasThreads ? <button type="button" onClick={() => { hub.openThreads(target); router.push(listHref) }} aria-label="Show beside the page" title="Show beside the page" className={cn(icon, 'hidden md:grid')}><PanelRight size={17} /></button> : null}
+    </>} />
 }

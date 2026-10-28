@@ -27,7 +27,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, or_
 from sqlmodel import Session, col, select
 
-from src.db.goal_templates import AssignmentSchedule, GoalAssignmentRequest, GoalAssignmentUpdate
+from src.db.goal_templates import AssignmentSchedule, AssignmentScheduleSave, GoalAssignmentRequest, GoalAssignmentUpdate, StageSchedule, StepSchedule
 from src.db.goals import (
     CURRENT_ASSIGNMENT_STATUSES,
     AssignmentStatus,
@@ -41,19 +41,16 @@ from src.db.goals import (
     GoalTemplate,
     GoalTemplateVersion,
 )
-from src.db.goal_sharing import PlanCollaborator, PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
-from src.db.roles import Role
+from src.db.goal_sharing import PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
-from src.db.school import UserGroupStaff
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.security.org_auth import require_org_admin
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
-from src.services.goals import access, badge_authority, templates
+from src.security.org_auth import is_org_admin, require_org_admin, require_org_membership
+from src.services.goals import access, plan_issuers, templates
 from src.services.orgs import member_status
-from src.services.goals.assignment_summary import assignment_dict, collaborators_of
-from src.services.school import staff as group_staff
+from src.services.goals.assignment_staff import _apply_staff, _collaborators, _drop_staff, require_assignment_manager
+from src.services.goals.assignment_summary import assignment_dict
 from src.services.goals.document import iter_steps
 from src.services.goals.issue import _step_due, issue_goal, stage_schedule
 
@@ -88,28 +85,15 @@ def _value(item) -> str:
 
 
 def _apply(db: Session, assignment: GoalAssignment, goal: Goal) -> None:
-    """The assignment's per-step dates and staff roles on one issued goal."""
-    dates = assignment.step_dates or {}
-    if dates:
-        for step in db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all():
-            rule = dates.get(step.template_key or "")
-            if not rule:
-                continue
-            if rule.get("due_date"):
-                step.due_date = date.fromisoformat(rule["due_date"])
+    """The assignment's step dates and switches, and its staff in their roles, on one issued goal."""
+    version = db.get(GoalTemplateVersion, goal.version_id) if goal.version_id else None
+    planned = _planned(assignment, (version.document if version else None) or {})["steps"]
+    for step in db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all():
+        plan = planned.get(step.template_key or "")
+        if plan:
+            step.start_date, step.due_date, step.open_early, step.allow_late = plan["start_date"], plan["due_date"], plan["open_early"], plan["allow_late"]
             db.add(step)
     _apply_staff(db, assignment, goal)
-
-
-def _apply_staff(db: Session, assignment: GoalAssignment, goal: Goal) -> None:
-    """The assignment's staff, and the group's, on one issued goal in their roles."""
-    roles = {role.key: role for role in db.exec(select(PlanRole).where(PlanRole.goal_id == goal.id)).all()}
-    for item in collaborators_of(assignment):
-        role = roles.get(item["role_key"])
-        if role and item["user_id"] not in {goal.owner_user_id, goal.subject_user_id}:
-            access.add_member(db, goal, int(item["user_id"]), role)
-    group_staff.apply_to_goal(db, assignment, goal)
-    db.flush()
 
 
 def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, version: GoalTemplateVersion, user_id: int | None, actor_user_id: int | None) -> Goal:
@@ -118,8 +102,8 @@ def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, vers
         raise HTTPException(status_code=422, detail="Inviting someone by email needs an owner")
     goal = issue_goal(
         db, template, version, subject_user_id=user_id, owner_user_id=owner_id,  # type: ignore[arg-type]
-        org_id=assignment.org_id, source=GoalSource.ASSIGNMENT, assignment_id=assignment.id, badge_id=assignment.badge_id,
-        staff_user_ids=list(assignment.staff_user_ids or []), start_date=assignment.start_date, due_date=assignment.due_date,
+        org_id=assignment.org_id, source=GoalSource.ASSIGNMENT, assignment_id=assignment.id,
+        staff_user_ids=[], start_date=assignment.start_date, due_date=assignment.due_date,
         stage_dates=assignment.stage_dates, status=GoalStatus.PENDING, actor_user_id=actor_user_id,
     )
     if user_id is None:
@@ -131,6 +115,7 @@ def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, vers
 def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version: GoalTemplateVersion, owner_id: int) -> None:
     """A learner invitation for someone without an account; accepting it makes them the goal's learner."""
     from src.db.organizations import Organization
+    from src.services.goals.invitation_emails import send_plan_invitation
     from src.services.messages import create_inbox_message
 
     key = ((version.document or {}).get("roles") or {}).get("subject_role_key") or "subject"
@@ -155,16 +140,17 @@ def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version
         action_data={"invitation_uuid": invitation.invitation_uuid, "goal_uuid": goal.goal_uuid, "goal_title": goal.title, "role_name": role.name},
         dedupe_key=f"goal_invitation:{invitation.invitation_uuid}",
     )
+    send_plan_invitation(db, goal, invitation, role.name)
     access.log(db, goal, owner_id, "invitation.created", {"invitation_uuid": invitation.invitation_uuid, "kind": "subject"})
 
 
 def sync_assignment(db: Session, assignment: GoalAssignment, actor_user_id: int | None = None) -> list[Goal]:
     """Issue a goal to every learner of an active assignment who doesn't have one yet (flushed, not committed).
 
-    Paused and ended assignments issue nothing (see the module docstring), and nor
-    does a badge assignment whose organization may no longer run the badge's template.
+    Paused and ended assignments issue nothing (see the module docstring), and nor does an
+    assignment of another organization's plan once this organization may no longer run it.
     """
-    if _value(assignment.status) != AssignmentStatus.ACTIVE.value or not badge_authority.still_runs(db, assignment):
+    if _value(assignment.status) != AssignmentStatus.ACTIVE.value or not plan_issuers.still_runs(db, assignment):
         return []
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
@@ -190,49 +176,12 @@ def _sync_chats(db: Session, assignment: GoalAssignment) -> None:
     cohort.sync(db, assignment)
 
 
-def sync_group(db: Session, usergroup_id: int) -> None:
-    """Issue goals from the group's active assignments to members who joined after them (flushed, not committed)."""
-    for assignment in db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == usergroup_id, GoalAssignment.active == True)).all():  # noqa: E712
-        sync_assignment(db, assignment)
-
-
-def _can_manage(db: Session, org_id: int, user_ids: list[int]) -> set[int]:
-    """People whose organization role lets them manage goal templates."""
-    eligible = set()
-    for membership in db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, UserOrganization.user_id.in_(user_ids))).all():  # type: ignore[attr-defined]
-        role = db.get(Role, membership.role_id)
-        rights = role.rights if role and isinstance(role.rights, dict) else {}
-        if membership.role_id in ADMIN_OR_MAINTAINER_ROLE_IDS or (
-            rights.get("dashboard", {}).get("action_access") and rights.get("learning_activities", {}).get("action_update")
-        ):
-            eligible.add(int(membership.user_id))
-    return eligible
-
-
 def _member(db: Session, org_id: int, user_id: int) -> bool:
     return db.exec(select(UserOrganization.id).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first() is not None
 
 
-def _collaborators(db: Session, org_id: int, payload: GoalAssignmentRequest, owner_id: int, roles: dict) -> list[dict]:
-    keys = {item["key"] for item in roles.get("definitions") or []}
-    staff_key = roles.get("staff_role_key") or "reviewer"
-    chosen = {item.user_id: item.role_key or staff_key for item in payload.collaborators}
-    staff = list(dict.fromkeys(list(chosen) or payload.staff_user_ids))
-    if owner_id not in staff:
-        staff.insert(0, owner_id)
-    if _can_manage(db, org_id, staff) != set(staff):
-        raise HTTPException(status_code=422, detail="Every staff member must be able to manage goal templates")
-    result = []
-    for user_id in staff:
-        role_key = "plan_admin" if user_id == owner_id else chosen.get(user_id, staff_key)
-        if role_key not in keys or (role_key in {"subject", "plan_admin"} and user_id != owner_id):
-            raise HTTPException(status_code=422, detail=f"Invalid assignment collaborator role: {role_key}")
-        result.append({"user_id": user_id, "role_key": role_key})
-    return result
-
-
 def _schedule(document: dict, schedule: AssignmentSchedule | None, stage_dates: dict) -> tuple[dict, dict]:
-    """Stage start dates and step close dates from the schedule; stage starts follow stage order."""
+    """Stage start dates and each step's own dates from the schedule; stage starts follow stage order."""
     dates = {key: {"start_date": value.get("start_date")} for key, value in (stage_dates or {}).items() if isinstance(value, dict)}
     if not schedule:
         return dates, {}
@@ -245,13 +194,30 @@ def _schedule(document: dict, schedule: AssignmentSchedule | None, stage_dates: 
             starts.append(item.start_date)
     if starts != sorted(starts):
         raise HTTPException(status_code=422, detail="Stage start dates must follow stage order")
-    step_keys = {step["key"]: step["title"] for _, step in iter_steps(document)}
+    step_keys = {step["key"] for _, step in iter_steps(document)}
     steps = {}
     for item in schedule.steps:
         if item.step_key not in step_keys:
             raise HTTPException(status_code=422, detail="A scheduled step isn't in this template")
-        steps[item.step_key] = {"due_date": _iso(item.due_date)}
+        if item.start_date and item.due_date and item.due_date < item.start_date:
+            raise HTTPException(status_code=422, detail="A step can't be due before it starts")
+        if item.start_date or item.due_date or not item.allow_late:
+            steps[item.step_key] = {"start_date": _iso(item.start_date), "due_date": _iso(item.due_date),
+                                    "open_early": item.open_early, "allow_late": item.allow_late}
     return dates, steps
+
+
+def _check_dates(assignment: GoalAssignment) -> None:
+    """End after start; and an assignment on a schedule (any stage or step dates) has an end date. Self-paced may not."""
+    if assignment.start_date and assignment.due_date and assignment.due_date < assignment.start_date:
+        raise HTTPException(status_code=422, detail="The due date can't come before the start date")
+    if scheduled(assignment) and not assignment.due_date:
+        raise HTTPException(status_code=422, detail="An assignment on a schedule needs an end date")
+
+
+def scheduled(assignment: GoalAssignment) -> bool:
+    """On a schedule (stage or step dates set), not self-paced."""
+    return bool(assignment.stage_dates or assignment.step_dates)
 
 
 def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, payload: GoalAssignmentCreate) -> dict:
@@ -261,7 +227,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
     email = (payload.subject_email or "").strip().lower() or None
     if sum([bool(payload.user_id), bool(payload.usergroup_id), bool(email)]) != 1:
         raise HTTPException(status_code=422, detail="Hand it to one person, one group or one email address")
-    template, badge = badge_authority.runnable(db, org_id, template_uuid, payload.badge_uuid)
+    template = plan_issuers.runnable(db, org_id, template_uuid)
     version = templates.issuable_version(db, template)
     if payload.usergroup_id and not db.exec(select(UserGroup.id).where(UserGroup.id == payload.usergroup_id, UserGroup.org_id == org_id)).first():
         raise HTTPException(status_code=404, detail="Group not found")
@@ -280,7 +246,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
     if not _member(db, org_id, owner_id):
         raise HTTPException(status_code=422, detail="The goal owner must belong to this organization")
     document = version.document or {}
-    collaborators = _collaborators(db, org_id, payload, owner_id, document.get("roles") or {})
+    collaborators = _collaborators(db, org_id, payload, int(current_user.id))
     stage_dates, step_dates = _schedule(document, payload.schedule, payload.stage_dates)
     now = _now()
     assignment = GoalAssignment(
@@ -289,8 +255,8 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
         staff_user_ids=[item["user_id"] for item in collaborators], start_date=payload.start_date,
         due_date=payload.due_date, stage_dates=stage_dates,
         step_dates=step_dates, collaborators=collaborators, owner_user_id=owner_id, created_by_user_id=current_user.id, creation_date=now, update_date=now,
-        badge_id=badge.id if badge else None,
     )
+    _check_dates(assignment)
     db.add(assignment)
     db.flush()
     goals = sync_assignment(db, assignment, current_user.id)
@@ -301,7 +267,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
 def list_assignments(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> list[dict]:
     """A template's assignments here: all of them for admins; staff see it read-only, with the ones they staff."""
     templates.require_reader(db, current_user, org_id)
-    template, _ = badge_authority.runnable(db, org_id, template_uuid)
+    template = plan_issuers.runnable(db, org_id, template_uuid)
     rows = db.exec(select(GoalAssignment).where(GoalAssignment.template_id == template.id, GoalAssignment.org_id == org_id)
                    .order_by(GoalAssignment.id.desc())).all()  # type: ignore[union-attr]
     if not templates.can_edit(db, current_user, org_id):
@@ -311,7 +277,6 @@ def list_assignments(db: Session, current_user: PublicUser, org_id: int, templat
 
 def list_org_assignments(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     """Current (active and paused) assignments: all of them for admins, the ones they staff for everyone else."""
-    from src.security.org_auth import is_org_admin, require_org_membership
 
     require_org_membership(current_user.id, org_id, db)
     rows = db.exec(
@@ -339,23 +304,25 @@ def sync_group_members(db: Session, group: UserGroup, user_ids: Iterable[int], a
 
 # Running an assignment: edit, pause, resume, end ------------------------------------------
 
-def _managed(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> GoalAssignment:
-    require_org_admin(current_user.id, org_id, db, "run_assignments")
-    assignment = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == assignment_uuid, GoalAssignment.org_id == org_id)).first()
-    if not assignment:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    return assignment
+
+def _step_plan(rule: dict, due: date | None) -> dict:
+    """One step's dates and switches from its schedule entry; ``due`` is its date without one."""
+    return {
+        "start_date": date.fromisoformat(rule["start_date"]) if rule.get("start_date") else None,
+        "due_date": date.fromisoformat(rule["due_date"]) if rule.get("due_date") else due,
+        "open_early": bool(rule.get("open_early", True)), "allow_late": bool(rule.get("allow_late", True)),
+    }
 
 
 def _planned(assignment: GoalAssignment, document: dict) -> dict:
-    """The dates an assignment gives its goals: start and due, stage starts and step close dates by template key."""
+    """The dates an assignment gives its goals: start and due, stage starts and each step's dates by template key."""
     schedule = stage_schedule(document, assignment.start_date, assignment.stage_dates)
-    steps: dict[str, date | None] = {}
+    steps: dict[str, dict] = {}
     for stage in document.get("stages") or []:
         begins, ends = schedule.get(stage["key"], (None, None))
         for spec in stage.get("steps") or []:
-            given = ((assignment.step_dates or {}).get(spec["key"]) or {}).get("due_date")
-            steps[spec["key"]] = date.fromisoformat(given) if given else _step_due(spec, begins, ends)
+            rule = (assignment.step_dates or {}).get(spec["key"]) or {}
+            steps[spec["key"]] = _step_plan(rule, _step_due(spec, begins, ends))
     return {"start": assignment.start_date, "due": assignment.due_date, "stages": {key: value[0] for key, value in schedule.items()}, "steps": steps}
 
 
@@ -380,24 +347,15 @@ def _reschedule(db: Session, goal: Goal, before: dict, after: dict) -> bool:
             move(stage, "start_date", before["stages"].get(stage.template_key), after["stages"][stage.template_key])
     for step in db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all():
         if step.template_key in after["steps"]:
-            move(step, "due_date", before["steps"].get(step.template_key), after["steps"][step.template_key])
+            old, new = before["steps"].get(step.template_key) or {}, after["steps"][step.template_key]
+            for field in ("start_date", "due_date", "open_early", "allow_late"):
+                move(step, field, old.get(field, getattr(step, field)), new[field])
     return changed
-
-
-def _drop_staff(db: Session, assignment: GoalAssignment, goal: Goal, user_ids: set[int]) -> None:
-    """Take people removed from an assignment's staff off a goal, unless they're on it another way."""
-    covered = {row.user_id for row in db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == assignment.usergroup_id)).all()
-               if group_staff.covers(row, assignment)} if assignment.usergroup_id else set()
-    for user_id in user_ids - covered - {goal.owner_user_id, goal.subject_user_id}:
-        member = db.exec(select(PlanCollaborator).where(PlanCollaborator.goal_id == goal.id, PlanCollaborator.user_id == user_id)).first()
-        if member and member.active:
-            member.active, member.update_date = False, _now()
-            db.add(member)
 
 
 def update(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, payload: GoalAssignmentUpdate) -> dict:
     """Edit an assignment's welcome text, dates, schedule or staff, and bring its learners' goals along."""
-    assignment = _managed(db, current_user, org_id, assignment_uuid)
+    assignment = require_assignment_manager(db, current_user, org_id, assignment_uuid)
     if _value(assignment.status) == AssignmentStatus.ENDED.value:
         raise HTTPException(status_code=409, detail="An ended assignment can't be changed")
     sent = payload.model_fields_set
@@ -410,15 +368,12 @@ def update(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
         assignment.start_date = payload.start_date
     if "due_date" in sent:
         assignment.due_date = payload.due_date
-    if assignment.start_date and assignment.due_date and assignment.due_date < assignment.start_date:
-        raise HTTPException(status_code=422, detail="The due date can't come before the start date")
     if "schedule" in sent:
         assignment.stage_dates, assignment.step_dates = _schedule(document, payload.schedule, {}) if payload.schedule else ({}, {})
+    _check_dates(assignment)
     removed: set[int] = set()
     if "collaborators" in sent and payload.collaborators is not None:
-        owner_id = int(assignment.owner_user_id or assignment.created_by_user_id or current_user.id)
-        request = GoalAssignmentRequest(collaborators=payload.collaborators)
-        collaborators = _collaborators(db, org_id, request, owner_id, document.get("roles") or {})
+        collaborators = _collaborators(db, org_id, GoalAssignmentRequest(collaborators=payload.collaborators))
         removed = set(assignment.staff_user_ids or []) - {item["user_id"] for item in collaborators}
         assignment.collaborators, assignment.staff_user_ids = collaborators, [item["user_id"] for item in collaborators]
     assignment.update_date = _now()
@@ -439,32 +394,56 @@ def update(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
     return assignment_dict(db, assignment)
 
 
-def set_step_due(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, step_key: str, due_date: date | None) -> dict:
-    """Set or clear when one step of a running assignment is due (a handout due next week), on its learners' goals too."""
-    assignment = _managed(db, current_user, org_id, assignment_uuid)
+def save_schedule(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, payload: AssignmentScheduleSave) -> dict:
+    """Replace a running assignment's whole schedule (start, end, stage starts, steps' own dates and switches).
+
+    Its learners' goals move along, except dates staff changed on one learner's goal.
+    """
+    assignment = require_assignment_manager(db, current_user, org_id, assignment_uuid)
     if _value(assignment.status) == AssignmentStatus.ENDED.value:
         raise HTTPException(status_code=409, detail="An ended assignment can't be changed")
     version = db.get(GoalTemplateVersion, assignment.version_id)
     document = (version.document if version else None) or {}
-    if step_key not in {step["key"] for _, step in iter_steps(document)}:
-        raise HTTPException(status_code=404, detail="Step not found in this assignment")
     before = _planned(assignment, document)
-    step_dates = {key: value for key, value in (assignment.step_dates or {}).items() if key != step_key}
-    if due_date:
-        step_dates[step_key] = {"due_date": _iso(due_date)}
-    assignment.step_dates, assignment.update_date = step_dates, _now()
+    assignment.start_date, assignment.due_date = payload.start_date, payload.due_date
+    assignment.stage_dates, assignment.step_dates = _schedule(document, AssignmentSchedule(stages=payload.stages, steps=payload.steps), {})
+    _check_dates(assignment)
+    assignment.update_date = _now()
     db.add(assignment)
     db.flush()
     after = _planned(assignment, document)
     for goal in db.exec(select(Goal).where(Goal.assignment_id == assignment.id).order_by(col(Goal.id))).all():
         if _reschedule(db, goal, before, after):
-            access.log(db, goal, current_user.id, "goal.updated", {"assignment_uuid": assignment.assignment_uuid, "fields": ["step_dates"]})
+            access.log(db, goal, current_user.id, "goal.updated", {"assignment_uuid": assignment.assignment_uuid, "fields": ["schedule"]})
     db.commit()
     return assignment_dict(db, assignment)
 
 
+def current_schedule(assignment: GoalAssignment) -> AssignmentScheduleSave:
+    """The assignment's schedule as save_schedule takes it."""
+    return AssignmentScheduleSave(
+        start_date=assignment.start_date, due_date=assignment.due_date,
+        stages=[StageSchedule(stage_key=key, start_date=value.get("start_date")) for key, value in (assignment.stage_dates or {}).items()],
+        steps=[StepSchedule(step_key=key, **{field: value[field] for field in ("start_date", "due_date", "open_early", "allow_late") if field in value})
+               for key, value in (assignment.step_dates or {}).items()],
+    )
+
+
+def set_step_due(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, step_key: str, due_date: date | None) -> dict:
+    """Set or clear one step's due date: the whole schedule, saved with that one change."""
+    assignment = require_assignment_manager(db, current_user, org_id, assignment_uuid)
+    version = db.get(GoalTemplateVersion, assignment.version_id)
+    if step_key not in {step["key"] for _, step in iter_steps((version.document if version else None) or {})}:
+        raise HTTPException(status_code=404, detail="Step not found in this assignment")
+    schedule = current_schedule(assignment)
+    step = next((item for item in schedule.steps if item.step_key == step_key), None) or StepSchedule(step_key=step_key)
+    step.due_date = due_date
+    schedule.steps = [*(item for item in schedule.steps if item.step_key != step_key), step]
+    return save_schedule(db, current_user, org_id, assignment_uuid, schedule)
+
+
 def pause(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> dict:
-    assignment = _managed(db, current_user, org_id, assignment_uuid)
+    assignment = require_assignment_manager(db, current_user, org_id, assignment_uuid)
     if _value(assignment.status) != AssignmentStatus.ACTIVE.value:
         raise HTTPException(status_code=409, detail="Only an active assignment can be paused")
     now = _now()
@@ -476,7 +455,7 @@ def pause(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: s
 
 def resume(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> dict:
     """Pick a paused assignment back up, issuing plans to anyone who joined its group meanwhile."""
-    assignment = _managed(db, current_user, org_id, assignment_uuid)
+    assignment = require_assignment_manager(db, current_user, org_id, assignment_uuid)
     if _value(assignment.status) != AssignmentStatus.PAUSED.value:
         raise HTTPException(status_code=409, detail="Only a paused assignment can be resumed")
     assignment.status, assignment.paused_at, assignment.update_date = AssignmentStatus.ACTIVE, None, _now()
@@ -489,7 +468,7 @@ def resume(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
 
 def end(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> dict:
     """End an assignment for good. Learners keep their plans as they are (see the module docstring)."""
-    assignment = _managed(db, current_user, org_id, assignment_uuid)
+    assignment = require_assignment_manager(db, current_user, org_id, assignment_uuid)
     if _value(assignment.status) == AssignmentStatus.ENDED.value:
         raise HTTPException(status_code=409, detail="This assignment has already ended")
     now = _now()

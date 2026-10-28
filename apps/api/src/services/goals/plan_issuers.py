@@ -1,30 +1,21 @@
-"""Who may issue a badge: its owner, and the organizations approved on one of its plans.
+"""Who may run another organization's plan: the plan's owner, and organizations approved on it.
 
-This is the one check. An organization may issue badge B if it owns B, or if it holds an approved
-``GoalTemplateAuthorization`` on a plan template that is a way to earn B (a ``BadgeRoute``). Which
-versions of that plan earn the badge stays the route's rule (``badge_authority.eligible``), and which
-of a badge's plans an issuer offers stays ``BadgeRouteOffer``. There is no badge-level permission:
-an organization asks for a specific plan (``template_marketplace.request_use``), the plan's owner
-approves or declines it, and either side ends it (``template_marketplace.revoke``: for the issuer,
-leaving the plan). A badge earned only through legacy program routes is issued by its owner alone.
-
-``BadgeIssuerAuthorization``, ``BadgeRoute.trusted_only`` and ``badge_route_partner`` are no longer
-read or written; migration a8c4e1f7d2b9 copied their approvals onto the plans.
+An organization asks for a plan (``template_marketplace.request_use``), the owner
+approves or declines (or invites an organization by slug here), and either side ends it
+(``template_marketplace.revoke``). An organization that may run a plan also awards its
+badge (``services/badges/awards.runs_plan``).
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import inspect
 from sqlmodel import Session, col, func, select
 
-from src.db.badge_routes import BadgeRoute
+from src.db.badges import BadgeAward
 from src.db.goals import Goal, GoalAssignment, GoalStatus, GoalTemplate
-from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.template_marketplace import GoalTemplateAuthorization, TemplateAuthorizationStatus
 from src.db.users import PublicUser
@@ -37,19 +28,6 @@ def _now() -> str:
     return datetime.now().isoformat()
 
 
-def _has_tables(db: Session) -> bool:
-    found = inspect(db.connection())
-    return found.has_table(GoalTemplateAuthorization.__tablename__) and found.has_table(BadgeRoute.__tablename__)
-
-
-def _approved_routes(org_ids: Iterable[int]):
-    """(badge id, issuer org id) for every plan route an organization in ``org_ids`` is approved on."""
-    return (select(BadgeRoute.badge_id, GoalTemplateAuthorization.issuer_org_id)
-            .join(GoalTemplateAuthorization, GoalTemplateAuthorization.template_id == BadgeRoute.goal_template_id)
-            .where(col(GoalTemplateAuthorization.issuer_org_id).in_({int(item) for item in org_ids}),
-                   GoalTemplateAuthorization.status == APPROVED))
-
-
 def approved_on(db: Session, template_id: int | None, org_id: int) -> bool:
     """The template's owner, or an organization with an approved permission to run it."""
     if not template_id:
@@ -57,63 +35,77 @@ def approved_on(db: Session, template_id: int | None, org_id: int) -> bool:
     template = db.get(GoalTemplate, template_id)
     if template is not None and int(template.org_id) == int(org_id):
         return True
-    if not _has_tables(db):
-        return False
     return db.exec(select(GoalTemplateAuthorization.id).where(
         GoalTemplateAuthorization.template_id == template_id, GoalTemplateAuthorization.issuer_org_id == org_id,
         GoalTemplateAuthorization.status == APPROVED,
     )).first() is not None
 
 
-def may_issue(db: Session, badge: LearningBadge, org_id: int | None) -> bool:
-    """The single check: the badge's owner, or an organization approved on one of the badge's plans."""
-    if org_id is None:
-        return False
-    if int(badge.org_id) == int(org_id):
-        return True
-    if not _has_tables(db):
-        return False
-    return db.exec(_approved_routes([org_id]).where(BadgeRoute.badge_id == badge.id)).first() is not None
+def runnable(db: Session, org_id: int, template_uuid: str) -> GoalTemplate:
+    """A template this organization may assign as it is: its own, or another organization's it is approved to run
+    (an editable marketplace plan is copied instead, ``template_marketplace.copy``)."""
+    from src.services.badges.definition import earns_badge
+    from src.services.goals import templates
+    from src.services.goals.template_marketplace import TemplateListingMode, listing_of
+
+    template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == template_uuid)).first()
+    if template is None:
+        raise HTTPException(status_code=404, detail="Goal template not found")
+    if int(template.org_id) == int(org_id):
+        return template
+    listing = listing_of(db, template)
+    if approved_on(db, template.id, org_id) and (listing is None or listing.mode == TemplateListingMode.LOCKED.value):
+        return template
+    # Plans that earn a badge are public (their badge page links them), and an organization knows the plans it asked for;
+    # anything else isn't there for it.
+    asked = db.exec(select(GoalTemplateAuthorization.id).where(
+        GoalTemplateAuthorization.template_id == template.id, GoalTemplateAuthorization.issuer_org_id == org_id)).first()
+    if asked is None and not earns_badge(templates.published_version(db, template)):
+        raise HTTPException(status_code=404, detail="Goal template not found")
+    raise HTTPException(status_code=403, detail="This organization isn't approved to run this plan")
 
 
-def issued_badge_ids(db: Session, org_ids: Iterable[int]) -> set[int]:
-    """Badges of other organizations these organizations may issue (through a plan they're approved on)."""
-    ids = {int(item) for item in org_ids if item is not None}
-    if not ids or not _has_tables(db):
-        return set()
-    rows = db.exec(_approved_routes(ids).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
-                   .where(LearningBadge.org_id != GoalTemplateAuthorization.issuer_org_id)).all()
-    return {int(badge_id) for badge_id, _ in rows}
+def runnable_ids(db: Session, org_id: int) -> list[int]:
+    """Other organizations' templates this one is approved to run as they are (not editable copies)."""
+    from src.services.goals.template_marketplace import TemplateListingMode, listing_of
+
+    rows = db.exec(select(GoalTemplate).join(GoalTemplateAuthorization, GoalTemplateAuthorization.template_id == GoalTemplate.id).where(
+        GoalTemplateAuthorization.issuer_org_id == org_id, GoalTemplateAuthorization.status == APPROVED, GoalTemplate.org_id != org_id,
+    )).all()
+    return [int(row.id) for row in rows if (listing := listing_of(db, row)) is None or listing.mode == TemplateListingMode.LOCKED.value]  # type: ignore[arg-type]
 
 
-def issuer_org_ids(db: Session, badge: LearningBadge) -> list[int]:
-    """Organizations other than the owner that may issue the badge, in the order they were approved."""
-    if not _has_tables(db):
-        return []
-    rows = db.exec(select(GoalTemplateAuthorization.issuer_org_id)
-                   .join(BadgeRoute, BadgeRoute.goal_template_id == GoalTemplateAuthorization.template_id)
-                   .where(BadgeRoute.badge_id == badge.id, GoalTemplateAuthorization.status == APPROVED,
-                          GoalTemplateAuthorization.issuer_org_id != badge.org_id)
-                   .order_by(GoalTemplateAuthorization.id)).all()
-    return list(dict.fromkeys(int(item) for item in rows))
+def still_runs(db: Session, assignment: GoalAssignment) -> bool:
+    """An assignment issues new plans only while its organization may still run the template."""
+    template = db.get(GoalTemplate, assignment.template_id)
+    if template is None or int(template.org_id) == int(assignment.org_id):
+        return template is not None
+    return approved_on(db, template.id, assignment.org_id)
 
 
-def badge_plans(db: Session, badge: LearningBadge, org_id: int | None) -> list[dict]:
-    """The badge's plans with this organization's permission on each, for asking to issue it through one."""
-    from src.services.goals.badges import badge_routes
-    from src.services.goals.template_marketplace import authorization_dict
+def owns(db: Session, org_id: int, template_uuid: str) -> bool:
+    return db.exec(select(GoalTemplate.id).where(GoalTemplate.template_uuid == template_uuid, GoalTemplate.org_id == org_id)).first() is not None
 
-    found = {}
-    if org_id is not None and _has_tables(db):
-        found = {row.template_id: row for row in db.exec(select(GoalTemplateAuthorization).where(
-            GoalTemplateAuthorization.issuer_org_id == org_id,
-            col(GoalTemplateAuthorization.template_id).in_(select(BadgeRoute.goal_template_id).where(BadgeRoute.badge_id == badge.id)))).all()}
-    plans = []
-    for route, template in badge_routes(db, badge):
-        authorization = found.get(template.id)
-        plans.append({"route_uuid": route.route_uuid, "template_uuid": template.template_uuid, "title": template.title,
-                      "recommended": route.recommended, "authorization": authorization_dict(db, authorization, template) if authorization else None})
-    return plans
+
+def template_view(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
+    """Another organization's plan this one runs, as its staff read it: the live release, read-only."""
+    from src.services.badges.definition import live_achievement
+    from src.services.goals import templates
+
+    templates.require_reader(db, current_user, org_id)
+    template = runnable(db, org_id, template_uuid)
+    live = templates.published_version(db, template)
+    owner = db.get(Organization, template.org_id)
+    return {
+        "template_uuid": template.template_uuid, "title": template.title, "description": template.description or "",
+        "thumbnail_image": template.thumbnail_image, "published_version": live.number if live else None,
+        "published_at": live.published_at if live else None, "org_id": template.org_id,
+        "status": getattr(template.status, "value", template.status), "system_type": None, "etag": "",
+        "has_unpublished_changes": False, "read_only": True,
+        "document": (live.document if live else None) or {"template": {"title": template.title}, "stages": []},
+        "versions": [], "badge": live_achievement(db, template),
+        "owner_org": {"id": owner.id, "name": owner.name, "slug": owner.slug, "logo_image": owner.logo_image, "org_uuid": owner.org_uuid} if owner else None,
+    }
 
 
 # The template owner's Publish tab ------------------------------------------------------------------------
@@ -159,7 +151,7 @@ def template_metrics(db: Session, current_user: PublicUser, org_id: int, templat
     goals = select(func.count()).select_from(Goal).where(Goal.template_id == template.id)
     permissions = {status: number for status, number in db.exec(
         select(GoalTemplateAuthorization.status, func.count()).where(GoalTemplateAuthorization.template_id == template.id)
-        .group_by(GoalTemplateAuthorization.status)).all()} if _has_tables(db) else {}
+        .group_by(GoalTemplateAuthorization.status)).all()}
     running = {int(item) for item in db.exec(select(GoalAssignment.org_id).where(GoalAssignment.template_id == template.id).distinct()).all() if item}
     return {
         "authorized_orgs": int(permissions.get(APPROVED, 0)),
@@ -169,24 +161,5 @@ def template_metrics(db: Session, current_user: PublicUser, org_id: int, templat
         "active_learners": count(select(func.count(func.distinct(Goal.subject_user_id))).where(
             Goal.template_id == template.id, col(Goal.status).in_([GoalStatus.ACTIVE, GoalStatus.PENDING]))),
         "completions": count(goals.where(Goal.status == GoalStatus.FINISHED)),
-        "badges_earned": count(goals.where(Goal.status == GoalStatus.FINISHED, col(Goal.badge_id).is_not(None))),
+        "badges_earned": count(select(func.count()).select_from(BadgeAward).where(BadgeAward.template_id == template.id)),
     }
-
-
-def route_issuers(db: Session, route: BadgeRoute, owner_admin: bool) -> dict:
-    """For a badge's Ways to earn card: who owns the route's plan, the organizations approved on it,
-    and its pending requests (counted only for an admin of the plan's owner)."""
-    template = db.get(GoalTemplate, route.goal_template_id) if route.goal_template_id else None
-    if template is None:
-        return {"owner_org": None, "approved": [], "requested": 0}
-    owner = db.get(Organization, template.org_id)
-    approved: list[dict] = []
-    requested = 0
-    if _has_tables(db):
-        rows = db.exec(select(GoalTemplateAuthorization, Organization).join(Organization, Organization.id == GoalTemplateAuthorization.issuer_org_id)
-                       .where(GoalTemplateAuthorization.template_id == template.id, col(GoalTemplateAuthorization.status).in_([APPROVED, REQUESTED]))
-                       .order_by(Organization.name)).all()
-        approved = [{"id": org.id, "name": org.name, "slug": org.slug} for row, org in rows if row.status == APPROVED]
-        requested = sum(row.status == REQUESTED for row, _ in rows)
-    return {"owner_org": {"id": owner.id, "name": owner.name, "slug": owner.slug} if owner else None,
-            "approved": approved, "requested": requested if owner_admin else 0}

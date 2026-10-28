@@ -20,7 +20,6 @@ from src.db.goals import (
     CompletionMethod,
     Goal,
     GoalOwnership,
-    GoalSource,
     GoalStage,
     GoalStatus,
     GoalStep,
@@ -28,7 +27,7 @@ from src.db.goals import (
     StepProgress,
     StepStatus,
 )
-from src.db.learning import LearningBadge, LearningRun, LearningRunStatus
+from src.db.learning import LearningRun, LearningRunStatus
 from src.services.goals import access
 from src.services.goals.types import StepState, step_type
 
@@ -199,32 +198,17 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
     values = [statuses.get(int(step.id), StepStatus.NOT_STARTED.value) for step in steps]  # type: ignore[arg-type]
     if any(value not in DONE_STEP_STATUSES for value in values) or StepStatus.COMPLETED.value not in values:
         return
-    badge = db.get(LearningBadge, goal.badge_id) if goal.badge_id and _earns_badge(db, goal) else None
-    if badge:
-        from src.services.goals.badges import award_badge
+    from src.services.badges.awards import award_for_goal
 
-        award_badge(db, badge, int(goal.subject_user_id), goal.org_id, {"goal_uuid": goal.goal_uuid})
+    award = award_for_goal(db, goal)
     goal.status = GoalStatus.FINISHED
     goal.finished_at = datetime.utcnow()
     goal.update_date = _now()
     db.add(goal)
     access.log(db, goal, None, "goal.finished", {})
     db.commit()
-    if badge:
-        on_badge_awarded(db, int(goal.subject_user_id), int(badge.id))  # type: ignore[arg-type]
-
-
-def _earns_badge(db: Session, goal: Goal) -> bool:
-    """Badge plans earn their badge; an assignment's plans only on a version the badge's owner accepts."""
-    if _value(goal.source) == GoalSource.BADGE.value:
-        return True
-    if _value(goal.source) != GoalSource.ASSIGNMENT.value or not goal.assignment_id:
-        return False
-    from src.db.goals import GoalAssignment, GoalTemplateVersion
-    from src.services.goals.badge_authority import finishing_earns_badge
-
-    assignment = db.get(GoalAssignment, goal.assignment_id)
-    return finishing_earns_badge(db, assignment, db.get(GoalTemplateVersion, goal.version_id) if goal.version_id else None)
+    if award:
+        on_badge_awarded(db, int(award.user_id), int(award.template_id))  # type: ignore[arg-type]
 
 
 # Automatic completion -----------------------------------------------------------
@@ -265,9 +249,8 @@ def on_run_changed(db: Session, run: LearningRun) -> None:
     if not step:
         return
     finished = run.status == LearningRunStatus.COMPLETED
-    waiting = grading._has_pending_required_manual_grades(db, run) or (
-        (run.data or {}).get("completion_result", {}).get("reason") == "pending_manual_grades"
-    )
+    result = (run.data or {}).get("completion_result") or {}
+    waiting = grading._has_pending_required_manual_grades(db, run) or result.get("reason") == "pending_manual_grades" or bool(result.get("awaiting_staff_decision"))
     if finished and not waiting:
         _auto(db, step, StepStatus.COMPLETED)
     elif waiting:
@@ -276,11 +259,11 @@ def on_run_changed(db: Session, run: LearningRun) -> None:
         _auto(db, step, StepStatus.IN_PROGRESS)
 
 
-def on_badge_awarded(db: Session, user_id: int, badge_id: int) -> None:
-    """Badge steps for this badge, on the learner's goals, are done."""
+def on_badge_awarded(db: Session, user_id: int, template_id: int) -> None:
+    """Badge steps for this plan's badge, on the learner's goals, are done."""
     steps = db.exec(
         select(GoalStep).join(Goal, Goal.id == GoalStep.goal_id)
-        .where(GoalStep.badge_id == badge_id, GoalStep.type == "badge", Goal.subject_user_id == user_id, Goal.status == GoalStatus.ACTIVE)
+        .where(GoalStep.badge_template_id == template_id, GoalStep.type == "badge", Goal.subject_user_id == user_id, Goal.status == GoalStatus.ACTIVE)
     ).all()
     for step in steps:
         _auto(db, step, StepStatus.COMPLETED)

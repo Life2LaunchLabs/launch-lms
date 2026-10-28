@@ -96,7 +96,9 @@ function EventSettings({ config, onChange }: ConfigPanelProps<'event'>) {
 export const event: StepDefinition<'event'> = {
   type: 'event',
   label: 'Event',
-  hint: 'Something to go to, added to your calendar',
+  color: '#C8327D',
+  hint: 'Something to go to, with a date, place and RSVP.',
+  example: 'Job shadow at Riverside Clinic',
   icon: CalendarDays,
   statusLine: (step: Step<'event'>) => {
     const when = eventWhen(step.config)

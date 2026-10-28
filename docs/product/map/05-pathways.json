@@ -3394,9 +3394,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
-                  "symbol": "ObjectiveInlineCreator",
-                  "responsibility": "Expands the shared objective editor directly within a template phase for inline save and cancel."
+                  "path": "apps/web/components/Plans/plan/StepModal.tsx",
+                  "symbol": "StepModal",
+                  "responsibility": "Opens the shared step editor in a dialog, with a type picker for new steps and a live learner preview, saving to the draft."
                 }
               ]
             },
@@ -3473,9 +3473,9 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/templates/GoalAssignmentModal.tsx",
-                  "symbol": "ScheduleStep,ProgramAssignmentModal",
-                  "responsibility": "The template's Assign dialog: sets phase dates and per-objective due rules for the group or learners it is handed to."
+                  "path": "apps/web/components/Assignments/page/StepsTab.tsx",
+                  "symbol": "ScheduleEditor",
+                  "responsibility": "The assignment page's schedule mode: sets stage starts, each step's dates and late rules, and the last day, saved in one call."
                 }
               ]
             },
@@ -3532,8 +3532,8 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
-                  "symbol": "ProgramList",
+                  "path": "apps/web/components/Plans/library/PlanLibrary.tsx",
+                  "symbol": "NewPlanModal",
                   "responsibility": "Offers searchable library and blank paths from the new-template action."
                 }
               ]
@@ -3590,9 +3590,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
-              "symbol": "ObjectiveInlineCreator, TemplateRoles",
-              "responsibility": "Creates template objectives inline with the shared card and edits compact template role summaries."
+              "path": "apps/web/components/Plans/plan/PlanSteps.tsx",
+              "symbol": "PlanSteps, StageHeading",
+              "responsibility": "Lists the plan's steps (stage headings from two stages on), adds and reorders them, and opens each in the step editor."
             },
             {
               "kind": "code",
@@ -3949,8 +3949,8 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
-              "symbol": "PlanStructureGuide, AssignmentRow, AssignmentSection",
+              "path": "apps/web/components/Plans/plan/PlanSidebar.tsx",
+              "symbol": "AssignmentsCard",
               "responsibility": "Explains the managed-plan hierarchy and routes batch and individual assignments to the correct workspace."
             }
           ],
@@ -4150,9 +4150,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/assignments/AssignmentLearners.tsx",
-              "symbol": "AssignmentLearners",
-              "responsibility": "An assignment's Learners tab: each learner's steps as dots by stage, pace and what needs attention, opening their plan feed."
+              "path": "apps/web/components/Assignments/page/PeopleTab.tsx",
+              "symbol": "PeopleTab,LearnerRows",
+              "responsibility": "An assignment's People tab: staff roles, then each learner's progress bar and what needs attention, with Message and Resend."
             }
           ],
           "relationships": [
@@ -4699,9 +4699,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
+                  "path": "apps/web/components/Requirements/CreateFramework.tsx",
                   "symbol": "CreateFramework",
-                  "responsibility": "Offers searchable library and blank paths from the new-framework action."
+                  "responsibility": "Starts a blank framework from the Requirements tab."
                 }
               ]
             },
@@ -4725,9 +4725,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-                  "symbol": "FrameworkLevels",
-                  "responsibility": "Defines ordered levels and configurable metadata fields."
+                  "path": "apps/web/components/Requirements/FrameworkEdit.tsx",
+                  "symbol": "Settings",
+                  "responsibility": "Edits the framework name, description, category numbering and fields."
                 }
               ]
             },
@@ -4735,7 +4735,7 @@
               "id": "PATHWAYS-G005-A001-S003",
               "activity_id": "PATHWAYS-G005-A001",
               "display_order": 3,
-              "title": "Define and order hierarchy levels",
+              "title": "Number categories and groups, and set how many items each needs",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -4753,15 +4753,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-                  "symbol": "FrameworkLevels",
-                  "responsibility": "Lets administrators select the generated code format for each hierarchy level."
-                },
-                {
-                  "kind": "code",
-                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-                  "symbol": "FrameworkSpec",
-                  "responsibility": "Adds root and child nodes from the tree and edits the selected node in a detail panel."
+                  "path": "apps/web/components/Requirements/FrameworkEdit.tsx",
+                  "symbol": "NodeEditor",
+                  "responsibility": "Picks how each category or group numbers its items and how many are needed."
                 },
                 {
                   "kind": "test",
@@ -4814,9 +4808,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-                  "symbol": "FrameworkSpec",
-                  "responsibility": "Shows connected tree branches, terminal add rows, generated codes, and node details."
+                  "path": "apps/web/components/Requirements/FrameworkEdit.tsx",
+                  "symbol": "FrameworkEdit",
+                  "responsibility": "Adds, orders and removes categories, groups and requirements, warning before removing linked ones."
                 },
                 {
                   "kind": "test",
@@ -4884,7 +4878,7 @@
               "kind": "code",
               "path": "apps/api/src/services/requirements.py",
               "symbol": "_normalize_source_metadata, _validate_nodes, _code_segment",
-              "responsibility": "Validates per-level code styles and generates authoritative hierarchical node codes while preserving published node versions."
+              "responsibility": "Validates each group's numbering and \"any N\" rule and generates hierarchical codes from them, upgrading old per-level code styles."
             },
             {
               "kind": "code",
@@ -4900,15 +4894,21 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-              "symbol": "RequirementsAdmin",
-              "responsibility": "Provides the framework list and draft/publish editor."
+              "path": "apps/web/components/Requirements/FrameworkPage.tsx",
+              "symbol": "FrameworkPage",
+              "responsibility": "Shows one framework, and for admins edits its draft and publishes a version."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-              "symbol": "RequirementsAdmin, RequirementFrameworkDetail, FrameworkLevels, FrameworkSpec",
-              "responsibility": "Provides list/detail navigation, configurable hierarchy levels, and the MUI X tree-based specification editor."
+              "path": "apps/web/components/Requirements/FrameworkEdit.tsx",
+              "symbol": "FrameworkEdit, draftPayload",
+              "responsibility": "Edits categories, groups and requirements with per-group numbering, rules and framework fields."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/services/goals/requirementTree.ts",
+              "symbol": "withCodes, gaugeOf, gapIds",
+              "responsibility": "Tree helpers shared by the page: generated codes, coverage gauges and gaps that respect \"any N\" rules."
             },
             {
               "kind": "test",
@@ -5122,14 +5122,14 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateStepRow.tsx",
-              "symbol": "RequirementMappings",
+              "path": "apps/web/components/Plans/editor/StepRequirementLinks.tsx",
+              "symbol": "StepRequirementLinks",
               "responsibility": "Lets administrators select requirement mappings for a template objective."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
-              "symbol": "TemplateRequirementCoverage",
+              "path": "apps/web/components/Plans/plan/PlanSidebar.tsx",
+              "symbol": "RequirementsCard",
               "responsibility": "Summarizes mapped requirement coverage for a plan template."
             },
             {
@@ -5155,7 +5155,7 @@
           "id": "PATHWAYS-G005-A003",
           "goal_id": "PATHWAYS-G005",
           "display_order": 3,
-          "title": "Assign a requirement framework",
+          "title": "Track learners on a requirement framework",
           "product_state": "live",
           "health": "works",
           "traceability": "complete",
@@ -5320,21 +5320,21 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/requirements.py",
-              "symbol": "assign_framework, sync_group_batches, migrate_enrollments",
-              "responsibility": "Creates learner/group assignments, synchronizes group membership, and migrates eligible enrollments."
+              "path": "apps/api/src/services/requirement_tracking.py",
+              "symbol": "track, track_goal, sync_group_batches, migrate_enrollments",
+              "responsibility": "Tracks a learner on a framework when a plan counting toward it is issued, keeps older group assignments in step, and migrates eligible enrollments."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-              "symbol": "AssignmentPanel",
-              "responsibility": "Provides direct learner and group assignment controls and version migration prompt."
+              "path": "apps/web/components/Requirements/FrameworkPage.tsx",
+              "symbol": "FrameworkPage",
+              "responsibility": "Offers moving learners still on an earlier version when a new version is published."
             },
             {
               "kind": "test",
               "path": "apps/api/src/tests/test_requirements.py",
-              "symbol": "test_framework_assignment_snapshots_leaf_requirements_and_syncs_group_membership",
-              "responsibility": "Covers group assignment and versioned learner snapshots."
+              "symbol": "test_tracking_a_learner_snapshots_leaf_requirements_once",
+              "responsibility": "Covers automatic tracking and versioned learner snapshots."
             },
             {
               "kind": "test",
@@ -5574,9 +5574,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
-              "symbol": "RequirementsReporting",
-              "responsibility": "Provides version, group, node, and status filters plus evidence detail."
+              "path": "apps/web/components/Requirements/FrameworkView.tsx",
+              "symbol": "FrameworkView",
+              "responsibility": "Shows which plans cover each requirement, the gaps, and flags gaps to fill."
             },
             {
               "kind": "code",
@@ -5587,7 +5587,7 @@
             {
               "kind": "test",
               "path": "apps/api/src/tests/test_requirements.py",
-              "symbol": "test_framework_assignment_snapshots_leaf_requirements_and_syncs_group_membership",
+              "symbol": "test_tracking_a_learner_snapshots_leaf_requirements_once",
               "responsibility": "Covers report enrollment totals and active status."
             },
             {
@@ -6001,8 +6001,8 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
-              "symbol": "TemplateRequirementCoverage",
+              "path": "apps/web/components/Plans/plan/PlanSidebar.tsx",
+              "symbol": "RequirementsCard",
               "responsibility": "Shows mapped versus uncovered requirement leaves on a plan template."
             }
           ],

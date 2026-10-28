@@ -1,7 +1,7 @@
 import { reviewHref } from '@components/Goals/admin/live/ui'
 import { routePaths } from '@services/config/config'
 import type { InboxGroup } from '@services/goals/admin'
-import type { HomeAssignment, HomeCreator } from '@services/goals/adminHome'
+import type { HomeAssignment } from '@services/goals/adminHome'
 
 const admin = routePaths.org.admin
 
@@ -17,10 +17,6 @@ export const homeLinks = {
   waiting: (group: Pick<InboxGroup, 'kind' | 'assignment_uuid' | 'step_key' | 'step_uuid' | 'activity_uuid'>) => group.kind === 'nudge'
     ? admin.assignments()
     : reviewHref({ assignment: group.assignment_uuid, stepKey: group.step_key, stepUuid: group.step_uuid, activity: group.activity_uuid }),
-  reports: () => admin.people.root(),
-  chat: (conversationUuid: string) => routePaths.org.chat(conversationUuid),
-  messages: () => routePaths.org.connect(),
-  edit: (item: HomeCreator['recent_edits'][number]) => (item.kind === 'template' ? admin.template(item.uuid) : admin.badge(item.uuid, 'analytics')),
-  templates: () => admin.templates(),
-  badges: () => admin.badges(),
+  /** A framework's dashboard in Insights; with none, the Requirements list there. */
+  insightsFramework: (frameworkUuid?: string) => admin.insightsScope('framework', frameworkUuid || null),
 }

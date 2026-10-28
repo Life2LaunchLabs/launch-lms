@@ -50,6 +50,8 @@ const validate = (values: any, t: any) => {
 interface InviteOnlySignUpProps {
   inviteCode: string
   invitationToken: string
+  header?: React.ReactNode // the invitation
+  postSignupUrl?: string // where the new account goes, when not ?next or the org
 }
 
 function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
@@ -61,12 +63,12 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const searchParams = useSearchParams()
   const nextUrl = searchParams.get('next')
   const postSignupUrl =
-    nextUrl || '/'
+    nextUrl || props.postSignupUrl || '/'
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
       org_id: org?.id,
-      email: '',
+      email: searchParams.get('email') || '',
       password: '',
       username: '',
       bio: '',
@@ -118,6 +120,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
 
   return (
     <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
+      {props.header}
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t('auth.create_account')}</h1>

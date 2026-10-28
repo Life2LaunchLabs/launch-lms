@@ -3,20 +3,20 @@
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
-import { BadgeSticker } from '@components/Badges/discover/BadgeArt'
+import { PlanArt } from './PlanArt'
 import { getUriWithOrg } from '@services/config/config'
-import type { DiscoverHeroSlide } from '@services/learning/badgeDiscover'
+import type { DiscoverHeroSlide } from '@services/goals/planJoining'
 import { cn } from '@/lib/utils'
 
 const DURATION_MS = 7000
 
 function HeroArtwork({ slide }: { slide: DiscoverHeroSlide }) {
   if (slide.image_url) return <><img src={slide.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/5 md:bg-gradient-to-r" /></>
-  if (slide.kind === 'badge' && slide.badge) return <>
+  if (slide.kind === 'plan' && slide.plan) return <>
     <div className="absolute inset-0 bg-[url('/rough_blue_background.png')] bg-cover opacity-40" />
-    <div className="absolute right-4 top-6 -rotate-6 md:right-10 md:top-1/2 md:-translate-y-1/2" aria-hidden="true"><BadgeSticker src={slide.badge.thumbnail_image} name={slide.title} size={150} className="md:!h-[210px] md:!w-[210px]" /></div>
+    <div className="absolute right-4 top-6 -rotate-6 md:right-10 md:top-1/2 md:-translate-y-1/2" aria-hidden="true"><PlanArt card={slide.plan} size={170} /></div>
   </>
-  if (slide.collection) return <div className="absolute right-4 top-4 flex md:right-10 md:top-1/2 md:-translate-y-1/2" aria-hidden="true">{slide.collection.badges.slice(0, 3).map((badge, index) => <div key={badge.badge_uuid} className="-ml-10 first:ml-0" style={{ transform: `rotate(${index * 12 - 12}deg)` }}><BadgeSticker src={badge.thumbnail_image} name={badge.name} size={110} /></div>)}</div>
+  if (slide.collection) return <div className="absolute right-4 top-4 flex md:right-10 md:top-1/2 md:-translate-y-1/2" aria-hidden="true">{slide.collection.plans.slice(0, 3).map((card, index) => <div key={card.template_uuid} className="-ml-10 first:ml-0" style={{ transform: `rotate(${index * 12 - 12}deg)` }}><PlanArt card={card} size={110} /></div>)}</div>
   return null
 }
 

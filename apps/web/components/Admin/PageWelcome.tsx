@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { primaryActionClass, secondaryActionClass } from '@components/Admin/Plans/PlansActions'
+import { primaryActionClass, secondaryActionClass } from '@components/Plans/shared/actions'
 import { cn } from '@/lib/utils'
 
 export type WelcomeAction = { label: string; href: string; primary?: boolean }

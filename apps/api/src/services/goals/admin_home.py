@@ -1,125 +1,136 @@
-"""The admin Home: what needs the viewer today and how their org's work is going, in one call.
+"""Home: what needs the viewer and how their work is going, in one call, built from what they can do.
 
-Each widget is built from the service that already owns its data:
+Each section comes from the service that owns its data:
 
-- ``waiting``: the review inbox (``review.inbox``), plus open chat reports for admins.
-- ``today``: steps closing and stages opening soon across the assignments the viewer staffs,
-  read from each assignment's matrix (``staff_views.assignment_matrix``).
-- ``messages``: the viewer's latest chats in this org (``connect.chats``).
-- ``attention``: assignments with learners behind or work waiting on staff, from the same matrices.
-- ``creator``: starts and completions of the org's own templates and badges (``admin_home_creator``).
+- ``welcome``: a new member's first two weeks: the note from the invitation they accepted (``admin_home_sections``).
+- ``first_steps``: the org setup checklist for admins (``admin_home_start``), a lap of the places they'll work
+  for staff (``admin_home_steps``). It stays until it's dismissed, done or not.
+- ``needs``: the Threads rows with something waiting on the viewer.
+- ``assignments``: the running assignments they're on, with where learners are; admins also get all of them.
+- ``continue``: the plans, requirement frameworks and resource channels edited last, for those who build plans.
+- ``week``: steps closing and stages opening in the coming week on their assignments, read from each
+  assignment's matrix (``staff_views.assignment_matrix``).
+- ``glance``: insight cards they pinned, or starter cards until they pin one (``admin_home_glance``).
+- ``requirements``: progress on each requirement framework, for those who see reports (``admin_home_requirements``).
 
-Which widgets a viewer gets follows their role: staff work for anyone who staffs an assignment or
-administers the org, creator metrics for admins of an org that makes templates or badges. Each
-member orders and hides widgets for themselves; the layout lives on their membership row.
+Each member hides sections, dismisses the welcome, First steps and the Needs you tip, ticks steps and pins
+cards for themselves. That state lives on their membership row under ``home``.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
-from src.db.conversations import Conversation, ConversationMember
-from src.db.goal_admin import ADMIN_HOME_WIDGETS, PLANS_TABS, PLANS_TABS_CREATOR, AdminHomeLayout, PlansTabsOrder
-from src.db.goals import DONE_STEP_STATUSES, AssignmentStatus, GoalAssignment
+from src.db.goal_admin import HOME_SECTIONS, HomeLayout
+from src.db.goals import DONE_STEP_STATUSES, AssignmentStatus, GoalAssignment, GoalTemplate, TemplateStatus
+from src.db.requirements import RequirementFramework
+from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser
-from src.security.org_auth import get_user_org, is_org_admin, require_org_membership
-from src.services.goals import admin_home_creator, admin_home_start, review, staff_views
+from src.security.org_auth import STAFF_PERMISSIONS, get_user_org, is_org_owner_admin, require_org_membership, staff_permissions
+from src.services.goals import admin_home_glance, admin_home_requirements, admin_home_sections, admin_home_start, admin_home_steps, staff_views
 
-# How far ahead "today and upcoming" looks.
+# How far ahead "this week" looks.
 UPCOMING_DAYS = 7
 LIMIT = 8
-PREFERENCES_KEY = "admin_home"
-PLANS_TABS_KEY = "plans_tabs"
+STATE_KEY = "home"
+WELCOME_DAYS = 14
+DISMISSABLE = ("welcome", "first_steps", "needs_intro")
 
 
 def _value(item) -> str:
     return getattr(item, "value", item)
 
 
-# Layout ----------------------------------------------------------------------------------
+# State -----------------------------------------------------------------------------------
 
-def _layout(saved: dict | None) -> dict:
-    """The saved order and hidden widgets, cleaned of unknown ids, with new widgets appended in default order."""
-    saved = saved or {}
-    order = [item for item in dict.fromkeys(saved.get("order") or []) if item in ADMIN_HOME_WIDGETS]
-    order += [item for item in ADMIN_HOME_WIDGETS if item not in order]
-    hidden = [item for item in dict.fromkeys(saved.get("hidden") or []) if item in ADMIN_HOME_WIDGETS]
-    return {"order": order, "hidden": hidden}
-
-
-def get_layout(db: Session, user_id: int, org_id: int) -> dict:
-    membership = get_user_org(user_id, org_id, db)
-    return _layout(((membership.preferences or {}) if membership else {}).get(PREFERENCES_KEY))
+def state_of(membership: UserOrganization | None) -> dict:
+    """This member's Home state, cleaned: hidden sections, dismissals, ticked steps and pinned cards."""
+    saved = ((membership.preferences or {}) if membership else {}).get(STATE_KEY) or {}
+    return {
+        "hidden": [item for item in dict.fromkeys(saved.get("hidden") or []) if item in HOME_SECTIONS],
+        "dismissed": [item for item in dict.fromkeys(saved.get("dismissed") or []) if item in DISMISSABLE],
+        "ticks": [item for item in dict.fromkeys(saved.get("ticks") or []) if item in admin_home_steps.STEP_KEYS],
+        "pins": list(saved.get("pins") or []),
+    }
 
 
-def save_layout(db: Session, current_user: PublicUser, org_id: int, payload: AdminHomeLayout) -> dict:
-    """Keep this member's widget order and hidden widgets for this org."""
+def _member(db: Session, current_user: PublicUser, org_id: int) -> UserOrganization:
     require_org_membership(current_user.id, org_id, db)
-    unknown = sorted({*payload.order, *payload.hidden} - set(ADMIN_HOME_WIDGETS))
-    if unknown:
-        raise HTTPException(status_code=422, detail=f"Unknown widgets: {', '.join(unknown)}")
     membership = get_user_org(current_user.id, org_id, db)
     if not membership:
-        raise HTTPException(status_code=409, detail="Only members of this organization can save a Home layout")
-    layout = _layout(payload.model_dump())
+        raise HTTPException(status_code=409, detail="Only members of this organization have a Home here")
+    return membership
+
+
+def _save(db: Session, membership: UserOrganization, **changes) -> dict:
+    state = {**state_of(membership), **changes}
     # A new dict, so the JSON column sees the change.
-    membership.preferences = {**(membership.preferences or {}), PREFERENCES_KEY: layout}
+    membership.preferences = {**(membership.preferences or {}), STATE_KEY: state}
     db.add(membership)
     db.commit()
-    return layout
+    return state
 
 
-# Plans tab order -------------------------------------------------------------------------
-
-def default_plans_tabs(db: Session, org_id: int) -> list[str]:
-    """Badges and Templates first for an org that makes them and runs no assignment itself; Assignments first otherwise."""
-    if admin_home_creator.creates(db, org_id):
-        running = db.exec(select(GoalAssignment.id).where(GoalAssignment.org_id == org_id, GoalAssignment.status == AssignmentStatus.ACTIVE.value).limit(1)).first()
-        if not running:
-            return list(PLANS_TABS_CREATOR)
-    return list(PLANS_TABS)
-
-
-def _tab_order(saved: list | None, default: list[str]) -> list[str]:
-    """The saved order cleaned of unknown or repeated ids, with tabs it never placed appended in default order."""
-    order = [item for item in dict.fromkeys(saved or []) if item in PLANS_TABS]
-    return order + [item for item in default if item not in order]
-
-
-def _plans_tabs(db: Session, org_id: int, saved: list | None) -> dict:
-    default = default_plans_tabs(db, org_id)
-    return {"order": _tab_order(saved, default), "default": default, "saved": bool(saved)}
-
-
-def get_plans_tabs(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """This member's Plans tab order, the org's default (for Reset), and whether they saved their own."""
-    require_org_membership(current_user.id, org_id, db)
-    membership = get_user_org(current_user.id, org_id, db)
-    return _plans_tabs(db, org_id, ((membership.preferences or {}) if membership else {}).get(PLANS_TABS_KEY))
-
-
-def save_plans_tabs(db: Session, current_user: PublicUser, org_id: int, payload: PlansTabsOrder) -> dict:
-    """Keep this member's Plans tab order for this org; an empty order goes back to the default."""
-    require_org_membership(current_user.id, org_id, db)
-    unknown = sorted(set(payload.order) - set(PLANS_TABS))
+def save_layout(db: Session, current_user: PublicUser, org_id: int, payload: HomeLayout) -> dict:
+    """Keep the sections this member hid in this org."""
+    membership = _member(db, current_user, org_id)
+    unknown = sorted(set(payload.hidden) - set(HOME_SECTIONS))
     if unknown:
-        raise HTTPException(status_code=422, detail=f"Unknown tabs: {', '.join(unknown)}")
-    membership = get_user_org(current_user.id, org_id, db)
-    if not membership:
-        raise HTTPException(status_code=409, detail="Only members of this organization can save a tab order")
-    # A new dict, so the JSON column sees the change.
-    preferences = {**(membership.preferences or {})}
-    if payload.order:
-        preferences[PLANS_TABS_KEY] = list(dict.fromkeys(payload.order))
-    else:
-        preferences.pop(PLANS_TABS_KEY, None)
-    membership.preferences = preferences
-    db.add(membership)
-    db.commit()
-    return _plans_tabs(db, org_id, preferences.get(PLANS_TABS_KEY))
+        raise HTTPException(status_code=422, detail=f"Unknown sections: {', '.join(unknown)}")
+    return {"hidden": _save(db, membership, hidden=list(dict.fromkeys(payload.hidden)))["hidden"]}
+
+
+def dismiss(db: Session, current_user: PublicUser, org_id: int, what: str) -> dict:
+    """Put away the welcome note, First steps or the Needs you tip, for this member."""
+    if what not in DISMISSABLE:
+        raise HTTPException(status_code=422, detail=f"Dismiss one of: {', '.join(DISMISSABLE)}")
+    membership = _member(db, current_user, org_id)
+    state = state_of(membership)
+    if what == "first_steps":
+        membership.preferences = {**(membership.preferences or {}), admin_home_start.DISMISSED_KEY: True}
+    return {"dismissed": _save(db, membership, dismissed=[*state["dismissed"], what])["dismissed"]}
+
+
+def tick(db: Session, current_user: PublicUser, org_id: int, step: str) -> dict:
+    """Tick a First steps step that data can't show, when the member opens it."""
+    if step not in admin_home_steps.TICKED:
+        raise HTTPException(status_code=422, detail=f"Tick one of: {', '.join(admin_home_steps.TICKED)}")
+    membership = _member(db, current_user, org_id)
+    return {"ticks": _save(db, membership, ticks=[*state_of(membership)["ticks"], step])["ticks"]}
+
+
+def pins(db: Session, current_user: PublicUser, org_id: int) -> dict:
+    """The insight cards this member pinned to Home, for Insights to mark them."""
+    return {"pins": state_of(_member(db, current_user, org_id))["pins"]}
+
+
+def save_pins(db: Session, current_user: PublicUser, org_id: int, pins: list[admin_home_glance.HomePin]) -> dict:
+    """Keep the insight cards this member pinned to Home, in their order."""
+    membership = _member(db, current_user, org_id)
+    return {"pins": _save(db, membership, pins=admin_home_glance.clean_pins(db, current_user, org_id, pins))["pins"]}
+
+
+# Plans tabs ------------------------------------------------------------------------------
+
+def plans_summary(db: Session, current_user: PublicUser, org_id: int) -> dict:
+    """What the Plans tabs show: how many plans and active assignments the org has, and its frameworks.
+
+    Plans opens on a welcome when there are no plans; Assignments and Requirements appear once there
+    is something in them.
+    """
+    require_org_membership(current_user.id, org_id, db)
+
+    def count(statement) -> int:
+        return len(db.exec(statement).all())
+
+    return {
+        "plans": count(select(GoalTemplate.id).where(GoalTemplate.org_id == org_id, GoalTemplate.status != TemplateStatus.ARCHIVED.value, col(GoalTemplate.system_type).is_(None))),
+        "assignments": count(select(GoalAssignment.id).where(GoalAssignment.org_id == org_id, GoalAssignment.status == AssignmentStatus.ACTIVE.value)),
+        "frameworks": count(select(RequirementFramework.id).where(RequirementFramework.org_id == org_id)),
+    }
 
 
 # Staff work ------------------------------------------------------------------------------
@@ -180,86 +191,73 @@ def today(matrices: list[dict], today_date: date | None = None) -> dict:
     return {"days": UPCOMING_DAYS, "items": items[:LIMIT], "total": len(items)}
 
 
-def attention(matrices: list[dict], today_date: date | None = None) -> dict:
-    """Assignments with learners behind (a step past its close date, not handed in) or work waiting on staff."""
-    start = today_date or date.today()
-    rows: list[dict] = []
-    for matrix in matrices:
-        behind = sum(any(cell["bucket"] == "not_handed_in" and cell["due_date"] and cell["due_date"] < start for cell in learner["cells"].values())
-                     for learner in matrix["learners"])
-        aggregates = [column["aggregate"] for stage in matrix["stages"] for column in stage["steps"]]
-        overdue = sum(item["overdue_count"] for item in aggregates)
-        needs_you = sum(item["handed_in_count"] + item["to_grade_count"] + item["needs_settle_count"] for item in aggregates)
-        if behind or overdue or needs_you:
-            rows.append({**_who(matrix["assignment"]), "behind_count": behind, "overdue_count": overdue, "needs_you_count": needs_you,
-                         "progress_percent": matrix["assignment"]["progress_percent"]})
-    rows.sort(key=lambda row: (-row["behind_count"], -row["overdue_count"], -row["needs_you_count"]))
-    return {"assignments": rows[:LIMIT], "total": len(rows)}
-
-
-def waiting(db: Session, current_user: PublicUser, org_id: int, admin: bool) -> dict:
-    """The review inbox in brief: counts by kind and the oldest groups, plus chat reports for admins."""
-    inbox = review.inbox(db, current_user, org_id)
-    groups = [{key: group.get(key) for key in ("kind", "assignment_uuid", "template", "group", "step_key", "step_uuid", "activity_uuid", "step", "count", "oldest_at")}
-              for group in inbox["groups"][:LIMIT]]
-    reports = None
-    if admin:
-        from src.services.school import reports as school_reports
-
-        reports = int(school_reports.list_reports(db, current_user, org_id)["open"])
-    # Helper requests join here once learner-invited helpers need an admin's approval.
-    return {"counts": inbox["counts"], "total": inbox["total"] + (reports or 0), "groups": groups, "reports": reports}
-
-
-def messages(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """The viewer's latest chats in this org: learners' org chats and plan feeds they're in."""
-    from src.services.connect import chats
-
-    rows = db.exec(select(Conversation, ConversationMember).join(ConversationMember, col(ConversationMember.conversation_id) == Conversation.id).where(
-        ConversationMember.user_id == current_user.id, col(ConversationMember.status).in_(chats.LISTED),
-        Conversation.org_id == org_id, col(Conversation.last_message_at).is_not(None),
-    ).order_by(col(Conversation.last_message_at).desc()).limit(LIMIT)).all()
-    listed = [_staff_title(db, conversation, chats._chat_dict(db, conversation, member)) for conversation, member in rows]
-    return {"chats": listed, "unread": sum(chat["unread"] for chat in listed)}
-
-
-def _staff_title(db: Session, conversation: Conversation, chat: dict) -> dict:
-    """A learner's chat with the org is titled after the org for the learner; staff see it under the learner's name."""
-    from src.services.connect import people
-
-    key = conversation.direct_key or ""
-    if conversation.kind != "school" or not key.startswith("school:"):
-        return chat
-    learner = people.person(db, int(key.rsplit(":", 1)[1]))
-    return {**chat, "title": learner["name"], "people": [learner, *[item for item in chat["people"] if item.get("id") != learner.get("id")]]} if learner else chat
-
-
 # Home ------------------------------------------------------------------------------------
 
+def _joined_recently(membership: UserOrganization) -> bool:
+    try:
+        joined = datetime.fromisoformat(str(membership.creation_date)[:19])
+    except ValueError:
+        return False
+    return datetime.now() - joined < timedelta(days=WELCOME_DAYS)
+
+
+def _first_steps(db: Session, current_user: PublicUser, org_id: int, admin: bool, permissions: set[str], mine: list[GoalAssignment],
+                 summaries: list[dict], state: dict) -> dict | None:
+    if "first_steps" in state["dismissed"]:
+        return None
+    if admin:
+        checklist = admin_home_start.getting_started(db, current_user, org_id)
+        return {"kind": "admin", **checklist} if checklist else None
+    if not permissions:
+        return None
+    return admin_home_steps.staff_steps(db, int(current_user.id), org_id, permissions, mine, summaries, state)  # type: ignore[arg-type]
+
+
 def home(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """The viewer's widgets, their layout, and the data for each widget they haven't hidden."""
+    """The viewer's sections, what they hid, and the data for each section they haven't hidden."""
     require_org_membership(current_user.id, org_id, db)
-    admin = is_org_admin(current_user.id, org_id, db)
+    membership = get_user_org(current_user.id, org_id, db)
+    admin = is_org_owner_admin(current_user.id, org_id, db)
+    permissions = set(STAFF_PERMISSIONS) if admin else staff_permissions(membership)
+    state = state_of(membership)
     mine, overseen = _staffed(db, current_user, org_id, admin)
-    staff = admin or bool(mine) or bool(review.staff_goals(db, current_user.id, org_id))
-    widgets = ["messages"]
+    staff = bool(permissions)
+
+    # Home is for staff; a learner who finds their way here gets an empty page.
+    sections = ["needs"] if staff else []
+    if staff and (mine or admin or permissions & {"run_assignments", "review_work"}):
+        sections.append("assignments")
+    if "build_plans" in permissions:
+        sections.append("continue")
+    if mine or admin:
+        sections.append("week")
     if staff:
-        widgets = ["waiting", "today", "messages", "attention"]
-    creates = admin and admin_home_creator.creates(db, org_id)
-    if creates:
-        widgets.append("creator")
-    layout = get_layout(db, current_user.id, org_id)
-    shown = set(widgets) - set(layout["hidden"])
-    cache: dict = {}
-    result: dict = {"widgets": widgets, "layout": layout, "locked": [], "getting_started": admin_home_start.getting_started(db, current_user, org_id)}
-    if "waiting" in shown:
-        result["waiting"] = waiting(db, current_user, org_id, admin)
-    if "today" in shown:
-        result["today"] = today([matrix for matrix in (_matrix(db, current_user, org_id, row, cache) for row in mine) if matrix])
-    if "attention" in shown:
-        result["attention"] = attention([matrix for matrix in (_matrix(db, current_user, org_id, row, cache) for row in overseen) if matrix])
-    if "messages" in shown:
-        result["messages"] = messages(db, current_user, org_id)
-    if "creator" in shown:
-        result["creator"] = admin_home_creator.metrics(db, org_id)
+        sections.append("glance")
+    if "see_reports" in permissions and admin_home_requirements.has_frameworks(db, org_id):
+        sections.append("requirements")
+    shown = set(sections) - set(state["hidden"])
+
+    picked = admin_home_sections.assignments(db, current_user, mine, overseen if admin else None) if staff else {"mine": [], "all": None}
+    recent = membership is not None and _joined_recently(membership)
+    result: dict = {
+        "viewer": {"admin": admin, "permissions": sorted(permissions), "staff": staff},
+        "sections": sections, "hidden": state["hidden"],
+        "welcome": None if "welcome" in state["dismissed"] or not recent else {"invitation": admin_home_sections.welcome(db, int(current_user.id), org_id)},  # type: ignore[arg-type]
+        "first_steps": _first_steps(db, current_user, org_id, admin, permissions, mine, picked["mine"], state),
+    }
+    if "needs" in shown:
+        result["needs"] = {**admin_home_sections.needs_you(db, current_user, org_id, staff),
+                           "intro": staff and not admin and recent and "needs_intro" not in state["dismissed"]}
+    if "assignments" in shown:
+        result["assignments"] = picked
+    if "continue" in shown:
+        result["continue"] = admin_home_sections.continue_items(db, org_id)
+    if "week" in shown:
+        cache: dict = {}
+        result["week"] = today([matrix for matrix in (_matrix(db, current_user, org_id, row, cache) for row in (mine or overseen)) if matrix])
+    if "glance" in shown:
+        focus = admin_home_steps._focus(picked["mine"])
+        result["glance"] = admin_home_glance.glance(db, current_user, org_id, permissions, state["pins"], focus)
+    if "requirements" in shown:
+        result["requirements"] = admin_home_requirements.requirements(db, org_id)
     return result

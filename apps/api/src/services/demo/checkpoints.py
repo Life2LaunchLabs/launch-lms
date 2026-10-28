@@ -14,8 +14,7 @@ from sqlmodel import Session, SQLModel
 
 CONTENT = frozenset(
     """
-organization organizationconfig role badgecollection learningbadge
-learningbadgeversion badgeroute badgerouteoffer learningactivity learningpage learningvariable
+organization organizationconfig role learningactivity learningpage learningvariable
 goal_template goal_template_version goal_template_authorization goal_template_learner_access
 organizationplanrole requirementframework requirementframeworkversion requirementnode
 resourcetag resourcetaglink resource resourcesearchdocument
@@ -26,15 +25,15 @@ usergroup usergroupresource newsarticle
 PERSONAL = frozenset(
     """
 userorganization usergroupuser learningrun
-learningresponseattempt learningbadgeaward badgeissuerlearnerlink
+learningresponseattempt badge_award plan_join_request
 requirementenrollment usersavedresource userresourcechannel resourcenoteblock
 portfolio hubconversation hubmemorypreference hubmemory hubeditrun
 inboxmessage mediaasset mediafolder
 """.split()
 )
 # These rows belong to the fake learner but carry the catalog creator's org_id.
-# Keep their prepared state when the fictional org uses a shared live badge.
-CATALOG_PERSONAL = frozenset("learningrun learningbadgeaward".split())
+# Keep their prepared state when the fictional org uses a shared live plan.
+CATALOG_PERSONAL = frozenset("learningrun badge_award".split())
 CHILDREN = frozenset(
     """
 learningpageprogress usersavedresourcechannel portfoliosection
@@ -47,9 +46,6 @@ hubeditobjectstate requirementattainmentsource
 )
 # Private peer work is deliberately excluded even when it belongs to an included org.
 ANCHORS = {
-    "learningbadgeversion": "badge_id",
-    "badgeroute": "badge_id",
-    "badgerouteoffer": "route_id",
     "goal_template_version": "template_id",
     "goal_template_authorization": "template_id",
     "goal_template_learner_access": "template_id",
@@ -206,8 +202,8 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             )
         elif name == "resourceauthor":
             add(name, read(name, table.c.user_id.in_(user_ids)))
-    # The badge hub lists every public collection and badge on the platform, not
-    # only those of the demo users' orgs. Parents and paths follow by FK closure.
+    # Discover lists every plan offered to learners on the platform, not only
+    # those of the demo users' orgs. Parents and paths follow by FK closure.
     catalog(add, read, tables)
     # Group/resource links use UUIDs rather than a database foreign key.
     # Preserve shared catalog resources assigned to the fictional cohort.
@@ -263,13 +259,8 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
                         }
                         if parent_values:
                             condition = column.in_(parent_values)
-                            if name == "learningbadgeversion":
-                                condition &= or_(
-                                    table.c.org_id.in_(org_ids),
-                                    table.c.state == "published",
-                                )
                             if name == "goal_template_authorization":
-                                # Approved plan permissions are who issues a badge; pending asks stay out.
+                                # Approved plan permissions are who runs a plan (and awards its badge); pending asks stay out.
                                 condition &= table.c.status == "approved"
                             add(name, read(name, condition))
         if before == sum(map(len, rows.values())):
@@ -341,49 +332,22 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
 
 
 def catalog(add, read, tables) -> None:
-    """Mirror the public badge hub listing (learning.list_collections)."""
-    from src.db.learning import LearningBadgeStatus
-
-    collection, badge = tables["badgecollection"], tables["learningbadge"]
-    add(
-        "badgecollection",
-        read(
-            "badgecollection",
-            collection.c.public.is_(True)
-            & collection.c.hidden.is_(False)
-            & collection.c.deleted_at.is_(None),
-        ),
-    )
-    badges = read(
-        "learningbadge",
-        badge.c.public.is_(True)
-        & badge.c.status.in_(
-            [LearningBadgeStatus.COMING_SOON, LearningBadgeStatus.PUBLISHED]
-        )
-        & badge.c.deleted_at.is_(None),
-    )
-    add("learningbadge", badges)
-    # Organizations approved on a badge's plans issue it and populate "Choose a cooperating organization";
-    # without them instructor-graded catalog badges cannot be started. The plans, their versions and
-    # the issuer orgs follow by FK closure and the anchors above.
-    route = tables["badgeroute"]
-    badge_ids = [record["id"] for record in badges]
-    if badge_ids:
-        routes = read("badgeroute", route.c.badge_id.in_(badge_ids))
-        add("badgeroute", routes)
-        template_ids = [record["goal_template_id"] for record in routes if record["goal_template_id"]]
-        if template_ids:
-            authorization = tables["goal_template_authorization"]
-            add(
+    """Mirror the learner Discover catalog (goals.plan_joining.offers): plans offered open or by request,
+    with the organizations approved to run them."""
+    access = tables["goal_template_learner_access"]
+    offered = read("goal_template_learner_access", access.c.access.in_(["open", "request"]))
+    add("goal_template_learner_access", offered)
+    template_ids = list({record["template_id"] for record in offered})
+    if template_ids:
+        authorization = tables["goal_template_authorization"]
+        add(
+            "goal_template_authorization",
+            read(
                 "goal_template_authorization",
-                read(
-                    "goal_template_authorization",
-                    authorization.c.template_id.in_(template_ids)
-                    & (authorization.c.status == "approved"),
-                ),
-            )
-            access = tables["goal_template_learner_access"]
-            add("goal_template_learner_access", read("goal_template_learner_access", access.c.template_id.in_(template_ids)))
+                authorization.c.template_id.in_(template_ids)
+                & (authorization.c.status == "approved"),
+            ),
+        )
 
 
 def scrub_json(value):

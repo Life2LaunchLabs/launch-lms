@@ -52,7 +52,11 @@ export interface StepDefinition<T extends StepTypeKey = StepTypeKey> {
   label: string
   /** One line on what the type is for, shown in the type picker. */
   hint: string
+  /** A step of this type, for the picker ("e.g. …") and the title's placeholder. */
+  example: string
   icon: React.ElementType
+  /** The type's color: the icon tile in pickers, starters and the plan editor. */
+  color: string
   /** The row's status line while the step is open or started, when the type has something better than a due date. */
   // eslint-disable-next-line no-unused-vars
   statusLine?: (step: Step<T>) => string | null

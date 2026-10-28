@@ -1,16 +1,18 @@
 """Staff views across goals: the review inbox and queue, assignment matrices, cohorts and managed learners."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
-from src.db.goal_admin import AdminHomeLayout, PlansTabsOrder,StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
-from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepDue, StepRemind, StepSettle
+from src.db.goal_admin import HomeLayout, StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
+from src.db.goal_templates import ApplyVersion, AssignmentScheduleSave, GoalAssignmentUpdate, StepDue, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.access.access import org_access
-from src.services.goals import admin_home, admin_home_start, assignment_steps, assignment_versions, assignments, plan_cards, review, staff_views
+from src.services.connect import people
+from src.services.goals import admin_home, admin_home_glance, assignment_steps, assignment_versions, assignments, plan_cards, review, staff_views
 
 router = APIRouter()
 GROUPS_NEED = "Group goal assignments need the Full tier"
@@ -40,25 +42,53 @@ def api_home(org_id: int, db: Session = Depends(get_db_session), user: PublicUse
 
 
 @router.put("/home/layout")
-def api_home_layout(org_id: int, payload: AdminHomeLayout, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+def api_home_layout(org_id: int, payload: HomeLayout, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return admin_home.save_layout(db, user, org_id, payload)
 
 
-@router.post("/home/getting-started/dismiss")
-def api_dismiss_getting_started(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return admin_home_start.dismiss(db, user, org_id)
+@router.post("/home/dismiss/{what}")
+def api_home_dismiss(org_id: int, what: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.dismiss(db, user, org_id, what)
 
 
-# Member preferences ---------------------------------------------------------------------
-
-@router.get("/preferences/plans-tabs")
-def api_plans_tabs(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return admin_home.get_plans_tabs(db, user, org_id)
+@router.post("/home/ticks/{step}")
+def api_home_tick(org_id: int, step: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.tick(db, user, org_id, step)
 
 
-@router.put("/preferences/plans-tabs")
-def api_save_plans_tabs(org_id: int, payload: PlansTabsOrder, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return admin_home.save_plans_tabs(db, user, org_id, payload)
+class HomePins(BaseModel):
+    pins: list[admin_home_glance.HomePin] = Field(default_factory=list, max_length=admin_home_glance.MAX_PINS)
+
+
+@router.get("/home/pins")
+def api_home_pins_get(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.pins(db, user, org_id)
+
+
+@router.put("/home/pins")
+def api_home_pins(org_id: int, payload: HomePins, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.save_pins(db, user, org_id, payload.pins)
+
+
+class LearnerName(BaseModel):
+    learner_name: str | None = Field(default=None, max_length=people.LEARNER_NAME_MAX)
+
+
+@router.get("/me/learner-name")
+def api_learner_name_get(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return people.my_learner_name(db, user, org_id)
+
+
+@router.put("/me/learner-name")
+def api_learner_name(org_id: int, payload: LearnerName, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return people.save_learner_name(db, user, org_id, payload.learner_name)
+
+
+# Plans tabs -----------------------------------------------------------------------------
+
+@router.get("/plans-summary")
+def api_plans_summary(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.plans_summary(db, user, org_id)
 
 
 # Review inbox ---------------------------------------------------------------------------
@@ -137,6 +167,14 @@ def api_assignment_apply_version(assignment_uuid: str, org_id: int, payload: App
                                  db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Move the assignment to the version: only steps nobody has started change in its learners' plans."""
     return assignment_versions.apply_version(db, user, org_id, assignment_uuid, payload.version_uuid)
+
+
+@router.put("/assignments/{assignment_uuid}/schedule")
+def api_assignment_schedule(assignment_uuid: str, org_id: int, payload: AssignmentScheduleSave,
+                            db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Replace the assignment's whole schedule: start, end, stage starts, and steps' own dates and switches."""
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.save_schedule(db, user, org_id, assignment_uuid, payload)
 
 
 @router.put("/assignments/{assignment_uuid}/steps/{step_key}/due")

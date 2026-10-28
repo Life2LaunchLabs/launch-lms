@@ -428,7 +428,7 @@ Turn broad development goals into structured plans, objectives, evidence, collab
   - `PATHWAYS-G005-A001` [live] Define and publish a requirement framework
     - `PATHWAYS-G005-A001-S001` [live / alternative] Start from a framework template
     - `PATHWAYS-G005-A001-S002` [live / core] Define framework identity and purpose
-    - `PATHWAYS-G005-A001-S003` [live / core] Define and order hierarchy levels
+    - `PATHWAYS-G005-A001-S003` [live / core] Number categories and groups, and set how many items each needs
     - `PATHWAYS-G005-A001-S004` [live / core] Configure metadata fields for each level
     - `PATHWAYS-G005-A001-S005` [live / core] Build and edit the requirement tree
     - `PATHWAYS-G005-A001-S006` [live / core] Validate and publish a framework version
@@ -438,7 +438,7 @@ Turn broad development goals into structured plans, objectives, evidence, collab
     - `PATHWAYS-G005-A002-S002` [live / core] Choose a framework requirement
     - `PATHWAYS-G005-A002-S003` [live / core] Create the objective-to-requirement mapping
     - `PATHWAYS-G005-A002-S004` [live / core] Review requirement coverage on the plan template
-  - `PATHWAYS-G005-A003` [live] Assign a requirement framework
+  - `PATHWAYS-G005-A003` [live] Track learners on a requirement framework
     - `PATHWAYS-G005-A003-S001` [live / alternative] Assign requirements to a learner
     - `PATHWAYS-G005-A003-S002` [live / alternative] Assign requirements to a group
     - `PATHWAYS-G005-A003-S003` [live / alternative] Migrate eligible incomplete assignments to a newer published version

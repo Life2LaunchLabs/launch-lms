@@ -14,7 +14,6 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserGroups } from '@services/usergroups/usergroups'
 import { groupReportKey, reportsApi, type GroupReport as Report, type GroupReportIncludedFramework, type GroupReportLearner, type OrgMembership } from '@services/goals/reports'
 import { EmptyState, PageLoader, personName } from '../live/ui'
-import GroupRequirementsGrid from './GroupRequirementsGrid'
 import { insightsRoutes } from './reportRoutes'
 
 type Group = { id: number; name: string }
@@ -81,7 +80,7 @@ function FrameworkTable({ framework }: { framework: GroupReportIncludedFramework
 }
 
 /** The report itself: headline numbers, plans and badges, who's behind and what's left, then any frameworks. Shared by the Reports page and the print page. */
-export function ReportBody({ report, orgslug, variant, orgId, token }: { report: Report; orgslug: string; variant: 'screen' | 'print'; orgId?: number; token?: string }) {
+export function ReportBody({ report, orgslug, variant }: { report: Report; orgslug: string; variant: 'screen' | 'print' }) {
   const { summary } = report
   const screen = variant === 'screen'
   const learnerCell = (learner: GroupReportLearner) => screen && learner.username
@@ -129,7 +128,8 @@ export function ReportBody({ report, orgslug, variant, orgId, token }: { report:
       <p className="mt-8 flex items-start gap-2 rounded-xl bg-blue-50/70 p-3 text-[13px] text-blue-900 print:border print:border-gray-300 print:bg-transparent print:text-gray-700"><Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />Requirements reporting is still being worked out. These sections show which mapped requirements each learner has met through their plan steps.</p>
       {report.included_frameworks.map((framework) => <Section key={framework.framework_uuid} title={framework.name} tag={<DraftTag />}>
         <p className="mb-2.5 text-xs text-gray-500">{framework.met_percent}% of this group&rsquo;s {framework.requirement_count} requirements are met. Met means the learner finished a step mapped to it, or staff credited it.{framework.not_enrolled ? ` ${framework.not_enrolled} member${framework.not_enrolled === 1 ? ' isn’t' : 's aren’t'} on any framework yet.` : ''}</p>
-        {screen && orgId ? <GroupRequirementsGrid orgslug={orgslug} orgId={orgId} token={token} groupId={report.group.id} framework={framework.framework_uuid} /> : <FrameworkTable framework={framework} />}
+        <FrameworkTable framework={framework} />
+        {screen ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('framework', framework.framework_uuid))} className="mt-2 inline-block text-[13px] font-semibold text-gray-600 underline-offset-2 hover:text-gray-900 hover:underline">Progress and evidence in Insights</Link> : null}
       </Section>)}
     </> : null}
   </>
@@ -232,7 +232,7 @@ export default function GroupReport({ orgslug, groupId, frameworks: fromUrl }: {
   const toggleFramework = (uuid: string) => selected && go(selected.id, frameworks.includes(uuid) ? frameworks.filter((item) => item !== uuid) : [...frameworks, uuid])
 
   if (groupsLoading || !groups) return <PageLoader />
-  if (!selected) return <div className="px-4 pb-10 pt-6 sm:px-10"><EmptyState icon={<Users size={36} />} title="No groups yet" detail="Reports are by group. Make a group in People and assign it a plan to report on it here." /></div>
+  if (!selected) return <div className="px-4 pb-10 pt-6 sm:px-10"><EmptyState icon={<Users size={36} />} title="No groups yet" detail="Reports are by group. Make a group in Threads and assign it a plan to report on it here." /></div>
   const available = report?.frameworks || []
   return <div className="mx-auto max-w-[1300px] px-4 pb-12 pt-6 sm:px-10">
     <p className="mb-4 max-w-[66ch] text-sm text-gray-600">Reports are by group. Pick a group to see where it stands on its plans and badges, who&rsquo;s behind and what&rsquo;s left. Then print it or send it.</p>
@@ -257,6 +257,6 @@ export default function GroupReport({ orgslug, groupId, frameworks: fromUrl }: {
     {sending && report ? <SendPanel key={`${report.group.id}:${frameworks.join(',')}`} report={report} frameworks={frameworks} orgId={orgId} token={token} userId={userId} onClose={() => setSending(false)} /> : null}
     {error && !report ? <EmptyState title="This report isn’t available" detail={error?.message || 'You may not staff any of this group’s plans.'} />
       : isLoading && !report ? <PageLoader />
-      : report ? <ReportBody report={report} orgslug={orgslug} variant="screen" orgId={orgId} token={token} /> : null}
+      : report ? <ReportBody report={report} orgslug={orgslug} variant="screen" /> : null}
   </div>
 }

@@ -105,7 +105,9 @@ function UploadConfigPanel({ config, onChange }: ConfigPanelProps<'upload'>) {
 export const upload: StepDefinition<'upload'> = {
   type: 'upload',
   label: 'Upload',
-  hint: 'Add files, photos or links, one item each',
+  color: '#1A86AE',
+  hint: 'Files, photos or links, one per item you ask for.',
+  example: 'Your resume and a headshot',
   icon: UploadIcon,
   statusLine: (step) => step.config.slots.length > 1 ? `${step.config.slots.filter((slot) => filled(step, slot)).length} of ${step.config.slots.length} added` : null,
   RowResult: UploadRow,

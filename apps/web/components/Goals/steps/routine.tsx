@@ -72,7 +72,9 @@ function RoutineCard({ step, actions, canWork, staff, compact }: StepCardProps<'
 export const routine: StepDefinition<'routine'> = {
   type: 'routine',
   label: 'Routine',
-  hint: 'Something to do every day, on some weekdays, or on some days of the month',
+  color: '#5E9A14',
+  hint: 'A habit logged every day or week, with a chart.',
+  example: 'Log what you spend each day',
   icon: Repeat,
   statusLine: (step) => {
     const result = resultOf(step)

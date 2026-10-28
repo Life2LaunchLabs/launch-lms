@@ -9,6 +9,8 @@ import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/Org
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditMessaging from '@components/Dashboard/Pages/Org/OrgEditMessaging/OrgEditMessaging'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
+import DiscoverSettingsPanel from '@components/Discover/DiscoverSettingsPanel'
+import { useOrg } from '@components/Contexts/OrgContext'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { ADMIN_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import { adminLabel, adminTab } from '@/lib/admin/registry'
@@ -24,6 +26,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
   const params = use(props.params);
   const router = useRouter()
   const features = useFeatures()
+  const org = useOrg() as { id?: number } | null
   // The Organization tab's settings pages; payments has its own page.
   const SETTING_TABS = React.useMemo(
     () => (adminTab('organization').children || []).filter((tab) =>
@@ -71,6 +74,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
         {params.subpage == 'messaging' ? <OrgEditMessaging /> : ''}
         {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
         {params.subpage == 'plan' ? <OrgEditPlan orgslug={params.orgslug} /> : ''}
+        {params.subpage == 'discover' && org?.id ? <DiscoverSettingsPanel orgId={org.id} /> : ''}
       </motion.div>
     </div>
   )

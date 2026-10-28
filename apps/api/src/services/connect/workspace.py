@@ -21,9 +21,10 @@ from sqlmodel import Session, col, func, select
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalOwnership, GoalSource, GoalStage, GoalStatus, GoalStep, StepProgress, StepStatus
 from src.db.organizations import Organization
+from src.db.resources import Resource
 from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
-from src.services.connect import chats, cohort, people
+from src.services.connect import chats, cohort, people, visibility
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, org_summary
 from src.services.school import chats as school_chats, roles
@@ -34,11 +35,11 @@ KINDS = (school_chats.SCHOOL, GOAL)
 TOPIC_KINDS = (*KINDS, cohort.COHORT)
 PROGRESS = "plan_progress"
 ORG_MENTION = "org_mention"
-TOKEN = re.compile(r"<(plan|step|user|org):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
+TOKEN = re.compile(r"<(plan|step|user|org|resource):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
 # Plans a chat is about: waiting to be accepted, under way, or finished.
 LIVE = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
 INVITE_ROLE = "commenter"
-ORG_SOURCES = (GoalSource.ASSIGNMENT.value, GoalSource.BADGE.value)
+ORG_SOURCES = (GoalSource.ASSIGNMENT.value, GoalSource.JOINED.value)
 
 
 def _value(item) -> str:
@@ -46,7 +47,7 @@ def _value(item) -> str:
 
 
 def _external(goal: Goal) -> bool:
-    """A plan an organization gave the learner: assigned to them, or one they started to earn its badge."""
+    """A plan an organization gave the learner: assigned to them, or one of its plans they joined."""
     return _value(goal.ownership) == GoalOwnership.EXTERNAL.value and _value(goal.source) in ORG_SOURCES and bool(goal.org_id and goal.subject_user_id)
 
 
@@ -223,6 +224,8 @@ def prepare(db: Session, conversation: Conversation, body: str, sender_id: int |
             add(ref := {"kind": "user", "user_uuid": first})
         elif kind == "org" and db.exec(select(Organization.id).where(Organization.org_uuid == first)).first():
             add(ref := {"kind": "org", "org_uuid": first})
+        elif kind == "resource" and _shareable_resource(db, first, sender_id):
+            add(ref := {"kind": "resource", "resource_uuid": first})
         return match.group(0) if ref else ""
 
     text = re.sub(r"[ \t]{2,}", " ", TOKEN.sub(keep, body)).strip()
@@ -256,7 +259,7 @@ def resolve(db: Session, refs: list[dict] | None, cache: dict, viewer_id: int | 
     resolved: list[dict] = []
     for ref in refs or []:
         kind = ref.get("kind")
-        key = f"{kind}:{ref.get('goal_uuid') or ref.get('user_uuid') or ref.get('org_uuid')}" + (f"/{ref['step_uuid']}" if ref.get("step_uuid") else "")
+        key = f"{kind}:{ref.get('goal_uuid') or ref.get('user_uuid') or ref.get('org_uuid') or ref.get('resource_uuid')}" + (f"/{ref['step_uuid']}" if ref.get("step_uuid") else "")
         if key not in cache:
             found = _resolve_one(db, ref)
             if found and ref.get("outside"):
@@ -290,7 +293,19 @@ def _resolve_one(db: Session, ref: dict) -> dict | None:
         org = db.exec(select(Organization).where(Organization.org_uuid == ref.get("org_uuid"))).first()
         summary = org_summary(db, org.id) if org else None
         return {"kind": "org", **summary} if summary else None
+    if kind == "resource":
+        resource = db.exec(select(Resource).where(Resource.resource_uuid == ref.get("resource_uuid"))).first()
+        return {"kind": "resource", "resource_uuid": resource.resource_uuid, "title": resource.title, "url": resource.external_url,
+                "resource_type": resource.resource_type, "provider_name": resource.provider_name} if resource else None
     return None
+
+
+def _shareable_resource(db: Session, resource_uuid: str, sender_id: int | None) -> bool:
+    """A resource the sender can see themselves: its org's staff, or in a channel open to them."""
+    from src.services.resources import _resource_in_accessible_channel
+
+    resource = db.exec(select(Resource).where(Resource.resource_uuid == resource_uuid)).first()
+    return bool(resource and sender_id and _resource_in_accessible_channel(resource, db, PublicUser.model_construct(id=sender_id)))
 
 
 def plain(db: Session, body: str, refs: list[dict] | None, viewer_id: int | None = None) -> str:
@@ -355,20 +370,28 @@ def topic(db: Session, goal: Goal, by_step: dict | None = None, count: int = 0) 
     }
 
 
-def topics(db: Session, conversation: Conversation) -> list[dict]:
-    """The plans this chat is about, each with its steps, where they stand, and how many messages tag them."""
+def readable_refs(query, db: Session, conversation: Conversation, viewer_id: int | None):
+    """Tag counts over only the messages the viewer may read (staff-only ones are left out for everyone else)."""
+    if visibility.sees_staff(db, conversation, viewer_id):
+        return query
+    return query.join(ConversationMessage, ConversationMessage.id == ConversationMessageRef.message_id).where(ConversationMessage.visibility == visibility.ALL)
+
+
+def topics(db: Session, conversation: Conversation, viewer_id: int | None = None) -> list[dict]:
+    """The plans this chat is about, each with its steps, where they stand, and how many messages the viewer can read tag them."""
     if conversation.kind == cohort.COHORT:
-        return [item for item in [cohort.topic(db, conversation)] if item]
+        return [item for item in [cohort.topic(db, conversation, viewer_id)] if item]
     goals = goals_in(db, conversation)
     if not goals:
         return []
-    by_step = {(int(goal_id), step_uuid): int(count) for goal_id, step_uuid, count in db.exec(
+    by_step = {(int(goal_id), step_uuid): int(count) for goal_id, step_uuid, count in db.exec(readable_refs(
         select(ConversationMessageRef.goal_id, ConversationMessageRef.step_uuid, func.count(func.distinct(ConversationMessageRef.message_id)))
-        .where(ConversationMessageRef.conversation_id == conversation.id).group_by(ConversationMessageRef.goal_id, ConversationMessageRef.step_uuid)
+        .where(ConversationMessageRef.conversation_id == conversation.id), db, conversation, viewer_id)
+        .group_by(ConversationMessageRef.goal_id, ConversationMessageRef.step_uuid)
     ).all()}
-    by_goal = {int(goal_id): int(count) for goal_id, count in db.exec(
+    by_goal = {int(goal_id): int(count) for goal_id, count in db.exec(readable_refs(
         select(ConversationMessageRef.goal_id, func.count(func.distinct(ConversationMessageRef.message_id)))
-        .where(ConversationMessageRef.conversation_id == conversation.id).group_by(ConversationMessageRef.goal_id)
+        .where(ConversationMessageRef.conversation_id == conversation.id), db, conversation, viewer_id).group_by(ConversationMessageRef.goal_id)
     ).all()}
     return [topic(db, goal, by_step, by_goal.get(int(goal.id), 0)) for goal in goals]  # type: ignore[arg-type]
 
@@ -380,7 +403,7 @@ def goal_chat(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     conversation = chat_for_goal(db, goal, viewer_id=current_user.id)
     db.commit()
     member = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first() if conversation else None
-    topic = next((item for item in topics(db, conversation) if item["goal_uuid"] == goal_uuid), None) if conversation else None
+    topic = next((item for item in topics(db, conversation, current_user.id) if item["goal_uuid"] == goal_uuid), None) if conversation else None
     return {
         "goal_uuid": goal_uuid, "conversation_uuid": conversation.conversation_uuid if member else None,  # type: ignore[union-attr]
         "title": conversation.title if conversation else None, "can_post": bool(member) and can_post(db, conversation, current_user.id),  # type: ignore[arg-type]
@@ -420,14 +443,19 @@ def after_send(db: Session, current_user: PublicUser, conversation: Conversation
     tagged = [goals[ref["goal_uuid"]] for ref in message.refs or [] if ref.get("goal_uuid") in goals]
     goal = tagged[0] if tagged else (next(iter(goals.values())) if len(goals) == 1 else None)
     outcomes = []
+    staff_only = message.visibility == visibility.STAFF
     for ref in message.refs or []:
         if ref.get("kind") == "user":
             user = db.exec(select(User).where(User.user_uuid == ref["user_uuid"])).first()
             if not user or user.id == current_user.id:
                 continue
+            if staff_only:
+                # A staff-only message reaches staff alone: nobody else is told or brought in.
+                outcomes.append({"user": people.person(db, user.id), "status": "notified" if visibility.sees_staff(db, conversation, user.id) else "staff_only"})
+                continue
             status = "notified" if user.id in members else _bring_in(db, current_user, goal, user, message.body) if goal else "not_here"
             outcomes.append({"user": people.person(db, user.id), "status": status})
-        elif ref.get("kind") == "org":
+        elif ref.get("kind") == "org" and not staff_only:
             _tell_org(db, current_user, conversation, message, ref["org_uuid"])
     return outcomes
 

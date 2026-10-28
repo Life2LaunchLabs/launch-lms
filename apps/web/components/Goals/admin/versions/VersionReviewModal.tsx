@@ -56,7 +56,7 @@ export default function VersionReviewModal({ orgId, token, assignmentUuid, open,
     : !data ? <p className="py-8 text-center text-sm text-muted-foreground">Could not load the changes.</p>
       : <>
         <p className="text-sm text-muted-foreground">You&apos;re on version {data.current?.number ?? '?'}. {data.target.note ? <>Note from the publisher: <span className="text-foreground">{data.target.note}</span></> : null}</p>
-        {data.badge ? <BadgeNote changes={data} /> : null}
+        <BadgeNote changes={data} />
         {data.has_changes ? <div className="space-y-3 pr-1 sm:max-h-[50vh] sm:overflow-y-auto">{data.stages.filter((stage) => stage.change !== 'same').map((stage) => <StageChanges key={stage.stage_key} stage={stage} />)}</div>
           : <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">This version has no step changes.</p>}
       </>
@@ -77,11 +77,15 @@ export default function VersionReviewModal({ orgId, token, assignmentUuid, open,
     </div> : changes} />
 }
 
+/** The badge is part of the plan, so a version can add it, drop it or rename it. */
 function BadgeNote({ changes }: { changes: VersionChanges }) {
-  const badge = changes.badge?.name
-  if (changes.current_eligible === false && changes.target.eligible) return <p className="rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-900">Your current version no longer earns {badge}. Applying version {changes.target.number} lets learners earn it again.</p>
-  if (changes.target.eligible === false) return <p className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-800">Version {changes.target.number} doesn&apos;t earn {badge} under its owner&apos;s rules.</p>
-  return null
+  const now = changes.badge?.name
+  const next = changes.target.badge?.name
+  if (now === next) return null
+  const text = !next ? `Version ${changes.target.number} no longer earns ${now}. Learners who already earned it keep it.`
+    : !now ? `Learners who finish version ${changes.target.number} earn ${next}.`
+    : `Version ${changes.target.number} earns ${next} instead of ${now}.`
+  return <p className="rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-900">{text}</p>
 }
 
 function StageChanges({ stage }: { stage: VersionStageChange }) {

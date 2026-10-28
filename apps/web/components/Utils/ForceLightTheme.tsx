@@ -1,18 +1,22 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 
 /**
  * Pins the subtree's surface to light mode by stripping the global `.dark`
  * class while mounted. Used on surfaces that are not yet dark-mode ready
- * (admin dashboard, course/board editors). Re-runs whenever next-themes
- * re-applies the class so the pin survives theme changes.
+ * (auth pages). Re-runs whenever next-themes
+ * re-applies the class so the pin survives theme changes. Onboarding at /auth/start
+ * follows the theme like the admin it leads into.
  */
 export default function ForceLightTheme() {
   const { resolvedTheme } = useTheme()
+  const followsTheme = usePathname()?.startsWith('/auth/start')
 
   useEffect(() => {
+    if (followsTheme) return
     const root = document.documentElement
     root.classList.remove('dark')
     root.style.colorScheme = 'light'
@@ -22,7 +26,7 @@ export default function ForceLightTheme() {
         root.style.colorScheme = 'dark'
       }
     }
-  }, [resolvedTheme])
+  }, [resolvedTheme, followsTheme])
 
   return null
 }

@@ -89,7 +89,7 @@ export default function StudioGuideEditor({ member, busy, onSave }: { member: De
               <span className="flex-1" />
               <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>
             </div>
-            {page.scope === 'global' ? <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:bg-sky-950 dark:text-sky-200">Shared page: changes apply to every demo user&apos;s guide.</p> : null}
+            {page.scope === 'global' ? <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:bg-sky-500/15 dark:text-sky-300">Shared page: changes apply to every demo user&apos;s guide.</p> : null}
             <PageFields page={page} sections={sections} person={person} pages={pages} onChange={update} />
           </> : <p className="text-sm text-muted-foreground">No pages yet. Add one to start {first}&apos;s guide.</p>}
       </div>

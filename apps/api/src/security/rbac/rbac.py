@@ -4,7 +4,6 @@ from typing import Literal
 from fastapi import HTTPException, Request, status
 from sqlalchemy import null
 from sqlmodel import Session, select
-from src.db.learning import BadgeCollection, LearningBadge
 from src.db.resource_authors import (
     ResourceAuthor,
     ResourceAuthorshipEnum,
@@ -117,49 +116,6 @@ async def check_usergroup_access(
 
 
 # Tested and working
-async def authorization_verify_if_element_is_public(
-    request,
-    element_uuid: str,
-    action: Literal["read"],
-    db_session: Session,
-):
-    element_nature = await check_element_type(element_uuid)
-    # Verifies if the element is public
-    if element_nature == "badges" and action == "read":
-        statement = select(LearningBadge).where(
-            LearningBadge.public == True, LearningBadge.badge_uuid == element_uuid
-        )
-        badge = db_session.exec(statement).first()
-        if badge:
-            return True
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User rights : You don't have the right to perform this action",
-            )
-
-    elif element_nature == "badge_collections" and action == "read":
-        statement = select(BadgeCollection).where(
-            BadgeCollection.public == True, BadgeCollection.collection_uuid == element_uuid
-        )
-        collection = db_session.exec(statement).first()
-        if collection:
-            return True
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User rights : You don't have the right to perform this action",
-            )
-
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User rights : You don't have the right to perform this action",
-        )
-
-
-# Tested and working
 async def authorization_verify_if_user_is_author(
     request,
     user_id: int,
@@ -242,7 +198,7 @@ async def authorization_verify_based_on_roles(
                 element_rights = getattr(rights, element_type, None)
             if element_rights:
                 # Special handling for resources with PermissionsWithOwn
-                if element_type in ("badges", "discussions", "podcasts"):
+                if element_type in ("discussions", "podcasts"):
                     if await check_permissions_with_own(element_rights, action, is_author):
                         return True
                 else:
@@ -379,7 +335,7 @@ async def authorization_verify_api_token_permissions(
     access resources within their organization.
 
     API tokens are restricted to these resources:
-    - badges, badge collections, learning activities,
+    - learning activities,
     - usergroups, payments, search
 
     Args:
@@ -399,7 +355,7 @@ async def authorization_verify_api_token_permissions(
 
     # API tokens are restricted to specific resource types
     allowed_resource_types = [
-        'badges', 'badge_collections', 'learning_activities',
+        'learning_activities',
         'usergroups', 'payments', 'search'
     ]
 
@@ -447,11 +403,6 @@ async def authorization_verify_api_token_permissions(
             has_permission = element_rights.get("action_read", False)
         else:
             has_permission = getattr(element_rights, "action_read", False)
-    elif element_type == "badges":
-        if isinstance(element_rights, dict):
-            has_permission = element_rights.get(f"action_{action}", False)
-        else:
-            has_permission = getattr(element_rights, f"action_{action}", False)
     else:
         # Standard permission check
         if isinstance(element_rights, dict):

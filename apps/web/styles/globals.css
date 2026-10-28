@@ -8,6 +8,32 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Breakpoints follow the content area, not the window. Inside a .page-frame (the admin and learner content columns)
+   sm: … 2xl: are container queries against that frame, so opening the Threads/Coach panel or the side menu narrows
+   the layout the way a narrower window would. Outside a frame (menus, dialogs portaled to body) they stay viewport
+   queries. The frame's own classes are outside it too, so they still read the window. */
+.page-frame { container: page / inline-size; }
+@custom-variant sm {
+  @media (width >= 40rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 40rem) { @slot; }
+}
+@custom-variant md {
+  @media (width >= 48rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 48rem) { @slot; }
+}
+@custom-variant lg {
+  @media (width >= 64rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 64rem) { @slot; }
+}
+@custom-variant xl {
+  @media (width >= 80rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 80rem) { @slot; }
+}
+@custom-variant 2xl {
+  @media (width >= 96rem) { &:where(:not(.page-frame *)) { @slot; } }
+  @container page (width >= 96rem) { @slot; }
+}
+
 /* Root layout fade-in (replaces framer-motion) */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -15,6 +41,40 @@
 }
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* A dark part of a light page (the plan editor's learner preview, with class "dark theme-island"): the theme
+   colors resolve against the .dark values set on it rather than the page's. */
+.theme-island {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-shell: hsl(var(--shell));
+  --color-raised: hsl(var(--raised));
+  --color-edge: hsl(var(--edge));
+}
+
+/* Plan page: the publish celebration's check and rows appearing. */
+@keyframes plan-pop {
+  from { transform: scale(.3); opacity: 0; }
+}
+@keyframes plan-rise {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
 }
 
 /* Board load animations */
@@ -132,6 +192,21 @@
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
+
+  /* The selection blue: what's picked or active (a chosen category, a checked box), not actions. */
+  --color-brand: hsl(var(--brand));
+  --color-brand-soft: hsl(var(--brand-soft));
+  --color-brand-ink: hsl(var(--brand-ink));
+
+  /* Where learners are on a step (components/Assignments/StatusBar.tsx): complete, behind, open; review is brand. */
+  --color-good: hsl(var(--good));
+  --color-good-soft: hsl(var(--good-soft));
+  --color-late: hsl(var(--late));
+  --color-late-soft: hsl(var(--late-soft));
+  --color-open: hsl(var(--open));
+  /* Questions from learners. */
+  --color-ask: hsl(var(--ask));
+  --color-ask-soft: hsl(var(--ask-soft));
 
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
@@ -378,6 +453,16 @@
     --border: 200 18% 86%;
     --input: 200 18% 82%;
     --ring: 216 90% 52%;
+    --brand: 222 82% 52%;
+    --brand-soft: 222 90% 95%;
+    --brand-ink: 222 70% 38%;
+    --good: 152 60% 36%;
+    --good-soft: 152 55% 93%;
+    --late: 4 70% 48%;
+    --late-soft: 4 85% 95%;
+    --open: 205 30% 72%;
+    --ask: 270 55% 45%;
+    --ask-soft: 270 80% 95%;
     --shell: 200 20% 89%;
     --raised: 200 22% 93%;
     --edge: 200 16% 78%;
@@ -434,6 +519,16 @@
     --border: 201 24% 24%;
     --input: 201 24% 26%;
     --ring: 214 100% 65%;
+    --brand: 218 95% 64%;
+    --brand-soft: 222 50% 20%;
+    --brand-ink: 218 100% 80%;
+    --good: 152 55% 55%;
+    --good-soft: 152 35% 16%;
+    --late: 4 80% 66%;
+    --late-soft: 4 40% 18%;
+    --open: 205 22% 42%;
+    --ask: 270 90% 82%;
+    --ask-soft: 270 35% 22%;
     --shell: 196 36% 6%;
     --raised: 199 26% 18%;
     --edge: 201 24% 22%;
@@ -2855,4 +2950,84 @@
 .learning-scene-still .learning-confetti { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .learning-star, .learning-aurora, .learning-drift, .learning-confetti { animation: none; }
+}
+
+/* A step that isn't open yet, in status bars and their legend. */
+.status-locked {
+  background: repeating-linear-gradient(-45deg, hsl(var(--muted)) 0 4px, color-mix(in srgb, hsl(var(--border)) 70%, hsl(var(--muted))) 4px 6px);
+}
+
+/* Badges: a medal (the badge image, or one made from the plan's color and icon) and the certificate. */
+.badge-medal { --s: 64px; --mc: #2F66D6; width: var(--s); height: var(--s); flex: none; border-radius: 50%; display: grid; place-items: center; color: #fff; position: relative; overflow: hidden;
+  background: radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--mc) 62%, #fff) 0%, var(--mc) 55%, color-mix(in srgb, var(--mc) 72%, #000) 100%);
+  box-shadow: inset 0 0 0 calc(var(--s) * .055) rgb(255 255 255 / .38), inset 0 calc(var(--s) * -.06) 0 rgb(0 0 0 / .16), 0 calc(var(--s) * .09) calc(var(--s) * .2) rgb(0 0 0 / .14); }
+.badge-medal > svg { width: 46%; height: 46%; }
+.badge-medal img { width: 100%; height: 100%; object-fit: cover; }
+.badge-medal-image { background: hsl(var(--card)); box-shadow: inset 0 0 0 1px hsl(var(--border)), 0 calc(var(--s) * .09) calc(var(--s) * .2) rgb(0 0 0 / .14); }
+
+.cert-wrap { width: 100%; max-width: 100%; }
+.cert { --cc: #2F66D6; --paper: #fffdf8; --paper-fg: #13202a; --paper-muted: #5b6770; container-type: inline-size; width: 100%; aspect-ratio: 11 / 8.5; background: var(--paper); color: var(--paper-fg); position: relative; overflow: hidden; border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 12px 32px rgb(14 26 33 / .14); }
+.cert * { margin: 0; }
+.cert [data-fit] { overflow: hidden; }
+.cert .cert-eyebrow { font-size: 1.7cqw; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--cc); }
+.cert .cert-label { font-size: 1.6cqw; color: var(--paper-muted); letter-spacing: .04em; }
+.cert .cert-gap { margin-top: 1.2cqw; }
+.cert .cert-learner { font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.cert .cert-name { font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.cert .cert-description { font-size: 2.05cqw; line-height: 1.5; color: var(--paper-muted); }
+.cert .cert-foot { display: flex; gap: 3.2cqw; align-items: flex-end; margin-top: auto; }
+.cert .cert-col { display: flex; flex-direction: column; gap: .5cqw; min-width: 0; flex: 0 1 auto; }
+.cert .cert-date { flex: none; }
+.cert .cert-who { flex: 0 1 34cqw; }
+.cert .cert-col b { font-size: 1.8cqw; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cert .cert-who b { white-space: normal; line-height: 1.2; }
+.cert .cert-org { display: flex; gap: 1cqw; align-items: center; min-width: 0; }
+.cert .cert-org i, .cert .cert-org img { width: 3.6cqw; height: 3.6cqw; border-radius: .8cqw; flex: none; object-fit: cover; }
+.cert .cert-org i { display: grid; place-items: center; background: var(--cc); color: #fff; font-style: normal; font-weight: 800; font-size: 1.15cqw; }
+.cert .cert-qr { width: 9cqw; height: 9cqw; flex: none; background: #fff; }
+.cert .cert-qr-col { margin-left: auto; display: flex; gap: 1.4cqw; align-items: flex-end; }
+.cert .cert-qr-col .cert-col { text-align: right; align-items: flex-end; white-space: nowrap; }
+.cert .cert-code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 1.5cqw; white-space: nowrap; color: var(--paper-muted); }
+.cert .badge-medal-image { background: #fff; }
+
+.cert-modern { display: grid; grid-template-columns: 30% 1fr; }
+.cert-modern .cert-band { background: radial-gradient(circle at 30% 10%, color-mix(in srgb, var(--cc) 55%, #fff) 0%, transparent 60%), linear-gradient(160deg, var(--cc), color-mix(in srgb, var(--cc) 55%, #000)); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4cqw; position: relative; }
+.cert-modern .cert-band::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgb(255 255 255 / .13) .14cqw, transparent .2cqw); background-size: 1.6cqw 1.6cqw; }
+.cert-modern .cert-band .badge-medal { --s: 16cqw; z-index: 1; }
+.cert-modern .cert-verified { z-index: 1; font-size: 1.2cqw; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; opacity: .9; display: flex; gap: .8cqw; align-items: center; }
+.cert-modern .cert-verified svg { width: 1.6cqw; height: 1.6cqw; }
+.cert-modern .cert-content { padding: 5.5cqw 5cqw 4.4cqw; display: flex; flex-direction: column; min-width: 0; }
+.cert-modern .cert-learner { font-size: 6.4cqw; margin-top: .6cqw; max-height: 14cqw; }
+.cert-modern .cert-name { font-size: 3.7cqw; margin-top: .6cqw; color: var(--cc); max-height: 9cqw; }
+.cert-modern .cert-description { margin-top: 2.2cqw; flex: 0 1 auto; min-height: 0; }
+.cert-modern .cert-mid { margin-top: 3cqw; }
+.cert-modern .cert-foot { padding-top: 2.4cqw; border-top: .12cqw solid #d9e1e5; }
+
+.cert-classic { padding: 2.2cqw; }
+.cert-classic .cert-frame { position: absolute; inset: 2.2cqw; border: .35cqw solid var(--cc); }
+.cert-classic .cert-frame::after { content: ""; position: absolute; inset: .9cqw; border: .12cqw solid color-mix(in srgb, var(--cc) 55%, #fff); }
+.cert-classic .cert-content { position: absolute; inset: 4.6cqw 7cqw 4.4cqw; display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 0; }
+.cert-classic .badge-medal { --s: 11cqw; }
+.cert-classic .cert-eyebrow { margin-top: 2cqw; }
+.cert-classic .cert-mid { margin-top: 1.4cqw; }
+.cert-classic .cert-learner { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; letter-spacing: 0; font-size: 7.4cqw; margin-top: .4cqw; max-height: 16cqw; }
+.cert-classic .cert-name { font-size: 3.3cqw; margin-top: .3cqw; max-height: 8.4cqw; }
+.cert-classic .cert-description { margin-top: 1.4cqw; max-width: 72cqw; flex: 0 1 auto; min-height: 0; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 2.5cqw; }
+.cert-classic .cert-foot { width: 100%; padding-top: 1.6cqw; text-align: left; }
+.cert-classic .cert-qr { width: 8cqw; height: 8cqw; }
+
+.cert-minimal .cert-rule { position: absolute; left: 0; right: 0; top: 0; height: 1.4cqw; background: var(--cc); }
+.cert-minimal .cert-content { position: absolute; inset: 6cqw 6.5cqw 4.6cqw; display: flex; flex-direction: column; min-height: 0; }
+.cert-minimal .cert-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 3cqw; }
+.cert-minimal .badge-medal { --s: 12cqw; }
+.cert-minimal .cert-mid { margin-top: 2cqw; }
+.cert-minimal .cert-learner { font-size: 6.8cqw; margin-top: .6cqw; max-height: 15cqw; }
+.cert-minimal .cert-name { font-size: 3.3cqw; margin-top: .6cqw; max-height: 8.4cqw; }
+.cert-minimal .cert-description { margin-top: 1.8cqw; max-width: 68cqw; flex: 0 1 auto; min-height: 0; }
+.cert-minimal .cert-foot { padding-top: 2cqw; border-top: .12cqw solid #d9e1e5; }
+
+/* Activity video captions: each chunk eases in. */
+@keyframes caption-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to { opacity: 1; transform: none; }
 }

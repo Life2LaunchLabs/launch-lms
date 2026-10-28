@@ -7,14 +7,10 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.db.goals import StepProgress
 from src.db.organizations import Organization
 from src.db.requirements import (
-    RequirementAssignmentBatch,
-    RequirementAssignmentCreate,
     RequirementAttainmentSource,
     RequirementEnrollment,
-    RequirementEnrollmentMigrate,
     RequirementEnrollmentStatus,
     RequirementFramework,
     RequirementFrameworkCreate,
@@ -24,13 +20,20 @@ from src.db.requirements import (
     RequirementNodeInput,
     RequirementVersionStatus,
 )
-from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
-from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
 from src.security.superadmin import is_user_superadmin
-from src.services.requirement_codes import _code_segment, _default_code_style, _normalize_source_metadata  # noqa: F401
+from src.services.requirement_codes import (  # noqa: F401
+    NUMBERING_STYLES,
+    _code_segment,
+    _default_code_style,
+    _normalize_source_metadata,
+    node_fields,
+    node_numbering,
+    node_rule,
+    upgrade_levels,
+)
 from src.services.school.roles import is_staff
 
 
@@ -105,6 +108,7 @@ def _nodes(db: Session, version_id: int) -> list[RequirementNode]:
 
 
 def _validate_nodes(items: list[RequirementNodeInput], source_metadata: dict | None = None) -> list[dict]:
+    """Check the hierarchy and number it: each parent's `numbering` codes its children (the framework's codes the top level)."""
     normalized: list[dict] = []
     identifiers: set[str] = set()
     for index, raw in enumerate(items):
@@ -115,6 +119,11 @@ def _validate_nodes(items: list[RequirementNodeInput], source_metadata: dict | N
         if node_uuid in identifiers:
             raise HTTPException(status_code=422, detail="Requirement node UUIDs must be unique")
         identifiers.add(node_uuid)
+        metadata = dict(raw.metadata_json or {})
+        if raw.numbering is not None:
+            metadata["numbering"] = raw.numbering
+        if raw.rule is not None:
+            metadata["rule"] = raw.rule
         normalized.append({
             "node_uuid": node_uuid,
             "parent_node_uuid": raw.parent_node_uuid,
@@ -122,7 +131,7 @@ def _validate_nodes(items: list[RequirementNodeInput], source_metadata: dict | N
             "title": title,
             "description": raw.description,
             "position": raw.position if raw.position is not None else index,
-            "metadata": dict(raw.metadata_json or {}),
+            "metadata": metadata,
         })
     by_uuid = {item["node_uuid"]: item for item in normalized}
     for item in normalized:
@@ -135,24 +144,38 @@ def _validate_nodes(items: list[RequirementNodeInput], source_metadata: dict | N
                 raise HTTPException(status_code=422, detail="Requirement hierarchy cannot contain a cycle")
             seen.add(parent)
             parent = by_uuid[parent]["parent_node_uuid"]
-    levels = _normalize_source_metadata(source_metadata, validate=True).get("requirement_levels") or []
-    if levels:
-        input_order = {item["node_uuid"]: index for index, item in enumerate(normalized)}
-        children: dict[str | None, list[dict]] = {}
-        for item in normalized:
-            children.setdefault(item["parent_node_uuid"], []).append(item)
-        for siblings in children.values():
-            siblings.sort(key=lambda item: (item["position"], input_order[item["node_uuid"]]))
+    meta, normalized = upgrade_levels(_normalize_source_metadata(source_metadata, validate=True), normalized)
+    input_order = {item["node_uuid"]: index for index, item in enumerate(normalized)}
+    children: dict[str | None, list[dict]] = {}
+    for item in normalized:
+        children.setdefault(item["parent_node_uuid"], []).append(item)
+    for siblings in children.values():
+        siblings.sort(key=lambda item: (item["position"], input_order[item["node_uuid"]]))
 
-        def assign_codes(parent_uuid: str | None, depth: int, prefix: str = "") -> None:
-            if depth >= len(levels) and children.get(parent_uuid):
-                raise HTTPException(status_code=422, detail="Add enough hierarchy levels for every requirement node")
-            for sibling_number, item in enumerate(children.get(parent_uuid, []), start=1):
-                segment = _code_segment(sibling_number, levels[depth]["code_style"])
+    def assign_codes(parent_uuid: str | None, style: str, prefix: str = "") -> None:
+        for sibling_number, item in enumerate(children.get(parent_uuid, []), start=1):
+            if style == "none":
+                item["code"] = ""
+            elif style != "custom":
+                segment = _code_segment(sibling_number, style)
                 item["code"] = f"{prefix}.{segment}" if prefix else segment
-                assign_codes(item["node_uuid"], depth + 1, item["code"])
+            metadata = item["metadata"]
+            numbering = metadata.get("numbering")
+            if numbering is not None and numbering not in NUMBERING_STYLES:
+                raise HTTPException(status_code=422, detail=f"Unsupported numbering: {numbering}")
+            count = len(children.get(item["node_uuid"], []))
+            if not count:
+                metadata.pop("rule", None)  # a requirement is met by a step or a credit, not a rule
+            elif "rule" in metadata:
+                rule = metadata["rule"] or {}
+                if rule.get("kind") not in ("all", "any"):
+                    raise HTTPException(status_code=422, detail="A rule is all of its requirements, or any number of them")
+                if rule["kind"] == "any" and not (isinstance(rule.get("count"), int) and 1 <= rule["count"] <= count):
+                    raise HTTPException(status_code=422, detail=f"“{item['title']}” has {count} items, so it can need between 1 and {count} of them")
+                metadata["rule"] = node_rule(metadata)
+            assign_codes(item["node_uuid"], node_numbering(metadata), item["code"])
 
-        assign_codes(None, 0)
+    assign_codes(None, meta["numbering"])
     return normalized
 
 
@@ -180,8 +203,15 @@ def _node_dict(node: RequirementNode) -> dict:
     return {
         "node_uuid": node.node_uuid, "parent_node_uuid": node.parent_node_uuid,
         "code": node.code, "title": node.title, "description": node.description,
-        "position": node.position, "metadata": node.metadata_json or {},
+        "position": node.position, "metadata": node_fields(node.metadata_json),
+        "numbering": node_numbering(node.metadata_json), "rule": node_rule(node.metadata_json),
     }
+
+
+def _upgraded_metadata(source_metadata: dict | None, nodes: list[RequirementNodeInput]) -> dict:
+    """The framework's source_metadata to store: validated, with old levels turned into numbering and fields."""
+    meta, _ = upgrade_levels(source_metadata, [{"node_uuid": item.node_uuid or "", "parent_node_uuid": item.parent_node_uuid, "metadata": {}} for item in nodes])
+    return _normalize_source_metadata(meta, validate=True)
 
 
 def _leaf_ids(nodes: list[dict]) -> list[str]:
@@ -215,6 +245,9 @@ def _framework_dict(db: Session, framework: RequirementFramework, version_number
         "current_version": framework.current_version, "published_version": framework.published_version,
         "library_published_version": framework.library_published_version,
         "published_to_library": framework.library_published_version is not None,
+        "library_editable": framework.library_editable,
+        "locked": framework.locked,
+        "flagged_node_uuids": list(framework.flagged_node_uuids or []),
         "version": version.version_number,
         "status": version.status.value if hasattr(version.status, "value") else version.status,
         "nodes": [_node_dict(item) for item in _nodes(db, int(version.id))],
@@ -233,7 +266,7 @@ def _reader_view(db: Session, current_user: PublicUser, framework: RequirementFr
     return {
         **_framework_dict(db, framework, version_number),
         "publisher": _publisher(db, framework),
-        "can_edit": is_org_admin(current_user.id, framework.org_id, db),
+        "can_edit": is_org_admin(current_user.id, framework.org_id, db) and not framework.locked,
     }
 
 
@@ -254,11 +287,13 @@ def list_frameworks(db: Session, current_user: PublicUser, org_id: int, with_cov
     return views
 
 
-def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
+def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, editable: bool = True) -> dict:
+    """Share the published version in Discover. Not editable: orgs use it exactly as published (an official standard)."""
     _require_owner_org_admin(db, current_user, org_id)
     framework = _framework_or_404(db, org_id, framework_uuid)
     if framework.published_version is None:
         raise HTTPException(status_code=422, detail="Publish a framework version before adding it to the global library")
+    framework.library_editable = editable
     framework.library_published_version = framework.published_version
     framework.library_snapshot = _snapshot(db, framework, _version(db, framework, framework.published_version))
     framework.update_date = _now_string()
@@ -271,27 +306,10 @@ def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: 
 def list_framework_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
     from src.services.goals.template_marketplace import require_reader
 
+    from src.services.requirement_library import library_frameworks
+
     require_reader(db, current_user, org_id)  # staff browse the marketplace too; copying stays admin only
-    owner = _owner_org(db)
-    items = db.exec(select(RequirementFramework).where(
-        RequirementFramework.org_id == owner.id,
-        RequirementFramework.library_published_version.is_not(None),
-        RequirementFramework.archived == False,  # noqa: E712
-    ).order_by(RequirementFramework.name)).all()
-    needle = query.strip().lower()
-    results = []
-    for item in items:
-        snapshot = dict(item.library_snapshot or {})
-        if needle and needle not in f"{snapshot.get('name', '')} {snapshot.get('description', '')}".lower():
-            continue
-        results.append({
-            "framework_uuid": item.framework_uuid, "name": snapshot.get("name", item.name),
-            "description": snapshot.get("description", item.description),
-            "version": snapshot.get("version", item.library_published_version),
-            "node_count": len(snapshot.get("nodes") or []),
-            "owner_org_name": owner.name,
-        })
-    return results
+    return library_frameworks(db, query)
 
 
 def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
@@ -306,12 +324,28 @@ def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: i
     if not source or source.library_published_version is None or not source.library_snapshot:
         raise HTTPException(status_code=404, detail="Library requirement framework not found")
     snapshot = dict(source.library_snapshot)
-    return create_framework(db, current_user, RequirementFrameworkCreate(
+    created = create_framework(db, current_user, RequirementFrameworkCreate(
         org_id=org_id, name=str(snapshot.get("name") or source.name), description=str(snapshot.get("description") or ""),
         source_framework_uuid=source.framework_uuid, source_version=source.library_published_version,
-        source_metadata=_normalize_source_metadata(snapshot.get("source_metadata")),
+        source_metadata=snapshot.get("source_metadata") or {},
         nodes=[RequirementNodeInput(**node) for node in snapshot.get("nodes") or []],
     ))
+    if source.library_editable:
+        return created  # the org's own framework now, started from the library one
+    # used as is: the copy is published straight away and can't be changed
+    framework = _framework_or_404(db, org_id, created["framework_uuid"])
+    version = _version(db, framework)
+    now = _now()
+    version.status = RequirementVersionStatus.PUBLISHED
+    version.published_at = now
+    version.published_by_user_id = current_user.id
+    framework.published_version = version.version_number
+    framework.locked = True
+    db.add(version)
+    db.add(framework)
+    db.commit()
+    db.refresh(framework)
+    return _framework_dict(db, framework)
 
 
 def create_framework(db: Session, current_user: PublicUser, payload: RequirementFrameworkCreate) -> dict:
@@ -319,7 +353,7 @@ def create_framework(db: Session, current_user: PublicUser, payload: Requirement
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Framework name is required")
     now = _now_string()
-    source_metadata = _normalize_source_metadata(payload.source_metadata, validate=True)
+    source_metadata = _upgraded_metadata(payload.source_metadata, payload.nodes)
     framework = RequirementFramework(
         framework_uuid=f"requirement_framework_{uuid4()}", org_id=payload.org_id,
         name=payload.name.strip(), description=payload.description,
@@ -336,7 +370,7 @@ def create_framework(db: Session, current_user: PublicUser, payload: Requirement
     )
     db.add(version)
     db.flush()
-    _replace_nodes(db, version, payload.nodes, source_metadata)
+    _replace_nodes(db, version, payload.nodes, payload.source_metadata)
     db.commit()
     db.refresh(framework)
     return _framework_dict(db, framework)
@@ -347,9 +381,15 @@ def get_framework(db: Session, current_user: PublicUser, org_id: int, framework_
     return _reader_view(db, current_user, _framework_or_404(db, org_id, framework_uuid), version)
 
 
+def _require_editable(framework: RequirementFramework) -> None:
+    if framework.locked:
+        raise HTTPException(status_code=409, detail="This framework is used as its publisher shares it, so it can't be changed")
+
+
 def update_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementFrameworkUpdate) -> dict:
     require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
+    _require_editable(framework)
     current = _version(db, framework)
     now = _now_string()
     if current.status == RequirementVersionStatus.PUBLISHED:
@@ -376,18 +416,11 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
         framework.name = name
     if "description" in changes:
         framework.description = changes["description"] or ""
-    if "source_metadata" in changes:
-        framework.source_metadata = _normalize_source_metadata(changes["source_metadata"], validate=True)
-    if payload.nodes is not None:
-        _replace_nodes(db, current, payload.nodes, framework.source_metadata)
-    elif "source_metadata" in changes:
-        current_nodes = [_node_dict(item) for item in _nodes(db, int(current.id))]
-        _replace_nodes(
-            db,
-            current,
-            [RequirementNodeInput(**item) for item in current_nodes],
-            framework.source_metadata,
-        )
+    if payload.nodes is not None or "source_metadata" in changes:
+        nodes = payload.nodes if payload.nodes is not None else [RequirementNodeInput(**item) for item in (_node_dict(node) for node in _nodes(db, int(current.id)))]
+        given = changes["source_metadata"] if "source_metadata" in changes else framework.source_metadata
+        _replace_nodes(db, current, nodes, given)
+        framework.source_metadata = _upgraded_metadata(given, nodes)
     framework.update_date = now
     current.update_date = now
     db.add(framework)
@@ -397,9 +430,26 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
     return _framework_dict(db, framework)
 
 
+def set_flags(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, node_uuids: list[str]) -> dict:
+    """Replace the gaps staff flagged to fill. Only requirements (leaves) of the current version can be flagged; any
+    staff member can flag, since flags are notes for finding and building plans, not changes to the framework."""
+    _require_staff(db, current_user, org_id)
+    framework = _framework_or_404(db, org_id, framework_uuid)
+    leaves = set(_leaf_ids([_node_dict(node) for node in _nodes(db, int(_version(db, framework).id))]))
+    unknown = [node for node in node_uuids if node not in leaves]
+    if unknown:
+        raise HTTPException(status_code=422, detail="Only requirements in this framework can be flagged")
+    framework.flagged_node_uuids = list(dict.fromkeys(node_uuids))
+    framework.update_date = _now_string()
+    db.add(framework)
+    db.commit()
+    return {"framework_uuid": framework.framework_uuid, "flagged_node_uuids": framework.flagged_node_uuids}
+
+
 def publish_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
     require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
+    _require_editable(framework)
     version = _version(db, framework)
     if version.status == RequirementVersionStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="This version is already published; save changes to create a new draft")
@@ -425,164 +475,6 @@ def publish_framework(db: Session, current_user: PublicUser, org_id: int, framew
     return result
 
 
-def _eligible_user_ids(db: Session, org_id: int, payload: RequirementAssignmentCreate) -> list[int]:
-    if bool(payload.user_id) == bool(payload.usergroup_id):
-        raise HTTPException(status_code=422, detail="Choose one learner or one group")
-    if payload.usergroup_id:
-        group = db.exec(select(UserGroup).where(UserGroup.id == payload.usergroup_id, UserGroup.org_id == org_id)).first()
-        if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
-        return list(dict.fromkeys(db.exec(select(UserGroupUser.user_id).where(
-            UserGroupUser.usergroup_id == group.id, UserGroupUser.org_id == org_id,
-        )).all()))
-    membership = db.exec(select(UserOrganization).where(
-        UserOrganization.user_id == payload.user_id, UserOrganization.org_id == org_id,
-    )).first()
-    if not membership:
-        raise HTTPException(status_code=404, detail="Learner is not in this organization")
-    return [int(payload.user_id)]
-
-
-def _recompute_enrollment(db: Session, enrollment: RequirementEnrollment) -> None:
-    leaf_ids = set((enrollment.framework_snapshot or {}).get("leaf_node_uuids") or [])
-    active = db.exec(select(RequirementAttainmentSource.node_uuid).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id,
-        RequirementAttainmentSource.revoked_at.is_(None),
-    )).all()
-    complete = bool(leaf_ids) and leaf_ids.issubset(set(active))
-    enrollment.status = RequirementEnrollmentStatus.COMPLETED if complete else RequirementEnrollmentStatus.ACTIVE
-    enrollment.completed_at = enrollment.completed_at or _now() if complete else None
-    enrollment.update_date = _now_string()
-    db.add(enrollment)
-
-
-def _upsert_source(
-    db: Session, enrollment: RequirementEnrollment, node_uuid: str, *, step_progress: StepProgress,
-    title: str, evidence: dict, verified_by: int | None, verified_at: datetime | None, active: bool,
-) -> None:
-    source = db.exec(select(RequirementAttainmentSource).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid,
-        RequirementAttainmentSource.step_progress_id == step_progress.id,
-    )).first()
-    now = _now()
-    if not source:
-        source = RequirementAttainmentSource(
-            source_uuid=f"requirement_source_{uuid4()}", enrollment_id=int(enrollment.id),
-            node_uuid=node_uuid, step_progress_id=int(step_progress.id),  # type: ignore[arg-type]
-            creation_date=now.isoformat(), update_date=now.isoformat(),
-        )
-    source.objective_title = title
-    source.evidence_snapshot = evidence
-    source.verified_by_user_id = verified_by
-    source.verified_at = verified_at
-    source.revoked_at = None if active else now
-    source.update_date = now.isoformat()
-    db.add(source)
-
-
-def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
-    from src.services.goals.credit import backfill_steps
-    backfill_steps(db, enrollment)
-
-
-def assign_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementAssignmentCreate) -> dict:
-    require_org_admin(current_user.id, org_id, db, "run_assignments")
-    framework = _framework_or_404(db, org_id, framework_uuid)
-    if not framework.published_version:
-        raise HTTPException(status_code=409, detail="Publish this framework before assigning it")
-    version = _version(db, framework, framework.published_version)
-    user_ids = _eligible_user_ids(db, org_id, payload)
-    now = _now_string()
-    batch = RequirementAssignmentBatch(
-        batch_uuid=f"requirement_batch_{uuid4()}", org_id=org_id,
-        framework_id=int(framework.id), version_id=int(version.id),
-        usergroup_id=payload.usergroup_id, user_id=payload.user_id,
-        created_by_user_id=current_user.id, creation_date=now, update_date=now,
-    )
-    db.add(batch)
-    db.flush()
-    snapshot = _snapshot(db, framework, version)
-    enrollments = []
-    for user_id in user_ids:
-        enrollment = RequirementEnrollment(
-            enrollment_uuid=f"requirement_enrollment_{uuid4()}", batch_id=int(batch.id),
-            org_id=org_id, framework_id=int(framework.id), version_id=int(version.id),
-            user_id=user_id, framework_snapshot=snapshot, creation_date=now, update_date=now,
-        )
-        db.add(enrollment)
-        db.flush()
-        enrollments.append(enrollment)
-        _backfill(db, enrollment)
-    db.commit()
-    return {"batch_uuid": batch.batch_uuid, "enrollment_count": len(enrollments), "version": version.version_number}
-
-
-def sync_group_batches(db: Session, org_id: int, framework_id: int | None = None) -> None:
-    statement = select(RequirementAssignmentBatch).where(
-        RequirementAssignmentBatch.org_id == org_id,
-        RequirementAssignmentBatch.active == True,  # noqa: E712
-        RequirementAssignmentBatch.usergroup_id.is_not(None),
-    )
-    if framework_id:
-        statement = statement.where(RequirementAssignmentBatch.framework_id == framework_id)
-    for batch in db.exec(statement).all():
-        enrollment_rows = db.exec(select(RequirementEnrollment).where(
-            RequirementEnrollment.batch_id == batch.id,
-        )).all()
-        existing = {item.user_id for item in enrollment_rows}
-        user_ids = set(db.exec(select(UserGroupUser.user_id).where(
-            UserGroupUser.usergroup_id == batch.usergroup_id,
-            UserGroupUser.org_id == org_id,
-        )).all())
-        framework = db.get(RequirementFramework, batch.framework_id)
-        version = db.get(RequirementFrameworkVersion, batch.version_id)
-        snapshot = _snapshot(db, framework, version)
-        now = _now_string()
-        for enrollment in enrollment_rows:
-            if enrollment.user_id not in user_ids and enrollment.status == RequirementEnrollmentStatus.ACTIVE:
-                enrollment.status = RequirementEnrollmentStatus.WITHDRAWN
-                enrollment.update_date = now
-                db.add(enrollment)
-            elif enrollment.user_id in user_ids and enrollment.status == RequirementEnrollmentStatus.WITHDRAWN:
-                enrollment.status = RequirementEnrollmentStatus.ACTIVE
-                enrollment.update_date = now
-                db.add(enrollment)
-                _recompute_enrollment(db, enrollment)
-        for user_id in user_ids - existing:
-            enrollment = RequirementEnrollment(
-                enrollment_uuid=f"requirement_enrollment_{uuid4()}", batch_id=int(batch.id), org_id=org_id,
-                framework_id=batch.framework_id, version_id=batch.version_id, user_id=user_id,
-                framework_snapshot=snapshot, creation_date=now, update_date=now,
-            )
-            db.add(enrollment)
-            db.flush()
-            _backfill(db, enrollment)
-
-
-def migrate_enrollments(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementEnrollmentMigrate) -> dict:
-    require_org_admin(current_user.id, org_id, db, "build_plans")
-    framework = _framework_or_404(db, org_id, framework_uuid)
-    if not framework.published_version:
-        raise HTTPException(status_code=409, detail="No published version is available")
-    version = _version(db, framework, framework.published_version)
-    statement = select(RequirementEnrollment).where(
-        RequirementEnrollment.framework_id == framework.id,
-        RequirementEnrollment.status == RequirementEnrollmentStatus.ACTIVE,
-        RequirementEnrollment.version_id != version.id,
-    )
-    if payload.enrollment_uuids:
-        statement = statement.where(RequirementEnrollment.enrollment_uuid.in_(payload.enrollment_uuids))
-    enrollments = db.exec(statement).all()
-    snapshot = _snapshot(db, framework, version)
-    for enrollment in enrollments:
-        enrollment.version_id = int(version.id)
-        enrollment.framework_snapshot = snapshot
-        _recompute_enrollment(db, enrollment)
-        _backfill(db, enrollment)
-    db.commit()
-    return {"updated": len(enrollments), "version": version.version_number}
-
-
 def _org_nodes(db: Session, org_id: int) -> list[tuple[RequirementFramework, RequirementNode]]:
     """Every node in the organization's current framework versions, with its framework."""
     if not _available(db):
@@ -603,6 +495,8 @@ def parent_node_uuids(db: Session, org_id: int) -> set[str]:
 
 def report(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str | None = None, version_number: int | None = None, usergroup_id: int | None = None, node_uuid: str | None = None, status: str | None = None) -> dict:
     require_org_admin(current_user.id, org_id, db, "see_reports")
+    from src.services.requirement_tracking import sync_group_batches
+
     framework = _framework_or_404(db, org_id, framework_uuid) if framework_uuid else None
     sync_group_batches(db, org_id, int(framework.id) if framework else None)
     statement = select(RequirementEnrollment).where(

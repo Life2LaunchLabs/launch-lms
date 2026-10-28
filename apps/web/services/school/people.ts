@@ -13,7 +13,7 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
 }
 
 /** What someone is to the organization. Helpers aren't members: a learner brought them onto one plan. */
-export type OrgRole = 'admin' | 'staff' | 'learner' | 'helper'
+export type OrgRole = 'admin' | 'staff' | 'learner' | 'helper' | 'applicant' // applicant: asking for a plan, not one of the org's people yet
 /** People hides alumni unless asked. */
 export type PeopleStatusFilter = 'active' | 'alumni' | 'all'
 
@@ -113,13 +113,21 @@ export interface FeedRow {
   chat_uuid?: string | null
 }
 /** People's list: who has something for you (newest first, capped, first page only), then everyone else A to Z, paged. */
+/** Threads' list keeps one kind of thread when asked. */
+export type ThreadKind = 'all' | 'learners' | 'staff' | 'groups'
+/** On top of the list: the all-staff room and the organization's own thread. */
+export interface PinnedRow { key: 'staff_room' | 'org'; kind: 'staff_room' | 'org'; title: string; preview: string; at: string | null; chat_uuid?: string; unread?: number }
 export interface PeopleFeed {
+  /** First page of the whole list or of staff, without a search. */
+  pinned: PinnedRow[]
   active: FeedRow[]
   rest: FeedRow[]
   total: number
   offset: number
   limit: number
   groups_enabled: boolean
+  /** Groups stay listed after a Full trial ends, but nobody can make new ones. */
+  groups_read_only?: boolean
   is_admin: boolean
 }
 
@@ -157,8 +165,8 @@ const helperBase = (path = '') => `${getAPIUrl()}goal-admin/helper-requests${pat
 export const peopleKeys = {
   directory: (orgId: number, query = '', offset = 0, status: PeopleStatusFilter = 'active') =>
     base(orgId, `/people?q=${q(query)}&offset=${offset}${status === 'active' ? '' : `&status=${status}`}`),
-  feed: (orgId: number, query = '', offset = 0, status: PeopleStatusFilter = 'active') =>
-    base(orgId, `/people/feed?q=${q(query)}&offset=${offset}${status === 'active' ? '' : `&status=${status}`}`),
+  feed: (orgId: number, query = '', offset = 0, status: PeopleStatusFilter = 'active', kind: ThreadKind = 'all') =>
+    base(orgId, `/people/feed?q=${q(query)}&offset=${offset}${status === 'active' ? '' : `&status=${status}`}${kind === 'all' ? '' : `&kind=${kind}`}`),
   activity: (orgId: number, username: string) => base(orgId, `/people/${q(username)}/activity`),
   group: (orgId: number, groupId: number) => base(orgId, `/groups/${groupId}`),
   profile: (orgId: number, username: string) => base(orgId, `/people/${q(username)}`),
@@ -171,8 +179,8 @@ export const peopleApi = {
   directory: (orgId: number, query: string, token?: string, offset = 0, status: PeopleStatusFilter = 'active') =>
     request<Directory>(peopleKeys.directory(orgId, query, offset, status), token),
   profile: (orgId: number, username: string, token?: string) => request<Profile>(peopleKeys.profile(orgId, username), token),
-  feed: (orgId: number, query: string, token?: string, offset = 0, status: PeopleStatusFilter = 'active') =>
-    request<PeopleFeed>(peopleKeys.feed(orgId, query, offset, status), token),
+  feed: (orgId: number, query: string, token?: string, offset = 0, status: PeopleStatusFilter = 'active', kind: ThreadKind = 'all') =>
+    request<PeopleFeed>(peopleKeys.feed(orgId, query, offset, status, kind), token),
   activity: (orgId: number, username: string, token?: string) => request<PersonActivity>(peopleKeys.activity(orgId, username), token),
   group: (orgId: number, groupId: number, token?: string) => request<GroupDetail>(peopleKeys.group(orgId, groupId), token),
   chats: (orgId: number, token?: string) => request<PeopleChats>(peopleKeys.chats(orgId), token),
@@ -185,4 +193,4 @@ export const peopleApi = {
     request<HelperRequest>(helperBase(`/${q(invitationUuid)}/${approve ? 'approve' : 'decline'}?org_id=${orgId}`), token, 'POST'),
 }
 
-export const ROLE_LABELS: Record<OrgRole, string> = { admin: 'Admin', staff: 'Staff', learner: 'Learner', helper: 'Helper' }
+export const ROLE_LABELS: Record<OrgRole, string> = { admin: 'Admin', staff: 'Staff', learner: 'Learner', helper: 'Helper', applicant: 'Asking for a plan' }

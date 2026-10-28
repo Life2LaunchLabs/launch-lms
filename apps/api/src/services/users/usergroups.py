@@ -7,8 +7,7 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
-from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.goals import GoalAssignment
+from src.db.goals import AssignmentStatus, GoalAssignment
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupCreate, UserGroupRead, UserGroupUpdate
 from src.db.users import (
@@ -58,15 +57,7 @@ async def _validate_resource_exists_and_belongs_to_org(
     # Import the appropriate model based on resource type
     resource = None
 
-    if config.resource_type == "badges":
-        from src.db.learning import LearningBadge
-        statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "badge_collections":
-        from src.db.learning import BadgeCollection
-        statement = select(BadgeCollection).where(BadgeCollection.collection_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "resources":
+    if config.resource_type == "resources":
         from src.db.resources import Resource
         statement = select(Resource).where(Resource.resource_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
@@ -263,7 +254,7 @@ async def read_usergroup_overview(
     assignments = db_session.exec(select(GoalAssignment).where(
         GoalAssignment.org_id == org_id,
         GoalAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
-        GoalAssignment.active == True,  # noqa: E712
+        GoalAssignment.status == AssignmentStatus.ACTIVE.value,
     )).all()
     active_group_ids = {assignment.usergroup_id for assignment in assignments}
     assigned_group_ids = {
@@ -271,15 +262,6 @@ async def read_usergroup_overview(
         for assignment in assignments
         if current_user.id in (assignment.staff_user_ids or [])
     }
-    badge_group_ids = set(db_session.exec(
-        select(UserGroupResource.usergroup_id)
-        .join(LearningBadge, LearningBadge.badge_uuid == UserGroupResource.resource_uuid)
-        .where(
-            UserGroupResource.org_id == org_id,
-            LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-        )
-    ).all())
-    active_group_ids.update(badge_group_ids)
 
     return [
         {

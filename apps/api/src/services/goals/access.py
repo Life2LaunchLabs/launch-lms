@@ -2,7 +2,7 @@
 
 The goal's owner can do everything. Everyone else gets the capabilities of
 their role on the goal (the plan role and collaborator tables, keyed by
-``goal_id``). A goal issued by an organization, a badge or the starter flow
+``goal_id``). A goal issued by an organization, joined from Discover or from the starter flow
 keeps its definition: its learner can't restructure it unless they assigned it
 to themselves or administer the organization.
 """
@@ -21,7 +21,7 @@ from src.security.org_auth import is_org_admin
 
 OWNER_ONLY = {"transfer_ownership", "delete_plan"}
 # Signing off steps: never the learner's own call on a goal someone else issued.
-STAFF_CAPABILITIES = {"complete_restricted_objectives", "contribute_restricted_fields", "review_badge_submissions"}
+STAFF_CAPABILITIES = {"complete_restricted_objectives", "contribute_restricted_fields", "review_submissions"}
 DEFINITION_CAPABILITIES = {
     "edit_plan_details", "edit_structure", "edit_schedule", "manage_roles",
     "complete_plan", "delete_plan", "transfer_ownership",
@@ -56,7 +56,7 @@ def _definition_locked(db: Session, goal: Goal, user_id: int) -> bool:
     if _value(goal.ownership) == GoalOwnership.PERSONAL.value:
         return False
     source = _value(goal.source)
-    if source in {GoalSource.BADGE.value, GoalSource.STARTER.value}:
+    if source in {GoalSource.JOINED.value, GoalSource.STARTER.value}:
         return True
     if goal.org_id and is_org_admin(user_id, goal.org_id, db):
         return False

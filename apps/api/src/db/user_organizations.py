@@ -16,5 +16,7 @@ class UserOrganization(SQLModel, table=True):
     status_since: str | None = None
     # Staff only: the permissions the admin gave them (security/org_auth.STAFF_PERMISSIONS); None means the defaults.
     permissions: list[str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # Staff only: the name learners see on their messages and reviews here, e.g. "Ms. Rivera"; None means their own name.
+    learner_name: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str
     update_date: str

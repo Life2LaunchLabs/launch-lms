@@ -18,7 +18,7 @@ from src.routers import oauth as oauth_router
 from src.security.auth import get_current_user
 from src.services.oauth import server
 from src.services.oauth.config import mcp_resource
-from src.tests.test_badge_marketplace import _create_tables, _setup
+from src.tests.plan_world import _create_tables, _setup
 
 REDIRECT = "https://claude.ai/api/mcp/auth_callback"
 
@@ -93,7 +93,7 @@ def test_full_authorization_code_flow_with_pkce_and_rotation(world):
     assert issued.status_code == 200, issued.text
     tokens = issued.json()
     assert issued.headers["cache-control"] == "no-store"
-    assert tokens["scope"] == "activities:read activities:write plans:read plans:write coach:read coach:write"
+    assert tokens["scope"] == "activities:read activities:write plans:read plans:write insights:read insights:write coach:read coach:write"
 
     context = server.resolve_access_token(session, tokens["access_token"])
     assert context.user.id == users["alice"].id and context.org_id == 1

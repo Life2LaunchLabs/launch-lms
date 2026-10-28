@@ -1,9 +1,11 @@
 'use client'
 
 import React from 'react'
+import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
+import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import type { Goal, StepCompleter, StepConfigs, StepMaterial, StepTypeKey } from '@services/goals/types'
 import { STEP_TYPE_ORDER, stepDefinition } from '../steps'
@@ -85,8 +87,9 @@ export function draftProblem(draft: StepDraft): string | null {
 }
 
 /**
- * The single step editor: type, title, details and what the type needs, with the fiddly bits
- * (the type's settings, who marks it done, when it opens and closes) in a closed Settings
+ * The single step editor: type, title and what the type needs. On a template, learner instructions,
+ * materials and the staff guide are add-ons until they're used, and review and who marks it done
+ * show up front; the fiddly bits (the type's settings, timing) wait in a closed More settings
  * section. Learners editing their own goal see only what applies to them.
  */
 export default function StepEditor({ value, onChange, mode, others = [], live, typeLocked = false, orgId, token }: StepEditorProps) {
@@ -96,39 +99,42 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
   const set = (patch: Partial<StepDraft>) => onChange({ ...value, ...patch })
   const setConfig = (config: StepConfigs[StepTypeKey]) => set({ config })
   const personal = mode === 'personal'
+  const template = mode === 'template'
   const problem = value.title.trim() ? draftProblem(value) : null
   const timed = value.start_date || value.due_date || value.after.length || value.due_week
+  // A template's optional parts stay folded into "+" buttons until they're added or already used.
+  const [shown, setShown] = React.useState(() => ({ details: !template || !!value.description, materials: !!value.materials?.length, staff: !!(value.staff_guide || value.staff_materials?.length) }))
+  const addons = template ? ([['details', 'Learner instructions'], ['materials', 'Materials'], ['staff', 'Staff guide']] as const).filter(([key]) => !shown[key]) : []
   const summary = [
-    timed ? 'timing set' : mode === 'template' ? null : 'opens and closes with its stage',
-    personal ? null : value.completed_by === 'staff' ? 'staff mark it done' : value.review_required ? 'staff review it' : null,
+    timed ? 'timing set' : template ? null : 'opens and closes with its stage',
+    personal || template ? null : value.completed_by === 'staff' ? 'staff mark it done' : value.review_required ? 'staff review it' : null,
   ].filter(Boolean).join(' · ')
+  const whoMarks = personal ? null : <WhoMarksDone value={value} set={set} finishesItself={!!definition.finishesItself} framed={template} />
   return <div className="flex flex-col gap-4">
     {typeLocked ? null : <StepTypePicker value={value.type} personal={personal} onChange={(type) => type !== value.type && onChange({ ...value, type, config: stepDefinition(type).defaultConfig() })} />}
-    <div className="flex flex-col gap-1"><Label htmlFor="step-title">Title</Label><Input id="step-title" value={value.title} onChange={(event) => set({ title: event.target.value })} placeholder="What needs to happen?" /></div>
-    <div className="flex flex-col gap-1"><Label htmlFor="step-details">Details</Label><Textarea id="step-details" rows={3} value={value.description} onChange={(event) => set({ description: event.target.value })} placeholder="Anything that helps" /></div>
+    <div className="flex flex-col gap-1.5"><Label htmlFor="step-title">Title</Label><Input id="step-title" value={value.title} onChange={(event) => set({ title: event.target.value })} placeholder={template ? `e.g. ${definition.example}` : 'What needs to happen?'} className={cn(template && 'h-11 text-[15px] font-semibold')} /></div>
+    {shown.details ? <div className="flex flex-col gap-1.5"><Label htmlFor="step-details">{template ? 'Learner instructions' : 'Details'}</Label><Textarea id="step-details" rows={3} value={value.description} onChange={(event) => set({ description: event.target.value })} placeholder={template ? 'What should they do, and why?' : 'Anything that helps'} autoFocus={template && !value.description} /></div> : null}
     {ConfigPanel ? <ConfigPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
-    {mode === 'template' ? <div className="flex flex-col gap-1">
+    {template && shown.materials ? <div className="flex flex-col gap-1.5">
       <Label htmlFor="step-materials">Materials</Label>
       <MaterialsEditor id="step-materials" value={value.materials || []} onChange={(materials) => set({ materials })} orgId={orgId} token={token} />
     </div> : null}
-    {mode === 'template' ? <StaffGuide value={value} set={set} orgId={orgId} token={token} /> : null}
+    {template && shown.staff ? <StaffGuide value={value} set={set} orgId={orgId} token={token} /> : null}
+    {addons.length ? <div className="flex flex-wrap gap-2">{addons.map(([key, label]) => <button key={key} type="button" onClick={() => setShown((current) => ({ ...current, [key]: true }))}
+      className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:border-[var(--plan-face)] hover:text-foreground">
+      <Plus size={15} aria-hidden="true" />{label}
+    </button>)}</div> : null}
     {problem ? <p role="status" className="text-xs font-semibold text-amber-700 dark:text-amber-400">{problem}</p> : null}
+    {template ? whoMarks : null}
     <details className="group/settings border-t pt-3">
       <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
-        <span>Settings{summary ? <span className="font-normal"> · {summary}</span> : null}</span>
+        <span>{template ? 'More settings' : 'Settings'}{summary ? <span className="font-normal"> · {summary}</span> : null}</span>
         <span aria-hidden="true" className="text-xs transition-transform group-open/settings:rotate-180">▾</span>
       </summary>
       <div className="mt-3 flex flex-col gap-5">
         {SettingsPanel ? <SettingsPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
-        {personal ? null : <Setting title="Who marks it done">
-          <div className="flex flex-wrap gap-2">
-            {(['learner', 'staff'] as const).map((who) => <button key={who} type="button" aria-pressed={value.completed_by === who} onClick={() => set({ completed_by: who, review_required: who === 'staff' ? false : value.review_required })}
-              className={cn('rounded-xl border-2 px-3 py-1.5 text-sm font-bold', value.completed_by === who ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border')}>{who === 'learner' ? 'The learner' : 'Staff'}</button>)}
-          </div>
-          {value.completed_by === 'learner' && !definition.finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />Staff review it before it counts</label> : null}
-          {value.review_required || value.completed_by === 'staff' ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">Notes for reviewers</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder="What a good one looks like" /></div> : null}
-        </Setting>}
-        {mode === 'template' ? <Setting title="Timing">
+        {template || !whoMarks ? null : <Setting title="Who marks it done">{whoMarks}</Setting>}
+        {template ? <Setting title="Timing">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
             <AfterPicker value={value} others={others} set={set} />
@@ -137,6 +143,34 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
       </div>
     </details>
   </div>
+}
+
+/**
+ * Review before it counts, and who marks it done (the learner, or staff for things like a meeting),
+ * with notes for whoever reviews. Steps that finish themselves (activities, badges) have neither.
+ * `framed`: as framed rows in the editor's body rather than inside Settings.
+ */
+function WhoMarksDone({ value, set, finishesItself, framed }: { value: StepDraft; set: (patch: Partial<StepDraft>) => void; finishesItself: boolean; framed: boolean }) { // eslint-disable-line no-unused-vars
+  if (finishesItself && framed) return null
+  const guidance = value.review_required || value.completed_by === 'staff'
+    ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">Notes for reviewers</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder="What a good one looks like" /></div> : null
+  const who = <div className="inline-flex flex-wrap gap-0.5 self-start rounded-xl bg-muted p-[3px]">
+    {(['learner', 'staff'] as const).map((person) => <button key={person} type="button" aria-pressed={value.completed_by === person} onClick={() => set({ completed_by: person, review_required: person === 'staff' ? false : value.review_required })}
+      className={cn('rounded-[9px] px-3 py-[7px] text-[13px] font-semibold', value.completed_by === person ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{person === 'learner' ? 'The learner' : framed ? 'Staff, like a meeting' : 'Staff'}</button>)}
+  </div>
+  if (!framed) return <>
+    {who}
+    {value.completed_by === 'learner' && !finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />Staff review it before it counts</label> : null}
+    {guidance}
+  </>
+  return <>
+    {value.completed_by === 'learner' ? <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-border px-3.5 py-3">
+      <span className="min-w-0 flex-1"><b className="block text-sm">Review before it counts</b><span className="text-[12.5px] text-muted-foreground">You approve their work before the step is done</span></span>
+      <Switch checked={value.review_required} onCheckedChange={(checked) => set({ review_required: checked })} aria-label="Review before it counts" className="h-6 w-[42px] data-[state=checked]:bg-emerald-600 [&>span]:h-[18px] [&>span]:w-[18px] [&>span]:data-[state=checked]:translate-x-[18px]" />
+    </label> : null}
+    <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Who marks it done</span>{who}</div>
+    {guidance}
+  </>
 }
 
 /**

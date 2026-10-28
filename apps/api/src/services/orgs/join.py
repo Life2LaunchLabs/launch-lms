@@ -11,7 +11,8 @@ from src.security.access.access import require_capacity
 from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
-from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
+from src.services.orgs import staff_setup
+from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.messages import resolve_action_by_dedupe
 
 
@@ -150,7 +151,7 @@ async def join_org(
             db_session.commit()
 
             if invitation:
-                audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+                staff_setup.accepted(db_session, invitation, int(user.id), request)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
@@ -205,17 +206,19 @@ async def join_org(
             db_session.commit()
 
             if invitation:
-                audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+                staff_setup.accepted(db_session, invitation, int(user.id), request)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
 
-            if invitation and invitation.usergroup_id:
+            # A join link made for a group puts its people in that group, as on invite-only orgs.
+            usergroup_id = invitation.usergroup_id if invitation else inviteCode.get("usergroup_id") if inviteCode else None
+            if usergroup_id:
                 await add_users_to_usergroup(
                     request,
                     db_session,
                     InternalUser(id=0),
-                    int(invitation.usergroup_id),
+                    int(usergroup_id),
                     str(user.id),
                 )
 

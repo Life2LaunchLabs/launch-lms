@@ -19,8 +19,6 @@ from src.services.goals.document import json_schema as plan_template_json_schema
 from src.services.goals.mcp_templates import authoring_guide as template_authoring_guide
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
-from src.services.badge_documents.models import authoring_guide as badge_authoring_guide
-from src.services.badge_documents.models import badge_json_schema
 from src.services.oauth.server import AccessContext
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
@@ -29,13 +27,19 @@ INSTRUCTIONS = """Launch LMS holds plans, the requirements they count toward, an
 
 Requirement frameworks (standards, competencies, state mandates) are hierarchies of requirement nodes. Turn a requirements write-up into one with get_requirement_framework_schema, validate_requirement_framework and create_requirement_framework (or edit an existing one from list_requirement_frameworks / get_requirement_framework). Frameworks are versioned: saves edit a draft; publish_requirement_framework only when the admin asks.
 
-Plan templates are reusable goals: an ordered stack of stages of typed steps that learners get as their own goal, assigned by an organization or by starting a badge. A step is a task, upload, write-up, event, badge to earn, decision or an interactive activity the learner plays in the app. Steps link to leaf requirement nodes (requirement_node_uuids in the document, or set_objective_requirements with the step_key). Read get_plan_template_schema first; build the whole document, run validate_plan_template until it is clean, then create_plan_template or save_plan_template. Templates are versioned: create_plan_template and save_plan_template edit the draft, and publish_plan_template (only when the admin asks) makes it the version new assignments and badge starts get. Issued goals keep their version and their learners' answers; restore_plan_template_version rolls back by publishing an earlier version again.
+Plan templates are reusable goals: an ordered stack of stages of typed steps that learners get as their own goal, assigned by an organization or joined from Discover. A step is a task, upload, write-up, event, another plan's badge to earn, decision or an interactive activity the learner plays in the app. Steps link to leaf requirement nodes (requirement_node_uuids in the document, or set_objective_requirements with the step_key). Read get_plan_template_schema first; build the whole document, run validate_plan_template until it is clean, then create_plan_template or save_plan_template. Templates are versioned: create_plan_template and save_plan_template edit the draft, and publish_plan_template (only when the admin asks) makes it the version new assignments and learners joining get. Issued goals keep their version and their learners' answers; restore_plan_template_version rolls back by publishing an earlier version again.
 
 Activities: add one by giving a new step type "activity" in a template document and saving; list_activities then shows its activity_uuid. Read get_activity_schema, write the whole Activity Document, validate_activity until clean, show preview_activity so the admin can click through, then save_activity. Activity edits change the template's draft and reach learners when the template is published.
 
-Badges are credentials: a definition (name, criteria, image, achievement type), Marketing (subtitle, time, highlights) and a listing (collection, public). Read get_badge_schema. create_badge makes a draft; save_badge edits the draft (saving over a live badge starts a new draft). Learners earn a badge through the plan templates linked with set_badge_routes; a badge needs at least one before learners can start it. publish_badge makes the draft live, only when the admin asks.
+Badges are an optional part of a plan: the template document's `badge` block (kind, skills, certificate style, optional name and image, extra Open Badges fields). Everything else about the badge comes from the plan (title, description, criteria, requirements, version), and finishing the plan earns it. It is drafted and published with the plan.
 
-Typical flows: requirements write-up -> framework -> template whose steps link to it. Badge -> create_badge -> create_plan_template for how to earn it (with activities) -> publish_plan_template -> set_badge_routes -> publish_badge.
+Where plans show up: save_collection groups plans (list_collections first); a collection's categories decide where /start and Discover suggest its plans, and the platform organization's starter collections fill every organization's New plan picker. set_plan_listing lists a plan in Discover for other organizations (locked or open, open or by request), and set_plan_cover sets its image or icon. Change these only when the admin asks.
+
+Media: upload_media puts an image, video or PDF (from a public URL or base64) into the organization's media library and returns the `url` to use for badge images, activity image blocks and video pages; list_media finds what is already there. search_stock_media and add_stock_media bring in free stock photos and videos (Pexels) with their credit. Only upload media the organization may use.
+
+Typical flow: requirements write-up -> framework -> template whose steps link to it, with a `badge` block if finishing it should earn a badge -> publish_plan_template when the admin asks.
+
+Insights dashboards show an organization's numbers as cards: the whole organization, one plan, one group or one learner. Read get_dashboard_schema for the scope first (the measures, breakdowns, templates and questions), write the whole document, validate_dashboard until clean, preview_card a card you are unsure of, then create_dashboard or save_dashboard with the revision you read. Tools see only what the admin sees in Insights. capture_dashboard freezes a dashboard with a note; save_capture_rule schedules captures and sends them to staff or by email, only when the admin asks.
 
 Coach (platform admins only): get_coach_policy shows the coaching policy's draft. save_coach_playbook and delete_coach_playbook write knowledge into the draft; preview_coach_knowledge shows which playbooks a learner message would bring in. Nothing reaches learners until a person releases the draft on Platform › Coach › Releases, so never say a change is live. Tests: list_coach_tests explains how to write realistic scenarios; save_coach_test writes one; run_coach_tests grades the draft beside the live release and get_coach_test_run reads the result. A run makes real model calls, so run it when the admin asks.
 
@@ -46,14 +50,14 @@ RESOURCES = [
         "uri": "launch-lms://activity-document/guide",
         "name": "activity-authoring-guide",
         "title": "Activity authoring guide",
-        "description": "How Launch LMS activities, blocks, questions and branching flows are written.",
+        "description": "How Launch LMS activities, blocks, questions and branches are written.",
         "mimeType": "text/markdown",
     },
     {
         "uri": "launch-lms://activity-document/schema",
         "name": "activity-document-schema",
         "title": "Activity Document JSON Schema",
-        "description": "JSON Schema for Activity Document v1.",
+        "description": "JSON Schema for Activity Document v2.",
         "mimeType": "application/schema+json",
     },
     {
@@ -74,7 +78,7 @@ RESOURCES = [
         "uri": "launch-lms://requirement-framework-document/guide",
         "name": "requirement-framework-authoring-guide",
         "title": "Requirement framework authoring guide",
-        "description": "How Launch LMS requirement frameworks, levels, codes and versions work.",
+        "description": "How Launch LMS requirement frameworks, categories, numbering, rules and versions work.",
         "mimeType": "text/markdown",
     },
     {
@@ -82,20 +86,6 @@ RESOURCES = [
         "name": "requirement-framework-document-schema",
         "title": "Requirement Framework Document JSON Schema",
         "description": "JSON Schema for Requirement Framework Document v1.",
-        "mimeType": "application/schema+json",
-    },
-    {
-        "uri": "launch-lms://badge-document/guide",
-        "name": "badge-authoring-guide",
-        "title": "Badge authoring guide",
-        "description": "How Launch LMS badges, their Marketing, versions and ways to earn work.",
-        "mimeType": "text/markdown",
-    },
-    {
-        "uri": "launch-lms://badge-document/schema",
-        "name": "badge-document-schema",
-        "title": "Badge Document JSON Schema",
-        "description": "JSON Schema for Badge Document v1.",
         "mimeType": "application/schema+json",
     },
     {
@@ -131,10 +121,6 @@ def _read_resource(uri: str) -> dict:
         return {"uri": uri, "mimeType": "text/markdown", "text": requirement_authoring_guide()}
     if uri == "launch-lms://requirement-framework-document/schema":
         return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(requirement_framework_json_schema())}
-    if uri == "launch-lms://badge-document/guide":
-        return {"uri": uri, "mimeType": "text/markdown", "text": badge_authoring_guide()}
-    if uri == "launch-lms://badge-document/schema":
-        return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(badge_json_schema())}
     if uri == PREVIEW_APP_URI:
         return {"uri": uri, "mimeType": APP_MIME_TYPE, "text": preview_app_html(), "_meta": preview_app_meta()}
     raise RpcError(-32002, f"Resource not found: {uri}")

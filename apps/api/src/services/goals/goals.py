@@ -37,7 +37,7 @@ from src.db.goal_sharing import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.goals import access, check_ins, completion, references, schedule
-from src.services.goals.badges import badge_summary
+from src.services.badges.definition import goal_badge
 from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
@@ -136,7 +136,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
         "org_id": goal.org_id, "start_date": goal.start_date, "icon": (goal.details or {}).get("icon"),
         "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
         "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
-        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
+        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "badge": goal_badge(db, goal),
         "current_stage_uuid": schedule.current_stage(stages), "schedule_warnings": schedule.conflicts(goal, stages, steps),
         "stages": [
             {
@@ -230,7 +230,7 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
             "target_kind": "individual", "goal_uuid": goal.goal_uuid, "title": goal.title, "ownership": _value(goal.ownership),
             "source": _value(goal.source), "status": _value(goal.status), "priority": goal.priority, "target_date": goal.target_date, "icon": (goal.details or {}).get("icon"),
             "progress": {"done": done, "total": total}, "progress_percent": _percent(done, total),
-            "source_badge": badge_summary(db, goal.badge_id), "organization": _org_ref(db, goal.org_id),
+            "badge": goal_badge(db, goal), "organization": _org_ref(db, goal.org_id),
             "subject": {"id": subject["id"], "name": subject["name"]} if subject else None,
             "is_subject": goal.subject_user_id == current_user.id, "update_date": goal.update_date, "coach_notes": notes.get(int(goal.id), 0),  # type: ignore[arg-type]
         })
@@ -321,7 +321,8 @@ def _require_open(db: Session, goal: Goal, step: GoalStep) -> None:
     stages, steps, progress, _ = _structure(db, goal)
     lock = availability(goal, stages, steps, {key: _value(row.status) for key, row in progress.items()})[int(step.id)]  # type: ignore[arg-type]
     if lock["locked"]:
-        raise HTTPException(status_code=409, detail={"message": "This step isn't open yet", "reason": lock["reason"]})
+        closed = (lock["reason"] or {}).get("kind") == "closed"
+        raise HTTPException(status_code=409, detail={"message": "This step has closed" if closed else "This step isn't open yet", "reason": lock["reason"]})
 
 
 def _mark_started(db: Session, goal: Goal, step: GoalStep, user_id: int) -> None:
@@ -431,5 +432,7 @@ def start_activity(db: Session, current_user: PublicUser, goal_uuid: str, step_u
         db.commit()
         db.refresh(run)
     _mark_started(db, goal, step, current_user.id)
+    from src.services.learning.run_decisions import retake_on_start
+    retake_on_start(db, run)
     db.refresh(run)
     return {"goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid, "activity_uuid": activity.activity_uuid, "run": run_navigation._serialize_run(db, run).model_dump()}

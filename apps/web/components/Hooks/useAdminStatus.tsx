@@ -16,15 +16,6 @@ interface Role {
 }
 
 interface Rights {
-    badges: {
-        action_create: boolean;
-        action_read: boolean;
-        action_read_own: boolean;
-        action_update: boolean;
-        action_update_own: boolean;
-        action_delete: boolean;
-        action_delete_own: boolean;
-    };
     users: {
         action_create: boolean;
         action_read: boolean;
@@ -32,12 +23,6 @@ interface Rights {
         action_delete: boolean;
     };
     usergroups: {
-        action_create: boolean;
-        action_read: boolean;
-        action_update: boolean;
-        action_delete: boolean;
-    };
-    badge_collections: {
         action_create: boolean;
         action_read: boolean;
         action_update: boolean;
@@ -80,15 +65,6 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
     if (orgRoles.length === 0) return null;
 
     const mergedRights: Rights = {
-        badges: {
-            action_create: false,
-            action_read: false,
-            action_read_own: false,
-            action_update: false,
-            action_update_own: false,
-            action_delete: false,
-            action_delete_own: false
-        },
         users: {
             action_create: false,
             action_read: false,
@@ -96,12 +72,6 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
             action_delete: false
         },
         usergroups: {
-            action_create: false,
-            action_read: false,
-            action_update: false,
-            action_delete: false
-        },
-        badge_collections: {
             action_create: false,
             action_read: false,
             action_update: false,
@@ -149,10 +119,8 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
 
 // Full-access rights object for superadmins
 const SUPERADMIN_RIGHTS: Rights = {
-    badges: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: true, action_delete_own: true },
     users: { action_create: true, action_read: true, action_update: true, action_delete: true },
     usergroups: { action_create: true, action_read: true, action_update: true, action_delete: true },
-    badge_collections: { action_create: true, action_read: true, action_update: true, action_delete: true },
     organizations: { action_create: true, action_read: true, action_update: true, action_delete: true },
     learning_activities: { action_create: true, action_read: true, action_update: true, action_delete: true },
     roles: { action_create: true, action_read: true, action_update: true, action_delete: true },

@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 from sqlalchemy import inspect
 from sqlmodel import Session, select
-from src.db.learning import LearningBadge, LearningBadgeAward
+from src.services.badges.awards import award_card, awards_of, badges_in_progress
 from src.db.media import MediaAsset
 from src.db.portfolio import (
     Portfolio,
@@ -441,44 +441,29 @@ def portfolio_shell(
         if not public_only
         else None
     )
-    learning_tables = (
-        set(inspect(bind).get_table_names()) if bind is not None else set()
-    )
-    awards = list(db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == portfolio.user_id)).all()) if "learningbadgeaward" in learning_tables else []
-    # The portfolio shows credentials earned; badges being worked toward are plans.
-    badge_ids = {item.badge_id for item in awards}
-    badges_by_id = {item.id: item for item in db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()} if badge_ids else {}  # type: ignore[union-attr]
-
-    def badge_dto(item: LearningBadge) -> dict:
-        return {
-            "badge_uuid": item.badge_uuid,
-            "name": item.name,
-            "description": item.description or "",
-            "thumbnail_image": item.thumbnail_image or "",
-        }
-
-    earned_badges = [badge_dto(badges_by_id[item.badge_id]) for item in awards if item.badge_id in badges_by_id]
-    earned_badges = list({item["badge_uuid"]: item for item in earned_badges}.values())
-    hidden_badge_uuids = set(
-        (portfolio.theme_settings or {}).get("hidden_badge_uuids") or []
+    # Badges earned (each award once), and, for the learner themselves, the plans that will earn one.
+    earned_badges = [award_card(db_session, item) for item in awards_of(db_session, portfolio.user_id)]
+    working_toward = [] if public_only else badges_in_progress(db_session, portfolio.user_id)
+    hidden_award_uuids = set(
+        (portfolio.theme_settings or {}).get("hidden_award_uuids") or []
     )
     if public_only:
         earned_badges = [
             item
             for item in earned_badges
-            if item["badge_uuid"] not in hidden_badge_uuids
+            if item["award_uuid"] not in hidden_award_uuids
         ]
     featured_uuids = list(
-        (portfolio.theme_settings or {}).get("featured_badge_uuids") or []
+        (portfolio.theme_settings or {}).get("featured_award_uuids") or []
     )
-    earned_by_uuid = {item["badge_uuid"]: item for item in earned_badges}
+    earned_by_uuid = {item["award_uuid"]: item for item in earned_badges}
     featured_badges = [
         earned_by_uuid[uuid] for uuid in featured_uuids if uuid in earned_by_uuid
     ]
     featured_badges += [
         item
         for item in earned_badges
-        if item["badge_uuid"] not in {badge["badge_uuid"] for badge in featured_badges}
+        if item["award_uuid"] not in {badge["award_uuid"] for badge in featured_badges}
     ]
     featured_badges = featured_badges[:5]
     blockers = _readiness_blockers(portfolio, meaningful_count)
@@ -589,10 +574,15 @@ def portfolio_shell(
         "badges": {
             "earned": earned_badges,
             "featured": featured_badges,
-            "featuredBadgeUuids": featured_uuids,
-            "hiddenBadgeUuids": list(hidden_badge_uuids) if not public_only else [],
+            "working_toward": working_toward,
+            "featuredAwardUuids": featured_uuids,
+            "hiddenAwardUuids": list(hidden_award_uuids) if not public_only else [],
         },
     }
+
+
+def _award_uuids(db_session: Session, user_id: int) -> set[str]:
+    return {item.award_uuid for item in awards_of(db_session, user_id)}
 
 
 def update_featured_badges(
@@ -601,26 +591,15 @@ def update_featured_badges(
     db_session: Session,
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    requested = list(dict.fromkeys(payload.badge_uuids))
-    earned = db_session.exec(
-        select(LearningBadgeAward).where(LearningBadgeAward.user_id == current_user.id)
-    ).all()
-    earned_ids = {item.badge_id for item in earned}
-    badges = (
-        db_session.exec(
-            select(LearningBadge).where(LearningBadge.id.in_(earned_ids))
-        ).all()
-        if earned_ids
-        else []
-    )  # type: ignore
-    allowed = {item.badge_uuid for item in badges}
+    requested = list(dict.fromkeys(payload.award_uuids))
+    allowed = _award_uuids(db_session, int(current_user.id))
     if any(item not in allowed for item in requested):
         raise HTTPException(
             status_code=422, detail="Only earned badges can be featured"
         )
     portfolio.theme_settings = {
         **(portfolio.theme_settings or {}),
-        "featured_badge_uuids": requested,
+        "featured_award_uuids": requested,
     }
     _save(portfolio, db_session)
     db_session.refresh(portfolio)
@@ -689,24 +668,13 @@ def update_badge_visibility(
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
     _check_revision(portfolio.revision, payload.revision)
-    earned = db_session.exec(
-        select(LearningBadgeAward).where(LearningBadgeAward.user_id == current_user.id)
-    ).all()
-    earned_ids = {item.badge_id for item in earned}
-    badges = (
-        db_session.exec(
-            select(LearningBadge).where(LearningBadge.id.in_(earned_ids))
-        ).all()
-        if earned_ids
-        else []
-    )  # type: ignore
-    allowed = {item.badge_uuid for item in badges}
-    hidden = list(dict.fromkeys(payload.hidden_badge_uuids))
+    allowed = _award_uuids(db_session, int(current_user.id))
+    hidden = list(dict.fromkeys(payload.hidden_award_uuids))
     if any(item not in allowed for item in hidden):
         raise HTTPException(status_code=422, detail="Only earned badges can be hidden")
     portfolio.theme_settings = {
         **(portfolio.theme_settings or {}),
-        "hidden_badge_uuids": hidden,
+        "hidden_award_uuids": hidden,
     }
     _save(portfolio, db_session)
     db_session.refresh(portfolio)

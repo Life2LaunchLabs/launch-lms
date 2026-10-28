@@ -49,6 +49,31 @@
         }
        ],
        "version": 1
+      },
+      "sequence": {
+       "version": 1,
+       "items": [
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_name"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_goal"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_profile_photo"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_profile_details"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_profile_review"
+        }
+       ]
       }
      }
     },
@@ -60,6 +85,13 @@
       "required": true,
       "content": {
        "blocks": [
+        {
+         "id": "blk_starter_name_heading",
+         "type": "heading",
+         "content": {
+          "text": ""
+         }
+        },
         {
          "content": {
           "node": {
@@ -131,7 +163,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -143,23 +175,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_goal_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "What are you building toward?",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_onboarding_goal_heading",
-         "type": "text"
+          "text": "What are you building toward?",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -272,7 +293,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -284,23 +305,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_profile_photo_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Choose how you show up",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_profile_photo_heading",
-         "type": "text"
+          "text": "Choose how you show up",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -325,7 +335,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -337,23 +347,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_profile_details_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Write your introduction",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_profile_details_heading",
-         "type": "text"
+          "text": "Write your introduction",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -434,7 +433,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -447,23 +446,12 @@
        "action_label": "Add this to my portfolio",
        "blocks": [
         {
+         "id": "blk_starter_profile_review_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "This is how you’ll show up",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_profile_review_heading",
-         "type": "text"
+          "text": "This is how you’ll show up",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -525,37 +513,9 @@
           "reason": "This preview is generated from activity answers and rendered by the portfolio system."
          },
          "type": "portfolio_preview"
-        },
-        {
-         "content": {
-          "label": "Change my introduction",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_profile_details"
-         },
-         "design": {
-          "group": "profile_review_actions",
-          "variant": "secondary",
-          "width": 48
-         },
-         "id": "blk_profile_review_details",
-         "type": "button"
-        },
-        {
-         "content": {
-          "label": "Choose another photo",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_profile_photo"
-         },
-         "design": {
-          "group": "profile_review_actions",
-          "variant": "secondary",
-          "width": 48
-         },
-         "id": "blk_profile_review_photo",
-         "type": "button"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      }
@@ -620,6 +580,27 @@
         }
        ],
        "version": 1
+      },
+      "sequence": {
+       "version": 1,
+       "items": [
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_timeline_kind"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_timeline"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_timeline_photo"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_timeline_review"
+        }
+       ]
       }
      }
     },
@@ -632,23 +613,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_timeline_kind_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Where are you growing right now?",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_timeline_kind_heading",
-         "type": "text"
+          "text": "Where are you growing right now?",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -698,7 +668,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -710,23 +680,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_timeline_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Make this experience yours",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_timeline_heading",
-         "type": "text"
+          "text": "Make this experience yours",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -869,7 +828,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -881,23 +840,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_timeline_photo_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Add a picture to this experience",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_timeline_photo_heading",
-         "type": "text"
+          "text": "Add a picture to this experience",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -920,7 +868,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -933,23 +881,12 @@
        "action_label": "Add to my Timeline",
        "blocks": [
         {
+         "id": "blk_starter_timeline_review_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Here’s your current experience",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_timeline_review_heading",
-         "type": "text"
+          "text": "Here’s your current experience",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -1021,39 +958,9 @@
           "reason": "This preview is generated from activity answers and rendered by the portfolio system."
          },
          "type": "portfolio_preview"
-        },
-        {
-         "content": {
-          "label": "Change the details",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_timeline"
-         },
-         "design": {
-          "align": "center",
-          "group": "timeline_review_actions",
-          "variant": "secondary",
-          "width": 48
-         },
-         "id": "blk_timeline_review_details_button",
-         "type": "button"
-        },
-        {
-         "content": {
-          "label": "Choose another photo",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_timeline_photo"
-         },
-         "design": {
-          "align": "center",
-          "group": "timeline_review_actions",
-          "variant": "secondary",
-          "width": 48
-         },
-         "id": "blk_timeline_review_photo_button",
-         "type": "button"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      }
@@ -1131,6 +1038,27 @@
         }
        ],
        "version": 1
+      },
+      "sequence": {
+       "version": 1,
+       "items": [
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_project_detail"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_project_photo"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_project_timeline"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_project_review"
+        }
+       ]
       }
      }
     },
@@ -1143,23 +1071,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_project_detail_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Tell the story of your project",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_project_detail_heading",
-         "type": "text"
+          "text": "Tell the story of your project",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -1240,7 +1157,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -1252,23 +1169,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_project_photo_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Cover image",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_project_photo_heading",
-         "type": "text"
+          "text": "Cover image",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -1291,7 +1197,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -1303,23 +1209,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_project_timeline_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Connect this to your Timeline",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_project_timeline_heading",
-         "type": "text"
+          "text": "Connect this to your Timeline",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -1359,7 +1254,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -1372,23 +1267,12 @@
        "action_label": "Add this to my Project",
        "blocks": [
         {
+         "id": "blk_starter_project_review_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Your project is ready to share",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_project_review_heading",
-         "type": "text"
+          "text": "Your project is ready to share",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -1425,37 +1309,9 @@
           "reason": "This preview is generated from activity answers and rendered by the portfolio system."
          },
          "type": "portfolio_preview"
-        },
-        {
-         "content": {
-          "label": "Change the story",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_project_detail"
-         },
-         "design": {
-          "group": "project_review_actions",
-          "variant": "secondary",
-          "width": 48
-         },
-         "id": "blk_project_review_details",
-         "type": "button"
-        },
-        {
-         "content": {
-          "label": "Choose another cover",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_project_photo"
-         },
-         "design": {
-          "group": "project_review_actions",
-          "variant": "secondary",
-          "width": 48
-         },
-         "id": "blk_project_review_photo",
-         "type": "button"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      }
@@ -1502,6 +1358,23 @@
         }
        ],
        "version": 1
+      },
+      "sequence": {
+       "version": 1,
+       "items": [
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_traits"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_values"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_traits_review"
+        }
+       ]
       }
      }
     },
@@ -1514,23 +1387,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_traits_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "What feels true about you right now?",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_traits_heading",
-         "type": "text"
+          "text": "What feels true about you right now?",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -1606,7 +1468,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -1618,23 +1480,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_values_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "What matters most to you?",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_values_heading",
-         "type": "text"
+          "text": "What matters most to you?",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -1865,7 +1716,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -1878,23 +1729,12 @@
        "action_label": "Add what makes me, me",
        "blocks": [
         {
+         "id": "blk_starter_traits_review_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "This is what you bring",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_traits_review_heading",
-         "type": "text"
+          "text": "This is what you bring",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -1932,22 +1772,9 @@
           "reason": "This preview is generated from activity answers and rendered by the portfolio system."
          },
          "type": "portfolio_preview"
-        },
-        {
-         "content": {
-          "label": "Change my choices",
-          "action": "revisit",
-          "revisit_page_uuid": "learning_page_starter_traits"
-         },
-         "design": {
-          "variant": "secondary",
-          "width": 100
-         },
-         "id": "blk_traits_review_change",
-         "type": "button"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      }
@@ -1965,7 +1792,7 @@
     "activity": {
      "activity_uuid": "learning_activity_starter_badges",
      "title": "Choose badges to project toward",
-     "description": "Start a few badge plans that match where you want to grow.",
+     "description": "Start a few plans that earn badges where you want to grow.",
      "icon": "sparkles",
      "thumbnail_image": "/images/launch-ready/traits.png",
      "settings": {
@@ -1973,16 +1800,29 @@
       "outcomes": {
        "actions": [
         {
-         "badge_uuids": {
+         "template_uuids": {
           "$source": "answer",
           "default": [],
           "path": "learning_page_starter_badges_pick.answer.questions.blk_launch_badges_pick.option_ids"
          },
          "id": "enroll-starting-badges",
-         "type": "start_badge_plans"
+         "type": "start_plans"
         }
        ],
        "version": 1
+      },
+      "sequence": {
+       "version": 1,
+       "items": [
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_badges_intro"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_badges_pick"
+        }
+       ]
       }
      }
     },
@@ -1995,30 +1835,19 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_badges_intro_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Badges make growth visible",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_badges_intro_heading",
-         "type": "text"
+          "text": "Badges make growth visible",
+          "size": "xl"
+         }
         },
         {
          "content": {
           "node": {
            "content": [
             {
-             "text": "A badge is evidence of something you can do—not just a completion mark. Each badge plan helps you practice, create evidence, and make your progress easier to share.",
+             "text": "A badge is evidence of something you can do—not just a completion mark. Each plan that earns one helps you practice, create evidence, and make your progress easier to share.",
              "type": "text"
             }
            ],
@@ -2046,7 +1875,7 @@
          "type": "text"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -2056,26 +1885,15 @@
       "title": "Pick your starting badges",
       "required": true,
       "content": {
-       "action_label": "Start these badges",
+       "action_label": "Start these plans",
        "blocks": [
         {
+         "id": "blk_starter_badges_pick_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Pick your starting badges",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_badges_pick_heading",
-         "type": "text"
+          "text": "Pick your starting badges",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -2085,7 +1903,7 @@
          "content": {
           "label": "Choose up to three. You can always start more later.",
           "options_binding": {
-           "path": "learning.available_badge_options",
+           "path": "learning.available_plan_options",
            "source": "variable"
           }
          },
@@ -2103,7 +1921,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      }
@@ -2138,6 +1956,23 @@
         }
        ],
        "version": 1
+      },
+      "sequence": {
+       "version": 1,
+       "items": [
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_launch_done"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_launch"
+        },
+        {
+         "type": "page",
+         "page_uuid": "learning_page_starter_launch_share"
+        }
+       ]
       }
      }
     },
@@ -2150,23 +1985,12 @@
       "content": {
        "blocks": [
         {
+         "id": "blk_starter_launch_done_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "You did it!",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_done_heading",
-         "type": "text"
+          "text": "You did it!",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -2201,7 +2025,7 @@
          "type": "text"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -2214,23 +2038,12 @@
        "action_label": "Publish my portfolio",
        "blocks": [
         {
+         "id": "blk_starter_launch_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Set your portfolio public",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_confirm_heading",
-         "type": "text"
+          "text": "Set your portfolio public",
+          "size": "xl"
+         }
         },
         {
          "completion": {
@@ -2260,7 +2073,7 @@
          "type": "question"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      },
@@ -2273,23 +2086,12 @@
        "action_label": "Finish Launch Ready",
        "blocks": [
         {
+         "id": "blk_starter_launch_share_heading",
+         "type": "heading",
          "content": {
-          "node": {
-           "attrs": {
-            "level": 1
-           },
-           "content": [
-            {
-             "text": "Share your next step",
-             "type": "text"
-            }
-           ],
-           "type": "heading"
-          }
-         },
-         "design": {},
-         "id": "blk_launch_share_heading",
-         "type": "text"
+          "text": "Share your next step",
+          "size": "xl"
+         }
         },
         {
          "content": {
@@ -2345,7 +2147,7 @@
          "type": "text"
         }
        ],
-       "version": 2
+       "version": 3
       },
       "design": {}
      }

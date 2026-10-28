@@ -11,7 +11,7 @@ import {
 
 function Portrait({ checkpointId, account, size }: { checkpointId?: string | null; account: DemoAccount; size: number }) {
   const url = demoAvatarUrl(checkpointId, account)
-  return <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300" style={{ width: size, height: size }}>
+  return <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300" style={{ width: size, height: size }}>
     {url ? <Image src={url} width={size} height={size} unoptimized alt="" className="h-full w-full object-cover" /> : <UserRound aria-hidden style={{ width: size / 2.4, height: size / 2.4 }} />}
   </div>
 }
@@ -113,7 +113,7 @@ export default function DemoEntry({ handle }: { handle?: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-base font-semibold">Life2Launch</span>
         {state?.unstable ? <span className="rounded-md bg-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-950">Unstable</span> : null}
-        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Demo</span>
+        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">Demo</span>
         <span className="flex-1" />
         {operator ? <a href="/admin/platform/demo" className="text-sm font-medium text-indigo-600 underline underline-offset-4 dark:text-indigo-400">Open Demo Studio</a>
           : <a href={studioUrl} className="text-xs text-muted-foreground underline underline-offset-4">Studio sign-in</a>}

@@ -1,4 +1,4 @@
-"""Goal template extras: the library, template activities, badge versions and assigning with a full schedule."""
+"""Goal template extras: the library, template activities, the badge a plan earns and assigning with a full schedule."""
 
 from datetime import date
 
@@ -8,14 +8,14 @@ from sqlmodel import Session, select
 
 from src.db.goal_templates import AssignmentCollaborator, AssignmentSchedule, GoalAssignmentRequest, StageSchedule, StepSchedule
 from src.db.goals import Goal, GoalStep, GoalTemplate, StepStatus, StepStatusChange, TemplateStatus
-from src.db.learning import LearningActivity, LearningBadge, LearningBadgeAward, LearningBadgeVersion, LearningPage
+from src.db.learning import LearningActivity, LearningPage
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
 from src.db.goal_sharing import PlanCollaborator, PlanInvitation, PlanRole
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
-from src.services.goals import assignments, badge_templates, badge_versions, goals, library, templates
+from src.services.goals import assignments, goals, library, plan_issuers, templates
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _document, _published, _session as _goal_session, _user
 
 
@@ -38,10 +38,18 @@ def _two_stages() -> dict:
     }
 
 
+def _marketplace_tables(db) -> None:
+    from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateListing
+
+    for model in (GoalTemplateListing, GoalTemplateAuthorization):
+        model.__table__.create(db.get_bind(), checkfirst=True)
+
+
 # The library -------------------------------------------------------------------------------
 
 def test_owner_publishes_to_the_library_and_other_orgs_get_independent_copies_with_their_own_activities():
     with _session() as db:
+        _marketplace_tables(db)
         source = templates.create_template(db, _user(ADMIN), 1, _document({"type": "task", "title": "Build a portfolio"}, {"type": "activity", "title": "Quiz"}))
         source["document"]["template"]["description"] = "A shared starting point"
         templates.save_template(db, _user(ADMIN), 1, source["template_uuid"], source["document"])
@@ -67,7 +75,7 @@ def test_owner_publishes_to_the_library_and_other_orgs_get_independent_copies_wi
         copied["document"]["stages"][0]["steps"][0]["title"] = "Partner portfolio"
         templates.save_template(db, _user(ADMIN), 2, copied["template_uuid"], copied["document"])
         assert templates.get_template(db, _user(ADMIN), 1, source["template_uuid"])["document"]["stages"][0]["steps"][0]["title"] == "Build a portfolio"
-        # Republishing replaces the library copy.
+        # Sharing again keeps it listed.
         assert library.publish_to_library(db, _user(ADMIN), 1, source["template_uuid"])["published_to_library"]
 
 
@@ -100,35 +108,31 @@ def test_template_activity_is_fetched_for_the_editor_only_from_its_own_template(
             templates.template_activity(db, _user(LEARNER), 1, created["template_uuid"], activity_uuid)
 
 
-# Badge versions ----------------------------------------------------------------------------
+# The badge a plan earns ---------------------------------------------------------------------
 
-def test_badge_steps_move_to_the_latest_major_version():
+def test_the_badge_is_part_of_the_plan_and_released_with_it():
+    from src.services.badges.definition import badge_summary
+
     with _session() as db:
-        db.add(LearningBadge(id=1, org_id=1, badge_uuid="badge_cpr", name="CPR", creation_date=NOW, update_date=NOW))
-        db.add(LearningBadgeVersion(version_uuid="v1", badge_id=1, org_id=1, state="published", semantic_version="1.0.0", title="First", creation_date=NOW, update_date=NOW))
-        db.commit()
-        created = templates.create_template(db, _user(ADMIN), 1, _document({"type": "badge", "title": "Earn CPR", "config": {"badge_uuid": "badge_cpr", "major_version": 1}}))
+        created = templates.create_template(db, _user(ADMIN), 1, {**_document({"type": "task", "title": "Practice"}), "badge": {"kind": "Competency", "skills": ["CPR"]}})
         template = templates.template_or_404(db, 1, created["template_uuid"])
-        assert badge_versions.outdated_badge_steps(db, template) == []
-
-        db.add(LearningBadgeVersion(version_uuid="v2", badge_id=1, org_id=1, state="published", semantic_version="2.0.0", title="Second", creation_date=NOW, update_date=NOW))
-        db.add(LearningBadgeAward(award_uuid="award_1", badge_id=1, user_id=LEARNER, major_version=1, creation_date=NOW, update_date=NOW))
-        db.commit()
-        outdated = badge_versions.outdated_badge_steps(db, template)
-        assert [(item["title"], item["major_version"], item["latest_major_version"], item["earlier_version_holder_count"]) for item in outdated] == [("Earn CPR", 1, 2, 1)]
-        assert outdated[0]["version_comparison"]["latest"]["title"] == "Second"
-
-        updated = badge_versions.update_badge_versions(db, _user(ADMIN), 1, created["template_uuid"], accept_previous_major_versions=True)
-        assert updated["outdated_badge_steps"] == []
-        assert updated["document"]["stages"][0]["steps"][0]["config"] == {"badge_uuid": "badge_cpr", "major_version": 2, "accept_previous_major_versions": True}
-        assert updated["has_unpublished_changes"]
-
-
-def test_badge_version_bump_without_badge_steps_changes_nothing():
-    with _session() as db:
-        created = templates.create_template(db, _user(ADMIN), 1, _document({"type": "task", "title": "Visit"}))
-        updated = badge_versions.update_badge_versions(db, _user(ADMIN), 1, created["template_uuid"])
-        assert updated["etag"] == created["etag"] and updated["outdated_badge_steps"] == []
+        draft = templates.get_template(db, _user(ADMIN), 1, created["template_uuid"])["badge"]
+        # Name and criteria come from the plan.
+        assert (draft["name"], draft["kind"], draft["skills"]) == ("College ready", "Competency", ["CPR"]) and "Practice" in draft["criteria_narrative"]
+        assert badge_summary(db, template) is None  # nothing live yet
+        templates.publish(db, _user(ADMIN), 1, created["template_uuid"], "First")
+        assert badge_summary(db, template)["kind"] == "Competency"
+        # Changing the badge is a draft change, live once published.
+        document = templates.get_template(db, _user(ADMIN), 1, created["template_uuid"])["document"]
+        templates.save_template(db, _user(ADMIN), 1, created["template_uuid"], {**document, "badge": {"kind": "Certification", "name": "CPR certified"}})
+        assert badge_summary(db, template)["kind"] == "Competency"
+        assert templates.get_template(db, _user(ADMIN), 1, created["template_uuid"])["badge"]["name"] == "CPR certified"
+        # Taking it out means the plan earns none.
+        templates.save_template(db, _user(ADMIN), 1, created["template_uuid"], {key: value for key, value in document.items() if key != "badge"})
+        assert templates.get_template(db, _user(ADMIN), 1, created["template_uuid"])["badge"] is None
+        with pytest.raises(HTTPException) as invalid:
+            templates.save_template(db, _user(ADMIN), 1, created["template_uuid"], {**document, "badge": {"kind": "Trophy"}})
+        assert invalid.value.status_code == 422
 
 
 # Assigning ---------------------------------------------------------------------------------
@@ -139,7 +143,11 @@ def _publish(db: Session, document: dict) -> GoalTemplate:
     return templates.template_or_404(db, 1, created["template_uuid"])
 
 
-def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_learner():
+def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_learner(monkeypatch):
+    from src.services.goals import invitation_emails
+
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(invitation_emails, "send_email", lambda to, subject, body: sent.append((to, body)))
     with _session() as db:
         template = _published(db, {"type": "task", "title": "Visit"})
         result = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(subject_email=" New@Example.com "))
@@ -153,6 +161,24 @@ def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_lea
         # Syncing again issues nothing more.
         assignment = db.exec(select(assignments.GoalAssignment)).one()
         assert assignments.sync_assignment(db, assignment) == []
+        # Staff can send it again; every resend is a new message.
+        from src.services.goals import assignment_invites
+        assert assignment_invites.resend(db, _user(ADMIN), 1, result["assignment_uuid"]) == {"sent": 1}
+        assert len(db.exec(select(InboxMessage)).all()) == 2
+        # Each time, the address gets an email too, pointing at its chats on the organization's site.
+        assert [to for to, _body in sent] == ["new@example.com", "new@example.com"]
+        assert "/signup?email=new%40example.com" in sent[0][1] and goal.title in sent[0][1]
+        # Signing up with that address and accepting makes them the organization's learner.
+        from src.db.user_organizations import UserOrganization
+        from src.db.users import PublicUser, User
+        from src.services.goals import sharing
+
+        db.add(User(id=77, user_uuid="user_77", username="newbie", email="new@example.com", first_name="N", last_name="Ew"))
+        db.commit()
+        newbie = PublicUser(id=77, user_uuid="user_77", username="newbie", email="new@example.com", first_name="N", last_name="Ew")
+        assert sharing.respond_to_invitation(db, newbie, invitation.invitation_uuid, True)["status"] == "accepted"
+        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == 77, UserOrganization.org_id == 1)).one()
+        assert membership.role_id == 4
 
 
 def test_assigning_by_email_to_someone_with_an_account_issues_their_goal():
@@ -190,15 +216,16 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
                 StageSchedule(stage_key="explore", start_date=date(2026, 12, 1)), StageSchedule(stage_key="apply", start_date=date(2026, 11, 1))])))
 
         result = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(
-            usergroup_id=1, due_date=date(2026, 12, 20), collaborators=[AssignmentCollaborator(user_id=OTHER, role_key="viewer")],
+            usergroup_id=1, due_date=date(2026, 12, 20), collaborators=[AssignmentCollaborator(user_id=OTHER, role_key="comment")],
             schedule=AssignmentSchedule(
                 stages=[StageSchedule(stage_key="explore", start_date=date(2026, 10, 1)), StageSchedule(stage_key="apply", start_date=date(2026, 11, 16))],
                 steps=[StepSchedule(step_key="essay", due_date=date(2026, 12, 10))],
             ),
         ))
         assert result["due_date"] == date(2026, 12, 20) and result["learner_count"] == 2
-        assert result["collaborators"] == [{"user_id": ADMIN, "role_key": "plan_admin"}, {"user_id": OTHER, "role_key": "viewer"}]
-        assert result["schedule"]["steps"] == [{"step_key": "essay", "due_date": "2026-12-10"}]
+        # With nobody else leading, the person assigning leads.
+        assert result["collaborators"] == [{"user_id": ADMIN, "role_key": "lead"}, {"user_id": OTHER, "role_key": "comment"}]
+        assert result["schedule"]["steps"] == [{"step_key": "essay", "start_date": None, "due_date": "2026-12-10", "open_early": True, "allow_late": True}]
         assert {item["stage_key"] for item in result["schedule"]["stages"]} == {"explore", "apply"}
 
         goal = db.exec(select(Goal).where(Goal.subject_user_id == LEARNER)).one()
@@ -207,7 +234,7 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
         essay = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.template_key == "essay")).one()
         assert essay.due_date == date(2026, 12, 10)
         member = db.exec(select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id).where(PlanCollaborator.goal_id == goal.id, PlanCollaborator.user_id == OTHER)).one()
-        assert member[1].key == "viewer"
+        assert member[1].key == "commenter"
 
         visit = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.template_key == "visit")).one()
         goals.change_status(db, _user(LEARNER), goal.goal_uuid, visit.step_uuid, StepStatusChange(status=StepStatus.COMPLETED))
@@ -247,8 +274,8 @@ def test_staff_read_templates_read_only_and_learners_are_refused():
         created = templates.create_template(db, _user(ADMIN), 1, _two_stages())
 
         listed = templates.list_templates(db, _user(STAFF), 1)
-        assert [(item["title"], item["read_only"], item["stage_count"], item["step_count"], item["badges"], item["frameworks"]) for item in listed] == [
-            ("Career launch", True, 2, 2, [], [])]
+        assert [(item["title"], item["read_only"], item["stage_count"], item["step_count"], item["badge"], item["frameworks"]) for item in listed] == [
+            ("Career launch", True, 2, 2, None, [])]
         assert templates.list_templates(db, _user(ADMIN), 1)[0]["read_only"] is False
 
         detail = templates.get_template(db, _user(STAFF), 1, created["template_uuid"])
@@ -272,19 +299,15 @@ def test_staff_read_templates_read_only_and_learners_are_refused():
         assert _refused(lambda: assignments.list_assignments(db, _user(LEARNER), 1, created["template_uuid"])) == 403
 
 
-def test_staff_see_another_orgs_badge_template_read_only_and_the_list_shows_what_each_template_earns():
-    from src.tests.test_goal_badge_authority import PARTNER, _world
+def test_staff_see_another_orgs_template_read_only_and_the_list_shows_what_each_template_earns():
+    from src.tests.plan_world import PARTNER, _world
 
     db, routes = _world()
     with db:
         _add_staff(db, PARTNER)
         # The owner's list names the badge each template earns.
-        assert [item["badges"][0]["name"] for item in templates.list_templates(db, _user(ADMIN), 1)] == ["Adaptability", "Adaptability"]
+        assert [item["badge"]["name"] for item in templates.list_templates(db, _user(ADMIN), 1)] == ["Adaptability", "Adaptability"]
 
-        ran = badge_templates.issuer_routes(db, _user(STAFF), PARTNER)
-        assert {item["template"]["template_uuid"] for item in ran} == {template.template_uuid for template in routes}
-        view = badge_templates.template_view(db, _user(STAFF), PARTNER, routes[0].template_uuid)
-        assert view["read_only"] is True and view["owner_org"]["name"] == "Studio" and [badge["name"] for badge in view["badges"]] == ["Adaptability"]
-
-        assert _refused(lambda: badge_templates.issuer_routes(db, _user(LEARNER), PARTNER)) == 403
-        assert _refused(lambda: badge_templates.template_view(db, _user(LEARNER), PARTNER, routes[0].template_uuid)) == 403
+        view = plan_issuers.template_view(db, _user(STAFF), PARTNER, routes[0].template_uuid)
+        assert view["read_only"] is True and view["owner_org"]["name"] == "Studio" and view["badge"]["name"] == "Adaptability"
+        assert _refused(lambda: plan_issuers.template_view(db, _user(LEARNER), PARTNER, routes[0].template_uuid)) == 403

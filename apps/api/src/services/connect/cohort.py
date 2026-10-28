@@ -1,16 +1,14 @@
-"""An assignment's cohort chats: its staff alone, or its staff and the whole group.
+"""A group assignment's chat: its staff and the group's learners, about the assignment's plan.
 
-An assignment has up to two chats, found by ``Conversation.assignment_id`` and ``channel``:
+A group assignment has one chat, found by ``Conversation.assignment_id`` and the ``group_all``
+channel: the assignment's staff (the people it was assigned with as staff, the group's staff who
+cover it), the organization's admins, and the group's learners with a plan from it. Staff talk
+among themselves in it with staff-only messages (services/connect/visibility.py), which learners
+never see. A person assignment has no chat of its own: its learner already talks with its staff
+in their chat with the organization.
 
-- ``group_staff`` (Staff only): the assignment's staff, meaning the people it was assigned
-  with as staff, the group's staff who cover it, and the organization's admins. Learners
-  never see it.
-- ``group_all`` (Whole group): those people and the group's learners with a plan from it. Only
-  group assignments have one. A person assignment's learner already talks with its staff in
-  their chat with the organization.
-
-They hang off the assignment and not its group, because a group can run several assignments,
-each from its own template with its own steps and its own staff. A cohort chat is about the
+It hangs off the assignment and not its group, because a group can run several assignments,
+each from its own template with its own steps and its own staff. The chat is about the
 assignment's plan, so it filters by template step the way a learner's chat filters by their
 steps: the assignment's uuid stands in for the plan and the template's step keys for its steps.
 Those refs carry ``"cohort": True`` and their ref rows have no goal.
@@ -37,13 +35,15 @@ from src.db.usergroups import UserGroup
 from src.db.users import PublicUser
 from src.security.org_auth import is_org_admin
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
+from src.services.connect import visibility
 from src.services.goals.document import iter_steps
 from src.services.goals.sharing_roles import _stamp
 from src.services.school.staff import covers
 
 COHORT = "cohort"
-STAFF, GROUP = "group_staff", "group_all"
-AUDIENCES = {"staff": STAFF, "group": GROUP}
+GROUP = "group_all"
+# The staff-only chat folded into the group chat (migration uc4d9e6f3a12); "staff" still names the group chat.
+AUDIENCES = {"staff": GROUP, "group": GROUP}
 # Learners in the whole-group chat: their plan from the assignment is waiting, under way or finished.
 LEARNING = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
 
@@ -80,9 +80,9 @@ def admin_ids(db: Session, org_id: int) -> set[int]:
     )).all()}
 
 
-def members_of(db: Session, assignment: GoalAssignment, channel: str) -> set[int]:
-    """Staff only: the staff and the org's admins. Whole group: those and the group's learners."""
-    return staff_ids(db, assignment) | admin_ids(db, assignment.org_id) | (learner_ids(db, assignment) if channel == GROUP else set())
+def members_of(db: Session, assignment: GoalAssignment, channel: str = GROUP) -> set[int]:
+    """The staff, the org's admins and the group's learners."""
+    return staff_ids(db, assignment) | admin_ids(db, assignment.org_id) | learner_ids(db, assignment)
 
 
 def allowed(db: Session, assignment: GoalAssignment, channel: str, user_id: int) -> bool:
@@ -108,8 +108,8 @@ def member(db: Session, conversation: Conversation, user_id: int) -> Conversatio
 
 
 def channels(assignment: GoalAssignment) -> tuple[str, ...]:
-    """Every assignment has a staff chat; group assignments also have one with the whole group."""
-    return (STAFF, GROUP) if assignment.usergroup_id else (STAFF,)
+    """Group assignments have a chat with the whole group; person assignments use the learner's chat with the organization."""
+    return (GROUP,) if assignment.usergroup_id else ()
 
 
 def _template_title(db: Session, assignment: GoalAssignment) -> str:
@@ -118,8 +118,6 @@ def _template_title(db: Session, assignment: GoalAssignment) -> str:
 
 
 def _title(db: Session, assignment: GoalAssignment, channel: str) -> str:
-    if channel == STAFF:
-        return f"{_template_title(db, assignment)} · Staff"
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
     return f"{_template_title(db, assignment)} · {group.name if group else 'Group'}"
 
@@ -196,18 +194,21 @@ def _steps(document: dict) -> dict[str, str]:
     return {step["key"]: step.get("title") or "Step" for _, step in iter_steps(document) if step.get("key")}
 
 
-def counts(db: Session, conversation: Conversation) -> tuple[dict[str, int], int]:
-    """Messages per template step, and in the whole chat."""
-    by_step = {str(step): int(count) for step, count in db.exec(
+def counts(db: Session, conversation: Conversation, viewer_id: int | None = None) -> tuple[dict[str, int], int]:
+    """Messages the viewer can read per template step, and in the whole chat."""
+    from src.services.connect.workspace import readable_refs
+
+    by_step = {str(step): int(count) for step, count in db.exec(readable_refs(
         select(ConversationMessageRef.step_uuid, func.count(func.distinct(ConversationMessageRef.message_id)))
-        .where(ConversationMessageRef.conversation_id == conversation.id, col(ConversationMessageRef.goal_id).is_(None), col(ConversationMessageRef.step_uuid).is_not(None))
-        .group_by(ConversationMessageRef.step_uuid)
+        .where(ConversationMessageRef.conversation_id == conversation.id, col(ConversationMessageRef.goal_id).is_(None), col(ConversationMessageRef.step_uuid).is_not(None)),
+        db, conversation, viewer_id).group_by(ConversationMessageRef.step_uuid)
     ).all()}
-    total = int(db.exec(select(func.count()).select_from(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id)).one())
+    query = select(func.count()).select_from(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id)
+    total = int(db.exec(visibility.for_viewer(query, db, conversation, viewer_id)).one())
     return by_step, total
 
 
-def topic(db: Session, conversation: Conversation) -> dict | None:
+def topic(db: Session, conversation: Conversation, viewer_id: int | None = None) -> dict | None:
     """The assignment's plan as the chat's one topic: the template's steps, with how many messages tag each.
 
     Steps don't say where anyone stands: learners read this chat too, and each learner's
@@ -220,8 +221,8 @@ def topic(db: Session, conversation: Conversation) -> dict | None:
         return None
     document = _document(db, assignment)
     due = _planned(assignment, document)["steps"]
-    by_step, total = counts(db, conversation)
-    steps = [{"step_uuid": key, "title": title, "status": StepStatus.NOT_STARTED.value, "due_date": due.get(key), "behind": False, "count": by_step.get(key, 0)}
+    by_step, total = counts(db, conversation, viewer_id)
+    steps = [{"step_uuid": key, "title": title, "status": StepStatus.NOT_STARTED.value, "due_date": (due.get(key) or {}).get("due_date"), "behind": False, "count": by_step.get(key, 0)}
              for key, title in _steps(document).items()]
     ended = _value(assignment.status) == AssignmentStatus.ENDED.value
     return {
@@ -271,9 +272,8 @@ def resolve_one(db: Session, ref: dict) -> dict | None:
 
 
 def cohort_chat(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, audience: str) -> dict:
-    """An assignment's chat with its staff or its whole group, started if needed, for its chat buttons.
+    """A group assignment's chat, started if needed: its staff and the group's learners.
 
-    Staff only: the assignment's staff. Whole group: those staff and the group's learners.
     Anyone else, such as a helper a learner invited onto their own plan, gets a 403.
     """
     channel = AUDIENCES.get(audience)
@@ -283,15 +283,15 @@ def cohort_chat(db: Session, current_user: PublicUser, org_id: int, assignment_u
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
     if channel not in channels(assignment):
-        raise HTTPException(status_code=404, detail="Only group assignments have a chat with the whole group")
+        raise HTTPException(status_code=404, detail="Only group assignments have a group chat; message the learner instead")
     if not allowed(db, assignment, channel, current_user.id):
-        raise HTTPException(status_code=403, detail="Only the assignment's staff can read this chat" if channel == STAFF else "Only the group and its staff can read this chat")
+        raise HTTPException(status_code=403, detail="Only the group and its staff can read this chat")
     conversation = chat(db, assignment, channel)
     # A superadmin from outside the organization reads along too.
     member(db, conversation, current_user.id)
     db.commit()
-    by_step, total = counts(db, conversation)
+    by_step, total = counts(db, conversation, current_user.id)
     return {
         "assignment_uuid": assignment.assignment_uuid, "audience": audience, "conversation_uuid": conversation.conversation_uuid,
-        "title": conversation.title, "can_post": can_post(db, conversation), "counts": by_step, "count": total, "topic": topic(db, conversation),
+        "title": conversation.title, "can_post": can_post(db, conversation), "counts": by_step, "count": total, "topic": topic(db, conversation, current_user.id),
     }

@@ -1,7 +1,7 @@
 from enum import Enum
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -173,14 +173,31 @@ class ResourceSearchDocument(SQLModel, table=True):
     update_date: str = ""
 
 
+class ChannelAudience(str, Enum):
+    """Who in the owning organization sees a channel. Listing it in the Library opens it to everyone."""
+
+    org = "org"
+    groups = "groups"
+    staff = "staff"
+
+
+class CommentRule(str, Enum):
+    """Who may comment on the resources in a channel."""
+
+    all = "all"
+    staff = "staff"
+    off = "off"
+
+
 class ResourceChannelBase(SQLModel):
     name: str
     description: str | None = Field(default=None, sa_column=Column(Text))
     thumbnail_image: str | None = None
-    public: bool = True
-    shared: bool = False
-    is_starred: bool = False
     color: str | None = None
+    audience: ChannelAudience = Field(default=ChannelAudience.org, sa_column=Column(String, nullable=False, server_default="org"))
+    comment_rule: CommentRule = Field(default=CommentRule.all, sa_column=Column(String, nullable=False, server_default="all"))
+    # A comment with a web link waits for staff before anyone else sees it.
+    hold_links: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default="true"))
 
 
 class ResourceChannel(ResourceChannelBase, table=True):
@@ -191,6 +208,9 @@ class ResourceChannel(ResourceChannelBase, table=True):
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
     channel_uuid: str = Field(index=True, unique=True)
+    # In the Library: anyone can find, save and comment on it. Only resource partners list channels.
+    listed: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false", index=True))
+    listed_at: str | None = None
     creation_date: str = ""
     update_date: str = ""
 
@@ -203,16 +223,19 @@ class ResourceChannelUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
     thumbnail_image: str | None = None
-    public: bool | None = None
-    shared: bool | None = None
-    is_starred: bool | None = None
     color: str | None = None
+    audience: ChannelAudience | None = None
+    comment_rule: CommentRule | None = None
+    hold_links: bool | None = None
+    listed: bool | None = None
 
 
 class ResourceChannelRead(ResourceChannelBase):
     id: int
     org_id: int
     channel_uuid: str
+    listed: bool = False
+    listed_at: str | None = None
     owner_org_id: int | None = None
     owner_org_uuid: str | None = None
     owner_org_slug: str | None = None
@@ -403,6 +426,14 @@ class ResourceNoteBlockRead(ResourceNoteBlockBase):
     update_date: str
 
 
+class CommentStatus(str, Enum):
+    """Live comments are public. Held ones wait for the owning org's staff; hidden ones only staff see."""
+
+    live = "live"
+    held = "held"
+    hidden = "hidden"
+
+
 class ResourceCommentBase(SQLModel):
     content: str = Field(sa_column=Column(Text))
     rating: int | None = Field(default=None, ge=1, le=5)
@@ -419,7 +450,7 @@ class ResourceComment(ResourceCommentBase, table=True):
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
     )
     comment_uuid: str = Field(index=True, unique=True)
-    is_locked: bool = Field(default=False, sa_column=Column(Boolean, default=False))
+    status: CommentStatus = Field(default=CommentStatus.live, sa_column=Column(String, nullable=False, server_default="live", index=True))
     creation_date: str = ""
     update_date: str = ""
 
@@ -443,7 +474,7 @@ class ResourceCommentRead(ResourceCommentBase):
     resource_id: int
     author_id: int
     comment_uuid: str
-    is_locked: bool
+    status: CommentStatus
     creation_date: str
     update_date: str
 

@@ -1,4 +1,4 @@
-import { BookOpen, Briefcase, Code2, Dumbbell, GraduationCap, Heart, Home, Leaf, Music, Palette, Rocket, Target } from 'lucide-react'
+import { BookOpen, Briefcase, CalendarDays, Code2, Compass, Dumbbell, Flag, GraduationCap, Heart, Home, Leaf, MessageCircle, Music, Palette, Rocket, Star, Target, Wallet } from 'lucide-react'
 import type { GoalIcon } from '@services/goals/types'
 
 /** Each mark a learner can give their goal, in the order the picker shows them. */
@@ -15,6 +15,12 @@ export const GOAL_ICONS: Array<{ key: GoalIcon; label: string; icon: React.Eleme
   { key: 'leaf', label: 'Leaf', icon: Leaf },
   { key: 'home', label: 'Home', icon: Home },
   { key: 'rocket', label: 'Rocket', icon: Rocket },
+  { key: 'wallet', label: 'Wallet', icon: Wallet },
+  { key: 'compass', label: 'Compass', icon: Compass },
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'star', label: 'Star', icon: Star },
+  { key: 'flag', label: 'Flag', icon: Flag },
+  { key: 'chat', label: 'Chat', icon: MessageCircle },
 ]
 
 /** A goal's mark; a goal without one shows a target. */

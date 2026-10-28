@@ -1,4 +1,5 @@
 // The goal model as the API returns it. Mirrors apps/api/src/services/goals.
+import type { BadgeSummary, TemplateBadge } from '@services/badges/badges'
 
 export type StepTypeKey = 'task' | 'upload' | 'write' | 'activity' | 'event' | 'badge' | 'portfolio' | 'decision' | 'routine' | 'explore'
 export type StepStatus = 'not_started' | 'in_progress' | 'submitted' | 'changes_requested' | 'completed' | 'excused'
@@ -7,7 +8,7 @@ export type StepCompleter = 'learner' | 'staff'
 export type CompletionMethod = 'learner' | 'staff' | 'auto'
 export type GoalStatus = 'draft' | 'pending' | 'active' | 'finished' | 'archived'
 export type GoalOwnership = 'personal' | 'external'
-export type GoalSource = 'none' | 'assignment' | 'badge' | 'starter' | 'template'
+export type GoalSource = 'none' | 'assignment' | 'joined' | 'starter' | 'template'
 export type EntryKind = 'file' | 'link' | 'item' | 'resource' | 'note' | 'log'
 
 export interface PersonSummary {
@@ -24,7 +25,8 @@ export interface UploadConfig { slots: UploadSlot[] }
 export interface WriteConfig { prompt?: string; max_words?: number }
 export interface ActivityConfig { activity_uuid: string }
 export interface EventConfig { date?: string; start_time?: string; end_time?: string; place?: string; url?: string; rsvp?: boolean }
-export interface BadgeConfig { badge_uuid: string; accept_previous_major_versions?: boolean }
+/** A badge step: done when the learner holds the badge of this plan. */
+export interface BadgeConfig { template_uuid: string }
 export interface PortfolioConfig { check: 'welcome' | 'timeline' | 'project' | 'traits' | 'launch' | 'badges' }
 export interface DecisionOption { key: string; label: string }
 export interface DecisionConfig { question?: string; options: DecisionOption[]; multiple?: boolean; allow_other?: boolean }
@@ -77,6 +79,7 @@ export interface StepEntry {
 
 export type LockReason =
   | { kind: 'after'; step_uuid: string; title: string }
+  | { kind: 'closed'; date: string }
   | { kind: 'held' }
   | { kind: 'opens'; date: string }
   | { kind: 'stage'; title: string; date: string | null }
@@ -119,7 +122,7 @@ export interface Step<T extends StepTypeKey = StepTypeKey> {
   completion_method: CompletionMethod | null
   entries: StepEntry[]
   /** What an activity, badge or portfolio step points at, for its card. */
-  reference?: { title?: string; thumbnail_image?: string | null; badge_uuid?: string; activity_uuid?: string; page_count?: number } | null
+  reference?: { title?: string; thumbnail_image?: string | null; template_uuid?: string; badge?: BadgeSummary | null; activity_uuid?: string; page_count?: number } | null
   // Staff only.
   reviewer_guidance?: string
   staff_notes?: FeedbackItem[]
@@ -141,6 +144,10 @@ export interface Stage {
 
 /** The marks a learner can give their own goal (the API's GOAL_ICONS). */
 export type GoalIcon = 'target' | 'book' | 'briefcase' | 'graduation' | 'heart' | 'dumbbell' | 'palette' | 'music' | 'code' | 'leaf' | 'home' | 'rocket'
+  | 'wallet' | 'compass' | 'calendar' | 'star' | 'flag' | 'chat'
+
+/** A plan's cover: its image, else its icon on its color (a planColors key); the web picks for plans without them. */
+export interface PlanCover { thumbnail_image: string; icon?: GoalIcon | null; color?: string | null }
 
 /** A date or ordering in a plan that can't all come true; the API's schedule.conflicts. */
 export interface ScheduleWarning {
@@ -167,6 +174,8 @@ export interface Goal {
   subject: PersonSummary | null
   capabilities: string[]
   progress: { done: number; total: number }
+  /** The badge finishing it earns (null: none). */
+  badge?: BadgeSummary | null
   stages: Stage[]
   unstaged_steps: Step[]
   /** The stage the goal is on: the last whose start date has arrived, else the first. */
@@ -184,6 +193,7 @@ export interface GoalSummary {
   target_date: string | null
   progress: { done: number; total: number }
   is_subject: boolean
+  badge?: BadgeSummary | null
   /** Coach's open notes on the goal (the owner's own). */
   coach_notes?: number
   [key: string]: unknown
@@ -246,11 +256,15 @@ export interface TemplateDocument {
   template: { title: string; description?: string; instructions?: string }
   roles?: { definitions: TemplateRole[]; subject_role_key: string; staff_role_key: string } | null
   stages: TemplateStage[]
+  /** The badge learners earn by finishing the plan; the plan supplies its name, image, description and criteria. */
+  badge?: TemplateBadge | null
 }
 
 export interface TemplateVersion {
   version_uuid: string
   number: number
+  /** "2.1.0": strictly increasing per template; null only on very old private versions. */
+  semver: string | null
   note: string
   restored_from_number: number | null
   published_at: string | null
@@ -258,19 +272,33 @@ export interface TemplateVersion {
   live: boolean
 }
 
-export interface GoalTemplate {
+export interface GoalTemplate extends PlanCover {
   template_uuid: string
   org_id: number
   title: string
   description: string
-  thumbnail_image: string
   status: 'draft' | 'active' | 'archived'
   system_type: string | null
   etag: string
   published_version: number | null
+  /** The version new assignments and starts get; null when the plan is inactive (or never published). */
+  live_version?: TemplateVersion | null
+  /** The open draft, if any; ``implicit`` for edits made before drafts were explicit. */
+  draft?: TemplateDraft | null
   has_unpublished_changes: boolean
   update_date: string
   document?: TemplateDocument
+  /** The live version's document, for showing the live plan while a draft is open. */
+  live_document?: TemplateDocument | null
   versions?: TemplateVersion[]
   [key: string]: unknown
+}
+
+export interface TemplateDraft {
+  semver: string
+  note: string
+  base_version_uuid: string | null
+  started_at: string | null
+  started_by_user_id: number | null
+  implicit: boolean
 }

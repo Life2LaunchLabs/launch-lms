@@ -250,19 +250,40 @@ def send_direct_invitation_email(
     email: EmailStr,
     invitation_token: str,
     base_url: str,
+    setup: dict | None = None,
 ):
-    """Send a recipient-specific invitation without a managed signup code."""
+    """Send a recipient-specific invitation without a managed signup code.
+
+    ``setup`` (services/orgs/staff_setup.describe) adds the inviter's note and, for staff, the assignments
+    they'll be on or what they'll be able to do.
+    """
     signup_url = f"{base_url}/signup?invitation={quote(invitation_token, safe='')}"
+    setup = setup or {}
+    inviter = " ".join(part for part in (user.first_name, user.last_name) if part) or f"@{user.username}"
+    assignments = setup.get("assignments") or []
+    first = assignments[0] if assignments else None
+    subject = (f"{inviter} invited you to help run {first['assigned_to']} at {org.name}" if first and first.get("assigned_to")
+               else f"{inviter} invited you to join {org.name}")
+    note = f"<p style=\"padding:12px 14px;background:#f3f5f6;border-radius:12px\">{html.escape(setup['note'])}</p>" if setup.get("note") else ""
+    if assignments:
+        items = "".join(f"<li>{html.escape(row['assigned_to'])} · {html.escape(row['plan'])} ({html.escape(row['role_label'])})</li>" for row in assignments)
+        start = f"<p><b>You're on</b></p><ul>{items}</ul>"
+    elif setup.get("permissions"):
+        items = "".join(f"<li>{html.escape(row['label'])}</li>" for row in setup["permissions"])
+        start = f"<p><b>You'll be able to</b></p><ul>{items}</ul>"
+    else:
+        start = ""
     send_email(
         to=email,
-        subject=f"You have been invited to {org.name}",
+        subject=subject,
         body=f"""
 <html>
     <body>
-        <p>Hello {html.escape(str(email))}</p>
-        <p>You have been invited to {html.escape(org.name)} by @{html.escape(user.username)}.</p>
-        <p><a href="{signup_url}">Review invitation</a></p>
-        <p>This invitation expires in 60 days.</p>
+        <p>{html.escape(inviter)} invited you to join {html.escape(org.name)}.</p>
+        {note}
+        {start}
+        <p><a href="{signup_url}">Join {html.escape(org.name)}</a></p>
+        <p>Works with an account you already have, or makes one in a minute. This invitation is for {html.escape(str(email))} and expires in 60 days.</p>
     </body>
 </html>
 """,

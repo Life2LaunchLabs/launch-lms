@@ -1,159 +1,11 @@
 import { getAPIUrl } from '@services/config/config'
-import {
-  RequestBodyWithAuthHeader,
-  errorHandling,
-  getResponseMetadata,
-} from '@services/utils/ts/requests'
-
-export async function browseMarketplaceBadges(
-  issuerOrgId?: string | number,
-  query?: string,
-  accessToken?: string,
-  next?: any
-) {
-  const search = new URLSearchParams()
-  if (issuerOrgId !== undefined && issuerOrgId !== null && issuerOrgId !== '') {
-    search.set('issuer_org_id', String(issuerOrgId))
-  }
-  if (query) search.set('q', query)
-  const qs = search.toString()
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/badges${qs ? `?${qs}` : ''}`,
-    RequestBodyWithAuthHeader('GET', null, next, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
-// open: learners start immediately · request: learners ask and the issuer accepts · invite: issuer adds learners
-export type LearnerAccess = 'open' | 'request' | 'invite'
-
-export async function getBadgeIssuingSettings(badgeUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/badges/${badgeUuid}/issuing`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function updateBadgeIssuingSettings(
-  badgeUuid: string,
-  data: { default_issuer_org_id?: number; clear_default_issuer?: boolean },
-  accessToken?: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/badges/${badgeUuid}/issuing`,
-    RequestBodyWithAuthHeader('PUT', data, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-/** Other organizations' badges this one issues, each with the plans it runs for it (leave a plan to stop). */
-export async function getIssuedBadges(orgId: string | number, accessToken?: string): Promise<IssuedBadge[]> {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/issuing?org_id=${orgId}`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function getIssuerLearnerLinks(
-  orgId: string | number,
-  accessToken?: string,
-  badgeUuid?: string
-) {
-  const search = new URLSearchParams({ org_id: String(orgId) })
-  if (badgeUuid) search.set('badge_uuid', badgeUuid)
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/learner-links?${search.toString()}`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
-export async function createIssuerLearnerLink(
-  data: { badge_uuid: string; issuer_org_id: number; user_id: number; note?: string },
-  accessToken?: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/learner-links`,
-    RequestBodyWithAuthHeader('POST', data, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function requestIssuerLearnerSupport(
-  data: { badge_uuid: string; issuer_org_id: number; message?: string },
-  accessToken?: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/learner-requests`,
-    RequestBodyWithAuthHeader('POST', data, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function decideIssuerLearnerRequest(
-  linkUuid: string,
-  decision: 'accept' | 'reject',
-  data: { staff_user_ids?: number[]; note?: string },
-  accessToken?: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/learner-requests/${linkUuid}/${decision}`,
-    RequestBodyWithAuthHeader('POST', data, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function deleteIssuerLearnerLink(linkUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/learner-links/${linkUuid}`,
-    RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function getCreatorIssuanceMetrics(orgId: string | number, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/metrics/creator?org_id=${orgId}`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
-export async function getIssuerBadgeMetrics(
-  orgId: string | number,
-  badgeUuid: string,
-  accessToken?: string
-) {
-  const search = new URLSearchParams({ org_id: String(orgId), badge_uuid: badgeUuid })
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/metrics/issuer?${search.toString()}`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
-// Plan templates in the marketplace (permission is to use a plan, and to issue the badges it earns) ------------
+import type { GoalIcon } from '@services/goals/types'
+import type { BadgeSummary } from '@services/badges/badges'
+import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
 export type TemplateListingMode = 'locked' | 'open'
 export type TemplateListingAccess = 'open' | 'request'
 export type TemplateAuthorizationStatus = 'requested' | 'approved' | 'rejected' | 'revoked'
-
-export interface PlanBadge { badge_uuid: string; name: string; thumbnail_image: string; route_uuid: string }
-
-/** One of a marketplace badge's plans, with this organization's permission on it (asking for it is asking to issue the badge). */
-export interface BadgePlanOption { route_uuid: string; template_uuid: string; title: string; recommended: boolean; authorization: TemplateAuthorization | null }
-
-/** A plan an organization runs for a badge: who may start it there, and its permission (none for the owner). */
-export interface RunPlan { route_uuid: string; template_uuid: string; title: string; access: LearnerAccess; authorization_uuid: string | null }
-
-export interface IssuedBadge {
-  badge: { badge_uuid: string; name: string; thumbnail_image?: string | null }
-  creator_org: MarketplaceOrg | null
-  learner_access: LearnerAccess
-  plans: RunPlan[]
-}
 
 export interface MarketplaceOrg { id: number; name: string; slug: string; logo_image?: string | null; org_uuid?: string }
 
@@ -164,6 +16,22 @@ export interface TemplateListing {
   listed_at: string | null
   usage?: { approved: number; requested: number }
   published_version?: number | null
+  /** The live version's resources other organizations couldn't open, and what's set for them (on your own listing). */
+  private_resources?: ListingResource[]
+  /** A resource partner can list a resource's channel in the Library instead. */
+  can_list_resources?: boolean
+}
+
+export interface ListingResource {
+  resource_uuid: string
+  title: string
+  resource_type: string
+  url: string
+  /** The publisher's own channels it's in. */
+  channels: Array<{ channel_uuid: string; name: string }>
+  /** For other organizations: swapped for a Library resource, removed, or not settled yet. */
+  fix: 'swap' | 'remove' | null
+  swap: { resource_uuid: string; title: string; url: string } | null
 }
 
 export interface TemplateAuthorization {
@@ -177,8 +45,8 @@ export interface TemplateAuthorization {
   creator_org: MarketplaceOrg | null
   issuer_org: MarketplaceOrg | null
   copied_template_uuid: string | null
-  /** The badges this plan earns: approval on it is permission to issue them. */
-  badges?: PlanBadge[]
+  /** The badge this plan earns: running it is permission to award the badge. */
+  badge?: BadgeSummary | null
   /** Creator side only: plans the issuer runs on it (counts only). */
   learner_count?: number
 }
@@ -188,12 +56,14 @@ export interface MarketplaceTemplate extends TemplateListing {
   title: string
   description: string
   thumbnail_image: string | null
+  icon?: GoalIcon | null
+  color?: string | null
   published_version: number | null
   stage_count: number
   step_count: number
   creator_org: MarketplaceOrg | null
   is_own: boolean
-  badges: PlanBadge[]
+  badge: BadgeSummary | null
   frameworks: { framework_uuid: string; name: string; node_count: number }[]
   requirement_count: number
   authorization: TemplateAuthorization | null
@@ -216,7 +86,7 @@ export interface MarketplaceRequestsSummary {
 }
 
 async function marketplaceRequest<T = any>(path: string, accessToken?: string, method = 'GET', body: any = null): Promise<T> {
-  const result = await fetch(`${getAPIUrl()}badge-marketplace/${path}`, RequestBodyWithAuthHeader(method, body, null, accessToken))
+  const result = await fetch(`${getAPIUrl()}plan-marketplace/${path}`, RequestBodyWithAuthHeader(method, body, null, accessToken))
   return errorHandling(result)
 }
 
@@ -234,6 +104,8 @@ export const templateMarketplaceApi = {
   summary: (orgId: number, accessToken?: string) => marketplaceRequest<MarketplaceRequestsSummary>(`requests/summary?org_id=${orgId}`, accessToken),
   browse: (orgId: number, query = '', accessToken?: string, creatorOrgId?: number | null) => marketplaceRequest<MarketplaceTemplate[]>(`templates?${qs({ org_id: orgId, q: query, creator_org_id: creatorOrgId })}`, accessToken),
   listing: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken),
+  fixResource: (orgId: number, templateUuid: string, resourceUuid: string, fix: 'swap' | 'remove' | null, replacementUuid: string | null, accessToken?: string) =>
+    marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing/resources/${encodeURIComponent(resourceUuid)}?org_id=${orgId}`, accessToken, 'PUT', { fix, replacement_uuid: replacementUuid }),
   setListing: (orgId: number, templateUuid: string, data: { listed: boolean; mode: TemplateListingMode; access: TemplateListingAccess }, accessToken?: string) =>
     marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken, 'PUT', data),
   copy: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<{ template_uuid: string; title: string }>(`templates/${encodeURIComponent(templateUuid)}/copy?org_id=${orgId}`, accessToken, 'POST'),
@@ -243,10 +115,10 @@ export const templateMarketplaceApi = {
   invite: (orgId: number, templateUuid: string, issuerOrgSlug: string, accessToken?: string) =>
     marketplaceRequest<TemplateAuthorization>(`templates/${encodeURIComponent(templateUuid)}/authorizations/invite?org_id=${orgId}`, accessToken, 'POST', { issuer_org_slug: issuerOrgSlug }),
   metrics: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<TemplateUsageMetrics>(`templates/${encodeURIComponent(templateUuid)}/metrics?org_id=${orgId}`, accessToken),
-  /** Ask to use a listed template, or to issue a marketplace badge through one of its plans. */
+  /** Ask to run a listed plan (and award its badge, when it earns one). */
   request: (data: { template_uuid: string; issuer_org_id: number; message?: string }, accessToken?: string) => marketplaceRequest<TemplateAuthorization>('template-authorizations', accessToken, 'POST', data),
   approve: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/approve`, accessToken, 'POST'),
   reject: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/reject`, accessToken, 'POST'),
-  /** Either side ends it: the owner revokes, or the organization leaves the plan (and stops issuing its badges). */
+  /** Either side ends it: the owner revokes, or the organization leaves the plan (and stops awarding its badge). */
   revoke: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/revoke`, accessToken, 'POST'),
 }

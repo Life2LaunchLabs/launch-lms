@@ -92,6 +92,8 @@ launch-lms/
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
 | `/users` | User profile, settings |
+| `/school` | Threads (a person's, a group's, all staff, the organization's), the Threads list, profiles, helper requests |
+| `/connect` | Conversations: messages, staff-only notes, reactions |
 | `/orgs` | Organization CRUD, usage |
 | `/roles` | RBAC role definitions |
 | `/usergroups` | User groups & resource access |
@@ -105,6 +107,7 @@ launch-lms/
 | `/trail` | Learning paths |
 | `/code` | Code execution (Judge0) |
 | `/analytics` | Course analytics |
+| `/insights` | Insights: dashboards, running their cards, drilling into a number, the measure registry, captures and their read-only links |
 | `/search` | Global search |
 | `/instance` | Public instance metadata |
 | `/plans` | Plan definitions (public) |
@@ -152,6 +155,8 @@ launch-lms/
 
 ### App Router Layout
 - `app/orgs/[orgslug]/admin/` — org admin dashboard (superadmins additionally see platform controls: org management, users, news)
+  - `admin/insights/` — Insights: dashboards for the org (`?d=`), one plan (`plan/[key]`), one group (`group/[key]`), one learner (`learner/[key]`) or one requirement framework (`framework/[key]`), with captures (`captures/`, which can carry requirement evidence) and group reports in the same rail (`components/Insights/`); a capture's read-only link is `insights/shared/[token]`
+  - `admin/threads/` — Threads (formerly People): the list, each thread, and profiles under `threads/profiles/`; threads also open in the admin side panel beside Coach (`components/Threads/`)
 - `app/auth/` — login, register, email verification
 - `app/editor/` — course editor
 - `app/orgs/` — organization pages
@@ -220,6 +225,7 @@ Runs on every request. Handles:
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `JUDGE0_API_URL` | Judge0 code execution endpoint |
 | `TINYBIRD_API_TOKEN` | Tinybird analytics token |
+| `PEXELS_API_KEY` | Stock photo and video search (Pexels); a key saved in Platform › Settings wins over it |
 | `LAUNCHLMS_EMAIL_PROVIDER` | `resend` (default) or `smtp` |
 | `LAUNCHLMS_RESEND_API_KEY` | Resend email API key |
 | `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS` | System sender email |
@@ -345,7 +351,7 @@ services:
 volumes:
   content_data:
 ```
-Alternatively, switch to S3 storage (`LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`).
+The planned fix is S3-compatible storage on DigitalOcean Spaces: set `LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`, `LAUNCHLMS_S3_API_ENDPOINT_URL=https://<region>.digitaloceanspaces.com`, `LAUNCHLMS_S3_API_BUCKET_NAME`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. The bucket stays private: `/content/...` is served by the API (`routers/content_files.py`, with access checks and Range support). Copy existing files with `uv run python scripts/sync_content_to_s3.py` (from `apps/api`, `--dry-run` first), and check the keys with `GET /api/v1/health/storage`.
 
 ---
 

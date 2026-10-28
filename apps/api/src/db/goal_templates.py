@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from sqlmodel import Field, SQLModel
 
-from src.db.goals import GoalAssignmentCreate
+from src.db.goals import GOAL_ICONS, PLAN_COLORS, GoalAssignmentCreate
 
 
 class AssignmentCollaborator(SQLModel):
     user_id: int
-    # A role of the template; defaults to its staff role.
+    # lead, review or comment; unset reviews (or leads, when nobody else does).
     role_key: str | None = None
 
 
@@ -21,8 +22,15 @@ class StageSchedule(SQLModel):
 
 
 class StepSchedule(SQLModel):
+    """One step's own dates on an assignment; without them it follows its stage (or the template's due week)."""
+
     step_key: str
+    start_date: date | None = None
     due_date: date | None = None
+    # With a start date: learners may still start it once its stage opens. Off locks it until the start date.
+    open_early: bool = True
+    # Off closes the step at its due date: learners who haven't handed it in can't any more.
+    allow_late: bool = True
 
 
 class AssignmentSchedule(SQLModel):
@@ -37,8 +45,6 @@ class GoalAssignmentRequest(GoalAssignmentCreate):
     collaborators: list[AssignmentCollaborator] = Field(default_factory=list)
     owner_user_id: int | None = None
     schedule: AssignmentSchedule | None = None
-    # The badge its learners earn: required to run another organization's badge route; optional for your own.
-    badge_uuid: str | None = None
     # Handing a plan to an alumnus makes them active again only when this says so (services/orgs/member_status.py).
     reactivate: bool = False
 
@@ -61,6 +67,19 @@ class GoalAssignmentUpdate(SQLModel):
     collaborators: list[AssignmentCollaborator] | None = None
 
 
+class AssignmentScheduleSave(SQLModel):
+    """An assignment's whole schedule at once (services/goals/assignments.save_schedule).
+
+    Self-paced: no stage or step dates, and the end date is optional. On a schedule (any stage or step
+    date set) the end date is required.
+    """
+
+    start_date: date | None = None
+    due_date: date | None = None
+    stages: list[StageSchedule] = Field(default_factory=list)
+    steps: list[StepSchedule] = Field(default_factory=list)
+
+
 class StepDue(SQLModel):
     """When one step of a running assignment is due; None goes back to the template's date (or its stage's end)."""
 
@@ -79,3 +98,11 @@ class StepSettle(SQLModel):
 
     except_user_uuids: list[str] = Field(default_factory=list, max_length=1000)
     message: str = Field(default="", max_length=10000)
+
+
+class TemplateCover(SQLModel):
+    """A plan's cover: its image, else the icon on the color."""
+    icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
+    color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]
+    # An uploaded image (/content/...) or an https address; "" goes back to the icon.
+    thumbnail_image: str | None = Field(default=None, max_length=1000)

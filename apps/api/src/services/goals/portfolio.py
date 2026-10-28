@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlmodel import Session, select
 
+from src.db.badges import BadgeAward
 from src.db.goals import Goal, GoalSource
 from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioVisibility, ProfileTrait, ProjectItem, TimelineEntry
 
@@ -11,7 +12,9 @@ from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioVisibil
 def done_checks(db: Session, user_id: int) -> set[str]:
     """The portfolio checks the learner passes: welcome, timeline, project, traits, launch, badges."""
     done: set[str] = set()
-    if db.exec(select(Goal.id).where(Goal.subject_user_id == user_id, Goal.source == GoalSource.BADGE)).first():
+    # Badges: the learner started a plan from Discover, or holds a badge.
+    if (db.exec(select(Goal.id).where(Goal.subject_user_id == user_id, Goal.source == GoalSource.JOINED)).first()
+            or db.exec(select(BadgeAward.id).where(BadgeAward.user_id == user_id)).first()):
         done.add("badges")
     portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
     if not portfolio:

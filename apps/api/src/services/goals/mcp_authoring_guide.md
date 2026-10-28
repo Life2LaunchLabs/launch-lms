@@ -1,7 +1,8 @@
 # Plan template authoring guide (goal templates, format version 1)
 
 A plan template is a reusable goal: staff assign it to a learner or a group,
-a badge can hand it out, and each one issued becomes the learner's own goal.
+learners can join it from Discover, and each one issued becomes the learner's
+own goal. A template can earn a badge (see "The badge it earns").
 The whole template is one Goal Template Document: stages, and in each stage an
 ordered list of typed steps.
 
@@ -65,7 +66,7 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 | `write` | `prompt`, optional `max_words` | writes a text answer | handed in |
 | `activity` | `activity_uuid` (set by the server) | plays an interactive activity | the run finishes (and is graded, if it needs grading) |
 | `event` | `date`, `start_time`, `end_time`, `place`, `url`, `rsvp` | RSVPs, adds it to their calendar | attended |
-| `badge` | `badge_uuid`, `accept_previous_major_versions` | earns the badge | the badge is awarded |
+| `badge` | `template_uuid` (another plan that earns a badge) | earns that plan's badge | the badge is awarded |
 | `portfolio` | `check`: `welcome`, `timeline`, `project`, `traits`, `launch` or `badges` | completes a portfolio section | the section is complete |
 | `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses | a choice is saved |
 | `routine` | `cadence` (`daily`, `weekly` or `monthly`), `days` (weekly: 0 Sunday to 6 Saturday; monthly: 1 to 31), `action`: `{kind: list|number|check, target, label, unit, series}` | logs the action each time it comes round; a chart of past times | the learner ends it, or its close date or its stage's end comes first |
@@ -108,11 +109,37 @@ activity tools (`get_activity`, `get_activity_schema`, `validate_activity`,
 `preview_activity`, `save_activity`). Activity edits change the draft and
 reach learners when the template is published.
 
+## The badge it earns
+
+Add a `badge` block at the top level of the document to make finishing the plan
+earn a badge (an Open Badges 3.0 credential). Leave it out for a plan without one.
+
+```json
+"badge": {
+  "kind": "Badge",
+  "skills": ["Interviewing", "Resume writing"],
+  "style": "modern",
+  "name": "",
+  "image_url": "",
+  "human_code": "", "field_of_study": "", "specialization": "",
+  "credits_available": null, "in_language": "en"
+}
+```
+
+`kind` is one of `Badge`, `CertificateOfCompletion`, `Competency`,
+`Certification` or `Award`; `style` is the certificate's look (`classic`,
+`modern` or `minimal`). Everything else comes from the plan: its title (unless
+`name` overrides it) and description, its cover image (unless `image_url`
+does; get one from `upload_media`), its steps as the criteria, the requirement nodes its steps link to as
+the alignment, the organization as creator and the published version. The
+badge is drafted and published with the plan, and each award keeps the version
+it was earned on.
+
 ## Badge steps
 
-Find badges with `list_badges`, then add a step `{"type": "badge", "config":
-{"badge_uuid": "badge_…"}}`. `update_template_badge_versions` decides whether
-awards of earlier major versions still count.
+A `badge` step asks the learner to earn another plan's badge:
+`{"type": "badge", "config": {"template_uuid": "goal_template_…"}}`. The other
+plan needs a `badge` block. The step is done once the learner is awarded that badge.
 
 ## When steps open and close
 
@@ -140,7 +167,7 @@ Roles decide what each person on an issued goal can do. Keys `subject` (the
 learner), `plan_admin` and the staff role must exist. Capabilities:
 `view_plan`, `comment`, `contribute_fields`, `update_progress`,
 `request_collaborators`, `contribute_restricted_fields`,
-`complete_restricted_objectives`, `review_badge_submissions`,
+`complete_restricted_objectives`, `review_submissions`,
 `edit_plan_details`, `edit_structure`, `edit_schedule`, `complete_plan`,
 `archive_plan`, `manage_collaborators`, `manage_roles`.
 Omit `roles` to use the defaults.
@@ -148,5 +175,5 @@ Omit `roles` to use the defaults.
 ## Versions
 
 Saving edits the draft. `publish_plan_template` (only when the admin asks)
-makes it the version new assignments and badge starts get. Goals already
+makes it the version new assignments and learners joining from Discover get. Goals already
 issued keep their version and their learners' answers.

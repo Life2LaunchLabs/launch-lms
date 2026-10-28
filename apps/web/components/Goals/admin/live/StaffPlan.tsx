@@ -38,7 +38,7 @@ export default function StaffPlan({ orgslug, goalUuid }: { orgslug: string; goal
       <Shield className="mx-auto text-muted-foreground" size={38} aria-hidden="true" />
       <h1 className="mt-3 text-lg font-black">Plan unavailable</h1>
       <p className="mt-1 text-sm text-muted-foreground">You need access to this plan to view it.</p>
-      <Link href={getUriWithOrg(orgslug, routePaths.org.admin.assignments())} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"><ArrowLeft size={14} />Back to the Inbox</Link>
+      <Link href={getUriWithOrg(orgslug, routePaths.org.admin.assignments())} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"><ArrowLeft size={14} />Back to Assignments</Link>
     </div>
   </main>
 

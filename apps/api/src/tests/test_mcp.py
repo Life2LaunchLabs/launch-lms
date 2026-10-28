@@ -22,7 +22,7 @@ from src.services.oauth import server
 from src.services.oauth.config import ACCESS_PREFIX, frontend_url, hash_secret, mcp_resource
 from src.tests import test_learning_documents as documents_world
 from src.tests.test_learning_documents import _goal_template
-from src.tests.test_badge_marketplace import _create_org
+from src.tests.plan_world import _create_org
 
 
 def _token(session: Session, user_id: int, org_id: int, scope: str = "activities:read activities:write") -> str:
@@ -119,7 +119,7 @@ def test_read_tools_walk_template_to_activity(mcp):
     assert activity["etag"] and activity["editor_url"] == editor_url
     assert activity["context"]["template_name"] == "Career Ready"
     schema = call("get_activity_schema")["structuredContent"]
-    assert "Branching flow" in schema["guide"] and "QuestionBlock" in schema["schema"]["$defs"]
+    assert "Sequence and branches" in schema["guide"] and "QuestionBlock" in schema["schema"]["$defs"]
 
 
 def test_preview_and_save_round_trip_with_conflict_handling(mcp):

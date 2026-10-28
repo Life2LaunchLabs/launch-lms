@@ -4,23 +4,23 @@ from fastapi import Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import true as sa_true
 from sqlmodel import Session, and_, func, or_, select, text
-from src.db.learning import BadgeCollection, BadgeCollectionRead, LearningBadge, LearningBadgeRead
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization, OrganizationDiscoverRead
-from src.db.resources import ResourceChannel, ResourceChannelRead
+from src.db.resources import ResourceChannelRead
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
+from src.security.access.access import owner_org_id
 from src.security.org_auth import is_org_member
 from src.services.orgs.orgs import _build_discover_org_read
-from src.services.resources import _channel_is_accessible, list_resources
+from src.services.resources import _channel_is_accessible, _org_channels, list_resources
 
 T = TypeVar('T')
 
 class SearchResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    badges: list[LearningBadgeRead]
-    badge_collections: list[BadgeCollectionRead]
+    # Plans the organization offers to learners (Discover cards); the badge a plan earns is on its card.
+    plans: list[dict]
     organizations: list[OrganizationDiscoverRead]
     resources: list[dict]
     resource_channels: list[ResourceChannelRead]
@@ -29,6 +29,16 @@ class SearchResult(BaseModel):
 def _escape_like_wildcards(query: str) -> str:
     """Escape SQL LIKE wildcards to prevent user enumeration via pattern matching."""
     return query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
+def _plans(db_session: Session, current_user, org_id: int, search_query: str) -> list[dict]:
+    """The organization's Discover plans whose title, description or badge matches."""
+    from src.services.goals import plan_joining
+
+    needle = search_query.replace('\\', '').lower()
+    user = None if isinstance(current_user, (AnonymousUser, APITokenUser)) else current_user
+    cards = plan_joining._cards(db_session, plan_joining.offers(db_session, org_id), plan_joining._user_id(user))
+    return [card for card in cards if needle in " ".join([card["title"], card["description"], (card["badge"] or {}).get("name") or ""]).lower()]
 
 
 async def search_across_org(
@@ -41,10 +51,10 @@ async def search_across_org(
     limit: int = 10,
 ) -> SearchResult:
     """
-    Search across badges, badge collections, and users within an organization.
+    Search across the plans an organization offers learners, resources, organizations and users.
 
     SECURITY:
-    - Anonymous users can only search public badges and badge collections
+    - Plans in Discover are public; anonymous users see them too
     - Anonymous users CANNOT search/enumerate users (privacy protection)
     - Maximum limit enforced at service level
     - Uses parameterized queries (SQL injection protected)
@@ -64,7 +74,7 @@ async def search_across_org(
     org = db_session.exec(org_statement).first()
 
     if not org:
-        return SearchResult(badges=[], badge_collections=[], organizations=[], resources=[], resource_channels=[], users=[])
+        return SearchResult(plans=[], organizations=[], resources=[], resource_channels=[], users=[])
 
     # API Token validation: verify token belongs to this organization
     if isinstance(current_user, APITokenUser):
@@ -89,38 +99,6 @@ async def search_across_org(
                     detail="API token does not have search permission",
                 )
 
-    badges_query = select(LearningBadge).where(
-        LearningBadge.org_id == org.id,
-        LearningBadge.deleted_at.is_(None),
-        or_(
-            text('LOWER(learningbadge.name) LIKE LOWER(:pattern)'),
-            text('LOWER(learningbadge.description) LIKE LOWER(:pattern)'),
-        ),
-    ).params(pattern=f"%{search_query}%")
-
-    collections_query = (
-        select(BadgeCollection)
-        .where(BadgeCollection.org_id == org.id, BadgeCollection.deleted_at.is_(None), BadgeCollection.hidden == False)
-        .where(
-            or_(
-                text('LOWER(badgecollection.name) LIKE LOWER(:pattern)'),
-                text('LOWER(badgecollection.description) LIKE LOWER(:pattern)')
-            )
-        )
-        .params(pattern=f"%{search_query}%")
-    )
-
-    resource_channels_query = (
-        select(ResourceChannel)
-        .where(or_(ResourceChannel.org_id == org.id, ResourceChannel.shared == sa_true()))
-        .where(
-            or_(
-                text('LOWER(resourcechannel.name) LIKE LOWER(:pattern)'),
-                text('LOWER(resourcechannel.description) LIKE LOWER(:pattern)')
-            )
-        )
-        .params(pattern=f"%{search_query}%")
-    )
     organizations_query = select(Organization).where(
         or_(
             text('LOWER(organization.name) LIKE LOWER(:pattern)'),
@@ -148,10 +126,8 @@ async def search_across_org(
         .params(pattern=f"%{search_query}%")
     )
 
+    owner_id = owner_org_id(db_session)
     if isinstance(current_user, AnonymousUser):
-        # For anonymous users, only show public collections
-        collections_query = collections_query.where(BadgeCollection.public == sa_true())
-        badges_query = badges_query.where(LearningBadge.public == sa_true())
         organizations_query = organizations_query.where(Organization.explore == sa_true())
         organizations = [
             _build_discover_org_read(
@@ -161,6 +137,7 @@ async def search_across_org(
                 ).first(),
                 False,
                 db_session.exec(select(func.count()).where(UserOrganization.org_id == discover_org.id)).one(),
+                owner_id,
             )
             for discover_org in db_session.exec(organizations_query.offset(offset).limit(limit)).all()
         ]
@@ -169,44 +146,29 @@ async def search_across_org(
         # This prevents user directory scraping attacks
         users = []
     else:
-        # For authenticated users, show public collections and those in their org
-        collections_query = collections_query.where(or_(BadgeCollection.public == sa_true(), BadgeCollection.org_id == org.id))
-        candidate_channels = db_session.exec(resource_channels_query).all()
+        # The org's own channels and the Library channels it saved, as this person may open them.
+        needle = search_query.replace('\\', '').lower()
         raw_channels = [
             channel
-            for channel in candidate_channels
-            if _channel_is_accessible(channel, db_session, current_user)
+            for channel in _org_channels(int(org.id), db_session)  # type: ignore[arg-type]
+            if (needle in channel.name.lower() or needle in (channel.description or "").lower())
+            and _channel_is_accessible(channel, db_session, current_user)
         ][offset:offset + limit]
-        channel_org_ids = list({c.org_id for c in raw_channels})
-        channel_owner_orgs: dict[int, Organization] = {}
-        if channel_org_ids:
-            channel_owner_orgs = {
-                o.id: o
-                for o in db_session.exec(
-                    select(Organization).where(Organization.id.in_(channel_org_ids))  # type: ignore[arg-type]
-                ).all()
-                if o.id is not None
-            }
+        channel_owner_orgs: dict[int, Organization] = {
+            o.id: o
+            for o in db_session.exec(
+                select(Organization).where(Organization.id.in_({c.org_id for c in raw_channels}))  # type: ignore[arg-type]
+            ).all()
+            if o.id is not None
+        } if raw_channels else {}
         resource_channels = [
-            ResourceChannelRead(
-                id=ch.id,
-                org_id=ch.org_id,
-                channel_uuid=ch.channel_uuid,
-                name=ch.name,
-                description=ch.description,
-                thumbnail_image=ch.thumbnail_image,
-                public=ch.public,
-                shared=ch.shared,
-                is_starred=ch.is_starred,
-                color=ch.color,
-                creation_date=ch.creation_date,
-                update_date=ch.update_date,
-                owner_org_id=channel_owner_orgs[ch.org_id].id if ch.org_id in channel_owner_orgs else None,
-                owner_org_uuid=channel_owner_orgs[ch.org_id].org_uuid if ch.org_id in channel_owner_orgs else None,
-                owner_org_slug=channel_owner_orgs[ch.org_id].slug if ch.org_id in channel_owner_orgs else None,
-                owner_org_name=channel_owner_orgs[ch.org_id].name if ch.org_id in channel_owner_orgs else None,
-                is_shared_from_other_org=ch.org_id != org.id,
-            )
+            ResourceChannelRead.model_validate(ch).model_copy(update={
+                "owner_org_id": channel_owner_orgs[ch.org_id].id if ch.org_id in channel_owner_orgs else None,
+                "owner_org_uuid": channel_owner_orgs[ch.org_id].org_uuid if ch.org_id in channel_owner_orgs else None,
+                "owner_org_slug": channel_owner_orgs[ch.org_id].slug if ch.org_id in channel_owner_orgs else None,
+                "owner_org_name": channel_owner_orgs[ch.org_id].name if ch.org_id in channel_owner_orgs else None,
+                "is_shared_from_other_org": ch.org_id != org.id,
+            })
             for ch in raw_channels
         ]
         discover_orgs = db_session.exec(organizations_query.offset(offset).limit(limit)).all()
@@ -242,6 +204,7 @@ async def search_across_org(
                     org_config,
                     discover_org.id in member_org_ids if discover_org.id is not None else False,
                     member_counts_map.get(discover_org.id or 0, 0),
+                    owner_id,
                 )
             )
 
@@ -254,10 +217,7 @@ async def search_across_org(
             # User is NOT a member - don't return user results
             users = []
 
-    # Apply pagination to collections query
-    collections = db_session.exec(collections_query.offset(offset).limit(limit)).all()
-
-    badges = db_session.exec(badges_query.offset(offset).limit(limit)).all()
+    plans = _plans(db_session, current_user, int(org.id), search_query)[offset:offset + limit]  # type: ignore[arg-type]
     resources = await list_resources(
         request,
         org.id,
@@ -267,20 +227,11 @@ async def search_across_org(
         offset=offset,
         limit=limit,
     )
-    collection_reads = [
-        BadgeCollectionRead(**collection.model_dump(), badges=[
-            LearningBadgeRead.model_validate(badge)
-            for badge in db_session.exec(select(LearningBadge).where(LearningBadge.collection_id == collection.id, LearningBadge.deleted_at.is_(None))).all()
-        ])
-        for collection in collections
-    ]
-
     # Convert users to UserRead objects
     user_reads = [UserRead.model_validate(user) for user in users]
 
     return SearchResult(
-        badges=[LearningBadgeRead.model_validate(badge) for badge in badges],
-        badge_collections=collection_reads,
+        plans=plans,
         organizations=organizations,
         resources=resources,
         resource_channels=resource_channels,

@@ -1,6 +1,6 @@
 """Issuing: the one way a template version becomes a live goal.
 
-Assignments, badge starts, the starter flow, learners starting a template
+Assignments, learners joining from Discover, the starter flow, learners starting a template
 themselves and make-up steps all build steps here, so every step is built (and
 every activity carried over) the same way.
 """
@@ -77,7 +77,7 @@ def step_fields(db: Session, goal: Goal, spec: dict) -> dict:
         "completed_by": spec.get("completed_by") or "learner", "review_required": bool(spec.get("review_required")),
         "reviewer_guidance": spec.get("reviewer_guidance") or "",
         "requirement_links": requirement_links(db, goal.org_id, list(spec.get("requirement_node_uuids") or [])),
-        "activity_id": references.get("activity_id"), "badge_id": references.get("badge_id"), "template_key": spec.get("key"),
+        "activity_id": references.get("activity_id"), "badge_template_id": references.get("badge_template_id"), "template_key": spec.get("key"),
     }
 
 
@@ -93,7 +93,11 @@ def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, pos
 
 
 def build_stages(db: Session, goal: Goal, document: dict, schedule: dict, first_position: int = 0) -> None:
-    """A template document's stages and steps on a live goal, with step order links (flushed, not committed)."""
+    """A template document's stages and steps on a live goal, with step order links (flushed, not committed).
+    Another organization's goal gets the listing's resource swaps (plan_resources.py)."""
+    from src.services.goals import plan_resources
+
+    document = plan_resources.for_org(db, db.get(GoalTemplate, goal.template_id) if goal.template_id else None, goal.org_id, document)
     now = _now()
     keys_to_uuids: dict[str, str] = {}
     built: list[tuple[dict, GoalStep]] = []
@@ -130,7 +134,6 @@ def issue_goal(
     org_id: int | None = None,
     source: GoalSource = GoalSource.ASSIGNMENT,
     assignment_id: int | None = None,
-    badge_id: int | None = None,
     title: str | None = None,
     staff_user_ids: list[int] | None = None,
     start_date: date | None = None,
@@ -152,7 +155,7 @@ def issue_goal(
         goal_uuid=f"goal_{uuid4()}", org_id=org_id if org_id is not None else template.org_id,
         owner_user_id=owner_user_id or subject_user_id, subject_user_id=subject_user_id,
         ownership=GoalOwnership.EXTERNAL, source=source, template_id=template.id, version_id=version.id,
-        assignment_id=assignment_id, badge_id=badge_id, title=title or meta.get("title") or template.title,
+        assignment_id=assignment_id, title=title or meta.get("title") or template.title,
         description=meta.get("description") or "", status=status,
         start_date=start_date, target_date=due_date, creation_date=now, update_date=now,
     )
@@ -170,6 +173,9 @@ def issue_goal(
             access.add_member(db, goal, int(staff_id), staff_role)
 
     build_stages(db, goal, document, stage_schedule(document, start_date, stage_dates))
+    from src.services.requirement_tracking import track_goal
+
+    track_goal(db, goal)  # its learner is tracked on what the plan counts toward
     access.log(db, goal, actor_user_id, "goal.issued", {"source": _source_value(source), "template_uuid": template.template_uuid, "version": version.number})
     return goal
 
@@ -183,5 +189,8 @@ def issue_step(db: Session, goal: Goal, version: GoalTemplateVersion, step_key: 
     position = 0 if last is None else last + 1
     step = build_step(db, goal, stage, {**spec, "after": []}, position)
     db.flush()
+    from src.services.requirement_tracking import track_goal
+
+    track_goal(db, goal)
     access.log(db, goal, actor_user_id, "step.added", {"step_uuid": step.step_uuid, "from_template_step": step_key})
     return step

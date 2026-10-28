@@ -2,13 +2,14 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { AtSign, Loader2, Plus, Send, Slash } from 'lucide-react'
+import { AtSign, Library, Loader2, Plus, Send, Slash } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { connectApi, connectKeys, connectUrl, type ChatTopic, type FoundPerson } from '@services/connect/connect'
 import type { PersonSummary } from '@services/goals/types'
-import { OptionIcon, ZWSP, chipFor, detail, ghostFor, label, optionsFor, paintDraft, type Draft, type Option, type TagOrg } from './composerParts'
+import { ResourcePickerModal } from '@components/Resources/admin/ResourcePicker'
+import { OptionIcon, ZWSP, chipFor, detail, ghostFor, label, optionsFor, paintDraft, resourceChip, type Draft, type Option, type TagOrg } from './composerParts'
 
 export type { TagOrg }
 
@@ -32,15 +33,18 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
   placeholder: string
   disabled?: string
   token?: string
+  /** Staff can share the org's resources and the Library's from the + menu. */
+  resources?: boolean
   // eslint-disable-next-line no-unused-vars
   onSend: (body: string) => Promise<boolean>
-}>(function TagComposer({ topics, people, orgs, placeholder, disabled, token, onSend }, ref) {
+}>(function TagComposer({ topics, people, orgs, placeholder, disabled, token, resources = false, onSend }, ref) {
   const editor = React.useRef<HTMLDivElement>(null)
   const [empty, setEmpty] = React.useState(true)
   const [sending, setSending] = React.useState(false)
   const [draft, setDraftState] = React.useState<Draft | null>(null)
   const current = React.useRef<Draft | null>(null)
   const [active, setActive] = React.useState(0)
+  const [picking, setPicking] = React.useState(false)
   const setDraft = (next: Draft | null) => { current.current = next; setDraftState(next); setActive(0) }
   const query = draft?.stage === 'person' ? draft.query : ''
   const { data: found = [] } = useSWR<FoundPerson[]>(token && query.length >= 2 ? connectUrl(`/search?q=${encodeURIComponent(query)}`) : null, () => connectApi.search(query, token), { keepPreviousData: true })
@@ -216,6 +220,20 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
     open(char, '', text, offset + lead.length, offset + lead.length + 1)
   }
 
+  /** Resources from the picker go in at the end, each as a chip. */
+  const share = (picked: Array<{ resource_uuid: string; title: string }>) => {
+    const node = editor.current
+    if (!node || !picked.length) return
+    settle()
+    for (const resource of picked) {
+      if (node.textContent && !SPACE.test(node.textContent.slice(-1))) node.append(document.createTextNode(' '))
+      node.append(resourceChip(resource), document.createTextNode(' '))
+    }
+    node.focus()
+    place(node.lastChild as Text, (node.lastChild?.textContent || '').length)
+    sync()
+  }
+
   React.useImperativeHandle(ref, () => ({ focus: () => editor.current?.focus(), clear }))
 
   const heading = draft?.stage === 'person' ? 'People and organizations' : draft?.stage === 'step' ? `In ${draft.plan?.title || 'this plan'}` : 'Plans'
@@ -265,8 +283,10 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
           <DropdownMenuContent align="start" side="top" className="w-60" onCloseAutoFocus={(event) => event.preventDefault()}>
             <DropdownMenuItem onSelect={() => setTimeout(() => begin('/'), 0)}><Slash /> Tag a plan or step</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setTimeout(() => begin('@'), 0)}><AtSign /> Tag a person or organization</DropdownMenuItem>
+            {resources ? <DropdownMenuItem onSelect={() => setPicking(true)}><Library /> Share a resource</DropdownMenuItem> : null}
           </DropdownMenuContent>
         </DropdownMenu>
+        {resources ? <ResourcePickerModal open={picking} setOpen={setPicking} title="Share a resource" action="Share" onPick={share} /> : null}
         <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground"><b className="font-semibold">/</b> plans<span className="hidden sm:inline"> and steps</span> · <b className="font-semibold">@</b> people</span>
         <Button type="button" size="icon" className="h-9 w-9 rounded-xl" disabled={empty || sending || Boolean(disabled)} aria-label="Send message" onMouseDown={(event) => event.preventDefault()} onClick={() => void send()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

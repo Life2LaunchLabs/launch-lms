@@ -5,7 +5,6 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from src.db.organizations import Organization
 from src.db.requirements import (
     RequirementAssignmentBatch,
-    RequirementAssignmentCreate,
     RequirementAttainmentSource,
     RequirementEnrollment,
     RequirementEnrollmentMigrate,
@@ -21,7 +20,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services import requirements
+from src.services import requirement_tracking, requirements
 
 
 NOW = "2026-09-01T12:00:00+00:00"
@@ -84,7 +83,8 @@ def test_free_form_framework_edit_and_publish_preserve_supplied_hierarchy():
         edited = requirements.update_framework(db, admin, 1, draft["framework_uuid"], RequirementFrameworkUpdate(nodes=nodes))
         published = requirements.publish_framework(db, admin, 1, draft["framework_uuid"])
         assert published["status"] == "published"
-        assert published["source_metadata"] == source
+        # old empty levels are dropped; a framework without them numbers nothing (custom codes) and has no fields
+        assert published["source_metadata"] == {"source_url": "https://example.org/standards", "numbering": "custom", "fields": []}
         assert published["nodes"] == edited["nodes"]
         assert [(node["node_uuid"], node["parent_node_uuid"], node["code"]) for node in published["nodes"]] == [(node.node_uuid, node.parent_node_uuid, node.code) for node in nodes]
         assert published["nodes"][2]["metadata"] == {"source_page": 4}
@@ -138,13 +138,95 @@ def test_staff_read_frameworks_but_only_admins_change_them():
             lambda: requirements.update_framework(db, staff, 1, framework["framework_uuid"], RequirementFrameworkUpdate(name="Changed")),
             lambda: requirements.publish_framework(db, staff, 1, framework["framework_uuid"]),
             lambda: requirements.create_framework(db, staff, RequirementFrameworkCreate(org_id=1, name="New")),
-            lambda: requirements.assign_framework(db, staff, 1, framework["framework_uuid"], RequirementAssignmentCreate(usergroup_id=1)),
+            lambda: requirements.set_flags(db, learner, 1, framework["framework_uuid"], []),
             lambda: requirements.list_frameworks(db, learner, 1),
             lambda: requirements.get_framework(db, learner, 1, framework["framework_uuid"]),
         ):
             with pytest.raises(HTTPException) as denied:
                 attempt()
             assert denied.value.status_code == 403
+
+
+def test_library_framework_shared_as_is_is_a_locked_published_copy():
+    db, admin = _session()
+    with db:
+        db.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
+        db.commit()
+        source = _framework(db, admin)
+        requirements.publish_framework_to_library(db, admin, 1, source["framework_uuid"], editable=False)
+        assert requirements.list_framework_library(db, admin, 2)[0]["editable"] is False
+        copied = requirements.copy_framework_from_library(db, admin, 2, source["framework_uuid"])
+        assert (copied["locked"], copied["status"], copied["published_version"]) == (True, "published", 1)
+        assert requirements.list_frameworks(db, admin, 2)[0]["can_edit"] is False
+        for change in (
+            lambda: requirements.update_framework(db, admin, 2, copied["framework_uuid"], RequirementFrameworkUpdate(name="Ours now")),
+            lambda: requirements.publish_framework(db, admin, 2, copied["framework_uuid"]),
+        ):
+            with pytest.raises(HTTPException) as exc:
+                change()
+            assert exc.value.status_code == 409
+
+
+def test_categories_number_children_and_check_rules():
+    db, admin = _session()
+    with db:
+        created = requirements.create_framework(db, admin, RequirementFrameworkCreate(org_id=1, name="Graduation", nodes=[
+            RequirementNodeInput(node_uuid="sb3", code="SB3", title="SB3", numbering="decimal"),
+            RequirementNodeInput(node_uuid="sb3h", parent_node_uuid="sb3", title="Higher education", numbering="lower_alpha"),
+            RequirementNodeInput(node_uuid="sb3h1", parent_node_uuid="sb3h", title="Explore"),
+            RequirementNodeInput(node_uuid="ccl", code="CCL", title="CCL", rule={"kind": "any", "count": 1}),
+            RequirementNodeInput(node_uuid="ccl1", parent_node_uuid="ccl", code="CCL-AW", title="Awareness", rule={"kind": "any", "count": 1}),
+        ]))
+        nodes = {node["node_uuid"]: node for node in created["nodes"]}
+        assert [nodes[key]["code"] for key in ("sb3", "sb3h", "sb3h1", "ccl", "ccl1")] == ["SB3", "SB3.1", "SB3.1.a", "CCL", "CCL-AW"]
+        assert nodes["ccl"]["rule"] == {"kind": "any", "count": 1}
+        assert nodes["ccl1"]["rule"] == {"kind": "all"}  # a requirement has no rule
+        with pytest.raises(HTTPException) as exc:
+            requirements.update_framework(db, admin, 1, created["framework_uuid"], RequirementFrameworkUpdate(nodes=[
+                RequirementNodeInput(node_uuid="ccl", code="CCL", title="CCL", rule={"kind": "any", "count": 2}),
+                RequirementNodeInput(node_uuid="ccl1", parent_node_uuid="ccl", code="CCL-AW", title="Awareness"),
+            ]))
+        assert exc.value.status_code == 422
+
+
+def test_migration_turns_levels_into_numbering_and_fields():
+    import importlib.util
+    from pathlib import Path
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import text
+
+    path = Path(__file__).parents[2] / "migrations" / "versions" / "e2c8a4f6b1d3_requirement_categories.py"
+    spec = importlib.util.spec_from_file_location("requirement_categories", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    db, admin = _session()
+    with db:
+        framework = _framework(db, admin)  # made with levels: Domain (upper_alpha), Requirement (decimal, a Due field)
+        row = db.exec(select(RequirementFramework)).one()
+        row.source_metadata = {"source_url": "x", "requirement_levels": [
+            {"level_uuid": "level_domain", "name": "Domain", "code_style": "upper_alpha", "metadata_fields": []},
+            {"level_uuid": "level_requirement", "name": "Requirement", "code_style": "decimal", "metadata_fields": [{"field_uuid": "field_due", "name": "Due", "type": "date", "required": True}]},
+        ]}
+        db.add(row)
+        for node in db.exec(select(RequirementNode)).all():
+            node.metadata_json = {}
+            db.add(node)
+        db.commit()
+        connection = db.connection()
+        for column in ("flagged_node_uuids", "locked", "library_editable"):
+            connection.execute(text(f"ALTER TABLE requirementframework DROP COLUMN {column}"))
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.upgrade()
+        db.commit()
+        db.expire_all()
+        upgraded = requirements.get_framework(db, admin, 1, framework["framework_uuid"])
+        assert upgraded["source_metadata"]["numbering"] == "upper_alpha"
+        assert "requirement_levels" not in upgraded["source_metadata"]
+        assert upgraded["source_metadata"]["fields"] == [{"field_uuid": "field_due", "name": "Due", "type": "date", "required": True, "applies": "requirements"}]
+        assert [(node["code"], node["numbering"]) for node in upgraded["nodes"]] == [("A", "decimal"), ("A.1", "custom")]
+        assert (upgraded["locked"], upgraded["library_editable"], upgraded["flagged_node_uuids"]) == (False, True, [])
 
 
 def test_non_owner_org_cannot_publish_requirement_to_library():
@@ -159,16 +241,24 @@ def test_non_owner_org_cannot_publish_requirement_to_library():
         assert exc.value.status_code == 403
 
 
-def test_framework_assignment_snapshots_leaf_requirements_and_syncs_group_membership():
+def _framework_id(db: Session, framework: dict) -> int:
+    return int(db.exec(select(RequirementFramework.id).where(RequirementFramework.framework_uuid == framework["framework_uuid"])).one())
+
+
+def test_tracking_a_learner_snapshots_leaf_requirements_once():
     db, admin = _session()
     with db:
         framework = _framework(db, admin)
-        assigned = requirements.assign_framework(db, admin, 1, framework["framework_uuid"], RequirementAssignmentCreate(usergroup_id=1))
-        assert assigned["enrollment_count"] == 1
+        requirement_tracking.track(db, 1, 2, {_framework_id(db, framework)})
+        requirement_tracking.track(db, 1, 2, {_framework_id(db, framework)})  # a second plan that counts adds nothing
         enrollment = db.exec(select(RequirementEnrollment)).one()
+        batch = db.get(RequirementAssignmentBatch, enrollment.batch_id)
+        assert (batch.usergroup_id, batch.user_id, batch.created_by_user_id) == (None, None, None)
         assert enrollment.framework_snapshot["leaf_node_uuids"] == ["node_experience"]
-        assert enrollment.framework_snapshot["source_metadata"]["requirement_levels"][1]["name"] == "Requirement"
-        assert enrollment.framework_snapshot["source_metadata"]["requirement_levels"][1]["code_style"] == "decimal"
+        # the old levels became numbering: categories by letter, their requirements by number
+        assert enrollment.framework_snapshot["source_metadata"]["numbering"] == "upper_alpha"
+        assert enrollment.framework_snapshot["nodes"][0]["numbering"] == "decimal"
+        assert [field["field_uuid"] for field in enrollment.framework_snapshot["source_metadata"]["fields"]] == ["field_due"]
         assert [node["code"] for node in enrollment.framework_snapshot["nodes"]] == ["A", "A.1"]
         report = requirements.report(db, admin, 1, framework["framework_uuid"])
         assert report["learner_count"] == 1
@@ -180,14 +270,14 @@ def test_verified_completion_satisfies_requirement_and_protects_completed_versio
     db, admin = _session()
     with db:
         framework = _framework(db, admin)
-        requirements.assign_framework(db, admin, 1, framework["framework_uuid"], RequirementAssignmentCreate(user_id=2))
+        requirement_tracking.track(db, 1, 2, {_framework_id(db, framework)})
         enrollment = db.exec(select(RequirementEnrollment)).one()
         db.add(RequirementAttainmentSource(
             source_uuid="requirement_source_1", enrollment_id=enrollment.id, node_uuid="node_experience", objective_title="Complete an internship",
             verified_by_user_id=1, creation_date=NOW, update_date=NOW,
         ))
         db.flush()
-        requirements._recompute_enrollment(db, enrollment)
+        requirement_tracking._recompute_enrollment(db, enrollment)
         db.commit()
 
         report = requirements.report(db, admin, 1, framework["framework_uuid"])
@@ -201,7 +291,7 @@ def test_verified_completion_satisfies_requirement_and_protects_completed_versio
         ]))
         published = requirements.publish_framework(db, admin, 1, framework["framework_uuid"])
         assert published["version"] == 2
-        migrated = requirements.migrate_enrollments(db, admin, 1, framework["framework_uuid"], RequirementEnrollmentMigrate())
+        migrated = requirement_tracking.migrate_enrollments(db, admin, 1, framework["framework_uuid"], RequirementEnrollmentMigrate())
         assert migrated["updated"] == 0
         enrollment = db.exec(select(RequirementEnrollment)).one()
         assert enrollment.framework_snapshot["version"] == 1
@@ -246,3 +336,15 @@ def test_level_code_styles_generate_hierarchical_codes_and_preserve_published_ve
         assert {node["node_uuid"]: node["code"] for node in updated["nodes"]}["leaf_two"] == "a.I.2"
         original = requirements.get_framework(db, admin, 1, created["framework_uuid"], version=1)
         assert {node["node_uuid"]: node["code"] for node in original["nodes"]}["leaf_two"] == "A.1.ii"
+
+
+def test_flags_mark_requirements_of_the_current_version():
+    db, admin = _session()
+    with db:
+        framework = _framework(db, admin)
+        flagged = requirements.set_flags(db, admin, 1, framework["framework_uuid"], ["node_experience", "node_experience"])
+        assert flagged["flagged_node_uuids"] == ["node_experience"]
+        with pytest.raises(HTTPException) as exc:
+            requirements.set_flags(db, admin, 1, framework["framework_uuid"], ["node_career"])  # a category, not a requirement
+        assert exc.value.status_code == 422
+        assert requirements.set_flags(db, admin, 1, framework["framework_uuid"], [])["flagged_node_uuids"] == []

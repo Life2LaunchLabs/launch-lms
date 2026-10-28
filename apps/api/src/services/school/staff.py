@@ -92,7 +92,6 @@ def _sync_goals(db: Session, row: UserGroupStaff | None, group_id: int, user_id:
 
 
 def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int, payload: GroupStaffSet) -> dict:
-    from src.services.goals.assignments import _can_manage
     from src.services.connect import cohort
     from src.services.school import group_chats
 
@@ -100,7 +99,7 @@ def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int,
     group = _group(db, org_id, group_id)
     if payload.role_key not in SHARING_ROLE_KEYS:
         raise HTTPException(status_code=422, detail="Choose Viewer, Commenter or Editor")
-    if payload.user_id not in _can_manage(db, org_id, [payload.user_id]):
+    if not roles.is_staff(db, org_id, payload.user_id):
         raise HTTPException(status_code=422, detail="Only the organization's staff can be added as staff")
     known = {item.assignment_uuid for item in _assignments(db, group_id)}
     picked = [uuid for uuid in dict.fromkeys(payload.assignment_uuids) if uuid in known]

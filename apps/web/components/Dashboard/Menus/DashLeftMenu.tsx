@@ -47,16 +47,17 @@ import {
 } from '@components/ui/dropdown-menu'
 import DashFeedbackButton from './DashFeedbackButton'
 import NavPill from './NavPill'
+import NavCount from './NavCount'
 import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
-import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
 import { OrgLogo } from '@components/Objects/OrgLogo'
 import { cn } from '@/lib/utils'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { tierLabel } from '@services/plans/plans'
+import { useHub } from '@components/Hub/HubContext'
 
 const TOOLTIP_CLASS = "z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20"
 const COLLAPSED_KEY = 'dash-menu-collapsed'
@@ -82,7 +83,7 @@ function DashLeftMenu() {
     await signOut({ redirect: true, callbackUrl: getUriWithOrg(org.slug, '/login') })
   }
 
-  const tabs = usePlansNavTabs(features.adminTabs())
+  const tabs = features.adminTabs()
 
   if (!org || !session) return null
 
@@ -291,6 +292,7 @@ function DashLeftMenu() {
 /** One tab: a link, a hover menu when it has more than one page, or a locked row with its Request action. */
 function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isActive: boolean; isCollapsed: boolean }) {
   const { t } = useTranslation()
+  const hub = useHub()
   const label = adminLabel(t, item)
   const Icon = ADMIN_NAV_ICONS[item.id]
   const locked = item.visibility.state === 'locked' ? item.visibility.request : null
@@ -328,6 +330,7 @@ function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isAct
       {!isCollapsed && (
         <>
           <span className="text-sm font-medium flex-1 text-left">{label}</span>
+          <NavCount id={item.id} />
           {item.pill && <NavPill>{item.pill}</NavPill>}
           {hasMenu && <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />}
         </>
@@ -335,6 +338,15 @@ function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isAct
     </>
   )
   const link = <Link aria-label={label} href={item.href} className={rowClass}>{content}</Link>
+
+  // Threads also opens beside whatever page you're on.
+  if (item.id === 'people' && hub?.hasThreads && !isCollapsed) return <div className="group/threads relative">
+    {link}
+    <button type="button" onClick={() => hub.openThreads(null)} aria-label="Show threads beside the page" title="Show beside the page"
+      className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-white/40 hover:bg-white/[0.12] hover:text-white">
+      <SidebarSimple size={15} weight="fill" className="-scale-x-100" />
+    </button>
+  </div>
 
   if (!hasMenu) return isCollapsed ? <WithTooltip label={label}>{link}</WithTooltip> : link
 

@@ -25,278 +25,6 @@ class LearningRunStatus(str, Enum):
     COMPLETED = "completed"
 
 
-class LearningBadgeStatus(str, Enum):
-    DRAFT = "draft"
-    COMING_SOON = "coming_soon"
-    PUBLISHED = "published"
-
-
-class LearningBadgeVersionState(str, Enum):
-    DRAFT = "draft"
-    PUBLISHED = "published"
-
-
-class LearningAwardSource(str, Enum):
-    PLAN_COMPLETION = "plan_completion"
-    DIRECT_CONFERRAL = "direct_conferral"
-    PATH_COMPLETION = "path_completion"  # awards earned before badges were earned through plans
-
-
-class BadgeIssuerAuthorizationStatus(str, Enum):
-    QUEUED = "queued"
-    REQUESTED = "requested"
-    INVITED = "invited"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    REVOKED = "revoked"
-    PACKAGE_DENIED = "package_denied"
-
-
-class BadgeIssuerLearnerLinkStatus(str, Enum):
-    REQUESTED = "requested"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-    ENDED = "ended"
-    COMPLETED = "completed"
-
-
-class LearningBadgeBase(SQLModel):
-    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    collection_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgecollection.id", ondelete="SET NULL"), nullable=True, index=True))
-    name: str
-    description: str | None = ""
-    about: str | None = ""
-    criteria: str | None = ""
-    thumbnail_image: str | None = ""
-    public: bool = True
-    status: LearningBadgeStatus = Field(default=LearningBadgeStatus.DRAFT, sa_column=Column(String, nullable=False))
-    direct_conferral_enabled: bool = True
-    marketplace_listed: bool = False
-    badge_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
-    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
-
-
-class LearningBadge(LearningBadgeBase, table=True):
-    __table_args__ = (UniqueConstraint("badge_uuid"),)
-
-    id: int | None = Field(default=None, primary_key=True)
-    badge_uuid: str = Field(default="", index=True)
-    active_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="SET NULL"), nullable=True, index=True))
-    creation_date: str = ""
-    update_date: str = ""
-
-
-class LearningBadgeCreate(SQLModel):
-    org_id: int
-    collection_id: int | None = None
-    name: str
-    description: str | None = ""
-    about: str | None = ""
-    criteria: str | None = ""
-    thumbnail_image: str | None = ""
-    public: bool = True
-    status: LearningBadgeStatus = LearningBadgeStatus.DRAFT
-    direct_conferral_enabled: bool = True
-    marketplace_listed: bool = False
-    badge_metadata: dict = Field(default_factory=dict)
-
-
-class OpenBadgeImport(SQLModel):
-    org_id: int
-    collection_id: int | None = None
-    badge: dict
-
-
-class LearningBadgeUpdate(SQLModel):
-    collection_id: int | None = None
-    name: str | None = None
-    description: str | None = None
-    about: str | None = None
-    criteria: str | None = None
-    thumbnail_image: str | None = None
-    public: bool | None = None
-    status: LearningBadgeStatus | None = None
-    direct_conferral_enabled: bool | None = None
-    marketplace_listed: bool | None = None
-    badge_metadata: dict | None = None
-
-
-class LearningBadgeRead(LearningBadgeBase):
-    id: int
-    badge_uuid: str
-    creation_date: str
-    update_date: str
-    active_version_id: int | None = None
-    selected_version: dict | None = None
-    versions: list[dict] = Field(default_factory=list)
-    can_edit: bool | None = None
-    access_type: str | None = None
-    creator_org: dict | None = None  # {id, name, slug} of the badge's maker, on the admin detail read
-
-
-class LearningBadgeVersion(SQLModel, table=True):
-    __table_args__ = (
-        UniqueConstraint("version_uuid"),
-        UniqueConstraint("badge_id", "semantic_version"),
-    )
-
-    id: int | None = Field(default=None, primary_key=True)
-    version_uuid: str = Field(default="", index=True)
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    state: LearningBadgeVersionState = Field(default=LearningBadgeVersionState.DRAFT, sa_column=Column(String, nullable=False, index=True))
-    semantic_version: str | None = Field(default=None, nullable=True)
-    title: str = "Untitled draft"
-    description: str | None = ""
-    based_on_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="SET NULL"), nullable=True, index=True))
-    definition: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    revision: int = 1
-    created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    published_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    published_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
-    creation_date: str = ""
-    update_date: str = ""
-
-
-class LearningBadgeVersionCreate(SQLModel):
-    based_on_version_uuid: str | None = None
-    title: str
-    description: str | None = ""
-
-
-class LearningBadgeVersionUpdate(SQLModel):
-    title: str | None = None
-    description: str | None = None
-    expected_revision: int | None = None
-
-
-class LearningBadgeVersionPublish(SQLModel):
-    semantic_version: str
-    title: str
-    description: str | None = ""
-    set_active: bool = True
-    expected_revision: int | None = None
-
-
-class BadgeCollectionBase(SQLModel):
-    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    name: str
-    description: str | None = ""
-    thumbnail_image: str | None = ""
-    public: bool = True
-    hidden: bool = False
-    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
-    collection_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))  # marketing: credibility, endorsers
-
-
-class BadgeCollection(BadgeCollectionBase, table=True):
-    __table_args__ = (UniqueConstraint("collection_uuid"),)
-
-    id: int | None = Field(default=None, primary_key=True)
-    collection_uuid: str = Field(default="", index=True)
-    creation_date: str = ""
-    update_date: str = ""
-
-
-class BadgeCollectionCreate(SQLModel):
-    org_id: int
-    name: str
-    description: str | None = ""
-    thumbnail_image: str | None = ""
-    public: bool = True
-    hidden: bool = False
-
-
-class BadgeCollectionUpdate(SQLModel):
-    name: str | None = None
-    description: str | None = None
-    thumbnail_image: str | None = None
-    public: bool | None = None
-    hidden: bool | None = None
-    collection_metadata: dict | None = None
-
-
-class BadgeCollectionRead(BadgeCollectionBase):
-    id: int
-    collection_uuid: str
-    creation_date: str
-    update_date: str
-    badges: list[LearningBadgeRead] = Field(default_factory=list)
-    can_edit: bool | None = None
-    access_type: str | None = None
-    creator_org: dict | None = None
-
-
-class BadgeIssuerAuthorization(SQLModel, table=True):
-    """Unused (to drop in the pruning migration): the old badge-level permission to issue a badge.
-
-    Never read or written. Permission to issue a badge is approval on one of its plans
-    (``GoalTemplateAuthorization``, see ``services/goals/plan_issuers``); migration a8c4e1f7d2b9
-    copied these approvals there. The model stays so autogenerate doesn't drop the table."""
-
-    __table_args__ = (UniqueConstraint("badge_id", "issuer_org_id"), UniqueConstraint("authorization_uuid"))
-
-    id: int | None = Field(default=None, primary_key=True)
-    authorization_uuid: str = Field(default="", index=True)
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    creator_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    status: BadgeIssuerAuthorizationStatus = Field(default=BadgeIssuerAuthorizationStatus.REQUESTED, sa_column=Column(String, nullable=False))
-    open_to_all: bool = False  # mirrors learner_access open|request; learner_access is "open", "request" or "invite"
-    learner_access: str = Field(default="invite", sa_column=Column(String, nullable=False, server_default="invite"))
-    message: str | None = ""
-    requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    decided_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    decided_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
-    creation_date: str = ""
-    update_date: str = ""
-
-
-class BadgeIssuerLearnerLink(SQLModel, table=True):
-    """Issuer's declaration that it is willing to support a specific learner on a specific badge."""
-
-    __table_args__ = (UniqueConstraint("authorization_id", "user_id"), UniqueConstraint("link_uuid"))
-
-    id: int | None = Field(default=None, primary_key=True)
-    link_uuid: str = Field(default="", index=True)
-    # Unused (to drop in the pruning migration, with the old unique (authorization_id, user_id)): links are per badge, issuer and learner.
-    authorization_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgeissuerauthorization.id", ondelete="CASCADE"), nullable=True, index=True))
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
-    status: BadgeIssuerLearnerLinkStatus = Field(default=BadgeIssuerLearnerLinkStatus.ACCEPTED, sa_column=Column(String, nullable=False, index=True))
-    requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    decided_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    decided_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
-    staff_user_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON))
-    message: str | None = ""
-    note: str | None = ""
-    end_reason: str | None = None
-    ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    ended_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
-    creation_date: str = ""
-    update_date: str = ""
-
-
-class IssuerLearnerLinkCreate(SQLModel):
-    badge_uuid: str
-    issuer_org_id: int
-    user_id: int
-    note: str | None = ""
-
-
-class IssuerLearnerRequestCreate(SQLModel):
-    badge_uuid: str
-    issuer_org_id: int
-    message: str | None = ""
-
-
-class IssuerLearnerRequestDecision(SQLModel):
-    staff_user_ids: list[int] = Field(default_factory=list)
-    note: str | None = ""
-
-
 class LearningActivityBase(SQLModel):
     """An interactive activity: the content of a goal template's activity step."""
 
@@ -334,6 +62,9 @@ class LearningActivityRead(LearningActivityBase):
     creation_date: str
     update_date: str
     pages: list["LearningPageRead"] = Field(default_factory=list)
+    # The order editors work on: the stored sequence, else the flow converted, else the pages in order.
+    sequence: dict | None = None
+    sequence_flags: list[dict] = Field(default_factory=list)
 
 
 class LearningPageBase(SQLModel):
@@ -471,25 +202,6 @@ class LearningResponseAttempt(SQLModel, table=True):
     result: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
-class LearningBadgeAward(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("award_uuid"), UniqueConstraint("badge_id", "user_id", "major_version"))
-
-    id: int | None = Field(default=None, primary_key=True)
-    award_uuid: str = Field(default="", index=True)
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    badge_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="RESTRICT"), nullable=True, index=True))
-    major_version: int = 1
-    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # None: the creator org issued it
-    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
-    source: LearningAwardSource = LearningAwardSource.PLAN_COMPLETION
-    conferred_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    issued_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
-    evidence: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    creation_date: str = ""
-    update_date: str = ""
-
-
 class LearningRunRead(BaseModel):
     id: int
     run_uuid: str
@@ -506,6 +218,18 @@ class LearningRunRead(BaseModel):
     attempts: list[dict] = []
     navigation: dict | None = None
     render_context: dict = Field(default_factory=dict)
+
+
+class LearningContentBackup(SQLModel, table=True):
+    """What the version 3 migration replaced: an activity's settings or a page's content, kept for one release."""
+
+    __table_args__ = (UniqueConstraint("kind", "ref_uuid", "migration"),)
+    id: int | None = Field(default=None, primary_key=True)
+    kind: str  # "activity" (its settings) or "page" (its content)
+    ref_uuid: str = Field(index=True)
+    migration: str = "v3"
+    data: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    creation_date: str = ""
 
 
 LearningActivityRead.model_rebuild()

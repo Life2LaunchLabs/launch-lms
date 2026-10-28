@@ -1,9 +1,6 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import { LockSimple } from '@phosphor-icons/react'
-import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
-import type { AccessRequest } from '@/lib/admin/registry'
 import { cn } from '@/lib/utils'
 
 /** One Home widget: a titled card with an optional count and a link to the full view. */
@@ -47,22 +44,6 @@ export function WidgetEmpty({ children }: { children: React.ReactNode }) {
 export function Chip({ tone = 'gray', children }: { tone?: 'gray' | 'blue' | 'amber' | 'green' | 'red'; children: React.ReactNode }) {
   const tones = { gray: 'bg-gray-100 text-gray-600', blue: 'bg-blue-50 text-blue-700', amber: 'bg-amber-50 text-amber-700', green: 'bg-emerald-50 text-emerald-700', red: 'bg-red-50 text-red-700' }
   return <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-1', tones[tone])}>{children}</span>
-}
-
-/** A widget the org's access doesn't include, with the request that unlocks it. */
-export function LockedWidget({ title, description, request }: { title: string; description: string; request: AccessRequest }) {
-  return (
-    <WidgetCard title={title}>
-      <div className="flex items-center gap-4 px-5 py-5">
-        <LockSimple size={22} weight="fill" className="shrink-0 text-gray-300" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-700">Part of {accessRequestLabel(request)}</p>
-          <p className="text-xs text-gray-500">{description}</p>
-        </div>
-        <RequestAccessButton request={request} className="px-3 py-1.5 text-xs" />
-      </div>
-    </WidgetCard>
-  )
 }
 
 /** "Today", "Tomorrow", a weekday this week, else a short date, for a YYYY-MM-DD day. */

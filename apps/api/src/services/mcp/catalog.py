@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+from src.services.goals import mcp_collections as goal_collections
 from src.services.goals import mcp_library as goal_library
 from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
 from src.services.mcp.coach_tools import COACH_TOOLS
+from src.services.mcp.insights_tools import INSIGHTS_TOOLS
+from src.services.mcp.media_tools import MEDIA_TOOLS
 from src.services.mcp.tool import Handler, Tool  # noqa: F401  (re-exported)
 
 _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'launch-lms.activity', format_version 1). See get_activity_schema."}
 _TEMPLATE_DOCUMENT = {"type": "object", "description": "A Goal Template Document (format 'launch-lms.goal-template', format_version 1): template details and stages of typed steps. See get_plan_template_schema."}
 _FRAMEWORK_DOCUMENT = {"type": "object", "description": "A Requirement Framework Document (format 'launch-lms.requirement-framework', format_version 1). See get_requirement_framework_schema."}
-_BADGE_DOCUMENT = {"type": "object", "description": "A Badge Document (format 'launch-lms.badge', format_version 1). See get_badge_schema."}
 _LIBRARY_KIND = {"type": "string", "enum": ["plan_template", "requirement_framework"]}
+_LISTING_MODE = {"type": "string", "enum": ["locked", "open"], "description": "Plans only. locked: other organizations assign it as is (badge plans); open: they can copy and change it. Default open in publish_to_library, locked in set_plan_listing."}
+_LISTING_ACCESS = {"type": "string", "enum": ["open", "request"], "description": "Plans only. open: any organization can add it; request: they ask and you approve. Default open in publish_to_library, request in set_plan_listing."}
 _PERSONA = {
     "type": "object",
     "description": "Optional learner variables to preview with, e.g. {\"user.first_name\": \"Sam\", \"user.details.variables.grade\": \"9\"}.",
@@ -37,6 +41,13 @@ TOOLS = [
         goal_templates.list_activities,
     ),
     Tool(
+        "audit_activities",
+        "Audit activities for the new format",
+        "Activities in this organization whose move to sequences and version 3 pages needs a person: routes that changed (an early finish, a page on two paths), pages that swap blocks on an earlier answer (they need a branch), go-back buttons that were dropped. Each has its editor_url. Pass notes: true to include changes learners won't notice.",
+        {"properties": {"notes": {"type": "boolean", "description": "Also list activities with notes only (such as a page given an empty heading)."}}},
+        handlers.audit_activities,
+    ),
+    Tool(
         "get_activity",
         "Get an activity",
         "Read one activity as an Activity Document, plus its etag (needed to save) and the template it belongs to.",
@@ -46,14 +57,14 @@ TOOLS = [
     Tool(
         "get_activity_schema",
         "Activity format guide",
-        "Get the authoring guide and JSON Schema for Activity Documents: blocks, questions, branching flow and variants. Read it before writing or editing pages.",
+        "Get the authoring guide and JSON Schema for Activity Documents: blocks, questions, sequences and branches. Read it before writing or editing pages.",
         {"properties": {}},
         handlers.get_activity_schema,
     ),
     Tool(
         "list_variables",
         "List learner variables",
-        "List the learner variables this organization defines, usable in flow conditions, display bindings and preview personas.",
+        "List the learner variables this organization defines, usable in branch rules, display bindings and preview personas.",
         {"properties": {}},
         handlers.list_variables,
     ),
@@ -107,7 +118,7 @@ TOOLS = [
     Tool(
         "get_plan_template_schema",
         "Plan template format guide",
-        "Get the authoring guide and JSON Schema for Goal Template Documents: stages, step types, schedules, badge steps and roles. Read it before writing or editing a template.",
+        "Get the authoring guide and JSON Schema for Goal Template Documents: stages, step types, schedules, the badge it earns, badge steps and roles. Read it before writing or editing a template.",
         {"properties": {}},
         goal_templates.get_plan_template_schema,
         scope="plans:read",
@@ -149,7 +160,7 @@ TOOLS = [
     Tool(
         "publish_plan_template",
         "Publish a plan template",
-        "Publish the template's draft (its stages, steps and activities) as a new version. New assignments and badge starts use it; plans already issued keep their version, with their learners' answers. Only call this when the admin asks.",
+        "Publish the template's draft (its stages, steps and activities) as a new version. New assignments and learners joining from Discover get it, and its badge block is what finishing it earns; plans already issued keep their version, with their learners' answers. Only call this when the admin asks.",
         {"properties": {"template_uuid": {"type": "string"}, "note": {"type": "string", "description": "What changed, shown in the version history."}}, "required": ["template_uuid"]},
         goal_templates.publish_plan_template,
         scope="plans:write",
@@ -182,15 +193,6 @@ TOOLS = [
         read_only=False,
     ),
     Tool(
-        "update_template_badge_versions",
-        "Move badge steps to the latest badge versions",
-        "Point a template's badge steps at each badge's newest published major version (get_plan_template lists outdated ones). Future assignments then require the new version.",
-        {"properties": {"template_uuid": {"type": "string"}, "accept_previous_major_versions": {"type": "boolean", "description": "Still accept awards of the earlier version."}}, "required": ["template_uuid"]},
-        goal_templates.update_template_badge_versions,
-        scope="plans:write",
-        read_only=False,
-    ),
-    Tool(
         "list_requirement_frameworks",
         "List requirement frameworks",
         "List the organization's requirement frameworks with every requirement node (code, title, whether it is a leaf). Template steps link to leaf nodes.",
@@ -209,7 +211,7 @@ TOOLS = [
     Tool(
         "get_requirement_framework_schema",
         "Requirement framework format guide",
-        "Get the authoring guide and JSON Schema for Requirement Framework Documents: nodes, hierarchy levels, codes, versions and publishing.",
+        "Get the authoring guide and JSON Schema for Requirement Framework Documents: categories, numbering, met-when rules, fields, versions and publishing.",
         {"properties": {}},
         handlers.get_requirement_framework_schema,
         scope="plans:read",
@@ -250,119 +252,6 @@ TOOLS = [
         read_only=False,
     ),
     Tool(
-        "list_badges",
-        "List badges",
-        "List the organization's badges with their status, live version, whether a draft is waiting, how many plan templates earn each, and their collection.",
-        {"properties": {"query": {"type": "string", "description": "Optional case-insensitive filter on name and description."}}},
-        handlers.list_badges,
-        scope="plans:read",
-    ),
-    Tool(
-        "get_badge",
-        "Get a badge",
-        "Read a badge's working version (its draft, else the live version) as a Badge Document: credential, Marketing and listing, plus its etag (needed to save), versions, and the plan templates that earn it.",
-        {"properties": {"badge_uuid": {"type": "string"}}, "required": ["badge_uuid"]},
-        handlers.get_badge,
-        scope="plans:read",
-    ),
-    Tool(
-        "get_badge_schema",
-        "Badge format guide",
-        "Get the authoring guide and JSON Schema for Badge Documents: credential fields, Marketing, listing, versions, publishing and ways to earn. Read it before creating or editing a badge.",
-        {"properties": {}},
-        handlers.get_badge_schema,
-        scope="plans:read",
-    ),
-    Tool(
-        "validate_badge",
-        "Validate a badge",
-        "Check a Badge Document against every rule without saving. Returns errors and warnings (including what is still missing to publish) with JSON paths.",
-        {"properties": {"document": _BADGE_DOCUMENT}, "required": ["document"]},
-        handlers.validate_badge,
-        scope="plans:read",
-    ),
-    Tool(
-        "create_badge",
-        "Create a badge",
-        "Create a new badge from a Badge Document. It starts as an unpublished draft; link the plan templates that earn it with set_badge_routes, then publish_badge when the admin asks.",
-        {"properties": {"document": _BADGE_DOCUMENT}, "required": ["document"]},
-        handlers.create_badge,
-        scope="plans:write",
-        read_only=False,
-    ),
-    Tool(
-        "save_badge",
-        "Save a badge",
-        "Save a Badge Document over a badge's working version. A published version is never changed: saving credential or Marketing edits over one starts a new draft. Listing changes apply at once. Requires the etag from get_badge. Does not publish.",
-        {"properties": {"badge_uuid": {"type": "string"}, "document": _BADGE_DOCUMENT, "base_etag": {"type": "string"}}, "required": ["badge_uuid", "document", "base_etag"]},
-        handlers.save_badge,
-        scope="plans:write",
-        read_only=False,
-    ),
-    Tool(
-        "publish_badge",
-        "Publish a badge",
-        "Publish the badge's draft as a new semantic version and make it live. Omit semantic_version for the next minor (1.0.0 the first time). Only call this when the admin asks to publish.",
-        {
-            "properties": {
-                "badge_uuid": {"type": "string"},
-                "semantic_version": {"type": "string", "description": "major.minor.patch, greater than every published version. See get_badge context.next_semantic_versions."},
-                "release_title": {"type": "string"},
-                "release_notes": {"type": "string"},
-            },
-            "required": ["badge_uuid"],
-        },
-        handlers.publish_badge,
-        scope="plans:write",
-        read_only=False,
-    ),
-    Tool(
-        "set_badge_routes",
-        "Set the ways to earn a badge",
-        "Set the plan templates that earn a badge (its ways to earn) and which one is recommended. Learners who start the badge get their own plan from the recommended template. Pass the full list including the current routes: routes can be added but not removed here (remove them in the Launch LMS editor).",
-        {
-            "properties": {
-                "badge_uuid": {"type": "string"},
-                "routes": {
-                    "type": "array",
-                    "items": {"type": "object", "properties": {"template_uuid": {"type": "string"}, "recommended": {"type": "boolean"}}, "required": ["template_uuid"]},
-                },
-            },
-            "required": ["badge_uuid", "routes"],
-        },
-        handlers.set_badge_routes,
-        scope="plans:write",
-        read_only=False,
-    ),
-    Tool(
-        "list_badge_collections",
-        "List badge collections",
-        "List the organization's badge collections with their credibility statement, endorsers and badges.",
-        {"properties": {}},
-        handlers.list_badge_collections,
-        scope="plans:read",
-    ),
-    Tool(
-        "save_badge_collection",
-        "Create or edit a badge collection",
-        "Create a badge collection (omit collection_uuid) or update one. Only the fields you pass change; endorsers replaces the whole list.",
-        {
-            "properties": {
-                "collection_uuid": {"type": "string"},
-                "name": {"type": "string"},
-                "description": {"type": "string"},
-                "thumbnail_image": {"type": "string", "description": "https URL or /content/... path."},
-                "credibility": {"type": "string", "description": "Why learners and employers should trust these badges."},
-                "endorsers": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "url": {"type": "string"}, "logo_url": {"type": "string"}}, "required": ["name"]}},
-                "public": {"type": "boolean"},
-                "hidden": {"type": "boolean", "description": "Hidden collections are reachable by link only."},
-            },
-        },
-        handlers.save_badge_collection,
-        scope="plans:write",
-        read_only=False,
-    ),
-    Tool(
         "search_library",
         "Search the global library",
         "Search the plan templates or requirement frameworks published to the shared Launch LMS library.",
@@ -383,11 +272,63 @@ TOOLS = [
         "publish_to_library",
         "Publish to the global library",
         "Publish (or refresh) a snapshot of one of this organization's plan templates or published requirement frameworks to the shared library. Only the platform's owner organization can do this. Only call it when the admin asks.",
-        {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string"}}, "required": ["kind", "uuid"]},
+        {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string"},
+                        "editable": {"type": "boolean", "description": "Frameworks only. False for an official standard: orgs use it as is and can't change it. Default true: orgs copy it as their own."},
+                        "mode": _LISTING_MODE, "access": _LISTING_ACCESS},
+         "required": ["kind", "uuid"]},
         goal_library.publish_to_library,
         scope="plans:write",
         read_only=False,
     ),
+    Tool(
+        "list_collections",
+        "List plan collections",
+        "List the organization's plan collections with their plans, categories and whether each is a starter collection, plus the categories to pick from.",
+        {"properties": {}},
+        goal_collections.list_collections,
+        scope="plans:read",
+    ),
+    Tool(
+        "save_collection",
+        "Save a plan collection",
+        "Create a plan collection (omit collection_uuid) or change one. Collections group plans without owning them; their categories (up to 3) apply to every plan inside "
+        "and decide where /start and Discover suggest them. `template_uuids` is the whole plan list when given. `starter` (platform organization only) makes the collection "
+        "a category of the New plan picker every organization sees: its plans with a live version are offered as ready-to-edit copies. Only save when the admin asks.",
+        {"properties": {
+            "collection_uuid": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "categories": {"type": "array", "items": {"type": "string"}, "description": "Up to 3, from list_collections' categories."},
+            "starter": {"type": "boolean"},
+            "template_uuids": {"type": "array", "items": {"type": "string"}},
+        }},
+        goal_collections.save_collection,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "set_plan_listing",
+        "Set how a plan is shared",
+        "List or unlist a plan's live version in Discover for other organizations (needs the plan publishing program), and say how they may use it: "
+        "`mode` locked (assign as is, e.g. badge plans) or open (copy and change), `access` open (add without asking) or request. Only when the admin asks.",
+        {"properties": {"template_uuid": {"type": "string"}, "listed": {"type": "boolean", "description": "Default true."}, "mode": _LISTING_MODE, "access": _LISTING_ACCESS},
+         "required": ["template_uuid"]},
+        goal_collections.set_plan_listing,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "set_plan_cover",
+        "Set a plan's cover",
+        "Set the plan's cover image (a url from upload_media, or \"\" to go back to the icon), icon or color. Covers aren't versioned: every version shows the current one.",
+        {"properties": {"template_uuid": {"type": "string"}, "thumbnail_image": {"type": "string"}, "icon": {"type": "string"}, "color": {"type": "string"}},
+         "required": ["template_uuid"]},
+        goal_collections.set_plan_cover,
+        scope="plans:write",
+        read_only=False,
+    ),
+    *MEDIA_TOOLS,
+    *INSIGHTS_TOOLS,
     *COACH_TOOLS,
 ]
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}

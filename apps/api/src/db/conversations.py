@@ -57,6 +57,8 @@ class ConversationMessage(SQLModel, table=True):
     card: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     # What the message tags, in order: [{"kind": "plan"|"step"|"user"|"org", ...ids}].
     refs: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # "all", or "staff": only the organization's staff read it (services/connect/visibility.py).
+    visibility: str = Field(default="all", sa_column=Column(String, nullable=False, server_default="all"))
     creation_date: str = ""
     update_date: str = ""
 
@@ -72,6 +74,19 @@ class ConversationMessageRef(SQLModel, table=True):
     conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("conversation.id", ondelete="CASCADE"), nullable=False))
     goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True))
     step_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+
+
+class ConversationReaction(SQLModel, table=True):
+    """A cheer on a message: one per person, message and emoji."""
+
+    __tablename__ = "conversationreaction"
+    __table_args__ = (UniqueConstraint("message_id", "user_id", "emoji", name="uq_conversationreaction_message_user_emoji"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("conversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False))
+    emoji: str = Field(sa_column=Column(String, nullable=False))
+    creation_date: str = ""
 
 
 class UserBlock(SQLModel, table=True):
@@ -117,6 +132,12 @@ class ChatMessageCreate(BaseModel):
     step_uuid: str | None = None
     # For each of your plans from elsewhere that you tagged, who here to share it with. {} sends without sharing.
     share: dict[str, list[str]] | None = None
+    # Only the organization's staff will read it: in a learner's chat with the organization or an assignment's group chat.
+    staff_only: bool = False
+
+
+class ReactionToggle(BaseModel):
+    emoji: str = PydanticField(default="👏", min_length=1, max_length=16)
 
 
 class ChatReportCreate(BaseModel):

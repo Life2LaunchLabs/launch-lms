@@ -1,39 +1,27 @@
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
-import type { LearnerAccess } from '@services/learning/marketplace'
+import type { BadgeSummary } from '@services/badges/badges'
 import { templateUrl } from './templates'
-import type { EligibilityRule } from './versions'
 
-/** An organization offering a badge's plan to learners, and how. */
-export interface PlanOffer {
-  org: { id: number; name: string; slug: string; logo_image?: string | null; org_uuid?: string }
-  access: LearnerAccess
-  is_creator: boolean
-}
+/** Who may start a plan in the organization running it: anyone (open), by request, or only learners the team adds. */
+export type LearnerAccess = 'open' | 'request' | 'invite'
 
-/** A badge a template earns: one of the badge's ways to earn it. */
-export interface TemplateEarnedBadge {
-  badge_uuid: string
-  name: string
-  thumbnail_image: string
-  owner_org: { id: number; name: string; slug: string } | null
-  badge_version: string | null
-  status: string
-  route_uuid: string
-  recommended: boolean
-  eligible_versions: { rule: EligibilityRule; from_version: number | null }
-  /** Finishing this plan here earns the badge (this organization may run this way to earn it). */
-  earns_here: boolean
-  offered_by: PlanOffer[]
-}
+export const LEARNER_ACCESS_OPTIONS: Array<{ value: LearnerAccess; label: string; description: string }> = [
+  { value: 'open', label: 'Open to everyone', description: 'Any learner can find it on Discover and start right away.' },
+  { value: 'request', label: 'By request', description: 'Learners find it on Discover, ask to join, and your team accepts them.' },
+  { value: 'invite', label: 'Invite only', description: 'Not on Discover: only learners your team assigns get it.' },
+]
 
-/** A template's badge side and who may start it in this organization. */
+export const learnerAccessLabel = (access?: string) => LEARNER_ACCESS_OPTIONS.find((option) => option.value === access)?.label || 'Invite only'
+
+/** A plan's learner setting in this organization, and the badge its live release earns. */
 export interface TemplateLearners {
   template_uuid: string
   access: LearnerAccess
   can_edit: boolean
   owned: boolean
+  badge: BadgeSummary | null
+  /** Finishing it here earns the badge (the organization owns the plan or runs it with permission). */
   earns_badge: boolean
-  badges: TemplateEarnedBadge[]
 }
 
 const learnersUrl = (orgId: number, templateUuid: string) => `${templateUrl(templateUuid, '/learners')}?org_id=${orgId}`

@@ -11,7 +11,7 @@ from src.services.learning import update_activity, update_page
 from src.services.learning_content import activity_recovery
 from src.services.learning_documents import store
 from src.services.learning_documents.models import ActivityDocumentSave
-from src.tests.test_badge_marketplace import _request
+from src.tests.plan_world import _request
 from src.tests.test_learning_documents import P2, _world
 
 
@@ -49,11 +49,6 @@ async def test_saves_carry_existing_issues_but_reject_new_ones():
         await update_page(_request(), P2, LearningPageUpdate(content=worse), alice, session)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="App bug: activity_authoring.update_activity serializes pages loaded before db_session.commit(); "
-    "they are expired, so LearningPageRead(**page.model_dump()) fails validation",
-)
 async def test_activity_settings_saves_carry_existing_flow_issues():
     session, alice, _ = _world()
     _legacy(session)
@@ -62,6 +57,9 @@ async def test_activity_settings_saves_carry_existing_flow_issues():
     settings["grading"] = {"minimum_score_percent": 80}
     updated = await update_activity(_request(), "learning_activity_draft", LearningActivityUpdate(settings=settings), alice, session)
     assert updated.settings["grading"]["minimum_score_percent"] == 80
+    # The editor gets the pages back with the order it works on, converted from the flow.
+    assert {page.page_uuid for page in updated.pages} >= {P2}
+    assert updated.sequence and updated.sequence["items"]
 
 
 async def test_document_saves_report_existing_issues_as_warnings():

@@ -9,7 +9,9 @@ from src.routers import (
     code_execution,
     connect,
     dev,
+    discover,
     demo,
+    assignments as assignments_router,
     goal_admin,
     goal_helper_requests,
     goal_coach_notes,
@@ -27,12 +29,15 @@ from src.routers import (
     hub_launch,
     hub_next,
     hub_questions,
+    insights,
     instance,
     media,
     messages,
     news,
+    onboarding,
     orgs,
     operations_surface,
+    plan_collections,
     plans,
     portfolio,
     portfolio_people,
@@ -44,20 +49,24 @@ from src.routers import (
     users,
 )
 from src.routers import learning as learning_router_module
-from src.routers import badge_discover as badge_discover_router_module
-from src.routers import badge_routes as badge_routes_router_module
+from src.routers import badges as badges_router_module
 from src.routers import learning_documents as learning_documents_router_module
 from src.routers import oauth as oauth_router_module
 from src.routers import mcp as mcp_router_module
 from src.routers import marketplace as marketplace_router_module
+from src.routers import plan_joining as plan_joining_router_module
 from src.routers import payments as payments_router_module
+from src.routers import resource_library as resource_library_router_module
 from src.routers import resources as resources_router_module
 from src.routers import sso as sso_router_module
 from src.routers import trending as trending_router_module
 from src.routers.audit_logs import router as audit_logs_router
 from src.routers.orgs import branding as org_branding
+from src.routers.orgs import invite_landing as org_invite_landing
+from src.routers.orgs import join_requests as org_join_requests
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.superadmin import router as superadmin_router
+from src.routers.platform_keys import router as platform_keys_router
 from src.routers.coach_admin import router as coach_admin_router
 from src.routers.coach_reports import router as coach_reports_router
 from src.routers.utils import router as utils_router
@@ -93,6 +102,9 @@ for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_stor
     v1_router.include_router(module.router, prefix="/goals", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
 for module in (goal_admin, goal_requirements, goal_reports, goal_helper_requests):
     v1_router.include_router(module.router, prefix="/goal-admin", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(insights.router, prefix="/insights", tags=["insights"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(insights.public_router, prefix="/insights", tags=["insights"])
+v1_router.include_router(assignments_router.router, prefix="/plan-assignments", tags=["assignments"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     goals.router,
     prefix="/goals",
@@ -102,6 +114,19 @@ v1_router.include_router(
 v1_router.include_router(
     goal_templates.router,
     prefix="/goal-templates",
+    tags=["goals"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_collections.router,
+    prefix="/plan-collections",
+    tags=["goals"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
+v1_router.include_router(
+    discover.router,
+    prefix="/discover",
     tags=["goals"],
     dependencies=[Depends(get_non_api_token_user)],
 )
@@ -161,12 +186,15 @@ v1_router.include_router(
     tags=["hub"],
     dependencies=[Depends(get_non_api_token_user)],
 )
+# Before orgs.router, whose /{org_id}/... paths would otherwise take /join-requests/...
+v1_router.include_router(org_join_requests.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     orgs.router,
     prefix="/orgs",
     tags=["orgs"],
     dependencies=[Depends(get_non_api_token_user)]
 )
+v1_router.include_router(org_invite_landing.router, prefix="/orgs", tags=["orgs"])
 v1_router.include_router(
     org_branding.router,
     prefix="/orgs",
@@ -186,28 +214,25 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user), Depends(require_feature("api_tokens"))]
 )
 v1_router.include_router(search.router, prefix="/search", tags=["search"])
-v1_router.include_router(badge_discover_router_module.router, prefix="/badges", tags=["learning-badges"])
-v1_router.include_router(badge_routes_router_module.router, prefix="/badges", tags=["learning-badges"])
-v1_router.include_router(learning_router_module.badges_router, prefix="/badges", tags=["learning-badges"])
-v1_router.include_router(learning_router_module.collections_router, prefix="/badge-collections", tags=["learning-badge-collections"])
 v1_router.include_router(learning_router_module.activities_router, prefix="/learning-activities", tags=["learning-activities"])
 v1_router.include_router(learning_router_module.pages_router, prefix="/learning-pages", tags=["learning-pages"])
 v1_router.include_router(learning_router_module.runs_router, prefix="/learning-runs", tags=["learning-runs"])
 v1_router.include_router(learning_router_module.responses_router, prefix="/learning-responses", tags=["learning-responses"])
-v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
-v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
+v1_router.include_router(badges_router_module.router, prefix="/badge-awards", tags=["badges"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
 v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
 v1_router.include_router(learning_documents_router_module.content_router, prefix="/learning-content", tags=["learning-content"])
 v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
 v1_router.include_router(mcp_router_module.router, prefix="/mcp", tags=["mcp"])
-v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
+v1_router.include_router(marketplace_router_module.router, prefix="/plan-marketplace", tags=["plan-marketplace"])
+v1_router.include_router(plan_joining_router_module.router, prefix="/plan-joining", tags=["goals"])
 v1_router.include_router(
     resources_router_module.router,
     prefix="/resources",
     tags=["resources"],
 )
+v1_router.include_router(resource_library_router_module.router, prefix="/resources", tags=["resources"])
 v1_router.include_router(
     media.router,
     prefix="/media",
@@ -287,6 +312,13 @@ v1_router.include_router(
 v1_router.include_router(
     superadmin_router,
     prefix="/superadmin",
+    tags=["superadmin"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+v1_router.include_router(
+    platform_keys_router,
+    prefix="/superadmin/settings/keys",
     tags=["superadmin"],
     dependencies=[Depends(get_non_api_token_user)],
 )

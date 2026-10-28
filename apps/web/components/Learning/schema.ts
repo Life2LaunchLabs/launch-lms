@@ -1,9 +1,9 @@
 export type LearningPageType = 'video' | 'standard'
 
-import type { Block, BlockDesign, ButtonBlock, DisplayBinding, ImageBlock, PortfolioPreviewBlock, QuestionBlock, TextBlock } from './content.generated'
+import type { Block, BlockDesign, ButtonBlock, DisplayBinding, ImageBlock, PortfolioPreviewBlock, QuestionBlock, TextBlock } from './generated/content'
 
 // Block shapes are generated from the API's typed content models
-// (content.generated.ts); these aliases keep the names the app already uses.
+// (generated/content.ts); these aliases keep the names the app already uses.
 export type LearningBlockAlign = NonNullable<BlockDesign['align']>
 export type LearningDisplayBinding = DisplayBinding
 export type LearningTextBlock = TextBlock

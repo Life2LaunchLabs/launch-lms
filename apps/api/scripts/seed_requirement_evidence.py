@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalAssignment, GoalAssignmentCreate, GoalStep, StepEntryCreate, StepEntryKind, StepStatus, StepStatusChange
 from src.db.organizations import Organization
-from src.db.requirements import RequirementAssignmentCreate, RequirementFrameworkCreate, RequirementNodeInput
+from src.db.requirements import RequirementFrameworkCreate, RequirementNodeInput
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -53,7 +53,6 @@ def main():
             RequirementNodeInput(node_uuid="sb3-interview", code="HS.HECPS.D.3", parent_node_uuid="sb3-domain", title="Interview skills"),
         ]))
         requirements.publish_framework(db, admin, org.id, framework["framework_uuid"])
-        requirements.assign_framework(db, admin, org.id, framework["framework_uuid"], RequirementAssignmentCreate(usergroup_id=group.id))
         # One reviewed upload step mapped to the resume standard; the interview standard stays a gap.
         template = templates.create_template(db, admin, org.id, {"template": {"title": "SB3 Career Path Skills"}, "stages": [{"key": "resume", "title": "Resume", "steps": [{
             "key": "resume", "type": "upload", "title": "Build a professional resume", "review_required": True,

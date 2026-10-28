@@ -5,7 +5,6 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.organization_config import (
     AuthBrandingConfig,
-    BadgeIssuerConfig,
     SeoOrgConfig,
 )
 from src.db.organizations import (
@@ -36,7 +35,6 @@ from src.services.orgs.orgs import (
     list_discoverable_orgs,
     update_org,
     update_org_auth_branding_config,
-    update_org_badge_issuer_config,
     update_org_color_config,
     update_org_dark_color_config,
     update_org_favicon,
@@ -437,22 +435,6 @@ async def api_update_org_auth_branding_config(
     """
     return await update_org_auth_branding_config(
         request, auth_branding, org_id, current_user, db_session
-    )
-
-
-@router.put("/{org_id}/config/badge_issuer")
-async def api_update_org_badge_issuer_config(
-    request: Request,
-    org_id: int,
-    badge_issuer: BadgeIssuerConfig,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization Open Badges issuer configuration
-    """
-    return await update_org_badge_issuer_config(
-        request, badge_issuer, org_id, current_user, db_session
     )
 
 

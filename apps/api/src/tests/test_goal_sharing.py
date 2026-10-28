@@ -6,9 +6,10 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, select
 
+from src.db.organization_invitations import OrganizationInvitation
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationReport, UserBlock
 from src.db.portfolio_people import PortfolioComment, PortfolioPerson
-from src.db.school import StaffNote, UserGroupStaff
+from src.db.school import UserGroupStaff
 from src.db.goals import Goal, GoalAssignmentCreate, GoalCreate
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.messages import InboxMessage
@@ -37,7 +38,7 @@ def _session() -> Session:
     SQLModel.metadata.create_all(db.get_bind(), tables=[
         PlanInvitation.__table__, PlanCollaboratorRequest.__table__, PlanAttachment.__table__, InboxMessage.__table__,  # type: ignore[attr-defined]
         Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, UserBlock.__table__, ConversationReport.__table__,  # type: ignore[attr-defined]
-        PortfolioPerson.__table__, PortfolioComment.__table__, UserGroupStaff.__table__, StaffNote.__table__,  # type: ignore[attr-defined]
+        PortfolioPerson.__table__, PortfolioComment.__table__, UserGroupStaff.__table__, OrganizationInvitation.__table__,  # type: ignore[attr-defined]
     ])
     return db
 
@@ -212,7 +213,7 @@ def test_group_goals_refuse_individual_sharing_changes_and_staff_see_a_group_row
         mine = goals.list_my_goals(db, _user(LEARNER))
         assert len(mine) == 1 and mine[0]["target_kind"] == "individual"
         assert mine[0]["organization"]["slug"] == "studio" and mine[0]["subject"]["id"] == LEARNER and mine[0]["is_subject"]
-        assert mine[0]["progress"] == {"done": 0, "total": 1} and mine[0]["source_badge"] is None
+        assert mine[0]["progress"] == {"done": 0, "total": 1} and mine[0]["badge"] is None
 
 
 def test_custom_organization_roles_are_reused_across_organization_goals():

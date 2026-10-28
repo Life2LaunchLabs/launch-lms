@@ -1,7 +1,7 @@
 """Goals: what a learner is working toward, as stages of typed steps.
 
 A goal is personal (the learner writes and owns it) or external (issued from
-a template by an assignment, a badge or the starter flow). Templates are
+a template by an assignment, a learner joining an organization's plan, or the starter flow). Templates are
 versioned JSON documents; only live goals are stored as rows.
 """
 
@@ -11,7 +11,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, false as sa_false, true as sa_true
 from sqlmodel import Field, SQLModel
 
 
@@ -29,7 +29,8 @@ class GoalOwnership(str, Enum):
 class GoalSource(str, Enum):
     NONE = "none"
     ASSIGNMENT = "assignment"
-    BADGE = "badge"
+    # A learner joined an organization's plan themselves (from Discover).
+    JOINED = "joined"
     STARTER = "starter"
     # A learner started their own goal from a template.
     TEMPLATE = "template"
@@ -91,12 +92,19 @@ class GoalTemplate(SQLModel, table=True):
     title: str
     description: str = ""
     thumbnail_image: str = ""
+    # The plan's cover when it has no image: one of GOAL_ICONS on one of the plan colors (web planColors).
+    icon: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    color: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     status: TemplateStatus = Field(default=TemplateStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     # "starter" for the system starter template, loaded from data with each release.
     system_type: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     # The working draft, as a goal template document (see services/goals/document.py).
     document: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # The live version: what new assignments and self-starts get. None = inactive.
     published_version_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    # The open draft, {semver, note, base_version_uuid, started_at, started_by_user_id}; None when
+    # ``document`` is just the live version (see services/goals/drafts.py).
+    draft: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     # Library copies remember where they came from.
     source_template_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     source_version: int | None = None
@@ -118,6 +126,8 @@ class GoalTemplateVersion(SQLModel, table=True):
     template_id: int = Field(sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     number: int = 1
+    # "2.1.0": strictly increasing per template, chosen when a draft starts. None on private versions.
+    semver: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     document: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     content_hash: str = ""
     note: str = ""
@@ -158,8 +168,6 @@ class GoalAssignment(SQLModel, table=True):
     ended_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
-    # The badge its learners earn by finishing: another org's badge route it is authorized to run (services/goals/badge_authority.py).
-    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
@@ -180,7 +188,6 @@ class Goal(SQLModel, table=True):
     template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="SET NULL"), nullable=True, index=True))
     version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template_version.id", ondelete="SET NULL"), nullable=True, index=True))
     assignment_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_assignment.id", ondelete="SET NULL"), nullable=True, index=True))
-    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     title: str
     description: str = ""
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
@@ -247,6 +254,9 @@ class GoalStep(SQLModel, table=True):
     # Opens and closes with its stage unless these are set (or it waits on other steps).
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True, index=True))
+    # open_early: the start date only suggests (open with its stage). allow_late off: closes at its due date.
+    open_early: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=sa_false()))
+    allow_late: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default=sa_true()))
     # Staff put the step on hold.
     held: bool = False
     after_step_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
@@ -254,7 +264,8 @@ class GoalStep(SQLModel, table=True):
     requirement_links: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     # Kept as columns (not only in config) so activity runs and badge awards can find their steps.
     activity_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
-    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
+    # Badge steps: the plan whose badge finishes the step.
+    badge_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="SET NULL"), nullable=True, index=True))
     template_key: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str = ""
     update_date: str = ""
@@ -352,7 +363,10 @@ class GoalCreate(SQLModel):
 
 
 # The marks a learner can give their own goal; the web draws each one.
-GOAL_ICONS = ("target", "book", "briefcase", "graduation", "heart", "dumbbell", "palette", "music", "code", "leaf", "home", "rocket")
+GOAL_ICONS = ("target", "book", "briefcase", "graduation", "heart", "dumbbell", "palette", "music", "code", "leaf", "home", "rocket",
+              "wallet", "compass", "calendar", "star", "flag", "chat")
+# The colors a plan's cover can take (the web's planColors palette keys).
+PLAN_COLORS = ("violet", "teal", "amber", "blue", "pink", "lime", "orange", "sky")
 
 
 class GoalFinish(SQLModel):
@@ -473,7 +487,13 @@ class TemplateSave(SQLModel):
 class TemplateCreate(SQLModel):
     title: str = ""
     document: dict | None = None
+    icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
+    color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]
 
 
 class TemplatePublish(SQLModel):
     note: str = Field(default="", max_length=1000)
+    # Defaults to the draft's version; a template with no draft gets the next minor version.
+    semver: str | None = None
+    make_live: bool = True
+

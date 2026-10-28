@@ -30,7 +30,7 @@ class TemplateStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     key: str | None = Field(default=None, description="Keep it for existing steps; omit it for new ones.")
-    type: str = Field(description="One of the step types: task, upload, write, activity, event, badge, portfolio, decision, routine, explore.")
+    type: str = Field(description="One of the step types: task, upload, write, activity, event, badge (earn another plan's badge), portfolio, decision, routine, explore.")
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
     config: dict = Field(default_factory=dict, description="The type's settings.")
@@ -82,6 +82,27 @@ class TemplateMeta(BaseModel):
     instructions: str = Field(default="", description="Shown to staff when they assign the template.")
 
 
+BADGE_KINDS = ("Badge", "CertificateOfCompletion", "Competency", "Certification", "Award")
+BadgeKind = Literal["Badge", "CertificateOfCompletion", "Competency", "Certification", "Award"]
+
+
+class TemplateBadge(BaseModel):
+    """The badge finishing the plan earns. Everything else about it comes from the plan (services/badges/definition.py)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: BadgeKind = Field(default="Badge", description="The Open Badges achievementType.")
+    skills: list[str] = Field(default_factory=list, max_length=20, description="Skills it shows; the Open Badges tags.")
+    style: Literal["classic", "modern", "minimal"] = Field(default="modern", description="The certificate's look.")
+    name: str = Field(default="", max_length=200, description="Only when the badge is named differently from the plan.")
+    image_url: str = Field(default="", max_length=1000, description="Only when the badge has its own image; otherwise the plan's.")
+    human_code: str = Field(default="", max_length=60)
+    field_of_study: str = Field(default="", max_length=200)
+    specialization: str = Field(default="", max_length=200)
+    credits_available: float | None = Field(default=None, ge=0)
+    in_language: str = Field(default="", max_length=20, description="A BCP 47 language tag, such as en or es-MX.")
+
+
 class GoalTemplateDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -89,6 +110,7 @@ class GoalTemplateDocument(BaseModel):
     format_version: Literal[1] = DOCUMENT_FORMAT_VERSION
     template: TemplateMeta
     roles: TemplateRoles | None = None
+    badge: TemplateBadge | None = Field(default=None, description="The badge finishing the plan earns; leave it out for none.")
     stages: list[TemplateStage] = Field(min_length=1, max_length=MAX_STAGES)
 
 
@@ -161,6 +183,8 @@ def validate_document(db: Session, raw: dict, org_id: int | None, *, requirement
     document = parsed.model_dump()
     document["roles"] = document.get("roles") or default_roles()
     _validate_roles(document["roles"])
+    if document.get("badge"):
+        document["badge"] = _clean_badge(document["badge"])
 
     stage_keys: set[str] = set()
     step_keys: set[str] = set()
@@ -202,6 +226,14 @@ def validate_document(db: Session, raw: dict, org_id: int | None, *, requirement
             if missing:
                 raise HTTPException(status_code=422, detail=f"{step['title']}: unknown requirement {missing[0]}")
     return document
+
+
+def _clean_badge(badge: dict) -> dict:
+    skills = list(dict.fromkeys(skill.strip()[:60] for skill in badge["skills"] if skill.strip()))
+    image = badge["image_url"].strip()
+    if image and not image.startswith(("https://", "/")):
+        raise HTTPException(status_code=422, detail="badge.image_url: use an https address or an uploaded image")
+    return {**badge, "skills": skills, "image_url": image, **{key: badge[key].strip() for key in ("name", "human_code", "field_of_study", "specialization", "in_language")}}
 
 
 def _staff_material(step_title: str, item: dict) -> dict:

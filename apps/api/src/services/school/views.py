@@ -1,8 +1,7 @@
-"""What staff see in Users: a student's school team, chat and notes, and who's waiting on them."""
+"""What staff see in Users: a student's school team and chat, and who's waiting on them."""
 
 from __future__ import annotations
 
-from uuid import uuid4
 
 from fastapi import HTTPException
 from sqlmodel import Session, col, func, select
@@ -10,13 +9,13 @@ from sqlmodel import Session, col, func, select
 from src.db.conversations import ConversationMember, ConversationMessage
 from src.db.goals import Goal, GoalStep, StepProgress, StepStatus
 from src.db.goal_sharing import PlanCollaborator
-from src.db.school import StaffNote, UserGroupStaff
+from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin
-from src.services.connect import chats, people
-from src.services.goals.sharing_roles import _stamp, org_summary
+from src.services.connect import chats, people, visibility
+from src.services.goals.sharing_roles import org_summary
 from src.services.school import chats as school_chats
 
 ROLE_NAMES = {"viewer": "Viewer", "commenter": "Commenter", "editor": "Editor"}
@@ -43,56 +42,27 @@ def team_of(db: Session, org_id: int, student_id: int) -> list[dict]:
     return list(people_by_id.values())
 
 
-def _notes(db: Session, current_user: PublicUser, org_id: int, student_id: int) -> list[dict]:
-    admin = is_org_admin(current_user.id, org_id, db)
-    rows = db.exec(select(StaffNote).where(StaffNote.org_id == org_id, StaffNote.subject_user_id == student_id).order_by(col(StaffNote.id).desc())).all()
-    return [{"note_uuid": row.note_uuid, "body": row.body, "author": people.person(db, row.author_user_id), "creation_date": row.creation_date,
-             "can_delete": admin or row.author_user_id == current_user.id} for row in rows]
-
-
-def student_chat(db: Session, current_user: PublicUser, org_id: int, student_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
+def student_chat(db: Session, current_user: PublicUser, org_id: int, student_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None,
+                 audience: str | None = None) -> dict:
     """The learner's chat with the organization: to read, filtered by plan or step, and to write in if you're in it."""
     _require(db, current_user, org_id, student_id)
     conversation = school_chats.school_chat(db, org_id, student_id)
     db.commit()
     member = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first()
     if member:
-        return chats.get_chat(db, current_user, conversation.conversation_uuid, before, goal_uuid, step_uuid)
+        return chats.get_chat(db, current_user, conversation.conversation_uuid, before, goal_uuid, step_uuid, audience)
     # Admins who aren't in the chat can read it but don't post in it.
     return {"conversation_uuid": conversation.conversation_uuid, "kind": conversation.kind, "title": conversation.title,
             "people": [item for item in (people.person(db, row.user_id) for row in db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id)).all()) if item],
             "status": "active", "accepted": True, "waiting_for_them": False, "unavailable": False, "unread": 0, "last_message": None,
             "last_message_at": conversation.last_message_at, "can_post": False, "org": org_summary(db, org_id),
-            **chats.messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid)}
+            **chats.messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid, audience)}
 
 
 def student(db: Session, current_user: PublicUser, org_id: int, student_id: int) -> dict:
-    """The student's team and staff notes. Their chat comes from student_chat."""
+    """The student's team. Their chat, staff-only messages and all, comes from student_chat."""
     _require(db, current_user, org_id, student_id)
-    return {"student": people.person(db, student_id), "team": team_of(db, org_id, student_id), "notes": _notes(db, current_user, org_id, student_id)}
-
-
-def add_note(db: Session, current_user: PublicUser, org_id: int, student_id: int, body: str) -> list[dict]:
-    _require(db, current_user, org_id, student_id)
-    text = (body or "").strip()
-    if not text:
-        raise HTTPException(status_code=422, detail="Write a note first")
-    now = _stamp()
-    db.add(StaffNote(note_uuid=f"staff_note_{uuid4()}", org_id=org_id, subject_user_id=student_id, author_user_id=current_user.id, body=text, creation_date=now, update_date=now))
-    db.commit()
-    return _notes(db, current_user, org_id, student_id)
-
-
-def delete_note(db: Session, current_user: PublicUser, org_id: int, student_id: int, note_uuid: str) -> list[dict]:
-    _require(db, current_user, org_id, student_id)
-    row = db.exec(select(StaffNote).where(StaffNote.org_id == org_id, StaffNote.subject_user_id == student_id, StaffNote.note_uuid == note_uuid)).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Note not found")
-    if row.author_user_id != current_user.id and not is_org_admin(current_user.id, org_id, db):
-        raise HTTPException(status_code=403, detail="You can only delete your own notes")
-    db.delete(row)
-    db.commit()
-    return _notes(db, current_user, org_id, student_id)
+    return {"student": people.person(db, student_id), "team": team_of(db, org_id, student_id)}
 
 
 def _reviews(db: Session, org_id: int, student_id: int, staff_id: int | None) -> int:
@@ -106,8 +76,9 @@ def _reviews(db: Session, org_id: int, student_id: int, staff_id: int | None) ->
 
 
 def _unanswered(db: Session, conversation, student_id: int) -> int:
-    """For admins looking across staff: the student's messages since staff last wrote."""
-    recent = db.exec(select(ConversationMessage.sender_user_id).where(ConversationMessage.conversation_id == conversation.id, ConversationMessage.kind == "text")
+    """For admins looking across staff: the student's messages since staff last wrote to them (staff-only notes don't answer)."""
+    recent = db.exec(select(ConversationMessage.sender_user_id).where(ConversationMessage.conversation_id == conversation.id, ConversationMessage.kind == "text",
+                                                                      ConversationMessage.visibility == visibility.ALL)
                      .order_by(col(ConversationMessage.creation_date).desc(), col(ConversationMessage.id).desc()).limit(chats.PAGE)).all()
     count = 0
     for sender in recent:
@@ -143,7 +114,7 @@ def waiting(db: Session, current_user: PublicUser, org_id: int, mine: bool = Tru
                 mentions += int(tagged)
         reviews = _reviews(db, org_id, student_id, current_user.id if mine else None)
         if unread or mentions or reviews:
-            last = chats._last(db, conversation) if conversation else None
+            last = chats._last(db, conversation, current_user.id) if conversation else None
             rows.append({"student": people.person(db, student_id), "unread": unread, "mentions": mentions, "reviews": reviews,
                          "last_message": chats._message_dict(db, last, current_user.id) if last else None})
     rows.sort(key=lambda row: (-row["mentions"], -row["unread"], -row["reviews"]))

@@ -1,5 +1,5 @@
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getLearningBadgeCollections, getLearningBadges } from '@services/learning/learning'
+import { planJoiningApi } from '@services/goals/planJoining'
 import { NextRequest, NextResponse } from 'next/server'
 
 function getBaseUrlFromRequest(request: NextRequest): string {
@@ -37,34 +37,22 @@ export async function GET(request: NextRequest) {
     case 'pages': {
       sitemapUrls = [
         { loc: baseUrl, priority: 1.0, changefreq: 'daily' },
-        { loc: `${baseUrl}badges`, priority: 0.9, changefreq: 'weekly' },
+        { loc: `${baseUrl}discover`, priority: 0.9, changefreq: 'weekly' },
         { loc: `${baseUrl}news`, priority: 0.8, changefreq: 'weekly' },
       ]
       break
     }
-    case 'badges': {
-      const response = await getLearningBadges(orgInfo.id).catch(() => ({ data: [] }))
-      const badges = Array.isArray(response) ? response : response?.data || []
-      for (const badge of badges) {
-        sitemapUrls.push({
-          loc: `${baseUrl}badges/${badge.badge_uuid.replace('badge_', '')}`,
-          priority: 0.7,
-          changefreq: 'weekly',
-          lastmod: badge.update_date,
-        })
-      }
-      break
-    }
-    case 'badge-collections': {
-      const response = await getLearningBadgeCollections(orgInfo.id).catch(() => ({ data: [] }))
-      const collections = Array.isArray(response) ? response : response?.data || []
-      for (const collection of collections) {
-        sitemapUrls.push({
-          loc: `${baseUrl}badges?collection=${collection.collection_uuid}`,
-          priority: 0.6,
-          changefreq: 'weekly',
-          lastmod: collection.update_date,
-        })
+    case 'plans':
+    case 'collections': {
+      const feed = await planJoiningApi.discover(undefined, undefined, orgInfo.id).catch(() => null)
+      if (sitemapType === 'plans') {
+        for (const plan of feed?.plans || []) {
+          sitemapUrls.push({ loc: `${baseUrl}discover/plans/${plan.template_uuid}`, priority: 0.7, changefreq: 'weekly', lastmod: plan.update_date })
+        }
+      } else {
+        for (const collection of feed?.collections || []) {
+          sitemapUrls.push({ loc: `${baseUrl}discover/collections/${collection.collection_uuid}`, priority: 0.6, changefreq: 'weekly' })
+        }
       }
       break
     }
@@ -86,7 +74,7 @@ interface SitemapUrl {
   lastmod?: string
 }
 
-const SITEMAP_TYPES = ['pages', 'badges', 'badge-collections']
+const SITEMAP_TYPES = ['pages', 'plans', 'collections']
 
 function generateSitemapIndex(baseUrl: string): string {
   const sitemaps = SITEMAP_TYPES.map(type => `

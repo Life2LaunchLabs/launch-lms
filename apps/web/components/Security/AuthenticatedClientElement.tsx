@@ -8,8 +8,6 @@ interface AuthenticatedClientElementProps {
   checkMethod: 'authentication' | 'roles'
   orgId?: string | number
   ressourceType?:
-  | 'badge_collections'
-  | 'badges'
   | 'learning_activities'
   | 'users'
   | 'organizations'

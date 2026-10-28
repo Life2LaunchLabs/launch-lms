@@ -30,6 +30,7 @@ from src.db.goal_sharing import (
 )
 from src.db.users import PublicUser, User
 from src.services.goals import access
+from src.services.goals.invitation_emails import send_plan_invitation
 from src.services.goals.sharing_roles import (
     _aware,
     _invitation_label,
@@ -64,6 +65,7 @@ def _invitation_message(db: Session, goal: Goal, invitation: PlanInvitation, rol
         action_data={"invitation_uuid": invitation.invitation_uuid, "goal_uuid": goal.goal_uuid, "goal_title": goal.title, "role_name": role_name},
         dedupe_key=_dedupe(invitation),
     )
+    send_plan_invitation(db, goal, invitation, role_name)
 
 
 def _recipient(db: Session, raw: str) -> tuple[str, User | None]:
@@ -199,6 +201,11 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
         if not access.membership(db, goal, current_user.id) and goal.owner_user_id != current_user.id:
             access.add_member(db, goal, current_user.id, role)
         if subject_kind:
+            if goal.org_id and goal.assignment_id:
+                # A plan an organization gives someone makes them its learner, like joining from Discover.
+                from src.services.goals.plan_joining import ensure_learner
+
+                ensure_learner(db, int(goal.org_id), int(current_user.id))
             goal.subject_user_id = current_user.id
             goal.status = GoalStatus.ACTIVE
             db.add(goal)

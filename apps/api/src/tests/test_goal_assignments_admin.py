@@ -193,15 +193,55 @@ def test_editing_staff_adds_and_removes_them_on_every_plan():
         goal = _goal(db, LEARNER, uuid)
         assert "view_plan" not in access.capabilities(db, goal, COACH)
         updated = assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[AssignmentCollaborator(user_id=COACH)]))
-        # The owner always stays on.
-        assert updated["staff_user_ids"] == [ADMIN, COACH]
+        # Picked without a role and nobody else leading, the coach leads; the creator is off the staff.
+        assert updated["staff_user_ids"] == [COACH]
+        assert updated["collaborators"] == [{"user_id": COACH, "role_key": "lead"}]
         assert "complete_restricted_objectives" in access.capabilities(db, goal, COACH)
-        assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[]))
+        assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[
+            AssignmentCollaborator(user_id=ADMIN, role_key="lead"), AssignmentCollaborator(user_id=COACH, role_key="comment")]))
+        assert access.capabilities(db, goal, COACH) == {"view_plan", "comment"}
+        assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[AssignmentCollaborator(user_id=ADMIN, role_key="lead")]))
         assert access.capabilities(db, goal, COACH) == set()
         assert not db.exec(select(PlanCollaborator).where(PlanCollaborator.user_id == COACH, PlanCollaborator.active == True)).all()  # noqa: E712
-        with pytest.raises(HTTPException) as learner:
-            assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[AssignmentCollaborator(user_id=OTHER)]))
-        assert learner.value.status_code == 422
+        for collaborators in ([], [AssignmentCollaborator(user_id=OTHER)], [AssignmentCollaborator(user_id=COACH, role_key="review")]):
+            with pytest.raises(HTTPException) as refused:
+                assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=collaborators))
+            assert refused.value.status_code == 422
+
+
+def test_a_lead_runs_their_assignment_and_reviewers_and_commenters_dont():
+    with _session() as db:
+        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == COACH)).one()
+        membership.permissions = ["review_work"]  # plain staff: doesn't run assignments
+        db.add(membership)
+        db.commit()
+        uuid = _assign(db, ESSAY, staff=())["assignment_uuid"]
+        assignment = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == uuid)).one()
+        # Nobody picked: whoever assigned it leads.
+        assert assignment.collaborators == [{"user_id": ADMIN, "role_key": "lead"}]
+        with pytest.raises(HTTPException) as outsider:
+            assignments.update(db, _user(COACH), 1, uuid, GoalAssignmentUpdate(due_date=date(2026, 12, 1)))
+        assert outsider.value.status_code == 403
+        assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[
+            AssignmentCollaborator(user_id=ADMIN, role_key="comment"), AssignmentCollaborator(user_id=COACH, role_key="lead")]))
+        updated = assignments.update(db, _user(COACH), 1, uuid, GoalAssignmentUpdate(due_date=date(2026, 12, 1)))
+        assert updated["due_date"] == date(2026, 12, 1)
+        assert assignments.pause(db, _user(COACH), 1, uuid)["status"] == "paused"
+        assert assignments.resume(db, _user(COACH), 1, uuid)["status"] == "active"
+        # Changing the version stays with staff who run assignments.
+        from src.services.goals import assignment_versions
+
+        with pytest.raises(HTTPException) as version:
+            assignment_versions.apply_version(db, _user(COACH), 1, uuid, None)
+        assert version.value.status_code == 403
+        # Lead reviews; a commenter on the staff can't.
+        assert review.staff_goals(db, COACH, 1, int(assignment.id))
+        assignments.update(db, _user(COACH), 1, uuid, GoalAssignmentUpdate(collaborators=[
+            AssignmentCollaborator(user_id=ADMIN, role_key="lead"), AssignmentCollaborator(user_id=COACH, role_key="comment")]))
+        assert review.staff_goals(db, COACH, 1, int(assignment.id)) == []
+        with pytest.raises(HTTPException) as commenter:
+            assignments.update(db, _user(COACH), 1, uuid, GoalAssignmentUpdate(due_date=date(2026, 12, 2)))
+        assert commenter.value.status_code == 403
 
 
 # What's left per step ---------------------------------------------------------------------
@@ -350,7 +390,7 @@ def test_staff_steps_in_a_stage_still_to_come_dont_wait_on_staff():
         templates.publish(db, _user(ADMIN), 1, created["template_uuid"], "First")
         schedule = AssignmentSchedule(stages=[StageSchedule(stage_key="now", start_date=date.today() - timedelta(days=7)),
                                               StageSchedule(stage_key="later", start_date=date.today() + timedelta(days=30))])
-        result = assignments.assign(db, _user(ADMIN), 1, created["template_uuid"], GoalAssignmentRequest(usergroup_id=1, staff_user_ids=[ADMIN], schedule=schedule))
+        result = assignments.assign(db, _user(ADMIN), 1, created["template_uuid"], GoalAssignmentRequest(usergroup_id=1, staff_user_ids=[ADMIN], schedule=schedule, due_date=date.today() + timedelta(days=90)))
         for learner in (LEARNER, OTHER):
             goals.respond(db, _user(learner), _goal(db, learner, result["assignment_uuid"]).goal_uuid, True)
         confirm = [group for group in review.inbox(db, _user(ADMIN), 1)["groups"] if group["kind"] == "confirm"]

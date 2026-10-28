@@ -7,7 +7,8 @@ const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_pa
 
 /**
  * Finishes the welcome signup (email + password handed over from /signup) and
- * sends the learner to the first step of their starter plan. Without an email
+ * sends the learner to the first step of their starter plan, or into the organization
+ * whose invitation or join link they signed up from. Without an email
  * it asks the API where a signed-in learner continues (anonymous → /signup).
  */
 export default function WelcomeClient() {
@@ -29,7 +30,12 @@ export default function WelcomeClient() {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({
+              email, password,
+              invitation_token: searchParams.get('invitation') || undefined,
+              invite_code: searchParams.get('inviteCode') || undefined,
+              org_id: Number(searchParams.get('org')) || undefined,
+            }),
           })
           const data = await res.json().catch(() => null)
           if (!res.ok) throw new Error(data?.detail || 'Unable to complete signup')
@@ -51,7 +57,7 @@ export default function WelcomeClient() {
     return () => {
       cancelled = true
     }
-  }, [email])
+  }, [email, searchParams])
 
   if (error) {
     return (

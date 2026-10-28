@@ -13,9 +13,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.services.learning_content.models import Flow, StandardPageContent, VideoPageContent
+from src.services.learning_content.models import ActivityDesign, ActivityGrading, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
 
-OUTPUT = Path(__file__).resolve().parents[4] / "web" / "components" / "Learning" / "content.generated.ts"
+OUTPUT = Path(__file__).resolve().parents[4] / "web" / "components" / "Learning" / "generated" / "content.ts"
 HEADER = """// Generated from apps/api/src/services/learning_content/models.py â€” do not edit.
 // Regenerate: cd apps/api && uv run python cli.py generate-learning-types
 """
@@ -23,7 +23,7 @@ HEADER = """// Generated from apps/api/src/services/learning_content/models.py â
 
 def _collect() -> dict:
     defs: dict = {}
-    for model in (StandardPageContent, VideoPageContent, Flow):
+    for model in (StandardPageContent, VideoPageContent, Flow, Sequence, PageDesign, ActivityDesign, ActivityGrading):
         schema = model.model_json_schema(ref_template="#/$defs/{model}")
         defs.update(schema.pop("$defs", {}))
         defs[model.__name__] = schema
@@ -84,6 +84,9 @@ def render() -> str:
     body = "\n".join(_interface(name, defs[name]) for name in sorted(defs))
     unions = (
         "\nexport type Block = TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock\n"
+        "/** Every block type, version 3's included. */\n"
+        "export type AnyBlock = Block | StatBlock | QuoteBlock | ChartBlock | MedalBlock | HeadingBlock | NumberBlock | CardDeckBlock | ColumnBreakBlock\n"
+        "export type SequenceItem = SequencePage | SequenceBranch\n"
         "export type Condition = Comparison | AllOf | Negation\n"
     )
     return HEADER + "\n" + body + unions

@@ -83,16 +83,16 @@ def test_seed_pages_keep_admin_edits_and_regain_missing_bindings():
         starter.sync_starter_template(db)
         name_page = db.exec(select(LearningPage).where(LearningPage.page_uuid == "learning_page_starter_name")).one()
         content = json.loads(json.dumps(name_page.content))
-        content["blocks"][0]["content"]["node"]["content"][0]["text"] = "Edited by an admin"
-        content["blocks"][1]["completion"]["variable_bindings"] = {}
+        content["blocks"][1]["content"]["node"]["content"][0]["text"] = "Edited by an admin"
+        content["blocks"][2]["completion"]["variable_bindings"] = {}
         name_page.content, name_page.title = content, "Your name"
         db.add(name_page)
         db.commit()
         starter.sync_starter_template(db)
         db.refresh(name_page)
         assert name_page.title == "Your name"
-        assert name_page.content["blocks"][0]["content"]["node"]["content"][0]["text"] == "Edited by an admin"
-        assert name_page.content["blocks"][1]["completion"]["variable_bindings"]["inputs"]["first_name"] == {"target": "user.first_name"}
+        assert name_page.content["blocks"][1]["content"]["node"]["content"][0]["text"] == "Edited by an admin"
+        assert name_page.content["blocks"][2]["completion"]["variable_bindings"]["inputs"]["first_name"] == {"target": "user.first_name"}
         # Seed edits change the content, so the next sync publishes it.
         assert _state(db)["versions"] == 2
 
@@ -141,7 +141,7 @@ def test_ensure_starter_goal_checks_off_steps_already_done_in_the_portfolio():
         assert checklist["items"][0]["label"] == "Welcome" and checklist["nextIncomplete"] == checklist["items"][3]
 
         db.add(ProfileTrait(trait_uuid="trt_2", portfolio_id=portfolio.id, trait_type="value", label="Kindness", creation_date="", update_date=""))
-        db.add(Goal(goal_uuid="goal_badge", owner_user_id=LEARNER, subject_user_id=LEARNER, ownership="external", source="badge", title="Badge", creation_date="", update_date=""))
+        db.add(Goal(goal_uuid="goal_joined", owner_user_id=LEARNER, subject_user_id=LEARNER, ownership="external", source="joined", title="Joined from Discover", creation_date="", update_date=""))
         portfolio.visibility = PortfolioVisibility.PUBLIC
         db.add(portfolio)
         db.commit()

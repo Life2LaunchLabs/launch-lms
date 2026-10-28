@@ -60,7 +60,7 @@ test('connect.tagging: / lists only active plans, and a tagged message files und
   await expect(filters.getByRole('button', { name: new RegExp(PENDING_PLAN) })).toHaveCount(0)
 })
 
-test('people.feed: one list with conversations on top, and a person opens with Message and Plans', async ({ page }) => {
+test('people.feed: one list with conversations on top, and a row opens that person\'s thread', async ({ page }) => {
   await page.goto(`${orgPath}/admin/users`)
   await assertActualApp(page)
   const list = page.getByRole('region', { name: 'People and groups' })
@@ -72,13 +72,16 @@ test('people.feed: one list with conversations on top, and a person opens with M
   await expect(page.getByRole('tab', { name: 'Direct' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Helpers to approve' })).toHaveCount(0)
   await friend.click()
-  const person = page.getByRole('region', { name: 'Person' })
-  await expect(person.getByRole('heading', { name: new RegExp(fixture.friend.name) })).toBeVisible()
-  await expect(person.getByText('Want to practice interview questions on Thursday?')).toBeVisible()
+  // A row opens the thread with that person: their name on top (it opens their profile) and a composer.
+  const thread = page.getByRole('region', { name: 'Thread' })
+  await expect(thread.locator('button[title="Open profile"]')).toContainText(fixture.friend.name)
   await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
-  await person.getByRole('link', { name: /Plans · \d+/ }).click()
-  await expect(person.getByRole('region', { name: 'Plans' })).toBeVisible()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  // Their name opens their profile under Threads, with Plans a tab.
+  await thread.locator('button[title="Open profile"]').click()
+  await expect(page.getByRole('heading', { level: 1, name: new RegExp(fixture.friend.name) })).toBeVisible()
+  await page.getByRole('link', { name: /^Plans · \d+$/ }).click()
+  await expect(page).toHaveURL(/[?&]tab=plans/)
   // Search finds anyone, people and groups alike.
   await page.goto(`${orgPath}/admin/users`)
   await page.getByRole('textbox', { name: /Search people and groups/ }).fill('Casey')

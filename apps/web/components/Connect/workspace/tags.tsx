@@ -1,18 +1,19 @@
 'use client'
 
 import React from 'react'
-import { Building2, Check, Clock, Flag, RotateCcw } from 'lucide-react'
+import { Building2, Check, Clock, ExternalLink, Flag, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import type { MessageRef } from '@services/connect/connect'
 
-/** Tags in message text: <plan:goal>, <step:goal/step>, <user:uuid>, <org:uuid>. */
-export const TAG = /<(plan|step|user|org):([A-Za-z0-9_.-]+)(?:\/([A-Za-z0-9_.-]+))?>/g
+/** Tags in message text: <plan:goal>, <step:goal/step>, <user:uuid>, <org:uuid>, <resource:uuid>. */
+export const TAG = /<(plan|step|user|org|resource):([A-Za-z0-9_.-]+)(?:\/([A-Za-z0-9_.-]+))?>/g
 
 export const planToken = (goalUuid: string) => `<plan:${goalUuid}>`
 export const stepToken = (goalUuid: string, stepUuid: string) => `<step:${goalUuid}/${stepUuid}>`
 export const userToken = (userUuid: string) => `<user:${userUuid}>`
 export const orgToken = (orgUuid: string) => `<org:${orgUuid}>`
+export const resourceToken = (resourceUuid: string) => `<resource:${resourceUuid}>`
 
 /** A step's state as a small mark: done, waiting on review, sent back, or not done yet. */
 export function StepMark({ status, behind = false, className }: { status: string; behind?: boolean; className?: string }) {
@@ -50,6 +51,13 @@ export function OrgTag({ name }: { name: string }) {
   </span>
 }
 
+/** A shared resource, inline: its title as a link that opens it. */
+export function ResourceTag({ title, url }: { title: string; url: string }) {
+  return <a href={url} target="_blank" rel="noopener noreferrer" className={cn(chip, 'hover:border-[var(--org-primary-color)]')}>
+    <ExternalLink size={12} aria-hidden="true" className="relative -top-px mr-1 inline text-muted-foreground" />{title}
+  </a>
+}
+
 /** What a tag is, by its token key, so a message can find each tag's current name. */
 export const tagKey = (kind: string, first: string, second?: string) => `${kind}:${first}${second ? `/${second}` : ''}`
 
@@ -84,6 +92,7 @@ export function Tag({ tag, inPlan, onTag }: { tag: MessageRef; inPlan?: string; 
   if (tag.kind === 'plan') return <PlanTag title={tag.title} onClick={onTag ? () => onTag(tag) : undefined} />
   if (tag.kind === 'step') return <PlanTag title={tag.title} planTitle={tag.goal_uuid === inPlan ? undefined : tag.plan_title} onClick={onTag ? () => onTag(tag) : undefined} />
   if (tag.kind === 'user') return <PersonTag person={tag} />
+  if (tag.kind === 'resource') return <ResourceTag title={tag.title} url={tag.url} />
   return <OrgTag name={tag.name} />
 }
 

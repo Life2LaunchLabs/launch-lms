@@ -2,12 +2,7 @@
 import { useFormik } from 'formik'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
-import FormLayout, {
-  FormField,
-  FormLabelAndMessage,
-  Input,
-  Textarea,
-} from '@components/Objects/StyledElements/Form/Form'
+import FormLayout, { FormField, FormLabelAndMessage, Input, Textarea } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
 import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
@@ -58,11 +53,13 @@ function OpenSignUpComponent({
   embedded = false,
   postSignupUrlOverride,
   onLoginClick,
+  header,
 }: {
   createOrgMode?: boolean
   embedded?: boolean
   postSignupUrlOverride?: string
   onLoginClick?: () => void
+  header?: React.ReactNode // the invitation, when there is one
 }) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -79,13 +76,12 @@ function OpenSignUpComponent({
   const inviteCode = searchParams.get('inviteCode')
   const invitationToken = searchParams.get('invitation')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
-  const postSignupUrl =
-    postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : '/')
+  const postSignupUrl = postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : '/')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
       org_id: org?.id,
-      email: '',
+      email: searchParams.get('email') || '', // an invitation fills it in
       password: '',
       username: '',
       bio: '',
@@ -186,7 +182,9 @@ function OpenSignUpComponent({
         return
       }
       window.sessionStorage.setItem(welcomeSignupPasswordKey(email), formik.values.password)
-      router.push(`/welcome?email=${encodeURIComponent(email)}`)
+      // An invitation or join link rides along, so the new account joins that organization.
+      const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
+      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
       return
     }
     setStep('details')
@@ -197,7 +195,7 @@ function OpenSignUpComponent({
     if (!age.ok()) return
     setIsGoogleLoading(true)
 
-    const callbackUrl = postSignupUrl
+    const callbackUrl = invitationToken || inviteCode ? `${window.location.pathname}${window.location.search}` : postSignupUrl // back to the join screen
     const res = await signIn('google', {
       callbackUrl,
       orgSlug: org?.slug,
@@ -214,6 +212,7 @@ function OpenSignUpComponent({
     return (
       <div className="flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10">
         <div className="w-full max-w-[426px] text-center">
+          {header}
           <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950">
             Create your free account
           </h1>

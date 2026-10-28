@@ -1,4 +1,4 @@
-"""Request bodies for playing activities and conferring badges."""
+"""Request bodies for playing activities."""
 
 from sqlmodel import Field, SQLModel
 
@@ -16,15 +16,14 @@ class LearningResponseSubmit(SQLModel):
     button: str | None = None
 
 
+class LearningRunDecision(SQLModel):
+    passed: bool
+    note: str | None = ""
+
+
 class LearningResponseGrade(SQLModel):
     score: float
     feedback: str | None = ""
     question_scores: dict[str, float] = Field(default_factory=dict)
     question_feedback: dict[str, str] = Field(default_factory=dict)
 
-
-class LearningAwardCreate(SQLModel):
-    badge_uuid: str
-    user_id: int
-    issuing_org_id: int | None = None
-    evidence: dict = Field(default_factory=dict)

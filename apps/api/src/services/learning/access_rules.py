@@ -49,22 +49,3 @@ def _require_org_admin(
         return user
     require_org_admin(user.id, org_id, db_session, permission)
     return user
-
-
-def _is_org_admin(db_session: Session, current_user: PublicUser | AnonymousUser, org_id: int, permission: str | None = "build_plans") -> bool:
-    """Whether the viewer may change the organization's badges: its admins and staff who build plans, or a superadmin."""
-    try:
-        _require_org_admin(db_session, current_user, org_id, permission)
-        return True
-    except HTTPException:
-        return False
-
-
-def _require_org_staff(db_session: Session, current_user: PublicUser | AnonymousUser, org_id: int) -> PublicUser:
-    """Reads for the organization's staff (admins, maintainers and staff roles); writes keep ``_require_org_admin``."""
-    from src.services.school.roles import is_staff
-
-    user = _require_user(current_user)
-    if is_user_superadmin(user.id, db_session) or is_staff(db_session, org_id, user.id):
-        return user
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the organization's staff can see its badges")

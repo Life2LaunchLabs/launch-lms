@@ -13,7 +13,6 @@ import {
 } from '@services/resources/resources'
 import QuickstartSection from '@components/Landings/QuickstartSection'
 import TrendingSection from '@components/Landings/TrendingSection'
-import DashboardOnboardingBanner from '@components/Onboarding/DashboardOnboardingBanner'
 
 interface LandingCustomProps {
   landing: {
@@ -256,7 +255,6 @@ function LandingCustom({
 
   return (
     <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 py-8 md:py-10 h-full">
-      <DashboardOnboardingBanner orgslug={orgslug} />
       {landing.sections.map((section) => renderSection(section))}
     </div>
   )

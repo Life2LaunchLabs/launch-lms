@@ -85,7 +85,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
               <OrgMenu orgslug={orgslug} compact={hub?.state === 'open'} />
             </div>
           )}
-          <div className={`org-page-content learner-page min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
+          <div className={`org-page-content page-frame learner-page min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
             <div className="learner-page-inner">{children}</div>
           </div>
         </div>

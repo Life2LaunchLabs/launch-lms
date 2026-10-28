@@ -1,24 +1,21 @@
-/** What a group in People shows beside the list besides its chat. */
-export type GroupView = 'plans' | 'requirements'
+/** A group profile's tabs (People when none); requirements moved to Insights. */
+export type GroupView = 'plans' | 'join' | 'requirements'
+/** A person's profile tabs (Overview when none). */
+export type PersonTab = 'overview' | 'portfolio' | 'plans' | 'access'
+/** The organization's profile tabs (Overview when none). */
+export type OrgTab = 'overview' | 'invites' | 'join'
 
-/** The Plans area's tabs, each its own page. */
-export type PlansTabId = 'assignments' | 'templates' | 'badges' | 'requirements' | 'marketplace'
+/** The Plans area's tabs, each its own page, always in this order. */
+export type PlansTabId = 'plans' | 'discover' | 'assignments' | 'requirements' | 'requests'
 /** A requirement framework's pages under Plans › Requirements. */
-export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans'
-/** What the marketplace browses: everything, or one kind ("Add from marketplace" on a tab pre-filters to its kind). */
-export type MarketplaceType = 'templates' | 'badges' | 'frameworks'
-export type MarketplaceParams = { type?: MarketplaceType | null; creator?: string | number | null; view?: 'browse' | 'requests' | null; q?: string | null }
+export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans' | 'edit'
 
 const PLANS_TAB_PATHS: Record<PlansTabId, string> = {
-  assignments: '/admin/plans',
-  templates: '/admin/plans/templates',
-  badges: '/admin/badges',
+  plans: '/admin/plans',
+  discover: '/admin/plans/discover',
+  assignments: '/admin/plans/assignments',
   requirements: '/admin/plans/requirements',
-  marketplace: '/admin/plans/marketplace',
-}
-
-function adminMarketplace(params?: MarketplaceParams): string {
-  return withQuery(PLANS_TAB_PATHS.marketplace, { type: params?.type, creator: params?.creator, view: params?.view === 'browse' ? null : params?.view, q: params?.q })
+  requests: '/admin/plans/requests',
 }
 
 function frameworkPage(frameworkUuid: string, subpage: FrameworkSubpage = 'details'): string {
@@ -84,7 +81,7 @@ export const routePaths = {
       withQuery('/login', params),
     signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string }) =>
       withQuery('/signup', params),
-    orgSignup: () => '/signup/org',
+    orgSignup: () => '/start',
     forgot: () => '/forgot',
     reset: () => '/reset',
     verifyEmail: () => '/verify-email',
@@ -145,9 +142,10 @@ export const routePaths = {
     portfolioResume: () => '/portfolio/resume',
     portfolioTimeline: () => '/portfolio/timeline',
     portfolioBadges: () => '/portfolio/badges',
-    portfolioAchievements: () => '/portfolio/achievements',
-    portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
-    badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
+    /** One badge a learner earned, by its short code: the badge, who earned it, and its certificate. */
+    badgeAward: (code: string) => `/b/${encodeURIComponent(code)}`,
+    /** A captured dashboard's read-only link: no sign-in, small numbers hidden. */
+    insightsShared: (token: string) => `/insights/shared/${encodeURIComponent(token)}`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
     search: (query?: string) => withQuery('/discover', { q: query }),
@@ -155,7 +153,10 @@ export const routePaths = {
     resources: () => '/resources',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
-    badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
+    /** A plan learners can join, as Discover shows it; also the criteria page of the badge it earns. */
+    discoverPlan: (templateUuid: string) => `/discover/plans/${encodeURIComponent(templateUuid)}`,
+    /** A collection of plans an organization offers learners. */
+    discoverCollection: (collectionUuid: string) => `/discover/collections/${encodeURIComponent(collectionUuid)}`,
     resource: (resourceUuid: string) => `/discover/resources/${encodeURIComponent(resourceUuid.replace(/^resource_/, ''))}`,
     user: (username: string) => `/user/${username}`,
     userProjects: (username: string) => `/user/${username}/projects`,
@@ -163,8 +164,6 @@ export const routePaths = {
     userResume: (username: string) => `/user/${username}/resume`,
     userPortfolioPost: (username: string, slug: string) => `/user/${username}/portfolio/${slug}`,
     userTimeline: (username: string) => `/user/${username}/timeline`,
-    userAchievements: (username: string) => `/user/${username}/achievements`,
-    userAchievementDetail: (username: string, achievementId: string) => `/user/${username}/achievements/${achievementId}`,
     store: {
       root: () => '/store',
       offer: (offerId: string) => `/store/offers/${offerId}`,
@@ -173,11 +172,11 @@ export const routePaths = {
       root: () => '/account',
       page: (subpage: string) => `/account/${subpage}`,
     },
-    /** The org admin side, by tab: Home, Plans (Assignments, Templates, Badges, Requirements, Marketplace), People, Insights, Content, Organization. */
+    /** The org admin side, by tab: Home, Plans (Plans, Discover, Assignments, Requirements), People, Insights, Content, Organization. */
     admin: {
       root: () => '/admin',
-      /** One Plans tab's page; with no tab, Assignments. The sidebar opens the viewer's own first tab instead. */
-      plans: (tab: PlansTabId = 'assignments') => PLANS_TAB_PATHS[tab],
+      /** One Plans tab's page; with no tab, the org's plans. */
+      plans: (tab: PlansTabId = 'plans') => PLANS_TAB_PATHS[tab],
       assignments: () => PLANS_TAB_PATHS.assignments,
       // The grading stack; from 'assignment' goes back to the assignment rather than the list.
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
@@ -188,54 +187,81 @@ export const routePaths = {
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       /** A learner's plan feed: their plan from the staff side, its chat open. People's "Open feed" lands here. */
       learnerFeed: (planUuid: string) => `/admin/plans/live/${encodeURIComponent(planUuid)}?chat=plan`,
-      /** People: one list of the organization's people and your chats with them, with a chat, a person or a group open beside it. */
-      people: {
-        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/users', params),
-        chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
-        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
-        /** A group: its chat, or its plans (one assignment's grid) or requirements beside it. */
-        group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
-          withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
+      /**
+       * Threads: everyone you share a thread with (learners, staff, groups, all staff, the
+       * organization), one open beside the list, maybe on one plan (an assignment, for a group)
+       * and one of its steps.
+       */
+      threads: {
+        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
+        person: (userId: number, plan?: string | null, step?: string | null) => withQuery(`/admin/threads/people/${userId}`, { plan, step }),
+        group: (groupId: number, plan?: string | null, step?: string | null) => withQuery(`/admin/threads/groups/${groupId}`, { plan, step }),
+        staff: () => '/admin/threads/staff',
+        org: () => '/admin/threads/org',
       },
-      templates: () => PLANS_TAB_PATHS.templates,
+      /** Profiles under Threads, opened from a thread's header: a person's, a group's and the organization's. */
+      people: {
+        /** The list moved to Threads. */
+        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
+        user: (username: string, tab?: PersonTab) =>
+          withQuery(`/admin/threads/profiles/people/${encodeURIComponent(username)}`, { tab: tab === 'overview' ? null : tab }),
+        /** A group: its people, its plans (one assignment's grid), or its join links. */
+        group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
+          withQuery(`/admin/threads/profiles/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
+        org: (tab?: OrgTab) => withQuery('/admin/threads/profiles/org', { tab: tab === 'overview' ? null : tab }),
+      },
       // Template uuids kept their old program uuids.
       template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
-      templatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
-      badges: () => PLANS_TAB_PATHS.badges,
-      /** Old name: the marketplace browsing badges. */
-      badgeMarketplace: () => adminMarketplace({ type: 'badges' }),
-      /** Plans › Marketplace: browse (optionally one kind or one creator) or the requests view. */
-      marketplace: adminMarketplace,
+      /** A plan collection under Plans. */
+      planCollection: (collectionUuid: string) => `/admin/plans/collections/${encodeURIComponent(collectionUuid)}`,
+      /** Plans › Discover: what other organizations share, optionally searched. */
+      discover: (q?: string | null) => withQuery(PLANS_TAB_PATHS.discover, { q }),
+      /** Plans › Discover narrowed to plans counting toward these requirements of a framework (such as its flagged gaps). */
+      discoverCovering: (frameworkUuid: string, nodeUuids: string[]) => withQuery(PLANS_TAB_PATHS.discover, { fw: frameworkUuid, covers: nodeUuids.join(',') }),
+      /** A plan or collection another organization shares, as Discover shows it. */
+      discoverPlan: (templateUuid: string) => `/admin/plans/discover/plan/${encodeURIComponent(templateUuid)}`,
+      discoverCollection: (collectionUuid: string) => `/admin/plans/discover/collection/${encodeURIComponent(collectionUuid)}`,
       /** Plans › Requirements: the org's requirement frameworks. */
       requirements: () => PLANS_TAB_PATHS.requirements,
-      /** One framework under Plans › Requirements: details, levels, spec, or coverage by plan. */
+      /** One framework under Plans › Requirements: its tree (any subpage but edit, kept from the old tabs), or editing it. */
       requirementFrameworkPlans: frameworkPage,
-      badgeCollection: (collectionUuid: string, subpage: string) => `/admin/badges/collection/${encodeURIComponent(collectionUuid)}/${encodeURIComponent(subpage)}`,
-      badge: (badgeUuid: string, subpage: string) => `/admin/badges/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}/${encodeURIComponent(subpage)}`,
-      // Insights: reports by group (optionally against requirement frameworks), and learners' evidence by group.
-      insights: () => '/admin/insights',
+      // Insights: dashboards about the organization, one plan, group, learner or requirement framework; reports by group.
+      /** The organization's dashboards; `dashboard` opens one of them. */
+      /** Opportunities: a coming-soon page for now. */
+      opportunities: () => '/admin/opportunities',
+      insights: (dashboard?: string | null) => withQuery('/admin/insights', { d: dashboard || null }),
+      /** A plan, group, learner or framework dashboard, for one of them (`key`); without it the first one the viewer can open. */
+      insightsScope: (scope: 'plan' | 'group' | 'learner' | 'framework', key?: string | null, dashboard?: string | null) =>
+        withQuery(`/admin/insights/${scope}${key ? `/${encodeURIComponent(key)}` : ''}`, { d: dashboard || null }),
       /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
+      /** The capture log, optionally narrowed to one dashboard. */
+      insightsCaptures: (dashboard?: string | null) => withQuery('/admin/insights/captures', { d: dashboard || null }),
+      insightsCapture: (captureUuid: string) => `/admin/insights/captures/${encodeURIComponent(captureUuid)}`,
       insightsReport: (groupId?: string | number | null, frameworks?: string[] | 'all' | null) =>
-        withQuery('/admin/insights', { group: groupId == null ? null : String(groupId), fw: frameworksParam(frameworks) }),
+        withQuery('/admin/insights/reports', { group: groupId == null ? null : String(groupId), fw: frameworksParam(frameworks) }),
       insightsReportPrint: (groupId: string | number, frameworks?: string[] | 'all' | null) =>
         withQuery(`/admin/insights/reports/${encodeURIComponent(String(groupId))}/print`, { fw: frameworksParam(frameworks) }),
       /** Engagement by group (a placeholder for now). */
       insightsEngagement: () => '/admin/insights/engagement',
-      /** Requirement coverage by template. */
+      /** Old coverage page; it redirects to Plans › Requirements. */
       insightsCoverage: () => '/admin/insights/coverage',
+      /** Old evidence page; it redirects to the requirement framework dashboards. */
       insightsEvidence: (groupId?: string | number | null) => withQuery('/admin/insights/evidence', { group: groupId == null ? null : String(groupId) }),
       /** Old name for `requirementFrameworkPlans`; frameworks moved from Insights to Plans › Requirements. */
       requirementFramework: frameworkPage,
-      content: {
-        resources: () => '/admin/resources',
-        resourceTags: () => '/admin/resources/tags',
-        resourceChannel: (channelUuid: string, subpage: string) => `/admin/resources/${channelUuid}/${subpage}`,
+      resources: {
+        root: () => '/admin/resources',
+        library: () => '/admin/resources/library',
+        channel: (channelUuid: string) => `/admin/resources/channel/${encodeURIComponent(channelUuid)}`,
+        item: (resourceUuid: string) => `/admin/resources/item/${encodeURIComponent(resourceUuid)}`,
       },
       organization: {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
         sso: () => '/admin/org/settings/sso',
         messaging: () => '/admin/org/settings/messaging',
+        /** The carousel learners see on Discover. */
+        discover: () => '/admin/org/settings/discover',
         plan: () => '/admin/org/settings/plan',
       },
       payments: {

@@ -10,6 +10,7 @@ import type { Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { AskCoach, CardNote, Feedback, FinishControls, StepIntro } from './shared'
 import { evidenceOf, ExploreBoard, KIND, pinned, Thumb, type Evidence } from './exploreBoard'
+import { ExploreSuggestions } from './exploreSuggestions'
 
 function ExploreRow({ step }: { step: Step<'explore'> }) {
   const result = step.result?.kind === 'explore' ? step.result : null
@@ -88,7 +89,9 @@ function ExploreSettings({ config, onChange }: ConfigPanelProps<'explore'>) {
 export const explore: StepDefinition<'explore'> = {
   type: 'explore',
   label: 'Explore',
-  hint: 'A board of links, files and notes, ending in what you made of it',
+  color: '#0B8077',
+  hint: 'Research on a board of links, files and notes, ending in what they found.',
+  example: 'Research three jobs in health care',
   icon: Compass,
   statusLine: (step) => {
     const count = evidenceOf(step).length
@@ -96,6 +99,7 @@ export const explore: StepDefinition<'explore'> = {
   },
   RowResult: ExploreRow,
   CardBody: ExploreCard,
+  ConfigPanel: ExploreSuggestions,
   SettingsPanel: ExploreSettings,
   notePrompt: false,
   defaultConfig: () => ({ suggestions: [] }),

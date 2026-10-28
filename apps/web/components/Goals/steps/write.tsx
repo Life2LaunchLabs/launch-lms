@@ -48,7 +48,9 @@ function WriteSettings({ config, onChange }: ConfigPanelProps<'write'>) {
 export const write: StepDefinition<'write'> = {
   type: 'write',
   label: 'Write',
-  hint: 'A written answer or reflection',
+  color: '#6B3FE0',
+  hint: 'A written answer or reflection to your prompt.',
+  example: 'What surprised you on your visit?',
   icon: PenLine,
   RowResult: WriteRow,
   CardBody: WriteCard,

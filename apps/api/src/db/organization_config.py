@@ -55,31 +55,10 @@ class SeoOrgConfig(BaseModel):
     noindex_communities: bool = False
 
 
-class BadgeIssuerConfig(BaseModel):
-    name: str = ""
-    url: str = ""
-    email: str = ""
-    description: str = ""
-    image_url: str = ""
-
-
-class OnboardingGoalBadges(BaseModel):
-    higher_education: list[str] = Field(default_factory=list)
-    employment: list[str] = Field(default_factory=list)
-    self_starting: list[str] = Field(default_factory=list)
-    not_sure: list[str] = Field(default_factory=list)
-
-
-class OnboardingConfig(BaseModel):
-    recommended_badges: OnboardingGoalBadges = OnboardingGoalBadges()
-
-
 class CustomizationConfig(BaseModel):
     general: GeneralCustomization = GeneralCustomization()
     auth_branding: AuthBrandingConfig = AuthBrandingConfig()
     seo: SeoOrgConfig = SeoOrgConfig()
-    badge_issuer: BadgeIssuerConfig = BadgeIssuerConfig()
-    onboarding: OnboardingConfig = OnboardingConfig()
     landing: dict = Field(default_factory=dict)
     discover: DiscoverSettings = Field(default_factory=DiscoverSettings)
 
@@ -115,6 +94,8 @@ class OrganizationConfigDocument(BaseModel):
     grants: dict = Field(default_factory=dict)
     # The one Full trial, once started: {"tier": "full", "started_at": iso, "ends_at": iso}. See services/orgs/trial.py.
     trial: dict | None = None
+    # Set by /start: {"role", "solo", "created_by_user_id", "completed_at"}. See services/orgs/onboarding.py.
+    setup: dict | None = None
     signup_mode: Literal["open", "inviteOnly"] = "open"
     customization: CustomizationConfig = CustomizationConfig()
     messaging: MessagingPolicy = MessagingPolicy()

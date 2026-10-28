@@ -8,10 +8,10 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.conversations import ChatReportReview
 from src.db.organization_config import MessagingPolicy
-from src.db.school import GroupStaffSet, StaffNoteCreate
+from src.db.school import GroupStaffSet
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.school import directory, feed, group_chats, messaging, profile, reports, staff, views
+from src.services.school import directory, feed, group_chats, messaging, profile, reports, staff, threads, views
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -40,18 +40,8 @@ async def student(org_id: int, user_id: int, current_user: PublicUser = USER, db
 
 @router.get("/orgs/{org_id}/students/{user_id}/chat")
 async def student_chat(org_id: int, user_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None,
-                       current_user: PublicUser = USER, db_session: Session = DB):
-    return views.student_chat(db_session, current_user, org_id, user_id, before, goal_uuid, step_uuid)
-
-
-@router.post("/orgs/{org_id}/students/{user_id}/notes")
-async def add_note(org_id: int, user_id: int, payload: StaffNoteCreate, current_user: PublicUser = USER, db_session: Session = DB):
-    return views.add_note(db_session, current_user, org_id, user_id, payload.body)
-
-
-@router.delete("/orgs/{org_id}/students/{user_id}/notes/{note_uuid}")
-async def delete_note(org_id: int, user_id: int, note_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
-    return views.delete_note(db_session, current_user, org_id, user_id, note_uuid)
+                       audience: Literal["all", "learner", "staff"] | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    return views.student_chat(db_session, current_user, org_id, user_id, before, goal_uuid, step_uuid, audience)
 
 
 @router.get("/orgs/{org_id}/waiting")
@@ -77,8 +67,28 @@ async def people_directory(org_id: int, q: str = "", offset: int = 0, limit: int
 
 @router.get("/orgs/{org_id}/people/feed")
 async def people_feed(org_id: int, q: str = "", offset: int = 0, limit: int = feed.PAGE, status: Literal["active", "alumni", "all"] = "active",
-                      current_user: PublicUser = USER, db_session: Session = DB):
-    return feed.people_feed(db_session, current_user, org_id, q, offset, limit, status)
+                      kind: Literal["all", "learners", "staff", "groups"] = "all", current_user: PublicUser = USER, db_session: Session = DB):
+    return feed.people_feed(db_session, current_user, org_id, q, offset, limit, status, kind)
+
+
+@router.get("/orgs/{org_id}/threads/people/{user_id}")
+async def person_thread(org_id: int, user_id: int, goal_uuid: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    return threads.person_thread(db_session, current_user, org_id, user_id, goal_uuid)
+
+
+@router.get("/orgs/{org_id}/threads/groups/{group_id}")
+async def group_thread(org_id: int, group_id: int, assignment_uuid: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    return threads.group_thread(db_session, current_user, org_id, group_id, assignment_uuid)
+
+
+@router.get("/orgs/{org_id}/threads/staff")
+async def staff_room_thread(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return threads.staff_room_thread(db_session, current_user, org_id)
+
+
+@router.get("/orgs/{org_id}/threads/org")
+async def org_thread(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return threads.org_thread(db_session, current_user, org_id)
 
 
 @router.get("/orgs/{org_id}/people/{username}/activity")

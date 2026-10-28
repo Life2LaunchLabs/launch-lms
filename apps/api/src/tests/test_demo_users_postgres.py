@@ -22,13 +22,9 @@ def world(tmp_path, monkeypatch):
 
     import_all_models()
     from src.db.demo import DemoConfiguration, DemoMember
-    from src.db.learning import (
-        LearningBadge,
-        LearningBadgeAward,
-        LearningActivity,
-        LearningBadgeVersion,
-        LearningRun,
-    )
+    from src.db.badges import BadgeAward
+    from src.db.goals import GoalTemplate, GoalTemplateVersion
+    from src.db.learning import LearningActivity, LearningRun
     from src.db.organizations import Organization
     from src.db.goals import Goal, GoalStage, GoalStep
     from src.db.portfolio import Portfolio, ProjectItem
@@ -46,8 +42,8 @@ def world(tmp_path, monkeypatch):
     engine = create_engine(url)
     with engine.begin() as conn:
         for table in (
-            "demomember democonfiguration demosession democheckpoint learningbadgeaward "
-            "learningrun learningactivity learningbadgeversion learningbadge projectitem "
+            "demomember democonfiguration demosession democheckpoint badge_award "
+            "learningrun learningactivity goal_template_version goal_template projectitem "
             "portfolio goal_step goal_stage plancollaborator goal userorganization role "
             '"user" organization'
         ).split():
@@ -128,19 +124,24 @@ def world(tmp_path, monkeypatch):
                 update_date=now,
             )
         )
-    db.add(LearningBadge(id=1, name="First Aid", status="published", org_id=1))
+    first_aid = {"template": {"title": "First Aid"}, "stages": [], "badge": {"kind": "Badge"}}
+    db.add(GoalTemplate(id=1, template_uuid="goal_template_first_aid", org_id=1, title="First Aid", document=first_aid))
     db.flush()
-    db.add(LearningBadgeVersion(id=1, badge_id=1, state="published", org_id=1))
+    db.add(GoalTemplateVersion(id=1, version_uuid="version_first_aid", template_id=1, org_id=1, number=1, semver="1.0.0", document=first_aid, content_hash="", note=""))
     db.flush()
     db.add(LearningActivity(id=1, activity_uuid="learning_activity_first_aid", org_id=1, title="First aid basics"))
     db.flush()
     db.add(
-        LearningBadgeAward(
+        BadgeAward(
             award_uuid="award_source",
-            badge_id=1,
-            badge_version_id=1,
-            org_id=1,
+            template_id=1,
+            version_id=1,
+            semver="1.0.0",
+            issuing_org_id=1,
+            creator_org_id=1,
             user_id=11,
+            earned_on=datetime.utcnow().date(),
+            achievement={"name": "First Aid"},
             issued_at=datetime.utcnow(),
         )
     )
@@ -203,8 +204,8 @@ def world(tmp_path, monkeypatch):
         for table in (
             "organization",
             "user",
-            "learningbadge",
-            "learningbadgeversion",
+            "goal_template",
+            "goal_template_version",
             "learningactivity",
             "learningrun",
             "goal_stage",
@@ -228,7 +229,7 @@ def world(tmp_path, monkeypatch):
             "DemoMember": DemoMember,
             "User": User,
             "Run": LearningRun,
-            "Award": LearningBadgeAward,
+            "Award": BadgeAward,
             "Portfolio": Portfolio,
             "Project": ProjectItem,
             "Goal": Goal,
@@ -269,7 +270,7 @@ def test_copy_brings_the_whole_account_and_leaves_the_source_alone(world):
     # Shared catalog stays linked; personal rows are new and point at each other.
     assert run.activity_id == 1 and run.id != 1 and run.data == {"step": 3}
     assert run.goal_id == goal.id and run.goal_step_id != 1
-    assert award.badge_id == 1 and award.award_uuid != "award_source"
+    assert award.template_id == 1 and award.award_uuid != "award_source"
     assert (
         portfolio.portfolio_uuid != "portfolio_source"
         and portfolio.short_bio == "Real bio"
@@ -511,8 +512,8 @@ def test_workspace_accepts_enums_the_live_schema_stores_as_text(world):
             )
 
 
-def test_publish_includes_the_public_badge_catalog_of_every_org(world):
-    """Visitors browse the same badge hub as live learners, not only their own badges."""
+def test_publish_includes_the_plans_every_org_offers_learners(world):
+    """Visitors browse the same Discover as live learners, not only their own plans."""
     db, engine, users, M = world
     users.create_demo_user(
         db,
@@ -525,64 +526,24 @@ def test_publish_includes_the_public_badge_catalog_of_every_org(world):
             orgs=[users.OrgChoice(slug="oregon-high")],
         ),
     )
-    from src.db.learning import (
-        BadgeCollection,
-        LearningBadge,
-        LearningBadgeStatus,
-        LearningBadgeVersion,
-    )
-
-    # "Unrelated" (org 3) has no demo user, as with a separate issuer org.
-    db.add(
-        BadgeCollection(
-            id=50, org_id=3, name="Health careers", collection_uuid="collection_hc"
-        )
-    )
-    db.flush()
-    for identifier, name, state in (
-        (50, "CPR", LearningBadgeStatus.PUBLISHED),
-        (51, "Phlebotomy", LearningBadgeStatus.COMING_SOON),
-        (52, "Unfinished", LearningBadgeStatus.DRAFT),
-    ):
-        db.add(
-            LearningBadge(
-                id=identifier,
-                org_id=3,
-                collection_id=50,
-                name=name,
-                status=state,
-                badge_uuid=f"badge_{identifier}",
-            )
-        )
-    db.flush()
-    db.add(
-        LearningBadgeVersion(
-            id=50,
-            version_uuid="version_cpr",
-            badge_id=50,
-            state="published",
-            org_id=3,
-        )
-    )
-    # Org 4 issues the catalog badge without any tie to the demo users.
-    from src.db.organizations import Organization
-
-    db.add(Organization(id=4, org_uuid="org_issuer", name="Issuer", slug="issuer", email="i@example.com"))
-    db.flush()
-    from src.db.badge_routes import BadgeRoute
     from src.db.goals import GoalTemplate
+    from src.db.organizations import Organization
     from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateLearnerAccess
 
-    # Each catalog badge has a plan; org 4 is approved on CPR's and has only asked for Phlebotomy's.
-    for identifier, state in ((1, "approved"), (2, "requested")):
-        db.add(GoalTemplate(id=59 + identifier, template_uuid=f"template_{identifier}", org_id=3, title=f"Plan {identifier}"))
+    # "Unrelated" (org 3) has no demo user, as with a separate creator org; org 4 runs one of its plans.
+    db.add(Organization(id=4, org_uuid="org_issuer", name="Issuer", slug="issuer", email="i@example.com"))
+    for identifier, title, access in ((60, "CPR", "open"), (61, "Phlebotomy", "request"), (62, "Unfinished", "invite")):
+        db.add(GoalTemplate(id=identifier, template_uuid=f"template_{identifier}", org_id=3, title=title,
+                            document={"template": {"title": title}, "stages": [], "badge": {"kind": "Badge"}}))
         db.flush()
-        db.add(BadgeRoute(route_uuid=f"route_{identifier}", badge_id=49 + identifier, goal_template_id=59 + identifier))
+        db.add(GoalTemplateLearnerAccess(template_id=identifier, org_id=3, access=access))
+    # Org 4 is approved on CPR's plan and has only asked for Phlebotomy's.
+    for identifier, template_id, state in ((1, 60, "approved"), (2, 61, "requested")):
         db.add(
             GoalTemplateAuthorization(
                 id=identifier,
                 authorization_uuid=f"template_auth_{identifier}",
-                template_id=59 + identifier,
+                template_id=template_id,
                 creator_org_id=3,
                 issuer_org_id=4,
                 status=state,
@@ -594,16 +555,11 @@ def test_publish_includes_the_public_badge_catalog_of_every_org(world):
 
     revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
     rows = publish(db, 10, revision).data["rows"]
-    # Approved issuers of catalog badges come along so learners can choose one.
+    # Organizations approved to run an offered plan come along so learners can choose one.
     assert [row["id"] for row in rows["goal_template_authorization"]] == [1]
-    assert {row["id"] for row in rows["goal_template"]} >= {60, 61}
-    # No issuer staff in a demo copy: visitors start any captured issuer's plan at once.
-    assert [row["access"] for row in rows["goal_template_learner_access"]] == ["open"]
-    assert "Issuer" in {row["name"] for row in rows["organization"]}
-    names = {row["name"] for row in rows["learningbadge"]}
-    assert {"CPR", "Phlebotomy", "First Aid"} <= names
-    assert "Unfinished" not in names
-    assert any(row["id"] == 50 for row in rows["badgecollection"])
-    assert any(row["id"] == 50 for row in rows["learningbadgeversion"])
-    # The issuer org comes along for display, without making it a scenario org.
-    assert "Unrelated" in {row["name"] for row in rows["organization"]}
+    titles = {row["title"] for row in rows["goal_template"]}
+    assert {"CPR", "Phlebotomy", "First Aid"} <= titles and "Unfinished" not in titles
+    # No staff in a demo copy: visitors start any captured plan at once.
+    assert {row["access"] for row in rows["goal_template_learner_access"]} == {"open"}
+    assert {"Issuer", "Unrelated"} <= {row["name"] for row in rows["organization"]}
+    assert [row["award_uuid"] for row in rows["badge_award"]] != []

@@ -4,23 +4,19 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { ArrowUpRight, ChevronRight, Lock, MessageCircle, MessageSquarePlus, MoreHorizontal, Users, X } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, MessageCircle, MessageSquarePlus, MoreHorizontal, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { useHub } from '@components/Hub/HubContext'
 import ChatWorkspace, { type ChatSource } from '@components/Connect/workspace/ChatWorkspace'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { connectApi, connectKeys, type ChatAudience, type ChatTopic, type CohortChat, type GoalChat as GoalChatData } from '@services/connect/connect'
+import { connectApi, connectKeys, type GoalChat as GoalChatData } from '@services/connect/connect'
 import { can, type Goal, type Step } from '@services/goals/types'
 import './side-chat.css'
 
-/** What a plan's chat is about: one learner's goal, or an assignment's plan with its staff or its whole group. */
-export type GoalChatScope =
-  | { goal: Goal | null }
-  | { assignment: { orgId: number; assignment_uuid: string; title: string }; audience: ChatAudience }
-
-type CohortScope = Extract<GoalChatScope, { audience: ChatAudience }>
+/** What a plan's chat is about: one learner's goal. */
+export type GoalChatScope = { goal: Goal | null }
 
 /** How much has been said about the plan and each of its steps, for its chat buttons. */
 type ChatButtons = Pick<GoalChatData, 'title' | 'can_post' | 'counts' | 'count'>
@@ -41,25 +37,11 @@ type ScopeChat = {
   about: string
   /** The plan the filter starts on. */
   topicUuid: string
-  /** A cohort's chat filters by its template's steps instead of the chat's own plans. */
-  steps?: ChatTopic
   elsewhere: { href: string; label: string } | null
   /** Staff reading a learner's plan feed also keep notes about the learner there. */
-  staffNotes?: { orgId: number; userId: number }
 }
 
 type OpenPlan = (goalUuid: string, stepUuid?: string) => void // eslint-disable-line no-unused-vars
-
-/** An assignment's chats: Staff only, and Whole group for a group assignment. */
-export type AudienceChoice = {
-  options: ChatAudience[]
-  onChange: (audience: ChatAudience) => void // eslint-disable-line no-unused-vars
-}
-
-const AUDIENCE_LABELS: Record<ChatAudience, { label: string; icon: React.ElementType }> = {
-  staff: { label: 'Staff only', icon: Lock },
-  group: { label: 'Whole group', icon: Users },
-}
 
 const GoalChatContext = React.createContext<GoalChatValue | null>(null)
 export const useGoalChat = () => React.useContext(GoalChatContext)
@@ -69,30 +51,23 @@ export const useGoalChat = () => React.useContext(GoalChatContext)
  * A step's comments are that chat filtered to the step, so they read the same everywhere.
  * Staff who aren't in the learner's chat with the organization read along (staffOrgId). An
  * assignment's plan talks in a chat of its own, with its staff alone or the whole group.
- * Staff (staffOrgId) write staff notes about the learner from the feed's composer too.
  */
-export function GoalChatProvider({ scope, token, orgslug, staffOrgId, audiences, onOpenPlan, onClose, children }: {
+export function GoalChatProvider({ scope, token, orgslug, staffOrgId, onOpenPlan, onClose, children }: {
   scope: GoalChatScope
   token?: string
   orgslug: string
   staffOrgId?: number
-  /** An assignment's chats to switch between in the panel, and what switching does. */
-  audiences?: AudienceChoice
   /** Where a plan tagged from outside the chat opens; by default the learner's plan. */
   onOpenPlan?: OpenPlan
   /** Called when the chat panel closes. */
   onClose?: () => void
   children: React.ReactNode
 }) {
-  const goal = 'goal' in scope ? scope.goal : null
-  const goalChat = useGoalScopeChat(goal, token, orgslug, staffOrgId)
-  const cohortChat = useCohortScopeChat('goal' in scope ? null : scope, token, orgslug)
-  const { ready, refresh } = 'goal' in scope ? goalChat : cohortChat
+  const goal = scope.goal
+  const { ready, refresh } = useGoalScopeChat(goal, token, orgslug, staffOrgId)
   const [target, setTarget] = React.useState<{ step: string | null } | null>(null)
-  // Switching between an assignment's chats keeps the panel open on the same step.
-  const scopeKey = 'goal' in scope ? goal?.goal_uuid : scope.assignment.assignment_uuid
+  const scopeKey = goal?.goal_uuid
   React.useEffect(() => setTarget(null), [scopeKey])
-  const audience = 'goal' in scope ? undefined : scope.audience
   // A link can open the chat on a step: /plans/{goal}?chat={step}, or ?chat=plan for the whole plan.
   const readyKey = ready?.key
   React.useEffect(() => {
@@ -109,7 +84,6 @@ export function GoalChatProvider({ scope, token, orgslug, staffOrgId, audiences,
   return <GoalChatContext.Provider value={value}>
     {children}
     {ready && target ? <GoalChatPanel chat={ready} stepUuid={target.step} token={token} orgslug={orgslug} onOpenPlan={onOpenPlan}
-      audiences={audience && audiences && audiences.options.length > 1 ? { ...audiences, value: audience } : undefined}
       onClose={() => { setTarget(null); void refresh(); onClose?.() }} /> : null}
   </GoalChatContext.Provider>
 }
@@ -125,33 +99,15 @@ function useGoalScopeChat(goal: Goal | null, token: string | undefined, orgslug:
       : staffOrgId && subject?.id && goal.ownership === 'external' && data.title ? { orgId: staffOrgId, userId: subject.id } : null
     if (!source) return null
     const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
-      : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)), label: `See ${subject.name} in People` } : null
-    const staffNotes = staffOrgId && subject?.id && goal.ownership === 'external' ? { orgId: staffOrgId, userId: subject.id } : undefined
-    return { key: goal.goal_uuid, chat: data, source, about: goal.title, topicUuid: goal.goal_uuid, elsewhere, staffNotes }
+      : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)), label: `See ${subject.name}’s profile` } : null
+    return { key: goal.goal_uuid, chat: data, source, about: goal.title, topicUuid: goal.goal_uuid, elsewhere }
   }, [goal, data, staffOrgId, orgslug])
   return { ready, refresh: mutate }
 }
 
-/** An assignment's chat with its staff or its whole group, filtered by its template's steps. */
-function useCohortScopeChat(scope: CohortScope | null, token: string | undefined, orgslug: string) {
-  const assignment = scope?.assignment
-  const audience = scope?.audience
-  const { data, mutate } = useSWR<CohortChat>(assignment && audience && token ? connectKeys.cohortChat(assignment.orgId, assignment.assignment_uuid, audience) : null,
-    () => connectApi.cohortChat(assignment!.orgId, assignment!.assignment_uuid, audience!, token), { refreshInterval: 15_000, shouldRetryOnError: false })
-  const ready = React.useMemo<ScopeChat | null>(() => {
-    if (!assignment || !audience || !data?.conversation_uuid || data.assignment_uuid !== assignment.assignment_uuid || data.audience !== audience) return null
-    return {
-      key: `${assignment.assignment_uuid}:${audience}`, chat: data, source: { chatUuid: data.conversation_uuid, audience }, about: assignment.title,
-      topicUuid: data.topic.goal_uuid, steps: data.topic, elsewhere: { href: getUriWithOrg(orgslug, routePaths.org.chat(data.conversation_uuid)), label: 'Open in Connect' },
-    }
-  }, [assignment, audience, data, orgslug])
-  return { ready, refresh: mutate }
-}
-
 /** The plan's chat docked beside the page: Coach's panel, header and all, with the chat's name where Coach's would be. */
-function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, audiences, onClose }: {
-  chat: ScopeChat; stepUuid: string | null; token?: string; orgslug: string; onOpenPlan?: OpenPlan
-  audiences?: AudienceChoice & { value: ChatAudience }; onClose: () => void
+function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, onClose }: {
+  chat: ScopeChat; stepUuid: string | null; token?: string; orgslug: string; onOpenPlan?: OpenPlan; onClose: () => void
 }) {
   const hub = useHub()
   const tuck = hub?.state === 'open' ? hub.tuck : null
@@ -175,7 +131,7 @@ function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, audiences, 
   if (!home) return null
   return createPortal(<aside aria-label={`${chat.chat.title || 'Chat'} about ${chat.about}`} className="side-chat-panel">
     <ChatWorkspace key={`${chat.key}:${stepUuid || ''}`} source={chat.source} orgslug={orgslug} token={token} initialFilter={{ goal_uuid: chat.topicUuid, step_uuid: stepUuid || undefined }}
-      steps={chat.steps} onOpenPlan={onOpenPlan} staffNotes={chat.staffNotes}
+      onOpenPlan={onOpenPlan}
       header={(loaded) => <><header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label="Chat navigation">
         <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onClose} aria-label="Show the page"><ChevronRight className="h-4 w-4" /></Button>
         <span className="flex min-w-0 items-center gap-1.5 px-1.5 text-sm font-medium" title={loaded?.people.map((person) => person.name).join(', ')}>
@@ -191,23 +147,8 @@ function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, audiences, 
           </DropdownMenuContent>
         </DropdownMenu> : null}
         <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Close chat"><X className="h-4 w-4" /></Button>
-      </header>{audiences ? <AudienceToggle {...audiences} /> : null}</>} />
+      </header></>} />
   </aside>, home)
-}
-
-/** Staff only or Whole group: which of an assignment's chats the panel shows. */
-export function AudienceToggle({ options, value, onChange }: AudienceChoice & { value: ChatAudience }) {
-  return <div role="radiogroup" aria-label="Who reads this chat" className="flex shrink-0 gap-1 px-3 pb-2 sm:px-4">
-    {options.map((option) => {
-      const { label, icon: Icon } = AUDIENCE_LABELS[option]
-      const on = option === value
-      return <button key={option} type="button" role="radio" aria-checked={on} onClick={() => { if (!on) onChange(option) }}
-        className={cn('flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-colors',
-          on ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground')}>
-        <Icon size={13} aria-hidden="true" />{label}
-      </button>
-    })}
-  </div>
 }
 
 /** The plan's chat on its header card, with how much has been said about it. */

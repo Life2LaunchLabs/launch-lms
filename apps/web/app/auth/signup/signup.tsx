@@ -11,7 +11,9 @@ import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
-import CreateOrgWizard from './CreateOrgWizard'
+import AskToJoin from './AskToJoin'
+import InviteCard, { usePrefillInvitedEmail, useInvitePreview } from './InviteCard'
+import type { InvitePreview } from '@services/organizations/invites'
 
 interface SignUpClientProps {
   org: any
@@ -23,59 +25,56 @@ function SignUpClient(props: SignUpClientProps) {
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('inviteCode')
   const invitationParam = searchParams.get('invitation')
-  const createOrgMode = searchParams.get('mode') === 'create-org'
   const config = props.org?.config?.config
   const joinMethod = config?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
   const invitationToken = invitationParam || ''
+  const preview = useInvitePreview(props.org?.id, invitationToken, inviteCode)
+  usePrefillInvitedEmail(preview)
+  const card = preview ? <InviteCard preview={preview} /> : null
 
   return (
     <AuthLayout org={props.org} welcomeText={t('auth.invited_to_join')}>
-      {createOrgMode ? (
-        session.status === 'authenticated' ? (
-          <div className="flex-1 flex flex-row">
-            <CreateOrgWizard ownerOrg={props.org} />
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-row">
-            <OpenSignUpComponent createOrgMode />
-          </div>
-        )
-      ) : (
-        <>
+      <>
           {joinMethod == 'open' &&
             (session.status == 'authenticated' ? (
-              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
+              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
             ) : (
               <div className="flex-1 flex flex-row">
-                <OpenSignUpComponent />
+                <OpenSignUpComponent header={card} />
               </div>
             ))}
           {joinMethod == 'inviteOnly' &&
             (inviteCode || invitationToken ? (
               session.status == 'authenticated' ? (
-                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
+                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
               ) : (
                 <div className="flex-1 flex flex-row">
-                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} />
+                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} header={card} postSignupUrl={joinedUrl(props.org, preview, true)} />
                 </div>
               )
             ) : (
               <NoTokenScreen org={props.org} />
             ))}
-        </>
-      )}
+      </>
     </AuthLayout>
   )
+}
+
+/** Where staff and admins go after accepting: the tour (new accounts) and profile step before Home; undefined for learners. */
+function joinedUrl(org: any, preview: InvitePreview | null, newAccount: boolean): string | undefined {
+  if (!org?.slug || !preview || preview.kind !== 'invitation' || preview.role === 'learner') return undefined
+  return getUriWithOrg(org.slug, newAccount ? '/joined?tour=1' : '/joined')
 }
 
 interface JoinScreenProps {
   inviteCode: string
   invitationToken: string
   org: any
+  preview: InvitePreview | null
 }
 
-const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProps) => {
+const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinScreenProps) => {
   const { t } = useTranslation()
   const session = useLHSession() as any
   const contextOrg = useOrg() as any
@@ -86,6 +85,8 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProp
   const [success, setSuccess] = useState('')
   const [showMessage, setShowMessage] = useState(false)
   const router = useRouter()
+  // Staff and admins set up their profile first; learners go straight in.
+  const after = joinedUrl(activeOrg, preview, false) || getUriWithOrg(activeOrg.slug, '/')
 
   const join = async () => {
     setIsSubmitting(true)
@@ -109,7 +110,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProp
       setSuccess(typeof res.data === 'string' ? res.data : t('auth.join_organization_success'))
       setShowMessage(true)
       setTimeout(() => {
-        router.push(getUriWithOrg(activeOrg.slug, '/'))
+        router.push(after)
       }, 2000)
     } else {
       const detail = res.data?.detail
@@ -118,7 +119,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProp
         setSuccess(t('auth.join_organization_success'))
         setShowMessage(true)
         setTimeout(() => {
-          router.push(getUriWithOrg(activeOrg.slug, '/'))
+          router.push(after)
         }, 1500)
         setIsSubmitting(false)
         return
@@ -200,6 +201,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProp
             <p className="text-gray-500 mt-1">{t('auth.join_organization_desc')}</p>
           </div>
 
+          {preview && <InviteCard preview={preview} signedInEmail={session.data?.user?.email} />}
           {/* Join Card */}
           <div className="bg-white rounded-xl p-6 nice-shadow">
             <div className="flex flex-col items-center gap-6">
@@ -255,6 +257,7 @@ const NoTokenScreen = ({ org }: NoTokenScreenProps) => {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Mail size={22} /></div>
         <h1 className="mt-5 text-2xl font-bold text-gray-900">{t('auth.invite_required')}</h1>
         <p className="mt-2 text-sm leading-6 text-gray-500">Ask an administrator of {activeOrg?.name} to send an invitation to your email address, then use the link in that message.</p>
+        {activeOrg?.id ? <AskToJoin org={activeOrg} /> : null}
       </div>
     </div>
   )

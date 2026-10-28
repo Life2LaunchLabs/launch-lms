@@ -50,30 +50,35 @@ test('requirements.export: assignment filters learners and downloads real review
   await expect(page.getByRole('button', { name: 'Export evidence CSV for 0 filtered learners' })).toBeDisabled()
 })
 
-test('requirements.export: Insights group evidence keeps pending evidence and shows server failures', async ({ page }, testInfo) => {
+test('requirements.dashboard: a framework dashboard shows progress and a capture carries the evidence', async ({ page }, testInfo) => {
+  test.setTimeout(60_000)
   await page.goto(`${insightsPath}/evidence?group=${fixture.group_id}`)
+  await expect(page).toHaveURL(/\/admin\/insights\/framework/)
+  await page.goto(`${insightsPath}/framework/${fixture.framework_uuid}`)
   await assertActualApp(page)
-  await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
-  await page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' }).click()
+  await expect(page.getByRole('heading', { name: 'Learners tracked' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Requirement progress' }).first()).toBeVisible()
+  await capture(page, testInfo, 'framework-dashboard.png')
+  await page.getByRole('button', { name: 'Capture', exact: true }).click()
+  await expect(page.getByRole('checkbox', { name: /Include requirement evidence/ })).toBeChecked()
+  await page.getByRole('dialog').getByRole('button', { name: 'Capture', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/insights\/captures\//)
+  const evidence = page.getByRole('region', { name: 'Captured with it' })
+  await expect(evidence.getByRole('heading', { name: 'Requirement evidence' })).toBeVisible()
+  await expect(evidence.getByRole('cell', { name: 'Alex Approved' })).toBeVisible()
+  await expect(evidence.getByRole('cell', { name: 'Build a professional resume' })).toBeVisible()
+  await expect(evidence.getByRole('cell', { name: 'Parker Pending' })).toHaveCount(0)
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download CSV', exact: true }).click()
+  await evidence.getByRole('button', { name: 'Download CSV' }).click()
   const csv = readFileSync((await (await downloadPromise).path())!, 'utf8')
-  expect(csv).toContain('Parker Pending')
-  expect(csv).toContain('Awaiting staff review')
-  expect(csv).toContain('Staff-approved step')
-  await capture(page, testInfo, 'group-requirement-export.png')
-  await page.route('**/goal-admin/requirements/evidence-export?*', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ detail: 'You cannot export this learner’s assignment' }) }))
-  await page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' }).click()
-  await page.getByRole('button', { name: 'Download CSV', exact: true }).click()
-  await expect(page.getByText('You cannot export this learner’s assignment', { exact: true })).toBeVisible()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' })).toBeFocused()
+  expect(csv.split('\n')[0]).toBe('Learner,Framework,Category,Code,Requirement,Plan,Step,Credited on,Verified by')
+  expect(csv).toContain('Alex Approved')
+  await capture(page, testInfo, 'framework-capture-evidence.png')
 })
 
 test('insights.report: a group report includes a framework as a draft section and prints on its own page', async ({ page }, testInfo) => {
   test.setTimeout(60_000)
-  await page.goto(`${insightsPath}?group=${fixture.group_id}`)
+  await page.goto(`${insightsPath}/reports?group=${fixture.group_id}`)
   await assertActualApp(page)
   await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
   await expect(page.getByRole('heading', { name: 'Plans and badges' })).toBeVisible()
@@ -81,8 +86,8 @@ test('insights.report: a group report includes a framework as a draft section an
   await expect(page.getByRole('link', { name: 'Alex Approved' }).first()).toBeVisible()
   await page.getByRole('checkbox', { name: 'Oregon SB3 synthetic evidence' }).check()
   await expect(page).toHaveURL(new RegExp(`fw=${fixture.framework_uuid}`))
-  // The included framework embeds the group's requirement grid, with its evidence export.
-  await expect(page.getByRole('button', { name: /Export evidence CSV for 2 filtered learners/ })).toBeVisible()
+  // The included framework is a table of who met what; its progress and evidence live on the framework dashboard.
+  await expect(page.getByRole('link', { name: 'Progress and evidence in Insights' })).toHaveAttribute('href', new RegExp(`/admin/insights/framework/${fixture.framework_uuid}`))
   await capture(page, testInfo, 'group-report.png')
   const print = page.getByRole('link', { name: 'Print report' })
   await expect(print).toHaveAttribute('href', new RegExp(`/admin/insights/reports/${fixture.group_id}/print\\?fw=`))
@@ -96,25 +101,21 @@ test('insights.report: a group report includes a framework as a draft section an
   await capture(page, testInfo, 'group-report-print.png')
 })
 
-test('requirements.long-codes: explorer and learner tree preserve readable code and title', async ({ page }, testInfo) => {
+test('requirements.long-codes: framework tree and learner tree preserve readable code and title', async ({ page }, testInfo) => {
   // This scenario visits two routes; local Next dev can compile both from cold.
   test.setTimeout(60_000)
+  await page.goto(`${insightsPath}/coverage`)
+  await expect(page).toHaveURL(/\/admin\/plans\/requirements$/)
   for (const [path, prefix] of [
-    [`${insightsPath}/coverage`, 'explorer'],
+    [`/orgs/${fixture.org_slug}/admin/plans/requirements/${fixture.framework_uuid}/plans`, 'explorer'],
     [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}`, 'learner'],
   ]) {
     await page.goto(path)
     await assertActualApp(page)
     if (prefix === 'explorer') {
-      // The inventory is asynchronous; choose our fixture after its header renders.
-      await expect(page.getByRole('link', { name: 'Edit framework', exact: true })).toBeVisible()
-      const selector = page.getByRole('combobox', { name: 'Framework', exact: true })
-      if (await selector.count()) {
-        await selector.selectOption(fixture.framework_uuid)
-        await expect(selector).toHaveValue(fixture.framework_uuid)
-      }
+      await expect(page.getByRole('tree', { name: 'Requirements' })).toBeVisible()
     } else {
-      // A person opens on Message; their requirement tree lives under Plans.
+      // A profile opens on Overview; the requirement tree lives under Plans.
       await page.getByRole('link', { name: /^Plans · \d+$/ }).click()
       await expect(page).toHaveURL(/[?&]tab=plans/)
     }
@@ -124,11 +125,21 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
     await expect(title).toBeVisible()
     const codeBox = (await code.boundingBox())!, titleBox = (await title.boundingBox())!
     expect(codeBox.x + codeBox.width <= titleBox.x + 1 || codeBox.y + codeBox.height <= titleBox.y + 1).toBe(true)
-    const domain = prefix === 'explorer'
-      ? page.getByRole('treeitem', { name: /HS.HECPS.D Workforce Readiness/ })
-      : page.getByRole('button', { name: /HS.HECPS.D Workforce Readiness/ })
-    await domain.click()
+    if (prefix === 'explorer') await page.getByPlaceholder('Find a requirement or code').fill('HS.HECPS.D')
+    else await page.getByRole('button', { name: /HS.HECPS.D Workforce Readiness/ }).click()
     await expect(page.getByText('HS.HECPS.D.2', { exact: true }).first()).toBeVisible()
     await capture(page, testInfo, `${prefix}-long-codes.png`)
   }
+})
+
+test('requirements.home: the Home card shows each framework and opens its Insights dashboard', async ({ page }) => {
+  await page.goto(`/orgs/${fixture.org_slug}/admin`)
+  await assertActualApp(page)
+  const card = page.getByRole('region', { name: 'Requirements' })
+  await expect(card).toBeVisible()
+  const row = card.locator(`a[href*="/admin/insights/framework/${fixture.framework_uuid}"]`)
+  await expect(row).toContainText(/learners? tracked/)
+  await row.click()
+  await expect(page).toHaveURL(new RegExp(`/admin/insights/framework/${fixture.framework_uuid}`))
+  await expect(page.getByRole('heading', { name: 'Learners tracked' })).toBeVisible()
 })

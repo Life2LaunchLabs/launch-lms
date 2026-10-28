@@ -13,6 +13,8 @@ import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { createJoinLink, inviteBatchUsers, previewBatchUsers, revokeJoinLink } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useFeatures } from '@components/Hooks/useFeatures'
+import { PERMISSION_NAMES } from '@services/organizations/membership'
+import StaffSetupFields, { emptyStaffSetup, type StaffSetup } from './StaffSetupFields'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const splitRecipients = (value: string) => value.split(/[\s,;]+/).map((email) => email.trim()).filter(Boolean)
@@ -36,6 +38,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
   const [selectedRoleId, setSelectedRoleId] = React.useState('')
   const [groupChoice, setGroupChoice] = React.useState('none')
   const [newGroupName, setNewGroupName] = React.useState('')
+  const [setup, setSetup] = React.useState<StaffSetup>(emptyStaffSetup)
   const [reviewing, setReviewing] = React.useState(false)
   const [isSending, setIsSending] = React.useState(false)
   const recipientInputRef = React.useRef<HTMLInputElement>(null)
@@ -45,6 +48,11 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
 
   const selectedRole = roles?.find((role: any) => String(role.id) === selectedRoleId)
   const isLearnerRole = selectedRole?.role_uuid === 'role_global_user' || ['user', 'learner', 'member'].includes(String(selectedRole?.name || '').toLowerCase())
+  const isAdminRole = selectedRole?.role_uuid === 'role_global_admin'
+  // Staff take permissions, assignments and a note; admins can do everything, so only the note.
+  const setupBody = isLearnerRole ? {} : isAdminRole ? { note: setup.note.trim() } : {
+    ...(setup.permissions ? { permissions: setup.permissions } : {}), assignments: setup.assignments, note: setup.note.trim(),
+  }
   const readyRecipients = previewResults.filter((result) => result.status === 'ready')
 
   // Each time it opens, start on the role it was opened for.
@@ -88,6 +96,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
     setRecipientInput('')
     setGroupChoice('none')
     setNewGroupName('')
+    setSetup(emptyStaffSetup())
     setReviewing(false)
     setPreviewResults([])
     setMethod('manual')
@@ -112,6 +121,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
         source: method === 'csv' ? 'csv' : 'manual',
         ...(groupChoice.startsWith('group:') ? { usergroup_id: Number(groupChoice.slice(6)) } : {}),
         ...(groupChoice === 'new' ? { new_usergroup_name: newGroupName.trim() } : {}),
+        ...setupBody,
       }, accessToken)
       if (response.status !== 200) throw new Error(response.data?.detail || 'Could not validate invitations')
       setPreviewResults(response.data.results || [])
@@ -135,6 +145,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
         ...(method === 'csv' ? { batch_uuid: `csv_${crypto.randomUUID()}` } : {}),
         ...(groupChoice.startsWith('group:') ? { usergroup_id: Number(groupChoice.slice(6)) } : {}),
         ...(groupChoice === 'new' ? { new_usergroup_name: newGroupName.trim() } : {}),
+        ...setupBody,
       }, accessToken)
       if (response.status !== 200) {
         const detail = response.data?.detail
@@ -171,7 +182,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
 
   return (
     <Dialog open={isOpen} onOpenChange={(nextOpen) => nextOpen ? onOpenChange(true) : close()}>
-      <DialogContent className="p-6 sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto p-6 sm:max-w-2xl">
         <DialogHeader className="pr-8">
           <DialogTitle>{reviewing ? 'Review invitations' : 'Invite people'}</DialogTitle>
           <DialogDescription>{reviewing ? 'Confirm the access these people will receive. Pending invitations reserve seats.' : 'Invite by email, upload a CSV, or create a controlled learner link and QR code.'}</DialogDescription>
@@ -205,9 +216,12 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
             </div></div>
             <p className="text-xs text-gray-500">Type or paste addresses separated by commas, spaces, or new lines.</p>
           </div>
+          {!isLearnerRole && selectedRole && <StaffSetupFields orgId={org.id} accessToken={accessToken} admin={isAdminRole} value={setup} onChange={setSetup} />}
           </>}
         </div> : <div className="space-y-4 py-2">
-          <div className="grid gap-3 sm:grid-cols-2"><SummaryCard icon={isLearnerRole ? User : Shield} label="Role" value={selectedRole?.name || 'Unknown role'} /><SummaryCard icon={Users} label="Group" value={groupChoice === 'new' ? newGroupName : usergroups?.find((group: any) => `group:${group.id}` === groupChoice)?.name || 'No group'} /></div>
+          <div className="grid gap-3 sm:grid-cols-2"><SummaryCard icon={isLearnerRole ? User : Shield} label="Role" value={selectedRole?.name || 'Unknown role'} />{isLearnerRole ? <SummaryCard icon={Users} label="Group" value={groupChoice === 'new' ? newGroupName : usergroups?.find((group: any) => `group:${group.id}` === groupChoice)?.name || 'No group'} />
+            : <SummaryCard icon={Users} label={isAdminRole ? 'Access' : 'Assignments'} value={isAdminRole ? 'Everything' : setup.assignments.length ? `${setup.assignments.length} assignment${setup.assignments.length === 1 ? '' : 's'}` : 'None yet'} />}</div>
+          {!isLearnerRole && !isAdminRole && setup.permissions && <p className="text-xs text-gray-500">They can: {setup.permissions.length ? setup.permissions.map((key) => PERMISSION_NAMES[key]).join(', ') : 'see what they’re added to'}</p>}
           <div className="overflow-hidden rounded-xl border border-gray-200"><div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3"><span className="text-sm font-semibold text-gray-800">Recipients</span><span className="text-xs text-gray-500">{readyRecipients.length} seat{readyRecipients.length === 1 ? '' : 's'} reserved</span></div><div className="max-h-60 divide-y divide-gray-100 overflow-y-auto">{previewResults.map((result, index) => { const ready = result.status === 'ready'; return <div key={`${result.email}-${index}`} className={`flex items-center gap-3 px-4 py-3 ${ready ? '' : 'bg-amber-50/40'}`}>{ready ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertCircle className="h-4 w-4 text-amber-600" />}<span className="min-w-0 flex-1 truncate text-sm text-gray-800">{result.email}</span><span className="text-xs text-gray-500">{recipientStatusLabel(result.status)}</span></div>})}</div></div>
           {method === 'csv' && <button type="button" onClick={downloadCsvReport} className="inline-flex items-center gap-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"><Download className="h-3.5 w-3.5" />Download validation report</button>}
           {!isLearnerRole && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">These invitations grant dashboard access and reserve elevated seats. Access is rechecked when each invitation is accepted.</div>}
@@ -280,9 +294,10 @@ function CsvUploader({ onRecipients }: { onRecipients: (emails: string[]) => voi
   return <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4"><div className="flex flex-wrap items-center gap-3"><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"><Upload className="h-4 w-4" />Choose CSV<input type="file" accept=".csv,text/csv" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} /></label><span className="min-w-0 flex-1 truncate text-xs text-gray-500">{fileName || 'Use a header row and one recipient per row.'}</span>{headers.length > 0 && <Select value={emailColumn} onValueChange={chooseColumn}><SelectTrigger className="h-9 w-44 bg-white"><SelectValue /></SelectTrigger><SelectContent>{headers.map((header, index) => <SelectItem key={`${header}-${index}`} value={String(index)}>{header || `Column ${index + 1}`}</SelectItem>)}</SelectContent></Select>}</div></div>
 }
 
-function JoinLinkPanel({ org, accessToken, usergroups, groupsEnabled, bulkInvites, onCreated }: { org: any; accessToken: string; usergroups: any[]; groupsEnabled: boolean; bulkInvites: boolean; onCreated?: () => void }) {
+/** Learner join links: make one (with its QR code) and revoke the ones out there. With `fixedGroupId`, only that group's links, and new ones join it. */
+export function JoinLinkPanel({ org, accessToken, usergroups, groupsEnabled, bulkInvites, onCreated, fixedGroupId }: { org: any; accessToken: string; usergroups: any[]; groupsEnabled: boolean; bulkInvites: boolean; onCreated?: () => void; fixedGroupId?: number }) {
   const [name, setName] = React.useState('')
-  const [groupId, setGroupId] = React.useState('none')
+  const [groupId, setGroupId] = React.useState(fixedGroupId ? String(fixedGroupId) : 'none')
   const [minutes, setMinutes] = React.useState('60')
   const [maximum, setMaximum] = React.useState(bulkInvites ? '25' : '5')
   const [domain, setDomain] = React.useState('')
@@ -312,11 +327,11 @@ function JoinLinkPanel({ org, accessToken, usergroups, groupsEnabled, bulkInvite
     await mutateLinks(); toast.success('Join link revoked and seats released')
   }
 
-  const management = <ManagedJoinLinks links={managedLinks || []} onRevoke={revoke} />
+  const management = <ManagedJoinLinks links={((managedLinks || []) as any[]).filter((item) => !fixedGroupId || item.usergroup_id === fixedGroupId)} onRevoke={revoke} />
 
   if (link) return <div className="space-y-5"><div className="grid gap-5 rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 sm:grid-cols-[1fr_180px]"><div className="space-y-3"><div><p className="text-sm font-semibold text-gray-900">{link.display_name}</p><p className="mt-1 text-xs text-gray-500">Learner access · {link.max_redemptions} maximum joins · expires {new Date(link.expires_at).toLocaleString()}</p></div><p className="break-all rounded-lg bg-white p-2 text-xs text-gray-600">{url}</p><div className="flex gap-2"><button type="button" onClick={() => void copy()} className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white"><Copy className="h-3.5 w-3.5" />Copy link</button><button type="button" disabled={!qr} onClick={download} className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs font-medium text-gray-700"><Download className="h-3.5 w-3.5" />Download QR</button></div><p className="text-xs text-amber-700">The secret link is shown once. Store it somewhere safe before closing.</p></div><div className="flex aspect-square items-center justify-center rounded-xl bg-white p-3">{qr ? <img src={qr} alt="Join link QR code" className="h-full w-full" /> : <QrCode className="h-10 w-10 text-gray-300" />}</div></div>{management}</div>
 
-  return <div className="space-y-5"><div className="space-y-4"><div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Links and QR codes always grant learner access. They never grant staff or administrator permissions.</div><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2 text-sm font-medium text-gray-800"><span>Link name</span><input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} placeholder="Photography Group" className="h-11 w-full rounded-lg border px-3" /></label>{groupsEnabled && <label className="space-y-2 text-sm font-medium text-gray-800"><span>Group <span className="font-normal text-gray-400">optional</span></span><Select value={groupId} onValueChange={setGroupId}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No group</SelectItem>{usergroups.map((group) => <SelectItem key={group.id} value={String(group.id)}>{group.name}</SelectItem>)}</SelectContent></Select></label>}<label className="space-y-2 text-sm font-medium text-gray-800"><span>Expires after</span><Select value={minutes} onValueChange={setMinutes}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="30">30 minutes</SelectItem><SelectItem value="60">1 hour</SelectItem><SelectItem value="1440">1 day</SelectItem><SelectItem value="10080">7 days</SelectItem></SelectContent></Select></label><label className="space-y-2 text-sm font-medium text-gray-800"><span>Maximum joins</span><input type="number" min={1} max={1000} value={maximum} onChange={(event) => setMaximum(event.target.value)} className="h-11 w-full rounded-lg border px-3" /></label><label className="space-y-2 text-sm font-medium text-gray-800 sm:col-span-2"><span>Approved email domain <span className="font-normal text-gray-400">optional</span></span><input value={domain} onChange={(event) => setDomain(event.target.value)} placeholder="school.edu" className="h-11 w-full rounded-lg border px-3" /></label></div><button type="button" disabled={creating} onClick={() => void create()} className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"><Link2 className="h-4 w-4" />{creating ? 'Creating…' : 'Create learner link'}</button></div>{management}</div>
+  return <div className="space-y-5"><div className="space-y-4"><div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Links and QR codes always grant learner access. They never grant staff or administrator permissions.</div><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2 text-sm font-medium text-gray-800"><span>Link name</span><input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} placeholder="Photography Group" className="h-11 w-full rounded-lg border px-3" /></label>{groupsEnabled && !fixedGroupId && <label className="space-y-2 text-sm font-medium text-gray-800"><span>Group <span className="font-normal text-gray-400">optional</span></span><Select value={groupId} onValueChange={setGroupId}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No group</SelectItem>{usergroups.map((group) => <SelectItem key={group.id} value={String(group.id)}>{group.name}</SelectItem>)}</SelectContent></Select></label>}<label className="space-y-2 text-sm font-medium text-gray-800"><span>Expires after</span><Select value={minutes} onValueChange={setMinutes}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="30">30 minutes</SelectItem><SelectItem value="60">1 hour</SelectItem><SelectItem value="1440">1 day</SelectItem><SelectItem value="10080">7 days</SelectItem></SelectContent></Select></label><label className="space-y-2 text-sm font-medium text-gray-800"><span>Maximum joins</span><input type="number" min={1} max={1000} value={maximum} onChange={(event) => setMaximum(event.target.value)} className="h-11 w-full rounded-lg border px-3" /></label><label className="space-y-2 text-sm font-medium text-gray-800 sm:col-span-2"><span>Approved email domain <span className="font-normal text-gray-400">optional</span></span><input value={domain} onChange={(event) => setDomain(event.target.value)} placeholder="school.edu" className="h-11 w-full rounded-lg border px-3" /></label></div><button type="button" disabled={creating} onClick={() => void create()} className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"><Link2 className="h-4 w-4" />{creating ? 'Creating…' : 'Create learner link'}</button></div>{management}</div>
 }
 
 // eslint-disable-next-line no-unused-vars
