@@ -145,7 +145,9 @@ intent: one scene or celebration where it lands, not on every page.
   `"progress": "line" | "segments" | "dots" | "count" | "none"` (segments: one per page; timed pages use segments anyway),
   `"allow_back"` and `"resume"` (both on by default), `"transition"` (the pages' default), and
   `"exit": { "label": "Save for later", "confirm": "Leave now?", "to_page_uuid": "p9" }`
-  (no label shows a plain X; `to_page_uuid` jumps ahead to that page if it is still on the route, else the activity closes).
+  (no label shows a plain X; `to_page_uuid` jumps ahead to that page if it is still on the route, else the activity closes),
+  and `"ending": { "title": "You did it", "message": "…", "not_yet_title": "Almost", "not_yet_message": "…", "show_score": true, "celebrate": true }`
+  for a closing screen (without one the activity closes after its last page).
 - Block design: `"entrance": "rise" | "fade" | "none"` (blocks rise in, staggered, by default);
   a continue button with `"placement": "footer"` sits beside Continue at the bottom;
   a choice question's `"style": "list" | "pills" | "scale" | "cards"` (options may carry

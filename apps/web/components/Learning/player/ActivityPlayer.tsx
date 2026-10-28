@@ -6,6 +6,7 @@ import { footerButtons, isQuestionResponseRequired, LearningPageContent } from '
 import { allowsNoAnswer } from './OptionSources'
 import { LearningActivitySurface } from './ActivitySurface'
 import useAutoAdvance from './useAutoAdvance'
+import { EndingScreen, endingState } from './EndingScreen'
 
 // The learner runtime behind a player: the live run API for learners, or the
 // side-effect-free preview API for admins and the Claude connector. Both return
@@ -80,6 +81,9 @@ export function ActivityPlayer({
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
+  // The finished run while its ending screen shows (activities with ``settings.design.ending``).
+  const [ended, setEnded] = React.useState<any>(null)
+  const ending = activity.settings?.design?.ending
   const baseline = retakeBaselineAttemptIds
   const pages = routedPages(activity, run)
   const page = pages[index]
@@ -153,7 +157,8 @@ export function ActivityPlayer({
         setIndex(destination)
       } else {
         onEvent?.({ type: 'finished', run: nextRun })
-        onFinish(nextRun)
+        if (ending) setEnded(nextRun)
+        else onFinish(nextRun)
       }
     } catch (error: any) {
       const message = error?.message || 'Could not complete page'
@@ -177,7 +182,25 @@ export function ActivityPlayer({
     event.preventDefault()
     void completeAndNext()
   }
-  const timed = useAutoAdvance(page, unlocked, () => void completeAndNext(), index > 0 ? () => setIndex(index - 1) : undefined)
+  const timed = useAutoAdvance(ended ? undefined : page, unlocked, () => void completeAndNext(), index > 0 ? () => setIndex(index - 1) : undefined)
+
+  if (ended) {
+    const celebrate = ending.celebrate !== false && endingState(ended) === 'finished'
+    return (
+      <LearningActivitySurface
+        pages={pages}
+        page={{ page_uuid: 'ending', page_type: 'standard', design: { celebrate, background: pages[pages.length - 1]?.design?.background } }}
+        pageIndex={Math.max(0, pages.length - 1)}
+        onBack={() => onFinish(ended)}
+        actionLabel={finishLabel}
+        onAction={() => onFinish(ended)}
+        className={className}
+        settings={activity.settings}
+      >
+        <EndingScreen ending={ending} run={ended} settings={activity.settings} />
+      </LearningActivitySurface>
+    )
+  }
 
   return (
     <LearningActivitySurface

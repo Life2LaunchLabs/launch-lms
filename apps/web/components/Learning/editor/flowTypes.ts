@@ -1,4 +1,4 @@
-import type { Flow as GeneratedFlow, FlowEdge as GeneratedFlowEdge, FlowNode as GeneratedFlowNode } from '@components/Learning/content.generated'
+import type { Flow as GeneratedFlow, FlowEdge as GeneratedFlowEdge, FlowNode as GeneratedFlowNode } from '@components/Learning/generated/content'
 
 // The editor's view of the generated API flow types: it always sets a
 // priority and edits one comparison per edge.

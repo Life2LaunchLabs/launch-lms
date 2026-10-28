@@ -180,6 +180,19 @@ class PageDesign(BaseModel):
     auto_advance_ms: int | None = Field(default=None, ge=0)
 
 
+class ActivityEnding(BaseModel):
+    """The screen after the last page. Without it the activity closes straight away."""
+
+    model_config = OPEN
+
+    title: str | None = Field(default=None, max_length=160, description="Shown when they finish (or pass a graded activity).")
+    message: str | None = Field(default=None, max_length=1000)
+    not_yet_title: str | None = Field(default=None, max_length=160, description="Graded activities they haven't passed yet.")
+    not_yet_message: str | None = Field(default=None, max_length=1000)
+    show_score: bool | None = Field(default=None, description="Show the score on graded activities; on by default.")
+    celebrate: bool | None = Field(default=None, description="Confetti when they finish or pass; on by default.")
+
+
 class ActivityDesign(BaseModel):
     """How the player presents an activity (``settings.design``)."""
 
@@ -191,3 +204,4 @@ class ActivityDesign(BaseModel):
     transition: TRANSITIONS | None = Field(default=None, description="How pages come in; `slide` by default.")
     background: dict[str, Any] | None = None
     exit: dict[str, Any] | None = None
+    ending: ActivityEnding | None = Field(default=None, description="An ending screen with a message, the score and a celebration.")

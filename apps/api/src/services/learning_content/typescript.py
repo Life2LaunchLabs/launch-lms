@@ -15,7 +15,7 @@ from pathlib import Path
 
 from src.services.learning_content.models import ActivityDesign, Flow, PageDesign, Sequence, StandardPageContent, VideoPageContent
 
-OUTPUT = Path(__file__).resolve().parents[4] / "web" / "components" / "Learning" / "content.generated.ts"
+OUTPUT = Path(__file__).resolve().parents[4] / "web" / "components" / "Learning" / "generated" / "content.ts"
 HEADER = """// Generated from apps/api/src/services/learning_content/models.py — do not edit.
 // Regenerate: cd apps/api && uv run python cli.py generate-learning-types
 """
