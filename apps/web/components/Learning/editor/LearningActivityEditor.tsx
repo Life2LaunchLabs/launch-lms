@@ -19,7 +19,6 @@ import {
   ChevronRight,
   Columns2,
   Copy,
-  Eye,
   FileText,
   GripVertical,
   Hand,
@@ -34,6 +33,8 @@ import {
   MousePointer2,
   MousePointerClick,
   Pencil,
+  Play,
+  Settings2,
   Plus,
   Quote,
   Smartphone,
@@ -68,14 +69,13 @@ import {
   getBlockScoring,
   type LearningBlock,
   type LearningImageBlock,
-  type LearningPageType,
   type LearningQuestionBlock,
   type LearningTextBlock,
 } from '@components/Learning/schema'
 import { LearningActivitySurface } from '@components/Learning/player/ActivitySurface'
 import { ContentIssuesBanner } from './ContentIssuesBanner'
-import { ActivityDesignFields, BlockDesignFields, ColorField, PageDesignFields } from './DesignInspector'
-import type { DeviceMode, EditorViewMode, SaveState, Selection } from './types'
+import { BlockDesignFields, ColorField, PageDesignFields } from './DesignInspector'
+import type { DeviceMode, SaveState, Selection } from './types'
 import {
   EMPTY_PARAGRAPH,
   activityHasScoredQuestions,
@@ -99,7 +99,6 @@ import {
   normalizeInitialPages,
   normalizeQuestionInputs,
   normalizeQuestionOptions,
-  withSequentialOrder,
 } from './utils'
 import {
   DeviceModeButton,
@@ -109,25 +108,39 @@ import {
   SaveStateLabel,
   SegmentedControl,
   TextField,
-  TopModeButton,
 } from './ui'
 import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
-import { PageListPanel } from './PageListPanel'
+import { PageRail, followLabel, pageHeading, type RailMode } from './PageRail'
+import { NewPageDialog } from './EditorDialogs'
+import { ActivitySettingsDialog } from './ActivitySettings'
+import type { PageDraft } from './pageTemplates'
+import { flowVariables } from './flowVariables'
+import { branchVariable, freshRule, operandOf } from './branchRules'
+import {
+  addBranchAfter,
+  addPath,
+  findBranch,
+  insertAfter,
+  linearSequence,
+  movePage,
+  orderedPageUuids,
+  reconcile,
+  removeBranch,
+  removePage as removeSequencePage,
+  removePath,
+  sequenceIssues,
+  setBranchOn,
+  setPathRule,
+  type Where,
+} from './sequence'
 import { VariablePathPicker } from './VariablePathPicker'
-import VisualFlowEditor, {
-  appendPageToFlow,
-  createLinearFlow,
-  ensureSplitNodes,
-  getFlowIssues,
-  insertPageIntoFlow,
-  normalizeJoinNodes,
-  type FlowInsertion,
-} from './VisualFlowEditor'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
+import PageBlock, { PAGE_BLOCKS } from '@components/Learning/player/PageBlocks'
+import type { Sequence } from '@components/Learning/generated/content'
 
 /** Edits one activity in place. `ownerName` is the plan template it belongs to; `orgId` owns its variables and media. */
 export default function LearningActivityEditor({
@@ -142,11 +155,20 @@ export default function LearningActivityEditor({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const [activityState, setActivityState] = React.useState(activity)
-  const [viewMode, setViewMode] = React.useState<EditorViewMode>('editor')
+  // The editor works on a sequence: the stored one, else the one the server converted from an older flow.
+  const [activityState, setActivityState] = React.useState(() => ({
+    ...activity,
+    settings: {
+      ...(activity.settings || {}),
+      sequence: reconcile(activity.settings?.sequence || activity.sequence || linearSequence((activity.pages || []).map((page: any) => page.page_uuid)), (activity.pages || []).map((page: any) => page.page_uuid)),
+    },
+  }))
+  const [railMode, setRailMode] = React.useState<RailMode>('pages')
+  const [newPageOpen, setNewPageOpen] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [pages, setPages] = React.useState<any[]>(() => normalizeInitialPages(activity.pages || []))
   const [selection, setSelection] = React.useState<Selection>(() => ({
-    pageUuid: (activity.pages || [])[0]?.page_uuid,
+    pageUuid: orderedPageUuids(activity.settings?.sequence || activity.sequence || { items: [] })[0] || (activity.pages || [])[0]?.page_uuid,
     blockId: null,
   }))
   const [variantKey, setVariantKey] = React.useState('default')
@@ -175,7 +197,7 @@ export default function LearningActivityEditor({
   const activitySaveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
   const pendingPagePatchesRef = React.useRef<Record<string, any>>({})
   const pendingActivityPatchRef = React.useRef<Record<string, any>>({})
-  const invalidFlowRef = React.useRef(false)
+  const invalidSequenceRef = React.useRef(false)
   const legacyTextLabelPageUuidsRef = React.useRef<string[]>(
     (activity.pages || [])
       .filter((page: any) => {
@@ -198,14 +220,14 @@ export default function LearningActivityEditor({
   const frameShellHeight = device === 'mobile' ? frame.height + MOBILE_FRAME_CAP * 2 : frame.height
   const gradingSettings = getActivityGradingSettings(activityState)
   const hasScoredQuestions = activityHasScoredQuestions(pages)
-  const currentFlowIssues = React.useMemo(
-    () => getFlowIssues(activityState.settings?.flow, pages),
-    [activityState.settings?.flow, pages],
-  )
+  const sequence: Sequence = activityState.settings.sequence
+  const pageOrder = React.useMemo(() => orderedPageUuids(sequence), [sequence])
+  const currentSequenceIssues = React.useMemo(() => sequenceIssues(sequence), [sequence])
+  const branchVariables = React.useMemo(() => flowVariables(pages, learningVariables), [learningVariables, pages])
 
   React.useEffect(() => {
-    invalidFlowRef.current = currentFlowIssues.length > 0
-  }, [currentFlowIssues])
+    invalidSequenceRef.current = currentSequenceIssues.length > 0
+  }, [currentSequenceIssues])
 
   React.useEffect(() => {
     setVariantKey('default')
@@ -233,7 +255,7 @@ export default function LearningActivityEditor({
     const observer = new ResizeObserver(syncFit)
     observer.observe(canvas)
     return () => observer.disconnect()
-  }, [device, frame.height, frame.width, frameShellHeight, viewMode])
+  }, [device, frame.height, frame.width, frameShellHeight, railMode])
 
   React.useEffect(() => {
     setZoom(1)
@@ -283,7 +305,7 @@ export default function LearningActivityEditor({
     const flush = (event?: BeforeUnloadEvent) => {
       void flushPendingPages()
       void flushPendingActivity()
-      if ((invalidFlowRef.current || Object.keys(pendingPagePatchesRef.current).length || Object.keys(pendingActivityPatchRef.current).length) && event) {
+      if ((invalidSequenceRef.current || Object.keys(pendingPagePatchesRef.current).length || Object.keys(pendingActivityPatchRef.current).length) && event) {
         event.preventDefault()
         event.returnValue = ''
       }
@@ -351,7 +373,7 @@ export default function LearningActivityEditor({
     patchPage(pageUuid, {
       content: {
         ...(page.content || {}),
-        version: 2,
+        version: page.content?.version === 3 ? 3 : 2,
         blocks,
       },
     })
@@ -385,7 +407,12 @@ export default function LearningActivityEditor({
 
   const removeBlock = (blockId: string) => {
     if (!selectedPage) return
-    if (getEditorBlocks(selectedPage, variantKey).find((block) => block.id === blockId)?.system?.locked) return
+    const target = getEditorBlocks(selectedPage, variantKey).find((block) => block.id === blockId)
+    if (target?.system?.locked) return
+    if ((target as any)?.type === 'heading' && selectedPage.content?.version === 3) {
+      toast.error('Every page keeps its heading')
+      return
+    }
     const blocks = getEditorBlocks(selectedPage, variantKey).filter((block) => block.id !== blockId)
     setBlocks(selectedPage.page_uuid, blocks)
     setSelection({ pageUuid: selectedPage.page_uuid, blockId: null })
@@ -433,7 +460,7 @@ export default function LearningActivityEditor({
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (viewMode !== 'editor' || event.altKey || (!event.ctrlKey && !event.metaKey)) return
+      if (railMode !== 'pages' || event.altKey || (!event.ctrlKey && !event.metaKey)) return
       const target = event.target as HTMLElement | null
       if (target?.closest('input, textarea, [contenteditable="true"], [role="textbox"]')) return
       const key = event.key.toLowerCase()
@@ -442,7 +469,7 @@ export default function LearningActivityEditor({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [copySelectedBlock, pasteCopiedBlock, viewMode])
+  }, [copySelectedBlock, pasteCopiedBlock, railMode])
 
   const moveBlockTo = React.useCallback((blockId: string, toIndex: number) => {
     if (!selectedPage) return
@@ -567,31 +594,27 @@ export default function LearningActivityEditor({
     setSelection({ pageUuid: selectedPage.page_uuid, blockId: null })
   }
 
-  const addPage = async (pageType: LearningPageType = 'standard', insertion?: FlowInsertion) => {
+  // The order saves with the activity; a branch rule still being filled in waits until it's complete.
+  const changeSequence = (next: Sequence) => {
+    const settings = { ...(activityState.settings || {}), sequence: next }
+    setActivityState((current: any) => ({ ...current, settings }))
+    const issues = sequenceIssues(next)
+    invalidSequenceRef.current = issues.length > 0
+    if (issues.length) {
+      setSaveState('dirty')
+      return
+    }
+    scheduleActivitySave({ settings })
+  }
+
+  const addPage = async (draft: PageDraft) => {
     try {
       await saveBeforeAction()
-      const content = pageType === 'video'
-        ? { video_url: '', heading: '', allow_scrubbing: true }
-        : { version: 2, blocks: [createTextBlock({ type: 'heading', attrs: { level: 1 } })] }
-      const page = await createLearningPage({
-        activity_uuid: activity.activity_uuid,
-        page_type: pageType,
-        title: pageType === 'video' ? 'New video page' : 'New page',
-        content,
-        design: {},
-      }, accessToken)
-      const nextPages = [...pages, page]
-      setPages(nextPages)
-      const currentFlow = activityState.settings?.flow
-      const flow = insertion && currentFlow
-        ? insertPageIntoFlow(currentFlow, page, insertion)
-        : appendPageToFlow(currentFlow, page)
-      if (flow) {
-        const settings = { ...(activityState.settings || {}), flow }
-        setActivityState((current: any) => ({ ...current, settings }))
-        if (!getFlowIssues(flow, nextPages).length) scheduleActivitySave({ settings })
-      }
+      const page = await createLearningPage({ activity_uuid: activity.activity_uuid, ...draft }, accessToken)
+      setPages((current) => [...current, ...normalizeInitialPages([page])])
+      changeSequence(insertAfter(sequence, page.page_uuid, selectedPage?.page_uuid))
       setSelection({ pageUuid: page.page_uuid, blockId: null })
+      setRailMode('pages')
       setLastSavedAt(new Date())
       return page
     } catch (error: any) {
@@ -610,17 +633,9 @@ export default function LearningActivityEditor({
         content: cloneJson(page.content || {}),
         design: cloneJson(page.design || {}),
       }, accessToken)
-      const sourceIndex = pages.findIndex((item) => item.page_uuid === page.page_uuid)
-      const nextPages = [...pages]
-      nextPages.splice(sourceIndex + 1, 0, duplicate)
-      const ordered = withSequentialOrder(nextPages)
-      setPages(ordered)
-      setActivityState((current: any) => {
-        const flow = appendPageToFlow(current.settings?.flow, duplicate)
-        return flow ? { ...current, settings: { ...(current.settings || {}), flow } } : current
-      })
+      setPages((current) => [...current, ...normalizeInitialPages([duplicate])])
+      changeSequence(insertAfter(sequence, duplicate.page_uuid, page.page_uuid))
       setSelection({ pageUuid: duplicate.page_uuid, blockId: null })
-      await persistPageOrder(ordered)
       setLastSavedAt(new Date())
     } catch (error: any) {
       toast.error(error?.message || 'Failed to duplicate page')
@@ -628,21 +643,71 @@ export default function LearningActivityEditor({
   }
 
   const removePage = async (page: any) => {
-    if (!confirm(`Delete "${page.title || 'Untitled page'}"?`)) return
+    if (!confirm(`Delete "${pageHeading(page)}"?`)) return
     try {
+      await saveBeforeAction()
       await deleteLearningPage(page.page_uuid, accessToken)
-      const ordered = withSequentialOrder(pages.filter((item) => item.page_uuid !== page.page_uuid))
-      setPages(ordered)
-      setSelection({ pageUuid: ordered[0]?.page_uuid, blockId: null })
-      await persistPageOrder(ordered)
+      const remaining = pages.filter((item) => item.page_uuid !== page.page_uuid)
+      const next = removeSequencePage(sequence, page.page_uuid)
+      setPages(remaining)
+      changeSequence(next)
+      if (selection.pageUuid === page.page_uuid) setSelection({ pageUuid: orderedPageUuids(next)[0] || remaining[0]?.page_uuid, blockId: null })
     } catch (error: any) {
       toast.error(error?.message || 'Failed to delete page')
     }
   }
 
-  const persistPageOrder = async (orderedPages: any[]) => {
-    await Promise.all(orderedPages.map((page, index) => updateLearningPage(page.page_uuid, { order: index + 1 }, accessToken)))
+  const movePageTo = (pageUuid: string, where: Where) => changeSequence(movePage(sequence, pageUuid, where))
+
+  const addBranch = () => {
+    const { sequence: next, lifted } = addBranchAfter(sequence, selectedPage?.page_uuid)
+    changeSequence(next)
+    setRailMode('branches')
+    if (lifted) toast("Branches can't go inside a path, so this one goes after the branch your page is in.")
   }
+
+  const followInBranch = (branchId: string, variable: any) => {
+    const on = operandOf(variable)
+    const taken: any[] = []
+    let next = setBranchOn(sequence, branchId, on, followLabel(variable), () => {
+      const rule = freshRule(variable, on, taken)
+      taken.push(rule.right ?? rule.condition?.right)
+      return rule
+    })
+    // A new branch gets its first path as soon as it knows what to follow.
+    if (!findBranch(next, branchId)?.paths.some((path) => path.rule)) next = addPath(next, branchId, freshRule(variable, on))
+    changeSequence(next)
+  }
+
+  const addBranchPath = (branchId: string) => {
+    const branch = findBranch(sequence, branchId)
+    if (!branch) return
+    const variable = branchVariable(branch, branchVariables)
+    const on = branch.on || (variable ? operandOf(variable) : { source: 'answer' as const, key: '' })
+    const taken = branch.paths.map((path: any) => path.rule?.right ?? path.rule?.condition?.right).filter((value) => value !== undefined)
+    changeSequence(addPath(sequence, branchId, variable ? freshRule(variable, on, taken) : { op: 'eq', left: on, right: '' }))
+  }
+
+  const removeBranchPath = (branchId: string, pathId: string) => {
+    const path = findBranch(sequence, branchId)?.paths.find((item) => item.id === pathId)
+    changeSequence(removePath(sequence, branchId, pathId))
+    if (path?.pages?.length) toast('Path removed. Its pages moved to Default.')
+  }
+
+  const deleteBranch = (branchId: string) => {
+    const before = sequence
+    const branch = findBranch(sequence, branchId)
+    changeSequence(removeBranch(sequence, branchId))
+    const kept = branch?.paths.some((path) => path.pages?.length)
+    toast((item) => (
+      <span className="flex items-center gap-3 text-sm">
+        {kept ? 'Branch removed. Its pages stay, in order, for everyone.' : 'Branch removed.'}
+        <button className="font-bold text-sky-700" onClick={() => { changeSequenceRef.current(before); toast.dismiss(item.id) }}>Undo</button>
+      </span>
+    ), { duration: 6000 })
+  }
+  const changeSequenceRef = React.useRef(changeSequence)
+  changeSequenceRef.current = changeSequence
 
   const patchActivityBasics = (patch: Record<string, any>) => {
     setActivityState((current: any) => ({ ...current, ...patch }))
@@ -664,18 +729,6 @@ export default function LearningActivityEditor({
     scheduleActivitySave({ settings })
   }
 
-  const patchFlowSettings = (flow: any) => {
-    const settings = { ...(activityState.settings || {}), flow }
-    setActivityState((current: any) => ({ ...current, settings }))
-    const issues = getFlowIssues(flow, pages)
-    invalidFlowRef.current = issues.length > 0
-    if (issues.length) {
-      setSaveState('dirty')
-      return
-    }
-    scheduleActivitySave({ settings })
-  }
-
   const applySavedActivity = (saved: any) => { setActivityState((current: any) => ({ ...current, ...(saved || {}) })); setPages(normalizeInitialPages(saved?.pages || [])) }
   const saveBeforeAction = async () => {
     if (saveTimerRef.current) {
@@ -691,7 +744,7 @@ export default function LearningActivityEditor({
   }
 
   const goBack = async () => {
-    if (invalidFlowRef.current && !confirm('This flow still has warnings and has not been saved. Leave and discard the invalid flow draft?')) return
+    if (invalidSequenceRef.current && !confirm("A branch rule isn't finished, so the page order hasn't been saved. Leave anyway?")) return
     try {
       await saveBeforeAction()
       router.back()
@@ -858,13 +911,10 @@ export default function LearningActivityEditor({
         saveState={saveState}
         lastSavedAt={lastSavedAt}
         onBack={goBack}
+        onTitle={(title: string) => patchActivityBasics({ title })}
+        onSettings={() => setSettingsOpen(true)}
         onPreview={() => setPreviewOpen(true)}
       />
-      <div className="flex h-11 shrink-0 items-center justify-center gap-2 border-b border-gray-200 bg-white px-5">
-        <TopModeButton active={viewMode === 'editor'} onClick={() => setViewMode('editor')} label="Editor" />
-        <TopModeButton active={viewMode === 'flow'} onClick={() => setViewMode('flow')} label="Flow" />
-        <TopModeButton active={viewMode === 'settings'} onClick={() => setViewMode('settings')} label="Settings" />
-      </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
       <input ref={mediaInputRef} type="file" accept="image/*" className="hidden" onChange={handleMediaPicked} />
@@ -892,44 +942,54 @@ export default function LearningActivityEditor({
         mediaType="video"
         accessToken={accessToken}
       />
-      {viewMode === 'settings' ? (
-        <ActivitySettingsView
-          activity={activityState}
-          gradingSettings={gradingSettings}
-          hasScoredQuestions={hasScoredQuestions}
-          learningVariables={learningVariables}
-          variableDraftKey={variableDraftKey}
-          setVariableDraftKey={setVariableDraftKey}
-          onPatchActivity={patchActivityBasics}
-          onPatchGrading={patchGradingSettings}
-          onCreateVariable={createVariable}
-          onPatchVariable={patchVariable}
-          onDeleteVariable={removeVariable}
-          pages={pages}
-        />
-      ) : viewMode === 'flow' ? (
-        <ActivityFlowView
-          activity={activityState}
-          pages={pages}
-          learningVariables={learningVariables}
-          onSelectPage={(pageUuid: string) => { setSelection({ pageUuid, blockId: null }); setViewMode('editor') }}
-          onPatchFlow={patchFlowSettings}
-          onAddPage={(insertion: FlowInsertion) => addPage('standard', insertion)}
-          onCreateVariableKey={createVariableFromKey}
-        />
+      {railMode !== 'pages' ? (
+        <div className="flex min-h-0 flex-1">
+          <PageRail
+              mode={railMode}
+              onMode={setRailMode}
+              sequence={sequence}
+              pages={pages}
+              settings={activityState.settings}
+              selectedUuid={selectedPage?.page_uuid}
+              variables={branchVariables}
+              issues={currentSequenceIssues}
+              onSelect={(pageUuid: string) => setSelection({ pageUuid, blockId: null })}
+              onMove={movePageTo}
+              onNewPage={() => setNewPageOpen(true)}
+              onNewBranch={addBranch}
+              onDuplicate={duplicatePage}
+              onRemove={removePage}
+              onFollow={followInBranch}
+              onRule={(branchId: string, pathId: string, rule: any) => changeSequence(setPathRule(sequence, branchId, pathId, rule))}
+              onAddPath={addBranchPath}
+              onRemovePath={removeBranchPath}
+              onRemoveBranch={deleteBranch}
+            />
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1">
           <div style={{ width: leftWidth }} className="relative shrink-0">
-            <PageListPanel
-              pages={pages}
-              selectedPage={selectedPage}
-              onSelectPage={(pageUuid: string) => setSelection({ pageUuid, blockId: null })}
-              onAddPage={addPage}
-              onDuplicatePage={duplicatePage}
-              onRemovePage={removePage}
-              flow={activityState.settings?.flow || createLinearFlow(pages)}
-              onChangeFlow={patchFlowSettings}
-            />
+            <PageRail
+                mode={railMode}
+                onMode={setRailMode}
+                sequence={sequence}
+                pages={pages}
+                settings={activityState.settings}
+                selectedUuid={selectedPage?.page_uuid}
+                variables={branchVariables}
+                issues={currentSequenceIssues}
+                onSelect={(pageUuid: string) => setSelection({ pageUuid, blockId: null })}
+                onMove={movePageTo}
+                onNewPage={() => setNewPageOpen(true)}
+                onNewBranch={addBranch}
+                onDuplicate={duplicatePage}
+                onRemove={removePage}
+                onFollow={followInBranch}
+                onRule={(branchId: string, pathId: string, rule: any) => changeSequence(setPathRule(sequence, branchId, pathId, rule))}
+                onAddPath={addBranchPath}
+                onRemovePath={removeBranchPath}
+                onRemoveBranch={deleteBranch}
+              />
             <PanelResizeHandle side="right" onPointerDown={(event) => resizePanel('left', event)} />
           </div>
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -972,7 +1032,7 @@ export default function LearningActivityEditor({
                   <CanvasFrame
                     page={selectedPage}
                     pages={pages}
-                    pageIndex={Math.max(0, pages.findIndex((page) => page.page_uuid === selectedPage?.page_uuid))}
+                    pageIndex={Math.max(0, pageOrder.indexOf(selectedPage?.page_uuid))}
                     selectedBlockId={selection.blockId}
                     device={device}
                     frame={frame}
@@ -1038,6 +1098,32 @@ export default function LearningActivityEditor({
       )}
 
       </div>
+      {newPageOpen && (
+        <NewPageDialog
+          where={selectedPage && pageOrder.includes(selectedPage.page_uuid) ? `after page ${pageOrder.indexOf(selectedPage.page_uuid) + 1}` : 'at the end'}
+          settings={activityState.settings}
+          onClose={() => setNewPageOpen(false)}
+          onPick={(draft) => { setNewPageOpen(false); void addPage(draft) }}
+        />
+      )}
+      {settingsOpen && (
+        <ActivitySettingsDialog
+          activity={activityState}
+          gradingSettings={gradingSettings}
+          hasScoredQuestions={hasScoredQuestions}
+          learningVariables={learningVariables}
+          variableDraftKey={variableDraftKey}
+          setVariableDraftKey={setVariableDraftKey}
+          onPatchActivity={patchActivityBasics}
+          onPatchGrading={patchGradingSettings}
+          onCreateVariable={createVariable}
+          onPatchVariable={patchVariable}
+          onDeleteVariable={removeVariable}
+          pages={pages}
+          pageOrder={pageOrder}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {previewOpen && (
         <EditorPreviewModal activity={activityState} pages={pages} accessToken={accessToken} onClose={() => setPreviewOpen(false)} />
       )}
@@ -1045,37 +1131,39 @@ export default function LearningActivityEditor({
   )
 }
 
-function ActivityFlowView({ activity, pages, learningVariables, onSelectPage, onPatchFlow, onAddPage, onCreateVariableKey }: any) {
-  const sourceFlow = activity.settings?.flow || createLinearFlow(pages)
-  const flow = React.useMemo(() => normalizeJoinNodes(ensureSplitNodes(sourceFlow)), [sourceFlow])
-  React.useEffect(() => {
-    if (!activity.settings?.flow || flow !== sourceFlow) onPatchFlow(flow)
-  }, [activity.settings?.flow, flow, onPatchFlow, sourceFlow]) // Initialise and migrate legacy page-owned splits.
-  const issues = React.useMemo(() => getFlowIssues(flow, pages, learningVariables), [flow, learningVariables, pages])
-  return <VisualFlowEditor flow={flow} pages={pages} learningVariables={learningVariables} issues={issues} onChange={onPatchFlow} onSelectPage={onSelectPage} onAddPage={onAddPage} onCreateVariableKey={onCreateVariableKey}/>
-}
-
-function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastSavedAt, onBack, onPreview }: any) {
+function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastSavedAt, onBack, onTitle, onSettings, onPreview }: any) {
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <button onClick={onBack} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-gray-100" title="Back">
+    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button onClick={onBack} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-gray-100" title="Back to the plan" aria-label="Back to the plan">
           <ArrowLeft size={18} />
         </button>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold">{activity.title || 'Untitled activity'}</p>
-          <p className="truncate text-xs text-gray-500">{ownerName}</p>
+        <div className="min-w-0 flex-1">
+          <input
+            value={activity.title || ''}
+            onChange={(event) => onTitle(event.target.value)}
+            placeholder="Untitled activity"
+            aria-label="Activity title"
+            className="block w-full max-w-md truncate rounded-md bg-transparent px-1 py-0.5 text-sm font-bold outline-none hover:bg-gray-50 focus:bg-gray-50 focus:ring-1 focus:ring-gray-200"
+          />
+          <p className="truncate px-1 text-xs text-gray-500">{ownerName} · <SaveStateLabel state={saveState} lastSavedAt={lastSavedAt} /></p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="grid w-48 grid-cols-2 rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-          <DeviceModeButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={<Smartphone size={14} />} label="Mobile" />
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="grid w-44 grid-cols-2 rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+          <DeviceModeButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={<Smartphone size={14} />} label="Phone" />
           <DeviceModeButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={<Monitor size={14} />} label="Desktop" />
         </div>
-        <SaveStateLabel state={saveState} lastSavedAt={lastSavedAt} />
+        <button onClick={onSettings} className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
+          <Settings2 size={16} />
+          Activity settings
+        </button>
         <button onClick={onPreview} className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
-          <Eye size={16} />
-          Preview
+          <Play size={15} />
+          Play
+        </button>
+        <button onClick={onBack} className="inline-flex h-9 items-center rounded-lg bg-gray-900 px-4 text-sm font-bold text-white transition hover:bg-gray-800">
+          Done
         </button>
       </div>
     </div>
@@ -1304,6 +1392,8 @@ function StandardCanvasPage({
   )
 }
 
+const HEADING_EDIT_SIZE: Record<string, string> = { s: 'text-xl', m: 'text-2xl', l: 'text-3xl', xl: 'text-4xl' }
+
 function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHoverBlock, onTextEditorReady, onSelect, onPatch, onRequestImageUpload }: {
   block: LearningBlock
   page: any
@@ -1325,6 +1415,17 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
       : <TextBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
   ) : block.type === 'image' ? (
     <ImageBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onPatch={onPatch} onRequestImageUpload={onRequestImageUpload} />
+  ) : (block as any).type === 'heading' ? (
+    <AutoGrowTextarea
+      value={(block as any).content?.text || ''}
+      readOnly={contentReadOnly}
+      placeholder="Page heading"
+      aria-label="Page heading"
+      onChange={(event) => onPatch({ content: { ...((block as any).content || {}), text: event.target.value } })}
+      className={`w-full resize-none bg-transparent font-extrabold leading-[1.1] tracking-tight outline-none placeholder:text-gray-300 ${HEADING_EDIT_SIZE[(block as any).content?.size || 'l'] || HEADING_EDIT_SIZE.l}`}
+    />
+  ) : PAGE_BLOCKS.has(block.type) ? (
+    <PageBlock block={block} run={null} />
   ) : STORY_BLOCKS.has(block.type) ? (
     <StoryBlock block={block} run={null} />
   ) : block.type === 'button' ? (
@@ -2084,6 +2185,7 @@ function getInspectorBlockTitle(block: any): string {
   if (block?.type === 'question' && block.kind === 'text_input') {
     return String(block.content?.inputs?.[0]?.label || block.content?.editor_title || blockLabel(block))
   }
+  if (block?.type === 'heading') return String(block.content?.text || blockLabel(block))
   return String(block?.content?.label || block?.content?.editor_title || block?.content?.alt || blockLabel(block))
 }
 
@@ -2736,141 +2838,10 @@ function SelectionRangeFields({
   )
 }
 
-function VariableCreateInline({ value, onChange, onCreate }: any) {
-  return (
-    <div className="flex gap-2">
-      <input
-        value={value || ''}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Create: personality.traits.style"
-        className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
-      />
-      <button onClick={onCreate} className="h-9 rounded-lg border border-gray-200 px-3 text-xs font-bold text-gray-700 hover:bg-gray-50">Create</button>
-    </div>
-  )
-}
-
 function normalizeBinding(value: any) {
   if (Array.isArray(value)) return value[0] || null
   if (value && typeof value === 'object') return value
   return null
-}
-
-function ActivitySettingsView({
-  activity,
-  gradingSettings,
-  hasScoredQuestions,
-  learningVariables,
-  variableDraftKey,
-  setVariableDraftKey,
-  onPatchActivity,
-  onPatchGrading,
-  onCreateVariable,
-  onPatchVariable,
-  onDeleteVariable,
-  pages,
-}: any) {
-  return (
-    <main className="min-h-0 flex-1 overflow-y-auto bg-white">
-      <div className="mx-auto max-w-3xl space-y-8 px-8 py-8">
-        <section>
-          <h2 className="text-lg font-bold">Activity settings</h2>
-          <div className="mt-5 space-y-4">
-            <TextField label="Title" value={activity.title || ''} onChange={(value) => onPatchActivity({ title: value })} />
-            <div>
-              <FieldLabel>Description</FieldLabel>
-              <textarea
-                value={activity.description || ''}
-                onChange={(event) => onPatchActivity({ description: event.target.value })}
-                className="min-h-28 w-full resize-y rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
-              />
-            </div>
-          </div>
-        </section>
-        <ActivityDesignFields activity={activity} pages={pages || []} onPatchActivity={onPatchActivity} />
-        {hasScoredQuestions ? (
-          <section>
-            <h2 className="text-lg font-bold">Pass/fail grading</h2>
-            <p className="mt-1 text-sm text-gray-500">Enabled automatically because this activity contains scored questions.</p>
-            <div className="mt-5 space-y-4">
-              <TextField label="Minimum score (%)" type="number" value={String(gradingSettings.minimum_score_percent ?? 70)} onChange={(value) => onPatchGrading({ minimum_score_percent: Math.max(0, Math.min(100, Number(value))) })} />
-              <TextField label="Success message" value={gradingSettings.success_message || ''} onChange={(value) => onPatchGrading({ success_message: value })} />
-              <TextField label="Failure message" value={gradingSettings.failure_message || ''} onChange={(value) => onPatchGrading({ failure_message: value })} />
-            </div>
-          </section>
-        ) : null}
-        <section>
-          <h2 className="text-lg font-bold">Variables</h2>
-          <div className="mt-5 space-y-4">
-            <VariableCreateInline value={variableDraftKey} onChange={setVariableDraftKey} onCreate={onCreateVariable} />
-            <VariableRegistry variables={learningVariables} onPatchVariable={onPatchVariable} onDeleteVariable={onDeleteVariable} />
-          </div>
-        </section>
-      </div>
-    </main>
-  )
-}
-
-function VariableRegistry({ variables = [], onPatchVariable, onDeleteVariable }: any) {
-  const sorted = [...variables].sort((a: any, b: any) => String(a.key).localeCompare(String(b.key)))
-  if (!sorted.length) {
-    return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm font-medium text-gray-500">
-        No custom variables yet.
-      </div>
-    )
-  }
-  return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
-      {sorted.map((variable: any) => {
-        const key = String(variable.key || '')
-        const depth = Math.max(0, key.split('.').length - 1)
-        const valueType = variable.value_type || variable.valueType || 'text'
-        const options = Array.isArray(variable.options) ? variable.options.map((option: any, index: number) => ({ id: String(option?.id || option?.value || `option_${index + 1}`), text: String(option?.text || option?.label || '') })) : []
-        const patchOption = (id: string, text: string) => onPatchVariable(variable, { options: options.map((option: any) => option.id === id ? { ...option, text } : option) })
-        return (
-          <div key={variable.variable_uuid || key} className="border-b border-gray-100 p-3 last:border-b-0">
-            <div className="grid grid-cols-[1fr_10rem_2.5rem] items-center gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-gray-800" style={{ paddingLeft: depth * 14 }}>{key}</p>
-                <input
-                  value={variable.label || ''}
-                  onChange={(event) => onPatchVariable(variable, { label: event.target.value })}
-                  placeholder="Label"
-                  className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
-                />
-              </div>
-              <select
-                value={valueType}
-                onChange={(event) => onPatchVariable(variable, { value_type: event.target.value })}
-                className="h-9 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
-              >
-                <option value="text">Text</option>
-                <option value="number">Number</option>
-                <option value="boolean">Boolean</option>
-                <option value="multiple_choice">Multiple choice</option>
-                <option value="option">Option</option>
-                <option value="image">Image</option>
-              </select>
-              <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
-            </div>
-            {valueType === 'multiple_choice' && (
-              <div className="mt-3 space-y-2 rounded-lg bg-gray-50 p-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Choices</p>
-                {options.map((option: any) => (
-                  <div key={option.id} className="flex items-center gap-2">
-                    <input value={option.text} onChange={(event) => patchOption(option.id, event.target.value)} placeholder="Option label" className="h-8 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 text-xs outline-none focus:border-[var(--org-primary-color)]" />
-                    <IconButton title="Remove option" onClick={() => onPatchVariable(variable, { options: options.filter((item: any) => item.id !== option.id) })}><Trash2 size={13} /></IconButton>
-                  </div>
-                ))}
-                <button type="button" onClick={() => onPatchVariable(variable, { options: [...options, { id: `option_${Date.now()}`, text: `Option ${options.length + 1}` }] })} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-white text-xs font-bold text-gray-600 hover:border-gray-400"><Plus size={13} />Add choice</button>
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 const LearningTextAlign = Extension.create({

@@ -23,7 +23,10 @@ async def update_activity(
     lookups._require_activity_editor(db_session, current_user, activity)
     lookups._ensure_editable(db_session, activity)
     patch = data.model_dump(exclude_unset=True)
-    pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore[union-attr]
+    def activity_pages() -> list[LearningPage]:
+        return list(db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all())  # type: ignore[union-attr]
+
+    pages = activity_pages()
     if "settings" in patch:
         patch["settings"] = sequence_changed_by(activity.settings, patch["settings"] or {})
         settings = patch["settings"]
@@ -49,4 +52,5 @@ async def update_activity(
     db_session.add(activity)
     db_session.commit()
     db_session.refresh(activity)
-    return lookups._serialize_activity(activity, list(pages))
+    # Committing expires the pages read above.
+    return lookups._serialize_activity(activity, activity_pages())
