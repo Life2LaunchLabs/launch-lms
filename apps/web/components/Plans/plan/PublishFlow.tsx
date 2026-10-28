@@ -98,7 +98,7 @@ function ChangeRow({ type, title, change }: { type: StepTypeKey; title: string; 
   const definition = stepDefinition(type)
   const Icon = definition.icon
   return <li className={cn('flex items-center gap-2 rounded-[10px] border px-2.5 py-2 text-[13px]',
-    change === 'added' ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950' : change === 'changed' ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950' : 'border-border')}>
+    change === 'added' ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/15' : change === 'changed' ? 'border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/15' : 'border-border')}>
     <i className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-md text-white" style={{ background: definition.color }}><Icon size={12} aria-hidden="true" /></i>
     <span className={cn('min-w-0 flex-1 truncate', change === 'removed' && 'text-muted-foreground line-through')}>{title || 'Untitled step'}</span>
     <em className={cn('shrink-0 text-[11px] font-bold not-italic', change === 'added' ? 'text-emerald-700 dark:text-emerald-300' : change === 'changed' ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}>

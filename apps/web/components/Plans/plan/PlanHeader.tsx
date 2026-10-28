@@ -57,7 +57,7 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
           <span className="inline-flex min-w-0 items-center gap-2 pr-1 text-[13px] font-semibold"><OrgMark org={by} className="h-[22px] w-[22px]" /><span className="truncate">By {by.name || 'another organization'}</span></span>
           <VersionTag {...(canSwitchLive ? { type: 'button' as const, onClick: menu.versions, title: 'Change the live version' } : {})} data-testid="live-version-chip"
             className={cn('inline-flex h-[30px] items-center gap-1.5 rounded-full pl-[9px] pr-2.5 text-[12.5px] font-bold',
-              live ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-muted text-muted-foreground', canSwitchLive && 'hover:brightness-95')}>
+              live ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-muted text-muted-foreground', canSwitchLive && 'hover:brightness-95')}>
             <span className="h-[7px] w-[7px] rounded-full bg-current" aria-hidden="true" />
             {live ? versionLabel(live) : 'Inactive'}
             {!canSwitchLive && live ? <Lock size={12} className="opacity-60" aria-label="Locked" /> : canSwitchLive && (hadVersions || !live) ? <ChevronDown size={12} className="opacity-60" aria-hidden="true" /> : null}

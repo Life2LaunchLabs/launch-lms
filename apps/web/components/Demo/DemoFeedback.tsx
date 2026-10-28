@@ -54,7 +54,7 @@ export default function DemoFeedback({ personName, journey, tag, configured }: {
       <Textarea autoFocus aria-label="Feedback message" value={message} onChange={(event) => setMessage(event.target.value)} placeholder={intent.placeholder} className="min-h-28" />
     </>}
     <div><p className="mb-1.5 text-xs text-muted-foreground">Attached automatically</p><div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
-      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{personName}</span>
+      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">{personName}</span>
       {journey ? <span className="rounded-full border px-2 py-0.5 text-muted-foreground">Trying: {journey}</span> : null}
       <span className="rounded-full border px-2 py-0.5 text-muted-foreground">This page and your device type</span>
       {tag ? <span className="rounded-full border px-2 py-0.5 text-muted-foreground">Tag: {tag}</span> : null}

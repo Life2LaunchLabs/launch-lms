@@ -4,7 +4,11 @@
    data-surface="admin"; when the learner's theme is dark, the rules below re-point that
    palette at the dark tokens so those pages follow the Appearance setting without
    rewriting every class. New admin code should still use the tokens (bg-card,
-   text-foreground, border-border …). Print stays light. */
+   text-foreground, border-border …). Print stays light.
+   Because the light and dark ends swap, a dark: variant written for the plain palette
+   (dark:bg-amber-950, dark:text-amber-200) comes out light here. In dark: variants use the
+   300-600 shades, which don't move: dark:bg-amber-500/15, dark:border-amber-500/30,
+   dark:text-amber-300. The admin surface also covers onboarding (/auth/start, /joined). */
 
 @media screen {
 html.dark[data-surface='admin'] {
@@ -224,7 +228,7 @@ html.dark[data-surface='admin'] .from-white {
 html.dark[data-surface='admin'] :is(.bg-\[\#f8f8f8\], .bg-\[\#fcfbfc\], .bg-\[\#f6f7f9\], .bg-\[\#f2f4f7\], .bg-\[\#fbfaf7\]) {
   background-color: hsl(var(--background));
 }
-html.dark[data-surface='admin'] :is(.bg-\[\#EDEFF5\], .bg-\[\#E3E7F0\], .bg-\[\#e8ecf1\], .bg-\[\#f3f6fc\]) {
+html.dark[data-surface='admin'] :is(.bg-\[\#EDEFF5\], .bg-\[\#E3E7F0\], .bg-\[\#e8ecf1\], .bg-\[\#f3f6fc\], .bg-\[\#e8eef6\], .bg-\[\#f3f1ec\]) {
   background-color: hsl(var(--muted));
 }
 html.dark[data-surface='admin'] :is(.text-\[\#3A4152\], .text-\[\#27323d\], .text-\[\#3c3f43\]) {

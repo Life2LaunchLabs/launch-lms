@@ -45,7 +45,6 @@ export const ADMIN_TABS: AdminTab[] = [
     id: 'plans',
     label: 'Plans',
     href: admin.plans(),
-    pill: 'New',
     // Plans, Discover, Assignments and Requirements are tabs inside Plans, not sidebar entries.
     inPageTabs: true,
     match: [],

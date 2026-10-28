@@ -10,7 +10,8 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import TourScene from '@components/Onboarding/Start/TourScene'
-import ForceLightTheme from '@components/Utils/ForceLightTheme'
+import AdminSurface from '@components/Utils/AdminSurface'
+import '@/styles/admin-dark.css'
 import { H1, LEDE, TOUR } from '@components/Onboarding/Start/tour'
 import { getUriWithOrg } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
@@ -80,8 +81,8 @@ export default function JoinedFlow() {
   }
 
   const shown = (learnerName.staff && learnerName.value.trim()) || [name.first_name, name.last_name].filter(Boolean).join(' ') || 'You'
-  return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-[#14202a]">
-    <ForceLightTheme />
+  return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-foreground">
+    <AdminSurface />
     <header className="flex min-h-[68px] items-center gap-4 px-6 py-3.5">
       <span className="text-[17px] font-extrabold">{org?.name}</span>
       {typeof step === 'number' ? <button type="button" className="ml-auto text-[13px] font-bold underline underline-offset-4" onClick={() => router.push(home)}>Skip intro</button> : null}

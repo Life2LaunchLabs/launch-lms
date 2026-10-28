@@ -108,7 +108,7 @@ function StepBody({ step, ctx }: { step: AssignmentStep; ctx: StepCardContext })
       <button type="button" onClick={() => setTrying(true)} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3.5 text-[13px] font-semibold hover:bg-muted">
         <Play size={15} aria-hidden="true" />Try it
       </button>
-      {step.staff_guide || staffMaterials.length ? <div className="min-w-0 flex-1 rounded-xl bg-amber-50 px-3 py-2.5 text-[13.5px] leading-relaxed dark:bg-amber-950/50">
+      {step.staff_guide || staffMaterials.length ? <div className="min-w-0 flex-1 rounded-xl bg-amber-50 px-3 py-2.5 text-[13.5px] leading-relaxed dark:bg-amber-500/15">
         <b className="mb-0.5 flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300"><NotebookPen size={14} aria-hidden="true" />Staff instructions</b>
         {step.staff_guide ? <p className="line-clamp-6 whitespace-pre-line">{step.staff_guide}</p> : null}
         {staffMaterials.length ? <button type="button" onClick={() => setGuide(true)} className="mt-1 text-[12.5px] font-semibold text-amber-800 underline underline-offset-2 dark:text-amber-300">

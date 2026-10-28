@@ -20,11 +20,11 @@ export type CandidatePanel = 'feedback' | 'releases' | 'announcements'
 const ROUTE_HISTORY_KEY = 'launchlms-candidate-route-history'
 
 const FEEDBACK_INTENTS: Array<{ value: CandidateFeedbackIntent; label: string; placeholder: string; icon: React.ElementType; tone: string }> = [
-  { value: 'stuck', label: "I'm stuck", placeholder: 'What were you trying to do, and where did you get stuck?', icon: Lifebuoy, tone: 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-300/15 dark:bg-sky-300/10 dark:text-sky-100' },
-  { value: 'broken', label: 'Something is broken', placeholder: 'What happened, and what did you expect instead?', icon: Bug, tone: 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-300/15 dark:bg-rose-300/10 dark:text-rose-100' },
-  { value: 'confusing', label: 'Something is confusing', placeholder: 'What felt unclear or hard to understand?', icon: Lightbulb, tone: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-300/15 dark:bg-amber-300/10 dark:text-amber-100' },
-  { value: 'missing', label: 'Something is missing', placeholder: 'What did you expect to find or be able to do?', icon: PlusCircle, tone: 'border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-300/15 dark:bg-violet-300/10 dark:text-violet-100' },
-  { value: 'love', label: 'I love this', placeholder: 'What worked especially well for you?', icon: Heart, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-300/15 dark:bg-emerald-300/10 dark:text-emerald-100' },
+  { value: 'stuck', label: "I'm stuck", placeholder: 'What were you trying to do, and where did you get stuck?', icon: Lifebuoy, tone: 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-300/15 dark:bg-sky-300/10 dark:text-sky-300' },
+  { value: 'broken', label: 'Something is broken', placeholder: 'What happened, and what did you expect instead?', icon: Bug, tone: 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-300/15 dark:bg-rose-300/10 dark:text-rose-300' },
+  { value: 'confusing', label: 'Something is confusing', placeholder: 'What felt unclear or hard to understand?', icon: Lightbulb, tone: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-300/15 dark:bg-amber-300/10 dark:text-amber-300' },
+  { value: 'missing', label: 'Something is missing', placeholder: 'What did you expect to find or be able to do?', icon: PlusCircle, tone: 'border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-300/15 dark:bg-violet-300/10 dark:text-violet-300' },
+  { value: 'love', label: 'I love this', placeholder: 'What worked especially well for you?', icon: Heart, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-300/15 dark:bg-emerald-300/10 dark:text-emerald-300' },
 ]
 
 const intentLabel = (intent?: CandidateFeedbackIntent | null) =>

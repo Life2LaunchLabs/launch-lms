@@ -220,7 +220,7 @@ export function SignOff({ plan, statement, setStatement, evidenceUrl, setEvidenc
         <input value={notes[person.id] || ''} onChange={(event) => setNotes({ ...notes, [person.id]: event.target.value })} aria-label={`A line for ${person.name}`} placeholder="Only on their badge" className={input} />
       </label>)}</div>
     </details> : null}
-    <label className="flex items-start gap-3 rounded-xl bg-amber-50 px-3.5 py-3 text-[13.5px] leading-[1.45] dark:bg-amber-950/40">
+    <label className="flex items-start gap-3 rounded-xl bg-amber-50 px-3.5 py-3 text-[13.5px] leading-[1.45] dark:bg-amber-500/15">
       <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
       <span>I confirm {who} completed work equal to <b>{plan.title}</b>: finishing all {plural(plan.steps, 'step')} of the plan. I’m signing off as {signer} for {orgName}.</span>
     </label>

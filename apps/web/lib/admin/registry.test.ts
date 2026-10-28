@@ -44,7 +44,7 @@ test('a teacher (staff without admin rights) gets Home, Plans (with its four tab
   assert.deepEqual(ids(plans.children!), ['plans', 'discover', 'assignments', 'requirements'])
   assert.equal(plans.href, '/admin/plans')
   assert.equal(plans.inPageTabs, true)
-  assert.equal(plans.pill, 'New')
+  assert.equal(plans.pill, undefined)
 })
 
 test('an admin gets every tab in job order and gated pages show what to request', () => {

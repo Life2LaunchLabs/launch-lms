@@ -111,7 +111,7 @@ function AccountSecurity() {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/40 p-3 rounded-md">
+                <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/15 p-3 rounded-md">
                   <AlertTriangle size={16} />
                   <span className="text-sm">{t('user.settings.password.logout_warning')}</span>
                 </div>

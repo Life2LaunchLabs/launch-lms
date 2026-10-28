@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 export default function DemoToolbar({ children, variant = 'visitor' }: { children: ReactNode; variant?: 'visitor' | 'setup' }) {
   const tone = variant === 'setup'
     ? 'border-orange-500 bg-[repeating-linear-gradient(-45deg,#1f1d2b_0,#1f1d2b_14px,#2c2433_14px,#2c2433_28px)] text-orange-50'
-    : 'border-indigo-200 bg-indigo-50 text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-100'
+    : 'border-indigo-200 bg-indigo-50 text-indigo-950 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300'
   return <div data-demo-bar={variant} className={`demo-experience relative z-50 flex h-12 min-h-12 w-full shrink-0 items-center justify-between gap-2 border-b px-2 py-1.5 print:hidden sm:px-4 ${tone}`}>{children}</div>
 }
 
