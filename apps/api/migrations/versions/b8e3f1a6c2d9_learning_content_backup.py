@@ -1,7 +1,7 @@
 """Keep what the version 3 activity migration replaces, for one release
 
 Revision ID: b8e3f1a6c2d9
-Revises: a4d9e2f7c1b8
+Revises: b5e8c2d4f6a1
 Create Date: 2026-10-28
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "b8e3f1a6c2d9"
-down_revision = "a4d9e2f7c1b8"
+down_revision = "b5e8c2d4f6a1"
 branch_labels = None
 depends_on = None
 
