@@ -225,6 +225,7 @@ Runs on every request. Handles:
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `JUDGE0_API_URL` | Judge0 code execution endpoint |
 | `TINYBIRD_API_TOKEN` | Tinybird analytics token |
+| `PEXELS_API_KEY` | Stock photo and video search (Pexels); stock search returns 503 without it |
 | `LAUNCHLMS_EMAIL_PROVIDER` | `resend` (default) or `smtp` |
 | `LAUNCHLMS_RESEND_API_KEY` | Resend email API key |
 | `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS` | System sender email |

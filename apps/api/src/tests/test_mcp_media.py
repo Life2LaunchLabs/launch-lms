@@ -6,6 +6,7 @@ import base64
 import pytest
 
 from src.db.media import MediaAsset
+from src.services import media_download
 from src.services.mcp import media_tools
 from src.tests.test_mcp import mcp  # noqa: F401  (fixture)
 
@@ -70,6 +71,6 @@ def test_private_addresses_are_refused():
 
 
 def test_filenames():
-    assert media_tools._filename("/photos/abc", "image/jpeg", media_tools.MediaType.image) == "abc.jpg"
-    assert media_tools._filename("hero.webp", "image/jpeg", media_tools.MediaType.image) == "hero.webp"
-    assert media_tools._filename("", "application/pdf", media_tools.MediaType.document) == "connector-document.pdf"
+    assert media_download.filename("/photos/abc", "image/jpeg", media_download.MediaType.image) == "abc.jpg"
+    assert media_download.filename("hero.webp", "image/jpeg", media_download.MediaType.image) == "hero.webp"
+    assert media_download.filename("", "application/pdf", media_download.MediaType.document) == "connector-document.pdf"
