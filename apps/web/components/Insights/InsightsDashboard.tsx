@@ -215,6 +215,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
               {scope === 'org' ? <h1 className="truncate text-[26px] font-extrabold leading-tight tracking-tight">{chosen.title}</h1>
                 : <ObjectSwitcher scope={scope} objects={objects!} current={object!} onPick={(key) => router.push(scopeHref(key, chosen.dashboard_uuid))} />}
               <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : scope === 'learner' ? object!.detail : `${object!.learners} learner${object!.learners === 1 ? '' : 's'}${scope === 'framework' ? ' tracked' : ''}${object!.external ? ' · from another organization' : ''}`}</p>
+              {scope === 'learner' ? <LearnerDetails learnerKey={object!.key} /> : null}
             </div>
           </div>
           {dashboard && !draft ? <div className="flex items-center gap-2">
@@ -241,6 +242,16 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
     </div>
   }
   return <InsightsShell place={{ dashboard: chosen?.dashboard_uuid || null, scope }}>{body()}</InsightsShell>
+}
+
+/** The organization's learner details for this learner, many kept from activity answers. */
+function LearnerDetails({ learnerKey }: { learnerKey: string }) {
+  const { orgId, token, ready } = useInsightsContext()
+  const { data } = useSWR(ready ? insightKeys.learnerDetails(orgId, learnerKey) : null, () => insightsApi.learnerDetails(orgId, learnerKey, token), { revalidateOnFocus: false })
+  if (!data?.length) return null
+  return <dl aria-label="Learner details" className="mt-2 flex flex-wrap gap-1.5">
+    {data.map((item) => <div key={item.key} className="flex max-w-xs items-baseline gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs"><dt className="shrink-0 text-muted-foreground">{item.label}</dt><dd className="truncate font-bold">{item.value}</dd></div>)}
+  </dl>
 }
 
 function NewButton({ scope, tab }: { scope: Scope; tab?: boolean }) {

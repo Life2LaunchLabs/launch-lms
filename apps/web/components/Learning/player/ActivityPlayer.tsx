@@ -145,6 +145,8 @@ export function ActivityPlayer({
       const nextRun = submitting ? await runtime.submit(page.page_uuid, answer, button) : await runtime.complete(page.page_uuid, button)
       setRun(nextRun)
       if (submitting) onEvent?.({ type: 'answer_submitted', page_uuid: page.page_uuid, page_title: page.title, answer, run: nextRun })
+      const kept = submitting ? keptNote(page) : null
+      if (kept) toast.success(kept)
       const said = submitting ? answerFeedback(nextRun, page.page_uuid) : null
       if (said) setFeedback({ ...said, run: nextRun }); else goOn(nextRun)
     } catch (error: any) {
@@ -244,6 +246,13 @@ export function ActivityPlayer({
       </div>
     </LearningActivitySurface>
   )
+}
+
+/** The small note a learner sees when a page keeps their answer, so nothing is saved without them knowing. */
+export function keptNote(page: any): string | null {
+  const targets = (page?.content?.blocks || []).flatMap((block: any) => block?.completion?.variable_bindings?.keep || []).map((binding: any) => String(binding?.target || ''))
+  if (targets.some((target: string) => target.startsWith('user.portfolio.'))) return 'Added to your portfolio'
+  return targets.some(Boolean) ? 'Saved to your profile' : null
 }
 
 /** What the latest answer on a page said back: the author's feedback for a right or wrong answer. */

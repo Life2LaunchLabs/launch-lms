@@ -58,10 +58,13 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
             )
     points = answer_validation._as_float(scoring.get("points"), 1.0)
     score = points * score_fraction if score_fraction is not None else None
+    labels = {str(option.get("id")): str(option.get("text") or option.get("label") or option.get("id")) for option in content.get("options") or [] if isinstance(option, dict)}
     return {
         "kind": "multiple_choice",
         "selected": selected,
         "option_ids": selected,
+        # What they picked, in words, so later pages can show it.
+        "selected_labels": [labels.get(str(option_id), str(option_id)) for option_id in selected],
         "correct_option_ids": sorted(correct_options),
         "score_policy": "select_all",
         "is_correct": is_correct,

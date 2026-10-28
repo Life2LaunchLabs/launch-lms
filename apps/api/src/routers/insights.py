@@ -7,10 +7,11 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.users import PublicUser
+from src.db.users import PublicUser, User
 from src.security.auth import get_current_user
 from src.services.insights import captures, context, dashboards, engine, rules
 from src.services.insights.spec import CardSpec, CustomRange
+from src.services.learning import learner_details
 
 router = APIRouter()
 # Read-only links open signed out, so they sit outside the router's sign-in dependency (``src/router.py``).
@@ -105,6 +106,13 @@ def api_library(org_id: int, scope: Literal["org", "plan", "group", "learner", "
 def api_objects(org_id: int, scope: Literal["plan", "group", "learner", "framework"] = Query(default="plan"), db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """The plans, groups, learners or requirement frameworks the viewer can open a dashboard on, for the switcher."""
     return {"objects": context.objects(db, context.population(db, user, org_id), scope)}
+
+
+@router.get("/learner-details")
+def api_learner_details(org_id: int, key: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """A learner's details (the organization's own fields, often kept from activity answers), above their dashboards."""
+    learner = context.scope(db, context.population(db, user, org_id), "learner", key)
+    return {"details": learner_details.details_for(db, org_id, db.get(User, learner.id))}
 
 
 @router.get("/dashboards")

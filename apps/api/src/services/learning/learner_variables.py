@@ -11,7 +11,7 @@ from src.db.users import User
 from src.services.learning_portfolio_actions import (
     _portfolio,
 )
-from src.services.learning import access_rules, constants, run_navigation
+from src.services.learning import access_rules, constants, learner_details, run_navigation
 
 
 def _normalize_bindings(value) -> list[dict]:
@@ -38,6 +38,14 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
             result if len(questions) == 1 else {}
         )
         kind = question.get("kind")
+        keep = _kept_value(question, kind, sub_result)
+        for binding in _normalize_bindings(bindings.get("keep")):
+            if keep is not None:
+                variables.append({
+                    "target": str(binding.get("target") or ""), "value": keep,
+                    **({"value_type": "image"} if kind == "image_upload" else {}),
+                    "source": {"page_uuid": page.page_uuid, "block_id": block_id},
+                })
 
         if kind == "text_input":
             input_bindings = bindings.get("inputs") or {}
@@ -147,6 +155,21 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
     return variables
 
 
+def _kept_value(question: dict, kind, sub_result: dict):
+    """A question's answer in words, for ``variable_bindings.keep``: the picks' labels, what they wrote, or the upload."""
+    if kind in {"multiple_choice", "categorized_multi_select"}:
+        options = {str(option.get("id")): str(option.get("text") or option.get("id") or "") for option in (question.get("content") or {}).get("options") or [] if isinstance(option, dict)}
+        picked = [options.get(str(option_id), str(option_id)) for option_id in sub_result.get("option_ids") or sub_result.get("selected") or []]
+        return picked or None
+    if kind == "text_input":
+        texts = [str((item or {}).get("text") or "").strip() for item in (sub_result.get("inputs") or {}).values()]
+        text = " ".join(item for item in texts if item)
+        return text or None
+    if kind == "image_upload":
+        return str(sub_result.get("url") or "").strip() or None
+    return None
+
+
 def _question_variable_bindings(page: LearningPage, question: dict) -> dict:
     completion = question.get("completion")
     bindings = completion.get("variable_bindings") if isinstance(completion, dict) else None
@@ -159,6 +182,7 @@ def _target_value_type(db_session: Session, org_id: int | None, target: str) -> 
     if (
         target in constants._SAFE_CORE_VARIABLE_TARGETS
         or target in constants._SAFE_PORTFOLIO_VARIABLE_TARGETS
+        or target in learner_details.TRAIT_TARGETS
         or target == "user.email"
     ):
         return "text"
@@ -204,7 +228,7 @@ def _is_safe_variable_target(
         return True, None
     if target in constants._SAFE_CORE_VARIABLE_TARGETS:
         return True, None
-    if target in constants._SAFE_PORTFOLIO_VARIABLE_TARGETS:
+    if target in constants._SAFE_PORTFOLIO_VARIABLE_TARGETS or target in learner_details.TRAIT_TARGETS:
         return True, None
     if target == "user.email":
         current_email = (user.email or "").strip().lower()
@@ -282,6 +306,9 @@ def _apply_learning_variables_to_user(
             )
             portfolio.update_date = str(datetime.now())
             db_session.add(portfolio)
+        elif target in learner_details.TRAIT_TARGETS:
+            portfolio = _portfolio(db_session, user, str(datetime.now()))
+            learner_details.keep_traits(db_session, portfolio, learner_details.TRAIT_TARGETS[target], value)
         elif target == "user.email":
             user.email = str(value or "").strip()
         elif target.startswith("user.profile."):

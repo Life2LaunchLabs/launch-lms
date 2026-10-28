@@ -35,6 +35,7 @@ import {
 import { SCENES } from '@components/Learning/player/design'
 import { blockLabel, createOptionId } from './utils'
 import { Check, ColorMenu, FieldsMenu, Menu, MotionMenu, Name, RowActions, Sep, TRANSITIONS, TextTools, Tool, on } from './toolbarParts'
+import { KeepMenu, TheirInfoMenu, infoGroups } from './TheirInfo'
 
 export type InsertType = 'text' | 'image' | 'number' | 'card_deck' | 'button' | 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload'
 
@@ -55,6 +56,8 @@ type ToolbarProps = {
   onReplaceVideo: () => void
   onBackgroundImage: () => void
   onShowDesktop: () => void
+  /** For "Their info" and "Keep answer". */
+  info: { variables: any[]; pages: any[]; pageOrder: string[]; onCreateDetail: (key: string, label: string) => Promise<any> }
 }
 
 const BACKGROUNDS = [
@@ -183,7 +186,7 @@ function VideoPageTools({ page, onReplaceVideo, onPatchPage }: ToolbarProps) {
   )
 }
 
-function BlockTools({ block, textEditor, patch, onDuplicate, onRemove, onBranchFrom, onReplaceImage, onToggleSideBySide }: ToolbarProps & { block: any; patch: (value: any) => void }) {
+function BlockTools({ block, page, textEditor, patch, info, onDuplicate, onRemove, onBranchFrom, onReplaceImage, onToggleSideBySide }: ToolbarProps & { block: any; patch: (value: any) => void }) {
   const design = block.design || {}
   const content = block.content || {}
   const locked = block.system?.locked ? (block.system.reason || 'Managed by the system') : undefined
@@ -210,7 +213,7 @@ function BlockTools({ block, textEditor, patch, onDuplicate, onRemove, onBranchF
       </>
     )
   }
-  if (block.type === 'text') return <><Name>Text</Name><TextTools editor={textEditor} />{motion}{actions}</>
+  if (block.type === 'text') return <><Name>Text</Name><TextTools editor={textEditor} /><Sep /><TheirInfoMenu editor={textEditor} groups={infoGroups(info.variables, info.pages, info.pageOrder, page?.page_uuid)} />{motion}{actions}</>
   if (block.type === 'number') {
     return (
       <>
@@ -281,7 +284,7 @@ function BlockTools({ block, textEditor, patch, onDuplicate, onRemove, onBranchF
   }
   if (block.type === 'question') {
     const completion = block.completion || {}
-    const branch = <Tool label="Branch" onClick={() => onBranchFrom(block)}><GitBranch size={14} className="text-violet-600" /></Tool>
+    const branch = <><KeepMenu block={block} variables={info.variables} onPatch={patch} onCreateDetail={info.onCreateDetail} /><Tool label="Branch" onClick={() => onBranchFrom(block)}><GitBranch size={14} className="text-violet-600" /></Tool></>
     if (block.kind === 'multiple_choice' || block.kind === 'categorized_multi_select') {
       const options: any[] = content.options || []
       const several = Number(completion.max_selections || 1) > 1
@@ -329,6 +332,7 @@ function BlockTools({ block, textEditor, patch, onDuplicate, onRemove, onBranchF
         <>
           <Name>Upload</Name>
           <Tool label="Required" active={completion.required !== false} onClick={() => patch({ completion: { ...completion, required: completion.required === false } })} />
+          <Sep /><KeepMenu block={block} variables={info.variables} onPatch={patch} onCreateDetail={info.onCreateDetail} />
           {motion}{actions}
         </>
       )

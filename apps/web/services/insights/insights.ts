@@ -219,6 +219,7 @@ export const insightKeys = {
   dashboards: (orgId: number) => ['insights', orgId, 'dashboards'] as const,
   dashboard: (orgId: number, uuid: string) => ['insights', orgId, 'dashboard', uuid] as const,
   objects: (orgId: number, scope: Scope) => ['insights', orgId, 'objects', scope] as const,
+  learnerDetails: (orgId: number, key: string) => ['insights', orgId, 'learner-details', key] as const,
   library: (orgId: number, scope: Scope) => ['insights', orgId, 'library', scope] as const,
   registry: (orgId: number, scope: Scope, key: string | null) => ['insights', orgId, 'registry', scope, key] as const,
   captures: (orgId: number, filters: CaptureFilters = {}) => ['insights', orgId, 'captures', JSON.stringify(filters)] as const,
@@ -241,6 +242,9 @@ export const insightsApi = {
   remove: (orgId: number, uuid: string, token?: string) => request<{ deleted: boolean }>(url(orgId, `/dashboards/${q(uuid)}`), token, 'DELETE'),
   objects: (orgId: number, scope: ObjectScope, token?: string) =>
     request<{ objects: InsightObject[] }>(url(orgId, '/objects', { scope }), token).then((body) => body.objects),
+  /** A learner's details (the organization's own fields, often kept from activity answers). */
+  learnerDetails: (orgId: number, key: string, token?: string) =>
+    request<{ details: Array<{ key: string; label: string; value: string }> }>(url(orgId, '/learner-details', { key }), token).then((body) => body.details),
   library: (orgId: number, scope: Scope, token?: string) =>
     request<{ templates: LibraryTemplate[]; questions: LibraryQuestion[] }>(url(orgId, '/library', { scope }), token),
   registry: (orgId: number, scope: Scope, key: string | null, token?: string) => request<Registry>(url(orgId, '/registry', { scope, key }), token),
