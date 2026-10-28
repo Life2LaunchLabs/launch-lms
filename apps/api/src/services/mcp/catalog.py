@@ -41,6 +41,13 @@ TOOLS = [
         goal_templates.list_activities,
     ),
     Tool(
+        "audit_activities",
+        "Audit activities for the new format",
+        "Activities in this organization whose move to sequences and version 3 pages needs a person: routes that changed (an early finish, a page on two paths), pages that swap blocks on an earlier answer (they need a branch), go-back buttons that were dropped. Each has its editor_url. Pass notes: true to include changes learners won't notice.",
+        {"properties": {"notes": {"type": "boolean", "description": "Also list activities with notes only (such as a page given an empty heading)."}}},
+        handlers.audit_activities,
+    ),
+    Tool(
         "get_activity",
         "Get an activity",
         "Read one activity as an Activity Document, plus its etag (needed to save) and the template it belongs to.",

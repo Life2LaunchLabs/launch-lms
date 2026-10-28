@@ -13,6 +13,7 @@ from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services.email.utils import get_base_url_from_request
 from src.services.badges.awards import org_badge_plans
+from src.services.learning_content import migrate_v3
 from src.services.orgs.usage import get_org_usage_and_limits
 from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
@@ -480,3 +481,11 @@ async def remove_user_membership(
     db_session: Session = Depends(get_db_session),
 ):
     return users_service.remove_user_membership(db_session, user_id, org_id)
+
+
+@router.get("/learning-content/audit")
+async def learning_content_audit(notes: bool = False, db_session: Session = Depends(get_db_session)):
+    """What the version 3 activity migration would do, and every activity it flags for a person."""
+    summary = migrate_v3.migrate(db_session, apply=False)
+    summary.pop("flagged")
+    return {"summary": summary, "activities": migrate_v3.audit_activities(db_session, only_review=not notes)}

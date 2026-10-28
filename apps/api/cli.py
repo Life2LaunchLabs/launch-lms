@@ -201,6 +201,32 @@ def audit_learning_content():
 
 
 @cli.command()
+def migrate_learning_content(
+    apply: bool = typer.Option(False, help="Write the changes. Without it this is a dry run."),
+    batch_size: int = typer.Option(50, help="Activities per commit."),
+    org_id: int | None = typer.Option(None, help="Only this organization's activities."),
+    restore: bool = typer.Option(False, help="Put back what an earlier run replaced."),
+):
+    """Write activity sequences and version 3 pages, keeping what they replace (see services/learning_content/migrate_v3.py)."""
+    import json
+
+    from src.core.events.database import engine
+    from src.services.learning_content import migrate_v3
+
+    with Session(engine) as session:
+        if restore:
+            typer.echo(f"restored {migrate_v3.restore(session)} row(s)")
+            return
+        result = migrate_v3.migrate(session, apply=apply, batch_size=batch_size, org_id=org_id)
+    for row in result.pop("flagged"):
+        frozen = " (published copy)" if row["frozen"] else ""
+        typer.echo(f"{row['activity_uuid']} {row['title']!r}{frozen}")
+        for flag in row["flags"]:
+            typer.echo(f"  - {flag['code']}: {flag['message']}")
+    typer.echo(json.dumps(result, indent=2))
+
+
+@cli.command()
 def main():
     cli()
 
