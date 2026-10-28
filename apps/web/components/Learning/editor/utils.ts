@@ -350,7 +350,7 @@ export function blockLabel(block: LearningBlock) {
   if (block.type === 'text') return 'Text block'
   if (block.type === 'image') return 'Image block'
   if (block.type === 'portfolio_preview') return 'Portfolio preview'
-  const story = ({ stat: 'Stat row', quote: 'Quote', chart: 'Chart', medal: 'Medal' } as Record<string, string>)[block.type]; if (story) return story
+  const named = ({ stat: 'Stat row', quote: 'Quote', chart: 'Chart', medal: 'Medal', heading: 'Page heading', number: 'Big number', card_deck: 'Card deck', column_break: 'Column break' } as Record<string, string>)[block.type]; if (named) return named
   if (block.kind === 'text_input') return 'Text input question'
   if (block.kind === 'image_upload') return 'Image upload question'
   return 'Multiple choice question'
