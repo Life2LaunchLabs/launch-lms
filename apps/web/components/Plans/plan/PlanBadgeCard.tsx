@@ -7,7 +7,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { BadgeMedal, medalColor } from '@components/Badges/BadgeMedal'
 import { AwardBadgeButton } from '@components/Badges/award/AwardFlow'
 import Certificate from '@components/Badges/Certificate'
-import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import OrgMediaPicker from '@components/Objects/Media/OrgMediaPicker'
 import { useTemplateLearners } from '@components/Plans/editor/TemplateLearnersCard'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { smallActionClass, smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/actions'
@@ -193,7 +193,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
         {!canEdit ? <p className="mt-3 text-[13px] text-muted-foreground">{template.owner_org?.name || 'The plan’s owner'} looks after this badge along with the plan.</p> : null}
       </>}
     </div>
-    {picking ? <MediaPickerDialog open onOpenChange={(next) => { if (!next) setPicking(false) }} title="Badge image" description="Upload an image for the badge, or choose one from your media library." owner={{ type: 'org', id: orgId }} mediaType="image" accessToken={token}
+    {picking ? <OrgMediaPicker open onOpenChange={(next) => { if (!next) setPicking(false) }} title="Badge image" description="Upload an image for the badge, choose one from your media library, or find a free stock photo." orgId={orgId} mediaType="image" accessToken={token}
       onSave={(asset) => { set({ image_url: asset.url }); setPicking(false) }} /> : null}
   </PlanDialog>
 }
