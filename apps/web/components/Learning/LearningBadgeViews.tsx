@@ -1,5 +1,6 @@
 'use client'
 
+import { LearningTextStyle } from '@components/Learning/textMarks'
 import React from 'react'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
@@ -505,6 +506,7 @@ function InfoTextBlock({ block, blockId }: any) {
         showOnlyWhenEditable: false,
       }),
       InfoTextAlign,
+      LearningTextStyle,
     ],
     content,
     onUpdate: ({ editor }) => {

@@ -26,7 +26,8 @@ function Heading({ block }: { block: any }) {
   const text = String(block.content?.text || '')
   const words = text.split(/\s+/).filter(Boolean)
   const size = HEADING_SIZE[block.content?.size || 'l'] || HEADING_SIZE.l
-  return <h2 className={`font-extrabold leading-[1.08] tracking-tight text-foreground [text-wrap:balance] ${size}`}>
+  const design = block.design || {}
+  return <h2 className={`font-extrabold leading-[1.08] tracking-tight text-foreground [text-wrap:balance] ${size}`} style={{ color: design.text_color || undefined, textAlign: design.align || undefined }}>
     {reduce ? text : <>
       <span className="sr-only">{text}</span>
       <span aria-hidden="true">
