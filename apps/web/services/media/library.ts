@@ -30,6 +30,8 @@ export type MediaAsset = {
   mime_type?: string | null
   size_bytes?: number | null
   folder?: string | null
+  /** Who made it, for stock photos and videos: shown wherever the media is. */
+  credit?: { provider: string; name: string; url: string; source_url: string } | null
   creation_date: string
   update_date: string
 }

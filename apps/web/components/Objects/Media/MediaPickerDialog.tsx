@@ -54,7 +54,7 @@ type MediaPickerDialogProps = {
   owner: MediaOwner
   mediaType: MediaType
   accessToken?: string
-  initialTab?: 'upload' | 'library'
+  initialTab?: string // 'upload', 'library' or a custom tab's value
   // eslint-disable-next-line no-unused-vars
   onSave: (asset: MediaAsset) => Promise<void> | void
   // eslint-disable-next-line no-unused-vars
