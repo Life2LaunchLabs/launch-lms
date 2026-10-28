@@ -13,19 +13,12 @@ import {
   AlignRight,
   AlertTriangle,
   ArrowLeft,
-  Bold,
   Check,
-  ChevronDown,
   ChevronRight,
-  Columns2,
-  Copy,
   FileText,
   GripVertical,
   Hand,
-  Heading1,
-  Heading2,
   Image as ImageIcon,
-  Italic,
   Layers3,
   ListChecks,
   Lock,
@@ -36,7 +29,6 @@ import {
   Play,
   Settings2,
   Plus,
-  Quote,
   Smartphone,
   TextCursorInput,
   Trash2,
@@ -80,7 +72,6 @@ import {
   EMPTY_PARAGRAPH,
   activityHasScoredQuestions,
   blockLabel,
-  cloneBlocksWithFreshIds,
   cloneJson,
   createBlockId,
   createImageBlock,
@@ -92,7 +83,6 @@ import {
   getActivityGradingSettings,
   getBlockStyle,
   getEditorBlocks,
-  getPageBlocks,
   getTextBlockNodes,
   getQuestionConfigurationIssue,
   mergePatch,
@@ -140,6 +130,8 @@ import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfoli
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
 import PageBlock, { PAGE_BLOCKS } from '@components/Learning/player/PageBlocks'
+import { LearningTextStyle } from '@components/Learning/textMarks'
+import { SelectionToolbar, type InsertType } from './SelectionToolbar'
 import type { Sequence } from '@components/Learning/generated/content'
 
 /** Edits one activity in place. `ownerName` is the plan template it belongs to; `orgId` owns its variables and media. */
@@ -166,6 +158,8 @@ export default function LearningActivityEditor({
   const [railMode, setRailMode] = React.useState<RailMode>('pages')
   const [newPageOpen, setNewPageOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [inspectorOpen, setInspectorOpen] = React.useState(false)
+  const [pickingBackgroundFor, setPickingBackgroundFor] = React.useState<string | null>(null)
   const [pages, setPages] = React.useState<any[]>(() => normalizeInitialPages(activity.pages || []))
   const [selection, setSelection] = React.useState<Selection>(() => ({
     pageUuid: orderedPageUuids(activity.settings?.sequence || activity.sequence || { items: [] })[0] || (activity.pages || [])[0]?.page_uuid,
@@ -379,20 +373,24 @@ export default function LearningActivityEditor({
     })
   }, [pages, patchPage, variantKey])
 
-  const insertBlock = (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload', afterBlockId?: string | null) => {
+  const insertBlock = (type: InsertType, afterBlockId?: string | null) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
     if ((type === 'multiple_choice' || type === 'categorized_multi_select' || type === 'text_input' || type === 'image_upload') && selectedPage.content?.variants) {
       toast.error('Variant pages cannot contain question blocks')
       return
     }
     const blocks = getEditorBlocks(selectedPage, variantKey)
-    const block = type === 'text'
+    const block: any = type === 'text'
       ? createTextBlock()
       : type === 'image'
         ? createImageBlock()
         : type === 'button'
           ? createButtonBlock()
-        : createQuestionBlock(type)
+          : type === 'number'
+            ? { id: createBlockId(), type: 'number', content: { value: 100, label: '' } }
+            : type === 'card_deck'
+              ? { id: createBlockId(), type: 'card_deck', content: { cards: [{ id: createOptionId(), title: 'First thing', body: 'One sentence about it.' }, { id: createOptionId(), title: 'Second thing', body: 'One sentence about it.' }] } }
+              : createQuestionBlock(type)
     const index = afterBlockId ? blocks.findIndex((item) => item.id === afterBlockId) + 1 : blocks.length
     const nextBlocks = [...blocks]
     nextBlocks.splice(index >= 0 ? index : blocks.length, 0, block)
@@ -573,27 +571,6 @@ export default function LearningActivityEditor({
     })
   }
 
-  const selectVariant = (key: string) => {
-    if (!selectedPage) return
-    const variants = selectedPage.content?.variants || {}
-    if (key !== 'default' && !variants.overrides?.[key]) {
-      patchSelectedPage({
-        content: {
-          ...(selectedPage.content || {}),
-          variants: {
-            ...variants,
-            overrides: {
-              ...(variants.overrides || {}),
-              [key]: { blocks: cloneBlocksWithFreshIds(getPageBlocks(selectedPage)) },
-            },
-          },
-        },
-      })
-    }
-    setVariantKey(key)
-    setSelection({ pageUuid: selectedPage.page_uuid, blockId: null })
-  }
-
   // The order saves with the activity; a branch rule still being filled in waits until it's complete.
   const changeSequence = (next: Sequence) => {
     const settings = { ...(activityState.settings || {}), sequence: next }
@@ -677,6 +654,27 @@ export default function LearningActivityEditor({
     // A new branch gets its first path as soon as it knows what to follow.
     if (!findBranch(next, branchId)?.paths.some((path) => path.rule)) next = addPath(next, branchId, freshRule(variable, on))
     changeSequence(next)
+  }
+
+  // "Branch" on a question or button: a branch right after its page, following it.
+  const branchFromBlock = (block: any) => {
+    if (!selectedPage) return
+    const key = block.type === 'button' ? `${selectedPage.page_uuid}.button`
+      : block.kind === 'text_input' ? `${selectedPage.page_uuid}.result.questions.${block.id}.inputs.${block.content?.inputs?.[0]?.id}.text`
+        : `${selectedPage.page_uuid}.result.questions.${block.id}.option_ids`
+    const variable = branchVariables.find((item) => item.key === key)
+    if (!variable) {
+      toast.error('Give the question its options or inputs first')
+      return
+    }
+    const { sequence: withBranch, branch, lifted } = addBranchAfter(sequence, selectedPage.page_uuid)
+    const on = operandOf(variable)
+    const taken: any[] = []
+    let next = setBranchOn(withBranch, branch.id, on, followLabel(variable), () => null)
+    next = addPath(next, branch.id, freshRule(variable, on, taken))
+    changeSequence(next)
+    setRailMode('branches')
+    if (lifted) toast("Branches can't go inside a path, so this one goes after the branch your page is in.")
   }
 
   const addBranchPath = (branchId: string) => {
@@ -942,6 +940,22 @@ export default function LearningActivityEditor({
         mediaType="video"
         accessToken={accessToken}
       />
+      <MediaPickerDialog
+        open={Boolean(pickingBackgroundFor)}
+        onOpenChange={(open) => {
+          if (!open) setPickingBackgroundFor(null)
+        }}
+        title="Background photo"
+        description="Upload, link, or select a photo. Text on it turns light."
+        onSave={(asset: any) => {
+          const page = pages.find((item) => item.page_uuid === pickingBackgroundFor)
+          if (page) patchPage(page.page_uuid, { design: { ...(page.design || {}), background: { ...(page.design?.background || {}), image: asset.url } } })
+          setPickingBackgroundFor(null)
+        }}
+        owner={{ type: 'org', id: orgId }}
+        mediaType="image"
+        accessToken={accessToken}
+      />
       {railMode !== 'pages' ? (
         <div className="flex min-h-0 flex-1">
           <PageRail
@@ -993,15 +1007,23 @@ export default function LearningActivityEditor({
             <PanelResizeHandle side="right" onPointerDown={(event) => resizePanel('left', event)} />
           </div>
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <CanvasToolbar
-              selectedPage={selectedPage}
-              pages={pages}
-              variantKey={variantKey}
-              onSelectVariant={selectVariant}
-              onAddText={() => insertBlock('text', selection.blockId)}
-              onAddImage={() => insertBlock('image', selection.blockId)}
-              onAddButton={() => insertBlock('button', selection.blockId)}
-              onAddQuestion={(kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload') => insertBlock(kind, selection.blockId)}
+            <SelectionToolbar
+              page={selectedPage}
+              block={selectedBlock}
+              textEditor={activeTextEditor}
+              inspectorOpen={inspectorOpen}
+              onToggleInspector={() => setInspectorOpen((open) => !open)}
+              onInsert={(type) => insertBlock(type, selection.blockId)}
+              onPatchPage={patchSelectedPage}
+              onPatchBlock={patchBlock}
+              onDuplicate={() => selectedBlock && duplicateBlock(selectedBlock.id)}
+              onRemove={() => selectedBlock && removeBlock(selectedBlock.id)}
+              onBranchFrom={branchFromBlock}
+              onToggleSideBySide={() => selectedBlock && toggleSideBySide(selectedBlock.id)}
+              onReplaceImage={requestImageUpload}
+              onReplaceVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
+              onBackgroundImage={() => selectedPage && setPickingBackgroundFor(selectedPage.page_uuid)}
+              onShowDesktop={() => setDevice('desktop')}
             />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               {variantKey !== 'default' && (
@@ -1016,8 +1038,8 @@ export default function LearningActivityEditor({
                 onPointerDown={startPan}
                 className={`h-full w-full overflow-hidden ${handMode && zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
                 style={{
-                  backgroundColor: '#f4f5f7',
-                  backgroundImage: 'radial-gradient(circle, rgba(15,23,42,.12) 1px, transparent 1px)',
+                  backgroundColor: 'var(--color-gray-100)',
+                  backgroundImage: 'radial-gradient(circle, color-mix(in srgb, var(--color-gray-500) 35%, transparent) 1px, transparent 1px)',
                   backgroundSize: '24px 24px',
                 }}
               >
@@ -1062,10 +1084,6 @@ export default function LearningActivityEditor({
                 hoveredBlockId={hoveredBlockId}
                 draggingBlockId={draggingBlockId}
                 blockElsRef={blockElsRef}
-                activeTextEditor={activeTextEditor}
-                onDuplicate={() => selectedBlock && duplicateBlock(selectedBlock.id)}
-                onRemove={() => selectedBlock && removeBlock(selectedBlock.id)}
-                onToggleSideBySide={() => selectedBlock && toggleSideBySide(selectedBlock.id)}
                 onStartDrag={startBlockDrag}
                 onPatchBlock={patchBlock}
               />
@@ -1077,7 +1095,7 @@ export default function LearningActivityEditor({
               />
             </div>
           </main>
-          <div style={{ width: rightWidth }} className="relative shrink-0">
+          {inspectorOpen && <div style={{ width: rightWidth }} className="relative shrink-0">
             <PanelResizeHandle side="left" onPointerDown={(event) => resizePanel('right', event)} />
             <InspectorPanel
               page={selectedPage}
@@ -1093,7 +1111,7 @@ export default function LearningActivityEditor({
               onRequestImageUpload={requestImageUpload}
               onRequestVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
             />
-          </div>
+          </div>}
         </div>
       )}
 
@@ -1165,59 +1183,6 @@ function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastS
         <button onClick={onBack} className="inline-flex h-9 items-center rounded-lg bg-gray-900 px-4 text-sm font-bold text-white transition hover:bg-gray-800">
           Done
         </button>
-      </div>
-    </div>
-  )
-}
-
-function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAddText, onAddImage, onAddButton, onAddQuestion }: any) {
-  const canEditBlocks = selectedPage?.page_type === 'standard'
-  const hasVariants = Boolean(selectedPage?.content?.variants)
-  const canAddQuestion = canEditBlocks && !hasVariants
-
-  return (
-    <div className="flex h-11 shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4">
-      <div className="flex items-center gap-1">
-        <span className="flex items-center gap-1.5 pr-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">
-          <Plus size={13} />
-          Insert
-        </span>
-        <span className="h-5 w-px bg-gray-200" />
-        <button disabled={!canEditBlocks} onClick={onAddText} className="ml-1 inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40" title="Add a text block">
-          <FileText size={15} />
-          Text
-        </button>
-        <button disabled={!canEditBlocks} onClick={onAddImage} className="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40" title="Add an image block">
-          <ImageIcon size={15} />
-          Image
-        </button>
-        <button disabled={!canEditBlocks} onClick={onAddButton} className="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40" title="Add a page button">
-          <MousePointerClick size={15} />
-          Button
-        </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button disabled={!canAddQuestion} className="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:opacity-50" title={canAddQuestion ? 'Add a question block' : 'Variant pages cannot contain questions'}>
-              <ListChecks size={15} />
-              Question
-              <ChevronDown size={13} className="text-gray-400" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => onAddQuestion('multiple_choice')}>
-              <ListChecks size={16} className="mr-2" />
-              Multiple choice
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddQuestion('text_input')}>
-              <FileText size={16} className="mr-2" />
-              Text input
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddQuestion('image_upload')}>
-              <Upload size={16} className="mr-2" />
-              Image upload
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   )
@@ -1339,6 +1304,37 @@ function StandardCanvasPage({
 }: any) {
   const blocks = getEditorBlocks(page, variantKey)
   const canAddQuestion = !page?.content?.variants
+  const breakAt = blocks.findIndex((block: any) => block.type === 'column_break')
+  const columns = page?.design?.columns === 2 && breakAt >= 0
+  // A list of blocks with a place to insert between them; `before` is the block a first insert goes after.
+  const renderList = (list: LearningBlock[], before: string | null) => (
+    <div>
+      {list.map((block: LearningBlock, index: number) => (
+        <React.Fragment key={block.id}>
+          {(index > 0 || before) && (
+            readOnly
+              ? <div className="h-4" />
+              : <InlineInsertMenu canAddQuestion={canAddQuestion} onInsert={(type: any) => onInsertBlock(type, index > 0 ? list[index - 1].id : before)} />
+          )}
+          <CanvasBlock
+            block={block}
+            page={page}
+            selected={!readOnly && block.id === selectedBlockId}
+            readOnly={readOnly}
+            registerBlockEl={registerBlockEl}
+            onHoverBlock={onHoverBlock}
+            onTextEditorReady={onTextEditorReady}
+            onSelect={() => onSelectBlock(block.id)}
+            onPatch={(patch: any) => onPatchBlock(block.id, patch)}
+            onRequestImageUpload={() => onRequestImageUpload(block.id)}
+          />
+        </React.Fragment>
+      ))}
+      {!readOnly && (
+        <InlineInsertMenu canAddQuestion={canAddQuestion} onInsert={(type: any) => onInsertBlock(type, list.length ? list[list.length - 1].id : before)} alwaysVisible={blocks.length <= 2 || !list.length} />
+      )}
+    </div>
+  )
 
   return (
     <div className="w-full" onMouseDown={(event) => {
@@ -1346,32 +1342,14 @@ function StandardCanvasPage({
     }}>
       <div className="w-full">
         {blocks.length ? (
-          <div>
-            {blocks.map((block: LearningBlock, index: number) => (
-              <React.Fragment key={block.id}>
-                {index > 0 && (
-                  readOnly
-                    ? <div className="h-4" />
-                    : <InlineInsertMenu canAddQuestion={canAddQuestion} onInsert={(type: any) => onInsertBlock(type, blocks[index - 1].id)} />
-                )}
-                <CanvasBlock
-                  block={block}
-                  page={page}
-                  selected={!readOnly && block.id === selectedBlockId}
-                  readOnly={readOnly}
-                  registerBlockEl={registerBlockEl}
-                  onHoverBlock={onHoverBlock}
-                  onTextEditorReady={onTextEditorReady}
-                  onSelect={() => onSelectBlock(block.id)}
-                  onPatch={(patch: any) => onPatchBlock(block.id, patch)}
-                  onRequestImageUpload={() => onRequestImageUpload(block.id)}
-                />
-              </React.Fragment>
-            ))}
-            {!readOnly && (
-              <InlineInsertMenu canAddQuestion={canAddQuestion} onInsert={(type: any) => onInsertBlock(type, blocks[blocks.length - 1].id)} alwaysVisible={blocks.length <= 2} />
-            )}
-          </div>
+          columns ? (
+            // Two columns split at the column break, as the player lays them out on wide screens.
+            <div className="grid grid-cols-1 gap-6 @3xl:grid-cols-2 @3xl:items-center @3xl:gap-12" data-page-columns="2">
+              {[blocks.slice(0, breakAt), blocks.slice(breakAt + 1)].map((column, columnIndex) => (
+                <div key={columnIndex} className="min-w-0">{renderList(column.filter((block: any) => block.type !== 'column_break'), columnIndex === 0 ? null : blocks[breakAt].id)}</div>
+              ))}
+            </div>
+          ) : renderList(blocks.filter((block: any) => block.type !== 'column_break'), null)
         ) : (
           <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-gray-300 bg-white/70 p-8 text-center">
             <Layers3 size={26} className="text-gray-400" />
@@ -1387,6 +1365,33 @@ function StandardCanvasPage({
             )}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// A card deck edits one card at a time: its name and sentence in place, with arrows and dots like the player.
+function CardDeckCanvas({ block, readOnly, onPatch }: { block: any; readOnly: boolean; onPatch: (patch: any) => void }) {
+  const cards: any[] = block.content?.cards || []
+  const [index, setIndex] = React.useState(0)
+  const at = Math.min(index, Math.max(0, cards.length - 1))
+  const card = cards[at] || {}
+  const setCard = (patch: any) => onPatch({ content: { ...(block.content || {}), cards: cards.map((item, cardIndex) => cardIndex === at ? { ...item, ...patch } : item) } })
+  const remove = () => {
+    onPatch({ content: { ...(block.content || {}), cards: cards.filter((_, cardIndex) => cardIndex !== at) } })
+    setIndex(Math.max(0, at - 1))
+  }
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <input value={card.title || ''} readOnly={readOnly} onChange={(event) => setCard({ title: event.target.value })} placeholder="Card name" aria-label="Card name" className="w-full bg-transparent text-xl font-extrabold text-gray-950 outline-none placeholder:text-gray-300" />
+        <AutoGrowTextarea value={card.body || ''} readOnly={readOnly} onChange={(event) => setCard({ body: event.target.value })} placeholder="One sentence about it" aria-label="Card sentence" className="mt-1 w-full resize-none bg-transparent text-sm leading-6 text-gray-600 outline-none placeholder:text-gray-300" />
+        {!readOnly && cards.length > 1 && <button type="button" onClick={remove} aria-label="Delete this card" title="Delete this card" className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-600"><Trash2 size={14} /></button>}
+      </div>
+      <div className="flex items-center gap-3">
+        <button type="button" aria-label="Previous card" disabled={at === 0} onClick={() => setIndex(at - 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 disabled:opacity-30"><ChevronRight size={14} className="rotate-180" /></button>
+        <span className="flex gap-1.5">{cards.map((item, cardIndex) => <button key={item.id || cardIndex} type="button" aria-label={`Card ${cardIndex + 1}`} onClick={() => setIndex(cardIndex)} className={`h-2 rounded-full transition-all ${cardIndex === at ? 'w-5 bg-[var(--org-primary-color)]' : 'w-2 bg-gray-300'}`} />)}</span>
+        <button type="button" aria-label="Next card" disabled={at >= cards.length - 1} onClick={() => setIndex(at + 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 disabled:opacity-30"><ChevronRight size={14} /></button>
       </div>
     </div>
   )
@@ -1424,6 +1429,8 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
       onChange={(event) => onPatch({ content: { ...((block as any).content || {}), text: event.target.value } })}
       className={`w-full resize-none bg-transparent font-extrabold leading-[1.1] tracking-tight outline-none placeholder:text-gray-300 ${HEADING_EDIT_SIZE[(block as any).content?.size || 'l'] || HEADING_EDIT_SIZE.l}`}
     />
+  ) : (block as any).type === 'card_deck' ? (
+    <CardDeckCanvas block={block} readOnly={contentReadOnly} onPatch={onPatch} />
   ) : PAGE_BLOCKS.has(block.type) ? (
     <PageBlock block={block} run={null} />
   ) : STORY_BLOCKS.has(block.type) ? (
@@ -1467,7 +1474,7 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
 // the block (label, text formatting, row actions), a drag handle on the left,
 // and width pills on the sides. Lives OUTSIDE the scaled frame so nothing gets
 // clipped and everything renders at constant size.
-function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlockId, blockElsRef, activeTextEditor, onDuplicate, onRemove, onToggleSideBySide, onStartDrag, onPatchBlock }: any) {
+function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlockId, blockElsRef, onStartDrag, onPatchBlock }: any) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [rect, setRect] = React.useState<{ top: number; left: number; width: number; height: number } | null>(null)
   const targetId = draggingBlockId || selectedBlock?.id || hoveredBlockId
@@ -1535,54 +1542,12 @@ function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlo
     window.addEventListener('pointerup', onUp)
   }
 
-  const isTextBlock = isSelected && selectedBlock?.type === 'text'
-  const isTextInputQuestion = isSelected && selectedBlock?.type === 'question' && selectedBlock?.kind === 'text_input'
-  const sideBySideActive = isTextInputQuestion && (selectedBlock?.content?.inputs || []).length > 1
   const locked = Boolean(selectedBlock?.system?.locked)
 
   return (
     <div ref={containerRef} className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
       {rect && targetId && selectedPage && (
         <>
-          {isSelected && !isDragging && (
-            <div
-              className="pointer-events-auto absolute flex h-9 items-center gap-1 rounded-xl border border-gray-200 bg-white px-1.5 shadow-lg shadow-gray-950/10"
-              style={{
-                top: Math.max(6, rect.top - 44),
-                left: rect.left + rect.width / 2,
-                transform: 'translateX(-50%)',
-              }}
-              onMouseDown={(event) => {
-                if ((event.target as HTMLElement).tagName !== 'INPUT') event.preventDefault()
-                event.stopPropagation()
-              }}
-            >
-              <span className="px-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">{blockLabel(selectedBlock)}</span>
-              {isTextBlock && activeTextEditor && (
-                <>
-                  <span className="h-5 w-px bg-gray-200" />
-                  <IconButton title="Heading 1" active={activeTextEditor.isActive('heading', { level: 1 })} onClick={() => activeTextEditor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={14} /></IconButton>
-                  <IconButton title="Heading 2" active={activeTextEditor.isActive('heading', { level: 2 })} onClick={() => activeTextEditor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={14} /></IconButton>
-                  <IconButton title="Bold" active={activeTextEditor.isActive('bold')} onClick={() => activeTextEditor.chain().focus().toggleBold().run()}><Bold size={14} /></IconButton>
-                  <IconButton title="Italic" active={activeTextEditor.isActive('italic')} onClick={() => activeTextEditor.chain().focus().toggleItalic().run()}><Italic size={14} /></IconButton>
-                  <IconButton title="Quote" active={activeTextEditor.isActive('blockquote')} onClick={() => activeTextEditor.chain().focus().toggleBlockquote().run()}><Quote size={14} /></IconButton>
-                  <span className="h-5 w-px bg-gray-200" />
-                  <IconButton title="Align left" active={getEditorAlign(activeTextEditor) === 'left'} onClick={() => setEditorAlign(activeTextEditor, 'left')}><AlignLeft size={14} /></IconButton>
-                  <IconButton title="Align center" active={getEditorAlign(activeTextEditor) === 'center'} onClick={() => setEditorAlign(activeTextEditor, 'center')}><AlignCenter size={14} /></IconButton>
-                  <IconButton title="Align right" active={getEditorAlign(activeTextEditor) === 'right'} onClick={() => setEditorAlign(activeTextEditor, 'right')}><AlignRight size={14} /></IconButton>
-                </>
-              )}
-              {isTextInputQuestion && (
-                <>
-                  <span className="h-5 w-px bg-gray-200" />
-                  <IconButton title={sideBySideActive ? 'Back to one input' : 'Two inputs side by side'} active={sideBySideActive} onClick={onToggleSideBySide}><Columns2 size={14} /></IconButton>
-                </>
-              )}
-              <span className="h-5 w-px bg-gray-200" />
-              {locked ? <span title={selectedBlock.system?.reason || 'Managed by the system'} className="flex items-center gap-1 px-1.5 text-[11px] font-bold text-gray-500"><Lock size={13} /> Locked</span> : <><IconButton title="Duplicate" onClick={onDuplicate}><Copy size={14} /></IconButton><IconButton title="Delete" onClick={onRemove}><Trash2 size={14} /></IconButton></>}
-            </div>
-          )}
-
           {!locked && <button
             type="button"
             title="Drag to reorder"
@@ -1870,9 +1835,16 @@ function AutoGrowTextarea({
   React.useLayoutEffect(() => {
     const textarea = ref.current
     if (!textarea) return
-    textarea.style.height = 'auto'
-    textarea.style.height = `${textarea.scrollHeight}px`
-  }, [value])
+    const fit = () => {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${textarea.scrollHeight}px`
+    }
+    fit()
+    // Size and column changes wrap the text differently.
+    const observer = new ResizeObserver(fit)
+    observer.observe(textarea.parentElement || textarea)
+    return () => observer.disconnect()
+  }, [value, props.className])
 
   return (
     <textarea
@@ -1901,6 +1873,7 @@ function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onP
         showOnlyWhenEditable: false,
       }),
       LearningTextAlign,
+      LearningTextStyle,
     ],
     content: { type: 'doc', content: nodes },
     editorProps: {
@@ -1929,6 +1902,14 @@ function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onP
     onEditorReady?.(editor)
     return () => onEditorReady?.(null)
   }, [selected, editor, readOnly, onEditorReady])
+
+  // A text block that was just added is ready to type into.
+  React.useEffect(() => {
+    if (!selected || !editor || readOnly || !editor.isEmpty) return
+    // Wait for the view to be on the page.
+    const frame = requestAnimationFrame(() => editor.commands.focus('end'))
+    return () => cancelAnimationFrame(frame)
+  }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="rounded-lg px-2 py-1">
