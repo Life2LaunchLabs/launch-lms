@@ -20,7 +20,9 @@ MB = 1024 * 1024
 MAX_BYTES = {MediaType.image: 15 * MB, MediaType.video: 250 * MB, MediaType.document: 25 * MB}
 EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp",
               "video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov", "application/pdf": ".pdf"}
-_HEADERS = {"User-Agent": "LaunchLMS Media Library/1.0", "Accept": "*/*"}
+# Hosts such as Wikimedia refuse generic agents: say who we are and where to find us.
+USER_AGENT = "LaunchLMS-MediaLibrary/1.0 (+https://github.com/Life2LaunchLabs/launch-lms)"
+_HEADERS = {"User-Agent": USER_AGENT, "Accept": "*/*"}
 
 
 async def download(url: str, limit: int) -> tuple[bytes, str, str]:
@@ -36,7 +38,8 @@ async def download(url: str, limit: int) -> tuple[bytes, str, str]:
                     current = _validate_url(urljoin(current, location))
                     continue
                 if response.status_code >= 400:
-                    raise HTTPException(status_code=400, detail=f"The URL returned HTTP {response.status_code}")
+                    refused = " (the host refused to send it; use a direct public link or send the file as data_base64)" if response.status_code in (401, 403) else ""
+                    raise HTTPException(status_code=400, detail=f"The URL returned HTTP {response.status_code}{refused}")
                 declared = response.headers.get("content-length")
                 if declared and declared.isdigit() and int(declared) > limit:
                     raise HTTPException(status_code=413, detail=f"File is over the {limit // MB} MB limit")
@@ -46,6 +49,8 @@ async def download(url: str, limit: int) -> tuple[bytes, str, str]:
                     if len(body) > limit:
                         raise HTTPException(status_code=413, detail=f"File is over the {limit // MB} MB limit")
                 content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
+                if content_type in ("text/html", "application/xhtml+xml"):
+                    raise HTTPException(status_code=400, detail="The URL is a web page, not a file: link to the image, video or PDF itself")
                 return bytes(body), content_type, urlparse(current).path
     raise HTTPException(status_code=400, detail="Too many redirects")
 
