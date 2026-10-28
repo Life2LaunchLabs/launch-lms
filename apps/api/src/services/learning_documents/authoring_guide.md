@@ -196,7 +196,9 @@ Version 2 pages only (on version 3 pages use a branch). A page can swap its bloc
 
 ## Workflow
 
-1. `get_activity` → edit the document → `validate_activity` until it has no errors.
+1. `get_activity` → edit the document → `validate_activity` until it has no errors. Start new pages from
+   `list_page_templates` (copy a template's `content` and `design`, give it a placeholder page id, then
+   change the words) so pages look like the rest of the platform.
 2. `preview_activity` with the edited document so the admin can click through it.
 3. `save_activity` with the `etag` you read. A 409 means someone else changed the
    activity: merge your edits into the returned current document and retry.

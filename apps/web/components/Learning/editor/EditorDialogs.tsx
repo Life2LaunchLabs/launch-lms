@@ -3,9 +3,12 @@
 /* eslint-disable no-unused-vars */
 
 import React from 'react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { X } from 'lucide-react'
+import type { ServedPageTemplates } from '@services/learning/pageTemplates'
 import { PageThumb } from './PageRail'
-import { PAGE_TEMPLATES, blankPage, blankVideo, type PageDraft } from './pageTemplates'
+import { PAGE_TEMPLATES, blankPage, blankVideo, fromServed, type PageDraft } from './pageTemplates'
 
 /** A light dialog that matches the editor (the app's own dialog follows the site theme). */
 export function EditorModal({ title, subtitle, width = 760, onClose, children }: { title: string; subtitle?: string; width?: number; onClose: () => void; children: React.ReactNode }) {
@@ -36,27 +39,48 @@ export function EditorModal({ title, subtitle, width = 760, onClose, children }:
   )
 }
 
-const CATEGORIES = ['All', 'Start', 'Teach', 'Check', 'Reflect'] as const
+type TemplateGroup = { name: string; items: Array<{ key: string; page: any; name: string; description: string; make: () => PageDraft }> }
+
+const BUILT_IN = ['Start', 'Teach', 'Check', 'Reflect'] as const
+
+/** The published page templates by category, or the built-in ones until some are published. */
+function templateGroups(served?: ServedPageTemplates): TemplateGroup[] {
+  if (served?.categories.length) {
+    return served.categories.map((category) => ({
+      name: category.name,
+      items: category.pages.map((page) => ({ key: page.page_uuid, page, name: page.title, description: '', make: () => fromServed(page) })),
+    }))
+  }
+  // Thumbnails need pages with ids; the drafts are made fresh again when picked.
+  return BUILT_IN.map((name) => ({
+    name,
+    items: PAGE_TEMPLATES.filter((template) => template.category === name)
+      .map((template) => ({ key: template.id, page: { page_uuid: template.id, ...template.make() }, name: template.name, description: template.description, make: template.make })),
+  }))
+}
 
 /** New page: blank, or from a page that already works. It goes after the selected page. */
-export function NewPageDialog({ where, settings, onPick, onClose }: { where: string; settings: any; onPick: (draft: PageDraft) => void; onClose: () => void }) {
-  const [category, setCategory] = React.useState<(typeof CATEGORIES)[number]>('All')
-  const groups = CATEGORIES.slice(1).filter((item) => category === 'All' || item === category)
-  // Thumbnails need pages with ids; the drafts are made fresh again when picked.
-  const previews = React.useMemo(() => new Map(PAGE_TEMPLATES.map((template) => [template.id, { page_uuid: template.id, ...template.make() }])), [])
+export function NewPageDialog({ where, settings, served, onPick, onClose }: { where: string; settings: any; served?: ServedPageTemplates; onPick: (draft: PageDraft) => void; onClose: () => void }) {
+  const params = useParams<{ orgslug?: string }>()
+  const [category, setCategory] = React.useState('All')
+  const all = React.useMemo(() => templateGroups(served), [served])
+  const groups = all.filter((group) => category === 'All' || group.name === category)
   const card = (key: string, page: any, name: string, description: string, pick: () => void) => (
     <button key={key} onClick={pick} className="group flex flex-col gap-1.5 rounded-xl p-2 text-left transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
       <span className="block rounded-lg transition group-hover:ring-2 group-hover:ring-sky-400"><PageThumb page={page} settings={settings} width={176} /></span>
       <b className="text-sm">{name}</b>
-      <small className="text-xs leading-4 text-gray-500">{description}</small>
+      {description && <small className="text-xs leading-4 text-gray-500">{description}</small>}
     </button>
   )
   return (
     <EditorModal title="New page" subtitle={`Start blank or from something that already works. It goes ${where}.`} onClose={onClose}>
       <div className="sticky top-0 z-10 flex flex-wrap gap-1.5 border-b border-gray-100 bg-white px-6 py-3">
-        {CATEGORIES.map((item) => (
+        {['All', ...all.map((group) => group.name)].map((item) => (
           <button key={item} onClick={() => setCategory(item)} aria-pressed={category === item} className={`rounded-full px-3 py-1 text-xs font-bold transition ${category === item ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{item}</button>
         ))}
+        {served?.can_edit && served.template_uuid && params?.orgslug && (
+          <Link href={`/orgs/${params.orgslug}/admin/plans/${served.template_uuid}`} className="ml-auto self-center text-xs font-semibold text-sky-700 hover:underline">Edit page templates</Link>
+        )}
       </div>
       <div className="space-y-5 px-6 py-5">
         {category === 'All' && (
@@ -69,10 +93,10 @@ export function NewPageDialog({ where, settings, onPick, onClose }: { where: str
           </section>
         )}
         {groups.map((group) => (
-          <section key={group}>
-            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">{group}</h3>
+          <section key={group.name}>
+            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">{group.name}</h3>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
-              {PAGE_TEMPLATES.filter((template) => template.category === group).map((template) => card(template.id, previews.get(template.id), template.name, template.description, () => onPick(template.make())))}
+              {group.items.map((item) => card(item.key, item.page, item.name, item.description, () => onPick(item.make())))}
             </div>
           </section>
         ))}
