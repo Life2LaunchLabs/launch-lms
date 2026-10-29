@@ -6,6 +6,7 @@ from sqlmodel import SQLModel, select
 
 from src.db.portfolio import Portfolio, PortfolioLink, PortfolioSection, ProfileTrait, ProjectItem, ProjectItemBlock, ProjectItemCreate, TimelineEntry, TimelineEntryBlock, TimelineProjectLink
 from src.db.portfolio_people import PortfolioCommentCreate, PortfolioPersonCreate
+from src.db.portfolio_records import RECORD_TABLES
 from src.services import portfolio as portfolio_service, portfolio_people
 from src.services.connect import chats, people, profile
 from src.tests.test_goal_sharing import OTHER_EMAIL, _join, _personal, _session as _goal_session
@@ -15,7 +16,7 @@ from src.tests.test_goals import ADMIN, LEARNER, OTHER, _user
 def _session():
     db = _goal_session()
     SQLModel.metadata.create_all(db.get_bind(), tables=[
-        model.__table__ for model in (PortfolioSection, PortfolioLink, ProfileTrait, ProjectItem, ProjectItemBlock, TimelineEntry, TimelineEntryBlock, TimelineProjectLink)  # type: ignore[attr-defined]
+        model.__table__ for model in (PortfolioSection, PortfolioLink, ProfileTrait, ProjectItem, ProjectItemBlock, TimelineEntry, TimelineEntryBlock, TimelineProjectLink, *RECORD_TABLES)  # type: ignore[attr-defined]
     ])
     return db
 
