@@ -64,7 +64,7 @@ function ProjectsTile({ shell, owner, orgslug, username }: TileProps) {
   </Tile>
 }
 
-function CredentialFace({ credential }: { credential: Credential }) {
+export function CredentialFace({ credential }: { credential: Credential }) {
   if (credential.photo_url) return <span className="block aspect-[1.586] w-full overflow-hidden rounded-[10px]"><img src={normalizeMediaUrl(credential.photo_url)} alt="" className="h-full w-full object-cover" /></span>
   const diploma = credential.kind === 'diploma'
   const [face, edge] = PALETTE[colorFor(credential.name)]

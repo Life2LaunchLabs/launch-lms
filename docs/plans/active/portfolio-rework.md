@@ -49,7 +49,9 @@ planner, and importing CIS reflections, saved items and plan history into plans.
 - [x] Phase 2 front page behind `?new=1` / the `portfolio_v2` cookie (`components/Pages/Portfolio/v2/`): stacked
   header with left or centered layout, highlights band (`PUT /me/highlights`), tiles in a grid or list
   (`PUT /me/layout`), the profile dialog with the name you go by, the visitor view. [Verification](../../design/portfolio-v2-shell-verification.md).
-- [ ] Phase 2 detail pages: one-row headers and row controls (star, eye) on Experience, Projects and Credentials.
+- [x] Phase 2 section pages behind the same switch (`v2/PortfolioDetail.tsx`, routed by `v2/portfolioPages.tsx`): one-row
+  headers; star (feature) and eye (hide from visitors) on every experience, project, credential and badge, always
+  shown while on; experience grouped by type with Add per type and buttons for the types not used yet.
 
 ## Verification
 

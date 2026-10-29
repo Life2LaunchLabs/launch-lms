@@ -52,3 +52,24 @@ test('portfolio.v2: the visitor preview and phone width', async ({ page }) => {
   await expect(page.locator('[data-portfolio-v2]')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 })
+
+test('portfolio.v2: section pages have one-row headers and row controls', async ({ page }) => {
+  // Three pages compile on first visit in development.
+  test.setTimeout(90_000)
+  for (const [path, title] of [['/portfolio/timeline', 'Experience'], ['/portfolio/projects', 'Projects'], ['/portfolio/badges', 'Credentials & badges']]) {
+    await page.goto(`${path}?new=1`)
+    await expect(page.locator('[data-portfolio-v2]')).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Back to your portfolio' })).toBeVisible()
+  }
+  await page.goto('/portfolio/timeline?new=1')
+  const star = page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first()
+  if (await star.count()) {
+    const before = await star.getAttribute('aria-pressed')
+    await star.click()
+    await expect(page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first()).not.toHaveAttribute('aria-pressed', before || '')
+    await page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first().click()
+  }
+  await page.goto('/portfolio/timeline?new=1&experience=education')
+  await expect(page.getByRole('dialog')).toBeVisible()
+})
