@@ -10,11 +10,12 @@ from src.db.portfolio_records import (
     IdentityUpdate,
     LayoutUpdate,
     QuoteWrite,
+    ResultWrite,
     ResumeVersionWrite,
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services import portfolio_display, portfolio_identity, portfolio_records as records
+from src.services import portfolio_display, portfolio_identity, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
 User = Depends(get_current_user)
@@ -109,3 +110,18 @@ async def api_update_document(document_uuid: str, payload: DocumentWrite, curren
 @router.delete("/me/documents/{document_uuid}")
 async def api_delete_document(document_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
     return records.delete_document(document_uuid, current_user, db_session)
+
+
+@router.post("/me/results")
+async def api_create_result(payload: ResultWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return results.create_result(payload, current_user, db_session)
+
+
+@router.patch("/me/results/{result_uuid}")
+async def api_update_result(result_uuid: str, payload: ResultWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return results.update_result(result_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/results/{result_uuid}")
+async def api_delete_result(result_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return results.delete_result(result_uuid, current_user, db_session)

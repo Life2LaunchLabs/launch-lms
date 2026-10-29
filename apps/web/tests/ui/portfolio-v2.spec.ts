@@ -73,3 +73,27 @@ test('portfolio.v2: section pages have one-row headers and row controls', async 
   await page.goto('/portfolio/timeline?new=1&experience=education')
   await expect(page.getByRole('dialog')).toBeVisible()
 })
+
+test('portfolio.v2: editors for credentials, people, documents and results open from their pages', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/portfolio/badges?new=1&add=credential')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('radio', { name: /Test score/ }).click()
+  await expect(page.getByRole('switch', { name: 'Show to visitors' })).toBeDisabled()
+  await page.keyboard.press('Escape')
+
+  await page.goto('/portfolio/people')
+  await expect(page.getByRole('heading', { level: 1, name: 'My people' })).toBeVisible()
+  await page.getByRole('button', { name: 'Add', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByLabel(/Email/)).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.goto('/portfolio/documents')
+  await expect(page.getByRole('heading', { level: 1, name: 'My documents' })).toBeVisible()
+
+  await page.goto('/portfolio?new=1')
+  await expect(page.getByRole('region', { name: 'What I’m like' })).toBeVisible()
+  await page.getByRole('button', { name: /Edit links|Add links/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Your links' })).toBeVisible()
+})

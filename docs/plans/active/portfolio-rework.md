@@ -1,6 +1,6 @@
 # Portfolio rework: build plan
 
-Status: phase 1 in review, phase 2 (front page) in review behind a preview switch. The approved prototype (V5) is the spec:
+Status: phases 1 and 2 in review; phase 3 (editors) in review. The new design is behind a preview switch. The approved prototype (V5) is the spec:
 https://claude.ai/artifact/A6TNb35dcyPXFmwGPiMWpu. The build plan, the CIS and EPP check, and the plan-side
 contract are in https://claude.ai/artifact/FE4ZixmgbkCC3kXQLtwJFP.
 
@@ -52,6 +52,12 @@ planner, and importing CIS reflections, saved items and plan history into plans.
 - [x] Phase 2 section pages behind the same switch (`v2/PortfolioDetail.tsx`, routed by `v2/portfolioPages.tsx`): one-row
   headers; star (feature) and eye (hide from visitors) on every experience, project, credential and badge, always
   shown while on; experience grouped by type with Add per type and buttons for the types not used yet.
+
+- [x] Phase 3 editors in the new design: credentials (`v2/CredentialDialog.tsx`, a photo counts as proof, test scores
+  start private), My people at `/portfolio/people` (contacts, one quote each, references, private email, phone and
+  notes), links from the About tile, My documents at `/portfolio/documents` (private), and "What I'm like" results
+  (`portfolioresult`, migration `e2c8f4a6b1d7`; `portfolio_results.record_result(user, payload, source,
+  source_reference)` is the write plans use). Experience and project editing still use the current dialogs.
 
 ## Verification
 

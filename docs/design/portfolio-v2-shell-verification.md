@@ -34,6 +34,10 @@ Command: `bunx playwright test portfolio-v2.spec.ts portfolio-access.spec.ts --p
   credential. An active star and a closed eye stay visible; the rest appear on hover, focus, or always on touch.
   The first phone capture overflowed to 498 px because list rows didn't shrink; rows now truncate at 390 px.
   Credential dates read "Jun 2027" instead of "2027-06". The front page's Add menu opens the experience editor here.
+- Editors (phase 3): added a test score (the visitor switch is off and locked for a new one), a person with a quote,
+  a reference flag and a private email, a LinkedIn link, an interest result, and a document. The visitor preview showed
+  the result and links and never the email, notes, document or test score. The My people page fits at 390 px.
+  "What I'm like" pairs with My people; without results My people takes the whole row.
 - Limitation: the synthetic account is outside the organization, so the app's guest notice covers the top of the
   cover. The spec opens Settings from the keyboard for that reason. Members don't see the notice.
 - Not yet built here, by plan: quests and the mastery badge, "What I'm like", "Where I'm headed", and editors for

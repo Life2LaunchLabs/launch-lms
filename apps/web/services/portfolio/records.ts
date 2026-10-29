@@ -25,5 +25,6 @@ export const updateMyLayout = (layout: Partial<PortfolioLayout>, token: string):
 export const credentials = crud('credentials')
 export const contacts = crud('contacts')
 export const quotes = crud('quotes')
+export const results = crud('results')
 export const resumeVersions = crud('resume-versions')
 export const documents = crud('documents')

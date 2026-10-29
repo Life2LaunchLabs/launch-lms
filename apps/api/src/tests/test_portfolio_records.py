@@ -14,12 +14,13 @@ from src.db.portfolio_records import (
     LayoutUpdate,
     PortfolioQuote,
     QuoteWrite,
+    ResultWrite,
     ResumeVersionWrite,
 )
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
-from src.services import portfolio as service, portfolio_display, portfolio_identity, portfolio_records as records
+from src.services import portfolio as service, portfolio_display, portfolio_identity, portfolio_records as records, portfolio_results as results
 from src.tests.test_portfolio import _public, _session, _user
 
 
@@ -175,3 +176,19 @@ def test_highlights_and_layout_show_to_visitors():
             portfolio_display.update_layout(LayoutUpdate(sections="carousel"), actor, db)
         with pytest.raises(HTTPException):
             portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value=" ", label="GPA")]), actor, db)
+
+
+def test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        first = results.record_result(actor, ResultWrite(kind="interests", name="Interest type", summary="Artistic · Social", data={"A": 30, "S": 24}), "spark", "goal_1", db)
+        results.update_result(first["result_uuid"], ResultWrite(visibility="private"), actor, db)
+
+        again = results.record_result(actor, ResultWrite(kind="interests", name="Interest type", summary="Artistic · Investigative", visibility="public"), "spark", "goal_1", db)
+        mine = results.create_result(ResultWrite(kind="strengths", name="Top strengths", summary="Curious, patient"), actor, db)
+
+        assert again["result_uuid"] == first["result_uuid"] and again["summary"] == "Artistic · Investigative" and again["visibility"] == "private"
+        assert [item["result_uuid"] for item in service.get_public_shell(1, "maya", db)["results"]] == [mine["result_uuid"]]
+        assert len(service.get_owner_shell(actor, db)["results"]) == 2
+        with pytest.raises(HTTPException):
+            results.create_result(ResultWrite(kind="horoscope", name="Leo"), actor, db)

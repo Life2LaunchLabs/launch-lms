@@ -20,10 +20,12 @@ export type Identity = { first_name?: string; last_name?: string; preferred_name
 export type Credential = { credential_uuid: string; kind: 'card' | 'certificate' | 'diploma' | 'test_score'; name: string; issuer: string; issued_on?: string | null; expires_on?: string | null; expected_on?: string | null; score: string; verification_status: string; photo_url?: string; timeline_uuid?: string | null; featured: boolean; visibility?: string; source?: string }
 export type Quote = { quote_uuid: string; body: string; confirmed: boolean; name: string; role_label: string; timeline_uuid?: string | null; project_uuid?: string | null; featured: boolean; status?: string; contact_uuid?: string; visibility?: string }
 export type Contact = { contact_uuid: string; name: string; role_label: string; email: string; phone: string; note: string; is_reference: boolean; on_app: boolean; timeline_uuid?: string | null; source?: string }
+/** A result for "What I'm like". Plans can write these; ``source`` says where it came from. */
+export type PortfolioResult = { result_uuid: string; kind: 'interests' | 'strengths' | 'values' | 'skills' | 'other'; name: string; summary: string; data: Record<string, any>; taken_on?: string | null; featured: boolean; source: string; visibility?: string }
 export type ResumeVersion = { version_uuid: string; name: string; layout: string; accent: string; excluded: string[] }
 export type PortfolioDocument = { document_uuid: string; kind: string; title: string; source: string; visibility: string; url: string; filename?: string; creation_date: string }
 /** What the portfolio records add to the shell. Visitors never get contacts, résumé versions or documents. */
-export type PortfolioRecords = { identity?: Identity | null; highlights?: Highlight[]; layout?: PortfolioLayout; credentials?: Credential[]; quotes?: Quote[]; contacts?: Contact[]; resume_versions?: ResumeVersion[]; documents?: PortfolioDocument[] }
+export type PortfolioRecords = { identity?: Identity | null; highlights?: Highlight[]; layout?: PortfolioLayout; credentials?: Credential[]; quotes?: Quote[]; results?: PortfolioResult[]; contacts?: Contact[]; resume_versions?: ResumeVersion[]; documents?: PortfolioDocument[] }
 
 /** Replaces the shell after a save. */
 // eslint-disable-next-line no-unused-vars

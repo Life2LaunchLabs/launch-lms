@@ -1,36 +1,40 @@
 'use client'
 
 import Link from 'next/link'
-import { BriefcaseBusiness, FolderOpen, GraduationCap, IdCard, Link2, ShieldCheck, User, Users } from 'lucide-react'
+import { BriefcaseBusiness, EyeOff, FolderOpen, GraduationCap, IdCard, Link2, ShieldCheck, Sparkles, User, Users } from 'lucide-react'
 
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { normalizeMediaUrl } from '@services/media/media'
 import { AboutSection } from '../PortfolioOverview'
-import { socialHandle, shellSocials } from '../PortfolioHeaderParts'
+import { SOCIAL_OPTIONS, socialHandle, shellSocials } from '../PortfolioHeaderParts'
 import { timelineDateLabel, timelineTypeLabels, type TimelineEntry } from '../Timeline'
 import { Cover, EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
-import type { Credential, PortfolioBadge, Project, Quote, SetShell, Shell } from '../portfolioTypes'
+import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
 
-// The front page sections, in the prototype's order. "What I'm like" and "Where I'm headed" come with
-// results (phase 3) and the plans redesign.
+// The front page sections, in the prototype's order. "Where I'm headed" comes with the plans redesign.
 
-type TileProps = { shell: Shell; setShell: SetShell; owner: boolean; orgslug: string; username?: string; token?: string }
+// eslint-disable-next-line no-unused-vars
+type EditResult = (result?: PortfolioResult) => void
+type TileProps = { shell: Shell; setShell: SetShell; owner: boolean; orgslug: string; username?: string; token?: string; onEditLinks?: () => void; onEditResult?: EditResult }
 
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const featuredFirst = <T extends { featured?: boolean }>(items: T[]) => [...items].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
 
-function AboutTile({ shell, setShell, owner, token }: TileProps) {
+function AboutTile({ shell, setShell, owner, token, onEditLinks }: TileProps) {
   const socials = shellSocials(shell)
   if (!owner && !shell.portfolio.short_bio && !socials.length) return null
   return <Tile color="amber" icon={User} title="About me" wide>
     <div className="grid gap-5 md:grid-cols-2">
       <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
-      {socials.length ? <ul className="grid content-start gap-1.5" aria-label="Links">{socials.map((social) => <li key={social.type}>
-        <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
-          <Link2 className="h-4 w-4 text-muted-foreground" /><b className="truncate font-extrabold">{socialHandle(social.type, social.url) || social.url}</b><small className="text-xs font-semibold capitalize text-muted-foreground">{social.type}</small>
-        </a>
-      </li>)}</ul> : null}
+      <div className="grid content-start gap-1.5">
+        {socials.length ? <ul className="grid gap-1.5" aria-label="Links">{socials.map((social) => <li key={social.type}>
+          <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
+            <Link2 className="h-4 w-4 text-muted-foreground" /><b className="truncate font-extrabold">{socialHandle(social.type, social.url) || social.url}</b><small className="text-xs font-semibold text-muted-foreground">{SOCIAL_OPTIONS.find((option) => option.type === social.type)?.label || social.type}</small>
+          </a>
+        </li>)}</ul> : null}
+        {owner && onEditLinks ? <button type="button" onClick={onEditLinks} className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground"><Link2 className="h-3.5 w-3.5" />{socials.length ? 'Edit links' : 'Add links'}</button> : null}
+      </div>
     </div>
   </Tile>
 }
@@ -85,8 +89,24 @@ function CredentialsTile({ shell, owner, orgslug, username }: TileProps) {
       ? <Link key={item.badge.award_uuid} href={getUriWithOrg(orgslug, routePaths.org.badgeAward(item.badge.code))} className="grid min-w-0 justify-items-center gap-1.5 text-center"><BadgeMedal badge={{ image_url: normalizeMediaUrl(item.badge.image_url || '') || '', icon: item.badge.icon, color: item.badge.color }} size={56} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.badge.name}</b></Link>
       : <div key={item.credential_uuid} className="grid min-w-0 justify-items-center gap-1.5 text-center"><CredentialFace credential={item} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.name}</b></div>)}
     </div> : null}
-    {owner && !credentials.length ? <EmptyAdd title="Add a card or diploma" hint="Food handler, CPR, a diploma…" href={getUriWithOrg(orgslug, '/portfolio/badges')} /> : null}
+    {owner && !credentials.length ? <EmptyAdd title="Add a card or diploma" hint="Food handler, CPR, a diploma…" href={`${getUriWithOrg(orgslug, '/portfolio/badges')}?add=credential`} /> : null}
   </Tile>
+}
+
+function ResultsTile({ shell, owner, onEditResult }: TileProps) {
+  const items = featuredFirst(shell.results || [])
+  if (!owner && !items.length) return null
+  return <Tile color="violet" icon={Sparkles} title="What I’m like" count={items.length || null}>
+    {items.length ? <ul className="grid gap-2.5">{items.slice(0, 4).map((item) => <li key={item.result_uuid} className={`min-w-0 ${item.visibility === 'private' ? 'opacity-55' : ''}`}>
+      {owner && onEditResult ? <button type="button" onClick={() => onEditResult(item)} className="w-full rounded-xl text-left hover:bg-muted/60"><ResultLine result={item} /></button> : <ResultLine result={item} />}
+    </li>)}</ul> : null}
+    {owner && onEditResult ? items.length ? <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
+      : <EmptyAdd title="Add what you’ve learned about yourself" hint="Your interest type, strengths or work values" onClick={() => onEditResult()} /> : null}
+  </Tile>
+}
+
+function ResultLine({ result }: { result: PortfolioResult }) {
+  return <span className="block px-1 py-0.5"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{result.summary || result.name}</b></span>
 }
 
 function QuoteCard({ quote }: { quote: Quote }) {
@@ -96,27 +116,30 @@ function QuoteCard({ quote }: { quote: Quote }) {
   </figure>
 }
 
-function PeopleTile({ shell, owner }: TileProps) {
+function PeopleTile({ shell, owner, orgslug, wide = true }: TileProps & { wide?: boolean }) {
   const quotes = featuredFirst(shell.quotes || []).filter((quote) => quote.body && quote.status !== 'requested').slice(0, 2)
   const people = shell.contacts || []
   if (!owner && !quotes.length) return null
-  return <Tile color="orange" icon={Users} title={owner ? 'My people' : 'What people say'} count={owner ? people.length || null : null} wide>
+  return <Tile color="orange" icon={Users} title={owner ? 'My people' : 'What people say'} count={owner ? people.length || null : null} href={owner ? getUriWithOrg(orgslug, '/portfolio/people') : undefined} wide={wide}>
     {owner && people.length ? <div className="flex items-center gap-3">
       <span className="flex">{people.slice(0, 5).map((person, index) => <span key={person.contact_uuid} className={index ? '-ml-2.5' : ''}><PersonDot name={person.name} className="h-8 w-8 border-2 border-card text-[11px]" /></span>)}</span>
       <span><b className="block text-sm font-extrabold">{people.length} {people.length === 1 ? 'person' : 'people'} in your corner</b><small className="block text-[12.5px] font-semibold text-muted-foreground">{count((shell.quotes || []).length, 'quote')} · {count(people.filter((person) => person.is_reference).length, 'reference')}</small></span>
     </div> : null}
     {quotes.length ? <div className="grid gap-3.5 sm:grid-cols-2">{quotes.map((quote) => <QuoteCard key={quote.quote_uuid} quote={quote} />)}</div>
-      : <p className="text-sm font-semibold text-muted-foreground">Quotes from a boss, coach or teacher show here. They don’t need an account. Adding people comes next.</p>}
+      : owner ? <EmptyAdd title="Ask someone for a quote" hint="A boss, coach or teacher. They don’t need an account." href={getUriWithOrg(orgslug, '/portfolio/people')} /> : null}
   </Tile>
 }
 
 /** The tiles in order. A visitor doesn't see a section with nothing in it. */
 export function PortfolioTiles(props: TileProps) {
+  // "What I'm like" pairs with My people; without it, My people takes the whole row.
+  const results = props.owner || Boolean(props.shell.results?.length)
   return <>
     <AboutTile {...props} />
     <ExperienceTile {...props} />
     <ProjectsTile {...props} />
     <CredentialsTile {...props} />
-    <PeopleTile {...props} />
+    <ResultsTile {...props} />
+    <PeopleTile {...props} wide={!results} />
   </>
 }
