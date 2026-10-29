@@ -143,6 +143,7 @@ def test_resume_versions_copy_and_only_take_off_known_items():
 
         assert food["layout"] == "modern" and food["excluded"] == ["section:refs", "timeline:tim_1"]
         assert records.create_resume_version(ResumeVersionWrite(), actor, db)["name"] == "Version 3"
+        assert records.update_resume_version(food["version_uuid"], ResumeVersionWrite(excluded=["project:prj_1", "contact:ctc_1"]), actor, db)["excluded"] == ["contact:ctc_1", "project:prj_1"]
         with pytest.raises(HTTPException):
             records.update_resume_version(food["version_uuid"], ResumeVersionWrite(excluded=["drop table"]), actor, db)
         with pytest.raises(HTTPException):

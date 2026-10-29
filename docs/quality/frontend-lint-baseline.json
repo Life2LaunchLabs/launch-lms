@@ -4,7 +4,6 @@
   "findings": {
     "app/orgs/[orgslug]/(withmenu)/error.tsx|no-unused-vars|error": 1,
     "app/orgs/[orgslug]/(withmenu)/user/[username]/projects/[slug]/page.tsx|react-hooks/error-boundaries|error": 1,
-    "app/orgs/[orgslug]/(withmenu)/user/[username]/resume/page.tsx|react-hooks/error-boundaries|error": 1,
     "app/orgs/[orgslug]/(withmenu)/user/[username]/timeline/[slug]/page.tsx|react-hooks/error-boundaries|error": 1,
     "app/orgs/[orgslug]/OrgThemeVariables.tsx|react-hooks/exhaustive-deps|warning": 1,
     "app/payments/stripe/connect/oauth/page.tsx|no-unused-vars|error": 1,

@@ -9,12 +9,13 @@ import { PortfolioV2 } from './PortfolioV2'
 import { PortfolioDetail, type DetailView } from './PortfolioDetail'
 import { PortfolioPeoplePage } from './PortfolioPeoplePage'
 import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
+import { ResumeBuilder } from './ResumeBuilder'
 import { RememberPreviewChoice, TryNewPortfolio } from './PreviewSwitch'
 import { PREVIEW_COOKIE, wantsPortfolioV2 } from './previewSwitch'
 
 // The portfolio's server pages, each picking the current or the new design from the preview switch.
 
-type View = 'overview' | DetailView
+type View = 'overview' | DetailView | 'resume'
 type Query = Promise<{ new?: string }>
 
 async function wantsNew(searchParams: Query) {
@@ -30,7 +31,7 @@ export async function ownerPortfolioPage(orgslug: string, searchParams: Query, v
   const next = await wantsNew(searchParams)
   return <>
     <RememberPreviewChoice />
-    {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} owner preview={preview} /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} owner />
+    {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} owner preview={preview} /> : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} owner /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} owner />
       : <>{view === 'overview' && !preview ? <TryNewPortfolio /> : null}<PortfolioShell initialShell={shell} orgslug={orgslug} username={username} owner preview={preview} active={view} /></>}
   </>
 }
@@ -45,7 +46,7 @@ export async function publicPortfolioPage(orgslug: string, username: string, sea
   const next = await wantsNew(searchParams)
   return <>
     <RememberPreviewChoice />
-    {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
+    {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} /> : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
       : <PortfolioShell initialShell={shell} orgslug={orgslug} username={username} active={view} />}
   </>
 }

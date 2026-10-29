@@ -38,6 +38,11 @@ Command: `bunx playwright test portfolio-v2.spec.ts portfolio-access.spec.ts --p
   a reference flag and a private email, a LinkedIn link, an interest result, and a document. The visitor preview showed
   the result and links and never the email, notes, document or test score. The My people page fits at 390 px.
   "What I'm like" pairs with My people; without results My people takes the whole row.
+- Résumé builder (phase 5): took an experience off and added it back, switched to Modern and teal, and both stayed
+  after a reload. The meter said "Runs past one page" once the Modern header pushed the page past 1056 px, and the
+  dashed line marked the page end. A Letter PDF from print media held only the résumé; the first try printed the whole
+  app, so the page is now printed from a copy at the end of the body. Phone width fits at 390 px. The visitor page
+  had no controls and no email. The ink swatch was invisible on the dark bar; swatches now have a border.
 - Limitation: the synthetic account is outside the organization, so the app's guest notice covers the top of the
   cover. The spec opens Settings from the keyboard for that reason. Members don't see the notice.
 - Not yet built here, by plan: quests and the mastery badge, "What I'm like", "Where I'm headed", and editors for

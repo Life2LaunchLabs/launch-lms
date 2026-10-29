@@ -1,6 +1,7 @@
 # Portfolio rework: build plan
 
-Status: phases 1 and 2 in review; phase 3 (editors) in review. The new design is behind a preview switch. The approved prototype (V5) is the spec:
+Status: phases 1, 2, 3 and 5 in review. The new design is behind a preview switch. Phase 4 (quests) waits on the
+plans redesign because it replaces the Launch Ready starter goal. The approved prototype (V5) is the spec:
 https://claude.ai/artifact/A6TNb35dcyPXFmwGPiMWpu. The build plan, the CIS and EPP check, and the plan-side
 contract are in https://claude.ai/artifact/FE4ZixmgbkCC3kXQLtwJFP.
 
@@ -58,8 +59,11 @@ planner, and importing CIS reflections, saved items and plan history into plans.
   notes), links from the About tile, My documents at `/portfolio/documents` (private), and "What I'm like" results
   (`portfolioresult`, migration `e2c8f4a6b1d7`; `portfolio_results.record_result(user, payload, source,
   source_reference)` is the write plans use). Experience and project editing still use the current dialogs.
+- [x] Phase 5 résumé builder (`v2/ResumeBuilder.tsx`, `v2/resumeModel.ts`): a letter-size page (816×1056 CSS px) built
+  from the portfolio, scaled to fit; versions with their own layout (classic, modern, compact), accent and what they
+  took off (`excluded` now also takes `project:` and `contact:`); a one-page meter and a page-end line; Download prints
+  only the page from a copy at the end of the body. Visitors see the page without the email or controls.
 
-## Verification
 
 `TESTING=true uv run pytest src/tests/test_portfolio_records.py src/tests/test_portfolio.py src/tests/test_portfolio_people.py`
 
