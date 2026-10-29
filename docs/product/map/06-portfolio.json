@@ -1267,9 +1267,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Preview, execute, and dismiss flows exist for legacy portfolio import.",
+          "implementation_notes": "Preview, execute, and dismiss flows exist for legacy portfolio import. The new portfolio also brings in an Oregon CIS or LinkedIn export at /portfolio/import: a preview to pick from, then a one-time copy that skips what's already there and keeps the CIS sheets plans own as raw rows.",
           "original_state": "`Legacy` / `Live` migration aid",
-          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "updated_at": "2026-10-30T00:30:00+00:00",
           "description": "",
           "goal_title": "Document work and experience",
           "group_title": "Build and present a portfolio",
@@ -1394,7 +1394,33 @@
               "references": []
             }
           ],
-          "references": [],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/portfolio_import_sources.py",
+              "symbol": "read_export"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/portfolio_imports.py",
+              "symbol": "run_import"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Pages/Portfolio/v2/PortfolioImportPage.tsx",
+              "symbol": "PortfolioImportPage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_portfolio_imports.py",
+              "symbol": "test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
+              "symbol": "portfolio.v2: an Oregon CIS export is previewed and brought in"
+            }
+          ],
           "relationships": []
         },
         {

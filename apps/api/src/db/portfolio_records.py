@@ -169,6 +169,26 @@ class PortfolioDocument(SQLModel, table=True):
     update_date: str = ""
 
 
+class PortfolioImport(SQLModel, table=True):
+    """One import from another app (Oregon CIS, LinkedIn): what it added, and the raw rows of the sheets that belong
+    to plans, kept so plans can bring them in later."""
+
+    __tablename__ = "portfolioimport"
+
+    id: int | None = Field(default=None, primary_key=True)
+    import_uuid: str = Field(index=True, unique=True)
+    portfolio_id: int = Field(sa_column=_portfolio_fk())
+    # "cis" or "linkedin".
+    source: str = Field(sa_column=Column(String, nullable=False))
+    filename: str = ""
+    # Counts of what was added, by kind of record.
+    added: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # Sheet name to its rows, each a dict of column to value.
+    kept: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class CredentialWrite(BaseModel):
     kind: CredentialKind | None = None
     name: str | None = PydanticField(default=None, max_length=200)
@@ -250,4 +270,4 @@ class LayoutUpdate(BaseModel):
     sections: str | None = None
 
 
-RECORD_TABLES = (Credential, PortfolioContact, PortfolioQuote, PortfolioResult, ResumeVersion, PortfolioDocument)
+RECORD_TABLES = (Credential, PortfolioContact, PortfolioQuote, PortfolioResult, ResumeVersion, PortfolioDocument, PortfolioImport)

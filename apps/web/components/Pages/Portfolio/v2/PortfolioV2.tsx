@@ -117,6 +117,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.org.portfolioProjectsNew())}>A project</Link></DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setHighlightsOpen(true)} className="rounded-xl px-3 py-2">A highlight</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/import')}>From Oregon CIS or LinkedIn</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
     {shell.portfolio.email_verified === false && !published

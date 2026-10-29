@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import { assertActualApp } from './auth'
 
@@ -110,4 +111,23 @@ test('portfolio.v2: the résumé builder makes a letter page from the portfolio'
   await layout.getByRole('button', { name: 'Classic' }).click()
   await expect(page.getByRole('button', { name: 'Download PDF' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()?.width || 0)
+})
+
+test('portfolio.v2: an Oregon CIS export is previewed and brought in', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/portfolio/import')
+  await expect(page.getByRole('heading', { name: 'Bring in your history' })).toBeVisible()
+  await page.getByLabel('Oregon CIS export').setInputFiles(path.join(__dirname, 'fixtures', 'oregon-cis-export.zip'))
+  await expect(page.getByText('Animal Care Helper')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Interest Profiler Short Form (Oregon CIS)')).toBeVisible()
+  await expect(page.getByText(/Can't bring in notes\.txt/)).toBeVisible()
+  const bringIn = page.getByRole('button', { name: /^Bring in \d+$/ })
+  // A second run against the same account finds everything already there.
+  if (await bringIn.isEnabled()) {
+    await bringIn.click()
+    await expect(page.getByRole('heading', { name: /Added \d+ things? to your portfolio/ })).toBeVisible()
+  } else {
+    await expect(page.getByText('Already in your portfolio').first()).toBeVisible()
+  }
+  await assertActualApp(page)
 })

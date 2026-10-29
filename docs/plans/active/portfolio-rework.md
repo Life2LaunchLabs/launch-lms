@@ -1,6 +1,6 @@
 # Portfolio rework: build plan
 
-Status: phases 1, 2, 3 and 5 in review. The new design is behind a preview switch. Phase 4 (quests) waits on the
+Status: phases 1, 2, 3, 5 and 6 (CIS and LinkedIn) in review. The new design is behind a preview switch. Phase 4 (quests) waits on the
 plans redesign because it replaces the Launch Ready starter goal. The approved prototype (V5) is the spec:
 https://claude.ai/artifact/A6TNb35dcyPXFmwGPiMWpu. The build plan, the CIS and EPP check, and the plan-side
 contract are in https://claude.ai/artifact/FE4ZixmgbkCC3kXQLtwJFP.
@@ -63,9 +63,18 @@ planner, and importing CIS reflections, saved items and plan history into plans.
   from the portfolio, scaled to fit; versions with their own layout (classic, modern, compact), accent and what they
   took off (`excluded` now also takes `project:` and `contact:`); a one-page meter and a page-end line; Download prints
   only the page from a copy at the end of the body. Visitors see the page without the email or controls.
+- [x] Phase 6 imports at `/portfolio/import` (`portfolio_import_sources.py` reads, `portfolio_imports.py` copies;
+  `portfolioimport`, migration `f3d9b5a7c2e8`): an Oregon CIS zip or workbook, or a LinkedIn data zip. A preview to
+  pick from, then a one-time copy; each record keeps `source` and a key from the row's content, so the same export
+  again adds only what's new. CIS: the Career Bio sheets, links, the Interest Profiler re-scored from its 60 answers,
+  the PEP and saved PDFs or pictures as private documents; the export's misplaced skill and activity fields and raw
+  Excel dates are handled; the plan sheets (saved items, reflections, plan activities, course plan, other
+  assessments) are kept as raw rows on the import; Profile demographics are never read. LinkedIn: positions,
+  education, volunteering, honors, projects, certifications, skills and recommendations (as a person with a quote).
+- [ ] Phase 6 résumé and LinkedIn PDF parsing: needs a parser choice (see the PR), since there's no AI in the app.
 
 
-`TESTING=true uv run pytest src/tests/test_portfolio_records.py src/tests/test_portfolio.py src/tests/test_portfolio_people.py`
+`TESTING=true uv run pytest src/tests/test_portfolio_records.py src/tests/test_portfolio.py src/tests/test_portfolio_people.py src/tests/test_portfolio_imports.py`
 
 `bunx playwright test portfolio-v2.spec.ts portfolio-access.spec.ts` (see `scripts/ui/run-local.sh`)
 

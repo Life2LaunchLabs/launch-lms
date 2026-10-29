@@ -43,6 +43,13 @@ Command: `bunx playwright test portfolio-v2.spec.ts portfolio-access.spec.ts --p
   dashed line marked the page end. A Letter PDF from print media held only the résumé; the first try printed the whole
   app, so the page is now printed from a copy at the end of the body. Phone width fits at 390 px. The visitor page
   had no controls and no email. The ink swatch was invisible on the dark bar; swatches now have a border.
+- Imports (phase 6): a synthetic Oregon CIS zip (`tests/ui/fixtures/oregon-cis-export.zip`) listed experience,
+  credentials, results, a reference, a link and the PEP, said it can't bring in a .txt file, and brought everything
+  in; the same file again showed every row as already in the portfolio. The Interest Profiler re-score matched the
+  scores CIS reported for the owner's test account. The first try never showed the preview: the dev proxy's
+  multipart path passed a gzipped body on without its encoding header, so it now asks the API for a plain body
+  (production serves `/api/v1` from nginx and wasn't affected). The action bar sat under the phone tab bar, so it's
+  no longer sticky. Phone fits at 390 px.
 - Limitation: the synthetic account is outside the organization, so the app's guest notice covers the top of the
   cover. The spec opens Settings from the keyboard for that reason. Members don't see the notice.
 - Not yet built here, by plan: quests and the mastery badge, "What I'm like", "Where I'm headed", and editors for

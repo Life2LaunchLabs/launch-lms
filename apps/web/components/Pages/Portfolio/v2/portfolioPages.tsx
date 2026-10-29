@@ -9,6 +9,7 @@ import { PortfolioV2 } from './PortfolioV2'
 import { PortfolioDetail, type DetailView } from './PortfolioDetail'
 import { PortfolioPeoplePage } from './PortfolioPeoplePage'
 import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
+import { PortfolioImportPage } from './PortfolioImportPage'
 import { ResumeBuilder } from './ResumeBuilder'
 import { RememberPreviewChoice, TryNewPortfolio } from './PreviewSwitch'
 import { PREVIEW_COOKIE, wantsPortfolioV2 } from './previewSwitch'
@@ -51,10 +52,11 @@ export async function publicPortfolioPage(orgslug: string, username: string, sea
   </>
 }
 
-/** My people and My documents have no page in the current design, so they're always the new one. */
-export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents') {
+/** My people, My documents and imports have no page in the current design, so they're always the new one. */
+export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import') {
   const token = await getServerAccessToken()
   if (!token) redirect(getUriWithOrg(orgslug, '/'))
+  if (page === 'import') return <PortfolioImportPage orgslug={orgslug} />
   const shell = await getMyPortfolio(token)
   return page === 'people' ? <PortfolioPeoplePage initialShell={shell} orgslug={orgslug} /> : <PortfolioDocumentsPage initialShell={shell} orgslug={orgslug} />
 }
