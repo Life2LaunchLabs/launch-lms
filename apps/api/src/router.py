@@ -41,6 +41,7 @@ from src.routers import (
     plans,
     portfolio,
     portfolio_people,
+    portfolio_records,
     school,
     requirement_frameworks,
     roles,
@@ -259,6 +260,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     portfolio_people.router,
+    prefix="/portfolio",
+    tags=["portfolio"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    portfolio_records.router,
     prefix="/portfolio",
     tags=["portfolio"],
     dependencies=[Depends(get_non_api_token_user)],

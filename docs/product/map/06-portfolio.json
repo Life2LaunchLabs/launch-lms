@@ -105,8 +105,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "The new portfolio (preview, ?new=1) edits first, last and the name you go by, the one-line intro and location in one profile dialog opened from the avatar.",
+              "updated_at": "2026-10-29T22:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -115,7 +115,13 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioDialogs.tsx",
+                  "symbol": "ProfileDialog"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G001-A001-S002",
@@ -150,11 +156,11 @@
               "step_kind": "core",
               "product_state": "live",
               "health": "not_applicable",
-              "traceability": "none",
-              "automated_status": "not_tested",
+              "traceability": "partial",
+              "automated_status": "passed",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "The account keeps legal first and last name and sign-in. The portfolio edits both names and the optional name someone goes by (User.preferred_name), shown everywhere except rosters and official reports.",
+              "updated_at": "2026-10-29T21:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -163,7 +169,18 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_identity.py",
+                  "symbol": "update_identity"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_name_you_go_by_is_shown_and_the_legal_name_is_kept"
+                }
+              ]
             }
           ],
           "references": [],
@@ -292,8 +309,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "In the new portfolio, \"What I'm like\" shows results (interests, strengths, values, skills) the learner adds or a plan activity writes; a source updates its own row and the learner's hide and feature choices stay.",
+              "updated_at": "2026-10-29T23:30:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -302,7 +319,23 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_results.py",
+                  "symbol": "record_result"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/ResultDialog.tsx",
+                  "symbol": "ResultDialog"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices"
+                }
+              ]
             }
           ],
           "references": [],
@@ -407,8 +440,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "The new portfolio edits links from the About tile, one per site.",
+              "updated_at": "2026-10-29T23:30:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -417,7 +450,13 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioDialogs.tsx",
+                  "symbol": "LinksDialog"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G001-A003-S003",
@@ -546,8 +585,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "In the new portfolio the look follows the app theme; the owner picks the header (left or centered) and sections (grid or list), and sets up to four highlights shown in a band at the top. Visitors see both.",
+              "updated_at": "2026-10-29T22:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -556,7 +595,28 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_display.py",
+                  "symbol": "update_layout"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioV2.tsx",
+                  "symbol": "PortfolioV2"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_highlights_and_layout_show_to_visitors"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
+                  "symbol": "portfolio.v2"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G001-A004-S002",
@@ -1129,11 +1189,11 @@
               "step_kind": "core",
               "product_state": "live",
               "health": "not_applicable",
-              "traceability": "none",
-              "automated_status": "not_tested",
+              "traceability": "partial",
+              "automated_status": "passed",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "Cards, certificates, diplomas and test scores are Credential records that can link to a timeline experience (a diploma to the school it came from). Editors in the new portfolio: credentials (with a photo as proof), My people with quotes and references, and private documents.",
+              "updated_at": "2026-10-29T23:30:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -1142,7 +1202,33 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_records.py",
+                  "symbol": "create_credential"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_credentials_link_to_the_timeline_and_a_photo_counts_as_evidence"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/CredentialDialog.tsx",
+                  "symbol": "CredentialDialog"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioPeoplePage.tsx",
+                  "symbol": "PortfolioPeoplePage"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioDocumentsPage.tsx",
+                  "symbol": "PortfolioDocumentsPage"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G002-A003-S003",
@@ -1646,8 +1732,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:55+00:00",
+              "implementation_notes": "In the new portfolio every experience, project, credential, badge and quote has a star (feature on the front page) and an eye (hide from visitors) on its row.",
+              "updated_at": "2026-10-29T23:30:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:55+00:00",
@@ -1656,7 +1742,18 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioDetail.tsx",
+                  "symbol": "RowControls"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
+                  "symbol": "portfolio.v2: section pages have one-row headers and row controls"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G003-A001-S005",
@@ -2178,8 +2275,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:55+00:00",
+              "implementation_notes": "In the new portfolio the résumé is a letter-size page built from the portfolio, with versions that keep their own layout, accent and what they took off, and a one-page meter.",
+              "updated_at": "2026-10-30T00:30:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:55+00:00",
@@ -2188,7 +2285,23 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/ResumeBuilder.tsx",
+                  "symbol": "ResumeBuilder"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/resumeModel.ts",
+                  "symbol": "buildResume"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
+                  "symbol": "portfolio.v2: the résumé builder makes a letter page from the portfolio"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G003-A005-S002",
@@ -2202,8 +2315,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:55+00:00",
+              "implementation_notes": "Download PDF prints only the page at letter size.",
+              "updated_at": "2026-10-30T00:30:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:55+00:00",
@@ -2212,7 +2325,13 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/ResumeBuilder.tsx",
+                  "symbol": "ResumeBuilder"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G003-A005-S003",
