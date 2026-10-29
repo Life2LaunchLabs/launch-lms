@@ -1,6 +1,6 @@
 # Portfolio rework: build plan
 
-Status: phase 1 in progress. The approved prototype (V5) is the spec:
+Status: phase 1 in review, phase 2 (front page) in review behind a preview switch. The approved prototype (V5) is the spec:
 https://claude.ai/artifact/A6TNb35dcyPXFmwGPiMWpu. The build plan, the CIS and EPP check, and the plan-side
 contract are in https://claude.ai/artifact/FE4ZixmgbkCC3kXQLtwJFP.
 
@@ -30,7 +30,7 @@ Scope is the portfolio. Plans get their own redesign; anything that needs plan c
 
 ## Phases
 
-1. Foundations: identity, new records, migration, API. (This PR.)
+1. Foundations: identity, new records, migration, API.
 2. Shell: stacked header, highlights band, bento grid or list, one-row page headers, row controls, the visitor
    view, the look as the app-wide theme.
 3. Content editors: experience page, projects, credentials, My people, About, documents.
@@ -45,13 +45,20 @@ planner, and importing CIS reflections, saved items and plan history into plans.
 
 - [x] Phase 1 API: `preferred_name`, credentials, contacts and quotes, résumé versions, documents, shell
   `identity` and records, migration `d4a7e2b9c1f3` (checked down and up on Postgres with seed rows).
-- [ ] Phase 1 web service functions and types (with phase 2).
+- [x] Phase 1 web service functions and types (`services/portfolio/records.ts`, `portfolioTypes.ts`).
+- [x] Phase 2 front page behind `?new=1` / the `portfolio_v2` cookie (`components/Pages/Portfolio/v2/`): stacked
+  header with left or centered layout, highlights band (`PUT /me/highlights`), tiles in a grid or list
+  (`PUT /me/layout`), the profile dialog with the name you go by, the visitor view. [Verification](../../design/portfolio-v2-shell-verification.md).
+- [ ] Phase 2 detail pages: one-row headers and row controls (star, eye) on Experience, Projects and Credentials.
 
 ## Verification
 
 `TESTING=true uv run pytest src/tests/test_portfolio_records.py src/tests/test_portfolio.py src/tests/test_portfolio_people.py`
 
+`bunx playwright test portfolio-v2.spec.ts portfolio-access.spec.ts` (see `scripts/ui/run-local.sh`)
+
 ## Recovery
 
 The migration only adds a column and tables and fills `preferred_name` and empty bios. Downgrading drops the new
-tables and the column; the copied bios stay, which is harmless.
+tables and the column; the copied bios stay, which is harmless. The new front page is opt-in per browser;
+`?new=0` returns to the current one, and highlights and layout live in `theme_settings`, which the current page ignores.

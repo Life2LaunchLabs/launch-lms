@@ -8,7 +8,10 @@ from src.db.portfolio_records import (
     ContactWrite,
     CredentialWrite,
     DocumentWrite,
+    Highlight,
+    HighlightsUpdate,
     IdentityUpdate,
+    LayoutUpdate,
     PortfolioQuote,
     QuoteWrite,
     ResumeVersionWrite,
@@ -16,7 +19,7 @@ from src.db.portfolio_records import (
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
-from src.services import portfolio as service, portfolio_identity, portfolio_records as records
+from src.services import portfolio as service, portfolio_display, portfolio_identity, portfolio_records as records
 from src.tests.test_portfolio import _public, _session, _user
 
 
@@ -156,3 +159,19 @@ def test_records_belong_to_their_owner():
         with pytest.raises(HTTPException) as error:
             records.delete_credential(card["credential_uuid"], _public(other), db)
         assert error.value.status_code == 404
+
+
+def test_highlights_and_layout_show_to_visitors():
+    with _session() as db:
+        actor = _learner(db, published=True)
+
+        portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value="300+", label="hours worked"), Highlight(value=" 3.8 ", label="GPA")]), actor, db)
+        portfolio_display.update_layout(LayoutUpdate(header="center"), actor, db)
+        public = service.get_public_shell(1, "maya", db)
+
+        assert public["highlights"] == [{"value": "300+", "label": "hours worked"}, {"value": "3.8", "label": "GPA"}]
+        assert public["layout"] == {"header": "center", "sections": "grid"}
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(sections="carousel"), actor, db)
+        with pytest.raises(HTTPException):
+            portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value=" ", label="GPA")]), actor, db)

@@ -4,7 +4,6 @@
   "findings": {
     "app/orgs/[orgslug]/(withmenu)/error.tsx|no-unused-vars|error": 1,
     "app/orgs/[orgslug]/(withmenu)/user/[username]/badges/page.tsx|react-hooks/error-boundaries|error": 1,
-    "app/orgs/[orgslug]/(withmenu)/user/[username]/page.tsx|react-hooks/error-boundaries|error": 1,
     "app/orgs/[orgslug]/(withmenu)/user/[username]/projects/[slug]/page.tsx|react-hooks/error-boundaries|error": 1,
     "app/orgs/[orgslug]/(withmenu)/user/[username]/projects/page.tsx|react-hooks/error-boundaries|error": 1,
     "app/orgs/[orgslug]/(withmenu)/user/[username]/resume/page.tsx|react-hooks/error-boundaries|error": 1,

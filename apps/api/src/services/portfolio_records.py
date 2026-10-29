@@ -24,6 +24,7 @@ from src.db.portfolio_records import (
 )
 from src.db.users import PublicUser, User
 from src.services import portfolio as portfolio_service
+from src.services.portfolio_display import display_for_shell
 from src.services.portfolio_identity import identity_dto, shown_name
 
 MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
@@ -397,12 +398,12 @@ def records_for_shell(portfolio: Portfolio, db_session: Session, public_only: bo
     if public_only:
         credentials = [item for item in credentials if not _private(item)]
         quotes = [item for item in quotes if not _private(item) and item.body and item.status != QuoteStatus.REQUESTED.value]
-        return {
+        return display_for_shell(portfolio) | {
             "identity": {"shown_name": shown_name(user)} if user else None,
             "credentials": [credential_dto(item, db_session, True) for item in credentials],
             "quotes": [quote_dto(item, db_session, True) for item in quotes],
         }
-    return {
+    return display_for_shell(portfolio) | {
         "identity": identity_dto(user) if user else None,
         "credentials": [credential_dto(item, db_session) for item in credentials],
         "quotes": [quote_dto(item, db_session) for item in quotes],

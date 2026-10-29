@@ -10,7 +10,7 @@ import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { getUriWithOrg } from '@services/config/config'
 
-export function PortfolioShareButton({ orgslug, username, displayName, published, onPublish, busy, compact = false }: { orgslug: string; username?: string; displayName: string; published: boolean; onPublish: () => void; busy: boolean; compact?: boolean }) {
+export function PortfolioShareButton({ orgslug, username, displayName, published, onPublish, busy, compact = false, className }: { orgslug: string; username?: string; displayName: string; published: boolean; onPublish: () => void; busy: boolean; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState('')
   const [qrDataUrl, setQrDataUrl] = useState('')
@@ -55,7 +55,7 @@ export function PortfolioShareButton({ orgslug, username, displayName, published
   ]
 
   return <>
-    <Button type="button" size="sm" variant="surface" onClick={openDialog} aria-label="Share portfolio"><Share2 className="h-4 w-4" />{!compact && 'Share'}</Button>
+    <Button type="button" size="sm" variant="surface" className={className} onClick={openDialog} aria-label="Share portfolio"><Share2 className="h-4 w-4" />{!compact && 'Share'}</Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden p-0">
       <DialogHeader className="shrink-0 border-b border-border px-6 py-5 pr-12"><DialogTitle>Share your portfolio</DialogTitle><DialogDescription>Let someone scan your code, or send them your link.</DialogDescription></DialogHeader>
       {!published ? <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-8 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Send className="h-5 w-5 text-muted-foreground" /></div><div><h3 className="font-semibold">Publish before sharing</h3><p className="mt-1 text-sm text-muted-foreground">Your public link will work for anyone once your portfolio is published.</p></div><Button onClick={() => { setOpen(false); onPublish() }} disabled={busy}>{busy ? 'Publishing…' : 'Publish portfolio'}</Button></div> :

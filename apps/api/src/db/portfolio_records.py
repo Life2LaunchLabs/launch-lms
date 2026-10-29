@@ -197,4 +197,21 @@ class IdentityUpdate(BaseModel):
     preferred_name: str | None = PydanticField(default=None, max_length=80)
 
 
+
+class Highlight(BaseModel):
+    value: str = PydanticField(min_length=1, max_length=24)
+    label: str = PydanticField(min_length=1, max_length=60)
+
+
+class HighlightsUpdate(BaseModel):
+    """The numbers people notice first, shown in a band at the top of the portfolio."""
+
+    highlights: list[Highlight] = PydanticField(default_factory=list, max_length=4)
+
+
+class LayoutUpdate(BaseModel):
+    header: str | None = None
+    sections: str | None = None
+
+
 RECORD_TABLES = (Credential, PortfolioContact, PortfolioQuote, ResumeVersion, PortfolioDocument)
