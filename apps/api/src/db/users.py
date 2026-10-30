@@ -14,6 +14,8 @@ class UserBase(SQLModel):
     username: str
     first_name: str
     last_name: str
+    # The name someone goes by, shown everywhere except rosters and official reports.
+    preferred_name: str | None = ""
     email: EmailStr
     avatar_image: str | None = ""
     bio: str | None = ""
