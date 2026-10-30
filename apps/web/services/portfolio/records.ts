@@ -30,7 +30,7 @@ export const resumeVersions = crud('resume-versions')
 export const documents = crud('documents')
 
 // Imports from other apps: a preview to pick from, then a one-time copy. The file is sent again with the picks.
-export type ImportSource = 'cis' | 'linkedin'
+export type ImportSource = 'cis' | 'linkedin' | 'resume'
 export type ImportItem = { key: string; group: string; kind: string; title: string; detail: string; already: boolean }
 export type ImportPreview = { source: ImportSource; label: string; items: ImportItem[]; kept: Record<string, number>; skipped: string[] }
 export type ImportResult = { import_uuid: string; added: Record<string, number>; kept: Record<string, number> }

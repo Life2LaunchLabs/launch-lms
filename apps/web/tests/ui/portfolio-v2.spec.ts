@@ -131,3 +131,14 @@ test('portfolio.v2: an Oregon CIS export is previewed and brought in', async ({ 
   }
   await assertActualApp(page)
 })
+
+test('portfolio.v2: a résumé PDF is read into a pick list', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/portfolio/import')
+  await page.getByLabel('A résumé export').setInputFiles(path.join(__dirname, 'fixtures', 'resume.pdf'))
+  await expect(page.getByText(/what we found in your résumé/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Barista', { exact: true })).toBeVisible()
+  await expect(page.getByText('Résumé (resume)')).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('button', { name: 'Upload a résumé' })).toBeVisible()
+})

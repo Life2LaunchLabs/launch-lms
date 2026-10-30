@@ -1,7 +1,7 @@
 """Reads exports from other apps into items a learner can pick from before anything is added.
 
 Oregon CIS: the "Download my data" zip (the workbook, the PEP PDF and saved files) or the workbook on its own.
-LinkedIn: the "Get a copy of your data" zip of CSV files.
+LinkedIn: the "Get a copy of your data" zip of CSV files. Résumé and LinkedIn profile PDFs: portfolio_import_pdf.
 
 Each item is ``{key, group, kind, title, detail, record}``. ``key`` comes from the row's content, so the same
 row in a newer export gets the same key and is not added twice."""
@@ -315,6 +315,12 @@ def read_export(source: str, content: bytes, filename: str) -> dict:
         raise HTTPException(status_code=413, detail="This export is too big to bring in")
     if source == "cis":
         return read_cis(content, filename)
+    if source in ("resume", "linkedin") and content.startswith(b"%PDF-"):
+        from src.services.portfolio_import_pdf import read_pdf
+
+        return read_pdf(content, filename, source)
     if source == "linkedin":
         return read_linkedin(content)
+    if source == "resume":
+        raise HTTPException(status_code=422, detail="Upload your résumé as a PDF")
     raise HTTPException(status_code=422, detail="Unknown kind of import")

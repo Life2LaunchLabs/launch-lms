@@ -143,3 +143,77 @@ def test_a_tie_for_third_interest_shows_both():
 
     record = _interest_result("k", "Interest Profiler", {"R": 18, "I": 10, "A": 30, "S": 20, "E": 20, "C": 40}, None)["record"]
     assert (record["summary"], record["data"]["code"]) == ("Conventional · Artistic · Social / Enterprising", "CAS/E")
+
+
+def _pdf(lines: list[str]) -> bytes:
+    """A one-page PDF with these lines of text, enough for the résumé reader."""
+    escaped = [line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") for line in lines]
+    stream = ("BT /F1 10 Tf 12 TL 40 760 Td " + " ".join(f"({line}) Tj T*" for line in escaped) + " ET").encode("latin-1")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    out, offsets = b"%PDF-1.4\n", []
+    for number, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode() + b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets)
+    return out + f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode()
+
+
+RESUME = [
+    "Maya Rivera", "Salem, OR | maya@example.com", "Experience", "Barista", "Main Street Cafe", "Jun 2025 - Present",
+    "- Made coffee for the morning rush", "- Trained two new hires", "Volunteer Tutor, Salem Library   Sept 2024 - May 2025",
+    "- Helped kids with reading", "Education", "Salem High School", "High School Diploma", "Sep 2022 - Jun 2026",
+    "Skills", "Photoshop, Spanish, Customer service", "Certifications", "Food Handler Card", "References",
+    "Ms. Lopez", "Art Teacher, Salem High School", "lopez@example.com",
+]
+LINKEDIN = ["Contact", "maya@example.com", "Top Skills", "Photoshop", "Experience", "Main Street Cafe", "Barista",
+            "June 2025 - Present (1 year 5 months)", "Salem, Oregon", "Made coffee", "Page 1 of 1"]
+
+
+def test_a_resume_pdf_is_read_by_its_headings_and_dates():
+    export = read_export("resume", _pdf(RESUME), "Maya resume.pdf")
+    by_title = {item["title"]: item for item in export["items"]}
+
+    barista = by_title["Barista"]["record"]
+    assert (barista["organization"], barista["start_date"], barista["is_current"], barista["entry_type"]) == ("Main Street Cafe", "2025-06", True, "work_career")
+    assert barista["summary"] == "Made coffee for the morning rush\nTrained two new hires"
+    tutor = by_title["Volunteer Tutor"]["record"]
+    assert (tutor["organization"], tutor["start_date"], tutor["end_date"]) == ("Salem Library", "2024-09", "2025-05")
+    school = by_title["High School Diploma"]["record"]
+    assert (school["organization"], school["entry_type"], school["end_date"]) == ("Salem High School", "education", "2026-06")
+    assert {"Photoshop", "Spanish", "Customer service"} <= set(by_title)
+    assert by_title["Food Handler Card"]["record"]["kind"] == "card"
+    reference = by_title["Ms. Lopez"]["record"]
+    assert (reference["role_label"], reference["email"], reference["is_reference"]) == ("Art Teacher, Salem High School", "lopez@example.com", True)
+    assert by_title["Résumé (Maya resume)"]["record"]["kind"] == "resume"
+
+
+def test_a_linkedin_profile_pdf_puts_the_company_first():
+    export = read_export("linkedin", _pdf(LINKEDIN), "Profile.pdf")
+    job = next(item for item in export["items"] if item["kind"] == "timeline")["record"]
+
+    assert (job["title"], job["organization"], job["location_label"], job["summary"], job["start_date"]) == ("Barista", "Main Street Cafe", "Salem, Oregon", "Made coffee", "2025-06")
+    assert any(item["title"] == "Photoshop" for item in export["items"])
+    assert any(item["title"] == "LinkedIn profile" for item in export["items"])
+
+
+async def test_a_resume_import_keeps_the_pdf_as_a_private_document(monkeypatch):
+    monkeypatch.setattr(media_service, "upload_file", _fake_upload_file)
+    content = _pdf(RESUME)
+    with _session() as db:
+        actor = _learner(db)
+        preview = await imports.preview_import("resume", _upload(content, "resume.pdf"), actor, db)
+
+        result = await imports.run_import("resume", _upload(content, "resume.pdf"), [item["key"] for item in preview["items"]], actor, db)
+
+        assert result["added"]["documents"] == 1 and result["added"]["experience"] == 3
+        document = db.exec(select(PortfolioDocument)).one()
+        assert (document.kind, document.source, document.visibility) == ("resume", "resume", "private")
+        with pytest.raises(HTTPException):
+            await imports.preview_import("resume", _upload(b"%PDF-1.4 broken", "x.pdf"), actor, db)

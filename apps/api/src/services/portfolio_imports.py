@@ -31,7 +31,7 @@ from src.services import portfolio_records as records
 from src.services import portfolio_results
 from src.services.portfolio_import_sources import read_export
 
-SOURCE_LABELS = {"cis": "Oregon CIS", "linkedin": "LinkedIn"}
+SOURCE_LABELS = {"cis": "Oregon CIS", "linkedin": "LinkedIn", "resume": "résumé"}
 MIME = {"pdf": "application/pdf", "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp"}
 
 

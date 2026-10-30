@@ -15,7 +15,8 @@ import { DetailHeader } from './PortfolioDetail'
 
 const SOURCES: Array<{ source: ImportSource; title: string; how: string; accept: string }> = [
   { source: 'cis', title: 'Oregon CIS', how: 'In Oregon CIS, open Account settings and choose "Download my data". Upload the zip it gives you.', accept: '.zip,.xlsx' },
-  { source: 'linkedin', title: 'LinkedIn', how: 'In LinkedIn, open Settings, then Data privacy, then "Get a copy of your data". Upload the zip LinkedIn emails you.', accept: '.zip' },
+  { source: 'linkedin', title: 'LinkedIn', how: 'In LinkedIn, open Settings, then Data privacy, then "Get a copy of your data", and upload the zip LinkedIn emails you. Or open your profile, choose More, then "Save to PDF", and upload that.', accept: '.zip,.pdf' },
+  { source: 'resume', title: 'A résumé', how: 'Upload your résumé as a PDF. We read its sections and dates, so check what we found before you bring it in. The PDF is kept in My documents.', accept: '.pdf' },
 ]
 const GROUPS: Array<[string, string]> = [['experience', 'Experience'], ['projects', 'Projects'], ['credentials', 'Credentials'], ['results', "What I'm like"], ['people', 'My people'], ['links', 'Links'], ['documents', 'Documents']]
 const groupLabel = (key: string) => GROUPS.find(([group]) => group === key)?.[1] || key
@@ -70,7 +71,7 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
       </section>
 
       : preview ? <section>
-        <p className="mb-4 px-1 text-[15px] text-muted-foreground">Here&apos;s what we found in your {preview.label} export. Untick anything you don&apos;t want. This is a one-time copy; change anything later.</p>
+        <p className="mb-4 px-1 text-[15px] text-muted-foreground">Here&apos;s what we found in {preview.source === 'resume' ? 'your résumé' : `your ${preview.label} export`}. Untick anything you don&apos;t want. This is a one-time copy; change anything later.</p>
         {GROUPS.map(([group, label]) => {
           const items = preview.items.filter((item) => item.group === group)
           if (!items.length) return null
@@ -89,12 +90,12 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
       </section>
 
       : <section className="grid gap-3">
-        <p className="px-1 text-[15px] text-muted-foreground">Coming from another app? Bring in your experience, credentials, results and people. You pick what comes in.</p>
+        <p className="px-1 text-[15px] text-muted-foreground">Coming from another app, or have a résumé? Bring in your experience, credentials, skills and people. You pick what comes in.</p>
         {SOURCES.map((option) => <div key={option.source} className="rounded-3xl border border-border bg-card p-5">
           <h2 className="text-lg font-extrabold">{option.title}</h2>
           <p className="mb-3 mt-1 text-[14.5px] text-muted-foreground">{option.how}</p>
           <input ref={(node) => { inputs.current[option.source] = node }} type="file" accept={option.accept} className="hidden" aria-label={`${option.title} export`} onChange={(event) => { choose(option.source, event.target.files?.[0]); event.target.value = '' }} />
-          <Button type="button" variant="brand" disabled={busy} onClick={() => inputs.current[option.source]?.click()}>{busy ? 'Reading…' : `Upload from ${option.title}`}</Button>
+          <Button type="button" variant="brand" disabled={busy} onClick={() => inputs.current[option.source]?.click()}>{busy ? 'Reading…' : option.source === 'resume' ? 'Upload a résumé' : `Upload from ${option.title}`}</Button>
         </div>)}
         {past.length ? <div className="px-1 pt-2 text-sm text-muted-foreground"><b className="font-extrabold text-foreground">Brought in before</b>{past.map((item) => <p key={item.import_uuid}>{item.label} · {item.creation_date ? new Date(item.creation_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''} · {count(item.added)} added</p>)}</div> : null}
       </section>}

@@ -1,6 +1,6 @@
 # Portfolio rework: build plan
 
-Status: phases 1, 2, 3, 5 and 6 (CIS and LinkedIn) in review. The new design is behind a preview switch. Phase 4 (quests) waits on the
+Status: phases 1, 2, 3, 5 and 6 in review. The new design is behind a preview switch. Phase 4 (quests) waits on the
 plans redesign because it replaces the Launch Ready starter goal. The approved prototype (V5) is the spec:
 https://claude.ai/artifact/A6TNb35dcyPXFmwGPiMWpu. The build plan, the CIS and EPP check, and the plan-side
 contract are in https://claude.ai/artifact/FE4ZixmgbkCC3kXQLtwJFP.
@@ -71,7 +71,10 @@ planner, and importing CIS reflections, saved items and plan history into plans.
   Excel dates are handled; the plan sheets (saved items, reflections, plan activities, course plan, other
   assessments) are kept as raw rows on the import; Profile demographics are never read. LinkedIn: positions,
   education, volunteering, honors, projects, certifications, skills and recommendations (as a person with a quote).
-- [ ] Phase 6 résumé and LinkedIn PDF parsing: needs a parser choice (see the PR), since there's no AI in the app.
+- [x] Phase 6 résumé and LinkedIn profile PDFs (`portfolio_import_pdf.py`), by rules as the owner chose on
+  30 October 2026 (no AI): text from pypdf, the usual section headings, entries found by their date ranges (LinkedIn
+  puts the company first), skills and certifications as lists, references by their email. Everything goes through
+  the pick list, and the PDF is kept as a private document.
 
 
 `TESTING=true uv run pytest src/tests/test_portfolio_records.py src/tests/test_portfolio.py src/tests/test_portfolio_people.py src/tests/test_portfolio_imports.py`

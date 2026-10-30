@@ -50,6 +50,9 @@ Command: `bunx playwright test portfolio-v2.spec.ts portfolio-access.spec.ts --p
   multipart path passed a gzipped body on without its encoding header, so it now asks the API for a plain body
   (production serves `/api/v1` from nginx and wasn't affected). The action bar sat under the phone tab bar, so it's
   no longer sticky. Phone fits at 390 px.
+- Résumé PDFs: a synthetic one-page résumé (`tests/ui/fixtures/resume.pdf`) listed the job with its bullets, the
+  volunteer role, the diploma with its school, three skills, a card, a reference and the PDF itself; Cancel went back
+  to the choices. Scanned PDFs have no text and get a message saying so.
 - Limitation: the synthetic account is outside the organization, so the app's guest notice covers the top of the
   cover. The spec opens Settings from the keyboard for that reason. Members don't see the notice.
 - Not yet built here, by plan: quests and the mastery badge, "What I'm like", "Where I'm headed", and editors for

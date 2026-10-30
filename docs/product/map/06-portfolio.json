@@ -1267,7 +1267,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Preview, execute, and dismiss flows exist for legacy portfolio import. The new portfolio also brings in an Oregon CIS or LinkedIn export at /portfolio/import: a preview to pick from, then a one-time copy that skips what's already there and keeps the CIS sheets plans own as raw rows.",
+          "implementation_notes": "Preview, execute, and dismiss flows exist for legacy portfolio import. The new portfolio also brings in an Oregon CIS or LinkedIn export, or a résumé or LinkedIn profile PDF read by rules, at /portfolio/import: a preview to pick from, then a one-time copy that skips what's already there and keeps the CIS sheets plans own as raw rows.",
           "original_state": "`Legacy` / `Live` migration aid",
           "updated_at": "2026-10-30T00:30:00+00:00",
           "description": "",
@@ -1407,6 +1407,11 @@
             },
             {
               "kind": "code",
+              "path": "apps/api/src/services/portfolio_import_pdf.py",
+              "symbol": "read_pdf"
+            },
+            {
+              "kind": "code",
               "path": "apps/web/components/Pages/Portfolio/v2/PortfolioImportPage.tsx",
               "symbol": "PortfolioImportPage"
             },
@@ -1419,6 +1424,11 @@
               "kind": "test",
               "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
               "symbol": "portfolio.v2: an Oregon CIS export is previewed and brought in"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
+              "symbol": "portfolio.v2: a résumé PDF is read into a pick list"
             }
           ],
           "relationships": []
