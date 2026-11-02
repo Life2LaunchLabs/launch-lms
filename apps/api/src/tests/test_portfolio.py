@@ -393,7 +393,7 @@ def test_an_onboarding_display_name_becomes_the_name_the_portfolio_shows():
 
 
 def test_a_new_account_username_never_comes_from_the_email():
-    from src.routers.auth import _generate_onboarding_username
+    from src.services.auth.usernames import generate_username as _generate_onboarding_username
 
     with _session() as db:
         name = _generate_onboarding_username("maya.rivera.2010@school.example.org", db)
@@ -402,7 +402,7 @@ def test_a_new_account_username_never_comes_from_the_email():
 
 def test_a_username_picked_at_signup_is_checked():
     from fastapi import HTTPException as Refused
-    from src.routers.auth import _picked_username
+    from src.services.auth.usernames import picked_username as _picked_username
 
     with _session() as db:
         db.add(_user())

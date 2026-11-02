@@ -1,5 +1,6 @@
 'use client'
 import { useFormik } from 'formik'
+import UsernameInput from './UsernameInput'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
 import FormLayout, { FormField, FormLabelAndMessage, Input, Textarea } from '@components/Objects/StyledElements/Form/Form'
@@ -263,26 +264,7 @@ function OpenSignUpComponent({
               {emailError && (
                 <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
               )}
-              {/* The username is the public portfolio link, so it's picked here rather than made from the email. */}
-              <input
-                name="username"
-                onChange={(e) => {
-                  formik.handleChange(e)
-                  if (emailError) setEmailError('')
-                }}
-                value={formik.values.username}
-                type="text"
-                placeholder="Pick a username"
-                aria-label="Username"
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={30}
-                pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{2,29}"
-                title="3 to 30 letters, numbers, dots, dashes or underscores"
-                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
-                required
-              />
+              <UsernameInput value={formik.values.username} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <PasswordInput
                 component="input"
                 name="password"

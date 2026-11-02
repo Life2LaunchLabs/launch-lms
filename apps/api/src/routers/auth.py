@@ -1,9 +1,8 @@
-import re
-import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from config.config import get_launchlms_config
+from src.services.auth.usernames import generate_username as _generate_onboarding_username, picked_username as _picked_username
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
@@ -69,35 +68,11 @@ class WelcomeSignupEmailCheckRequest(BaseModel):
     username: str | None = None
 
 
-USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{2,29}$")
-
-
-def _picked_username(raw: str | None, db_session: Session) -> str | None:
-    """A username picked on the signup page, checked: 3 to 30 letters, numbers, dots, dashes or underscores."""
-    if raw is None or not raw.strip():
-        return None
-    username = raw.strip().lower()
-    if not USERNAME_RE.match(username):
-        raise HTTPException(status_code=422, detail="A username is 3 to 30 letters, numbers, dots, dashes or underscores")
-    if db_session.exec(select(User).where(User.username == username)).first():
-        raise HTTPException(status_code=409, detail="That username is taken")
-    return username
-
-
 def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
     """The next step of the learner's Launch Ready starter goal (the Welcome step at first)."""
     from src.services.goals.starter import redirect_path
 
     return f"/orgs/{owner_org.slug}{redirect_path(db_session, user_id)}"
-
-
-def _generate_onboarding_username(email: str, db_session: Session) -> str:
-    """The username is the public portfolio link (/user/<username>), so it never comes from the email:
-    many learners are minors, and an email often holds a full name or a school ID."""
-    while True:
-        candidate = f"learner{secrets.token_hex(4)}"
-        if not db_session.exec(select(User).where(User.username == candidate)).first():
-            return candidate
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
