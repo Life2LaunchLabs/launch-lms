@@ -95,3 +95,18 @@ export const lifeApi = {
   metrics: (place: string | null | undefined, token?: string) => request<{ metrics: string[] }>(lifeUrl(`/metrics${place ? `?place=${q(place)}` : ''}`), token),
   estimates: (queries: EstimateQuery[], token?: string) => request<{ estimates: Record<string, Estimate | null> }>(lifeUrl('/estimates'), token, 'POST', { queries }),
 }
+
+/** A source of estimate facts, with how many facts it has by status, for platform admins. */
+export interface SourceCoverage extends EstimateSource { id: number; facts: number; by_status: Record<string, number>; levels: Record<string, number>; metrics: string[] }
+export type EstimateFileKind = 'hud_fmr' | 'bls_oews'
+
+export const lifeAdminApi = {
+  sources: (token?: string) => request<{ sources: SourceCoverage[] }>(lifeUrl('/admin/sources'), token),
+  importFile: async (kind: EstimateFileKind, year: number, url: string, file: File, token?: string) => {
+    const form = new FormData()
+    form.append('kind', kind); form.append('year', String(year)); form.append('url', url); form.append('file', file)
+    const response = await fetch(lifeUrl('/admin/import'), { method: 'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: 'include' })
+    return errorHandling(response) as Promise<{ source: string; facts: number; unmatched?: string[]; places?: number }>
+  },
+  review: (sourceKey: string, status: 'reviewed' | 'draft' | 'retired', token?: string) => request<{ facts: number }>(lifeUrl(`/admin/sources/${encodeURIComponent(sourceKey)}/review`), token, 'POST', { status }),
+}
