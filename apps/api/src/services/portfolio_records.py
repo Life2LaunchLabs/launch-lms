@@ -24,7 +24,7 @@ from src.db.portfolio_records import (
 )
 from src.db.users import PublicUser, User
 from src.services import portfolio as portfolio_service
-from src.services.portfolio_display import display_for_shell
+from src.services.portfolio_display import display_for_shell, seen_quests
 from src.services.portfolio_identity import identity_dto, shown_name
 from src.services.portfolio_results import results_for_shell
 
@@ -404,12 +404,16 @@ def records_for_shell(portfolio: Portfolio, db_session: Session, public_only: bo
             "credentials": [credential_dto(item, db_session, True) for item in credentials],
             "quotes": [quote_dto(item, db_session, True) for item in quotes],
             "results": results_for_shell(portfolio, db_session, True),
+            # The mastery badge by the name; visitors never see the rest of the learner's progress.
+            "mastered": 3 in seen_quests(portfolio),
         }
     return display_for_shell(portfolio) | {
         "identity": identity_dto(user) if user else None,
         "credentials": [credential_dto(item, db_session) for item in credentials],
         "quotes": [quote_dto(item, db_session) for item in quotes],
         "results": results_for_shell(portfolio, db_session),
+        "progress": {"seen": seen_quests(portfolio)},
+        "mastered": 3 in seen_quests(portfolio),
         "contacts": [contact_dto(item, db_session) for item in _rows(PortfolioContact, portfolio, db_session, (PortfolioContact.sort_order, PortfolioContact.id))],
         "resume_versions": [resume_version_dto(item) for item in _rows(ResumeVersion, portfolio, db_session, (ResumeVersion.sort_order, ResumeVersion.id))],
         "documents": [document_dto(item, db_session) for item in _rows(PortfolioDocument, portfolio, db_session, (PortfolioDocument.id,))],

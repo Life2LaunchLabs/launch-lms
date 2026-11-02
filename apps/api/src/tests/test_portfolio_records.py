@@ -12,6 +12,7 @@ from src.db.portfolio_records import (
     HighlightsUpdate,
     IdentityUpdate,
     LayoutUpdate,
+    ProgressSeen,
     PortfolioQuote,
     QuoteWrite,
     ResultWrite,
@@ -177,6 +178,18 @@ def test_highlights_and_layout_show_to_visitors():
             portfolio_display.update_layout(LayoutUpdate(sections="carousel"), actor, db)
         with pytest.raises(HTTPException):
             portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value=" ", label="GPA")]), actor, db)
+
+
+def test_seen_unlocks_stay_and_only_mastery_shows_to_visitors():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        assert service.get_owner_shell(actor, db)["progress"] == {"seen": []}
+        # Seeing the mastery unlock keeps the two before it.
+        assert portfolio_display.mark_seen(ProgressSeen(quest=3), actor, db) == {"seen": [1, 2, 3]}
+        public = service.get_public_shell(1, "maya", db)
+        assert public["mastered"] is True and "progress" not in public
+        with pytest.raises(HTTPException):
+            portfolio_display.mark_seen(ProgressSeen(quest=4), actor, db)
 
 
 def test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices():

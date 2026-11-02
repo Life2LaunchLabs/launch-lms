@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlmodel import Session
 
 from src.db.portfolio import Portfolio
-from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate
+from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSeen
 from src.db.users import PublicUser
 from src.services import portfolio as portfolio_service
 
@@ -44,3 +44,20 @@ def update_layout(payload: LayoutUpdate, current_user: PublicUser, db_session: S
             raise HTTPException(status_code=422, detail=f"Unknown {key} layout")
         layout[key] = value
     return _store(portfolio, db_session, layout=layout)
+
+
+def seen_quests(portfolio: Portfolio) -> list[int]:
+    """Quests whose unlock the learner has seen. Once seen, an unlock stays, whatever is removed later."""
+    seen = (portfolio.theme_settings or {}).get("progress", {}).get("seen") or []
+    return sorted({int(n) for n in seen if n in (1, 2, 3)})
+
+
+def mark_seen(payload: ProgressSeen, current_user: PublicUser, db_session: Session) -> dict:
+    """The page works out what's done from the portfolio itself; this keeps the unlocks the learner reached.
+    Quests unlock in order, so seeing one also keeps the ones before it."""
+    if payload.quest not in (1, 2, 3):
+        raise HTTPException(status_code=422, detail="Unknown quest")
+    portfolio = portfolio_service.get_or_create_portfolio(current_user, db_session)
+    seen = sorted(set(seen_quests(portfolio)) | set(range(1, payload.quest + 1)))
+    _store(portfolio, db_session, progress={"seen": seen})
+    return {"seen": seen}

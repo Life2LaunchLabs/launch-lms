@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, ChevronDown, Eye, FileText, Globe2, Lock, Pencil, Plus, SlidersHorizontal } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -16,7 +17,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { getMyPortfolio, publishMyPortfolio, unpublishMyPortfolio } from '@services/portfolio/portfolio'
-import { updateMyLayout } from '@services/portfolio/records'
+import { markProgressSeen, updateMyLayout } from '@services/portfolio/records'
 import { PortfolioShareButton } from '../PortfolioShareDialog'
 import { PortfolioVisitorBar } from '../PortfolioVisitorBar'
 import { VerificationMenu } from '../PortfolioHeaderParts'
@@ -24,7 +25,9 @@ import { EXPERIENCE_TYPES } from '../ExperienceEditor'
 import { HighlightsDialog, LinksDialog, ProfileDialog } from './PortfolioDialogs'
 import { PortfolioTiles } from './PortfolioTiles'
 import { ResultDialog } from './ResultDialog'
-import { EmptyAdd, initials } from './parts'
+import { EmptyAdd, SPOT_RING, SpotTip, initials } from './parts'
+import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
+import { spotsFor, stageOf, type Quest } from './progress'
 import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 
 // The new portfolio front page (V5 prototype): a stacked header, the highlights band, then the sections as
@@ -72,6 +75,9 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult } | null>(null)
   const [busy, setBusy] = useState(false)
   const ask = useAsk()
+  const router = useRouter()
+  const [questOpen, setQuestOpen] = useState(true)
+  const [questList, setQuestList] = useState(false)
   const editing = owner && !preview
   const layout: PortfolioLayout = shell.layout || { header: 'left', sections: 'grid' }
   const centered = layout.header === 'center'
@@ -84,6 +90,33 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const highlights = shell.highlights || []
   const published = Boolean(shell.portfolio.published_at)
   const resumeHref = getUriWithOrg(orgslug, owner ? '/portfolio/resume' : `/user/${username}/resume`)
+  // Quests unlock sharing, then the résumé, then the mastery badge. Only the owner sees them.
+  const stage = editing ? stageOf(shell) : null
+  const past = (n: number) => !stage || stage.kind === 'mastered' || stage.quest.n > n
+  const spots = stage && questOpen ? spotsFor(stage) : {}
+  const page = (path: string) => router.push(getUriWithOrg(orgslug, path))
+
+  function questItem(key: string) {
+    const go: Record<string, () => void> = {
+      photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({}),
+      bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      now: () => page('/portfolio/timeline?experience=work_career'), xp3: () => page('/portfolio/timeline?experience=work_career'),
+      school: () => page('/portfolio/timeline?experience=education'), stories: () => page('/portfolio/timeline'),
+      made: () => page('/portfolio/projects?newProject=1'), work: () => page('/portfolio/projects'),
+      vouched: () => page('/portfolio/people'), proven: () => page('/portfolio/badges?add=credential'), headed: () => page('/plans'),
+    }
+    go[key]?.()
+  }
+
+  async function seeUnlock(quest: Quest, then?: () => unknown) {
+    if (!token) return
+    try {
+      const { seen } = await markProgressSeen(quest.n, token)
+      setShell((current) => ({ ...current, progress: { seen }, mastered: seen.includes(3) }))
+      setQuestOpen(true); setQuestList(false)
+      await then?.()
+    } catch (error: any) { toast.error(error?.message || 'Could not save that') }
+  }
 
   async function changeLayout(next: Partial<PortfolioLayout>) {
     if (!token) return
@@ -115,6 +148,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     toast.success('Photo updated')
   }
 
+  const questButton = stage ? <QuestButton stage={stage} open={questOpen} onToggle={() => setQuestOpen(!questOpen)} /> : null
   const ownerActions = <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button variant="brand" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Plus className="h-4 w-4" />Add<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -129,10 +163,11 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
         <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={getUriWithOrg(orgslug, '/portfolio/import')}>From a résumé, CIS or LinkedIn</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-    {shell.portfolio.email_verified === false && !published
+    {!past(1) ? questButton : shell.portfolio.email_verified === false && !published
       ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} />
       : <PortfolioShareButton orgslug={orgslug} username={username} displayName={name} published={published} onPublish={publish} busy={busy} className="h-10 flex-1 px-3 text-sm sm:flex-none sm:px-4" />}
-    <Button asChild variant="surface" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>
+    {!past(1) ? null : !past(2) ? questButton : <Button asChild variant="surface" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>}
+    {past(2) ? questButton : null}
     <Button asChild variant="surface" size="icon" className="h-10 w-10 shrink-0" aria-label="Preview as a visitor" title="Preview as a visitor"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="h-4 w-4" /></Link></Button>
   </>
 
@@ -149,10 +184,12 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
           {editing ? <LayoutMenu layout={layout} onChange={changeLayout} orgslug={orgslug} onUnpublish={published ? unpublish : undefined} /> : null}
         </div>
         <div className={`relative -mt-[46px] px-1 sm:-mt-14 sm:px-[22px] ${centered ? 'text-center' : ''}`}>
-          {editing ? <button type="button" onClick={() => setProfileOpen(true)} aria-label="Edit your profile" className="group relative inline-block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Avatar url={avatarUrl} name={name} /><span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><Pencil className="h-3.5 w-3.5" /></span></button> : <Avatar url={avatarUrl} name={name} />}
+          {spots.avatar ? <SpotTip label={spots.avatar} className="absolute left-[118px] top-[50px] sm:left-[150px] sm:top-[62px]" /> : null}
+          {editing ? <button type="button" onClick={() => spots.avatar ? setAvatarOpen(true) : setProfileOpen(true)} aria-label="Edit your profile" className={`group relative inline-block rounded-full outline-none ${spots.avatar ? `border-2 ${SPOT_RING}` : ''} focus-visible:ring-2 focus-visible:ring-foreground`}><Avatar url={avatarUrl} name={name} /><span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><Pencil className="h-3.5 w-3.5" /></span></button> : <Avatar url={avatarUrl} name={name} />}
           <div className="min-w-0 pt-2.5">
             <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${centered ? 'justify-center' : ''}`}>
               <h1 className="break-words text-[clamp(26px,3vw,34px)] font-extrabold leading-[1.1] tracking-[-0.02em]">{editing && !hasName ? <button type="button" onClick={() => setProfileOpen(true)} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : name}</h1>
+              {shell.mastered ? <MasteryBadge /> : null}
               {editing ? <span className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}
             </div>
             {shell.portfolio.headline ? <p className={`mt-1 line-clamp-2 max-w-[60ch] text-base ${centered ? 'mx-auto' : ''}`}>{shell.portfolio.headline}</p>
@@ -167,6 +204,9 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
           </div>
         </div>
       </header>
+      {stage && questOpen ? <QuestBanner stage={stage} list={questList} onList={() => setQuestList(!questList)} busy={busy}
+        onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
+        onUnlock={(quest) => seeUnlock(quest, quest.n === 1 ? publish : quest.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null}
 
       {highlights.length ? <section aria-label="Highlights" className="relative mt-[22px] grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] max-sm:[&>div:last-of-type:nth-of-type(odd)]:col-span-2">
         {highlights.map((item, index) => <div key={index} className="min-w-0 rounded-2xl border-2 border-border bg-card px-4 py-3 shadow-[0_4px_0_hsl(var(--border))]"><b className="block truncate text-[21px] font-extrabold leading-[1.1] tabular-nums">{item.value}</b><span className="mt-0.5 block text-[13px] font-semibold text-muted-foreground">{item.label}</span></div>)}
@@ -174,7 +214,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       </section> : editing ? <div className="mt-[22px]"><EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} /></div> : null}
 
       <div className={`mt-4 grid gap-4 ${layout.sections === 'grid' ? 'md:grid-cols-2 md:[&>[data-wide]]:col-span-2' : ''}`} data-layout={layout.sections}>
-        <PortfolioTiles shell={shell} setShell={setShell} owner={editing} orgslug={orgslug} username={username} token={token} onEditLinks={() => setLinksOpen(true)} onEditResult={(result) => setResultEditor({ result })} />
+        <PortfolioTiles spots={spots} shell={shell} setShell={setShell} owner={editing} orgslug={orgslug} username={username} token={token} onEditLinks={() => setLinksOpen(true)} onEditResult={(result) => setResultEditor({ result })} />
       </div>
     </div>
     {editing ? <>

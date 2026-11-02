@@ -59,6 +59,14 @@ planner, and importing CIS reflections, saved items and plan history into plans.
   notes), links from the About tile, My documents at `/portfolio/documents` (private), and "What I'm like" results
   (`portfolioresult`, migration `e2c8f4a6b1d7`; `portfolio_results.record_result(user, payload, source,
   source_reference)` is the write plans use). Experience and project editing still use the current dialogs.
+- [x] Phase 4 progression (`v2/progress.ts`, `v2/QuestBar.tsx`): three quests worked out on the page from the
+  portfolio itself. Sharing needs a photo, a bio, one experience and one project or credential. The résumé needs 3
+  experiences, a school, a link and 3 skills. Mastery needs 3 projects with photos, 2 experiences told in a few
+  sentences, 2 confirmed quotes, a credential with a photo and a plan in progress. The locked action in the action
+  row shows a gauge; its banner lists the items, and each open item outlines its spot on the page with a "!" tip.
+  A finished quest turns gold with confetti until the learner acknowledges it (`PUT /me/progress`, kept in
+  `theme_settings.progress.seen`); seen unlocks stay. A public portfolio keeps sharing and a saved résumé keeps the
+  résumé. The mastery badge by the name is the only part visitors see. Suggestions after mastery aren't built.
 - [x] Phase 5 résumé builder (`v2/ResumeBuilder.tsx`, `v2/resumeModel.ts`): a letter-size page (816×1056 CSS px) built
   from the portfolio, scaled to fit; versions with their own layout (classic, modern, compact), accent and what they
   took off (`excluded` now also takes `project:` and `contact:`); a one-page meter and a page-end line; Download prints

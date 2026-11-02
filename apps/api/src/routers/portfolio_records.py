@@ -11,6 +11,7 @@ from src.db.portfolio_records import (
     HighlightsUpdate,
     IdentityUpdate,
     LayoutUpdate,
+    ProgressSeen,
     QuoteWrite,
     ResultWrite,
     ResumeVersionWrite,
@@ -37,6 +38,11 @@ async def api_update_highlights(payload: HighlightsUpdate, current_user: PublicU
 @router.put("/me/layout")
 async def api_update_layout(payload: LayoutUpdate, current_user: PublicUser = User, db_session: Session = Db):
     return portfolio_display.update_layout(payload, current_user, db_session)
+
+
+@router.put("/me/progress")
+async def api_mark_progress_seen(payload: ProgressSeen, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.mark_seen(payload, current_user, db_session)
 
 
 @router.post("/me/credentials")
