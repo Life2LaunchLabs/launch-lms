@@ -115,6 +115,20 @@ def test_importers_skip_other_states_groups_and_areas():
         assert [o["soc"] for o in estimates.occupations(db, "vet")] == ["29-2056"]
 
 
+def test_all_data_file_keeps_only_cross_industry_all_ownership_rows():
+    head = "AREA,AREA_TITLE,AREA_TYPE,PRIM_STATE,NAICS,I_GROUP,OWN_CODE,OCC_CODE,OCC_TITLE,O_GROUP,H_PCT10,H_PCT25,H_MEDIAN,H_PCT75,H_PCT90,A_PCT10,A_PCT25,A_MEDIAN,A_PCT75,A_PCT90"
+    rows = [
+        "99,U.S.,1,US,000000,cross-industry,1235,29-2056,Vet Techs,detailed,10,11,12,13,14,20,21,22,23,24",
+        "99,U.S.,1,US,000000,cross-industry,5,29-2056,Vet Techs,detailed,1,1,99,1,1,1,1,1,1,1",
+        "99,U.S.,1,US,541900,4-digit,5,29-2056,Vet Techs,detailed,1,1,98,1,1,1,1,1,1,1",
+    ]
+    data = ("\n".join([head, *rows]) + "\n").encode()
+    with _session() as db:
+        importers.import_bls_oews(db, data, "all_data.csv", year=2024, url="")
+        facts = db.exec(select(EstimateFact)).all()
+        assert [(f.place, f.value) for f in facts] == [("us", 12)]
+
+
 def test_reimporting_replaces_a_sources_facts():
     with _session() as db:
         _loaded(db)

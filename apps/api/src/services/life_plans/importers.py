@@ -6,8 +6,9 @@ fact carries the published value, its period and the dollar year. A person then
 reviews the source's facts before the resolver will use them.
 
 - HUD Fair Market Rents, county-level file (fmr_0 .. fmr_4 by county).
-- BLS Occupational Employment and Wage Statistics (OEWS), national, state or
-  metropolitan/nonmetropolitan area files (H_PCT10 .. H_PCT90 by occupation).
+- BLS Occupational Employment and Wage Statistics (OEWS), the all-data file or the
+  national, state or metropolitan/nonmetropolitan area files (H_PCT10 .. H_PCT90 by
+  occupation; only the cross-industry, all-ownerships rows).
 """
 
 from __future__ import annotations
@@ -156,6 +157,15 @@ def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: 
             first = False
         group = (r.get("o_group") or r.get("occ_group") or "").lower()
         if group and group not in ("detailed", "total"):
+            continue
+        # The all-data file also breaks each job down by industry and by ownership
+        # (private, state government, ...). Keep only the all-industries,
+        # all-ownerships row, or those rows would overwrite each other.
+        i_group = (r.get("i_group") or "").lower()
+        if i_group and i_group != "cross-industry":
+            continue
+        own = (r.get("own_code") or "").split(".")[0]
+        if own and own != "1235":
             continue
         area_type = (r.get("area_type") or "").strip()
         area = (r.get("area") or "").strip()

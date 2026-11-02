@@ -4,6 +4,7 @@ Platform admins load facts from official files and review them under /life/admin
 """
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
@@ -86,10 +87,11 @@ async def api_admin_import(
     if len(data) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="That file is too large.")
     try:
+        # Reading a big workbook takes a while; keep it off the event loop.
         if kind == "hud_fmr":
-            return importers.import_hud_fmr(db, data, file.filename or "", fiscal_year=year, url=url)
+            return await run_in_threadpool(importers.import_hud_fmr, db, data, file.filename or "", fiscal_year=year, url=url)
         if kind == "bls_oews":
-            return importers.import_bls_oews(db, data, file.filename or "", year=year, url=url)
+            return await run_in_threadpool(importers.import_bls_oews, db, data, file.filename or "", year=year, url=url)
     except importers.ImportProblem as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise HTTPException(status_code=400, detail="Unknown kind.")
