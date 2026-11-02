@@ -5,7 +5,7 @@ import type { Shell } from '../portfolioTypes'
 // the API only keeps which unlocks the learner has seen, so an unlock never goes away again.
 
 /** Where a quest item is done on the front page. The page outlines that spot with the item's instruction. */
-export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'people'
+export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people'
 export type QuestItem = { key: string; label: string; detail?: string; done: boolean; have?: number; need?: number; spot: Spot }
 export type Quest = { n: 1 | 2 | 3; title: string; why: string; items: QuestItem[]; done: number; total: number; complete: boolean }
 /** working: items left on quest n. unlocked: quest n is finished and its unlock moment hasn't been seen. mastered: all done. */
@@ -47,7 +47,8 @@ export function quests(shell: Shell): Quest[] {
       count('stories', 'Tell your stories', timeline.filter((entry) => words(entry.summary) >= 25).length, 2, 'experience', '2 experiences told in a few sentences'),
       count('vouched', 'Get vouched for', (shell.quotes || []).filter((item) => item.confirmed).length, 2, 'people', '2 quotes confirmed by a boss, coach or teacher'),
       count('proven', 'Prove it', credentials.filter((item) => item.photo_url).length, 1, 'credentials', 'A card, certificate or diploma with a photo'),
-      count('headed', 'Know where you’re headed', (shell.badges?.working_toward || []).length, 1, 'credentials', 'A plan you’re working on'),
+      count('like', 'Show what you’re like', (shell.results || []).filter((item) => item.kind !== 'skills').length, 1, 'results', 'Your interests, strengths or values'),
+      { key: 'headed', label: 'Plan your now and next', detail: 'The phase you’re in now and the one after it', done: Boolean(shell.headed?.now && shell.headed.next.length), spot: 'headed' },
     ]),
   ]
 }

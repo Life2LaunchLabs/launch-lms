@@ -62,11 +62,12 @@ def _session():
     from src.db.learning import LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
     from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
     from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
+    from src.db.life_plans import LifePlan
 
     for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt,
                   PlanRole, PlanCollaborator, PlanActivity, OrganizationPlanRole, GoalTemplate, GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory,
                   # Goals keep their chats in step.
-                  Conversation, ConversationMember, ConversationMessage, ConversationMessageRef):
+                  Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, LifePlan):
         model.__table__.create(engine, checkfirst=True)
     session = Session(engine)
     session.add(

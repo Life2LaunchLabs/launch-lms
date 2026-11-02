@@ -38,4 +38,13 @@ describe('portfolio quests', () => {
     expect([skills?.have, skills?.done]).toEqual([3, true])
     expect(third.items.find((item) => item.key === 'stories')?.done).toBe(false)
   })
+
+  test('mastery asks for what you are like and a phase now and next', () => {
+    const third = (over: Record<string, any>) => quests(shell(over))[2].items
+    expect(third({}).find((item) => item.key === 'headed')?.done).toBe(false)
+    expect(third({ headed: { now: { title: 'High school' }, next: [] } }).find((item) => item.key === 'headed')?.done).toBe(false)
+    expect(third({ headed: { now: { title: 'High school' }, next: [{ title: 'College' }] } }).find((item) => item.key === 'headed')?.done).toBe(true)
+    expect(third({ results: [{ kind: 'skills', summary: 'CAD' }] }).find((item) => item.key === 'like')?.done).toBe(false)
+    expect(third({ results: [{ kind: 'interests', summary: 'Artistic' }] }).find((item) => item.key === 'like')?.done).toBe(true)
+  })
 })

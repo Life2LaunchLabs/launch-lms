@@ -155,3 +155,41 @@ def delete_plan(db: Session, user: PublicUser) -> None:
     if plan:
         db.delete(plan)
         db.commit()
+
+
+def _month_index(value: str) -> int:
+    year, month = value.split("-")
+    return int(year) * 12 + int(month) - 1
+
+
+def _month_label(index: int) -> str:
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
+
+
+def headed(db: Session, user_id: int, today: datetime | None = None) -> dict:
+    """Where the learner is headed, for their portfolio: the phase they're in now and the next one.
+
+    Phases run one after another from the plan's start month. Before the plan starts, the
+    first phase is next and nothing is now; past the end, the last phase stays now. Only
+    titles, kinds, places and months: never the budget.
+    """
+    plan = db.exec(select(LifePlan).where(LifePlan.user_id == user_id)).first()
+    document = (plan.document if plan else None) or {}
+    phases = [phase for phase in document.get("phases") or [] if isinstance(phase, dict) and phase.get("title")]
+    if not phases or not document.get("start"):
+        return {"now": None, "next": []}
+    today = today or datetime.now(UTC)
+    current = today.year * 12 + today.month - 1
+    begins = _month_index(str(document["start"]))
+    cards = []
+    for phase in phases:
+        months = max(1, int(phase.get("months") or 1))
+        cards.append({"id": phase.get("id"), "title": phase["title"], "kind": phase.get("kind") or "other", "place": phase.get("place_label") or "", "starts": _month_label(begins), "ends": _month_label(begins + months - 1), "months": months, "begins": begins})
+        begins += months
+    now = next((card for card in cards if card["begins"] <= current < card["begins"] + card["months"]), None)
+    if now is None and cards[-1]["begins"] + cards[-1]["months"] <= current:
+        now = cards[-1]
+    upcoming = [card for card in cards if card["begins"] > current][:2]
+    for card in cards:
+        card.pop("begins")
+    return {"now": now, "next": upcoming}

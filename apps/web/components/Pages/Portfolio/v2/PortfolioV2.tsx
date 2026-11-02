@@ -103,7 +103,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       now: () => page('/portfolio/timeline?experience=work_career'), xp3: () => page('/portfolio/timeline?experience=work_career'),
       school: () => page('/portfolio/timeline?experience=education'), stories: () => page('/portfolio/timeline'),
       made: () => page('/portfolio/projects?newProject=1'), work: () => page('/portfolio/projects'),
-      vouched: () => page('/portfolio/people'), proven: () => page('/portfolio/badges?add=credential'), headed: () => page('/plans'),
+      vouched: () => page('/portfolio/people'), proven: () => page('/portfolio/badges?add=credential'), headed: () => page('/life'),
+      like: () => document.querySelector('[aria-label="What I’m like"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
     }
     go[key]?.()
   }
