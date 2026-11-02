@@ -392,6 +392,25 @@ def test_an_onboarding_display_name_becomes_the_name_the_portfolio_shows():
         assert user.preferred_name == "Maya R."
 
 
+def test_activity_strengths_show_as_a_what_im_like_result():
+    from src.db.portfolio_records import PortfolioResult
+
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        outcomes = {"version": 1, "actions": [{"id": "s", "type": "set_traits", "trait_type": "strength", "values": ["Curious", "kind"]}]}
+        apply_portfolio_outcomes(db, user, 9, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        result = db.exec(select(PortfolioResult).where(PortfolioResult.source == "traits")).one()
+        assert (result.kind, result.name, result.summary) == ("strengths", "Strengths", "Curious, Kind")
+        # A second pass replaces the summary instead of adding another result.
+        outcomes["actions"][0]["values"] = ["Patient"]
+        apply_portfolio_outcomes(db, user, 10, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        assert [row.summary for row in db.exec(select(PortfolioResult)).all()] == ["Patient"]
+
+
 def test_activity_timeline_outcome_assigns_only_an_owned_cover_image():
     with _session() as db:
         user = _user()

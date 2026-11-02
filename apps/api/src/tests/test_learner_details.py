@@ -4,6 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from src.db.learning import LearningVariable
 from src.db.portfolio import Portfolio, PortfolioSection, ProfileTrait, ProjectItem, TimelineEntry
+from src.db.portfolio_records import PortfolioResult
 from src.db.users import User
 from src.services.coach import learner
 from src.services.learning import learner_details
@@ -16,7 +17,7 @@ def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         User.__table__, LearningVariable.__table__, Portfolio.__table__, PortfolioSection.__table__,
-        ProfileTrait.__table__, ProjectItem.__table__, TimelineEntry.__table__,
+        ProfileTrait.__table__, ProjectItem.__table__, TimelineEntry.__table__, PortfolioResult.__table__,
     ])
     return Session(engine)
 

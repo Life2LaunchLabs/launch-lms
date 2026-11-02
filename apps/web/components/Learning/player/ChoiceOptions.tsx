@@ -16,10 +16,10 @@ export default function ChoiceOptions({ options, selected, multiple, style = 'li
   onToggle: (id: string) => void
 }) {
   const role = multiple ? 'checkbox' : 'radio'
-  const item = (option: Option, index: number, className: string, body: React.ReactNode) => {
+  const item = (option: Option, index: number, className: string, body: React.ReactNode, name?: string) => {
     const id = option.id || String(index)
     const on = selected.includes(id)
-    return <button key={id} type="button" role={role} aria-checked={on} onClick={() => onToggle(id)} className={`${className} ${on ? ring : 'border-border hover:border-foreground/30'}`}>{body}</button>
+    return <button key={id} type="button" role={role} aria-checked={on} aria-label={name} onClick={() => onToggle(id)} className={`${className} ${on ? ring : 'border-border hover:border-foreground/30'}`}>{body}</button>
   }
   const label = (option: Option, index: number) => option.text || `Option ${index + 1}`
 
@@ -34,7 +34,7 @@ export default function ChoiceOptions({ options, selected, multiple, style = 'li
     return <div className="mt-6">
       <div role={multiple ? 'group' : 'radiogroup'} className="flex items-end justify-between gap-2">
         {options.map((option, index) => item(option, index, 'flex flex-1 items-center justify-center rounded-xl border bg-card text-sm font-bold text-foreground shadow-sm transition',
-          <span className="flex w-full items-center justify-center" style={{ height: 44 + index * (40 / Math.max(1, options.length - 1)) }} aria-label={label(option, index)}>{option.icon || index + 1}</span>))}
+          <span className="flex w-full items-center justify-center" style={{ height: 44 + index * (40 / Math.max(1, options.length - 1)) }} aria-hidden="true">{option.icon || index + 1}</span>, label(option, index)))}
       </div>
       <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{options[0]?.text}</span><span>{options.at(-1)?.text}</span></div>
     </div>

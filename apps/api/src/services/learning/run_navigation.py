@@ -1,6 +1,7 @@
 """Run context, branching navigation and run serialization."""
 
 from sqlmodel import Session, select
+from src.services.portfolio_identity import shown_name
 from src.db.learning import (
     LearningActivity,
     LearningPage,
@@ -226,6 +227,8 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                 "user.first_name": user.first_name or "",
                 "user.last_name": user.last_name or "",
                 "user.avatar_image": user.avatar_image or "",
+                # Before a portfolio exists, the name field starts from the learner's own name.
+                "user.portfolio.display_name": shown_name(user),
             }
             portfolio = db_session.exec(
                 select(Portfolio).where(Portfolio.user_id == user.id)
@@ -233,7 +236,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             if portfolio:
                 render_context["variables"].update(
                     {
-                        "user.portfolio.display_name": portfolio.display_name or "",
+                        "user.portfolio.display_name": portfolio.display_name or shown_name(user),
                         "user.portfolio.headline": portfolio.headline or "",
                         "user.portfolio.short_bio": portfolio.short_bio or "",
                         "user.portfolio.location_label": portfolio.location_label or "",
