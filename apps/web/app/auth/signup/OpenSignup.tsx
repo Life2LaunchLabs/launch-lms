@@ -8,6 +8,7 @@ import * as Form from '@radix-ui/react-form'
 import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
+import { useGoogleSignIn } from '@services/auth/google'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
 import { signup, signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
@@ -63,6 +64,7 @@ function OpenSignUpComponent({
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
+  const google = useGoogleSignIn()
   const [step, setStep] = React.useState<'email' | 'details'>(createOrgMode ? 'details' : 'email')
   const [emailError, setEmailError] = React.useState('')
   const age = useAgeConfirm()
@@ -222,23 +224,11 @@ function OpenSignUpComponent({
 
           <div className="mt-12 space-y-7">
             <AgeConfirm {...age.field} />
-            <Button
-              type="button"
-              onClick={handleGoogleSignup}
-              disabled={isGoogleLoading}
-              variant="surface"
-              size="cta"
-              className="w-full text-[16px]"
-            >
+            {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
               {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
             </Button>
-
-            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span>or</span>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
+            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
             <form onSubmit={handleEmailContinue} className="space-y-4">
               <input
@@ -347,15 +337,11 @@ function OpenSignUpComponent({
       {createOrgMode ? (
         <div className="mb-5 space-y-5">
           <AgeConfirm {...age.field} />
-          <Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
+          {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
             <SiGoogle size={20} color="#4285F4" />
             {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
           </Button>
-          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span>or with email</span>
-            <div className="h-px flex-1 bg-gray-200" />
-          </div>
+          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or with email</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
         </div>
       ) : null}
 
