@@ -25,7 +25,6 @@ function quest(n: 1 | 2 | 3, items: QuestItem[]): Quest {
 export function quests(shell: Shell): Quest[] {
   const timeline = shell.timeline || []
   const projects = shell.projects || []
-  const credentials = (shell.credentials || []).filter((item) => item.kind)
   const skills = new Set((shell.results || []).filter((item) => item.kind === 'skills').flatMap((item) => item.summary.split(/[,;·]/).map((part) => part.trim().toLowerCase()).filter(Boolean)))
   for (const badge of shell.badges?.earned || []) for (const skill of badge.skills || []) skills.add(skill.toLowerCase())
   const socials = (shell.portfolio.socials || []) as Array<{ url?: string }>
@@ -49,7 +48,8 @@ export function quests(shell: Shell): Quest[] {
       count('work', 'Show your work', projects.filter((item) => item.cover_url).length, 3, 'projects', '3 projects with a real photo'),
       count('stories', 'Tell your stories', timeline.filter((entry) => words(entry.summary) >= 25).length, 2, 'experience', '2 experiences told in a few sentences'),
       count('vouched', 'Get vouched for', (shell.quotes || []).filter((item) => item.confirmed).length, 2, 'people', '2 quotes confirmed by a boss, coach or teacher'),
-      count('proven', 'Prove it', credentials.filter((item) => item.photo_url).length, 1, 'credentials', 'A card, certificate or diploma with a photo'),
+      // Only what can be backed up counts: a badge earned here. Uploaded cards wait until they can be checked.
+      count('proven', 'Prove it', (shell.badges?.earned || []).length, 1, 'credentials', 'Earn a badge by finishing a plan'),
       count('like', 'Show what you’re like', (shell.results || []).filter((item) => item.kind !== 'skills').length, 1, 'results', 'Your interests, strengths or values'),
       { key: 'headed', label: 'Plan your now and next', detail: 'The phase you’re in now and the one after it', done: Boolean(shell.headed?.now && shell.headed.next.length), spot: 'headed' },
     ]),
@@ -82,4 +82,29 @@ export function spotsFor(stage: Stage): Partial<Record<Spot, string>> {
   const spots: Partial<Record<Spot, string>> = {}
   for (const item of stage.quest.items) if (!item.done && !spots[item.spot]) spots[item.spot] = item.label
   return spots
+}
+
+/**
+ * Where an item is done when that's another page, with the item's words carried along so the page can put
+ * the "!" on the field or button that finishes it. Items done on the front page itself have no path.
+ */
+export function questPath(item: QuestItem, shell: Shell): string | null {
+  const mark = `mark=${encodeURIComponent(item.detail || item.label)}`
+  const untold = (shell.timeline || []).find((entry) => words(entry.summary) < 25)
+  const bare = (shell.projects || []).find((project) => !project.cover_url)
+  const paths: Record<string, string | null> = {
+    now: `/portfolio/timeline/new?${mark}`, xp3: `/portfolio/timeline/new?${mark}`, school: `/portfolio/timeline/new?type=education&${mark}`,
+    stories: untold ? `/portfolio/timeline/${untold.timeline_uuid}?${mark}` : '/portfolio/timeline',
+    made: `/portfolio/projects/new?${mark}`, work: bare ? `/portfolio/projects/${bare.project_uuid}?${mark}` : `/portfolio/projects/new?${mark}`,
+    vouched: '/portfolio/people', headed: '/life',
+  }
+  return paths[item.key] ?? null
+}
+
+/** The page each spot's open item is done on, for the tiles that link away. */
+export function spotPaths(stage: Stage, shell: Shell): Partial<Record<Spot, string>> {
+  if (stage.kind !== 'working') return {}
+  const paths: Partial<Record<Spot, string>> = {}
+  for (const item of stage.quest.items) if (!item.done && !(item.spot in paths)) { const path = questPath(item, shell); if (path) paths[item.spot] = path }
+  return paths
 }

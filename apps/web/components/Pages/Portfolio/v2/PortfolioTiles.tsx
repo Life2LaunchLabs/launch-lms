@@ -8,8 +8,9 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { normalizeMediaUrl } from '@services/media/media'
 import { AboutSection } from '../AboutSection'
 import { SOCIAL_OPTIONS, socialHandle, shellSocials } from '../PortfolioHeaderParts'
-import { timelineDateLabel, timelineTypeLabels, type TimelineEntry } from '../Timeline'
-import { Cover, EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
+import { timelineDateLabel, type TimelineEntry } from '../Timeline'
+import { KindCover } from './covers'
+import { EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
 import { HeadedTile } from './HeadedTile'
 import { RESULT_KINDS } from './ResultDialog'
@@ -19,7 +20,7 @@ import type { Spot } from './progress'
 
 // eslint-disable-next-line no-unused-vars
 type EditResult = (result?: PortfolioResult) => void
-type TileProps = { shell: Shell; setShell: SetShell; owner: boolean; orgslug: string; username?: string; token?: string; onEditLinks?: () => void; onEditResult?: EditResult; spots?: Partial<Record<Spot, string>> }
+type TileProps = { shell: Shell; setShell: SetShell; owner: boolean; orgslug: string; username?: string; token?: string; onEditLinks?: () => void; onEditResult?: EditResult; spots?: Partial<Record<Spot, string>>; spotLinks?: Partial<Record<Spot, string>> }
 
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const featuredFirst = <T extends { featured?: boolean }>(items: T[]) => [...items].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
@@ -42,32 +43,32 @@ function AboutTile({ shell, setShell, owner, token, onEditLinks, spots }: TilePr
   </Tile>
 }
 
-function ExperienceTile({ spots, shell, owner, orgslug, username }: TileProps) {
+function ExperienceTile({ spots, spotLinks, shell, owner, orgslug, username }: TileProps) {
   const entries = featuredFirst(shell.timeline || [])
   if (!owner && !entries.length) return null
   const href = (entry: TimelineEntry) => getUriWithOrg(orgslug, owner ? `/portfolio/timeline/${entry.timeline_uuid}` : `/user/${username}/timeline/${entry.slug}`)
-  return <Tile color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title="Experience" count={entries.length || null} href={getUriWithOrg(orgslug, owner ? '/portfolio/timeline' : `/user/${username}/timeline`)} wide>
+  return <Tile color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title="Experience" count={entries.length || null} href={getUriWithOrg(orgslug, spotLinks?.experience || (owner ? '/portfolio/timeline' : `/user/${username}/timeline`))} wide>
     {entries.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{entries.slice(0, 4).map((entry) => <Link key={entry.timeline_uuid} href={href(entry)} className="group/item grid min-w-0 content-start gap-1">
       <div className="relative mb-1 aspect-[4/3] overflow-hidden rounded-xl transition group-hover/item:-translate-y-0.5">
-        <Cover url={entry.cover_url ? normalizeMediaUrl(entry.cover_url) : ''} seed={entry.timeline_uuid} label={timelineTypeLabels[entry.entry_type]} />
+        <KindCover kind="experience" type={entry.entry_type} url={entry.cover_url ? normalizeMediaUrl(entry.cover_url) : ''} />
         {entry.is_current ? <span className="absolute right-2 top-2 rounded-full bg-[#0B7D73] px-2 py-0.5 text-[11px] font-extrabold text-white">Now</span> : null}
       </div>
       <b className="line-clamp-2 text-[13.5px] font-extrabold leading-tight">{entry.title}</b>
       <small className="truncate text-xs font-semibold text-muted-foreground">{entry.organization}</small>
       <small className="truncate text-xs font-semibold text-muted-foreground">{timelineDateLabel(entry)}</small>
-    </Link>)}</div> : <EmptyAdd title="Add where you are right now" hint="School, a job, a team or a club. Start with one." href={`${getUriWithOrg(orgslug, '/portfolio/timeline')}?experience=work_career`} />}
+    </Link>)}</div> : <EmptyAdd title="Add where you are right now" hint="School, a job, a team or a club. Start with one." href={getUriWithOrg(orgslug, spotLinks?.experience || '/portfolio/timeline/new')} />}
   </Tile>
 }
 
-function ProjectsTile({ spots, shell, owner, orgslug, username }: TileProps) {
+function ProjectsTile({ spots, spotLinks, shell, owner, orgslug, username }: TileProps) {
   const projects = featuredFirst(shell.projects || [])
   if (!owner && !projects.length) return null
   const href = (project: Project) => getUriWithOrg(orgslug, owner ? `/portfolio/projects/${project.project_uuid}` : `/user/${username}/projects/${project.slug}`)
-  return <Tile color="pink" spot={spots?.projects} icon={FolderOpen} title="Projects" count={projects.length || null} href={getUriWithOrg(orgslug, owner ? '/portfolio/projects' : `/user/${username}/projects`)}>
+  return <Tile color="pink" spot={spots?.projects} icon={FolderOpen} title="Projects" count={projects.length || null} href={getUriWithOrg(orgslug, spotLinks?.projects || (owner ? '/portfolio/projects' : `/user/${username}/projects`))}>
     {projects.length ? <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))]">{projects.slice(0, 3).map((project) => <Link key={project.project_uuid} href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
-      <div className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><Cover url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} seed={project.project_uuid} /></div>
+      <div className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} /></div>
       <b className="line-clamp-2 text-[12.5px] font-extrabold leading-tight">{project.title}</b>
-    </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={`${getUriWithOrg(orgslug, '/portfolio/projects')}?newProject=1`} />}
+    </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={getUriWithOrg(orgslug, spotLinks?.projects || '/portfolio/projects/new')} />}
   </Tile>
 }
 
@@ -92,7 +93,7 @@ function CredentialsTile({ spots, shell, owner, orgslug, username }: TileProps) 
       ? <Link key={item.badge.award_uuid} href={getUriWithOrg(orgslug, routePaths.org.badgeAward(item.badge.code))} className="grid min-w-0 justify-items-center gap-1.5 text-center"><BadgeMedal badge={{ image_url: normalizeMediaUrl(item.badge.image_url || '') || '', icon: item.badge.icon, color: item.badge.color }} size={56} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.badge.name}</b></Link>
       : <div key={item.credential_uuid} className="grid min-w-0 justify-items-center gap-1.5 text-center"><CredentialFace credential={item} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.name}</b></div>)}
     </div> : null}
-    {owner && !credentials.length ? <EmptyAdd title="Add a card or diploma" hint="Food handler, CPR, a diploma…" href={`${getUriWithOrg(orgslug, '/portfolio/badges')}?add=credential`} /> : null}
+    {owner && !items.length ? <EmptyAdd title="Earn your first badge" hint="Finish a plan to earn one. Cards and certificates are coming soon." href={getUriWithOrg(orgslug, routePaths.org.discover())} /> : null}
   </Tile>
 }
 

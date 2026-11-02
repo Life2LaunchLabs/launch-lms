@@ -30,7 +30,7 @@ import { WelcomeDialog } from './WelcomeDialog'
 import { LOOKS, applyLook, storedLook, type LookId } from '@components/Looks/looks'
 import { EmptyAdd, SPOT_RING, SpotTip, initials } from './parts'
 import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
-import { spotsFor, stageOf, type Quest } from './progress'
+import { questPath, spotPaths, spotsFor, stageOf, type Quest } from './progress'
 import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 
 // The new portfolio front page (V5 prototype): a stacked header, the highlights band, then the sections as
@@ -109,17 +109,21 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const stage = editing ? stageOf(shell) : null
   const past = (n: number) => !stage || stage.kind === 'mastered' || stage.quest.n > n
   const spots = stage && questOpen ? spotsFor(stage) : {}
+  const spotLinks = stage && questOpen ? spotPaths(stage, shell) : {}
   const page = (path: string) => router.push(getUriWithOrg(orgslug, path))
 
+  // A quest item opens where it's done; a dialog opened for one carries its "!" on the button that finishes it.
+  const [mark, setMark] = useState<string>()
   function questItem(key: string) {
+    const item = stage && stage.kind !== 'mastered' ? stage.quest.items.find((one) => one.key === key) : undefined
+    if (!item) return
+    const path = questPath(item, shell)
+    if (path) return page(path)
+    setMark(item.label)
     const go: Record<string, () => void> = {
       name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ kind: 'skills' }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-      now: () => page('/portfolio/timeline?experience=work_career'), xp3: () => page('/portfolio/timeline?experience=work_career'),
-      school: () => page('/portfolio/timeline?experience=education'), stories: () => page('/portfolio/timeline'),
-      made: () => page('/portfolio/projects?newProject=1'), work: () => page('/portfolio/projects'),
-      vouched: () => page('/portfolio/people'), proven: () => page('/portfolio/badges?add=credential'), headed: () => page('/life'),
-      look: () => setLookOpen(true),
+      proven: () => page(routePaths.org.discover()), look: () => setLookOpen(true),
       like: () => document.querySelector('[aria-label="What I’m like"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
     }
     go[key]?.()
@@ -224,15 +228,15 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       </section> : editing ? <div className="mt-[22px]"><EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} /></div> : null}
 
       <div className={`mt-4 grid gap-4 ${layout.sections === 'grid' ? 'md:grid-cols-2 md:[&>[data-wide]]:col-span-2' : ''}`} data-layout={layout.sections}>
-        <PortfolioTiles spots={spots} shell={shell} setShell={setShell} owner={editing} orgslug={orgslug} username={username} token={token} onEditLinks={() => setLinksOpen(true)} onEditResult={(result) => setResultEditor({ result })} />
+        <PortfolioTiles spots={spots} spotLinks={spotLinks} shell={shell} setShell={setShell} owner={editing} orgslug={orgslug} username={username} token={token} onEditLinks={() => setLinksOpen(true)} onEditResult={(result) => setResultEditor({ result })} />
       </div>
     </div>
     {editing ? <>
-      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
+      <ProfileDialog mark={mark} open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
       <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
       <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} onChange={(next) => void changeLayout(next)} spot={spots.settings} />
       <WelcomeDialog open={welcomeOpen} onOpenChange={setWelcomeOpen} onStart={() => { setWelcomeOpen(false); setQuestOpen(true); setQuestList(true) }} />
-      <LinksDialog open={linksOpen} onOpenChange={setLinksOpen} shell={shell} setShell={setShell} token={token} />
+      <LinksDialog mark={mark} open={linksOpen} onOpenChange={(open) => { setLinksOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} />
       <HighlightsDialog open={highlightsOpen} onOpenChange={setHighlightsOpen} shell={shell} setShell={setShell} token={token} />
       <MediaPickerDialog open={avatarOpen} onOpenChange={setAvatarOpen} title="Your photo" description="Upload a photo or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />
     </> : null}

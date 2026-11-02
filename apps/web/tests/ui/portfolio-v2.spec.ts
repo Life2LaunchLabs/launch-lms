@@ -78,17 +78,18 @@ test('portfolio.v2: section pages have one-row headers and row controls', async 
     await expect(page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first()).not.toHaveAttribute('aria-pressed', before || '')
     await page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first().click()
   }
+  // Older links that opened an editor land on the new experience page, made in place.
   await page.goto('/portfolio/timeline?experience=education')
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page).toHaveURL(/\/portfolio\/timeline\/new\?type=education/)
+  await expect(page.getByLabel('Type')).toHaveValue('education')
+  await expect(page.getByRole('button', { name: 'Add to my portfolio' })).toBeVisible()
 })
 
 test('portfolio.v2: editors for credentials, people, documents and results open from their pages', async ({ page }) => {
   test.setTimeout(90_000)
-  await page.goto('/portfolio/badges?add=credential')
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await page.getByRole('radio', { name: /Test score/ }).click()
-  await expect(page.getByRole('switch', { name: 'Show to visitors' })).toBeDisabled()
-  await page.keyboard.press('Escape')
+  // Cards and certificates wait until they can be checked; badges are what count for now.
+  await page.goto('/portfolio/badges')
+  await expect(page.getByText('Coming soon: cards and certificates')).toBeVisible()
 
   await page.goto('/portfolio/people')
   await expect(page.getByRole('heading', { level: 1, name: 'My people' })).toBeVisible()

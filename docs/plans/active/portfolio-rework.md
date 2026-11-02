@@ -47,6 +47,13 @@ opens the "Build your brand" sheet (`v2/WelcomeDialog.tsx`, once per browser). T
 Sunset; `components/Looks/looks.ts`, `styles/looks.css`) are the learner's theme for the whole app and the one visitors
 see their portfolio in; picking one is a sharing quest step (`layout.look` in `theme_settings`).
 
+Experiences and projects are made and edited on their own pages (`v2/ExperiencePage.tsx`, `v2/ProjectPage.tsx`,
+`v2/inplace.tsx`): a new one starts as a blank page that reads like the finished thing, optional parts wait as dashed
+chips, and one bar saves. The experience list is one list with a chip per type in use. Items without a photo get a
+picture for their kind (`v2/covers.tsx`). A quest item opens where it is done and carries its gold "!" onto the button
+that finishes it (`questPath` in `v2/progress.ts`, `?mark=`). Credentials count only what can be backed up: badges
+earned here. Uploaded cards and certificates show as "coming soon" until they can be checked.
+
 Held for the plans redesign: decision options in "Where I'm headed", the EPP view and sign-off, the course
 planner, and importing CIS reflections, saved items and plan history into plans.
 

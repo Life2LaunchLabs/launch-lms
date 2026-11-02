@@ -9,6 +9,9 @@ import { PortfolioPeoplePage } from './PortfolioPeoplePage'
 import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
 import { PortfolioImportPage } from './PortfolioImportPage'
 import { ResumeBuilder } from './ResumeBuilder'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
+import { ExperiencePage } from './ExperiencePage'
+import { ProjectPage } from './ProjectPage'
 
 // The portfolio's server pages.
 
@@ -44,4 +47,24 @@ export async function ownerRecordsPage(orgslug: string, page: 'people' | 'docume
   if (page === 'import') return <PortfolioImportPage orgslug={orgslug} />
   const shell = await getMyPortfolio(token)
   return page === 'people' ? <PortfolioPeoplePage initialShell={shell} orgslug={orgslug} /> : <PortfolioDocumentsPage initialShell={shell} orgslug={orgslug} />
+}
+
+/**
+ * One experience or project on its own page, where the owner makes and edits it in place. No uuid is a new
+ * one; `type` picks the experience type, `experience` the experience a new project came from, and `mark` is
+ * the quest step that sent them, shown on the button that finishes it.
+ */
+export async function ownerItemPage(orgslug: string, kind: 'experience' | 'project', uuid?: string, search: Record<string, string | string[] | undefined> = {}) {
+  const token = await getServerAccessToken()
+  if (!token) redirect(getUriWithOrg(orgslug, '/'))
+  const shell = await getMyPortfolio(token)
+  const one = (key: string) => { const value = search[key]; return typeof value === 'string' ? value : undefined }
+  if (kind === 'experience') {
+    const entry = uuid ? shell.timeline.find((item: any) => item.timeline_uuid === uuid) : undefined
+    if (uuid && !entry) notFound()
+    return <><PageTitleRegistration section="Experience" detail={entry?.title || 'New experience'} /><ExperiencePage key={uuid || 'new'} entry={entry} projects={shell.projects || []} orgslug={orgslug} initialType={one('type')} mark={one('mark')} /></>
+  }
+  const project = uuid ? shell.projects.find((item: any) => item.project_uuid === uuid) : undefined
+  if (uuid && !project) notFound()
+  return <><PageTitleRegistration section="Projects" detail={project?.title || 'New project'} /><ProjectPage key={uuid || 'new'} project={project} timeline={shell.timeline || []} orgslug={orgslug} experience={one('experience')} mark={one('mark')} /></>
 }
