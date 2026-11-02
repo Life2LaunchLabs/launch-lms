@@ -25,7 +25,7 @@ def _sheet(workbook, title, header, *rows):
         sheet.append(row)
 
 
-def _cis_zip() -> bytes:
+def _cis_zip(windows: bool = False) -> bytes:
     workbook = Workbook()
     workbook.remove(workbook.active)
     _sheet(workbook, "Profile", ["Last name", "First name", "Gender", "Race"], ["Rivera", "Maya", "F", "Prefer not to say"])
@@ -44,9 +44,13 @@ def _cis_zip() -> bytes:
     workbook.save(book)
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as bundle:
-        bundle.writestr("Oregon CIS data - Maya Rivera.xlsx", book.getvalue())
-        bundle.writestr("PEP Report.pdf", b"%PDF-1.4 pep")
-        bundle.writestr("files/My Files/notes.txt", b"hello")
+        folder = "Oregon CIS data - Maya Rivera\\" if windows else ""
+        bundle.writestr(f"{folder}Oregon CIS data - Maya Rivera.xlsx", book.getvalue())
+        bundle.writestr(f"{folder}PEP Report.pdf", b"%PDF-1.4 pep")
+        if windows:
+            # Zips made on Windows use backslashes and list their folders as entries.
+            bundle.writestr(f"{folder}files\\", b"")
+        bundle.writestr(f"{folder}files\\My Files\\notes.txt" if windows else "files/My Files/notes.txt", b"hello")
     return archive.getvalue()
 
 
@@ -152,6 +156,14 @@ async def test_linkedin_brings_the_headline_and_about_and_keeps_year_only_dates(
         assert (skill.name, skill.summary) == ("Spreadsheets", "")
         again = await imports.preview_import("linkedin", _upload(archive.getvalue(), "linkedin.zip"), actor, db)
         assert all(item["already"] for item in again["items"])
+
+
+def test_a_cis_zip_made_on_windows_reads_its_backslash_paths():
+    export = read_export("cis", _cis_zip(windows=True), "cis.zip")
+    documents = [item for item in export["items"] if item["kind"] == "document"]
+    assert [item["title"] for item in documents] == ["Oregon CIS Education Plan and Profile"]
+    assert documents[0]["record"]["filename"] == "PEP Report.pdf"
+    assert export["skipped"] == ["notes.txt"]
 
 
 async def test_imports_refuse_files_that_are_not_exports():

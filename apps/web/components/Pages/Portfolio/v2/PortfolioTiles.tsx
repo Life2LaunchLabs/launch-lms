@@ -82,7 +82,7 @@ export function CredentialFace({ credential }: { credential: Credential }) {
 
 function CredentialsTile({ spots, shell, owner, orgslug, username }: TileProps) {
   const badges: PortfolioBadge[] = shell.badges?.featured?.length ? shell.badges.featured : shell.badges?.earned || []
-  const credentials = featuredFirst((shell.credentials || []).filter((item) => item.kind !== 'test_score'))
+  const credentials = featuredFirst(shell.credentials || [])
   if (!owner && !badges.length && !credentials.length) return null
   const items = [...credentials.filter((item) => item.featured), ...badges.map((badge) => ({ badge })), ...credentials.filter((item) => !item.featured)].slice(0, 6)
   const total = (shell.badges?.earned?.length || 0) + credentials.length
