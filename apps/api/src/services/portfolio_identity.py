@@ -21,6 +21,15 @@ def shown_name(user) -> str:
     return (getattr(user, "preferred_name", "") or "").strip() or legal_name(user) or user.username
 
 
+def adopt_display_name(db_session, user, name: str) -> None:
+    """The portfolio shows the identity name, so a display name picked in onboarding is kept as the
+    name the learner goes by. Their legal first or full name adds nothing and is left out."""
+    if not name or name in (user.first_name, legal_name(user)):
+        return
+    user.preferred_name = name[:80]
+    db_session.add(user)
+
+
 def identity_dto(user) -> dict:
     return {
         "first_name": user.first_name or "",

@@ -9,20 +9,10 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 from src.db.media import MediaAsset
-from src.db.portfolio import (
-    Portfolio,
-    PortfolioContentStatus,
-    PortfolioLink,
-    PortfolioSection,
-    PortfolioVisibility,
-    ProfileTrait,
-    ProjectItem,
-    ProjectItemBlock,
-    TimelineEntry,
-    TimelineProjectLink,
-)
+from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioLink, PortfolioSection, PortfolioVisibility, ProfileTrait
+from src.db.portfolio import ProjectItem, ProjectItemBlock, TimelineEntry, TimelineProjectLink
 from src.db.users import User
-from src.services.portfolio_identity import legal_name
+from src.services.portfolio_identity import adopt_display_name
 
 
 class PortfolioActionError(ValueError):
@@ -189,15 +179,6 @@ def _portfolio(db: Session, user: User, now: str) -> Portfolio:
     return portfolio
 
 
-def _goes_by(db: Session, user: User, name: str) -> None:
-    """The portfolio shows the learner's identity name, so a display name picked in onboarding is
-    kept as the name they go by. Their legal first or full name adds nothing and is left out."""
-    if not name or name in (user.first_name, legal_name(user)):
-        return
-    user.preferred_name = name[:80]
-    db.add(user)
-
-
 def _start_plans(db: Session, user: User, template_uuids: list) -> list[str]:
     """Join up to three picked plans from Discover, each with the organization offering it (not committed)."""
     from fastapi import HTTPException
@@ -241,7 +222,7 @@ def apply_portfolio_outcomes(
             for key, value in _mapped(action, local, PORTFOLIO_FIELDS).items():
                 setattr(portfolio, key, str(value or "").strip())
                 if key == "display_name":
-                    _goes_by(db, user, str(value or "").strip())
+                    adopt_display_name(db, user, str(value or "").strip())
         elif kind == "start_plans":
             receipts[action_id] = {"type": kind, "template_uuids": _start_plans(db, user, _resolve(action.get("template_uuids"), local) or [])}
         elif kind == "create_project_item":
