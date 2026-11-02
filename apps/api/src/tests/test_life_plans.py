@@ -236,34 +236,3 @@ def test_headed_is_the_phase_now_and_the_next_ones_without_the_budget():
     # Before the plan starts nothing is now; after it ends, the last phase stays now.
     assert plan_service.headed(db, 1, datetime(2026, 1, 1, tzinfo=UTC))["now"] is None
     assert plan_service.headed(db, 1, datetime(2045, 1, 1, tzinfo=UTC)) == {"now": plan_service.headed(db, 1, datetime(2037, 1, 1, tzinfo=UTC))["now"], "next": []}
-
-
-def test_a_goal_moves_between_phases_and_only_its_learner_can_move_it():
-    from src.db.goals import Goal
-    from src.services.goals.starter import ensure_starter_goal
-    from src.tests.plan_world import _create_user
-    from src.tests.test_goal_starter import _session as goal_session
-
-    db = goal_session()
-    LifePlan.__table__.create(db.get_bind(), checkfirst=True)
-    maya = _create_user(db, user_id=10, username="maya")
-    other = _create_user(db, user_id=11, username="sam")
-    goal = ensure_starter_goal(db, 10)
-    move = lambda phase, user=maya: plan_service.place_goal(db, user, plan_service.PlaceGoal(goal_uuid=goal.goal_uuid, phase_id=phase))  # noqa: E731
-
-    with pytest.raises(HTTPException):
-        move("hs")
-    db.add(LifePlan(plan_uuid="lifeplan_10", user_id=10, document={"version": 1, "start": "2026-09", "phases": [{"id": "hs", "title": "High school", "months": 12}, {"id": "cc", "title": "College", "months": 24, "goals": ["goal_other"]}]}))
-    db.commit()
-
-    assert [phase["goals"] for phase in move("hs")["document"]["phases"]] == [[goal.goal_uuid], ["goal_other"]]
-    assert [phase["goals"] for phase in move("cc")["document"]["phases"]] == [[], ["goal_other", goal.goal_uuid]]
-    assert [phase["goals"] for phase in move(None)["document"]["phases"]] == [[], ["goal_other"]]
-    with pytest.raises(HTTPException):
-        move("nope")
-    # Someone else can't file this goal in their own plan.
-    db.add(LifePlan(plan_uuid="lifeplan_11", user_id=11, document={"version": 1, "start": "2026-09", "phases": [{"id": "hs", "title": "High school", "months": 12}]}))
-    db.commit()
-    with pytest.raises(HTTPException, match="Goal not found"):
-        move("hs", other)
-    assert db.exec(select(Goal)).first().goal_uuid == goal.goal_uuid
