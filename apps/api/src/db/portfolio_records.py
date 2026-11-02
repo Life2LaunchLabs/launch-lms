@@ -116,7 +116,8 @@ class PortfolioResult(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     result_uuid: str = Field(index=True, unique=True)
     portfolio_id: int = Field(sa_column=_portfolio_fk())
-    # "interests" (RIASEC), "strengths", "values", "skills" or "other".
+    # "interests" (RIASEC), "personality", "strengths", "values", "skills" or "other". data.template names the
+    # assessment it follows (riasec, sixteen, bigfive, enneagram, clifton); see the web resultTemplates.ts.
     kind: str = Field(sa_column=Column(String, nullable=False))
     name: str
     # The one line shown on the portfolio, like "Artistic · Social · Investigative".

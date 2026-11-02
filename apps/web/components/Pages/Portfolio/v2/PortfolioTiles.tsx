@@ -14,6 +14,8 @@ import { EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
 import { HeadedTile } from './HeadedTile'
 import { RESULT_KINDS } from './ResultDialog'
+import { ResultPicture } from './ResultView'
+import { templateOf } from './resultTemplates'
 import type { Spot } from './progress'
 
 // The front page sections, in the prototype's order.
@@ -105,11 +107,15 @@ function ResultsTile({ spots, shell, owner, onEditResult }: TileProps) {
       {owner && onEditResult ? <button type="button" onClick={() => onEditResult(item)} className="w-full rounded-xl text-left hover:bg-muted/60"><ResultLine result={item} /></button> : <ResultLine result={item} />}
     </li>)}</ul> : null}
     {owner && onEditResult ? items.length ? <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
-      : <EmptyAdd title="Add what you’ve learned about yourself" hint="Your interest type, strengths or work values" onClick={() => onEditResult()} /> : null}
+      : <EmptyAdd title="Add what you’ve learned about yourself" hint="Your RIASEC interests, a personality type or your top strengths" onClick={() => onEditResult()} /> : null}
   </Tile>
 }
 
 function ResultLine({ result }: { result: PortfolioResult }) {
+  // A result from a known assessment shows its picture beside its line: the RIASEC web, the type, the top five.
+  // A type already shows its letters, so its line is the test's name instead.
+  const same = result.summary === String(result.data?.type ?? '')
+  if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? 'My type' : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
   // A result with no line of its own (an imported skill, say) shows its kind above its name, not its name twice.
   const bare = !result.summary?.trim() || result.summary.trim().toLowerCase() === result.name.trim().toLowerCase()
   const label = bare ? RESULT_KINDS.find((kind) => kind.value === result.kind)?.label || '' : result.name

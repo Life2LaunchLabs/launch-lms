@@ -211,3 +211,14 @@ def test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices(
         assert len(service.get_owner_shell(actor, db)["results"]) == 2
         with pytest.raises(HTTPException):
             results.create_result(ResultWrite(kind="horoscope", name="Leo"), actor, db)
+
+
+def test_a_result_from_a_template_keeps_its_report_from_visitors():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        data = {"template": "sixteen", "type": "INFJ", "pdf": {"asset_uuid": "a1", "url": "report.pdf"}}
+        mine = results.create_result(ResultWrite(kind="personality", name="16 personality types", summary="INFJ", data=data), actor, db)
+
+        assert mine["data"]["pdf"]["url"] == "report.pdf"
+        public = service.get_public_shell(1, "maya", db)["results"]
+        assert public[0]["data"] == {"template": "sixteen", "type": "INFJ"}

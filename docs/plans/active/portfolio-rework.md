@@ -54,6 +54,11 @@ picture for their kind (`v2/covers.tsx`). A quest item opens where it is done an
 that finishes it (`questPath` in `v2/progress.ts`, `?mark=`). Credentials count only what can be backed up: badges
 earned here. Uploaded cards and certificates show as "coming soon" until they can be checked.
 
+"What I'm like" results follow templates for the common assessments (`v2/resultTemplates.ts`: RIASEC sliders,
+16 types, CliftonStrengths top 5, Big Five, Enneagram), each linking to where to take it; `data.template` names it
+and the tile draws it (`v2/ResultView.tsx`, a RIASEC web). The learner enters their own result (the owner's call on
+2 November 2026) and can attach the report PDF, which visitors never get. A CIS import arrives as a RIASEC result.
+
 Held for the plans redesign: decision options in "Where I'm headed", the EPP view and sign-off, the course
 planner, and importing CIS reflections, saved items and plan history into plans.
 
