@@ -69,6 +69,7 @@ from src.routers.orgs import join_requests as org_join_requests
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.superadmin import router as superadmin_router
 from src.routers.platform_keys import router as platform_keys_router
+from src.routers.google_oauth import router as google_oauth_router
 from src.routers.coach_admin import router as coach_admin_router
 from src.routers.coach_reports import router as coach_reports_router
 from src.routers.utils import router as utils_router
@@ -140,6 +141,7 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(google_oauth_router, prefix="/auth/google", tags=["auth"])
 v1_router.include_router(auth_handoff.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(
     operations_surface.router,

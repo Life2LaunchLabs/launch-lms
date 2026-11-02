@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from config.config import get_launchlms_config
+from src.services.auth import google_oauth
 from src.services.auth.usernames import generate_username as _generate_onboarding_username, picked_username as _picked_username
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
@@ -375,7 +375,7 @@ async def third_party_login(
     current_user: AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    if not get_launchlms_config().general_config.auth_oauth_enabled:
+    if not google_oauth.enabled():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="OAuth login is disabled",
