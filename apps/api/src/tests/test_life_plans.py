@@ -129,6 +129,31 @@ def test_all_data_file_keeps_only_cross_industry_all_ownership_rows():
         assert [(f.place, f.value) for f in facts] == [("us", 12)]
 
 
+def test_workbook_with_a_malformed_document_date_still_reads():
+    # HUD's FY2026 FMR workbook says "2026- 2-19T18:17:31Z" in docProps/core.xml.
+    import io
+    import re
+    import zipfile
+
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["stusps", "countyname", "fmr_0", "fmr_1", "fmr_2", "fmr_3", "fmr_4"])
+    ws.append(["OR", "Lane County", 100, 110, 120, 130, 140])
+    good = io.BytesIO()
+    wb.save(good)
+    bad = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(good.getvalue())) as zin, zipfile.ZipFile(bad, "w") as zout:
+        for item in zin.infolist():
+            body = zin.read(item.filename)
+            if item.filename == "docProps/core.xml":
+                body = re.sub(rb"(<dcterms:created[^>]*>)[^<]*", rb"\g<1>2026- 2-19T18:17:31Z", body)
+            zout.writestr(item, body)
+    rows = list(importers.read_table(bad.getvalue(), "FY26_FMRs_revised.xlsx"))
+    assert rows == [{"stusps": "OR", "countyname": "Lane County", "fmr_0": "100", "fmr_1": "110", "fmr_2": "120", "fmr_3": "130", "fmr_4": "140"}]
+
+
 def test_reimporting_replaces_a_sources_facts():
     with _session() as db:
         _loaded(db)

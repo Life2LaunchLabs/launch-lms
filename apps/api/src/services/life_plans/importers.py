@@ -45,7 +45,13 @@ def read_table(data: bytes, filename: str) -> Iterator[dict[str, str]]:
     if name.endswith(".xlsx"):
         from openpyxl import load_workbook
 
-        wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        try:
+            wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        except ValueError:
+            # Some publisher files (HUD's FY2026 FMRs) carry a malformed document
+            # date in docProps/core.xml that openpyxl refuses. Those properties don't
+            # matter here, so drop the dates and read the sheet as published.
+            wb = load_workbook(io.BytesIO(_without_core_dates(data)), read_only=True, data_only=True)
         ws = wb.worksheets[0]
         it = ws.iter_rows(values_only=True)
         header = None
@@ -61,6 +67,20 @@ def read_table(data: bytes, filename: str) -> Iterator[dict[str, str]]:
             yield dict(zip(header, cells))
         return
     raise ImportProblem("Upload the publisher's .xlsx or .csv file.")
+
+
+def _without_core_dates(data: bytes) -> bytes:
+    """The same workbook with the created/modified dates removed from its core properties."""
+    import zipfile
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as zin, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            body = zin.read(item.filename)
+            if item.filename == "docProps/core.xml":
+                body = re.sub(rb"<dcterms:(created|modified)\b[^>]*>.*?</dcterms:\1>", b"", body, flags=re.S)
+            zout.writestr(item, body)
+    return out.getvalue()
 
 
 def _num(text: str | None) -> float | None:
