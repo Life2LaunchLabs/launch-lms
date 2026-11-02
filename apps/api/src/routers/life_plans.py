@@ -39,6 +39,12 @@ def api_save_plan(body: plan_service.SavePlan, db: Session = Depends(get_db_sess
     return {"plan": plan_service.save_plan(db, user, body)}
 
 
+@router.put("/plan/goals")
+def api_place_goal(body: plan_service.PlaceGoal, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Move one of the learner's goals into a phase, without sending the whole plan."""
+    return {"plan": plan_service.place_goal(db, user, body)}
+
+
 @router.delete("/plan", status_code=204)
 def api_delete_plan(db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     plan_service.delete_plan(db, user)

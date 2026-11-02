@@ -126,8 +126,8 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
  * The learner's goals as tabs on the overview. Each tab shares its identity with the
  * goal's header and spine, so opening one grows the tab into the header.
  */
-export function GoalTabs({ goals, getGoalColor, choose, onIntent, children }: StripProps & { children?: React.ReactNode }) {
-  return <motion.section layoutScroll aria-label="Your goals" className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+export function GoalTabs({ goals, getGoalColor, choose, onIntent, children, label = 'Your goals' }: StripProps & { children?: React.ReactNode; label?: string }) {
+  return <motion.section layoutScroll aria-label={label} className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
     {goals.map((goal) => <GoalTab key={goal.goal_uuid} goal={goal} color={getGoalColor(goal.goal_uuid)} onChoose={() => choose(goal)} onIntent={onIntent ? () => onIntent(goal) : undefined} />)}
     {children}
   </motion.section>

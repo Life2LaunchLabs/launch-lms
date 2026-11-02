@@ -4,71 +4,90 @@ import React from 'react'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { ChevronDown, Compass, Plus } from 'lucide-react'
+import { ChevronDown, Compass, Map, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Reveal, Skeleton } from '@components/ui/skeleton'
 import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
+import { GoalTabs } from '@components/Goals/learner/GoalHeader'
+import { groupByPhase, type PhaseGroup } from '@components/Goals/learner/phases'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
 import { isGoalsKey } from '@services/goals/goals'
-import { homeUrl, type GoalsHomePayload } from '@services/goals/home'
+import { homeUrl } from '@services/goals/home'
+import type { LifeDoc } from '@services/life/life'
 import { goalSharingApi, myInvitationsKey, type ReceivedInvitation } from '@services/goals/sharing'
 import type { GoalSummary } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { HomeStepListSkeleton } from './HomeStepList'
-import { Week } from './WeekSection'
 
-/** The SWR key of the learner's This week payload. */
+/** The SWR key of the learner's home payload (finished goals waiting to greet them). */
 export const homeKey = () => homeUrl()
 
 type GoalsHomeProps = {
   orgslug: string
   token?: string
-  /** The learner's active goals; the overview's tabs show them above this. */
+  /** The learner's active goals, shown in the phases of their life plan. */
   goals: GoalSummary[]
   finished: GoalSummary[]
+  /** The learner's life plan; without one, goals sit in one group. */
+  life?: LifeDoc | null
   // eslint-disable-next-line no-unused-vars
   choose: (goal: GoalSummary) => void
   // eslint-disable-next-line no-unused-vars
+  onIntent?: (goal: GoalSummary) => void
+  // eslint-disable-next-line no-unused-vars
   getGoalColor: (goalUuid?: string) => string
-  onCreate: () => void
+  // eslint-disable-next-line no-unused-vars
+  onCreate: (phaseId?: string | null) => void
   creating: boolean
   finishedError?: boolean
   retryFinished?: () => void
 }
 
-/** The overview below the goal tabs: invitations, this week's steps, what comes later, then finished goals. */
-export default function GoalsHome({ orgslug, token, goals, finished, choose, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
-  const { data, error, mutate: retry } = useSWR<GoalsHomePayload>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
-  const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+const WHEN = { now: 'Now', next: 'Next', later: 'Later', done: 'Before' } as const
+const monthYear = (value?: string) => {
+  if (!value) return ''
+  const [year, month] = value.split('-').map(Number)
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+}
 
-  if (error) return <div className="rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
-  // With nothing active, finished goals stay in reach under the empty state, opened.
-  if (data && !data.goals.length && !goals.length) return <div className="flex flex-col gap-10">
+/** The overview: invitations, then each phase of the learner's life with its goals, then finished goals. */
+export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
+  const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
+  // With nothing active and no plan, finished goals stay in reach under the empty state, opened.
+  if (!open.length && !life?.phases?.length) return <div className="flex flex-col gap-10">
     <Invitations invitations={invitations} token={token} />
-    <EmptyHome orgslug={orgslug} onCreate={onCreate} creating={creating} />
+    <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open />
   </div>
 
+  const groups = groupByPhase(life, open)
   return <div className="flex flex-col gap-10">
     <Invitations invitations={invitations} token={token} />
-    <Reveal ready={Boolean(data)} fallback={<WeekSkeleton />}>
-      {data ? <Week data={data} orgslug={orgslug} token={token} getGoalColor={getGoalColor} /> : null}
-    </Reveal>
+    {groups.map((group) => <PhaseSection key={group.id || 'all'} group={group} orgslug={orgslug} choose={choose} onIntent={onIntent} getGoalColor={getGoalColor} onCreate={() => onCreate(group.id)} creating={creating} />)}
+    {!life?.phases?.length ? <Link href={getUriWithOrg(orgslug, '/life')} className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-border p-4 hover:border-foreground/30">
+      <Map size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span className="min-w-0"><b className="block font-bold">Map out the phases of your life</b><small className="block text-sm text-muted-foreground">Then each goal sits in the phase it belongs to.</small></span>
+    </Link> : null}
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
   </div>
 }
 
-/** The overview's shape while the week loads: the heading, pace, bar and a few steps. */
-export function WeekSkeleton() {
-  return <div className="flex flex-col gap-4">
-    <div className="flex items-end justify-between gap-3">
-      <div className="flex flex-col gap-2"><Skeleton className="h-3 w-24 rounded-md" /><Skeleton className="h-7 w-36 rounded-lg" /></div>
-      <Skeleton className="h-10 w-20 rounded-xl" />
+// eslint-disable-next-line no-unused-vars
+function PhaseSection({ group, orgslug, choose, onIntent, getGoalColor, onCreate, creating }: { group: PhaseGroup<GoalSummary>; orgslug: string; choose: (goal: GoalSummary) => void; onIntent?: (goal: GoalSummary) => void; getGoalColor: (goalUuid?: string) => string; onCreate: () => void; creating: boolean }) {
+  const title = group.when ? `${WHEN[group.when]}: ${group.title}` : group.title
+  return <section aria-label={title} className="flex flex-col gap-3">
+    <div className="flex flex-wrap items-baseline gap-x-3">
+      {group.when ? <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{WHEN[group.when]}</span> : null}
+      <h2 className="text-xl font-extrabold tracking-tight">{group.title}</h2>
+      {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">from {monthYear(group.starts)}</span> : null}
     </div>
-    <Skeleton className="h-3 rounded-full" />
-    <HomeStepListSkeleton count={4} />
-  </div>
+    <GoalTabs label={`Goals for ${group.title}`} goals={group.goals} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent}>
+      <div className="flex w-[78%] shrink-0 snap-start items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 sm:w-[46%] md:w-auto">
+        <Button type="button" variant="surface" size="sm" className="flex-1" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? 'Starting…' : 'Create your own'}</Button>
+        <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
+      </div>
+    </GoalTabs>
+  </section>
 }
 
 /** Invitations to work on someone's goal, and goals an organization handed the learner, answered here. */
