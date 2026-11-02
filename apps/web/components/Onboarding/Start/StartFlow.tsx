@@ -62,7 +62,9 @@ const ROLE_ICONS: Record<StartRole, React.ReactNode> = {
 const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i
 const order = (state: StartState): Step[] => ['t0', 't1', 't2', 't3', 'role', 'reqs', 'plans', 'account', 'you', 'tier', ...(state.trial ? ['staff', 'groups'] as Step[] : ['learners'] as Step[]), 'done']
 const previewPage: Partial<Record<Step, PreviewPage>> = { reqs: 'requirements', plans: 'plans', account: 'plans', you: 'invite', learners: 'people', staff: 'people', groups: 'groups' }
-const usernameFrom = (email: string) => `${email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user'}${Math.floor(1000 + Math.random() * 9000)}`
+// The username is the public portfolio link (/user/<username>), so it never comes from the email:
+// many learners are minors, and an email often holds a full name or a school ID.
+const newUsername = () => `learner${Array.from(crypto.getRandomValues(new Uint32Array(2))).map((n) => n.toString(36)).join('').slice(0, 10)}`
 
 /**
  * Getting started: a short tour, then the role, an optional requirement framework, plans (ranked by how
@@ -386,7 +388,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     setError('')
     try {
       if (!existing) {
-        const response = await signup({ username: usernameFrom(email), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
+        const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
         if (response.status !== 200) {
           const body = await response.json().catch(() => null)
           throw new Error(typeof body?.detail === 'string' ? body.detail : body?.detail?.message || 'Could not create the account.')

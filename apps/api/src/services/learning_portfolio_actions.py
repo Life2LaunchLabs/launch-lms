@@ -13,6 +13,7 @@ from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioLink, P
 from src.db.portfolio import ProjectItem, ProjectItemBlock, TimelineEntry, TimelineProjectLink
 from src.db.users import User
 from src.services.portfolio_identity import adopt_display_name
+from src.services.portfolio_results import sync_trait_result
 
 
 class PortfolioActionError(ValueError):
@@ -427,6 +428,7 @@ def apply_portfolio_outcomes(
                             update_date=now,
                         )
                     )
+            sync_trait_result(db, portfolio, trait_type)
         elif kind == "set_portfolio_links":
             links = _resolve(action.get("links"), local) or []
             if not isinstance(links, list):

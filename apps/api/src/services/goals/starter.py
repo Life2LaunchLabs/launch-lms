@@ -47,6 +47,31 @@ def starter_data() -> dict:
     return json.loads(DATA_PATH.read_text(encoding="utf-8"))
 
 
+@lru_cache(maxsize=1)
+def _option_texts() -> dict[str, str]:
+    """Every choice option in the starter activities, by id."""
+    found: dict[str, str] = {}
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            if isinstance(node.get("options"), list):
+                for option in node["options"]:
+                    if isinstance(option, dict) and option.get("id") and option.get("text"):
+                        found.setdefault(str(option["id"]), str(option["text"]))
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(starter_data())
+    return found
+
+
+def option_text(option_id: str) -> str:
+    return _option_texts().get(option_id, "")
+
+
 def _now() -> str:
     return datetime.now().isoformat()
 

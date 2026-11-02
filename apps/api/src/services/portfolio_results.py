@@ -104,3 +104,35 @@ def record_result(current_user: PublicUser, payload: ResultWrite, source: str, s
         item = PortfolioResult(result_uuid=f"res_{uuid4().hex}", portfolio_id=portfolio.id or 0, kind=payload.kind or "other", name="", source=source, source_reference=source_reference)
     _apply(item, payload)
     return _commit(item, portfolio, db_session)
+
+
+TRAIT_RESULTS = {"strength": ("strengths", "Strengths"), "value": ("values", "Values")}
+
+
+def _trait_label(label: str) -> str:
+    """Activities keep a picked option's id ("curious"); show its text ("Curious")."""
+    from src.services.goals.starter import option_text
+
+    return option_text(label) or (label if label != label.lower() else label.capitalize())
+
+
+def sync_trait_result(db_session: Session, portfolio: Portfolio, trait_type: str) -> None:
+    """Mirror the learner's strengths or values into one "What I'm like" result, which the portfolio shows.
+    Doesn't commit; the caller owns the transaction. A result the learner hid stays hidden."""
+    if trait_type not in TRAIT_RESULTS:
+        return
+    from src.db.portfolio import ProfileTrait
+
+    db_session.flush()
+    kind, name = TRAIT_RESULTS[trait_type]
+    traits = db_session.exec(select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id, ProfileTrait.trait_type == trait_type).order_by(ProfileTrait.sort_order)).all()
+    summary = ", ".join(_trait_label(row.label) for row in traits)[:300]
+    item = db_session.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, PortfolioResult.source == "traits", PortfolioResult.source_reference == trait_type)).first()
+    if item is None:
+        if not summary:
+            return
+        item = PortfolioResult(result_uuid=f"res_{uuid4().hex}", portfolio_id=portfolio.id or 0, kind=kind, name=name, source="traits", source_reference=trait_type)
+    now = portfolio_service._now()
+    item.summary, item.update_date = summary, now
+    item.creation_date = item.creation_date or now
+    db_session.add(item)

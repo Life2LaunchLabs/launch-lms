@@ -73,6 +73,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const layout: PortfolioLayout = shell.layout || { header: 'left', sections: 'grid' }
   const centered = layout.header === 'center'
   const name = shell.identity?.shown_name || shell.portfolio.display_name || username || 'Your portfolio'
+  // Without a name the portfolio would be headed by the username, which can come from an email.
+  const hasName = Boolean(shell.identity?.preferred_name || shell.identity?.first_name || shell.portfolio.display_name)
   const avatarUrl = shell.portfolio.avatar_image ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image) : ''
   const now = (shell.timeline || []).find((entry) => entry.is_current)
   const meta = [now ? [now.title, now.organization].filter(Boolean).join(' at ') : '', shell.portfolio.location_label].filter(Boolean).join(' · ')
@@ -147,7 +149,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
           {editing ? <button type="button" onClick={() => setProfileOpen(true)} aria-label="Edit your profile" className="group relative inline-block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-foreground"><Avatar url={avatarUrl} name={name} /><span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><Pencil className="h-3.5 w-3.5" /></span></button> : <Avatar url={avatarUrl} name={name} />}
           <div className="min-w-0 pt-2.5">
             <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${centered ? 'justify-center' : ''}`}>
-              <h1 className="break-words text-[clamp(26px,3vw,34px)] font-extrabold leading-[1.1] tracking-[-0.02em]">{name}</h1>
+              <h1 className="break-words text-[clamp(26px,3vw,34px)] font-extrabold leading-[1.1] tracking-[-0.02em]">{editing && !hasName ? <button type="button" onClick={() => setProfileOpen(true)} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : name}</h1>
               {editing ? <span className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}
             </div>
             {shell.portfolio.headline ? <p className={`mt-1 line-clamp-2 max-w-[60ch] text-base ${centered ? 'mx-auto' : ''}`}>{shell.portfolio.headline}</p>
