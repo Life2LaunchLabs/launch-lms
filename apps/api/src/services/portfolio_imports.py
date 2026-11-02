@@ -4,6 +4,7 @@ Nothing stays synced. Every record keeps ``source`` and the item's key as ``sour
 same export again adds only what's new. The raw rows of the sheets plans own are kept with the import."""
 
 import io
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
@@ -104,9 +105,21 @@ def _contact(record: dict, key: str, source: str, portfolio, db_session: Session
         db_session.add(PortfolioQuote(quote_uuid=f"qte_{uuid4().hex}", portfolio_id=portfolio.id or 0, contact_id=item.id or 0, body=record["quote"][:2000], status=QuoteStatus.SELF_REPORTED.value, creation_date=now, update_date=now))
 
 
+SOCIAL_HOSTS = {"linkedin.com": "linkedin", "instagram.com": "instagram", "youtube.com": "youtube", "youtu.be": "youtube", "x.com": "x", "twitter.com": "x"}
+
+
+def _social_type(url: str) -> str:
+    host = (urlparse(url if "://" in url else f"https://{url}").hostname or "").lower().removeprefix("www.")
+    return next((kind for domain, kind in SOCIAL_HOSTS.items() if host == domain or host.endswith(f".{domain}")), "website")
+
+
 def _link(record: dict, portfolio, db_session: Session) -> None:
+    """An imported link becomes one of the portfolio's links (About), unless that kind is already taken."""
     now = portfolio_service._now()
-    db_session.add(PortfolioLink(link_uuid=f"lnk_{uuid4().hex}", portfolio_id=portfolio.id or 0, link_type="other", label=record["label"], url=record["url"], visibility=PortfolioVisibility.PUBLIC, safety_status="pending", creation_date=now, update_date=now))
+    kind = _social_type(record["url"])
+    taken = db_session.exec(select(PortfolioLink).where(PortfolioLink.portfolio_id == portfolio.id, PortfolioLink.link_type == "social", PortfolioLink.platform == kind)).first()
+    social = {"link_type": "social", "platform": kind} if taken is None else {"link_type": "other"}
+    db_session.add(PortfolioLink(link_uuid=f"lnk_{uuid4().hex}", portfolio_id=portfolio.id or 0, label=record["label"], url=record["url"], visibility=PortfolioVisibility.PUBLIC, safety_status="pending", creation_date=now, update_date=now, **social))
 
 
 async def _document(item: dict, files: dict, source: str, portfolio, current_user: PublicUser, db_session: Session) -> None:

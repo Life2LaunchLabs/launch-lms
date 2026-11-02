@@ -114,6 +114,7 @@ export const routePaths = {
       demo: () => '/admin/platform/demo',
       coach: () => '/admin/platform/coach',
       settings: () => '/admin/platform/settings',
+      estimates: () => '/admin/platform/estimates',
       news: () => '/admin/news',
       newsNewPost: () => '/admin/news/new-post',
       newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,

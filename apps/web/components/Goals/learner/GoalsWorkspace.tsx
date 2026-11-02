@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import useSWR, { preload, useSWRConfig } from 'swr'
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react'
-import { Compass, Plus } from 'lucide-react'
+import { Map } from 'lucide-react'
 import { useHub } from '@components/Hub/HubContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
@@ -20,11 +20,13 @@ import { GoalCoachBar, useCoachCatchUp } from '@components/Goals/coach/CoachNote
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
 import { goalsApi, goalsUrl, goalUrl } from '@services/goals/goals'
+import { lifeApi, lifeUrl } from '@services/life/life'
 import { can, goalSteps, type Goal, type GoalSummary } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
 import GoalPath from './GoalPath'
 import GoalHeaderActions from './GoalHeaderActions'
-import { GoalCarousel, GoalHeaderCard, GoalTabs, summaryHeader, type HeaderGoal } from './GoalHeader'
+import { GoalCarousel, GoalHeaderCard, summaryHeader, type HeaderGoal } from './GoalHeader'
+import { phaseOfGoal } from './phases'
 import { GoalPathSkeleton } from './GoalStepRow'
 import useGoalColors from './useGoalColors'
 import useStartGoal, { launchPath } from './useStartGoal'
@@ -73,7 +75,11 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const { data: detail, error: detailError, mutate: retryDetail, isValidating: detailValidating } = useSWR<Goal>(token && selectedUuid ? goalUrl(selectedUuid) : null, () => goalsApi.get(selectedUuid, token))
   // Finished goals that have not greeted their learner yet (shared with This week's data).
   const { data: home } = useSWR<{ celebrations?: string[] }>(token ? homeKey() : null, (url: string) => swrFetcher(url, token))
-  const goals = React.useMemo(() => all.filter((goal) => goal.status !== 'finished'), [all])
+  // The learner's life plan: goals sit in its phases.
+  const { data: lifePlan } = useSWR(token ? lifeUrl('/plan') : null, () => lifeApi.get(token))
+  const life = lifePlan?.plan?.document || null
+  // Launch Ready is retired: a learner's old starter goal no longer shows among their goals.
+  const goals = React.useMemo(() => all.filter((goal) => goal.status !== 'finished' && goal.source !== 'starter'), [all])
   const finished = React.useMemo(() => all.filter((goal) => goal.status === 'finished' && !isGroup(goal)), [all])
   const { getGoalColor, setGoalColor } = useGoalColors(all, viewerUserId)
   // Goals that open here (not group rows), in the order the strip shows them. A goal an
@@ -176,30 +182,24 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const celebrating = Boolean(goal && isSubject && home?.celebrations?.includes(goal.goal_uuid))
   const color = getGoalColor(selectedUuid)
 
-  // The strip over the body: goal tabs on the overview, the open goal's header among the others on a goal.
+  // The strip over an open goal: its header among the other goals of its phase.
   let strip: React.ReactNode = null
-  if (!selectedUuid && !listError) {
-    strip = isLoading
-      ? <div className="-mx-4 flex gap-3 overflow-hidden px-4 pt-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-3" aria-hidden="true">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-[70px] w-[78%] shrink-0 rounded-[18px] sm:w-[46%] md:w-auto" />)}</div>
-      : stripGoals.length ? <GoalTabs goals={stripGoals} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>
-        <div className="flex w-[78%] shrink-0 snap-start items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 sm:w-[46%] md:w-auto">
-          <Button type="button" variant="surface" size="sm" className="flex-1" onClick={() => void startGoal()} disabled={startingGoal}><Plus size={15} />{startingGoal ? 'Starting…' : 'Create your own'}</Button>
-          <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
-        </div>
-      </GoalTabs> : null
-  } else if (selectedUuid && !celebrating && !detailError && header) {
+  if (selectedUuid && !celebrating && !detailError && header) {
     const card = <div data-plan="" style={planVars(color)} className="h-full">
       <GoalHeaderCard goal={header} done={goal ? goal.progress.done : summary?.progress.done || 0} total={goal ? goal.progress.total : summary?.progress.total || 0} pending={!goal}
         actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} coachWorking={Boolean(coach.session)} onEndCoach={() => void coach.end()}
           onPlanWithCoach={coach.available && goal.ownership === 'personal' && can(goal, 'delete_plan') && can(goal, 'edit_structure') && !coach.session ? () => void coach.start() : undefined} /> : null} />
     </div>
-    strip = <GoalCarousel goals={stripGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
+    // The open goal among the other goals of its phase.
+    const phaseId = life ? phaseOfGoal(life, selectedUuid) : null
+    const phaseGoals = life ? stripGoals.filter((item) => phaseOfGoal(life, item.goal_uuid) === phaseId) : stripGoals
+    strip = <GoalCarousel goals={phaseGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
   } else if (selectedUuid && !detailError && !ready) {
     strip = <Skeleton className="h-52 rounded-3xl" />
   }
 
   let content: React.ReactNode
-  if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} choose={choose} getGoalColor={getGoalColor} onCreate={() => void startGoal()} creating={startingGoal} />
+  if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
   else if (detailError) content = failed('This goal could not load. It may no longer be available to you.', () => void retryDetail())
   else {
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
@@ -216,7 +216,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     <main className="pb-16">
       {selectedUuid
         ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin />
-        : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
+        : <div className="flex flex-wrap items-center justify-between gap-3 pb-4 pt-2"><h1 className="text-3xl font-extrabold tracking-tight">Overview</h1>
+          <Button variant="surface" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/life')}><Map size={15} />{life?.phases?.length ? 'Edit your phases' : 'Map your phases'}</Link></Button></div>}
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
         <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug}>

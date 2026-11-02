@@ -72,7 +72,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [highlightsOpen, setHighlightsOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [linksOpen, setLinksOpen] = useState(false)
-  const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult } | null>(null)
+  const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult; kind?: PortfolioResult['kind'] } | null>(null)
   const [busy, setBusy] = useState(false)
   const ask = useAsk()
   const router = useRouter()
@@ -98,7 +98,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
 
   function questItem(key: string) {
     const go: Record<string, () => void> = {
-      photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({}),
+      photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ kind: 'skills' }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       now: () => page('/portfolio/timeline?experience=work_career'), xp3: () => page('/portfolio/timeline?experience=work_career'),
       school: () => page('/portfolio/timeline?experience=education'), stories: () => page('/portfolio/timeline'),
@@ -220,7 +220,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     </div>
     {editing ? <>
       <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
-      <ResultDialog key={resultEditor?.result?.result_uuid || 'new'} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
+      <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
       <LinksDialog open={linksOpen} onOpenChange={setLinksOpen} shell={shell} setShell={setShell} token={token} />
       <HighlightsDialog open={highlightsOpen} onOpenChange={setHighlightsOpen} shell={shell} setShell={setShell} token={token} />
       <MediaPickerDialog open={avatarOpen} onOpenChange={setAvatarOpen} title="Your photo" description="Upload a photo or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />

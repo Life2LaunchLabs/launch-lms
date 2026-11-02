@@ -9,7 +9,7 @@ from sqlmodel import select
 
 from src.db.portfolio import Portfolio, PortfolioLink, ProjectItem, TimelineEntry
 from src.db.portfolio_records import Credential, PortfolioContact, PortfolioDocument, PortfolioImport, PortfolioQuote, PortfolioResult
-from src.services import media as media_service, portfolio_imports as imports
+from src.services import media as media_service, portfolio as service, portfolio_imports as imports
 from src.services.portfolio_import_sources import read_export
 from src.tests.test_portfolio_records import _learner
 from src.tests.test_portfolio import _session
@@ -101,7 +101,10 @@ async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(mo
         assert db.exec(select(PortfolioContact)).one().is_reference
         assert db.exec(select(PortfolioResult).where(PortfolioResult.kind == "interests")).one().source == "cis"
         assert db.exec(select(PortfolioDocument)).one().kind == "archive"
-        assert db.exec(select(PortfolioLink)).one().url == "https://example.com/art"
+        link = db.exec(select(PortfolioLink)).one()
+        # The link shows in About as the portfolio's website.
+        assert (link.url, link.link_type, link.platform) == ("https://example.com/art", "social", "website")
+        assert service.get_owner_shell(actor, db)["portfolio"]["socials"] == [{"type": "website", "url": "https://example.com/art"}]
         kept = db.exec(select(PortfolioImport)).one().kept
         assert kept["Career Plan Reflections"] == [{"Prompt": "My goals...", "My answer": "Join the art club"}]
 
@@ -256,3 +259,9 @@ async def test_a_resume_import_keeps_the_pdf_as_a_private_document(monkeypatch):
         assert (document.kind, document.source, document.visibility) == ("resume", "resume", "private")
         with pytest.raises(HTTPException):
             await imports.preview_import("resume", _upload(b"%PDF-1.4 broken", "x.pdf"), actor, db)
+
+
+def test_an_imported_link_takes_its_kind_from_its_host():
+    assert imports._social_type("https://www.linkedin.com/in/maya") == "linkedin"
+    assert imports._social_type("youtu.be/abc") == "youtube"
+    assert imports._social_type("https://example.com/art") == "website"

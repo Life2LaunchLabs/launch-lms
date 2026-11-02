@@ -35,7 +35,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Plans groups steps into This week (the week's picks, with progress by plan), Next week, months for dated steps, and Later, beside the list of plans and a single New plan entry. Badge plans and the Launch Ready starter plan are ordinary plans here. Plan lists support active/completed/archived contexts and include independent and assigned plans. The 2026-10-12 learner polish uses a compact weekly overview and an independent completed-plans disclosure in the overview rail. The owner follow-up restores progress-filled plan selectors and a stable primary navigation frame. Owner review of this revision remains pending.",
+          "implementation_notes": "Since 2026-11-02 the Goals overview lists the phases of the learner's life plan (now, next, later; past phases only while they hold goals), each with its goals and Create your own / Discover; a goal in no phase belongs to the phase now. The weekly feed and the goal switcher over the overview are gone; an open goal shows only the other goals of its phase, and its menu moves it to another phase (PUT /life/plan/goals). Without a life plan, goals sit in one group with a link to map phases. The retired Launch Ready starter goal is hidden. Plan lists still include independent and assigned plans, with finished ones in a disclosure.",
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",

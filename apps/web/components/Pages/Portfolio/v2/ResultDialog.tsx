@@ -27,8 +27,8 @@ export const RESULT_KINDS = [
 
 type Draft = { kind: PortfolioResult['kind']; name: string; summary: string; taken_on: string; visible: boolean }
 
-export function ResultDialog({ open, onOpenChange, result, token, onSaved }: { open: boolean; onOpenChange: OpenChange; result?: PortfolioResult | null; token?: string; onSaved: () => void }) {
-  const initial = (): Draft => ({ kind: result?.kind || 'interests', name: result?.name || '', summary: result?.summary || '', taken_on: result?.taken_on || '', visible: result ? result.visibility !== 'private' : true })
+export function ResultDialog({ open, onOpenChange, result, kind: startKind, token, onSaved }: { open: boolean; onOpenChange: OpenChange; result?: PortfolioResult | null; kind?: PortfolioResult['kind']; token?: string; onSaved: () => void }) {
+  const initial = (): Draft => ({ kind: result?.kind || startKind || 'interests', name: result?.name || '', summary: result?.summary || '', taken_on: result?.taken_on || '', visible: result ? result.visibility !== 'private' : true })
   const [draft, setDraft] = useState<Draft>(initial)
   const [busy, setBusy] = useState(false)
   const ask = useAsk()
@@ -57,7 +57,7 @@ export function ResultDialog({ open, onOpenChange, result, token, onSaved }: { o
   return <Dialog open={open} onOpenChange={(next) => { if (next) setDraft(initial()); onOpenChange(next) }}>
     {ask.dialog}
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>{result ? result.name : 'Add to What I’m like'}</DialogTitle><DialogDescription>{result && result.source !== 'manual' ? 'This came from an activity you did. You can hide it or change how it reads.' : 'Something a quiz or a person helped you learn about yourself.'}</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{result ? result.name : 'Add to What I’m like'}</DialogTitle><DialogDescription>{result && result.source !== 'manual' ? 'This came from an activity you did. You can hide it or change how it reads.' : draft.kind === 'skills' ? 'Things you can do. Separate them with commas; each one counts.' : 'Something a quiz or a person helped you learn about yourself.'}</DialogDescription></DialogHeader>
       <div className="grid gap-4">
         <div className="grid gap-1.5"><Label>What it’s about</Label><Select value={draft.kind} onValueChange={(value) => set('kind', value as Draft['kind'])}><SelectTrigger aria-label="What it’s about"><SelectValue /></SelectTrigger><SelectContent>{RESULT_KINDS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></div>
         <div className="grid gap-1.5"><Label htmlFor="rs-name">Name</Label><Input id="rs-name" value={draft.name} maxLength={160} onChange={(event) => set('name', event.target.value)} placeholder={kind?.value === 'interests' ? 'Interest type' : kind?.label} /></div>

@@ -28,7 +28,7 @@ export interface Line {
   end?: number | null
 }
 
-export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[] }
+export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[]; goals?: string[] }
 export interface When { phase: string; month: number }
 export interface Debt { id: string; kind: string; title: string; balance: number; rate: number; payment: number; start?: When | null }
 export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean }
@@ -87,10 +87,26 @@ const q = encodeURIComponent
 export const lifeApi = {
   get: (token?: string) => request<{ plan: LifePlanView | null }>(lifeUrl('/plan'), token),
   save: (document: LifeDoc, revision: number | null, token?: string) => request<{ plan: LifePlanView }>(lifeUrl('/plan'), token, 'PUT', { document, revision }),
+  placeGoal: (goal_uuid: string, phase_id: string | null, token?: string) => request<{ plan: LifePlanView }>(lifeUrl('/plan/goals'), token, 'PUT', { goal_uuid, phase_id }),
   remove: (token?: string) => fetch(lifeUrl('/plan'), RequestBodyWithAuthHeader('DELETE', null, null, token)),
   catalog: (token?: string) => request<Catalog>(lifeUrl('/catalog'), token),
   places: (query: string, token?: string) => request<{ places: PlaceOption[] }>(lifeUrl(`/places?q=${q(query)}`), token),
   occupations: (query: string, token?: string) => request<{ occupations: Occupation[] }>(lifeUrl(`/occupations?q=${q(query)}`), token),
   metrics: (place: string | null | undefined, token?: string) => request<{ metrics: string[] }>(lifeUrl(`/metrics${place ? `?place=${q(place)}` : ''}`), token),
   estimates: (queries: EstimateQuery[], token?: string) => request<{ estimates: Record<string, Estimate | null> }>(lifeUrl('/estimates'), token, 'POST', { queries }),
+}
+
+/** A source of estimate facts, with how many facts it has by status, for platform admins. */
+export interface SourceCoverage extends EstimateSource { id: number; facts: number; by_status: Record<string, number>; levels: Record<string, number>; metrics: string[] }
+export type EstimateFileKind = 'hud_fmr' | 'bls_oews'
+
+export const lifeAdminApi = {
+  sources: (token?: string) => request<{ sources: SourceCoverage[] }>(lifeUrl('/admin/sources'), token),
+  importFile: async (kind: EstimateFileKind, year: number, url: string, file: File, token?: string) => {
+    const form = new FormData()
+    form.append('kind', kind); form.append('year', String(year)); form.append('url', url); form.append('file', file)
+    const response = await fetch(lifeUrl('/admin/import'), { method: 'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: 'include' })
+    return errorHandling(response) as Promise<{ source: string; facts: number; unmatched?: string[]; places?: number }>
+  },
+  review: (sourceKey: string, status: 'reviewed' | 'draft' | 'retired', token?: string) => request<{ facts: number }>(lifeUrl(`/admin/sources/${encodeURIComponent(sourceKey)}/review`), token, 'POST', { status }),
 }

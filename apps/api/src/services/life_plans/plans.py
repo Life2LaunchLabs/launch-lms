@@ -57,6 +57,8 @@ class Phase(Doc):
     place_label: str = Field(default="", max_length=120)
     months: int = Field(default=12, ge=1, le=1200)
     lines: list[Line] = Field(default_factory=list, max_length=200)
+    # The learner's goals for this phase, by goal_uuid. A goal in no phase belongs to the current one.
+    goals: list[str] = Field(default_factory=list, max_length=100)
 
 
 class Debt(Doc):
@@ -144,6 +146,39 @@ def save_plan(db: Session, user: PublicUser, body: SavePlan) -> dict:
         plan.document = doc
         plan.revision += 1
         plan.update_date = _now()
+    db.add(plan)
+    db.commit()
+    db.refresh(plan)
+    return _view(plan)
+
+
+class PlaceGoal(BaseModel):
+    goal_uuid: str = Field(max_length=80)
+    phase_id: str | None = Field(default=None, max_length=40)
+
+
+def place_goal(db: Session, user: PublicUser, body: PlaceGoal) -> dict:
+    """Put one of the learner's goals in a phase (or in none, so it follows the current phase)."""
+    from src.db.goals import Goal
+
+    plan = db.exec(select(LifePlan).where(LifePlan.user_id == user.id)).first()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Start your life plan first")
+    goal = db.exec(select(Goal).where(Goal.goal_uuid == body.goal_uuid)).first()
+    if goal is None or user.id not in (goal.subject_user_id, goal.owner_user_id):
+        raise HTTPException(status_code=404, detail="Goal not found")
+    document = dict(plan.document or {})
+    phases = [dict(phase) for phase in document.get("phases") or []]
+    if body.phase_id is not None and not any(phase.get("id") == body.phase_id for phase in phases):
+        raise HTTPException(status_code=404, detail="Phase not found")
+    for phase in phases:
+        goals = [uuid for uuid in phase.get("goals") or [] if uuid != body.goal_uuid]
+        if phase.get("id") == body.phase_id:
+            goals.append(body.goal_uuid)
+        phase["goals"] = goals
+    plan.document = {**document, "phases": phases}
+    plan.revision += 1
+    plan.update_date = _now()
     db.add(plan)
     db.commit()
     db.refresh(plan)
