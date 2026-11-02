@@ -105,7 +105,7 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": "The new portfolio (preview, ?new=1) edits first, last and the name you go by, the one-line intro and location in one profile dialog opened from the avatar.",
+              "implementation_notes": "The portfolio edits first, last and the name you go by, the one-line intro and location in one profile dialog opened from the avatar.",
               "updated_at": "2026-10-29T22:00:00+00:00",
               "verification": {
                 "status": "passed",
@@ -2563,10 +2563,6 @@
               "kind": "code",
               "path": "apps/api/src/services/goals/starter.py",
               "symbol": "starter_checklist"
-            },
-            {
-              "kind": "code",
-              "path": "apps/web/components/Pages/Portfolio/PortfolioShell.tsx"
             }
           ],
           "relationships": []

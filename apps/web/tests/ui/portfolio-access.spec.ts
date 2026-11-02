@@ -6,7 +6,7 @@ const environment = loadUiTestEnvironment({ requireCredentials: false })
 
 async function expectPortfolio(page: import('@playwright/test').Page) {
   await expect(page).toHaveURL((url) => url.pathname === '/portfolio')
-  await expect(page.getByRole('navigation', { name: 'More of this portfolio' })).toBeVisible()
+  await expect(page.locator('[data-portfolio-v2]')).toBeVisible()
   await assertActualApp(page)
 }
 
@@ -34,7 +34,7 @@ test('portfolio.access: unauthenticated navigation uses the safe organization fa
   })
   const page = await context.newPage()
   await page.goto(new URL('/portfolio', environment.baseUrl).toString())
-  await expect(page.getByRole('navigation', { name: 'Portfolio views' })).toHaveCount(0)
+  await expect(page.locator('[data-portfolio-v2]')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: /welcome back|sign in/i })).toHaveCount(0)
   await expect(page.getByRole('link', { name: /already have an account/i })).toBeVisible()
   await context.close()
@@ -63,7 +63,7 @@ test('portfolio.access: an expired access-only cookie does not bounce back to Co
   await page.goto(new URL('/portfolio', target).toString())
 
   await expect(page).not.toHaveURL((url) => url.pathname === '/hub')
-  await expect(page.getByRole('navigation', { name: 'Portfolio views' })).toHaveCount(0)
+  await expect(page.locator('[data-portfolio-v2]')).toHaveCount(0)
   await expect(page.getByRole('link', { name: /already have an account/i })).toBeVisible()
   await context.close()
 })

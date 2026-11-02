@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
@@ -73,14 +74,12 @@ def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session
 
 
 def _generate_onboarding_username(email: str, db_session: Session) -> str:
-    base = email.split("@", 1)[0].lower()
-    base = "".join(ch if ch.isalnum() else "_" for ch in base).strip("_")[:24] or "learner"
-    candidate = base
-    counter = 1
-    while db_session.exec(select(User).where(User.username == candidate)).first():
-        counter += 1
-        candidate = f"{base}_{counter}"
-    return candidate
+    """The username is the public portfolio link (/user/<username>), so it never comes from the email:
+    many learners are minors, and an email often holds a full name or a school ID."""
+    while True:
+        candidate = f"learner{secrets.token_hex(4)}"
+        if not db_session.exec(select(User).where(User.username == candidate)).first():
+            return candidate
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):

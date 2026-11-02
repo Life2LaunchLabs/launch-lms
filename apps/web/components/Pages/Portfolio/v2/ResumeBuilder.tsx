@@ -41,7 +41,9 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef }: { shel
   const accent = RESUME_ACCENTS[version.accent] || RESUME_ACCENTS.blue
   const compact = version.layout === 'compact'
   const modern = version.layout === 'modern'
-  const name = shell.identity?.shown_name || shell.portfolio.display_name || ''
+  // The shown name falls back to the username, which isn't a name to head a résumé with.
+  const identity = shell.identity
+  const name = (identity && (identity.preferred_name || identity.first_name) ? identity.shown_name : shell.portfolio.display_name) || (editing ? 'Your name' : '')
   const contact = [shell.portfolio.location_label, editing ? shell.portfolio.email : '', ...(shell.portfolio.socials || []).filter((social: any) => social.type === 'website' || social.type === 'linkedin').map((social: any) => String(social.url).replace(/^https?:\/\/(www\.)?/, ''))].filter(Boolean)
   const remove = (key: string, what: string) => editing ? <button type="button" onClick={() => onRemove(key)} aria-label={`Take ${what} off this version`} title="Take off this version" className="absolute -right-7 top-0 grid h-6 w-6 place-items-center rounded-full bg-[#f1f3f5] text-[#5b6770] opacity-0 transition hover:bg-[#e3e7ea] focus-visible:opacity-100 group-hover/r:opacity-100 print:hidden [@media(hover:none)]:opacity-100"><X className="h-3.5 w-3.5" /></button> : null
   const restore = (items: Array<{ key: string; label: string }>) => editing && items.length ? <div className="mt-2 flex flex-wrap gap-1.5 print:hidden">{items.map((item) => <button key={item.key} type="button" onClick={() => onRestore(item.key)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#c7cfd4] px-2.5 py-0.5 text-[12px] font-semibold text-[#5b6770] hover:border-[#5b6770]"><Plus className="h-3 w-3" />{item.label}</button>)}</div> : null

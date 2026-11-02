@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getServerAccessToken } from '@/lib/auth/server'
-import { ProjectDetail } from '@components/Pages/Portfolio/PortfolioShell'
+import { ProjectDetail } from '@components/Pages/Portfolio/PortfolioProjects'
 import { getOrganizationContextInfoWithoutCredentials } from '@services/organizations/orgs'
 import { getPublicPortfolioProject } from '@services/portfolio/portfolio'
 

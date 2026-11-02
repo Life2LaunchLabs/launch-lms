@@ -392,6 +392,14 @@ def test_an_onboarding_display_name_becomes_the_name_the_portfolio_shows():
         assert user.preferred_name == "Maya R."
 
 
+def test_a_new_account_username_never_comes_from_the_email():
+    from src.routers.auth import _generate_onboarding_username
+
+    with _session() as db:
+        name = _generate_onboarding_username("maya.rivera.2010@school.example.org", db)
+        assert name.startswith("learner") and "maya" not in name and "rivera" not in name
+
+
 def test_activity_strengths_show_as_a_what_im_like_result():
     from src.db.portfolio_records import PortfolioResult
 

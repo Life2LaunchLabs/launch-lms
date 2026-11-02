@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { ProjectDetail } from '@components/Pages/Portfolio/PortfolioShell'
+import { ProjectDetail } from '@components/Pages/Portfolio/PortfolioProjects'
 import { getMyPortfolio } from '@services/portfolio/portfolio'
 import { getUriWithOrg } from '@services/config/config'
 import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
