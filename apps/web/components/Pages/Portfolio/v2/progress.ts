@@ -5,7 +5,7 @@ import type { Shell } from '../portfolioTypes'
 // the API only keeps which unlocks the learner has seen, so an unlock never goes away again.
 
 /** Where a quest item is done on the front page. The page outlines that spot with the item's instruction. */
-export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people'
+export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people' | 'settings'
 export type QuestItem = { key: string; label: string; detail?: string; done: boolean; have?: number; need?: number; spot: Spot }
 export type Quest = { n: 1 | 2 | 3; title: string; why: string; items: QuestItem[]; done: number; total: number; complete: boolean }
 /** working: items left on quest n. unlocked: quest n is finished and its unlock moment hasn't been seen. mastered: all done. */
@@ -35,6 +35,7 @@ export function quests(shell: Shell): Quest[] {
       { key: 'bio', label: 'Write a short bio', done: Boolean(String(shell.portfolio.short_bio || '').trim()), spot: 'about' },
       { key: 'now', label: 'Add where you are right now', done: timeline.length >= 1, spot: 'experience' },
       { key: 'made', label: 'Add something you made or earned', done: projects.length + credentials.length >= 1, spot: 'projects' },
+      { key: 'look', label: 'Pick your look', done: Boolean(shell.layout?.look), spot: 'settings' },
     ]),
     quest(2, [
       count('xp3', 'Add 3 experiences', timeline.length, 3, 'experience'),

@@ -20,17 +20,29 @@ test('portfolio.v2: the portfolio is the new one, with no switch', async ({ page
   await expect(page.getByRole('region', { name: 'Experience' })).toBeVisible()
 })
 
-test('portfolio.v2: the owner changes the layout and opens the profile', async ({ page }) => {
+async function openLook(page: import('@playwright/test').Page) {
+  await openSettings(page)
+  await page.getByRole('menuitem', { name: 'Look and layout' }).click()
+  return page.getByRole('dialog', { name: 'Your look' })
+}
+
+test('portfolio.v2: the owner changes the layout and look, and opens the profile', async ({ page }) => {
   await page.goto('/portfolio')
   const sections = page.locator('[data-layout]')
-  await openSettings(page)
-  await page.getByRole('menuitem', { name: 'List' }).click()
+  let look = await openLook(page)
+  await look.getByRole('button', { name: 'List' }).click()
   await expect(sections).toHaveAttribute('data-layout', 'list')
+  // A look themes the whole app, and the portfolio page carries it for visitors.
+  await look.getByRole('button', { name: /^Midnight/ }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'midnight')
+  await page.keyboard.press('Escape')
   await page.reload()
   await expect(sections).toHaveAttribute('data-layout', 'list')
-  await openSettings(page)
-  await page.getByRole('menuitem', { name: 'Grid' }).click()
+  await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-look', 'midnight')
+  look = await openLook(page)
+  await look.getByRole('button', { name: 'Grid' }).click()
   await expect(sections).toHaveAttribute('data-layout', 'grid')
+  await page.keyboard.press('Escape')
 
   await page.getByRole('button', { name: 'Edit your profile' }).click()
   await expect(page.getByRole('dialog', { name: 'Your profile' })).toBeVisible()

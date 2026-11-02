@@ -173,9 +173,14 @@ def test_highlights_and_layout_show_to_visitors():
         public = service.get_public_shell(1, "maya", db)
 
         assert public["highlights"] == [{"value": "300+", "label": "hours worked"}, {"value": "3.8", "label": "GPA"}]
-        assert public["layout"] == {"header": "center", "sections": "grid"}
+        # No look until one is picked; then visitors see the portfolio in it.
+        assert public["layout"] == {"header": "center", "sections": "grid", "look": None}
+        portfolio_display.update_layout(LayoutUpdate(look="sunset"), actor, db)
+        assert service.get_public_shell(1, "maya", db)["layout"] == {"header": "center", "sections": "grid", "look": "sunset"}
         with pytest.raises(HTTPException):
             portfolio_display.update_layout(LayoutUpdate(sections="carousel"), actor, db)
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(look="neon"), actor, db)
         with pytest.raises(HTTPException):
             portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value=" ", label="GPA")]), actor, db)
 

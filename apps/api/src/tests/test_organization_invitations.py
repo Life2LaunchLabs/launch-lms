@@ -390,9 +390,11 @@ async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session:
     session.add(_invitation(org_id=2, role_id=role_id))
     session.commit()
     joined: list[tuple[int, str]] = []
+    names: list[tuple] = []
 
     async def create_invited(_request, db, _actor, user_object, org_id, token):
         joined.append((org_id, token))
+        names.append((user_object.first_name, user_object.last_name, user_object.preferred_name, user_object.username))
         db.add(User(id=9, user_uuid="user_9", username=user_object.username, email=user_object.email, first_name="", last_name=""))
         db.add(UserOrganization(user_id=9, org_id=org_id, role_id=role_id, creation_date=NOW.isoformat(), update_date=NOW.isoformat()))
         db.commit()
@@ -405,11 +407,14 @@ async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session:
     monkeypatch.setattr(user_service, "create_user", owner_org_signup)
     monkeypatch.setattr(auth_router, "require_owner_org", lambda db: db.get(Organization, 1))
     request = Request({"type": "http", "scheme": "https", "server": ("school.example.com", 443), "path": "/", "headers": []})
-    body = auth_router.WelcomeSignupRequest(email="pending@example.com", password="Str0ng!Passw0rd", invitation_token="invite_1")
+    body = auth_router.WelcomeSignupRequest(email="pending@example.com", password="Str0ng!Passw0rd", invitation_token="invite_1",
+                                            first_name=" Maya ", last_name="Rivera", preferred_name="May")
 
     result = await auth_router.complete_welcome_signup(request, Response(), body, session)
 
     assert joined == [(2, "invite_1")]
+    # The names asked at sign-up land on the account; the username is a random one, never asked for.
+    assert names[0][:3] == ("Maya", "Rivera", "May") and names[0][3].startswith("learner")
     assert result["onboarding"] == {"org_slug": "school", "redirect_url": redirect}
 
     unknown = auth_router.WelcomeSignupRequest(email="other@example.com", password="Str0ng!Passw0rd", invitation_token="nope")

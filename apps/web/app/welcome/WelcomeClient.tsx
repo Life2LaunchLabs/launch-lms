@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { welcomeSignupNamesKey } from '@/app/auth/signup/SignupNames'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -26,13 +27,15 @@ export default function WelcomeClient() {
         if (email) {
           const password = window.sessionStorage.getItem(welcomeSignupPasswordKey(email))
           if (!password) throw new Error('Your signup session expired. Please start signup again.')
+          let names = {}
+          try { names = JSON.parse(window.sessionStorage.getItem(welcomeSignupNamesKey(email)) || '{}') } catch { /* signed up without names */ }
           const res = await fetch('/api/auth/signup/welcome', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email, password,
-              username: searchParams.get('username') || undefined,
+              ...names,
               invitation_token: searchParams.get('invitation') || undefined,
               invite_code: searchParams.get('inviteCode') || undefined,
               org_id: Number(searchParams.get('org')) || undefined,
@@ -41,6 +44,7 @@ export default function WelcomeClient() {
           const data = await res.json().catch(() => null)
           if (!res.ok) throw new Error(data?.detail || 'Unable to complete signup')
           window.sessionStorage.removeItem(welcomeSignupPasswordKey(email))
+          window.sessionStorage.removeItem(welcomeSignupNamesKey(email))
           window.location.href = data?.onboarding?.redirect_url || '/'
           return
         }

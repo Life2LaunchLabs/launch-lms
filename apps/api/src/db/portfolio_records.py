@@ -268,6 +268,7 @@ class HighlightsUpdate(BaseModel):
 class LayoutUpdate(BaseModel):
     header: str | None = None
     sections: str | None = None
+    look: str | None = None  # pop, studio, midnight or sunset
 
 
 class ProgressSeen(BaseModel):

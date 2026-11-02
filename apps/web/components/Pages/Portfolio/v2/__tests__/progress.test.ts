@@ -9,13 +9,13 @@ describe('portfolio quests', () => {
     const stage = stageOf(shell())
     expect(stage.kind).toBe('working')
     if (stage.kind === 'mastered') throw new Error('unexpected')
-    expect([stage.quest.n, stage.quest.done, stage.quest.total]).toEqual([1, 0, 4])
+    expect([stage.quest.n, stage.quest.done, stage.quest.total]).toEqual([1, 0, 5])
     expect(unlocked(stage, 1)).toBe(false)
-    expect(spotsFor(stage)).toEqual({ avatar: 'Add a profile photo', about: 'Write a short bio', experience: 'Add where you are right now', projects: 'Add something you made or earned' })
+    expect(spotsFor(stage)).toEqual({ avatar: 'Add a profile photo', about: 'Write a short bio', experience: 'Add where you are right now', projects: 'Add something you made or earned', settings: 'Pick your look' })
   })
 
   test('finishing a quest shows its unlock until it is seen, then the next quest starts', () => {
-    const done = shell({ portfolio: { avatar_image: 'me.jpg', short_bio: 'Hi', socials: [] }, timeline: [entry()], projects: [{ cover_url: '' }] })
+    const done = shell({ portfolio: { avatar_image: 'me.jpg', short_bio: 'Hi', socials: [] }, timeline: [entry()], projects: [{ cover_url: '' }], layout: { header: 'left', sections: 'grid', look: 'sunset' } })
     const stage = stageOf(done)
     expect(stage.kind).toBe('unlocked')
     expect(unlocked(stage, 1)).toBe(true)

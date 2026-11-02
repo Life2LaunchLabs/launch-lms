@@ -1,6 +1,7 @@
-"""How the portfolio front page is laid out: the highlights band and the header and section layout.
+"""How the portfolio front page is laid out: the highlights band, the header and section layout, and the
+learner's look (their theme for the whole app, which visitors see their portfolio in).
 
-Both live in ``Portfolio.theme_settings`` and visitors see them."""
+All live in ``Portfolio.theme_settings`` and visitors see them."""
 
 from fastapi import HTTPException
 from sqlmodel import Session
@@ -10,8 +11,10 @@ from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSee
 from src.db.users import PublicUser
 from src.services import portfolio as portfolio_service
 
-LAYOUT_CHOICES = {"header": {"left", "center"}, "sections": {"grid", "list"}}
-DEFAULT_LAYOUT = {"header": "left", "sections": "grid"}
+LOOKS = {"pop", "studio", "midnight", "sunset"}
+LAYOUT_CHOICES = {"header": {"left", "center"}, "sections": {"grid", "list"}, "look": LOOKS}
+# No look until the learner picks one: the app keeps its own theme, and picking one is a quest step.
+DEFAULT_LAYOUT = {"header": "left", "sections": "grid", "look": None}
 
 
 def display_for_shell(portfolio: Portfolio) -> dict:

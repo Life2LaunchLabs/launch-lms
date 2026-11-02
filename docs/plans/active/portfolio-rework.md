@@ -42,6 +42,11 @@ Scope is the portfolio. Plans get their own redesign; anything that needs plan c
 "Where I'm headed" (`v2/HeadedTile.tsx`, `life_plans.plans.headed`) shows the life plan's phase now and the next two, never the
 budget; only the learner sees it until visibility is decided. Launch Ready was removed on 2 November 2026: sign-up lands on the portfolio.
 
+Sign-up asks for the first, last and display name, not a username (the account gets a random one). The first visit
+opens the "Build your brand" sheet (`v2/WelcomeDialog.tsx`, once per browser). The four looks (Pop, Studio, Midnight,
+Sunset; `components/Looks/looks.ts`, `styles/looks.css`) are the learner's theme for the whole app and the one visitors
+see their portfolio in; picking one is a sharing quest step (`layout.look` in `theme_settings`).
+
 Held for the plans redesign: decision options in "Where I'm headed", the EPP view and sign-off, the course
 planner, and importing CIS reflections, saved items and plan history into plans.
 
