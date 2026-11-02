@@ -10,10 +10,11 @@ import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { getMyPortfolio, updateMyPortfolio } from '@services/portfolio/portfolio'
 import { updateMyHighlights, updateMyIdentity } from '@services/portfolio/records'
+import { SOCIAL_OPTIONS, normalizeSocialInput, shellSocials, socialHandle } from '../PortfolioHeaderParts'
 import type { OpenChange } from './parts'
 import type { Highlight, SetShell, Shell } from '../portfolioTypes'
 
-// The two editors the new front page opens itself: who you are, and the highlights band.
+// The editors the new front page opens itself: who you are, the highlights band and your links.
 
 /** Your name (legal, for rosters and reports), the name you go by, a one-line intro and where you are. */
 export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avatar, onAvatarClick }: { open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string; avatar: React.ReactNode; onAvatarClick: () => void }) {
@@ -82,6 +83,32 @@ export function HighlightsDialog({ open, onOpenChange, shell, setShell, token }:
         </div>)}
         {rows.length < 4 ? <Button type="button" variant="surface" size="sm" className="w-fit" onClick={() => setRows((current) => [...current, { value: '', label: '' }])}><Plus className="h-4 w-4" />Add a highlight</Button> : null}
       </div>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
+}
+
+/** Your links, one per site. */
+export function LinksDialog({ open, onOpenChange, shell, setShell, token }: { open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string }) {
+  const initial = () => Object.fromEntries(SOCIAL_OPTIONS.map((option) => [option.type, socialHandle(option.type, shellSocials(shell).find((social) => social.type === option.type)?.url || '')]))
+  const [values, setValues] = useState<Record<string, string>>(initial)
+  const [busy, setBusy] = useState(false)
+  async function save() {
+    if (!token) return
+    setBusy(true)
+    try {
+      const socials = SOCIAL_OPTIONS.map((option) => ({ type: option.type, url: normalizeSocialInput(option.type, values[option.type] || '') })).filter((social) => social.url)
+      setShell(await updateMyPortfolio({ revision: shell.portfolio.revision, socials }, token))
+      onOpenChange(false)
+    } catch (error: any) { toast.error(error?.message || 'Could not save your links') } finally { setBusy(false) }
+  }
+  return <Dialog open={open} onOpenChange={(next) => { if (next) setValues(initial()); onOpenChange(next) }}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader><DialogTitle>Your links</DialogTitle><DialogDescription>A handle or a link for each. Leave one empty to take it off.</DialogDescription></DialogHeader>
+      <div className="grid gap-3">{SOCIAL_OPTIONS.map((option) => <div key={option.type} className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2">
+        <Label htmlFor={`ln-${option.type}`}>{option.label}</Label>
+        <Input id={`ln-${option.type}`} value={values[option.type] || ''} maxLength={300} onChange={(event) => setValues((current) => ({ ...current, [option.type]: event.target.value }))} placeholder={option.type === 'website' ? 'yourname.com' : '@handle'} />
+      </div>)}</div>
       <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
     </DialogContent>
   </Dialog>

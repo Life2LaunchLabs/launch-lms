@@ -7,6 +7,8 @@ import { getMyPortfolio, getPublicPortfolio } from '@services/portfolio/portfoli
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { PortfolioV2 } from './PortfolioV2'
 import { PortfolioDetail, type DetailView } from './PortfolioDetail'
+import { PortfolioPeoplePage } from './PortfolioPeoplePage'
+import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
 import { RememberPreviewChoice, TryNewPortfolio } from './PreviewSwitch'
 import { PREVIEW_COOKIE, wantsPortfolioV2 } from './previewSwitch'
 
@@ -46,4 +48,12 @@ export async function publicPortfolioPage(orgslug: string, username: string, sea
     {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
       : <PortfolioShell initialShell={shell} orgslug={orgslug} username={username} active={view} />}
   </>
+}
+
+/** My people and My documents have no page in the current design, so they're always the new one. */
+export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents') {
+  const token = await getServerAccessToken()
+  if (!token) redirect(getUriWithOrg(orgslug, '/'))
+  const shell = await getMyPortfolio(token)
+  return page === 'people' ? <PortfolioPeoplePage initialShell={shell} orgslug={orgslug} /> : <PortfolioDocumentsPage initialShell={shell} orgslug={orgslug} />
 }

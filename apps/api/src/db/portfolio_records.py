@@ -1,5 +1,5 @@
 """Portfolio records beside projects and the timeline: credentials, the people in a learner's
-corner and what they said, résumé versions, and private documents."""
+corner and what they said, results ("What I'm like"), résumé versions, and private documents."""
 
 from enum import Enum
 
@@ -107,6 +107,32 @@ class PortfolioQuote(SQLModel, table=True):
     update_date: str = ""
 
 
+class PortfolioResult(SQLModel, table=True):
+    """A result about the learner: an interest type, strengths, work values. Typed in, imported, or written by
+    a plan activity (the Spark quiz, the profiler) that updates its own row by ``source`` and ``source_reference``."""
+
+    __tablename__ = "portfolioresult"
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_uuid: str = Field(index=True, unique=True)
+    portfolio_id: int = Field(sa_column=_portfolio_fk())
+    # "interests" (RIASEC), "strengths", "values", "skills" or "other".
+    kind: str = Field(sa_column=Column(String, nullable=False))
+    name: str
+    # The one line shown on the portfolio, like "Artistic · Social · Investigative".
+    summary: str = ""
+    # Whatever the source measured, such as {"R": 12, "I": 30, ...}; shown only in the result itself.
+    data: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    taken_on: str | None = None
+    visibility: PortfolioVisibility = Field(default=PortfolioVisibility.PUBLIC, sa_column=Column(String, nullable=False))
+    featured: bool = False
+    source: str = "manual"
+    source_reference: str | None = None
+    sort_order: int = 0
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class ResumeVersion(SQLModel, table=True):
     """A named résumé: a layout and accent, and what's taken off it. The facts come from the portfolio."""
 
@@ -176,6 +202,16 @@ class QuoteWrite(BaseModel):
     featured: bool | None = None
 
 
+class ResultWrite(BaseModel):
+    kind: str | None = PydanticField(default=None, max_length=40)
+    name: str | None = PydanticField(default=None, max_length=160)
+    summary: str | None = PydanticField(default=None, max_length=300)
+    data: dict | None = None
+    taken_on: str | None = None
+    visibility: PortfolioVisibility | None = None
+    featured: bool | None = None
+
+
 class ResumeVersionWrite(BaseModel):
     name: str | None = PydanticField(default=None, max_length=80)
     layout: str | None = None
@@ -214,4 +250,4 @@ class LayoutUpdate(BaseModel):
     sections: str | None = None
 
 
-RECORD_TABLES = (Credential, PortfolioContact, PortfolioQuote, ResumeVersion, PortfolioDocument)
+RECORD_TABLES = (Credential, PortfolioContact, PortfolioQuote, PortfolioResult, ResumeVersion, PortfolioDocument)

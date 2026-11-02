@@ -12,17 +12,18 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
-import { publishMyPortfolio, unpublishMyPortfolio } from '@services/portfolio/portfolio'
+import { getMyPortfolio, publishMyPortfolio, unpublishMyPortfolio } from '@services/portfolio/portfolio'
 import { updateMyLayout } from '@services/portfolio/records'
 import { PortfolioShareButton } from '../PortfolioShareDialog'
 import { PortfolioVisitorBar } from '../PortfolioVisitorBar'
 import { VerificationMenu } from '../PortfolioHeaderParts'
 import { EXPERIENCE_TYPES } from '../ExperienceEditor'
-import { HighlightsDialog, ProfileDialog } from './PortfolioDialogs'
+import { HighlightsDialog, LinksDialog, ProfileDialog } from './PortfolioDialogs'
 import { PortfolioTiles } from './PortfolioTiles'
+import { ResultDialog } from './ResultDialog'
 import { EmptyAdd, initials } from './parts'
 import { previewHref } from './previewSwitch'
-import type { PortfolioLayout, Shell } from '../portfolioTypes'
+import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 
 // The new portfolio front page (V5 prototype): a stacked header, the highlights band, then the sections as
 // tiles in a grid or a list. Quests, the résumé builder and the editors come in later phases.
@@ -49,6 +50,7 @@ function LayoutMenu({ layout, onChange, orgslug, onUnpublish }: { layout: Portfo
       {option('List', layout.sections === 'list', { sections: 'list' })}
       <DropdownMenuSeparator />
       {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">Make my portfolio private</DropdownMenuItem> : null}
+      <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>My documents</Link></DropdownMenuItem>
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())}>Account settings</Link></DropdownMenuItem>
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={previewHref(getUriWithOrg(orgslug, '/portfolio'), false)}>Back to the current portfolio</Link></DropdownMenuItem>
     </DropdownMenuContent>
@@ -62,6 +64,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [profileOpen, setProfileOpen] = useState(false)
   const [highlightsOpen, setHighlightsOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
+  const [linksOpen, setLinksOpen] = useState(false)
+  const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult } | null>(null)
   const [busy, setBusy] = useState(false)
   const editing = owner && !preview
   const layout: PortfolioLayout = shell.layout || { header: 'left', sections: 'grid' }
@@ -159,11 +163,13 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       </section> : editing ? <div className="mt-[22px]"><EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} /></div> : null}
 
       <div className={`mt-4 grid gap-4 ${layout.sections === 'grid' ? 'md:grid-cols-2 md:[&>[data-wide]]:col-span-2' : ''}`} data-layout={layout.sections}>
-        <PortfolioTiles shell={shell} setShell={setShell} owner={editing} orgslug={orgslug} username={username} token={token} />
+        <PortfolioTiles shell={shell} setShell={setShell} owner={editing} orgslug={orgslug} username={username} token={token} onEditLinks={() => setLinksOpen(true)} onEditResult={(result) => setResultEditor({ result })} />
       </div>
     </div>
     {editing ? <>
       <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
+      <ResultDialog key={resultEditor?.result?.result_uuid || 'new'} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
+      <LinksDialog open={linksOpen} onOpenChange={setLinksOpen} shell={shell} setShell={setShell} token={token} />
       <HighlightsDialog open={highlightsOpen} onOpenChange={setHighlightsOpen} shell={shell} setShell={setShell} token={token} />
       <MediaPickerDialog open={avatarOpen} onOpenChange={setAvatarOpen} title="Your photo" description="Upload a photo or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />
     </> : null}
