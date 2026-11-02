@@ -97,3 +97,17 @@ test('portfolio.v2: editors for credentials, people, documents and results open 
   await page.getByRole('button', { name: /Edit links|Add links/ }).click()
   await expect(page.getByRole('dialog', { name: 'Your links' })).toBeVisible()
 })
+
+test('portfolio.v2: the résumé builder makes a letter page from the portfolio', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/portfolio/resume?new=1')
+  await expect(page.getByRole('heading', { level: 1, name: 'Résumé' })).toBeVisible()
+  await expect(page.locator('[data-resume-paper]').first()).toBeVisible()
+  await expect(page.getByRole('status')).toHaveText(/one page/)
+  const layout = page.getByRole('group', { name: 'Layout' })
+  await layout.getByRole('button', { name: 'Compact' }).click()
+  await expect(layout.getByRole('button', { name: 'Compact' })).toHaveAttribute('aria-pressed', 'true')
+  await layout.getByRole('button', { name: 'Classic' }).click()
+  await expect(page.getByRole('button', { name: 'Download PDF' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()?.width || 0)
+})

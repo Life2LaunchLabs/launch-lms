@@ -32,7 +32,7 @@ MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 RESUME_LAYOUTS = {"classic", "modern", "compact"}
 RESUME_ACCENTS = {"blue", "violet", "teal", "pink", "orange", "ink"}
 DOCUMENT_KINDS = {"upload", "resume", "archive"}
-EXCLUDABLE = re.compile(r"^(section:[a-z_]+|timeline:[\w-]+|credential:[\w-]+)$")
+EXCLUDABLE = re.compile(r"^(section:[a-z_]+|(timeline|credential|project|contact):[\w-]+)$")
 
 
 def _value(item) -> str:
