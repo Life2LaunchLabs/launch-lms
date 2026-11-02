@@ -6,13 +6,15 @@ from src.db.portfolio_records import (
     ContactWrite,
     CredentialWrite,
     DocumentWrite,
+    HighlightsUpdate,
     IdentityUpdate,
+    LayoutUpdate,
     QuoteWrite,
     ResumeVersionWrite,
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services import portfolio_identity, portfolio_records as records
+from src.services import portfolio_display, portfolio_identity, portfolio_records as records
 
 router = APIRouter()
 User = Depends(get_current_user)
@@ -22,6 +24,16 @@ Db = Depends(get_db_session)
 @router.patch("/me/identity")
 async def api_update_identity(payload: IdentityUpdate, current_user: PublicUser = User, db_session: Session = Db):
     return portfolio_identity.update_identity(payload, current_user, db_session)
+
+
+@router.put("/me/highlights")
+async def api_update_highlights(payload: HighlightsUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.update_highlights(payload, current_user, db_session)
+
+
+@router.put("/me/layout")
+async def api_update_layout(payload: LayoutUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.update_layout(payload, current_user, db_session)
 
 
 @router.post("/me/credentials")

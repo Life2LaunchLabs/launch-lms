@@ -105,8 +105,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "The new portfolio (preview, ?new=1) edits first, last and the name you go by, the one-line intro and location in one profile dialog opened from the avatar.",
+              "updated_at": "2026-10-29T22:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -115,7 +115,13 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioDialogs.tsx",
+                  "symbol": "ProfileDialog"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G001-A001-S002",
@@ -557,8 +563,8 @@
               "traceability": "none",
               "automated_status": "not_tested",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "In the new portfolio the look follows the app theme; the owner picks the header (left or centered) and sections (grid or list), and sets up to four highlights shown in a band at the top. Visitors see both.",
+              "updated_at": "2026-10-29T22:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -567,7 +573,28 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_display.py",
+                  "symbol": "update_layout"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Pages/Portfolio/v2/PortfolioV2.tsx",
+                  "symbol": "PortfolioV2"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_highlights_and_layout_show_to_visitors"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/portfolio-v2.spec.ts",
+                  "symbol": "portfolio.v2"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G001-A004-S002",
