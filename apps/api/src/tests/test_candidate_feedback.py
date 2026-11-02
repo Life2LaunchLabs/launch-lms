@@ -1,4 +1,16 @@
+import io
+from datetime import datetime, timedelta
 from types import SimpleNamespace
+
+import pytest
+from fastapi import BackgroundTasks, HTTPException, UploadFile
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine, select
+from starlette.datastructures import Headers
+
+from src.db.users import User
+from src.db.feedback_outbox import FeedbackListCache, FeedbackSubmission, FeedbackSubmissionFile
+from src.services import feedback_outbox
 
 from src.routers import candidate_feedback as router
 from src.routers.candidate_feedback import sanitize_context, sanitize_route
@@ -11,6 +23,19 @@ from src.services.candidate_jira import (
     github_release,
     serialize_feedback,
 )
+
+
+@pytest.fixture
+def outbox(monkeypatch):
+    from src.core.events import database
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, FeedbackSubmission.__table__, FeedbackSubmissionFile.__table__, FeedbackListCache.__table__])
+    monkeypatch.setattr(database, "engine", engine)
+    with Session(engine) as session:
+        session.add(User(id=42, user_uuid="user_42", username="tester", email="tester@example.com", first_name="T", last_name="Ester"))
+        session.commit()
+        yield session
 
 
 class FakeJira:
@@ -192,7 +217,7 @@ def test_feedback_intent_is_saved_as_property_and_jira_label(monkeypatch):
     assert property_payload["intent"] == "stuck"
 
 
-def test_tester_can_reopen_completed_feedback(monkeypatch):
+def test_tester_can_reopen_completed_feedback(monkeypatch, outbox):
     class Jira(FakeJira):
         def __init__(self):
             self.actions = []
@@ -243,7 +268,7 @@ def test_tester_can_reopen_completed_feedback(monkeypatch):
         "BOT-200",
         router.FeedbackResolution(outcome="still_happening"),
         org_id=7,
-        db_session=None,
+        db_session=outbox,
         current_user=SimpleNamespace(id=42),
     )
     assert result["status"] == "Open"
@@ -255,7 +280,7 @@ def test_tester_can_reopen_completed_feedback(monkeypatch):
     assert ("comment", "Still happening after completion.") in jira.actions
 
 
-def test_tester_confirmation_uses_durable_label_without_a_closed_column(monkeypatch):
+def test_tester_confirmation_uses_durable_label_without_a_closed_column(monkeypatch, outbox):
     class Jira(FakeJira):
         def __init__(self):
             self.actions = []
@@ -288,7 +313,7 @@ def test_tester_confirmation_uses_durable_label_without_a_closed_column(monkeypa
         "BOT-200",
         router.FeedbackResolution(outcome="looks_good"),
         org_id=7,
-        db_session=None,
+        db_session=outbox,
         current_user=SimpleNamespace(id=42),
     )
     assert (
@@ -324,27 +349,18 @@ def test_feedback_unread_revision_ignores_internal_and_tester_comments(monkeypat
         def property(self, key, property_key):
             return {"org_id": 7, "user_id": 42, "username": "tester"}
 
-    monkeypatch.setattr(router, "CandidateJira", Jira)
-    monkeypatch.setattr(router, "require_org_membership", lambda *_args: None)
+    items = feedback_outbox.jira_items(Jira(), 7, 42, admin=False)
     current_user = SimpleNamespace(
         id=42, details={"candidate_feedback_seen": {"BOT-200": "4:1"}}
     )
-    values = router.list_feedback(
-        org_id=7, admin=False, db_session=None, current_user=current_user
-    )
-    assert values[0]["has_unread"] is False
+    assert feedback_outbox.with_unread(items, current_user)[0]["has_unread"] is False
 
     current_user.details["candidate_feedback_seen"]["BOT-200"] = "3:1"
-    values = router.list_feedback(
-        org_id=7, admin=False, db_session=None, current_user=current_user
-    )
-    assert values[0]["has_unread"] is True
+    assert feedback_outbox.with_unread(items, current_user)[0]["has_unread"] is True
 
     current_user.details["candidate_feedback_seen"] = {}
-    values = router.list_feedback(
-        org_id=7, admin=False, db_session=None, current_user=current_user
-    )
-    assert values[0]["has_unread"] is True
+    assert feedback_outbox.with_unread(items, current_user)[0]["has_unread"] is True
+    assert feedback_outbox.jira_items(Jira(), 7, 99, admin=False) == []  # someone else's
 
 
 def test_announcement_feed_returns_unread_oldest_first(monkeypatch):
@@ -488,3 +504,120 @@ def test_saved_jira_connection_requires_https():
             connection.FeedbackJiraConfigurationUpdate(base_url="http://jira.local"),
             user_id=None,
         )
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+class OutboxJira(FakeJira):
+    """Records what reaches Jira; `down` makes every call fail like an outage."""
+
+    project = "FEED"
+    configured = True
+
+    def __init__(self, down=False):
+        self.down, self.created, self.comments, self.screenshots, self.searches = down, [], [], [], 0
+
+    def _check(self):
+        if self.down:
+            raise HTTPException(status_code=502, detail="Jira is unavailable")
+
+    def create_feedback(self, **values):
+        self._check()
+        self.created.append(values)
+        return {"key": f"FEED-{len(self.created)}"}
+
+    def add_comment(self, key, message, internal):
+        self._check()
+        self.comments.append((key, internal))
+
+    def add_screenshot(self, key, filename, content_type, content):
+        self._check()
+        self.screenshots.append((key, filename, content_type, len(content)))
+
+    def issue(self, key):
+        value = issue()
+        value["key"] = key
+        return value
+
+    def property(self, key, property_key):
+        return {"org_id": 7, "user_id": 42, "username": "tester"}
+
+    def search(self, jql):
+        self._check()
+        self.searches += 1
+        return [self.issue(f"FEED-{index + 1}") for index in range(len(self.created))]
+
+
+def _upload():
+    return UploadFile(io.BytesIO(PNG), filename="shot.png", headers=Headers({"content-type": "image/png"}))
+
+
+def test_feedback_is_saved_at_once_and_synced_to_jira_in_the_background(monkeypatch, outbox):
+    jira = OutboxJira()
+    monkeypatch.setattr(feedback_outbox, "CandidateJira", lambda: jira)
+    monkeypatch.setattr(feedback_outbox, "validate_image_content", lambda content: True)
+    tasks = BackgroundTasks()
+    saved = feedback_outbox.submit(outbox, org_id=7, user_id=42, submission_uuid="sub-1", message="Button is gone", intent="broken",
+                                   context={"routes": ["/admin"]}, images=[_upload()], background=tasks)
+    # Nothing has reached Jira yet: the reply is the saved copy.
+    assert saved["key"] == "pending-sub-1" and saved["pending"] and saved["status"] == "Sending" and saved["pending_attachments"] == 1
+    assert jira.created == [] and len(tasks.tasks) == 1
+    # Sending the same submission again (a retry after a dropped connection) doesn't file it twice.
+    assert feedback_outbox.submit(outbox, org_id=7, user_id=42, submission_uuid="sub-1", message="Button is gone", intent="broken",
+                                  context={}, images=[], background=BackgroundTasks())["key"] == "pending-sub-1"
+    assert len(outbox.exec(select(FeedbackSubmission)).all()) == 1
+
+    assert feedback_outbox.sync(tasks.tasks[0].args[0]) == "FEED-1"
+    assert jira.created[0]["intent"] == "broken" and jira.comments == [("FEED-1", True)] and jira.screenshots == [("FEED-1", "shot.png", "image/png", len(PNG))]
+    outbox.expire_all()
+    row = outbox.exec(select(FeedbackSubmission)).one()
+    assert (row.status, row.issue_key) == ("synced", "FEED-1")
+    assert outbox.exec(select(FeedbackSubmissionFile)).all() == []  # screenshots are dropped once Jira has them
+
+
+def test_feedback_waits_out_a_jira_outage_without_filing_twice(monkeypatch, outbox):
+    jira = OutboxJira(down=True)
+    monkeypatch.setattr(feedback_outbox, "CandidateJira", lambda: jira)
+    saved = feedback_outbox.submit(outbox, org_id=7, user_id=42, submission_uuid="sub-2", message="Slow page", intent=None,
+                                   context={}, images=[], background=None)
+    submission_id = outbox.exec(select(FeedbackSubmission.id)).one()
+    assert saved["pending"] and feedback_outbox.sync(submission_id) is None
+    outbox.expire_all()
+    row = outbox.exec(select(FeedbackSubmission)).one()
+    assert row.status == "pending" and row.attempts == 1 and "unavailable" in row.last_error
+
+    # The list still shows it (first), even with no cache and Jira down.
+    listed = feedback_outbox.listing(outbox, 7, 42, None)
+    assert [item["key"] for item in listed] == ["pending-sub-2"]
+
+    # Jira is back; the issue was created but the comment failed: the retry adds to that issue, not a new one.
+    jira.down = False
+    original = jira.add_comment
+    jira.add_comment = lambda *args, **kwargs: (_ for _ in ()).throw(HTTPException(status_code=502, detail="blip"))
+    assert feedback_outbox.sync(submission_id) is None
+    jira.add_comment = original
+    outbox.expire_all()
+    assert len(jira.created) == 1 and outbox.exec(select(FeedbackSubmission)).one().issue_key == "FEED-1"
+    # The next retry posts the context it missed and finishes, still on the one issue.
+    assert feedback_outbox.sync(submission_id) == "FEED-1" and len(jira.created) == 1 and jira.comments == [("FEED-1", True)]
+
+
+def test_feedback_list_comes_from_the_cache_and_refreshes_behind_the_scenes(monkeypatch, outbox):
+    jira = OutboxJira()
+    jira.created.append({})
+    monkeypatch.setattr(feedback_outbox, "CandidateJira", lambda: jira)
+    # No cache yet: read Jira once and keep it.
+    assert [item["key"] for item in feedback_outbox.listing(outbox, 7, 42, BackgroundTasks())] == ["FEED-1"]
+    assert jira.searches == 1
+    # Fresh cache: no Jira call at all.
+    assert [item["key"] for item in feedback_outbox.listing(outbox, 7, 42, BackgroundTasks())] == ["FEED-1"]
+    assert jira.searches == 1
+    # Stale cache: answered from the cache, with a refresh queued behind it.
+    row = outbox.exec(select(FeedbackListCache)).one()
+    row.refreshed_at = datetime.utcnow() - timedelta(minutes=5)
+    outbox.add(row)
+    outbox.commit()
+    tasks = BackgroundTasks()
+    assert [item["key"] for item in feedback_outbox.listing(outbox, 7, 42, tasks)] == ["FEED-1"]
+    assert jira.searches == 1 and tasks.tasks[0].func is feedback_outbox.refresh

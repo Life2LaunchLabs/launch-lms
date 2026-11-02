@@ -6,7 +6,7 @@ import re
 from uuid import uuid4
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -19,10 +19,10 @@ from src.security.superadmin import (
     is_user_superadmin,
     require_superadmin,
 )
+from src.services import feedback_outbox
 from src.services.candidate_jira import (
     ANNOUNCEMENTS_PROPERTY,
     FEEDBACK_PROPERTY,
-    MAX_ATTACHMENTS,
     CandidateJira,
     CandidateGitHub,
     current_revision,
@@ -81,10 +81,6 @@ def _clean_message(message: str) -> str:
             status_code=422, detail="Message must be 10,000 characters or fewer"
         )
     return value
-
-
-def _jql_value(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _feedback_issue(
@@ -261,86 +257,47 @@ def feedback_configuration():
 
 @router.get("/feedback")
 def list_feedback(
+    background_tasks: BackgroundTasks,
     org_id: int | None = None,
     admin: bool = False,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    """Admins read Jira directly; a tester gets their pending and cached feedback at once (refreshed behind the scenes)."""
     if admin:
         if not _has_platform_access(current_user.id, db_session):
-            raise HTTPException(
-                status_code=403, detail="Platform admin access required"
-            )
-    elif org_id is None:
+            raise HTTPException(status_code=403, detail="Platform admin access required")
+        return feedback_outbox.jira_items(CandidateJira(), None, None, admin=True)
+    if org_id is None:
         raise HTTPException(status_code=422, detail="Organization is required")
-    else:
-        require_org_membership(current_user.id, org_id, db_session)
-    client = CandidateJira()
-    org_label = _jql_value(f"launchlms-org-{org_id}")
-    org_filter = "" if admin else f'AND labels = "{org_label}" '
-    issues = client.search(
-        f'project = "{_jql_value(client.project)}" AND labels = "launchlms-feedback" {org_filter}ORDER BY updated DESC'
-    )
-    result = []
-    for issue in issues:
-        metadata = client.property(issue["key"], FEEDBACK_PROPERTY) or {}
-        if not admin and int(metadata.get("org_id", -1)) != org_id:
-            continue
-        if not admin and int(metadata.get("user_id", -1)) != current_user.id:
-            continue
-        labels = set((issue.get("fields") or {}).get("labels") or [])
-        if not admin and "tester-confirmed" in labels:
-            continue
-        serialized = serialize_feedback(issue, metadata, client, admin=admin)
-        if not admin:
-            seen = (current_user.details or {}).get("candidate_feedback_seen", {})
-            previous = seen.get(serialized["key"])
-            has_visible_update = serialized["status_category"] != "new" or bool(
-                serialized["visible_revision"].partition(":")[2]
-            )
-            serialized["has_unread"] = previous != serialized["visible_revision"] and (
-                previous is not None or has_visible_update
-            )
-        result.append(serialized)
-    return result
+    require_org_membership(current_user.id, org_id, db_session)
+    return feedback_outbox.with_unread(feedback_outbox.listing(db_session, org_id, current_user.id, background_tasks), current_user)
 
 
 @router.post("/feedback", status_code=201)
 def create_feedback(
+    background_tasks: BackgroundTasks,
     org_id: int = Form(...),
     message: str = Form(...),
     intent: str | None = Form(default=None),
     context: str | None = Form(default=None),
+    submission_uuid: str | None = Form(default=None, max_length=64),
     images: list[UploadFile] = File(default=[]),
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    """Saves the feedback and returns at once; it goes to Jira in the background (and is retried if Jira is down)."""
     require_org_membership(current_user.id, org_id, db_session)
-    if len(images) > MAX_ATTACHMENTS:
-        raise HTTPException(
-            status_code=422, detail=f"Attach up to {MAX_ATTACHMENTS} screenshots"
-        )
-    client = CandidateJira()
+    if not CandidateJira().configured:
+        raise HTTPException(status_code=503, detail="Feedback isn't connected to Jira")
     normalized_intent = str(intent or "").strip().casefold() or None
     if normalized_intent not in FEEDBACK_INTENTS | {None}:
         raise HTTPException(status_code=422, detail="Unknown feedback intent")
-    issue = client.create_feedback(
-        org_id=org_id,
-        user=current_user,
-        message=_clean_message(message),
-        intent=normalized_intent,
+    return feedback_outbox.submit(
+        db_session, org_id=org_id, user_id=current_user.id, submission_uuid=(submission_uuid or "").strip() or str(uuid4()),
+        message=_clean_message(message), intent=normalized_intent, context=sanitize_context(context), images=images,
+        background=background_tasks,
     )
-    client.add_comment(
-        issue["key"],
-        "Anonymous reproduction context\n"
-        + json.dumps(sanitize_context(context), indent=2),
-        internal=True,
-    )
-    for image in images:
-        client.add_attachment(issue["key"], image)
-    issue = client.issue(issue["key"])
-    metadata = client.property(issue["key"], FEEDBACK_PROPERTY) or {}
-    return serialize_feedback(issue, metadata, client, admin=False)
 
 
 @router.patch("/feedback/{issue_key}/admin")
@@ -393,7 +350,8 @@ def comment_on_feedback(
     client = CandidateJira()
     _, metadata = _feedback_issue(client, issue_key, org_id, current_user, db_session)
     client.add_tester_comment(issue_key, _clean_message(body.message))
-    return serialize_feedback(client.issue(issue_key), metadata, client, admin=False)
+    item = serialize_feedback(client.issue(issue_key), metadata, client, admin=False)
+    return feedback_outbox.remember(db_session, org_id, current_user.id, item)
 
 
 @router.post("/feedback/{issue_key}/resolution")
@@ -436,7 +394,11 @@ def resolve_feedback(
         labels = (labels | {"feedback-reopened"}) - {"tester-confirmed"}
         client.update_fields(issue_key, {"labels": sorted(labels)})
         client.add_tester_comment(issue_key, "Still happening after completion.")
-    return serialize_feedback(client.issue(issue_key), metadata, client, admin=False)
+    item = serialize_feedback(client.issue(issue_key), metadata, client, admin=False)
+    if body.outcome == "looks_good":
+        feedback_outbox.forget(db_session, org_id, current_user.id, issue_key)
+        return item
+    return feedback_outbox.remember(db_session, org_id, current_user.id, item)
 
 
 @router.post("/feedback/viewed")
@@ -446,19 +408,11 @@ def mark_feedback_viewed(
     current_user: PublicUser = Depends(get_current_user),
 ):
     require_org_membership(current_user.id, org_id, db_session)
-    client = CandidateJira()
-    org_label = _jql_value(f"launchlms-org-{org_id}")
-    issues = client.search(
-        f'project = "{_jql_value(client.project)}" AND labels = "launchlms-feedback" '
-        f'AND labels = "{org_label}" ORDER BY updated DESC'
-    )
     seen = dict((current_user.details or {}).get("candidate_feedback_seen", {}))
-    for issue in issues:
-        metadata = client.property(issue["key"], FEEDBACK_PROPERTY) or {}
-        if int(metadata.get("user_id", -1)) != current_user.id:
-            continue
-        item = serialize_feedback(issue, metadata, client, admin=False)
-        seen[item["key"]] = item["visible_revision"]
+    # What they've been shown: the cached list, so this never waits on Jira.
+    for item in feedback_outbox.listing(db_session, org_id, current_user.id, None, refresh_missing=False):
+        if not item.get("pending"):
+            seen[item["key"]] = item["visible_revision"]
     _update_user_details(
         db_session,
         current_user.id,
