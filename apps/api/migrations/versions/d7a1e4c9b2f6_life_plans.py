@@ -1,7 +1,7 @@
 """Life plans: the learner's plan document, plus estimate sources and facts
 
 Revision ID: d7a1e4c9b2f6
-Revises: c6f9d3e5a7b2
+Revises: f3d9b5a7c2e8
 Create Date: 2026-11-02
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "d7a1e4c9b2f6"
-down_revision = "c6f9d3e5a7b2"
+down_revision = "f3d9b5a7c2e8"
 branch_labels = None
 depends_on = None
 
