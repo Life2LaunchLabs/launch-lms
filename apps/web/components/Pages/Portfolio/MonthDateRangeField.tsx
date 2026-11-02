@@ -14,8 +14,10 @@ const months = Array.from({ length: 12 }, (_, index) => ({
   label: new Date(2020, index).toLocaleString(undefined, { month: 'long' }),
 }))
 
-function MonthYearInput({ name, value, label }: { name: string; value?: string | null; label: string }) {
-  const [initialYear = '', initialMonth = ''] = (value || '').split('-')
+function MonthYearInput({ name, value, label, precision }: { name: string; value?: string | null; label: string; precision?: string | null }) {
+  // A year-only date is stored as January of that year; it opens with no month picked.
+  const [initialYear = '', storedMonth = ''] = (value || '').split('-')
+  const initialMonth = precision === 'year' ? '' : storedMonth
   const [year, setYear] = useState(initialYear)
   const [month, setMonth] = useState(initialMonth)
   const dateValue = year ? (month ? `${year}-${month}` : year) : ''
@@ -35,16 +37,20 @@ export function MonthDateRangeField({
   endDate,
   isCurrent = false,
   currentFieldName = 'is_current',
+  startPrecision,
+  endPrecision,
 }: {
   startDate?: string | null
   endDate?: string | null
+  startPrecision?: string | null
+  endPrecision?: string | null
   isCurrent?: boolean
   currentFieldName?: string
 }) {
   const [endMode, setEndMode] = useState<EndMode>(isCurrent ? 'current' : endDate ? 'date' : 'none')
 
   const menu = (change = false) => (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button type="button" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground">
           {change ? 'Change' : 'Add end date'}<ChevronDown className="h-3.5 w-3.5" />
@@ -61,12 +67,12 @@ export function MonthDateRangeField({
   return <div className="grid grid-cols-2 gap-4">
     <label className={`grid content-start text-sm font-semibold ${endMode === 'none' ? '' : 'gap-2'}`}>
       {endMode === 'none' ? <span className="sr-only">Start</span> : <span>Start</span>}
-      <MonthYearInput name="start_date" value={startDate} label="Start" />
+      <MonthYearInput name="start_date" value={startDate} label="Start" precision={startPrecision} />
     </label>
     <div className={`grid content-start ${endMode === 'none' ? '' : 'gap-2'}`}>
       {endMode === 'none' ? <div className="flex h-11 items-center justify-start">{menu(false)}</div> : <div className="flex min-h-5 items-center justify-between gap-2 text-sm font-semibold"><span>End</span>{menu(true)}</div>}
       <input type="hidden" name={currentFieldName} value={endMode === 'current' ? 'true' : 'false'} />
-      {endMode === 'date' && <MonthYearInput name="end_date" value={endDate} label="End" />}
+      {endMode === 'date' && <MonthYearInput name="end_date" value={endDate} label="End" precision={endPrecision || startPrecision} />}
       {endMode === 'current' && <div className="flex h-11 items-center"><span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-semibold text-foreground"><Check className="h-3.5 w-3.5" />Current</span></div>}
     </div>
   </div>

@@ -3,6 +3,7 @@
 import React from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { useLife } from './LifeContext'
@@ -12,8 +13,17 @@ import { PhaseForm } from './PhaseForm'
 
 /** Sticky: which phase and which stretch of it the budget below is showing. */
 export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'saved' | 'error' }) {
-  const { doc, phase, stretch, stretchesOf, selectStretch, update, token } = useLife()
+  const { doc, phase, stretch, stretchesOf, selectStretch, update, token, startOver } = useLife()
   const [edit, setEdit] = React.useState<'edit' | 'add' | null>(null)
+  const ask = useAsk()
+  const removePhase = async () => {
+    if (!(await ask.confirm({ title: `Remove "${phase.title}"?`, body: 'Its budget and the one-time money in it go too.', action: 'Remove phase', danger: true }))) return
+    update((d) => { d.phases = d.phases.filter((p) => p.id !== phase.id); d.events = d.events.filter((e) => e.phase !== phase.id) })
+    selectStretch(doc.phases[Math.max(0, k - 1)].id === phase.id ? doc.phases[k + 1].id : doc.phases[Math.max(0, k - 1)].id, 0)
+  }
+  const deletePlan = async () => {
+    if (await ask.confirm({ title: 'Delete your life plan?', body: 'Every phase, budget line, loan and saving goes, and you start fresh. This can’t be undone.', action: 'Delete plan', danger: true })) await startOver()
+  }
   const k = doc.phases.findIndex((p) => p.id === phase.id)
   const off = phaseOffset(doc, phase.id)
   const chips = React.useRef<HTMLDivElement>(null)
@@ -31,15 +41,13 @@ export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'sa
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground" aria-live="polite">{saving === 'saving' ? 'Saving…' : saving === 'saved' ? 'Saved' : saving === 'error' ? 'Not saved' : ''}</span>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Phase options"><MoreHorizontal /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Plan options"><MoreHorizontal /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setEdit('edit')}>Edit this phase</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setEdit('add')}>Add a phase after this one</DropdownMenuItem>
-              {doc.phases.length > 1 && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onSelect={() => {
-                if (!window.confirm(`Remove "${phase.title}" and its budget?`)) return
-                update((d) => { d.phases = d.phases.filter((p) => p.id !== phase.id); d.events = d.events.filter((e) => e.phase !== phase.id) })
-                selectStretch(doc.phases[Math.max(0, k - 1)].id === phase.id ? doc.phases[k + 1].id : doc.phases[Math.max(0, k - 1)].id, 0)
-              }}>Remove this phase</DropdownMenuItem></>}
+              <DropdownMenuSeparator />
+              {doc.phases.length > 1 && <DropdownMenuItem className="text-destructive" onSelect={() => { void removePhase() }}>Remove this phase</DropdownMenuItem>}
+              <DropdownMenuItem className="text-destructive" onSelect={() => { void deletePlan() }}>Delete plan and start over</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -69,6 +77,7 @@ export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'sa
           })}
         </div>
       )}
+      {ask.dialog}
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>{edit === 'add' ? 'Add the next phase' : 'Edit this phase'}</DialogTitle></DialogHeader>

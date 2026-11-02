@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
@@ -67,6 +68,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [linksOpen, setLinksOpen] = useState(false)
   const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult } | null>(null)
   const [busy, setBusy] = useState(false)
+  const ask = useAsk()
   const editing = owner && !preview
   const layout: PortfolioLayout = shell.layout || { header: 'left', sections: 'grid' }
   const centered = layout.header === 'center'
@@ -94,7 +96,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   }
 
   async function unpublish() {
-    if (!token || !window.confirm('Make your portfolio private? You can make it public again later.')) return
+    if (!token || !(await ask.confirm({ title: 'Make your portfolio private?', body: 'Only you and the people you added will see it. You can make it public again later.', action: 'Make private' }))) return
     setBusy(true)
     try { setShell(await unpublishMyPortfolio(shell.portfolio.revision, token)); toast.success('Your portfolio is private') }
     catch (error: any) { toast.error(error?.message || 'Could not make your portfolio private') } finally { setBusy(false) }
@@ -111,14 +113,15 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const ownerActions = <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button variant="brand" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Plus className="h-4 w-4" />Add<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-60 rounded-2xl p-2">
+      {/* On a phone the bottom nav covers the screen's foot, so the menu stops above it and scrolls. */}
+      <DropdownMenuContent align="start" collisionPadding={{ top: 8, bottom: 88 }} className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-60 overflow-y-auto overscroll-contain rounded-2xl p-2">
         <DropdownMenuLabel className="px-3 text-xs uppercase tracking-wide text-muted-foreground">Experience</DropdownMenuLabel>
-        {EXPERIENCE_TYPES.map((type) => <DropdownMenuItem key={type.value} asChild className="rounded-xl px-3 py-2"><Link href={`${getUriWithOrg(orgslug, '/portfolio/timeline')}?experience=${type.value}`}>{type.label}</Link></DropdownMenuItem>)}
+        {EXPERIENCE_TYPES.map((type) => <DropdownMenuItem key={type.value} asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={`${getUriWithOrg(orgslug, '/portfolio/timeline')}?experience=${type.value}`}>{type.label}</Link></DropdownMenuItem>)}
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.org.portfolioProjectsNew())}>A project</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={`${getUriWithOrg(orgslug, '/portfolio/projects')}?newProject=1`}>A project</Link></DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setHighlightsOpen(true)} className="rounded-xl px-3 py-2">A highlight</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/import')}>From a résumé, CIS or LinkedIn</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={getUriWithOrg(orgslug, '/portfolio/import')}>From a résumé, CIS or LinkedIn</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
     {shell.portfolio.email_verified === false && !published
@@ -129,6 +132,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   </>
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2>
+    {owner ? ask.dialog : null}
     {preview ? <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-3">
       <div><b className="text-sm font-extrabold">Visitor preview</b><p className="text-xs text-muted-foreground">This is how people see your portfolio{published ? '' : ' once it’s public'}.</p></div>
       <Button asChild variant="surface" size="sm"><Link href={previewHref(getUriWithOrg(orgslug, '/portfolio'), true)}><ArrowLeft className="h-4 w-4" />Back to editing</Link></Button>

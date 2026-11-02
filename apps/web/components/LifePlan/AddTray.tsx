@@ -1,10 +1,11 @@
 'use client'
 
 import React from 'react'
+import useSWR from 'swr'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
-import type { CatalogItem, Line, Side, Unit } from '@services/life/life'
+import { lifeApi, type CatalogItem, type Line, type Side, type Unit } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { OccupationPicker } from './BudgetTable'
@@ -16,7 +17,10 @@ const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')
 
 /** Category, then item, then a check of the assumptions before the line goes in. */
 export default function AddTray({ target, onClose }: { target: AddTarget | null; onClose: () => void }) {
-  const { catalog } = useLife()
+  const { catalog, phase, token } = useLife()
+  // Only promise an estimate where we hold reviewed figures for this place.
+  const { data: available } = useSWR(token && target ? ['life-metrics', phase.place || ''] : null, () => lifeApi.metrics(phase.place, token), { revalidateOnFocus: false })
+  const canEstimate = (item: CatalogItem) => Boolean(item.metric && available?.metrics.includes(item.metric))
   const [cat, setCat] = React.useState<string | null>(null)
   const [pick, setPick] = React.useState<CatalogItem | null>(null)
   const [q, setQ] = React.useState('')
@@ -58,7 +62,7 @@ export default function AddTray({ target, onClose }: { target: AddTarget | null;
               {items.map((i) => (
                 <li key={i.key}><button type="button" onClick={() => setPick(i)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left font-semibold hover:bg-muted">
                   <span className="grid size-9 place-items-center rounded-xl bg-muted"><LifeIcon name={i.icon} /></span>{i.title}
-                  {i.metric && <span className="ml-auto text-xs font-semibold text-muted-foreground">can estimate</span>}
+                  {canEstimate(i) && <span className="ml-auto text-xs font-semibold text-muted-foreground">can estimate</span>}
                 </button></li>
               ))}
               <li><button type="button" onClick={() => setPick(custom)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -67,13 +71,13 @@ export default function AddTray({ target, onClose }: { target: AddTarget | null;
             </ul>
           </div>
         )}
-        {pick && <Confirm item={pick} side={side} onDone={onClose} />}
+        {pick && <Confirm item={pick} side={side} estimable={canEstimate(pick)} onDone={onClose} />}
       </DialogContent>
     </Dialog>
   )
 }
 
-function Confirm({ item, side, onDone }: { item: CatalogItem; side: Side; onDone: () => void }) {
+function Confirm({ item, side, estimable, onDone }: { item: CatalogItem; side: Side; estimable: boolean; onDone: () => void }) {
   const { doc, phase, stretch, per, updatePhase, setOpenLine, token } = useLife()
   const [title, setTitle] = React.useState(item.title)
   const [settings, setSettings] = React.useState<Record<string, any>>(() => Object.fromEntries((item.settings || []).filter((s) => s.default !== undefined).map((s) => [s.key, s.default])))
@@ -114,7 +118,7 @@ function Confirm({ item, side, onDone }: { item: CatalogItem; side: Side; onDone
         </div>
       ))}
       <div className="grid gap-1 text-sm font-semibold">
-        {item.metric ? 'Your number (leave empty to use the estimate)' : 'How much'}
+        {estimable ? 'Your number (leave empty to use the estimate)' : 'How much'}
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 focus-within:border-[var(--org-primary-color)]">$
             <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" aria-label="Amount" className="h-10 w-24 bg-transparent pl-1 font-normal outline-none" />
@@ -126,7 +130,7 @@ function Confirm({ item, side, onDone }: { item: CatalogItem; side: Side; onDone
             <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" aria-label="Hours a week" className="h-10 w-14 rounded-xl border border-border bg-background px-2 text-right text-foreground outline-none" /> hrs a week
           </span>}
         </div>
-        {item.metric && <span className="text-xs font-normal text-muted-foreground">We only show an estimate when we have a published source for {phase.place_label || 'this place'}.</span>}
+        {item.metric && <span className="text-xs font-normal text-muted-foreground">{estimable ? `We only show an estimate when we have a published source for ${phase.place_label || 'this place'}.` : `We don't have a published estimate for ${phase.place_label || 'this place'} yet, so put in your own number.`}</span>}
       </div>
       <label className="grid gap-1 text-sm font-semibold">Starts
         <select value={start} onChange={(e) => setStart(Number(e.target.value))} className="h-10 rounded-xl border border-border bg-background px-2 font-normal">

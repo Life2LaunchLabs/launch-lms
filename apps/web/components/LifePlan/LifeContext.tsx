@@ -25,6 +25,8 @@ export interface LifeCtx {
   openLine: string | null
   setOpenLine: (id: string | null) => void
   openAdd: (side: 'in' | 'out', cat?: string) => void
+  /** Delete the whole plan and go back to the start. */
+  startOver: () => Promise<void>
 }
 /* eslint-enable no-unused-vars */
 

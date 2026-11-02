@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@components/ui/select'
 import { getUriWithOrg } from '@services/config/config'
 import { getMyPortfolio } from '@services/portfolio/portfolio'
@@ -22,6 +23,15 @@ const PAGE_WIDTH = 816
 const PAGE_HEIGHT = 1056
 const NEW_VERSION = '__new'
 const DEFAULT: Omit<ResumeVersion, 'version_uuid' | 'name'> = { layout: 'classic', accent: 'blue', excluded: [] }
+const LAST_VERSION = 'portfolio-resume-version'
+
+/** The version this browser had open last time, so a reload comes back to it. */
+function lastVersion(): string {
+  try { return window.localStorage.getItem(LAST_VERSION) || '' } catch { return '' }
+}
+function rememberVersion(uuid: string) {
+  try { window.localStorage.setItem(LAST_VERSION, uuid) } catch { /* private mode */ }
+}
 
 // eslint-disable-next-line no-unused-vars
 type KeyAction = (key: string) => void
@@ -62,10 +72,24 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
   const token = session?.data?.tokens?.access_token
   const [shell, setShell] = useState(initialShell)
   const versions = shell.resume_versions || []
-  const [selected, setSelected] = useState(versions[0]?.version_uuid || '')
+  const ask = useAsk()
+  const [selected, setSelectedState] = useState(versions[0]?.version_uuid || '')
   const current = versions.find((item) => item.version_uuid === selected)
   // Before the first change there's no version yet; it's made on the first save.
   const [draft, setDraft] = useState<Omit<ResumeVersion, 'version_uuid' | 'name'>>(current || DEFAULT)
+  // Saves run one at a time against the version open when each runs, so quick clicks before the first
+  // version exists make one version, not one per click.
+  const selectedRef = useRef(selected)
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const setSelected = (uuid: string) => { selectedRef.current = uuid; setSelectedState(uuid); if (uuid) rememberVersion(uuid) }
+
+  useEffect(() => {
+    const last = lastVersion()
+    const version = last && last !== selectedRef.current ? (initialShell.resume_versions || []).find((item) => item.version_uuid === last) : undefined
+    // Browser storage is only readable after hydration, so the remembered version is applied here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (version) { selectedRef.current = version.version_uuid; setSelectedState(version.version_uuid); setDraft(version) }
+  }, [initialShell])
   const holdRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLElement>(null)
   const [scale, setScale] = useState(1)
@@ -93,34 +117,40 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
     return () => style.remove()
   }, [])
 
-  async function save(next: Omit<ResumeVersion, 'version_uuid' | 'name'>) {
+  function save(next: Omit<ResumeVersion, 'version_uuid' | 'name'>) {
     setDraft(next)
     if (!token) return
-    try {
-      const payload = { layout: next.layout, accent: next.accent, excluded: next.excluded }
-      const saved: ResumeVersion = current ? await resumeVersions.update(current.version_uuid, payload, token) : await resumeVersions.create({ name: 'My résumé', ...payload }, token)
-      if (!current) { setShell(await getMyPortfolio(token)); setSelected(saved.version_uuid) }
-      else setShell((value) => ({ ...value, resume_versions: (value.resume_versions || []).map((item) => item.version_uuid === saved.version_uuid ? saved : item) }))
-    } catch (error: any) { toast.error(error?.message || 'Could not save this version') }
+    queue.current = queue.current.then(async () => {
+      try {
+        const payload = { layout: next.layout, accent: next.accent, excluded: next.excluded }
+        const uuid = selectedRef.current
+        const saved: ResumeVersion = uuid ? await resumeVersions.update(uuid, payload, token) : await resumeVersions.create({ name: 'My résumé', ...payload }, token)
+        if (!uuid) { setSelected(saved.version_uuid); setShell(await getMyPortfolio(token)) }
+        else setShell((value) => ({ ...value, resume_versions: (value.resume_versions || []).map((item) => item.version_uuid === saved.version_uuid ? saved : item) }))
+      } catch (error: any) { toast.error(error?.message || 'Could not save this version') }
+    })
   }
 
   async function choose(value: string) {
     if (value !== NEW_VERSION) { const version = versions.find((item) => item.version_uuid === value); setSelected(value); if (version) setDraft(version); return }
-    const name = window.prompt('Name this version, like “Food service jobs”')?.trim()
+    const name = await ask.text({ title: 'New résumé version', body: 'It starts as a copy of the one you have open.', label: 'Name', placeholder: 'Food service jobs', action: 'Make version' })
     if (!name || !token) return
     try {
-      const saved: ResumeVersion = current ? await resumeVersions.create({ name, copy_from_uuid: current.version_uuid }, token) : await resumeVersions.create({ name, ...draft }, token)
+      await queue.current
+      const from = selectedRef.current
+      const saved: ResumeVersion = from ? await resumeVersions.create({ name, copy_from_uuid: from }, token) : await resumeVersions.create({ name, ...draft }, token)
       setShell(await getMyPortfolio(token)); setSelected(saved.version_uuid); setDraft(saved)
     } catch (error: any) { toast.error(error?.message || 'Could not make a new version') }
   }
 
   const toggle = (key: string, on: boolean) => save({ ...draft, excluded: on ? draft.excluded.filter((item) => item !== key) : [...draft.excluded, key] })
-  const download = <Button type="button" variant="brand" className="h-10" onClick={() => window.print()}><Download className="h-4 w-4" />Download PDF</Button>
+  const download = <Button type="button" variant="brand" className="h-10" onClick={() => window.print()} aria-label="Download PDF"><Download className="h-4 w-4" /><span className="hidden sm:inline">Download PDF</span><span className="sm:hidden">PDF</span></Button>
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2="resume">
     <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6 print:hidden">
       <DetailHeader href={getUriWithOrg(orgslug, owner ? '/portfolio' : `/user/${username}`)} owner={owner} color="sky" icon={FileText} title="Résumé">{download}</DetailHeader>
       {owner ? <>
+        {ask.dialog}
         <div className="sticky top-2 z-10 mb-2 flex flex-wrap items-center gap-2.5 rounded-3xl border-2 border-border bg-card p-2.5">
           <Select value={selected || 'draft'} onValueChange={choose}>
             <SelectTrigger className="h-10 w-auto min-w-[11rem] rounded-2xl font-bold" aria-label="Résumé version"><FileText className="mr-1 h-4 w-4" /><SelectValue /></SelectTrigger>

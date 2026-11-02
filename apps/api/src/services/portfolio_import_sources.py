@@ -70,15 +70,33 @@ def _present(value) -> bool:
 def _span(start, end) -> dict:
     start_date, precision = _month(start)
     current = _present(end)
-    end_date = None if current else _month(end)[0]
+    end_date, end_precision = (None, "month") if current else _month(end)
     if start_date and end_date and end_date < start_date:
         end_date = None
-    return {"start_date": start_date, "end_date": end_date, "start_precision": precision, "is_current": current and bool(start_date)}
+    span = {"start_date": start_date, "end_date": end_date, "start_precision": precision, "is_current": current and bool(start_date)}
+    if end_date:
+        span["end_precision"] = end_precision
+    return span
+
+
+MONTH_NAMES = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _label(value: str, precision: str | None) -> str:
+    """A YYYY-MM date as people read it: "2026" for a year-only date, otherwise "Jun 2026"."""
+    if not value or not re.fullmatch(r"\d{4}-\d{2}", value):
+        return value or ""
+    return value[:4] if precision == "year" else f"{MONTH_NAMES[int(value[5:7]) - 1]} {value[:4]}"
 
 
 def _when(span: dict) -> str:
-    start, end = span.get("start_date") or "", span.get("end_date") or ""
-    return f"{start} – {'now' if span.get('is_current') else end}".strip(" –") if start else end
+    start = _label(span.get("start_date") or "", span.get("start_precision"))
+    end = _label(span.get("end_date") or "", span.get("end_precision"))
+    if not start:
+        return end
+    if span.get("is_current"):
+        return f"{start} – now"
+    return start if not end or end == start else f"{start} – {end}"
 
 
 def _join(*parts, sep=", ") -> str:
@@ -170,7 +188,7 @@ def _cis_bio(sheets: dict) -> list[dict]:
         school = row.get("School")
         span = _span(row.get("Start"), row.get("End"))
         summary = "\n".join(filter(None, [_join(row.get("Major")), _text(row.get("Activities")) and f"Activities: {_text(row.get('Activities'))}", _text(row.get("Courses")) and f"Courses: {_text(row.get('Courses'))}"]))
-        items.append(_timeline(_key("cis-edu", school, row.get("Start")), "experience", "education", row.get("Degree") or row.get("Major") or "Student", school, _join(row.get("City"), row.get("State")), summary, span, {"gpa": _text(row.get("GPA"))} if row.get("GPA") else None))
+        items.append(_timeline(_key("cis-edu", school, row.get("Start")), "experience", "education", row.get("Degree") or row.get("Major") or school or "School", "" if not (row.get("Degree") or row.get("Major")) else school, _join(row.get("City"), row.get("State")), summary, span, {"gpa": _text(row.get("GPA"))} if row.get("GPA") else None))
     for row in _sheet(sheets, "Career Bio - Work & Volunteer"):
         volunteer = _text(row.get("Type")).lower().startswith("volunteer")
         employer = row.get("Employer or organization")
@@ -192,7 +210,7 @@ def _cis_bio(sheets: dict) -> list[dict]:
             record = {"kind": "card" if re.search(r"card|permit", name, re.I) else "certificate", "name": name, "expires_on": _month(row.get("Expires"))[0]}
             items.append(_item(_key("cis-cert", name), "credentials", "credential", name, "Certificate", record))
         else:
-            items.append(_item(_key("cis-skill", name), "results", "result", name, "Skill", {"kind": "skills", "name": name, "summary": name, "data": {"description": _text(row.get("Description"))}}))
+            items.append(_item(_key("cis-skill", name), "results", "result", name, "Skill", {"kind": "skills", "name": name, "summary": _text(row.get("Description"))[:300], "data": {"description": _text(row.get("Description"))}}))
     for row in _sheet(sheets, "Career Bio - Test Scores"):
         test = _text(row.get("Test"))
         if test:
@@ -273,13 +291,20 @@ def read_linkedin(content: bytes) -> dict:
     items: list[dict] = []
     with zipfile.ZipFile(io.BytesIO(content)) as archive:
         _check_zip(archive)
+        for row in _csv(archive, "Profile.csv")[:1]:
+            # The headline and About text go on the portfolio's front, if the learner picks them.
+            headline, summary = _text(row.get("Headline"))[:160], _text(row.get("Summary"))[:2000]
+            if headline:
+                items.append(_item("li-headline", "about", "profile", headline, "Headline", {"field": "headline", "value": headline}))
+            if summary:
+                items.append(_item("li-summary", "about", "profile", summary[:120] + ("…" if len(summary) > 120 else ""), "About me", {"field": "short_bio", "value": summary}))
         for row in _csv(archive, "Positions.csv"):
             company = row.get("Company Name")
             items.append(_timeline(_key("li-job", company, row.get("Title"), row.get("Started On")), "experience", "work_career", row.get("Title") or "Job", company, _text(row.get("Location")), _text(row.get("Description")), _span(row.get("Started On"), row.get("Finished On") or ("Present" if row.get("Started On") else ""))))
         for row in _csv(archive, "Education.csv"):
             school = row.get("School Name")
             summary = "\n".join(filter(None, [_text(row.get("Notes")), _text(row.get("Activities")) and f"Activities: {_text(row.get('Activities'))}"]))
-            items.append(_timeline(_key("li-edu", school, row.get("Start Date")), "experience", "education", row.get("Degree Name") or "Student", school, "", summary, _span(row.get("Start Date"), row.get("End Date"))))
+            items.append(_timeline(_key("li-edu", school, row.get("Start Date")), "experience", "education", row.get("Degree Name") or school or "School", school if row.get("Degree Name") else "", "", summary, _span(row.get("Start Date"), row.get("End Date"))))
         for row in _csv(archive, "Volunteering.csv"):
             company = row.get("Company Name")
             items.append(_timeline(_key("li-vol", company, row.get("Role"), row.get("Started On")), "experience", "leadership_service", row.get("Role") or "Volunteer", company, "", _text(row.get("Description")), _span(row.get("Started On"), row.get("Finished On"))))
@@ -299,7 +324,7 @@ def read_linkedin(content: bytes) -> dict:
         for row in _csv(archive, "Skills.csv"):
             name = _text(row.get("Name"))
             if name:
-                items.append(_item(_key("li-skill", name), "results", "result", name, "Skill", {"kind": "skills", "name": name, "summary": name, "data": {}}))
+                items.append(_item(_key("li-skill", name), "results", "result", name, "Skill", {"kind": "skills", "name": name, "summary": "", "data": {}}))
         for row in _csv(archive, "Recommendations_Received.csv"):
             name, text = _join(row.get("First Name"), row.get("Last Name"), sep=" "), _text(row.get("Text"))
             if name and text and _text(row.get("Status")).upper() in ("", "VISIBLE"):

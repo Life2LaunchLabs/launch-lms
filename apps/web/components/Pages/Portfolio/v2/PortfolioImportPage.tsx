@@ -18,7 +18,7 @@ const SOURCES: Array<{ source: ImportSource; title: string; how: string; accept:
   { source: 'linkedin', title: 'LinkedIn', how: 'In LinkedIn, open Settings, then Data privacy, then "Get a copy of your data", and upload the zip LinkedIn emails you. Or open your profile, choose More, then "Save to PDF", and upload that.', accept: '.zip,.pdf' },
   { source: 'resume', title: 'A résumé', how: 'Upload your résumé as a PDF. We read its sections and dates, so check what we found before you bring it in. The PDF is kept in My documents.', accept: '.pdf' },
 ]
-const GROUPS: Array<[string, string]> = [['experience', 'Experience'], ['projects', 'Projects'], ['credentials', 'Credentials'], ['results', "What I'm like"], ['people', 'My people'], ['links', 'Links'], ['documents', 'Documents']]
+const GROUPS: Array<[string, string]> = [['about', 'About me'], ['experience', 'Experience'], ['projects', 'Projects'], ['credentials', 'Credentials'], ['results', "What I'm like"], ['people', 'My people'], ['links', 'Links'], ['documents', 'Documents']]
 const groupLabel = (key: string) => GROUPS.find(([group]) => group === key)?.[1] || key
 const count = (counts: Record<string, number>) => Object.values(counts).reduce((sum, value) => sum + value, 0)
 

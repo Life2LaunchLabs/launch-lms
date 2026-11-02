@@ -102,6 +102,15 @@ export default function LifePlanWorkspace() {
     updatePhase: (fn) => { const next = clone(doc); const p = next.phases.find((x) => x.id === phase.id); if (p) fn(p); commit(next) },
     openLine, setOpenLine,
     openAdd: (side, cat) => setAdd({ side, cat }),
+    startOver: async () => {
+      if (timer.current) clearTimeout(timer.current)
+      pending.current = null
+      const res = await lifeApi.remove(token)
+      if (!res.ok && res.status !== 404) { toast.error("Couldn't delete your life plan. Try again in a moment."); return }
+      revision.current = null
+      setDoc(null); setSel(null); setOpenLine(null); setSaving('idle')
+      await mutate({ plan: null }, { revalidate: false })
+    },
   }
 
   return (

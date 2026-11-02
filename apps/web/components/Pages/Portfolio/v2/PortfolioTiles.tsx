@@ -11,6 +11,7 @@ import { SOCIAL_OPTIONS, socialHandle, shellSocials } from '../PortfolioHeaderPa
 import { timelineDateLabel, timelineTypeLabels, type TimelineEntry } from '../Timeline'
 import { Cover, EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
+import { RESULT_KINDS } from './ResultDialog'
 
 // The front page sections, in the prototype's order. "Where I'm headed" comes with the plans redesign.
 
@@ -52,7 +53,7 @@ function ExperienceTile({ shell, owner, orgslug, username }: TileProps) {
       <b className="line-clamp-2 text-[13.5px] font-extrabold leading-tight">{entry.title}</b>
       <small className="truncate text-xs font-semibold text-muted-foreground">{entry.organization}</small>
       <small className="truncate text-xs font-semibold text-muted-foreground">{timelineDateLabel(entry)}</small>
-    </Link>)}</div> : <EmptyAdd title="Add where you are right now" hint="School, a job, a team or a club. Start with one." href={getUriWithOrg(orgslug, '/portfolio/timeline/new')} />}
+    </Link>)}</div> : <EmptyAdd title="Add where you are right now" hint="School, a job, a team or a club. Start with one." href={`${getUriWithOrg(orgslug, '/portfolio/timeline')}?experience=work_career`} />}
   </Tile>
 }
 
@@ -64,7 +65,7 @@ function ProjectsTile({ shell, owner, orgslug, username }: TileProps) {
     {projects.length ? <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))]">{projects.slice(0, 3).map((project) => <Link key={project.project_uuid} href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
       <div className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><Cover url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} seed={project.project_uuid} /></div>
       <b className="line-clamp-2 text-[12.5px] font-extrabold leading-tight">{project.title}</b>
-    </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={getUriWithOrg(orgslug, routePaths.org.portfolioProjectsNew())} />}
+    </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={`${getUriWithOrg(orgslug, '/portfolio/projects')}?newProject=1`} />}
   </Tile>
 }
 
@@ -106,7 +107,10 @@ function ResultsTile({ shell, owner, onEditResult }: TileProps) {
 }
 
 function ResultLine({ result }: { result: PortfolioResult }) {
-  return <span className="block px-1 py-0.5"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{result.summary || result.name}</b></span>
+  // A result with no line of its own (an imported skill, say) shows its kind above its name, not its name twice.
+  const bare = !result.summary?.trim() || result.summary.trim().toLowerCase() === result.name.trim().toLowerCase()
+  const label = bare ? RESULT_KINDS.find((kind) => kind.value === result.kind)?.label || '' : result.name
+  return <span className="block px-1 py-0.5"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{bare ? result.name : result.summary}</b></span>
 }
 
 function QuoteCard({ quote }: { quote: Quote }) {
