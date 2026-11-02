@@ -100,34 +100,18 @@ def _public(user):
     return PublicUser.model_validate(user)
 
 
-def test_checklist_is_the_learners_starter_goal():
+def test_the_owner_shell_issues_no_starter_goal():
     from src.db.goals import Goal
 
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
-        actor = _public(user)
 
-        checklist = service.get_owner_shell(actor, db)["checklist"]
+        shell = service.get_owner_shell(_public(user), db)
 
-        goals = db.exec(select(Goal).where(Goal.subject_user_id == 1)).all()
-        assert len(goals) == 1
-        assert checklist["goal"]["goal_uuid"] == goals[0].goal_uuid
-        assert checklist["total"] == 6
-        # A learner who already has a name has done the Welcome step.
-        assert checklist["completed"] == 1
-        assert checklist["nextIncomplete"] == checklist["items"][1]
-        assert checklist["items"][0]["href"].startswith(f"/plans/{goals[0].goal_uuid}/steps/")
-
-        service.create_timeline(TimelineEntryCreate(title="A previous experience"), actor, db)
-        checklist = service.get_owner_shell(actor, db)["checklist"]
-
-        assert len(db.exec(select(Goal).where(Goal.subject_user_id == 1)).all()) == 1
-        assert [item["complete"] for item in checklist["items"]] == [True, True, False, False, False, False]
-        assert checklist["completed"] == 2
-        # Finishing the checklist awards nothing: Launch Ready is a goal, not a badge.
-        assert db.exec(select(BadgeAward)).all() == []
+        assert "checklist" not in shell
+        assert db.exec(select(Goal).where(Goal.subject_user_id == 1)).all() == []
 
 
 def test_portfolio_steps_on_other_goals_finish_when_the_portfolio_has_it():
@@ -254,7 +238,7 @@ def test_owner_preview_uses_public_section_visibility():
         assert "about" not in {
             section["section_type"] for section in preview["sections"]
         }
-        assert preview["checklist"] is None
+        assert "checklist" not in preview
 
 
 def test_unverified_user_cannot_publish():
