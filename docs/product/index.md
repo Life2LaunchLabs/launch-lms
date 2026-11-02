@@ -84,7 +84,7 @@ Let people enter securely, recover access, and control the basic identity they p
     - `IDENTITY-G001-A003-S002` [live / optional] Resend the verification message
     - `IDENTITY-G001-A003-S003` [live / alternative] Recover from an expired verification link
     - `IDENTITY-G001-A003-S004` [live / core] Continue after verification
-  - `IDENTITY-G001-A004` [live] Start the Launch Ready starter plan
+  - `IDENTITY-G001-A004` [live] Land on the portfolio after signup
     - `IDENTITY-G001-A004-S001` [live / core] Enter the first starter-plan step
     - `IDENTITY-G001-A004-S002` [live / core] Complete a starter-plan step
     - `IDENTITY-G001-A004-S003` [live / core] Return to the starter plan

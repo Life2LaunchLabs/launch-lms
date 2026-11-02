@@ -39,6 +39,9 @@ Scope is the portfolio. Plans get their own redesign; anything that needs plan c
 5. Résumé builder: letter page, versions, in-page editing, PDF.
 6. Imports: CIS zip, LinkedIn data zip or PDF, résumé parsing.
 
+"Where I'm headed" (`v2/HeadedTile.tsx`, `life_plans.plans.headed`) shows the life plan's phase now and the next two, never the
+budget; only the learner sees it until visibility is decided. Launch Ready was removed on 2 November 2026: sign-up lands on the portfolio.
+
 Held for the plans redesign: decision options in "Where I'm headed", the EPP view and sign-off, the course
 planner, and importing CIS reflections, saved items and plan history into plans.
 
@@ -62,7 +65,7 @@ planner, and importing CIS reflections, saved items and plan history into plans.
 - [x] Phase 4 progression (`v2/progress.ts`, `v2/QuestBar.tsx`): three quests worked out on the page from the
   portfolio itself. Sharing needs a photo, a bio, one experience and one project or credential. The résumé needs 3
   experiences, a school, a link and 3 skills. Mastery needs 3 projects with photos, 2 experiences told in a few
-  sentences, 2 confirmed quotes, a credential with a photo and a plan in progress. The locked action in the action
+  sentences, 2 confirmed quotes, a credential with a photo, a "What I'm like" result and a life plan with a phase now and a next one. The locked action in the action
   row shows a gauge; its banner lists the items, and each open item outlines its spot on the page with a "!" tip.
   A finished quest turns gold with confetti until the learner acknowledges it (`PUT /me/progress`, kept in
   `theme_settings.progress.seen`); seen unlocks stay. A public portfolio keeps sharing and a saved résumé keeps the

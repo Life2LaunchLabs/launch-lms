@@ -68,11 +68,9 @@ class WelcomeSignupEmailCheckRequest(BaseModel):
     username: str | None = None
 
 
-def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
-    """The next step of the learner's Launch Ready starter goal (the Welcome step at first)."""
-    from src.services.goals.starter import redirect_path
-
-    return f"/orgs/{owner_org.slug}{redirect_path(db_session, user_id)}"
+def _portfolio_redirect_url(owner_org: Organization) -> str:
+    """Where a new learner lands: their portfolio, whose quests are the onboarding."""
+    return f"/orgs/{owner_org.slug}/portfolio"
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -114,10 +112,10 @@ async def get_welcome_onboarding(
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    """Where onboarding continues: the starter plan for a signed-in learner, otherwise signup."""
+    """Where onboarding continues: the portfolio for a signed-in learner, otherwise signup."""
     if isinstance(current_user, AnonymousUser):
         return {"redirect_url": "/signup"}
-    return {"redirect_url": _starter_plan_redirect_url(require_owner_org(db_session), int(current_user.id), db_session)}
+    return {"redirect_url": _portfolio_redirect_url(require_owner_org(db_session))}
 
 
 @router.post("/signup/welcome/check-email")
@@ -192,7 +190,7 @@ async def complete_welcome_signup(
 
     onboarding_payload = {
         "org_slug": (org or owner_org).slug,
-        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _starter_plan_redirect_url(owner_org, int(user.id), db_session),  # type: ignore[arg-type]
+        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org),  # type: ignore[arg-type]
     }
 
     access_token = create_access_token(

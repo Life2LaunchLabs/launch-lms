@@ -2431,11 +2431,11 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "The portfolio checklist is the learner's Launch Ready starter plan: welcome, timeline, project, strengths and values, badges, and launch. Each step plays a plan activity and is checked off automatically when the portfolio already has it. Validate whether checklist language reflects genuine employer/community value rather than arbitrary field completion.",
+          "implementation_notes": "Three quests on the portfolio's action bar (v2/progress.ts) list what's missing: sharing, then the résumé, then mastery. Each open item outlines its spot on the page. The Launch Ready checklist was removed on 2026-11-02. Validate whether checklist language reflects genuine employer/community value rather than arbitrary field completion.",
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
-          "goal_title": "Become “launch ready” through the starter plan",
+          "goal_title": "Build a portfolio worth sharing through its quests",
           "group_title": "Build and present a portfolio",
           "availability": {
             "constraints": [],
@@ -2580,7 +2580,7 @@
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
-          "goal_title": "Become “launch ready” through the starter plan",
+          "goal_title": "Build a portfolio worth sharing through its quests",
           "group_title": "Build and present a portfolio",
           "availability": {
             "constraints": [],
@@ -2719,7 +2719,7 @@
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
-          "goal_title": "Become “launch ready” through the starter plan",
+          "goal_title": "Build a portfolio worth sharing through its quests",
           "group_title": "Build and present a portfolio",
           "availability": {
             "constraints": [],

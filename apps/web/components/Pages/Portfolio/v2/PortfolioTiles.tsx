@@ -11,10 +11,11 @@ import { SOCIAL_OPTIONS, socialHandle, shellSocials } from '../PortfolioHeaderPa
 import { timelineDateLabel, timelineTypeLabels, type TimelineEntry } from '../Timeline'
 import { Cover, EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
+import { HeadedTile } from './HeadedTile'
 import { RESULT_KINDS } from './ResultDialog'
 import type { Spot } from './progress'
 
-// The front page sections, in the prototype's order. "Where I'm headed" comes with the plans redesign.
+// The front page sections, in the prototype's order.
 
 // eslint-disable-next-line no-unused-vars
 type EditResult = (result?: PortfolioResult) => void
@@ -137,14 +138,16 @@ function PeopleTile({ spots, shell, owner, orgslug, wide = true }: TileProps & {
 
 /** The tiles in order. A visitor doesn't see a section with nothing in it. */
 export function PortfolioTiles(props: TileProps) {
-  // "What I'm like" pairs with My people; without it, My people takes the whole row.
-  const results = props.owner || Boolean(props.shell.results?.length)
+  // "What I'm like" pairs with "Where I'm headed" for the owner and with My people for visitors;
+  // a My people tile without a partner takes the whole row.
+  const results = !props.owner && Boolean(props.shell.results?.length)
   return <>
     <AboutTile {...props} />
     <ExperienceTile {...props} />
     <ProjectsTile {...props} />
     <CredentialsTile {...props} />
     <ResultsTile {...props} />
+    <HeadedTile shell={props.shell} owner={props.owner} orgslug={props.orgslug} spot={props.spots?.headed} />
     <PeopleTile {...props} wide={!results} />
   </>
 }

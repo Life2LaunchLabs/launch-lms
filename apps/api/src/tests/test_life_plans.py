@@ -213,3 +213,26 @@ def test_plan_document_rejects_bad_values():
         plan_service.LifePlanDocument.model_validate({"start": "Nov 2026"})
     with pytest.raises(ValueError):
         _doc(debts=[{"id": "d", "title": "Loan", "balance": -5}])
+
+
+def test_headed_is_the_phase_now_and_the_next_ones_without_the_budget():
+    from datetime import UTC, datetime
+
+    db = _session()
+    assert plan_service.headed(db, 1) == {"now": None, "next": []}
+    phases = [
+        {"id": "hs", "title": "High school", "kind": "school", "months": 12, "lines": [{"id": "l1", "cat": "food", "title": "Food", "side": "out"}]},
+        {"id": "cc", "title": "Community college", "kind": "study", "place_label": "Eugene, OR", "months": 24},
+        {"id": "vet", "title": "Vet tech", "kind": "work", "months": 60},
+        {"id": "own", "title": "My own clinic", "kind": "work", "months": 60},
+    ]
+    db.add(LifePlan(plan_uuid="lifeplan_1", user_id=1, document={"version": 1, "start": "2026-09", "phases": phases}))
+    db.commit()
+
+    headed = plan_service.headed(db, 1, datetime(2027, 11, 2, tzinfo=UTC))
+    assert headed["now"] == {"id": "cc", "title": "Community college", "kind": "study", "place": "Eugene, OR", "starts": "2027-09", "ends": "2029-08", "months": 24}
+    assert [phase["title"] for phase in headed["next"]] == ["Vet tech", "My own clinic"]
+    assert "lines" not in headed["now"]
+    # Before the plan starts nothing is now; after it ends, the last phase stays now.
+    assert plan_service.headed(db, 1, datetime(2026, 1, 1, tzinfo=UTC))["now"] is None
+    assert plan_service.headed(db, 1, datetime(2045, 1, 1, tzinfo=UTC)) == {"now": plan_service.headed(db, 1, datetime(2037, 1, 1, tzinfo=UTC))["now"], "next": []}
