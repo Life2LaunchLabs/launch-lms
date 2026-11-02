@@ -150,11 +150,11 @@
               "step_kind": "core",
               "product_state": "live",
               "health": "not_applicable",
-              "traceability": "none",
-              "automated_status": "not_tested",
+              "traceability": "partial",
+              "automated_status": "passed",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "The account keeps legal first and last name and sign-in. The portfolio edits both names and the optional name someone goes by (User.preferred_name), shown everywhere except rosters and official reports.",
+              "updated_at": "2026-10-29T21:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -163,7 +163,18 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_identity.py",
+                  "symbol": "update_identity"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_name_you_go_by_is_shown_and_the_legal_name_is_kept"
+                }
+              ]
             }
           ],
           "references": [],
@@ -1129,11 +1140,11 @@
               "step_kind": "core",
               "product_state": "live",
               "health": "not_applicable",
-              "traceability": "none",
-              "automated_status": "not_tested",
+              "traceability": "partial",
+              "automated_status": "passed",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "implementation_notes": "Cards, certificates, diplomas and test scores are Credential records that can link to a timeline experience (a diploma to the school it came from).",
+              "updated_at": "2026-10-29T21:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",
@@ -1142,7 +1153,18 @@
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/portfolio_records.py",
+                  "symbol": "create_credential"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_portfolio_records.py",
+                  "symbol": "test_credentials_link_to_the_timeline_and_a_photo_counts_as_evidence"
+                }
+              ]
             },
             {
               "id": "PORTFOLIO-G002-A003-S003",

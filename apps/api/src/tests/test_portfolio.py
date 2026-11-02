@@ -27,6 +27,7 @@ from src.db.portfolio import (
     TimelineEntryUpdate,
     TimelineProjectLink,
 )
+from src.db.portfolio_records import RECORD_TABLES
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -54,6 +55,7 @@ def _session():
         TimelineEntry,
         TimelineEntryBlock,
         TimelineProjectLink,
+        *RECORD_TABLES,
     ):
         model.__table__.create(engine)
     from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalStory, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
