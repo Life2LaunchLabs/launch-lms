@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile
 from openpyxl import Workbook
 from sqlmodel import select
 
-from src.db.portfolio import PortfolioLink, ProjectItem, TimelineEntry
+from src.db.portfolio import Portfolio, PortfolioLink, ProjectItem, TimelineEntry
 from src.db.portfolio_records import Credential, PortfolioContact, PortfolioDocument, PortfolioImport, PortfolioQuote, PortfolioResult
 from src.services import media as media_service, portfolio_imports as imports
 from src.services.portfolio_import_sources import read_export
@@ -125,6 +125,33 @@ async def test_a_linkedin_export_brings_jobs_projects_skills_and_recommendations
         assert (job.title, job.start_date, job.is_current, job.source) == ("Barista", "2025-06", True, "linkedin")
         assert db.exec(select(ProjectItem)).one().end_date == "2026-04"
         assert db.exec(select(PortfolioQuote)).one().body == "Always on time."
+
+
+async def test_linkedin_brings_the_headline_and_about_and_keeps_year_only_dates():
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("Profile.csv", "First Name,Last Name,Headline,Summary\nMaya,Rivera,Aspiring nurse,I like helping people.\n")
+        bundle.writestr("Education.csv", "School Name,Start Date,End Date,Notes,Degree Name,Activities\nSouth Albany High School,2022,2026,,,\n")
+        bundle.writestr("Skills.csv", "Name\nSpreadsheets\n")
+    with _session() as db:
+        actor = _learner(db)
+        preview = await imports.preview_import("linkedin", _upload(archive.getvalue(), "linkedin.zip"), actor, db)
+        by_key = {item["key"]: item for item in preview["items"]}
+        assert by_key["li-headline"]["group"] == "about" and by_key["li-headline"]["title"] == "Aspiring nurse"
+        school = next(item for item in preview["items"] if item["group"] == "experience")
+        # No degree: the school is the title, and year-only dates read as years.
+        assert school["title"] == "South Albany High School" and school["detail"] == "2022 – 2026"
+
+        await imports.run_import("linkedin", _upload(archive.getvalue(), "linkedin.zip"), [item["key"] for item in preview["items"]], actor, db)
+
+        entry = db.exec(select(TimelineEntry)).one()
+        assert (entry.start_date, entry.start_precision, entry.end_date, entry.end_precision) == ("2022-01", "year", "2026-01", "year")
+        portfolio = db.exec(select(Portfolio)).one()
+        assert (portfolio.headline, portfolio.short_bio) == ("Aspiring nurse", "I like helping people.")
+        skill = db.exec(select(PortfolioResult)).one()
+        assert (skill.name, skill.summary) == ("Spreadsheets", "")
+        again = await imports.preview_import("linkedin", _upload(archive.getvalue(), "linkedin.zip"), actor, db)
+        assert all(item["already"] for item in again["items"])
 
 
 async def test_imports_refuse_files_that_are_not_exports():

@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
@@ -30,6 +31,7 @@ export function ResultDialog({ open, onOpenChange, result, token, onSaved }: { o
   const initial = (): Draft => ({ kind: result?.kind || 'interests', name: result?.name || '', summary: result?.summary || '', taken_on: result?.taken_on || '', visible: result ? result.visibility !== 'private' : true })
   const [draft, setDraft] = useState<Draft>(initial)
   const [busy, setBusy] = useState(false)
+  const ask = useAsk()
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const kind = RESULT_KINDS.find((item) => item.value === draft.kind)
 
@@ -47,12 +49,13 @@ export function ResultDialog({ open, onOpenChange, result, token, onSaved }: { o
   }
 
   async function remove() {
-    if (!token || !result || !window.confirm(`Remove ${result.name}?`)) return
+    if (!token || !result || !(await ask.confirm({ title: `Remove ${result.name}?`, action: 'Remove', danger: true }))) return
     setBusy(true)
     try { await resultsApi.remove(result.result_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || 'Could not remove this') } finally { setBusy(false) }
   }
 
   return <Dialog open={open} onOpenChange={(next) => { if (next) setDraft(initial()); onOpenChange(next) }}>
+    {ask.dialog}
     <DialogContent className="max-w-lg">
       <DialogHeader><DialogTitle>{result ? result.name : 'Add to What I’m like'}</DialogTitle><DialogDescription>{result && result.source !== 'manual' ? 'This came from an activity you did. You can hide it or change how it reads.' : 'Something a quiz or a person helped you learn about yourself.'}</DialogDescription></DialogHeader>
       <div className="grid gap-4">

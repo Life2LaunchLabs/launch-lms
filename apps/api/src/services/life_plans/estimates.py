@@ -111,6 +111,14 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
     return out
 
 
+def available_metrics(db: Session, place: str | None) -> list[str]:
+    """Metrics with at least one reviewed fact somewhere on this place's ladder, so the app only
+    promises an estimate it can give."""
+    keys = places.ladder(place)
+    rows = db.exec(select(EstimateFact.metric).where(col(EstimateFact.place).in_(keys), EstimateFact.status == REVIEWED).distinct()).all()
+    return sorted(set(rows))
+
+
 def occupations(db: Session, query: str = "", limit: int = 20) -> list[dict]:
     """Jobs we have reviewed pay figures for, matched on their title."""
     stmt = select(EstimateFact.dims, EstimateFact.label).where(EstimateFact.metric == "wage", EstimateFact.status == REVIEWED)

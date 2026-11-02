@@ -25,11 +25,22 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
 
   const { data: org, error: orgError } = useSWR(
     [`${getAPIUrl()}orgs/slug/${orgslug}`, accessToken || '', userId],
-    ([url, token]) => swrFetcher(url, token || undefined),
+    // A stale or rejected sign-in still gets the org: everyone can read it, so fall back to asking
+    // without the token rather than leaving the page dead.
+    async ([url, token]) => {
+      try { return await swrFetcher(url, token || undefined) }
+      catch (error: any) {
+        if (token && (error?.status === 401 || error?.status === 403)) return swrFetcher(url)
+        throw error
+      }
+    },
     {
       revalidateOnFocus: true,
       revalidateOnMount: true,
       dedupingInterval: 5000,
+      // A new token changes the key; keep the org on screen while it's fetched again.
+      keepPreviousData: true,
+      errorRetryCount: 4,
     }
   )
 
@@ -52,7 +63,8 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
     })
   }, [isAuthenticated, sessionRoles.length, session])
 
-  if (orgError) return <ErrorUI message='An error occurred while fetching data' />
+  // A failed refetch (a sign-in refresh hiccup, a busy server) keeps the org already loaded.
+  if (orgError && !org) return <ErrorUI message='An error occurred while fetching data' />
   if (!org || !session) return <div></div>
   if (isAuthenticated && sessionRoles.length === 0 && isResolvingMembership) return <div></div>
   if (!isOrgActive) return <ErrorUI message='This organization is no longer active' />

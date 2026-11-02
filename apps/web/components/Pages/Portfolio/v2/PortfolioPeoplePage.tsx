@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { DropdownMenuItem } from '@components/ui/dropdown-menu'
 import { Input } from '@components/ui/input'
@@ -30,6 +31,7 @@ function ContactDialog({ open, onOpenChange, contact, quote, shell, token, onSav
   const initial = (): Draft => ({ name: contact?.name || '', role_label: contact?.role_label || '', email: contact?.email || '', phone: contact?.phone || '', note: contact?.note || '', is_reference: Boolean(contact?.is_reference), timeline_uuid: contact?.timeline_uuid || NONE, quote: quote?.body || '' })
   const [draft, setDraft] = useState<Draft>(initial)
   const [busy, setBusy] = useState(false)
+  const ask = useAsk()
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
 
   async function save() {
@@ -48,12 +50,13 @@ function ContactDialog({ open, onOpenChange, contact, quote, shell, token, onSav
   }
 
   async function remove() {
-    if (!token || !contact || !window.confirm(`Remove ${contact.name} and their quotes?`)) return
+    if (!token || !contact || !(await ask.confirm({ title: `Remove ${contact.name}?`, body: 'Their quotes come off your portfolio too.', action: 'Remove', danger: true }))) return
     setBusy(true)
     try { await contactsApi.remove(contact.contact_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || 'Could not remove this') } finally { setBusy(false) }
   }
 
   return <Dialog open={open} onOpenChange={(next) => { if (next) setDraft(initial()); onOpenChange(next) }}>
+    {ask.dialog}
     <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
       <DialogHeader><DialogTitle>{contact ? contact.name : 'Add someone'}</DialogTitle><DialogDescription>A boss, coach, teacher or mentor. They don’t need an account, and only you see their contact details.</DialogDescription></DialogHeader>
       <div className="grid gap-4">

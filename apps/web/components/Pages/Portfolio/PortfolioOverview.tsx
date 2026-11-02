@@ -39,7 +39,7 @@ export function AboutSection({ shell, setShell, owner, token }: { shell: Shell; 
   }
   if (!owner && !bio) return null
   if (editing) return <section aria-label="Bio" className="flex flex-col gap-3">
-    <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} autoFocus aria-label="Bio" placeholder="Tell people a little about yourself, in your own voice…" className="w-full resize-y rounded-2xl border-2 border-border bg-card p-4 text-base leading-7 outline-none focus:border-[var(--org-primary-color)]" />
+    <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape' && !saving) { event.preventDefault(); setEditing(false) } else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); save() } }} rows={5} autoFocus aria-label="Bio" placeholder="Tell people a little about yourself, in your own voice…" className="w-full resize-y rounded-2xl border-2 border-border bg-card p-4 text-base leading-7 outline-none focus:border-[var(--org-primary-color)]" />
     <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button><Button type="button" variant="brand" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save bio'}</Button></div>
   </section>
   return <section aria-label="Bio" className="group/bio relative">

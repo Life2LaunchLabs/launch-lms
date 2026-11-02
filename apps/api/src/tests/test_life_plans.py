@@ -68,6 +68,17 @@ def test_no_facts_means_no_estimate():
         assert estimates.resolve_many(db, [_q(metric="rent", place="city:OR:eugene", dims={"bedrooms": 2})]) == {"x": None}
 
 
+def test_available_metrics_only_lists_reviewed_facts_on_the_ladder():
+    with _session() as db:
+        assert estimates.available_metrics(db, "city:OR:eugene") == []
+        _loaded(db, review=False)
+        assert estimates.available_metrics(db, "city:OR:eugene") == []
+    with _session() as db:
+        _loaded(db)
+        assert "rent" in estimates.available_metrics(db, "city:OR:eugene")
+        assert "rent" not in estimates.available_metrics(db, "county:OR:baker")
+
+
 def test_draft_facts_are_never_used():
     with _session() as db:
         _loaded(db, review=False)

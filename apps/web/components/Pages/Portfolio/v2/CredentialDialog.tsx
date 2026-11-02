@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
@@ -33,6 +34,7 @@ const draftFrom = (item?: Credential | null): Draft => ({ kind: item?.kind || 'c
 export function CredentialDialog({ open, onOpenChange, credential, shell, token, userId, onSaved }: { open: boolean; onOpenChange: OpenChange; credential?: Credential | null; shell: Shell; token?: string; userId: number; onSaved: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(credential))
   const [busy, setBusy] = useState(false)
+  const ask = useAsk()
   const [picking, setPicking] = useState(false)
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const photoUrl = draft.photo ? draft.photo.url : credential?.photo_url ? normalizeMediaUrl(credential.photo_url) : ''
@@ -59,12 +61,13 @@ export function CredentialDialog({ open, onOpenChange, credential, shell, token,
   }
 
   async function remove() {
-    if (!token || !credential || !window.confirm(`Remove ${credential.name}?`)) return
+    if (!token || !credential || !(await ask.confirm({ title: `Remove ${credential.name}?`, action: 'Remove', danger: true }))) return
     setBusy(true)
     try { await credentialsApi.remove(credential.credential_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || 'Could not remove this') } finally { setBusy(false) }
   }
 
   return <>
+    {ask.dialog}
     <Dialog open={open} onOpenChange={(next) => { if (next) setDraft(draftFrom(credential)); onOpenChange(next) }}>
       <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>{credential ? 'Edit' : 'Add'} {KINDS.find((kind) => kind.value === draft.kind)?.label.toLowerCase()}</DialogTitle><DialogDescription>Something you’ve earned that a school or a boss would want to see.</DialogDescription></DialogHeader>

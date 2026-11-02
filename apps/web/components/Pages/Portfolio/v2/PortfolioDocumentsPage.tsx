@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { getUriWithOrg } from '@services/config/config'
 import { normalizeMediaUrl } from '@services/media/media'
@@ -25,16 +26,18 @@ export function PortfolioDocumentsPage({ initialShell, orgslug }: { initialShell
   const token = session?.data?.tokens?.access_token
   const [shell, setShell] = useState(initialShell)
   const [picking, setPicking] = useState(false)
+  const ask = useAsk()
   const items = shell.documents || []
 
   async function run(change: () => Promise<unknown>, failure: string) {
     if (!token) return
     try { await change(); setShell(await getMyPortfolio(token)) } catch (error: any) { toast.error(error?.message || failure) }
   }
-  const rename = (item: PortfolioDocument) => { const title = window.prompt('Name', item.title)?.trim(); if (title && title !== item.title) run(() => documentsApi.update(item.document_uuid, { title }, token), 'Could not rename this') }
-  const remove = (item: PortfolioDocument) => { if (window.confirm(`Remove ${item.title}?`)) run(() => documentsApi.remove(item.document_uuid, token), 'Could not remove this') }
+  const rename = async (item: PortfolioDocument) => { const title = await ask.text({ title: 'Rename this document', label: 'Name', initial: item.title, action: 'Rename' }); if (title && title !== item.title) run(() => documentsApi.update(item.document_uuid, { title }, token), 'Could not rename this') }
+  const remove = async (item: PortfolioDocument) => { if (await ask.confirm({ title: `Remove ${item.title}?`, body: 'It comes off your portfolio. This can’t be undone.', action: 'Remove', danger: true })) run(() => documentsApi.remove(item.document_uuid, token), 'Could not remove this') }
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2="documents">
+    {ask.dialog}
     <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6">
       <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="sky" icon={FileText} title="My documents"><Button type="button" variant="brand" className="h-10" onClick={() => setPicking(true)}><Plus className="h-4 w-4" />Add</Button></DetailHeader>
       <p className="mb-4 flex items-center gap-2 px-2 text-[15px] text-muted-foreground"><Lock className="h-4 w-4 shrink-0" />Only you can see these. Keep a résumé, a transcript or what came with an import.</p>

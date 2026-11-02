@@ -124,7 +124,8 @@ def _timeline_items(section: str, lines: list[str], source: str, linkedin: bool)
         summary = "\n".join(BULLET.sub("", line) for line in body)[:2000]
         if section == "education":
             school, degree = (title, organization) if _school(title) or DEGREE.search(organization) and not _school(organization) else (organization, title)
-            title, organization = degree or "Student", school
+            # Without a degree the school is the title, not a made-up "Student".
+            title, organization = (degree, school) if degree else (school, "")
         if section == "awards" and not title:
             title = organization or "Award"
         if not title:
@@ -179,7 +180,7 @@ def read_pdf(content: bytes, filename: str, source: str) -> dict:
         if 2 < len(name) <= 120 and not RANGE.fullmatch(name):
             items.append(_item(_key(f"{source}-cert", name), "credentials", "credential", name, "Certificate", {"kind": "card" if re.search(r"card|permit", name, re.I) else "certificate", "name": name}))
     for skill in _list_items(sections.get("skills", [])):
-        items.append(_item(_key(f"{source}-skill", skill), "results", "result", skill, "Skill", {"kind": "skills", "name": skill, "summary": skill, "data": {}}))
+        items.append(_item(_key(f"{source}-skill", skill), "results", "result", skill, "Skill", {"kind": "skills", "name": skill, "summary": "", "data": {}}))
     items += _references(sections.get("references", []), source)
     title = "LinkedIn profile" if linkedin else f"Résumé ({filename.rsplit('.', 1)[0][:80]})"
     items.append(_item(_key(f"{source}-file", title), "documents", "document", title, "PDF · only you see it", {"member": "__upload__", "filename": filename if filename.lower().endswith(".pdf") else "resume.pdf", "media_type": "document", "kind": "resume"}))

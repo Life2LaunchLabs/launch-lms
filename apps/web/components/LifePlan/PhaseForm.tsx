@@ -62,9 +62,11 @@ export function PlacePicker({ token, value, label, onPick }: { token?: string; v
 export function PhaseForm({ token, initial, submitLabel, onSubmit, onCancel }: { token?: string; initial: PhaseDraft; submitLabel: string; onSubmit: (d: PhaseDraft) => void; onCancel?: () => void }) {
   const [d, setD] = React.useState<PhaseDraft>(initial)
   const years = Math.floor(d.months / 12), months = d.months % 12
-  const setDur = (y: number, m: number) => setD({ ...d, months: Math.max(1, Math.min(1200, y * 12 + m)) })
+  // Zero is allowed while typing, and the form says so instead of quietly making it a month.
+  const setDur = (y: number, m: number) => setD({ ...d, months: Math.max(0, Math.min(1200, y * 12 + m)) })
+  const tooShort = d.months < 1
   return (
-    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (d.title.trim()) onSubmit({ ...d, title: d.title.trim() }) }}>
+    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (d.title.trim() && !tooShort) onSubmit({ ...d, title: d.title.trim() }) }}>
       <div className="space-y-1.5">
         <Label htmlFor="phase-title">What's this phase?</Label>
         <Input id="phase-title" value={d.title} maxLength={120} placeholder="High school in Eugene" onChange={(e) => setD({ ...d, title: e.target.value })} />
@@ -86,12 +88,13 @@ export function PhaseForm({ token, initial, submitLabel, onSubmit, onCancel }: {
         <Label>How long</Label>
         <div className="flex items-center gap-2 text-sm">
           <Input aria-label="Years" type="number" min={0} max={100} className="w-20" value={years} onChange={(e) => setDur(Number(e.target.value) || 0, months)} /> years
-          <Input aria-label="Months" type="number" min={0} max={11} className="w-20" value={months} onChange={(e) => setDur(years, Math.min(11, Number(e.target.value) || 0))} /> months
+          <Input aria-label="Months" type="number" min={0} max={11} className="w-20" value={months} onChange={(e) => setDur(years, Math.min(11, Number(e.target.value) || 0))} aria-invalid={tooShort} aria-describedby={tooShort ? 'phase-length-error' : undefined} /> months
         </div>
+        {tooShort && <p id="phase-length-error" role="alert" className="text-sm font-semibold text-destructive">A phase needs to last at least one month.</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
         {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
-        <Button type="submit" disabled={!d.title.trim()}>{submitLabel}</Button>
+        <Button type="submit" disabled={!d.title.trim() || tooShort}>{submitLabel}</Button>
       </div>
     </form>
   )

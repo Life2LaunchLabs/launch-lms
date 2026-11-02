@@ -16,7 +16,7 @@ function Card({ title, note, onAdd, addLabel, children, empty }: { title: string
     <section className="rounded-2xl bg-card p-4 shadow-[0_1px_0_hsl(var(--border))] sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-lg font-extrabold">{title}</h3>
-        <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 text-sm font-extrabold text-[var(--org-primary-color)]"><Plus className="size-4" />{addLabel}</button>
+        <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Plus className="size-4" />{addLabel}</button>
       </div>
       {note && <p className="mt-0.5 text-sm text-muted-foreground">{note}</p>}
       <div className={empty ? 'contents' : 'mt-2'}>{children}</div>
@@ -120,7 +120,7 @@ export function DebtCard() {
     <Card title="Debt" note={!now.length && !short ? 'Loans and cards you pay back. Loans for a car or home are added with the thing you buy.' : undefined} addLabel="Add a loan" onAdd={() => open(null)} empty={!now.length && !short}>
       {now.map(({ debt, balance, payment }) => <Item key={debt.id} icon="landmark" title={debt.title} sub={`${money(payment)} a month at ${debt.rate}%`} value={money(-balance)} onClick={() => open(debt)} />)}
       {short > 0.5 && <div className="flex items-center gap-3 py-3"><span className="grid size-8 place-items-center rounded-xl bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"><LifeIcon name="receipt" /></span><span className="flex-1"><b className="block font-semibold">Money you'd be short</b><span className="text-xs text-muted-foreground">Your budget doesn't cover this yet.</span></span><b className="tabular-nums text-red-700 dark:text-red-300">{money(-short)}</b></div>}
-      <p className="sr-only">{doc.debts.length} debts</p>
+      <p className="sr-only">{doc.debts.length === 1 ? "1 debt" : `${doc.debts.length} debts`}</p>
       <Editor title={isNew ? 'Add a loan' : edit?.title || 'Loan'} open={!!edit} onClose={() => setEdit(null)}
         onRemove={isNew ? undefined : () => update((d) => { d.debts = d.debts.filter((x) => x.id !== edit!.id); d.assets.forEach((a) => { if (a.loan_id === edit!.id) a.loan_id = null }) })}
         onSave={() => {

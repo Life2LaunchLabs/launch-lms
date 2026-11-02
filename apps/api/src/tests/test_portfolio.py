@@ -378,6 +378,20 @@ def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
         assert public["projects"][0]["project_uuid"] == project["project_uuid"]
 
 
+def test_an_onboarding_display_name_becomes_the_name_the_portfolio_shows():
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        outcomes = {"version": 1, "actions": [{"id": "intro", "type": "set_portfolio_fields", "fields": {"display_name": "Maya R.", "headline": "Future nurse"}}]}
+        apply_portfolio_outcomes(db, user, 7, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        assert user.preferred_name == "Maya R."
+        # The legal name adds nothing, so it isn't kept as a "goes by".
+        apply_portfolio_outcomes(db, user, 8, {"version": 1, "actions": [{"id": "again", "type": "set_portfolio_fields", "fields": {"display_name": f"{user.first_name} {user.last_name}".strip()}}]}, {"answers": {}, "bindings": {}})
+        assert user.preferred_name == "Maya R."
+
+
 def test_activity_timeline_outcome_assigns_only_an_owned_cover_image():
     with _session() as db:
         user = _user()

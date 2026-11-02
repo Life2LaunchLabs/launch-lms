@@ -52,7 +52,7 @@ export default function BudgetTable() {
               </div>
             ))}
             {!lines.some((l) => l.side === side) && side === 'in' && <p className="pt-3 text-sm text-muted-foreground">Nothing coming in yet.</p>}
-            <button type="button" onClick={() => openAdd(side)} className="mt-2 inline-flex items-center gap-1.5 py-2 text-sm font-extrabold text-[var(--org-primary-color)]">
+            <button type="button" onClick={() => openAdd(side)} className="mt-2 inline-flex items-center gap-1.5 py-2 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]">
               <Plus className="size-4" />{side === 'in' ? 'Add income' : 'Add an expense'}
             </button>
           </div>
@@ -132,7 +132,7 @@ function RowEditor({ line, est, hasMetric }: { line: Line; est: Estimate | null;
             <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
               <p><b className="text-foreground">{est.source.title}</b>, {est.source.publisher}{est.source.released ? ` (${est.source.released})` : ''}. {est.source.dataset}.</p>
               {est.source.notes && <p className="mt-1">{est.source.notes}</p>}
-              {est.source.url && <a className="mt-1 inline-block font-semibold text-[var(--org-primary-color)] underline" href={est.source.url} target="_blank" rel="noreferrer">See the source</a>}
+              {est.source.url && <a className="mt-1 inline-block font-semibold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)] underline" href={est.source.url} target="_blank" rel="noreferrer">See the source</a>}
             </div>
           )}
           {item?.settings?.length ? <Settings line={line} token={token} /> : null}

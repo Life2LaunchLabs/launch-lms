@@ -51,7 +51,9 @@ def _existing(portfolio_id: int, source: str, db_session: Session) -> set[str]:
     return keys
 
 
-def _already(item: dict, existing: set[str]) -> bool:
+def _already(item: dict, existing: set[str], portfolio=None) -> bool:
+    if item["kind"] == "profile":
+        return portfolio is not None and (getattr(portfolio, item["record"]["field"], "") or "").strip() == item["record"]["value"].strip()
     if item["kind"] == "document":
         return f"doc:{item['title']}" in existing
     if item["kind"] == "link":
@@ -64,7 +66,7 @@ async def preview_import(source: str, upload: UploadFile, current_user: PublicUs
     export = read_export(source, content, filename)
     portfolio = portfolio_service.get_or_create_portfolio(current_user, db_session)
     existing = _existing(portfolio.id or 0, source, db_session)
-    items = [{key: item[key] for key in ("key", "group", "kind", "title", "detail")} | {"already": _already(item, existing)} for item in export["items"]]
+    items = [{key: item[key] for key in ("key", "group", "kind", "title", "detail")} | {"already": _already(item, existing, portfolio)} for item in export["items"]]
     return {"source": source, "label": SOURCE_LABELS[source], "items": items, "kept": {sheet: len(rows) for sheet, rows in export["kept"].items()}, "skipped": export["skipped"]}
 
 
@@ -124,7 +126,7 @@ async def run_import(source: str, upload: UploadFile, keys: list[str], current_u
     wanted = set(keys)
     added: dict[str, int] = {}
     for item in export["items"]:
-        if item["key"] not in wanted or _already(item, existing):
+        if item["key"] not in wanted or _already(item, existing, portfolio):
             continue
         kind, record, key = item["kind"], item["record"], item["key"]
         if kind == "timeline":
@@ -137,6 +139,8 @@ async def run_import(source: str, upload: UploadFile, keys: list[str], current_u
             _contact(record, key, source, portfolio, db_session)
         elif kind == "result":
             portfolio_results.record_result(current_user, ResultWrite(**record), source, key, db_session)
+        elif kind == "profile" and record["field"] in ("headline", "short_bio"):
+            setattr(portfolio, record["field"], record["value"])
         elif kind == "link":
             _link(record, portfolio, db_session)
         elif kind == "document":

@@ -62,6 +62,12 @@ def api_occupations(q: str = "", db: Session = Depends(get_db_session), user: Pu
     return {"occupations": estimate_service.occupations(db, q)}
 
 
+@router.get("/metrics")
+def api_available_metrics(place: str | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Which metrics we have reviewed facts for at this place (or one it sits in)."""
+    return {"metrics": estimate_service.available_metrics(db, place)}
+
+
 @router.post("/estimates")
 def api_estimates(body: EstimateBatch, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """The most specific reviewed fact for each line, or null where we have none."""
