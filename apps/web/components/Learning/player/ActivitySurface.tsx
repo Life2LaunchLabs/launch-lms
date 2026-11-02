@@ -5,6 +5,7 @@ import React from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowLeft, ChevronRight, X } from 'lucide-react'
 import { VideoPlaybackStatus } from '@components/Learning/LearningBadgeViews'
+import { useAsk } from '@components/ui/ask-dialog'
 import { backgroundLook, Celebration, pageTransition, resolveBackground, Scene } from './design'
 
 /** How an activity's X behaves: a plain close by default, or a labelled exit that can ask first and route somewhere. */
@@ -95,17 +96,22 @@ export function LearningActivitySurface({
   const valign = VALIGN[page?.design?.valign] || VALIGN.middle
   const canGoBack = settings?.design?.allow_back !== false
 
-  const leave = () => {
-    if (exit.confirm && !window.confirm(exit.confirm)) return
+  const ask = useAsk()
+  const leave = async () => {
+    if (exit.confirm) {
+      // "Skip the rest? You can fill it in later." asks the first sentence and explains with the rest.
+      const [, title = exit.confirm, body] = exit.confirm.match(/^(.+?[?.!])\s+(.+)$/) || []
+      if (!(await ask.confirm({ title, body, action: exit.label || 'Leave', cancel: 'Stay' }))) return
+    }
     if (onExit && exit.to_page_uuid) onExit()
     else onBack?.()
   }
   const close = backHref && !exit.label && !exit.confirm ? (
     <Link href={backHref} aria-label="Close activity" className={chromeButton}><X size={20} /></Link>
   ) : exit.label ? (
-    <button type="button" onClick={leave} className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${onDark ? 'text-white/85 hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{exit.label}</button>
+    <button type="button" onClick={() => void leave()} className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${onDark ? 'text-white/85 hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{exit.label}</button>
   ) : (
-    <button type="button" onClick={leave} aria-label="Close activity" className={chromeButton}><X size={20} /></button>
+    <button type="button" onClick={() => void leave()} aria-label="Close activity" className={chromeButton}><X size={20} /></button>
   )
   // Timed pages: tap the left third to go back, elsewhere to move on, hold anywhere to pause.
   // Taps on the page's own controls (answers, buttons, fields) stay theirs.
@@ -169,6 +175,7 @@ export function LearningActivitySurface({
           </div>
         </div>
       </div>
+      {ask.dialog}
     </main>
   )
 }
