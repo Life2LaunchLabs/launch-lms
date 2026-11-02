@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+import json
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
@@ -15,7 +17,7 @@ from src.db.portfolio_records import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services import portfolio_display, portfolio_identity, portfolio_records as records, portfolio_results as results
+from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
 User = Depends(get_current_user)
@@ -125,3 +127,22 @@ async def api_update_result(result_uuid: str, payload: ResultWrite, current_user
 @router.delete("/me/results/{result_uuid}")
 async def api_delete_result(result_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
     return results.delete_result(result_uuid, current_user, db_session)
+
+
+@router.get("/me/imports")
+async def api_list_imports(current_user: PublicUser = User, db_session: Session = Db):
+    return imports.list_imports(current_user, db_session)
+
+
+@router.post("/me/imports/preview")
+async def api_preview_import(source: str = Form(...), file: UploadFile = File(...), current_user: PublicUser = User, db_session: Session = Db):
+    return await imports.preview_import(source, file, current_user, db_session)
+
+
+@router.post("/me/imports")
+async def api_run_import(source: str = Form(...), keys: str = Form("[]"), file: UploadFile = File(...), current_user: PublicUser = User, db_session: Session = Db):
+    try:
+        picked = [str(key) for key in json.loads(keys)]
+    except (ValueError, TypeError) as error:
+        raise HTTPException(status_code=422, detail="keys must be a JSON list") from error
+    return await imports.run_import(source, file, picked, current_user, db_session)
