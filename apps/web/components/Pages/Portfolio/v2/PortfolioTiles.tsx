@@ -27,18 +27,18 @@ const featuredFirst = <T extends { featured?: boolean }>(items: T[]) => [...item
 function AboutTile({ shell, setShell, owner, token, onEditLinks, spots }: TileProps) {
   const socials = shellSocials(shell)
   if (!owner && !shell.portfolio.short_bio && !socials.length) return null
+  // As on the prototype's About page: the bio on top, then where people can find more of you.
   return <Tile color="amber" icon={User} title="About me" wide spot={spots?.about || spots?.links}>
-    <div className="grid gap-5 md:grid-cols-2">
-      <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
-      <div className="grid content-start gap-1.5">
-        {socials.length ? <ul className="grid gap-1.5" aria-label="Links">{socials.map((social) => <li key={social.type}>
-          <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
-            <Link2 className="h-4 w-4 text-muted-foreground" /><b className="truncate font-extrabold">{socialHandle(social.type, social.url) || social.url}</b><small className="text-xs font-semibold text-muted-foreground">{SOCIAL_OPTIONS.find((option) => option.type === social.type)?.label || social.type}</small>
-          </a>
-        </li>)}</ul> : null}
-        {owner && onEditLinks ? <button type="button" onClick={onEditLinks} className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground"><Link2 className="h-3.5 w-3.5" />{socials.length ? 'Edit links' : 'Add links'}</button> : null}
-      </div>
-    </div>
+    <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
+    {socials.length || owner ? <div className="grid gap-2 border-t border-border pt-3.5">
+      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Find me</span>
+      {socials.length ? <ul className="grid gap-1.5 sm:grid-cols-2" aria-label="Links">{socials.map((social) => <li key={social.type}>
+        <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
+          <Link2 className="h-4 w-4 text-muted-foreground" /><b className="truncate font-extrabold">{socialHandle(social.type, social.url) || social.url}</b><small className="text-xs font-semibold text-muted-foreground">{SOCIAL_OPTIONS.find((option) => option.type === social.type)?.label || social.type}</small>
+        </a>
+      </li>)}</ul> : null}
+      {owner && onEditLinks ? <button type="button" onClick={onEditLinks} className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground"><Link2 className="h-3.5 w-3.5" />{socials.length ? 'Edit links' : 'Add where people can find you'}</button> : null}
+    </div> : null}
   </Tile>
 }
 

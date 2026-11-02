@@ -5,7 +5,7 @@ import type { Shell } from '../portfolioTypes'
 // the API only keeps which unlocks the learner has seen, so an unlock never goes away again.
 
 /** Where a quest item is done on the front page. The page outlines that spot with the item's instruction. */
-export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people' | 'settings'
+export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people' | 'settings' | 'name'
 export type QuestItem = { key: string; label: string; detail?: string; done: boolean; have?: number; need?: number; spot: Spot }
 export type Quest = { n: 1 | 2 | 3; title: string; why: string; items: QuestItem[]; done: number; total: number; complete: boolean }
 /** working: items left on quest n. unlocked: quest n is finished and its unlock moment hasn't been seen. mastered: all done. */
@@ -31,10 +31,12 @@ export function quests(shell: Shell): Quest[] {
   const socials = (shell.portfolio.socials || []) as Array<{ url?: string }>
   return [
     quest(1, [
+      // Asked at sign-up, so it's usually ticked already.
+      { key: 'name', label: 'Add your first and last name', done: Boolean(shell.identity?.first_name?.trim() && shell.identity?.last_name?.trim()), spot: 'name' },
       { key: 'photo', label: 'Add a profile photo', done: Boolean(shell.portfolio.avatar_image), spot: 'avatar' },
       { key: 'bio', label: 'Write a short bio', done: Boolean(String(shell.portfolio.short_bio || '').trim()), spot: 'about' },
       { key: 'now', label: 'Add where you are right now', done: timeline.length >= 1, spot: 'experience' },
-      { key: 'made', label: 'Add something you made or earned', done: projects.length + credentials.length >= 1, spot: 'projects' },
+      { key: 'made', label: 'Add something you made', done: projects.length >= 1, spot: 'projects' },
       { key: 'look', label: 'Pick your look', done: Boolean(shell.layout?.look), spot: 'settings' },
     ]),
     quest(2, [

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ChevronDown, Eye, FileText, Globe2, Lock, Palette, Pencil, Plus, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, Download, Eye, FileText, Globe2, Lock, Palette, Pencil, SlidersHorizontal } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import toast from 'react-hot-toast'
 
@@ -13,7 +13,7 @@ import { signOut } from '@components/Contexts/AuthContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
 import { useAsk } from '@components/ui/ask-dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
@@ -22,7 +22,6 @@ import { markProgressSeen, updateMyLayout } from '@services/portfolio/records'
 import { PortfolioShareButton } from '../PortfolioShareDialog'
 import { PortfolioVisitorBar } from '../PortfolioVisitorBar'
 import { VerificationMenu } from '../PortfolioHeaderParts'
-import { EXPERIENCE_TYPES } from '../ExperienceEditor'
 import { HighlightsDialog, LinksDialog, ProfileDialog } from './PortfolioDialogs'
 import { PortfolioTiles } from './PortfolioTiles'
 import { ResultDialog } from './ResultDialog'
@@ -114,7 +113,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
 
   function questItem(key: string) {
     const go: Record<string, () => void> = {
-      photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ kind: 'skills' }),
+      name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ kind: 'skills' }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       now: () => page('/portfolio/timeline?experience=work_career'), xp3: () => page('/portfolio/timeline?experience=work_career'),
       school: () => page('/portfolio/timeline?experience=education'), stories: () => page('/portfolio/timeline'),
@@ -169,19 +168,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
 
   const questButton = stage ? <QuestButton stage={stage} open={questOpen} onToggle={() => setQuestOpen(!questOpen)} /> : null
   const ownerActions = <>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button variant="brand" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Plus className="h-4 w-4" />Add<ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
-      {/* On a phone the bottom nav covers the screen's foot, so the menu stops above it and scrolls. */}
-      <DropdownMenuContent align="start" collisionPadding={{ top: 8, bottom: 88 }} className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-60 overflow-y-auto overscroll-contain rounded-2xl p-2">
-        <DropdownMenuLabel className="px-3 text-xs uppercase tracking-wide text-muted-foreground">Experience</DropdownMenuLabel>
-        {EXPERIENCE_TYPES.map((type) => <DropdownMenuItem key={type.value} asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={`${getUriWithOrg(orgslug, '/portfolio/timeline')}?experience=${type.value}`}>{type.label}</Link></DropdownMenuItem>)}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={`${getUriWithOrg(orgslug, '/portfolio/projects')}?newProject=1`}>A project</Link></DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setHighlightsOpen(true)} className="rounded-xl px-3 py-2">A highlight</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link prefetch={false} href={getUriWithOrg(orgslug, '/portfolio/import')}>From a résumé, CIS or LinkedIn</Link></DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    {/* Adding happens in each section; the row's first action brings in what the learner already has. */}
+    <Button asChild variant="brand" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link prefetch={false} href={getUriWithOrg(orgslug, '/portfolio/import')}><Download className="h-4 w-4" />Import from…</Link></Button>
     {!past(1) ? questButton : shell.portfolio.email_verified === false && !published
       ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} />
       : <PortfolioShareButton orgslug={orgslug} username={username} displayName={name} published={published} onPublish={publish} busy={busy} className="h-10 flex-1 px-3 text-sm sm:flex-none sm:px-4" />}
@@ -208,7 +196,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
           {spots.avatar ? <SpotTip label={spots.avatar} className="absolute left-[118px] top-[50px] sm:left-[150px] sm:top-[62px]" /> : null}
           {editing ? <button type="button" onClick={() => setProfileOpen(true)} aria-label="Edit your profile" className={`group relative inline-block rounded-full outline-none ${spots.avatar ? `border-2 ${SPOT_RING}` : ''} focus-visible:ring-2 focus-visible:ring-foreground`}><Avatar url={avatarUrl} name={name} /><span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><Pencil className="h-3.5 w-3.5" /></span></button> : <Avatar url={avatarUrl} name={name} />}
           <div className="min-w-0 pt-2.5">
-            <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${centered ? 'justify-center' : ''}`}>
+            <div className={`group relative flex flex-wrap items-center gap-x-3 gap-y-1 ${centered ? 'justify-center' : ''}`}>
+              {spots.name ? <SpotTip label={spots.name} className="relative order-last" /> : null}
               <h1 className="break-words text-[clamp(26px,3vw,34px)] font-extrabold leading-[1.1] tracking-[-0.02em]">{editing && !hasName ? <button type="button" onClick={() => setProfileOpen(true)} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : name}</h1>
               {shell.mastered ? <MasteryBadge /> : null}
               {editing ? <span className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}

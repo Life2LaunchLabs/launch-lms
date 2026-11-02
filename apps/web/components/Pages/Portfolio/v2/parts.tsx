@@ -74,15 +74,23 @@ export function PersonDot({ name, className = 'h-8 w-8 text-[11px]' }: { name: s
   return <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full font-extrabold text-white ${className}`} style={{ background: PALETTE[colorFor(name)][1] }}>{initials(name)}</span>
 }
 
-/** Where a quest item is done: the spot gets this outline and a tip saying what to do there. */
-export const SPOT_RING = 'border-[#2F66D6] ring-4 ring-[#2F66D6]/20'
+/** Where a quest item is done: the spot gets this gold outline and a "!" saying what to do there. */
+export const SPOT_RING = 'border-[#f29400] ring-4 ring-[#ffc21a]/35'
 
-/** The "!" mark the quest banner and its spots share. */
+/** The gold "!" the quest banner and its spots share (a starburst, as in the prototype). */
 export function QuestMark({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
   const points = Array.from({ length: 24 }, (_, index) => { const r = index % 2 ? 8.6 : 11.5, a = (index * Math.PI) / 12; return `${(12 + r * Math.sin(a)).toFixed(2)},${(12 - r * Math.cos(a)).toFixed(2)}` }).join(' ')
-  return <svg viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${className}`}><polygon points={points} fill="#2F66D6" stroke="#2F66D6" strokeWidth="2" strokeLinejoin="round" /><path d="M12 7v6.5M12 16.6v.4" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" /></svg>
+  return <svg viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${className}`}><polygon points={points} fill="#ffc21a" stroke="#f29400" strokeWidth="1.6" strokeLinejoin="round" /><path d="M12 7v6.5M12 16.6v.4" stroke="#4a2a00" strokeWidth="2.6" strokeLinecap="round" /></svg>
 }
 
+/**
+ * A gold "!" on a spot. What to do there opens out beside it when the pointer is over the spot (or the
+ * "!" itself), so the page isn't covered in labels; screen readers always get the words.
+ */
 export function SpotTip({ label, className = 'absolute -top-3.5 right-4' }: { label: string; className?: string }) {
-  return <span className={`${className} z-[3] inline-flex max-w-[calc(100%-32px)] items-center gap-1.5 rounded-full bg-[#2F66D6] py-1 pl-1 pr-3 text-[12.5px] font-extrabold text-white shadow-md`}><QuestMark className="h-[18px] w-[18px] [&_polygon]:fill-white [&_polygon]:stroke-white [&_path]:stroke-[#2F66D6]" /><span className="truncate">{label}</span></span>
+  const open = 'group-hover:max-w-[260px] group-hover:pl-1 group-hover:pr-2.5 group-hover:opacity-100 group-focus-within:max-w-[260px] group-focus-within:pl-1 group-focus-within:pr-2.5 group-focus-within:opacity-100 [[data-spot-tip]:hover_&]:max-w-[260px] [[data-spot-tip]:hover_&]:pl-1 [[data-spot-tip]:hover_&]:pr-2.5 [[data-spot-tip]:hover_&]:opacity-100'
+  return <span data-spot-tip title={label} className={`${className} z-[3] inline-flex max-w-[calc(100%-32px)] items-center rounded-full bg-[#ffc21a] p-[3px] text-[12.5px] font-extrabold text-[#4a2a00] shadow-[0_2px_0_#f29400]`}>
+    <QuestMark className="h-5 w-5" />
+    <span className={`max-w-0 overflow-hidden truncate whitespace-nowrap opacity-0 transition-all duration-200 ${open}`}>{label}</span>
+  </span>
 }

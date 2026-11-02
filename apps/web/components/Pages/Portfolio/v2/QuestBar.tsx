@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import Confetti from 'react-confetti'
 import { Check, ChevronDown, ChevronRight, ChevronUp, Lock, LockOpen, Rocket, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
@@ -26,11 +26,11 @@ export function QuestButton({ stage, open, onToggle }: { stage: Stage; open: boo
   if (stage.kind === 'mastered') return null
   const { quest } = stage
   const label = LOCKED_LABEL[quest.n]
-  if (stage.kind === 'unlocked') return <button type="button" onClick={onToggle} aria-expanded={open} className="week-gold [&>*]:relative [&>*]:z-[1] inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold text-[#5a3600] shadow-[0_3px_0_var(--week-gold-edge)] sm:flex-none sm:px-4">
+  if (stage.kind === 'unlocked') return <button type="button" data-quest-button onClick={onToggle} aria-expanded={open} className="week-gold [&>*]:relative [&>*]:z-[1] inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold text-[#5a3600] shadow-[0_3px_0_var(--week-gold-edge)] sm:flex-none sm:px-4">
     {quest.n === 3 ? <Rocket className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}<span>{label}</span>
   </button>
   const color = quest.n === 3 ? AMBER : BLUE
-  return <button type="button" onClick={onToggle} aria-expanded={open} aria-label={`${label}: ${quest.title}, ${quest.done} of ${quest.total} done`} className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border-2 bg-card px-3 text-sm font-extrabold shadow-[0_3px_0_hsl(var(--border))] sm:flex-none sm:px-4 ${open ? 'border-foreground/40' : 'border-border'}`}>
+  return <button type="button" data-quest-button onClick={onToggle} aria-expanded={open} aria-label={`${label}: ${quest.title}, ${quest.done} of ${quest.total} done`} className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border-2 bg-card px-3 text-sm font-extrabold shadow-[0_3px_0_hsl(var(--border))] sm:flex-none sm:px-4 ${open ? 'border-foreground/40' : 'border-border'}`}>
     <Gauge percent={Math.round((quest.done / quest.total) * 100)} color={color}>{quest.n === 3 ? <Rocket /> : <Lock />}</Gauge>
     {label}<span className="hidden text-xs font-bold tabular-nums text-muted-foreground sm:inline">{quest.done}/{quest.total}</span>
   </button>
@@ -74,8 +74,33 @@ function UnlockConfetti({ quest }: { quest: Quest }) {
   return useFirstTime(`portfolio-unlock-confetti-${quest.n}`) ? <Confetti recycle={false} numberOfPieces={160} gravity={0.25} className="!fixed !inset-0 pointer-events-none" /> : null
 }
 
+/** Where the banner's tail points: the middle of the quest's button in the action row, so it's clear what it drops from. */
+function useTail() {
+  const [banner, setBanner] = useState<HTMLElement | null>(null)
+  const [left, setLeft] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const place = () => {
+      const button = document.querySelector<HTMLElement>('[data-quest-button]')
+      const box = banner?.getBoundingClientRect()
+      if (!button || !box) return setLeft(null)
+      const at = button.getBoundingClientRect()
+      setLeft(Math.min(Math.max(at.left + at.width / 2 - box.left, 24), box.width - 24))
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [banner])
+  return [setBanner, left] as const
+}
+
+function Tail({ left, color }: { left: number | null; color: string }) {
+  if (left === null) return null
+  return <span aria-hidden="true" className="absolute -top-[9px] h-4 w-4 -translate-x-1/2 rotate-45 rounded-[3px] border-l-2 border-t-2 bg-card" style={{ left, borderColor: color }} />
+}
+
 /** What the open quest asks for, or the unlock moment once it's finished. */
 export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, busy }: { stage: Stage; list: boolean; onList: () => void; onClose: () => void; onItem: (key: string) => void; onUnlock: (quest: Quest) => void; busy?: boolean }) { // eslint-disable-line no-unused-vars
+  const [placeBanner, tailLeft] = useTail()
   if (stage.kind === 'mastered') return null
   const { quest } = stage
   if (stage.kind === 'unlocked') {
@@ -89,7 +114,9 @@ export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, bu
     </section>
   }
   const color = quest.n === 3 ? AMBER : BLUE
-  return <section aria-label={quest.title} className="relative mt-4 rounded-2xl border-2 bg-card p-2 shadow-[0_4px_0_hsl(var(--border))]" style={{ borderColor: `color-mix(in srgb, ${color} 55%, transparent)` }}>
+  const edge = `color-mix(in srgb, ${color} 55%, hsl(var(--card)))`
+  return <section ref={placeBanner} aria-label={quest.title} className="relative mt-4 rounded-2xl border-2 bg-card p-2 shadow-[0_4px_0_hsl(var(--border))]" style={{ borderColor: edge }}>
+    <Tail left={tailLeft} color={edge} />
     <div className="flex items-center gap-1">
       <button type="button" onClick={onList} aria-expanded={list} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-muted">
         <Gauge percent={Math.round((quest.done / quest.total) * 100)} color={color} size="h-10 w-10">{quest.n === 3 ? <Rocket className="!h-4 !w-4" /> : <Lock className="!h-4 !w-4" />}</Gauge>
