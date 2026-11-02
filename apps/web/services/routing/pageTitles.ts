@@ -11,7 +11,7 @@ export const PAGE_TITLE_FORMAT = {
 const labels: Record<string, string> = {
   account: 'Account', achievements: 'Achievements', analytics: 'Analytics', badge: 'Badges', badges: 'Badges',
   connect: 'Connect', discover: 'Discover', edit: 'Edit',
-  journal: 'Journal', marketplace: 'Marketplace', organization: 'Organizations',
+  journal: 'Journal', life: 'Life plan', marketplace: 'Marketplace', organization: 'Organizations',
   organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform',
   portfolio: 'Portfolio', programs: 'Programs',
   projects: 'Projects', reporting: 'Reporting', requirements: 'Requirements', resource: 'Resources', resources: 'Resources',

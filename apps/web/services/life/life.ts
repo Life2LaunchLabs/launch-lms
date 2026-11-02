@@ -1,0 +1,95 @@
+import { getAPIUrl } from '@services/config/config'
+import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+
+export const lifeUrl = (path = '') => `${getAPIUrl()}life${path}`
+
+async function request<T = any>(url: string, token?: string, method = 'GET', body: any = null): Promise<T> {
+  const response = await fetch(url, RequestBodyWithAuthHeader(method, body, null, token))
+  return errorHandling(response)
+}
+
+export type Unit = 'hr' | 'wk' | 'mo' | 'yr'
+export type Side = 'in' | 'out'
+
+/** The learner's own number for a line, as they entered it. */
+export interface Own { unit: Unit; value: number; hours?: number | null }
+
+export interface Line {
+  id: string
+  cat: string
+  item?: string | null
+  title: string
+  side: Side
+  own?: Own | null
+  /** Hours a week, for pay that is published per hour. */
+  hours?: number | null
+  settings: Record<string, any>
+  start: number
+  end?: number | null
+}
+
+export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[] }
+export interface When { phase: string; month: number }
+export interface Debt { id: string; kind: string; title: string; balance: number; rate: number; payment: number; start?: When | null }
+export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean }
+export interface Asset { id: string; kind: string; title: string; value: number; change: number; bought?: When | null; down?: number | null; loan_id?: string | null; sold?: (When & { price: number }) | null }
+export interface LifeEvent { id: string; phase: string; month: number; title: string; amount: number }
+
+export interface LifeDoc {
+  version: number
+  /** The month the plan starts, YYYY-MM. */
+  start: string
+  phases: Phase[]
+  debts: Debt[]
+  savings: Saving[]
+  assets: Asset[]
+  events: LifeEvent[]
+}
+
+export interface LifePlanView { plan_uuid: string; revision: number; document: LifeDoc; update_date: string }
+
+export interface EstimateSource { key: string; publisher: string; title: string; dataset: string; url: string; released: string; retrieved: string; notes: string }
+export interface Estimate {
+  metric: string
+  value: number
+  percentiles: Record<'p10' | 'p25' | 'p50' | 'p75' | 'p90', number> | null
+  period: Unit
+  stat: string
+  label: string
+  dollar_year: number | null
+  place: string
+  place_label: string
+  level: 'city' | 'county' | 'area' | 'state' | 'us'
+  fallback: boolean
+  asked_place_label: string | null
+  dims: Record<string, any>
+  dims_dropped: string[]
+  source: EstimateSource
+}
+export interface EstimateQuery { id: string; metric: string; place?: string | null; dims: Record<string, any> }
+
+export interface Setting { key: string; title: string; kind: 'choice' | 'occupation'; default?: any; choices?: [any, string][] }
+export interface CatalogItem { key: string; cat: string; title: string; icon: string; metric?: string; settings?: Setting[]; hourly?: boolean }
+export interface Category { key: string; side: Side; title: string; icon: string; expected?: boolean }
+export interface Catalog {
+  categories: Category[]
+  items: CatalogItem[]
+  metrics: Record<string, { title: string; dims: string[]; required: string[] }>
+  asset_kinds: { key: string; title: string; icon: string }[]
+  debt_kinds: { key: string; title: string }[]
+  savings_kinds: { key: string; title: string }[]
+}
+export interface PlaceOption { key: string; label: string; detail: string; level: string }
+export interface Occupation { soc: string; title: string }
+
+const q = encodeURIComponent
+
+export const lifeApi = {
+  get: (token?: string) => request<{ plan: LifePlanView | null }>(lifeUrl('/plan'), token),
+  save: (document: LifeDoc, revision: number | null, token?: string) => request<{ plan: LifePlanView }>(lifeUrl('/plan'), token, 'PUT', { document, revision }),
+  remove: (token?: string) => fetch(lifeUrl('/plan'), RequestBodyWithAuthHeader('DELETE', null, null, token)),
+  catalog: (token?: string) => request<Catalog>(lifeUrl('/catalog'), token),
+  places: (query: string, token?: string) => request<{ places: PlaceOption[] }>(lifeUrl(`/places?q=${q(query)}`), token),
+  occupations: (query: string, token?: string) => request<{ occupations: Occupation[] }>(lifeUrl(`/occupations?q=${q(query)}`), token),
+  estimates: (queries: EstimateQuery[], token?: string) => request<{ estimates: Record<string, Estimate | null> }>(lifeUrl('/estimates'), token, 'POST', { queries }),
+}
