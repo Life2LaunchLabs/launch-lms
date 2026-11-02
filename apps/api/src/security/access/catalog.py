@@ -23,6 +23,9 @@ TIER_LABELS: dict[str, str] = {"free": "Free", "full": "Full", "enterprise": "En
 # A Free org can try Full once, for this long. When it ends nothing is deleted: what it made with
 # Full features stays readable, and it can't add more until it's under Free's limits or upgraded.
 TRIAL_TIER: Tier = "full"
+# During the beta every new organization starts on this tier, free, with no trial or upgrade prompt. Its config
+# carries "beta": true, and the org's plan page says it is free for the duration of the beta.
+BETA_TIER: Tier | None = "full"
 TRIAL_DAYS = 30
 
 # Counted limits per tier. 0 means unlimited.

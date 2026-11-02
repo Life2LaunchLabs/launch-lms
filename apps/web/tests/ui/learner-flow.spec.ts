@@ -120,7 +120,7 @@ test('framework.flags: flagged gaps open Discover filtered to plans that cover t
   await expect(page.getByTestId('discover-covers-filter')).toHaveCount(0)
 })
 
-test('start.requirements: a library framework picked at /start ranks the starter plans by what they cover', async ({ page }, info) => {
+test('start.requirements: a library framework can be picked at /start, with no plans step during the beta', async ({ page }, info) => {
   test.setTimeout(60_000)
   const { framework, authorization, url } = await freshFramework(page)
   const name = `Start framework ${randomUUID().slice(0, 8)}`
@@ -140,10 +140,8 @@ test('start.requirements: a library framework picked at /start ranks the starter
   await page.getByRole('radio', { name: new RegExp(name) }).click()
   await capture(page, info, 'start-requirements.png')
   await page.getByRole('button', { name: /Continue/ }).click()
-  await expect(page.getByRole('heading', { name: 'Start with a few plans' })).toBeVisible()
-  await expect(page.getByText(`the ones covering the most of ${name} first`)).toBeVisible()
-  const plans = page.getByRole('button', { pressed: false }).filter({ hasText: 'steps' })
-  if (await plans.count()) await expect(page.getByTestId('start-plan-covers').first()).toContainText(/Covers (none yet|\d+ of 1)/)
+  // During the beta there's no plans pick at /start: the framework goes straight on to the account.
+  await expect(page.getByRole('heading', { name: 'Start with a few plans' })).toHaveCount(0)
   await page.evaluate(() => window.sessionStorage.removeItem('l2l_start'))
 })
 

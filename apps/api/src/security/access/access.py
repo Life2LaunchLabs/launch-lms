@@ -46,6 +46,8 @@ class OrgAccess:
     owner: bool = False
     # {"tier", "started_at", "ends_at"} once the org has started its one trial.
     trial: dict | None = None
+    # Made during the beta, so its tier is free for now (catalog.BETA_TIER).
+    beta: bool = False
 
     def trial_running(self, now: datetime | None = None) -> bool:
         ends = _when((self.trial or {}).get("ends_at"))
@@ -128,6 +130,7 @@ class OrgAccess:
             "limits": {name: self.limit(name) for name in LIMITS},
             "trial": self.trial_dict(),
             "trial_available": self.trial_available(),
+            "beta": self.beta,
         }
 
 
@@ -144,7 +147,7 @@ def access_from_config(config: dict | None, owner: bool = False) -> OrgAccess:
     config = config or {}
     partners = {key for key in config.get("partners") or [] if key in PARTNER_PROGRAMS}
     trial = config.get("trial") if isinstance(config.get("trial"), dict) else None
-    return OrgAccess(tier=config_tier(config), partners=partners, grants=config.get("grants") or {}, owner=owner, trial=trial)
+    return OrgAccess(tier=config_tier(config), partners=partners, grants=config.get("grants") or {}, owner=owner, trial=trial, beta=bool(config.get("beta")))
 
 
 def org_access(org_id: int, db_session: Session) -> OrgAccess:
