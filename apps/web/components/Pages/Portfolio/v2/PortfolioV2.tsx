@@ -6,6 +6,8 @@ import { ArrowLeft, Check, ChevronDown, Eye, FileText, Globe2, Lock, Pencil, Plu
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
+import { signOut } from '@components/Contexts/AuthContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
 import { useAsk } from '@components/ui/ask-dialog'
@@ -52,6 +54,9 @@ function LayoutMenu({ layout, onChange, orgslug, onUnpublish }: { layout: Portfo
       {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">Make my portfolio private</DropdownMenuItem> : null}
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>My documents</Link></DropdownMenuItem>
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())}>Account settings</Link></DropdownMenuItem>
+      {/* Phones have no side navigation, so feedback and sign out live here too. */}
+      <DropdownMenuItem onSelect={() => openCandidatePanel('feedback')} className="rounded-xl px-3 py-2 md:hidden">Feedback</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => signOut({ callbackUrl: '/' })} className="rounded-xl px-3 py-2 text-red-600 focus:text-red-600 md:hidden">Sign out</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 }
