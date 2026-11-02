@@ -368,6 +368,8 @@ def _timeline_dto(
 def portfolio_shell(
     portfolio: Portfolio, db_session: Session, public_only: bool = False
 ) -> dict:
+    from src.services.portfolio_records import records_for_shell
+
     user = db_session.exec(select(User).where(User.id == portfolio.user_id)).first()
     links = list(
         db_session.exec(
@@ -444,9 +446,7 @@ def portfolio_shell(
     # Badges earned (each award once), and, for the learner themselves, the plans that will earn one.
     earned_badges = [award_card(db_session, item) for item in awards_of(db_session, portfolio.user_id)]
     working_toward = [] if public_only else badges_in_progress(db_session, portfolio.user_id)
-    hidden_award_uuids = set(
-        (portfolio.theme_settings or {}).get("hidden_award_uuids") or []
-    )
+    hidden_award_uuids = set((portfolio.theme_settings or {}).get("hidden_award_uuids") or [])
     if public_only:
         earned_badges = [
             item
@@ -493,7 +493,7 @@ def portfolio_shell(
             "itemCount": len(earned_badges),
         },
     ]
-    return {
+    return records_for_shell(portfolio, db_session, public_only) | {
         "portfolio": (
             {
                 "portfolio_uuid": portfolio.portfolio_uuid,
