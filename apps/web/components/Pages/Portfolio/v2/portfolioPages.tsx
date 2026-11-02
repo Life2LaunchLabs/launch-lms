@@ -1,7 +1,5 @@
-import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { getServerAccessToken } from '@/lib/auth/server'
-import { PortfolioShell } from '../PortfolioShell'
 import { getOrganizationContextInfoWithoutCredentials } from '@services/organizations/orgs'
 import { getMyPortfolio, getPublicPortfolio } from '@services/portfolio/portfolio'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -11,48 +9,35 @@ import { PortfolioPeoplePage } from './PortfolioPeoplePage'
 import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
 import { PortfolioImportPage } from './PortfolioImportPage'
 import { ResumeBuilder } from './ResumeBuilder'
-import { RememberPreviewChoice, TryNewPortfolio } from './PreviewSwitch'
-import { PREVIEW_COOKIE, wantsPortfolioV2 } from './previewSwitch'
 
-// The portfolio's server pages, each picking the current or the new design from the preview switch.
+// The portfolio's server pages.
 
 type View = 'overview' | DetailView | 'resume'
-type Query = Promise<{ new?: string }>
-
-async function wantsNew(searchParams: Query) {
-  return wantsPortfolioV2((await searchParams).new, (await cookies()).get(PREVIEW_COOKIE)?.value)
-}
 
 /** The signed-in learner's own portfolio, or its visitor preview. */
-export async function ownerPortfolioPage(orgslug: string, searchParams: Query, view: View = 'overview', preview = false) {
+export async function ownerPortfolioPage(orgslug: string, view: View = 'overview', preview = false) {
   const token = await getServerAccessToken()
   if (!token) redirect(view === 'overview' && !preview ? `${getUriWithOrg(orgslug, '/login')}?next=${encodeURIComponent(routePaths.org.portfolio())}` : getUriWithOrg(orgslug, '/'))
   const shell = await getMyPortfolio(token, preview)
   const username = shell.portfolio?.username
-  const next = await wantsNew(searchParams)
-  return <>
-    <RememberPreviewChoice />
-    {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} owner preview={preview} /> : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} owner /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} owner />
-      : <>{view === 'overview' && !preview ? <TryNewPortfolio /> : null}<PortfolioShell initialShell={shell} orgslug={orgslug} username={username} owner preview={preview} active={view} /></>}
-  </>
+  return view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} owner preview={preview} />
+    : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} owner />
+    : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} owner />
 }
 
-/** Someone's portfolio as a visitor sees it. Someone trying the new portfolio sees everyone's in it. */
-export async function publicPortfolioPage(orgslug: string, username: string, searchParams: Query, view: View = 'overview') {
+/** Someone's portfolio as a visitor sees it. */
+export async function publicPortfolioPage(orgslug: string, username: string, view: View = 'overview') {
   let shell
   try {
     const org = await getOrganizationContextInfoWithoutCredentials(orgslug, { revalidate: 0 })
     shell = await getPublicPortfolio(org.id, username, await getServerAccessToken())
   } catch { notFound() }
-  const next = await wantsNew(searchParams)
-  return <>
-    <RememberPreviewChoice />
-    {next ? view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} /> : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} /> : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
-      : <PortfolioShell initialShell={shell} orgslug={orgslug} username={username} active={view} />}
-  </>
+  return view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} />
+    : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} />
+    : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
 }
 
-/** My people, My documents and imports have no page in the current design, so they're always the new one. */
+/** My people, My documents and imports. */
 export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import') {
   const token = await getServerAccessToken()
   if (!token) redirect(getUriWithOrg(orgslug, '/'))

@@ -6,7 +6,7 @@ import { BriefcaseBusiness, EyeOff, FolderOpen, GraduationCap, IdCard, Link2, Sh
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { normalizeMediaUrl } from '@services/media/media'
-import { AboutSection } from '../PortfolioOverview'
+import { AboutSection } from '../AboutSection'
 import { SOCIAL_OPTIONS, socialHandle, shellSocials } from '../PortfolioHeaderParts'
 import { timelineDateLabel, timelineTypeLabels, type TimelineEntry } from '../Timeline'
 import { Cover, EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'

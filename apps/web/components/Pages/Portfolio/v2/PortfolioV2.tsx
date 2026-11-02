@@ -23,7 +23,6 @@ import { HighlightsDialog, LinksDialog, ProfileDialog } from './PortfolioDialogs
 import { PortfolioTiles } from './PortfolioTiles'
 import { ResultDialog } from './ResultDialog'
 import { EmptyAdd, initials } from './parts'
-import { previewHref } from './previewSwitch'
 import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 
 // The new portfolio front page (V5 prototype): a stacked header, the highlights band, then the sections as
@@ -53,7 +52,6 @@ function LayoutMenu({ layout, onChange, orgslug, onUnpublish }: { layout: Portfo
       {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">Make my portfolio private</DropdownMenuItem> : null}
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>My documents</Link></DropdownMenuItem>
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())}>Account settings</Link></DropdownMenuItem>
-      <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={previewHref(getUriWithOrg(orgslug, '/portfolio'), false)}>Back to the current portfolio</Link></DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 }
@@ -130,14 +128,14 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} />
       : <PortfolioShareButton orgslug={orgslug} username={username} displayName={name} published={published} onPublish={publish} busy={busy} className="h-10 flex-1 px-3 text-sm sm:flex-none sm:px-4" />}
     <Button asChild variant="surface" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>
-    <Button asChild variant="surface" size="icon" className="h-10 w-10 shrink-0" aria-label="Preview as a visitor" title="Preview as a visitor"><Link href={previewHref(getUriWithOrg(orgslug, '/portfolio/preview'), true)}><Eye className="h-4 w-4" /></Link></Button>
+    <Button asChild variant="surface" size="icon" className="h-10 w-10 shrink-0" aria-label="Preview as a visitor" title="Preview as a visitor"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="h-4 w-4" /></Link></Button>
   </>
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2>
     {owner ? ask.dialog : null}
     {preview ? <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-3">
       <div><b className="text-sm font-extrabold">Visitor preview</b><p className="text-xs text-muted-foreground">This is how people see your portfolio{published ? '' : ' once it’s public'}.</p></div>
-      <Button asChild variant="surface" size="sm"><Link href={previewHref(getUriWithOrg(orgslug, '/portfolio'), true)}><ArrowLeft className="h-4 w-4" />Back to editing</Link></Button>
+      <Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="h-4 w-4" />Back to editing</Link></Button>
     </div></div> : null}
     <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6">
       <header>

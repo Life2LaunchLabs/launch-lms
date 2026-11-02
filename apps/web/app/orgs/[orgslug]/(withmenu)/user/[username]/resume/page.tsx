@@ -1,6 +1,6 @@
 import { publicPortfolioPage } from '@components/Pages/Portfolio/v2/portfolioPages'
 
-export default async function PublicResumePage({ params, searchParams }: { params: Promise<{ orgslug: string; username: string }>; searchParams: Promise<{ new?: string }> }) {
+export default async function PublicResumePage({ params }: { params: Promise<{ orgslug: string; username: string }> }) {
   const { orgslug, username } = await params
-  return publicPortfolioPage(orgslug, username, searchParams, 'resume')
+  return publicPortfolioPage(orgslug, username, 'resume')
 }

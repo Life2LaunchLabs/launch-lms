@@ -12,7 +12,7 @@ import { type MediaAsset } from '@services/media/library'
 import { normalizeMediaUrl } from '@services/media/media'
 import { createPortfolioProject, updatePortfolioProject } from '@services/portfolio/portfolio'
 
-import type { Project } from './PortfolioShell'
+import type { Project } from './portfolioTypes'
 import { MonthDateRangeField } from './MonthDateRangeField'
 
 export type ProjectDraft = {
