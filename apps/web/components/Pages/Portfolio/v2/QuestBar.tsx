@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import Confetti from 'react-confetti'
 import { Check, ChevronDown, ChevronRight, ChevronUp, Lock, LockOpen, Rocket, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
@@ -26,8 +26,8 @@ export function QuestButton({ stage, open, onToggle }: { stage: Stage; open: boo
   if (stage.kind === 'mastered') return null
   const { quest } = stage
   const label = LOCKED_LABEL[quest.n]
-  if (stage.kind === 'unlocked') return <button type="button" onClick={onToggle} aria-expanded={open} className="week-gold inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold text-[#5a3600] shadow-[0_3px_0_var(--week-gold-edge)] sm:flex-none sm:px-4">
-    {quest.n === 3 ? <Rocket className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}{label}
+  if (stage.kind === 'unlocked') return <button type="button" onClick={onToggle} aria-expanded={open} className="week-gold [&>*]:relative [&>*]:z-[1] inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-extrabold text-[#5a3600] shadow-[0_3px_0_var(--week-gold-edge)] sm:flex-none sm:px-4">
+    {quest.n === 3 ? <Rocket className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}<span>{label}</span>
   </button>
   const color = quest.n === 3 ? AMBER : BLUE
   return <button type="button" onClick={onToggle} aria-expanded={open} aria-label={`${label}: ${quest.title}, ${quest.done} of ${quest.total} done`} className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border-2 bg-card px-3 text-sm font-extrabold shadow-[0_3px_0_hsl(var(--border))] sm:flex-none sm:px-4 ${open ? 'border-foreground/40' : 'border-border'}`}>
@@ -52,14 +52,36 @@ function ItemRow({ item, onItem }: { item: QuestItem; onItem: (key: string) => v
   return item.done ? <div className={className}>{body}</div> : <button type="button" onClick={() => onItem(item.key)} className={`${className} hover:bg-muted`}>{body}</button>
 }
 
+/** Confetti for an unlock plays once in this browser, not on every reload until it's acknowledged. */
+// What this page load already decided, so a second render (or React's strict mode) gives the same answer.
+const firstTimes = new Map<string, boolean>()
+
+function useFirstTime(key: string) {
+  // Read when the banner mounts, which only happens in the browser once the portfolio has loaded.
+  const [first] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (!firstTimes.has(key)) {
+      let seen = false
+      try { seen = Boolean(window.localStorage.getItem(key)); window.localStorage.setItem(key, '1') } catch { /* storage may be off; then it plays each time */ }
+      firstTimes.set(key, !seen)
+    }
+    return firstTimes.get(key)!
+  })
+  return first
+}
+
+function UnlockConfetti({ quest }: { quest: Quest }) {
+  return useFirstTime(`portfolio-unlock-confetti-${quest.n}`) ? <Confetti recycle={false} numberOfPieces={160} gravity={0.25} className="!fixed !inset-0 pointer-events-none" /> : null
+}
+
 /** What the open quest asks for, or the unlock moment once it's finished. */
 export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, busy }: { stage: Stage; list: boolean; onList: () => void; onClose: () => void; onItem: (key: string) => void; onUnlock: (quest: Quest) => void; busy?: boolean }) { // eslint-disable-line no-unused-vars
   if (stage.kind === 'mastered') return null
   const { quest } = stage
   if (stage.kind === 'unlocked') {
     const unlock = UNLOCKS[quest.n]
-    return <section aria-label={unlock.title} className="week-gold relative mt-4 flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-[#5a3600] shadow-[0_4px_0_var(--week-gold-edge)]">
-      <Confetti recycle={false} numberOfPieces={160} gravity={0.25} className="!fixed !inset-0 pointer-events-none" />
+    return <section aria-label={unlock.title} className="week-gold [&>*]:relative [&>*]:z-[1] relative mt-4 flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-[#5a3600] shadow-[0_4px_0_var(--week-gold-edge)]">
+      <UnlockConfetti quest={quest} />
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/50">{quest.n === 3 ? <Rocket className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />}</span>
       <div className="min-w-0 flex-1"><b className="block text-[15.5px] font-extrabold">{unlock.title}</b><small className="block text-[13px] font-semibold opacity-80">{unlock.body}</small></div>
       <Button type="button" size="sm" disabled={busy} onClick={() => onUnlock(quest)} className="shrink-0 bg-[#5a3600] text-white hover:bg-[#5a3600]/90">{unlock.action}</Button>
