@@ -1,8 +1,8 @@
-import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from config.config import get_launchlms_config
+from src.services.auth.usernames import generate_username as _generate_onboarding_username, picked_username as _picked_username
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
@@ -57,6 +57,7 @@ router = APIRouter()
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
+    username: str | None = None  # picked on the signup page; a random one when left out
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
@@ -64,6 +65,7 @@ class WelcomeSignupRequest(BaseModel):
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
+    username: str | None = None
 
 
 def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
@@ -71,15 +73,6 @@ def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session
     from src.services.goals.starter import redirect_path
 
     return f"/orgs/{owner_org.slug}{redirect_path(db_session, user_id)}"
-
-
-def _generate_onboarding_username(email: str, db_session: Session) -> str:
-    """The username is the public portfolio link (/user/<username>), so it never comes from the email:
-    many learners are minors, and an email often holds a full name or a school ID."""
-    while True:
-        candidate = f"learner{secrets.token_hex(4)}"
-        if not db_session.exec(select(User).where(User.username == candidate)).first():
-            return candidate
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -135,6 +128,7 @@ async def check_welcome_signup_email(
     existing = db_session.exec(select(User).where(User.email == body.email)).first()
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
+    _picked_username(body.username, db_session)
     return {"available": True}
 
 
@@ -164,7 +158,7 @@ async def complete_welcome_signup(
         "onboarding": {"started_at": started_at},
     }
     user_create = UserCreate(
-        username=_generate_onboarding_username(body.email, db_session),
+        username=_picked_username(body.username, db_session) or _generate_onboarding_username(body.email, db_session),
         email=body.email,
         password=body.password,
         first_name="",

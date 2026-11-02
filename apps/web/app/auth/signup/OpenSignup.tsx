@@ -1,5 +1,6 @@
 'use client'
 import { useFormik } from 'formik'
+import UsernameInput from './UsernameInput'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
 import FormLayout, { FormField, FormLabelAndMessage, Input, Textarea } from '@components/Objects/StyledElements/Form/Form'
@@ -168,7 +169,7 @@ function OpenSignUpComponent({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, username: formik.values.username.trim() || undefined }),
         })
         const data = await res.json().catch(() => null)
         if (!res.ok) {
@@ -184,7 +185,8 @@ function OpenSignUpComponent({
       window.sessionStorage.setItem(welcomeSignupPasswordKey(email), formik.values.password)
       // An invitation or join link rides along, so the new account joins that organization.
       const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
-      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
+      const picked = formik.values.username.trim() ? `&username=${encodeURIComponent(formik.values.username.trim().toLowerCase())}` : ''
+      router.push(`/welcome?email=${encodeURIComponent(email)}${picked}${invite}`)
       return
     }
     setStep('details')
@@ -262,6 +264,7 @@ function OpenSignUpComponent({
               {emailError && (
                 <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
               )}
+              <UsernameInput value={formik.values.username} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <PasswordInput
                 component="input"
                 name="password"

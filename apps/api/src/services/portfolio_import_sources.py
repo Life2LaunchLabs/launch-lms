@@ -242,12 +242,17 @@ def _links(rows: list[dict], prefix: str, name_column: str, url_column: str) -> 
     return items
 
 
+def _base(name: str) -> str:
+    """A zip member's file name. Zips made on Windows can use backslashes in their paths."""
+    return name.replace("\\", "/").rsplit("/", 1)[-1]
+
+
 def read_cis(content: bytes, filename: str) -> dict:
     files: dict[str, bytes] = {}
     if zipfile.is_zipfile(io.BytesIO(content)) and not filename.lower().endswith(".xlsx"):
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             _check_zip(archive)
-            names = [info.filename for info in archive.infolist() if not info.is_dir()]
+            names = [info.filename for info in archive.infolist() if not info.is_dir() and not info.filename.endswith("\\")]
             workbook = next((name for name in names if name.lower().endswith(".xlsx")), None)
             if not workbook:
                 raise HTTPException(status_code=422, detail="This zip doesn't have an Oregon CIS workbook in it")
@@ -260,7 +265,7 @@ def read_cis(content: bytes, filename: str) -> dict:
     items = _cis_bio(sheets) + _cis_results(sheets) + _links(_sheet(sheets, "Links"), "cis-link", "Name", "Web address")
     skipped = []
     for name, data in files.items():
-        base = name.rsplit("/", 1)[-1]
+        base = _base(name)
         extension = "." + base.rsplit(".", 1)[-1].lower() if "." in base else ""
         if not base or base.startswith("."):
             continue
@@ -276,7 +281,7 @@ def read_cis(content: bytes, filename: str) -> dict:
 # ---------------------------------------------------------------- LinkedIn
 
 def _csv(archive: zipfile.ZipFile, wanted: str) -> list[dict]:
-    name = next((info.filename for info in archive.infolist() if info.filename.rsplit("/", 1)[-1].lower() == wanted.lower()), None)
+    name = next((info.filename for info in archive.infolist() if _base(info.filename).lower() == wanted.lower()), None)
     if not name:
         return []
     lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()

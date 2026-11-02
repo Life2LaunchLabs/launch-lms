@@ -393,11 +393,26 @@ def test_an_onboarding_display_name_becomes_the_name_the_portfolio_shows():
 
 
 def test_a_new_account_username_never_comes_from_the_email():
-    from src.routers.auth import _generate_onboarding_username
+    from src.services.auth.usernames import generate_username as _generate_onboarding_username
 
     with _session() as db:
         name = _generate_onboarding_username("maya.rivera.2010@school.example.org", db)
         assert name.startswith("learner") and "maya" not in name and "rivera" not in name
+
+
+def test_a_username_picked_at_signup_is_checked():
+    from fastapi import HTTPException as Refused
+    from src.services.auth.usernames import picked_username as _picked_username
+
+    with _session() as db:
+        db.add(_user())
+        db.commit()
+        assert _picked_username(" Sky.Walker_9 ", db) == "sky.walker_9"
+        assert _picked_username("", db) is None
+        for bad, status in (("ab", 422), ("no spaces", 422), (_user().username, 409)):
+            with pytest.raises(Refused) as error:
+                _picked_username(bad, db)
+            assert error.value.status_code == status
 
 
 def test_activity_strengths_show_as_a_what_im_like_result():

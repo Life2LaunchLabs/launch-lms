@@ -270,4 +270,10 @@ class LayoutUpdate(BaseModel):
     sections: str | None = None
 
 
+class ProgressSeen(BaseModel):
+    """A quest whose unlock the learner has seen: 1 sharing, 2 résumé, 3 mastery."""
+
+    quest: int
+
+
 RECORD_TABLES = (Credential, PortfolioContact, PortfolioQuote, PortfolioResult, ResumeVersion, PortfolioDocument, PortfolioImport)

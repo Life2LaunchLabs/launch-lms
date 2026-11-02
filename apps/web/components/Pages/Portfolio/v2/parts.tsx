@@ -38,7 +38,7 @@ export function Cover({ url, seed, label, className = '' }: { url?: string; seed
 }
 
 /** One section of the front page: a colored icon, the title and count, then a preview of what's inside. */
-export function Tile({ color, icon: Icon, title, count, href, wide = false, children, label }: { color: TileColor; icon: ComponentType<{ className?: string }>; title: string; count?: number | null; href?: string; wide?: boolean; children: ReactNode; label?: string }) {
+export function Tile({ color, icon: Icon, title, count, href, wide = false, children, label, spot }: { color: TileColor; icon: ComponentType<{ className?: string }>; title: string; count?: number | null; href?: string; wide?: boolean; children: ReactNode; label?: string; spot?: string }) {
   const [face, edge] = PALETTE[color]
   const heading = <div className="flex items-center gap-2.5">
     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
@@ -46,7 +46,8 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
     {count ? <span className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
     {href ? <ChevronRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" /> : null}
   </div>
-  return <section aria-label={label || title} data-tile data-wide={wide || undefined} className="group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 border-border bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition hover:-translate-y-0.5" style={{ ['--tile' as string]: face }}>
+  return <section aria-label={label || title} data-tile data-wide={wide || undefined} className={`group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition hover:-translate-y-0.5 ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
+    {spot ? <SpotTip label={spot} /> : null}
     {heading}
     {/* Links and buttons inside sit above the tile's own link. */}
     <div className="relative z-[1] flex min-w-0 flex-col gap-3.5 [&_a]:relative [&_button]:relative">{children}</div>
@@ -71,4 +72,17 @@ export function initials(name: string) {
 /** A round initial for someone without a photo, colored from their name. */
 export function PersonDot({ name, className = 'h-8 w-8 text-[11px]' }: { name: string; className?: string }) {
   return <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full font-extrabold text-white ${className}`} style={{ background: PALETTE[colorFor(name)][1] }}>{initials(name)}</span>
+}
+
+/** Where a quest item is done: the spot gets this outline and a tip saying what to do there. */
+export const SPOT_RING = 'border-[#2F66D6] ring-4 ring-[#2F66D6]/20'
+
+/** The "!" mark the quest banner and its spots share. */
+export function QuestMark({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
+  const points = Array.from({ length: 24 }, (_, index) => { const r = index % 2 ? 8.6 : 11.5, a = (index * Math.PI) / 12; return `${(12 + r * Math.sin(a)).toFixed(2)},${(12 - r * Math.cos(a)).toFixed(2)}` }).join(' ')
+  return <svg viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${className}`}><polygon points={points} fill="#2F66D6" stroke="#2F66D6" strokeWidth="2" strokeLinejoin="round" /><path d="M12 7v6.5M12 16.6v.4" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" /></svg>
+}
+
+export function SpotTip({ label, className = 'absolute -top-3.5 right-4' }: { label: string; className?: string }) {
+  return <span className={`${className} z-[3] inline-flex max-w-[calc(100%-32px)] items-center gap-1.5 rounded-full bg-[#2F66D6] py-1 pl-1 pr-3 text-[12.5px] font-extrabold text-white shadow-md`}><QuestMark className="h-[18px] w-[18px] [&_polygon]:fill-white [&_polygon]:stroke-white [&_path]:stroke-[#2F66D6]" /><span className="truncate">{label}</span></span>
 }
