@@ -49,6 +49,25 @@ const monthYear = (value?: string) => {
   return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
 }
 
+/** A phase's name with when it is: "NOW Finish high school", "NEXT College from Sep 2027". */
+export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<PhaseGroup<unknown>, 'title' | 'when' | 'starts'>; as?: 'h1' | 'h2'; children?: React.ReactNode }) {
+  return <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    {group.when ? <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{WHEN[group.when]}</span> : null}
+    <Tag className="text-xl font-extrabold tracking-tight">{group.title}</Tag>
+    {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">from {monthYear(group.starts)}</span> : null}
+    {children}
+  </div>
+}
+
+/** Start a goal in a phase, or find one: one row under the phase's goals, whatever their number. */
+export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: { orgslug: string; phaseTitle?: string; empty?: boolean; onCreate: () => void; creating: boolean }) {
+  return <div className="flex flex-wrap items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 pl-4">
+    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? `No goals${phaseTitle ? ` for ${phaseTitle}` : ''} yet.` : 'Add another goal here.'}</span>
+    <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? 'Starting…' : 'Create your own'}</Button>
+    <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
+  </div>
+}
+
 /** The overview: invitations, then each phase of the learner's life with its goals, then finished goals. */
 export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
   const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
@@ -76,17 +95,9 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
 function PhaseSection({ group, orgslug, choose, onIntent, getGoalColor, onCreate, creating }: { group: PhaseGroup<GoalSummary>; orgslug: string; choose: (goal: GoalSummary) => void; onIntent?: (goal: GoalSummary) => void; getGoalColor: (goalUuid?: string) => string; onCreate: () => void; creating: boolean }) {
   const title = group.when ? `${WHEN[group.when]}: ${group.title}` : group.title
   return <section aria-label={title} className="flex flex-col gap-3">
-    <div className="flex flex-wrap items-baseline gap-x-3">
-      {group.when ? <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{WHEN[group.when]}</span> : null}
-      <h2 className="text-xl font-extrabold tracking-tight">{group.title}</h2>
-      {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">from {monthYear(group.starts)}</span> : null}
-    </div>
-    <GoalTabs label={`Goals for ${group.title}`} goals={group.goals} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent}>
-      <div className="flex w-[78%] shrink-0 snap-start items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 sm:w-[46%] md:w-auto">
-        <Button type="button" variant="surface" size="sm" className="flex-1" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? 'Starting…' : 'Create your own'}</Button>
-        <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
-      </div>
-    </GoalTabs>
+    <PhaseHeading group={group} />
+    {group.goals.length ? <GoalTabs label={`Goals for ${group.title}`} goals={group.goals} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} /> : null}
+    <AddToPhase orgslug={orgslug} phaseTitle={group.id ? group.title : undefined} empty={!group.goals.length} onCreate={onCreate} creating={creating} />
   </section>
 }
 

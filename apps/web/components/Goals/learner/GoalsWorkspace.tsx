@@ -12,7 +12,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { Button } from '@components/ui/button'
 import { Reveal, Skeleton } from '@components/ui/skeleton'
-import GoalsHome from '@components/Goals/home/GoalsHome'
+import GoalsHome, { AddToPhase, PhaseHeading } from '@components/Goals/home/GoalsHome'
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { GoalEditingProvider } from '@components/Goals/edit/GoalEditing'
 import { GoalChatProvider } from '@components/Goals/chat/GoalChat'
@@ -26,7 +26,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import GoalPath from './GoalPath'
 import GoalHeaderActions from './GoalHeaderActions'
 import { GoalCarousel, GoalHeaderCard, summaryHeader, type HeaderGoal } from './GoalHeader'
-import { phaseOfGoal } from './phases'
+import { phaseOfGoal, phaseTimes } from './phases'
 import { GoalPathSkeleton } from './GoalStepRow'
 import useGoalColors from './useGoalColors'
 import useStartGoal, { launchPath } from './useStartGoal'
@@ -190,10 +190,20 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} coachWorking={Boolean(coach.session)} onEndCoach={() => void coach.end()}
           onPlanWithCoach={coach.available && goal.ownership === 'personal' && can(goal, 'delete_plan') && can(goal, 'edit_structure') && !coach.session ? () => void coach.start() : undefined} /> : null} />
     </div>
-    // The open goal among the other goals of its phase.
-    const phaseId = life ? phaseOfGoal(life, selectedUuid) : null
-    const phaseGoals = life ? stripGoals.filter((item) => phaseOfGoal(life, item.goal_uuid) === phaseId) : stripGoals
-    strip = <GoalCarousel goals={phaseGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
+    // The open goal among the other goals of its phase, under the phase's name. Only the learner's
+    // own goals sit in their phases; a goal they help with stands alone.
+    const phaseId = life && isSubject ? phaseOfGoal(life, selectedUuid) : null
+    const phase = phaseId ? phaseTimes(life).find((item) => item.phase.id === phaseId) : undefined
+    const phaseGoals = phase ? stripGoals.filter((item) => phaseOfGoal(life, item.goal_uuid) === phaseId) : []
+    strip = phase ? <section aria-label={`Goals for ${phase.phase.title}`} className="flex flex-col gap-3">
+      <PhaseHeading group={{ title: phase.phase.title, when: phase.when, starts: phase.starts }}>
+        <span className="text-sm text-muted-foreground">{phaseGoals.length === 1 ? '1 goal' : `${phaseGoals.length} goals`}</span>
+      </PhaseHeading>
+      <GoalCarousel goals={phaseGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
+      {phaseGoals.length < 2 ? <AddToPhase orgslug={orgslug} onCreate={() => void startGoal(phaseId)} creating={startingGoal} /> : null}
+    </section> : !life?.phases?.length
+      ? <GoalCarousel goals={stripGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
+      : card
   } else if (selectedUuid && !detailError && !ready) {
     strip = <Skeleton className="h-52 rounded-3xl" />
   }
