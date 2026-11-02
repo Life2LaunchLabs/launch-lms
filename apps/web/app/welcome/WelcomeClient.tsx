@@ -32,6 +32,7 @@ export default function WelcomeClient() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email, password,
+              username: searchParams.get('username') || undefined,
               invitation_token: searchParams.get('invitation') || undefined,
               invite_code: searchParams.get('inviteCode') || undefined,
               org_id: Number(searchParams.get('org')) || undefined,

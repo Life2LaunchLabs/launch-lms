@@ -168,7 +168,7 @@ function OpenSignUpComponent({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, username: formik.values.username.trim() || undefined }),
         })
         const data = await res.json().catch(() => null)
         if (!res.ok) {
@@ -184,7 +184,8 @@ function OpenSignUpComponent({
       window.sessionStorage.setItem(welcomeSignupPasswordKey(email), formik.values.password)
       // An invitation or join link rides along, so the new account joins that organization.
       const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
-      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
+      const picked = formik.values.username.trim() ? `&username=${encodeURIComponent(formik.values.username.trim().toLowerCase())}` : ''
+      router.push(`/welcome?email=${encodeURIComponent(email)}${picked}${invite}`)
       return
     }
     setStep('details')
@@ -262,6 +263,26 @@ function OpenSignUpComponent({
               {emailError && (
                 <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
               )}
+              {/* The username is the public portfolio link, so it's picked here rather than made from the email. */}
+              <input
+                name="username"
+                onChange={(e) => {
+                  formik.handleChange(e)
+                  if (emailError) setEmailError('')
+                }}
+                value={formik.values.username}
+                type="text"
+                placeholder="Pick a username"
+                aria-label="Username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={30}
+                pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{2,29}"
+                title="3 to 30 letters, numbers, dots, dashes or underscores"
+                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
+                required
+              />
               <PasswordInput
                 component="input"
                 name="password"

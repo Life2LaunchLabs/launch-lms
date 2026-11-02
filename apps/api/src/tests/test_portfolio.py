@@ -400,6 +400,21 @@ def test_a_new_account_username_never_comes_from_the_email():
         assert name.startswith("learner") and "maya" not in name and "rivera" not in name
 
 
+def test_a_username_picked_at_signup_is_checked():
+    from fastapi import HTTPException as Refused
+    from src.routers.auth import _picked_username
+
+    with _session() as db:
+        db.add(_user())
+        db.commit()
+        assert _picked_username(" Sky.Walker_9 ", db) == "sky.walker_9"
+        assert _picked_username("", db) is None
+        for bad, status in (("ab", 422), ("no spaces", 422), (_user().username, 409)):
+            with pytest.raises(Refused) as error:
+                _picked_username(bad, db)
+            assert error.value.status_code == status
+
+
 def test_activity_strengths_show_as_a_what_im_like_result():
     from src.db.portfolio_records import PortfolioResult
 

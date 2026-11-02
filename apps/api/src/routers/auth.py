@@ -1,3 +1,4 @@
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -57,6 +58,7 @@ router = APIRouter()
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
+    username: str | None = None  # picked on the signup page; a random one when left out
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
@@ -64,6 +66,22 @@ class WelcomeSignupRequest(BaseModel):
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
+    username: str | None = None
+
+
+USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{2,29}$")
+
+
+def _picked_username(raw: str | None, db_session: Session) -> str | None:
+    """A username picked on the signup page, checked: 3 to 30 letters, numbers, dots, dashes or underscores."""
+    if raw is None or not raw.strip():
+        return None
+    username = raw.strip().lower()
+    if not USERNAME_RE.match(username):
+        raise HTTPException(status_code=422, detail="A username is 3 to 30 letters, numbers, dots, dashes or underscores")
+    if db_session.exec(select(User).where(User.username == username)).first():
+        raise HTTPException(status_code=409, detail="That username is taken")
+    return username
 
 
 def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
@@ -135,6 +153,7 @@ async def check_welcome_signup_email(
     existing = db_session.exec(select(User).where(User.email == body.email)).first()
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
+    _picked_username(body.username, db_session)
     return {"available": True}
 
 
@@ -164,7 +183,7 @@ async def complete_welcome_signup(
         "onboarding": {"started_at": started_at},
     }
     user_create = UserCreate(
-        username=_generate_onboarding_username(body.email, db_session),
+        username=_picked_username(body.username, db_session) or _generate_onboarding_username(body.email, db_session),
         email=body.email,
         password=body.password,
         first_name="",
