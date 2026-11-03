@@ -21,15 +21,22 @@ function UploadForm({ token, onDone }: { token?: string; onDone: () => void }) {
   const [year, setYear] = React.useState(new Date().getFullYear())
   const [url, setUrl] = React.useState(KINDS[0].url)
   const [file, setFile] = React.useState<File | null>(null)
-  const [busy, setBusy] = React.useState(false)
+  const [busy, setBusy] = React.useState<string | false>(false)
   const chosen = KINDS.find((item) => item.value === kind)!
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!file) return
-    setBusy(true)
+    setBusy('Loading…')
     try {
-      const result = await lifeAdminApi.importFile(kind, year, url, file, token)
-      toast.success(`Loaded ${result.facts.toLocaleString()} facts as drafts. Approve them to use them.`)
+      let result = await lifeAdminApi.importFile(kind, year, url, file, token)
+      // A big file (the BLS all-data workbook) keeps loading on the server; check back until it's done.
+      for (let tries = 0; result.status === 'running' && tries < 200; tries++) {
+        setBusy('Still loading… big files take a minute or two')
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        result = await lifeAdminApi.importStatus(result.job, token)
+      }
+      if (result.status === 'running') throw new Error('Still loading after 10 minutes. Refresh this page later to see it.')
+      toast.success(`Loaded ${(result.facts || 0).toLocaleString()} facts as drafts. Approve them to use them.`)
       if (result.unmatched?.length) toast(`No place found for: ${result.unmatched.slice(0, 5).join(', ')}`)
       setFile(null); onDone()
     } catch (error: any) {
@@ -42,8 +49,8 @@ function UploadForm({ token, onDone }: { token?: string; onDone: () => void }) {
     <label className="text-sm font-medium">Source<select className={field} value={kind} onChange={(event) => { const next = event.target.value as EstimateFileKind; setKind(next); setUrl(KINDS.find((item) => item.value === next)!.url) }}>{KINDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><span className="mt-1 block text-xs font-normal text-gray-500">{chosen.hint}</span></label>
     <label className="text-sm font-medium">{kind === 'hud_fmr' ? 'Fiscal year' : 'Data year'}<input className={field} type="number" min={2000} max={2100} value={year} onChange={(event) => setYear(Number(event.target.value))} /></label>
     <label className="text-sm font-medium md:col-span-2">Where it was published<input className={field} type="url" required maxLength={500} value={url} onChange={(event) => setUrl(event.target.value)} /></label>
-    <label className="text-sm font-medium md:col-span-2">File (CSV or Excel)<input className={field} type="file" required accept=".csv,.xlsx,.xls,.zip" onChange={(event) => setFile(event.target.files?.[0] || null)} /></label>
-    <div className="md:col-span-2"><button type="submit" disabled={busy || !file} className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Loading…' : 'Load as drafts'}</button></div>
+    <label className="text-sm font-medium md:col-span-2">File (CSV, Excel, or the publisher&rsquo;s zip)<input className={field} type="file" required accept=".csv,.xlsx,.xls,.zip" onChange={(event) => setFile(event.target.files?.[0] || null)} /></label>
+    <div className="md:col-span-2"><button type="submit" disabled={!!busy || !file} className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy || 'Load as drafts'}</button></div>
   </form>
 }
 
