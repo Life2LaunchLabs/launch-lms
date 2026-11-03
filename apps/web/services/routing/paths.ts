@@ -216,6 +216,8 @@ export const routePaths = {
         /** A supported learner's Education Plan and Profile report. */
         epp: (username: string) => `/admin/threads/profiles/people/${encodeURIComponent(username)}/epp`,
         /** A frozen Education Plan and Profile record, which outlives the learner's account. */
+        /** Every learner the school supports and where their Education Plan and Profile stands. */
+        eppCaseload: (mine?: boolean) => withQuery('/admin/threads/profiles/epp', { mine: mine ? '1' : null }),
         eppRecord: (recordUuid: string) => `/admin/threads/profiles/epp/${encodeURIComponent(recordUuid)}`,
         /** A group: its people, its plans (one assignment's grid), or its join links. */
         group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>

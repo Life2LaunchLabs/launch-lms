@@ -5,9 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { Loader2 } from 'lucide-react'
+import { Download, Loader2 } from 'lucide-react'
 import { usePeopleContext } from '@components/Admin/People/usePeople'
 import { getUriWithOrg } from '@services/config/config'
+import { downloadRecordPdf } from '@services/epp/caseload'
 import { RECORD_KIND_LABELS, recordKey, recordsApi, recordsKey, type RecordCreate } from '@services/epp/records'
 import { routePaths } from '@services/routing/paths'
 import { ReportFrame } from './EppReportPrint'
@@ -98,7 +99,11 @@ export default function EppRecordView({ orgslug, recordUuid }: { orgslug: string
     }
   }
   return <ReportFrame back={getUriWithOrg(orgslug, back)} backLabel="Back" report={record?.report} error={error}
-    actions={record && !record.superseded && !correcting ? <button type="button" onClick={() => setCorrecting(true)} className="inline-flex h-9 items-center rounded-full border border-[#1C2433] px-4 text-sm font-bold text-[#1C2433] hover:bg-[#F4F6F9]">Correct</button> : null}>
+    actions={record ? <>
+      {!record.superseded && !correcting ? <button type="button" onClick={() => setCorrecting(true)} className="inline-flex h-9 items-center rounded-full border border-[#1C2433] px-4 text-sm font-bold text-[#1C2433] hover:bg-[#F4F6F9]">Correct</button> : null}
+      <button type="button" onClick={() => void downloadRecordPdf(orgId, recordUuid, token).catch((failure) => toast.error(failure?.message || 'That download didn’t work'))}
+        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#1C2433] px-4 text-sm font-bold text-[#1C2433] hover:bg-[#F4F6F9]"><Download size={15} aria-hidden="true" />PDF</button>
+    </> : null}>
     {record ? <div className="mb-2 space-y-3 text-sm text-[#1C2433]">
       <p className="rounded-xl bg-[#F4F6F9] px-4 py-3"><b>{RECORD_KIND_LABELS[record.kind]}</b> for {record.learner_name}, saved {longDate(record.reviewed_at)}{record.reviewed_by ? ` by ${record.reviewed_by}` : ''}. Record ID {record.record_id}.
         {record.superseded ? ' A newer version corrects this one.' : ''}{record.user_id ? '' : ' Their account no longer exists; the school keeps this record.'}</p>
