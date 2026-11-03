@@ -103,7 +103,7 @@ test('portfolio.v2: editors for credentials, people, documents and results open 
 
   await page.goto('/portfolio')
   await expect(page.getByRole('region', { name: 'What I’m like' })).toBeVisible()
-  await page.getByRole('button', { name: /Edit links|Add links/ }).click()
+  await page.getByRole('button', { name: /Edit links|Add where people can find you/ }).click()
   await expect(page.getByRole('dialog', { name: 'Your links' })).toBeVisible()
 })
 
