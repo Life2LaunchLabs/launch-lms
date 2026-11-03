@@ -57,8 +57,7 @@ router = APIRouter()
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
-    # Asked on the sign-up page. The legal name is for rosters and reports; the name they go by is
-    # what everyone else sees (the legal first name when left out).
+    # Asked at sign-up: the legal name (rosters, reports) and the name they go by (shown; the legal first name when empty).
     first_name: str = Field(default="", max_length=100)
     last_name: str = Field(default="", max_length=100)
     preferred_name: str = Field(default="", max_length=100)
@@ -161,9 +160,7 @@ async def complete_welcome_signup(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
         password=body.password,
-        first_name=body.first_name.strip(),
-        last_name=body.last_name.strip(),
-        preferred_name=body.preferred_name.strip(),
+        first_name=body.first_name.strip(), last_name=body.last_name.strip(), preferred_name=body.preferred_name.strip(),
         bio="",
         details={"onboarding": {"started_at": started_at}},
         profile=profile_preset,
