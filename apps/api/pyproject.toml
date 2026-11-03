@@ -43,6 +43,7 @@ dependencies = [
     "pypdf==6.9.2",
     "pyld==3.3.0",
     "openpyxl==3.1.5",
+    "reportlab==5.1.0",
 ]
 
 [tool.ruff]
