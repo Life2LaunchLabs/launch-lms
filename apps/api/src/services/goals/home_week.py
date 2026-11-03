@@ -23,6 +23,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStage, GoalStatus, GoalStep, StepEntry, StepProgress, StepStatus
 from src.db.weekly_focus import PlanWeeklyFocus
+from src.services.goals import retired
 from src.services.goals.availability import availability, ordered_steps
 from src.services.goals.schedule import stage_ends
 
@@ -84,7 +85,7 @@ def goal_order(goal: Goal):
 
 
 def my_goals(db: Session, user_id: int) -> list[Goal]:
-    goals = db.exec(select(Goal).where(Goal.subject_user_id == user_id, Goal.status == GoalStatus.ACTIVE.value)).all()
+    goals = db.exec(select(Goal).where(Goal.subject_user_id == user_id, Goal.status == GoalStatus.ACTIVE.value, retired.shown())).all()
     return sorted(goals, key=goal_order)
 
 
@@ -115,7 +116,7 @@ def with_finished(db: Session, user_id: int, goals: list[Goal], today: date) -> 
     week_start = week_start_of(today)
     since = datetime.combine(week_start, datetime.min.time())
     finished = sorted(db.exec(select(Goal).where(
-        Goal.subject_user_id == user_id, Goal.status == GoalStatus.FINISHED.value, Goal.finished_at >= since,  # type: ignore[operator]
+        Goal.subject_user_id == user_id, Goal.status == GoalStatus.FINISHED.value, Goal.finished_at >= since, retired.shown(),  # type: ignore[operator]
     )).all(), key=goal_order)
     entries_by_goal = goal_entries(db, goals + finished, today)
     for goal in finished:

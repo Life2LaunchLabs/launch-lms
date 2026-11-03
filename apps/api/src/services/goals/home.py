@@ -17,6 +17,7 @@ from sqlmodel import Session, select
 from src.db.goals import Goal, GoalStatus, StepProgress, StepStatus
 from src.db.organizations import Organization
 from src.db.users import PublicUser
+from src.services.goals import retired
 from src.services.goals.availability import node_state
 from src.services.goals.home_week import (
     BOOST_SIZE,
@@ -112,7 +113,7 @@ def _goal_summary(db: Session, goal: Goal, entries: list[Entry]) -> dict:
 def pending_celebrations(db: Session, user_id: int) -> list[str]:
     """The learner's finished goals that haven't greeted them yet."""
     return list(db.exec(select(Goal.goal_uuid).where(
-        Goal.subject_user_id == user_id, Goal.status == GoalStatus.FINISHED.value, Goal.celebrated_at.is_(None),  # type: ignore[union-attr]
+        Goal.subject_user_id == user_id, Goal.status == GoalStatus.FINISHED.value, Goal.celebrated_at.is_(None), retired.shown(),  # type: ignore[union-attr]
     ).order_by(Goal.id)).all())  # type: ignore[arg-type]
 
 

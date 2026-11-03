@@ -4,7 +4,7 @@ from datetime import date, datetime
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.coach import CoachPolicy
-from src.db.goals import Goal, GoalStage, GoalStatus, GoalStep, StepProgress, StepStatus
+from src.db.goals import Goal, GoalStage, GoalStatus, GoalStep, GoalTemplate, StepProgress, StepStatus
 from src.db.learning import LearningVariable
 from src.db.portfolio import Portfolio, PortfolioContentStatus, ProfileTrait, ProjectItem, TimelineEntry
 from src.db.users import User
@@ -19,7 +19,7 @@ def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Portfolio.__table__, ProfileTrait.__table__, ProjectItem.__table__, TimelineEntry.__table__,
-        Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__, CoachPolicy.__table__,
+        Goal.__table__, GoalTemplate.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__, CoachPolicy.__table__,
         User.__table__, LearningVariable.__table__,
     ])
     return Session(engine)
