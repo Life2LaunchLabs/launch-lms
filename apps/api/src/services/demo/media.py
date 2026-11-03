@@ -40,6 +40,9 @@ def capture_files(
                 paths.add(path.lstrip("/"))
     orgs = {record["id"]: record["org_uuid"] for record in data.get("organization", [])}
     users = [record for record in data["user"] if record["id"] in cohort_ids]
+    # Many records share one org prefix. On S3 each walk lists the whole prefix,
+    # so walking per record made publishing outlast the 60s proxy timeout.
+    walks: dict[str, list] = {}
     for name, records in data.items():
         for record in records:
             if name == "user" and record["id"] not in cohort_ids:
@@ -70,7 +73,9 @@ def capture_files(
             }
             if not filenames:
                 continue
-            for directory, _, files in walk_directory(prefix):
+            if prefix not in walks:
+                walks[prefix] = list(walk_directory(prefix))
+            for directory, _, files in walks[prefix]:
                 parts = PurePosixPath(directory).parts
                 if name not in {"organization", "user"} and entity not in parts:
                     continue
