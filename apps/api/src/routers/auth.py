@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from src.services.auth import google_oauth
-from src.services.auth.usernames import generate_username as _generate_onboarding_username, picked_username as _picked_username
+from src.services.auth.usernames import generate_username as _generate_onboarding_username
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Session, select
