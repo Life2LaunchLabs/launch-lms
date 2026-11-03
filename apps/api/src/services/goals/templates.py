@@ -29,6 +29,14 @@ def _now() -> str:
     return datetime.now().isoformat()
 
 
+# System plans written by code and synced each release; the page templates plan is edited in the app.
+RELEASE_MANAGED = ("starter", "launch")
+
+
+def release_managed(template: GoalTemplate) -> bool:
+    return template.system_type in RELEASE_MANAGED
+
+
 def template_or_404(db: Session, org_id: int, template_uuid: str) -> GoalTemplate:
     template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == template_uuid, GoalTemplate.org_id == org_id)).first()
     if not template:
@@ -254,7 +262,7 @@ def save_template(db: Session, current_user: PublicUser, org_id: int, template_u
     """Replace the draft. With ``expected_etag``, refuse if someone saved since it was read."""
     require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
-    if template.system_type:
+    if release_managed(template):
         raise HTTPException(status_code=409, detail="System templates are updated with each release")
     if expected_etag and expected_etag != etag(template):
         raise HTTPException(status_code=409, detail={"message": "The template changed since you read it", "document": template.document, "etag": etag(template)})
@@ -344,7 +352,7 @@ def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
 
     require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
-    if template.system_type:
+    if release_managed(template):
         raise HTTPException(status_code=409, detail="System templates are published with each release")
     if make_live:
         from src.services.goals import plan_resources
@@ -396,6 +404,8 @@ def working_copy(db: Session, template: GoalTemplate, version_document: dict) ->
 
 
 def issuable_version(db: Session, template: GoalTemplate) -> GoalTemplateVersion:
+    if template.system_type == "page_templates":
+        raise HTTPException(status_code=409, detail="Page templates can't be handed out")
     if getattr(template.status, "value", template.status) == TemplateStatus.ARCHIVED.value:
         raise HTTPException(status_code=409, detail="This template is archived")
     version = published_version(db, template)

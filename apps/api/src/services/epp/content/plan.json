@@ -1,0 +1,301 @@
+{
+ "format": "launch-lms.goal-template",
+ "format_version": 1,
+ "template": {
+  "title": "My Education Plan and Profile",
+  "description": "Your plan for this school year: who you are, where you're headed, what you're learning beyond class, and a look back with an adult from your school. Each year builds on the last.",
+  "instructions": "Assign once per school year, to a group or a student. Steps link to the Oregon Education Plan and Profile (EPP) framework by requirement code, so the EPP report fills itself from this work. You can add your own steps: link them to the same requirements and they appear in the same place in the report. Reflection, CRLE and Extended Application steps come back to staff for review."
+ },
+ "stages": [
+  {
+   "title": "Who I am",
+   "timing": "Start of the year",
+   "duration_weeks": 6,
+   "milestone": "Your strengths, what your assessments showed, and careers you're curious about",
+   "steps": [
+    {
+     "type": "portfolio",
+     "title": "Show your strengths",
+     "description": "Add the traits and strengths that fit you best to your portfolio.",
+     "config": {
+      "check": "traits"
+     },
+     "requirement_codes": [
+      "EPP.INTERESTS.STRENGTHS"
+     ]
+    },
+    {
+     "type": "write",
+     "title": "What my assessments told me",
+     "description": "Think about the interest or career assessments you took. What fit, and what surprised you?",
+     "config": {
+      "prompt": "What did your assessments say about you? What fit, what didn't, and what will you do with it?",
+      "max_words": 300
+     },
+     "requirement_codes": [
+      "EPP.INTERESTS.ASSESSMENTS"
+     ]
+    },
+    {
+     "type": "explore",
+     "title": "Careers I'm curious about",
+     "description": "Find three or more careers or career areas that interest you, and pin your favorites.",
+     "config": {
+      "question": "Which careers or career areas would you like to know more about?"
+     },
+     "requirement_codes": [
+      "EPP.INTERESTS.CAREERS"
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Where I'm headed",
+   "timing": "Fall",
+   "duration_weeks": 6,
+   "milestone": "Goals for after high school and a plan for this year",
+   "steps": [
+    {
+     "type": "write",
+     "title": "My goals",
+     "description": "Your goals for after high school, and a few for this year. Big or small, they're yours.",
+     "config": {
+      "prompt": "What do you want to be doing after high school? What are your personal goals for this year?",
+      "max_words": 300
+     },
+     "requirement_codes": [
+      "EPP.GOALS.CAREER"
+     ]
+    },
+    {
+     "type": "decision",
+     "title": "My plan after high school",
+     "description": "What comes after high school for you right now? You can change it any time.",
+     "config": {
+      "question": "What's your plan after high school?",
+      "options": [
+       {
+        "key": "university",
+        "label": "Four-year college or university"
+       },
+       {
+        "key": "community_college",
+        "label": "Community college"
+       },
+       {
+        "key": "apprenticeship",
+        "label": "Apprenticeship or trade school"
+       },
+       {
+        "key": "military",
+        "label": "Military"
+       },
+       {
+        "key": "work",
+        "label": "Start working"
+       },
+       {
+        "key": "unsure",
+        "label": "Not sure yet"
+       }
+      ],
+      "multiple": true,
+      "allow_other": true
+     },
+     "requirement_codes": [
+      "EPP.GOALS.EDUCATION"
+     ]
+    },
+    {
+     "type": "write",
+     "title": "What it takes to get there",
+     "description": "What do you need to reach your goals? Think about classes, tests, applications, money and experience.",
+     "config": {
+      "prompt": "What will it take to reach your goals: classes, tests, applications, money, experience?",
+      "max_words": 300
+     },
+     "review_required": true,
+     "reviewer_guidance": "Do the steps match the goals they wrote?\nAre the requirements real for that path (for example, entry tests or prerequisites)?\nSuggest one thing they may have missed.",
+     "requirement_codes": [
+      "EPP.GOALS.PREPARATION"
+     ]
+    },
+    {
+     "type": "task",
+     "title": "This year's action plan",
+     "description": "List at least three things you'll do this year to move toward your goals.",
+     "config": {
+      "list": {
+       "label": "Something you'll do this year",
+       "target": 3,
+       "item_kind": "text"
+      }
+     },
+     "requirement_codes": [
+      "EPP.GOALS.ACTION"
+     ]
+    },
+    {
+     "type": "task",
+     "title": "My support network",
+     "description": "Name at least two people who help you, and how they help: a family member, teacher, coach or mentor.",
+     "config": {
+      "list": {
+       "label": "Who, and how they help",
+       "target": 2,
+       "item_kind": "text"
+      }
+     },
+     "requirement_codes": [
+      "EPP.GOALS.SUPPORT"
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Learning beyond the classroom",
+   "timing": "Winter",
+   "duration_weeks": 12,
+   "milestone": "A career-related learning experience and progress on your Extended Application",
+   "steps": [
+    {
+     "type": "upload",
+     "title": "Take part in a career-related learning experience",
+     "description": "Job shadow, internship, work experience, a career fair, a guest speaker, a service project or a school business. Add proof such as a photo, a sign-in sheet or a link.",
+     "config": {
+      "slots": [
+       {
+        "key": "proof",
+        "label": "Proof you took part",
+        "kinds": [
+         "image",
+         "document",
+         "link"
+        ]
+       }
+      ]
+     },
+     "review_required": true,
+     "reviewer_guidance": "Was it connected to the student's interests or goals?\nRecord the kind of experience and the host in your comment.",
+     "requirement_codes": [
+      "EPP.CRLE.EXPERIENCE"
+     ]
+    },
+    {
+     "type": "write",
+     "title": "Reflect on your experience",
+     "description": "What did you do, what did you learn, and did it change your goals?",
+     "config": {
+      "prompt": "What did you do, what did you learn about the work, and how does it connect to your goals?",
+      "max_words": 400
+     },
+     "review_required": true,
+     "reviewer_guidance": "Does it name what they did and what they learned?\nDoes it connect the experience to their goals?",
+     "requirement_codes": [
+      "EPP.CRLE.REFLECTION"
+     ]
+    },
+    {
+     "type": "write",
+     "title": "Plan your Extended Application",
+     "description": "Pick a project that applies what you know to something new and connected to your goals. Say what you'll make and how you'll show it.",
+     "config": {
+      "prompt": "What will you do for your Extended Application, how does it connect to your goals, and how will you show your work?",
+      "max_words": 300
+     },
+     "review_required": true,
+     "reviewer_guidance": "Does it apply and extend their knowledge in a new and complex situation?\nIs it connected to their personal and career interests?\nIs it doable this year?",
+     "requirement_codes": [
+      "EPP.EXTAPP.PLAN"
+     ]
+    },
+    {
+     "type": "upload",
+     "title": "Extended Application: collection of evidence",
+     "description": "Add the work that shows your Extended Application, with a short note on each piece.",
+     "config": {
+      "slots": [
+       {
+        "key": "evidence",
+        "label": "Your collection of evidence",
+        "kinds": [
+         "document",
+         "image",
+         "video",
+         "link"
+        ]
+       }
+      ]
+     },
+     "review_required": true,
+     "reviewer_guidance": "Assess against your school's Extended Application criteria.\nApproving records you as the assessor, with the date.",
+     "requirement_codes": [
+      "EPP.EXTAPP.EVIDENCE"
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Look back and review",
+   "timing": "Spring",
+   "duration_weeks": 6,
+   "milestone": "Next year's courses chosen and your yearly review done",
+   "steps": [
+    {
+     "type": "task",
+     "title": "Plan next year's courses",
+     "description": "Choose next year's courses with your counselor, thinking about graduation and your goals.",
+     "review_required": true,
+     "reviewer_guidance": "Do the courses keep them on track for graduation?\nDo they fit the student's goals?",
+     "requirement_codes": [
+      "EPP.COURSES.PLAN"
+     ]
+    },
+    {
+     "type": "write",
+     "title": "What I learned and achieved this year",
+     "description": "Your proudest moments, new skills and anything you'd do differently.",
+     "config": {
+      "prompt": "What did you learn and achieve this year, and what are you proudest of?",
+      "max_words": 300
+     },
+     "requirement_codes": [
+      "EPP.ACCOMPLISHMENTS.LEARNING"
+     ]
+    },
+    {
+     "type": "upload",
+     "title": "Choose your best work",
+     "description": "Pick a piece of work from this year that shows what you can do. It goes into your Education Plan and Profile.",
+     "config": {
+      "slots": [
+       {
+        "key": "best",
+        "label": "Your best work",
+        "kinds": [
+         "document",
+         "image",
+         "video",
+         "link"
+        ]
+       }
+      ]
+     },
+     "requirement_codes": [
+      "EPP.ACCOMPLISHMENTS.EVIDENCE"
+     ]
+    },
+    {
+     "type": "task",
+     "title": "Yearly review with an adult",
+     "description": "Meet with your counselor or advisor to look at your plan and your progress toward graduation.",
+     "completed_by": "staff",
+     "staff_guide": "Meet with the student and look over their plan, goals, course plan and progress toward graduation. Mark it done after the meeting. This counts as the annual EPP review.",
+     "requirement_codes": [
+      "EPP.PROGRESS.REVIEW"
+     ]
+    }
+   ]
+  }
+ ]
+}

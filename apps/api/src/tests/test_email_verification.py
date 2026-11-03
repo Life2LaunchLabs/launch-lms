@@ -375,11 +375,10 @@ def test_require_email_verification_env_var(
 
 
 @pytest.mark.asyncio
-async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_starter_goal():
+async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_portfolio():
     from src.db.goals import Goal
     from src.db.users import AnonymousUser, PublicUser
     from src.routers.auth import get_welcome_onboarding
-    from src.services.goals.starter import ensure_starter_goal, starter_checklist
     from src.tests.plan_world import _create_user as create_user
     from src.tests.test_goal_starter import _session
 
@@ -388,9 +387,7 @@ async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_s
 
     create_user(db, user_id=10, username="maya")
     learner = PublicUser.model_validate(db.get(User, 10))
-    result = await get_welcome_onboarding(None, learner, db)
 
-    checklist = starter_checklist(db, ensure_starter_goal(db, 10))
-    assert result == {"redirect_url": f"/orgs/studio{checklist['items'][0]['href']}"}
-    assert checklist["items"][0]["href"].startswith(f"/plans/{checklist['goal']['goal_uuid']}/steps/")
-    assert len(db.exec(select(Goal).where(Goal.subject_user_id == 10)).all()) == 1
+    assert await get_welcome_onboarding(None, learner, db) == {"redirect_url": "/orgs/studio/portfolio"}
+    # Launch Ready is gone: signing up no longer hands out a starter goal.
+    assert db.exec(select(Goal).where(Goal.subject_user_id == 10)).all() == []

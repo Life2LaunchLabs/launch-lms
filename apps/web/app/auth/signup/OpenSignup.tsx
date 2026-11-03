@@ -1,5 +1,6 @@
 'use client'
 import { useFormik } from 'formik'
+import SignupNames, { welcomeSignupNamesKey } from './SignupNames'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
 import FormLayout, { FormField, FormLabelAndMessage, Input, Textarea } from '@components/Objects/StyledElements/Form/Form'
@@ -7,6 +8,7 @@ import * as Form from '@radix-ui/react-form'
 import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
+import { useGoogleSignIn } from '@services/auth/google'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
 import { signup, signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
@@ -43,8 +45,6 @@ const validate = (values: any, t: any) => {
     errors.username = t('validation.username_min_length')
   }
 
-  // Bio is optional - no validation required
-
   return errors
 }
 
@@ -64,6 +64,7 @@ function OpenSignUpComponent({
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
+  const google = useGoogleSignIn()
   const [step, setStep] = React.useState<'email' | 'details'>(createOrgMode ? 'details' : 'email')
   const [emailError, setEmailError] = React.useState('')
   const age = useAgeConfirm()
@@ -87,6 +88,7 @@ function OpenSignUpComponent({
       bio: '',
       first_name: '',
       last_name: '',
+      preferred_name: '',
     },
     validate: (values) => validate(values, t),
     enableReinitialize: true,
@@ -138,15 +140,10 @@ function OpenSignUpComponent({
 
     const email = formik.values.email.trim()
     if (!age.ok()) return
-    if (!email) {
-      setEmailError(t('validation.required'))
-      return
-    }
-
-    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
-      setEmailError(t('validation.invalid_email'))
-      return
-    }
+    if (!email) return setEmailError(t('validation.required'))
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) return setEmailError(t('validation.invalid_email'))
+    const names = { first_name: formik.values.first_name.trim(), last_name: formik.values.last_name.trim(), preferred_name: formik.values.preferred_name.trim() }
+    if (!createOrgMode && (!names.first_name || !names.last_name)) return setEmailError('Add your first and last name.')
 
     const passwordValidation = validatePasswordStrength(formik.values.password)
     if (!formik.values.password || !passwordValidation.isValid) {
@@ -182,6 +179,7 @@ function OpenSignUpComponent({
         return
       }
       window.sessionStorage.setItem(welcomeSignupPasswordKey(email), formik.values.password)
+      window.sessionStorage.setItem(welcomeSignupNamesKey(email), JSON.stringify(names))
       // An invitation or join link rides along, so the new account joins that organization.
       const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
       router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
@@ -226,23 +224,11 @@ function OpenSignUpComponent({
 
           <div className="mt-12 space-y-7">
             <AgeConfirm {...age.field} />
-            <Button
-              type="button"
-              onClick={handleGoogleSignup}
-              disabled={isGoogleLoading}
-              variant="surface"
-              size="cta"
-              className="w-full text-[16px]"
-            >
+            {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
               {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
             </Button>
-
-            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span>or</span>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
+            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
             <form onSubmit={handleEmailContinue} className="space-y-4">
               <input
@@ -262,6 +248,7 @@ function OpenSignUpComponent({
               {emailError && (
                 <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
               )}
+              <SignupNames values={formik.values} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <PasswordInput
                 component="input"
                 name="password"
@@ -350,15 +337,11 @@ function OpenSignUpComponent({
       {createOrgMode ? (
         <div className="mb-5 space-y-5">
           <AgeConfirm {...age.field} />
-          <Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
+          {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
             <SiGoogle size={20} color="#4285F4" />
             {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
           </Button>
-          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span>or with email</span>
-            <div className="h-px flex-1 bg-gray-200" />
-          </div>
+          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or with email</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
         </div>
       ) : null}
 

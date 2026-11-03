@@ -26,11 +26,13 @@ def _ensure_editable(db_session: Session, activity: LearningActivity) -> None:
 
 
 def _is_system_activity(db_session: Session, activity: LearningActivity) -> bool:
-    """Activities of a system template (the starter) may use trusted portfolio outcomes and system blocks."""
+    """Activities of a release-managed system template (the starter, launch) may use trusted portfolio
+    outcomes and system blocks. Page templates are copied into ordinary activities, so they may not."""
+    from src.services.goals.templates import RELEASE_MANAGED
     from src.services.learning_documents.store import owning_template
 
     template = owning_template(db_session, activity)
-    return bool(template and template["system_type"] is not None)
+    return bool(template and template["system_type"] in RELEASE_MANAGED)
 
 
 def _serialize_page(page: LearningPage) -> LearningPageRead:

@@ -27,6 +27,7 @@ from src.db.portfolio import (
     TimelineEntryUpdate,
     TimelineProjectLink,
 )
+from src.db.portfolio_records import RECORD_TABLES
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -54,17 +55,19 @@ def _session():
         TimelineEntry,
         TimelineEntryBlock,
         TimelineProjectLink,
+        *RECORD_TABLES,
     ):
         model.__table__.create(engine)
     from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalStory, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
     from src.db.learning import LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
     from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
     from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
+    from src.db.life_plans import LifePlan
 
     for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt,
                   PlanRole, PlanCollaborator, PlanActivity, OrganizationPlanRole, GoalTemplate, GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory,
                   # Goals keep their chats in step.
-                  Conversation, ConversationMember, ConversationMessage, ConversationMessageRef):
+                  Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, LifePlan):
         model.__table__.create(engine, checkfirst=True)
     session = Session(engine)
     session.add(
@@ -98,34 +101,18 @@ def _public(user):
     return PublicUser.model_validate(user)
 
 
-def test_checklist_is_the_learners_starter_goal():
+def test_the_owner_shell_issues_no_starter_goal():
     from src.db.goals import Goal
 
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
-        actor = _public(user)
 
-        checklist = service.get_owner_shell(actor, db)["checklist"]
+        shell = service.get_owner_shell(_public(user), db)
 
-        goals = db.exec(select(Goal).where(Goal.subject_user_id == 1)).all()
-        assert len(goals) == 1
-        assert checklist["goal"]["goal_uuid"] == goals[0].goal_uuid
-        assert checklist["total"] == 6
-        # A learner who already has a name has done the Welcome step.
-        assert checklist["completed"] == 1
-        assert checklist["nextIncomplete"] == checklist["items"][1]
-        assert checklist["items"][0]["href"].startswith(f"/plans/{goals[0].goal_uuid}/steps/")
-
-        service.create_timeline(TimelineEntryCreate(title="A previous experience"), actor, db)
-        checklist = service.get_owner_shell(actor, db)["checklist"]
-
-        assert len(db.exec(select(Goal).where(Goal.subject_user_id == 1)).all()) == 1
-        assert [item["complete"] for item in checklist["items"]] == [True, True, False, False, False, False]
-        assert checklist["completed"] == 2
-        # Finishing the checklist awards nothing: Launch Ready is a goal, not a badge.
-        assert db.exec(select(BadgeAward)).all() == []
+        assert "checklist" not in shell
+        assert db.exec(select(Goal).where(Goal.subject_user_id == 1)).all() == []
 
 
 def test_portfolio_steps_on_other_goals_finish_when_the_portfolio_has_it():
@@ -252,7 +239,7 @@ def test_owner_preview_uses_public_section_visibility():
         assert "about" not in {
             section["section_type"] for section in preview["sections"]
         }
-        assert preview["checklist"] is None
+        assert "checklist" not in preview
 
 
 def test_unverified_user_cannot_publish():
@@ -374,6 +361,47 @@ def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
             "update_date",
         }.isdisjoint(public["projects"][0]["blocks"][0])
         assert public["projects"][0]["project_uuid"] == project["project_uuid"]
+
+
+def test_an_onboarding_display_name_becomes_the_name_the_portfolio_shows():
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        outcomes = {"version": 1, "actions": [{"id": "intro", "type": "set_portfolio_fields", "fields": {"display_name": "Maya R.", "headline": "Future nurse"}}]}
+        apply_portfolio_outcomes(db, user, 7, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        assert user.preferred_name == "Maya R."
+        # The legal name adds nothing, so it isn't kept as a "goes by".
+        apply_portfolio_outcomes(db, user, 8, {"version": 1, "actions": [{"id": "again", "type": "set_portfolio_fields", "fields": {"display_name": f"{user.first_name} {user.last_name}".strip()}}]}, {"answers": {}, "bindings": {}})
+        assert user.preferred_name == "Maya R."
+
+
+def test_a_new_account_username_never_comes_from_the_email():
+    from src.services.auth.usernames import generate_username as _generate_onboarding_username
+
+    with _session() as db:
+        name = _generate_onboarding_username("maya.rivera.2010@school.example.org", db)
+        assert name.startswith("learner") and "maya" not in name and "rivera" not in name
+
+
+def test_activity_strengths_show_as_a_what_im_like_result():
+    from src.db.portfolio_records import PortfolioResult
+
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        outcomes = {"version": 1, "actions": [{"id": "s", "type": "set_traits", "trait_type": "strength", "values": ["Curious", "kind"]}]}
+        apply_portfolio_outcomes(db, user, 9, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        result = db.exec(select(PortfolioResult).where(PortfolioResult.source == "traits")).one()
+        assert (result.kind, result.name, result.summary) == ("strengths", "Strengths", "Curious, Kind")
+        # A second pass replaces the summary instead of adding another result.
+        outcomes["actions"][0]["values"] = ["Patient"]
+        apply_portfolio_outcomes(db, user, 10, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        assert [row.summary for row in db.exec(select(PortfolioResult)).all()] == ["Patient"]
 
 
 def test_activity_timeline_outcome_assigns_only_an_owned_cover_image():

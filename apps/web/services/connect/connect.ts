@@ -2,6 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { PersonSummary } from '@services/goals/types'
 import type { GroupReportCard } from '@services/goals/reports'
+import type { SupportRequestCard } from '@services/school/support'
 
 const q = encodeURIComponent
 export const connectUrl = (path = '') => `${getAPIUrl()}connect${path}`
@@ -93,7 +94,7 @@ export interface StepReminderCard {
 }
 
 /** Plan tags say whether they're the chat's quiet scope, a plan from outside the chat, or one you can't see. */
-type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean }
+type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean; /** Someone's portfolio, or an experience or project in it. */ portfolio?: boolean; item_kind?: PortfolioItemKind }
 
 /** A plan, step, person, organization or resource a message tags inline, as the reader sees it now. */
 export type MessageRef =
@@ -111,7 +112,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | EventCard | StepReminderCard | GroupReportCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | EventCard | StepReminderCard | GroupReportCard | SupportRequestCard | null
   sender: PersonSummary | null
   mine: boolean
   /** Only the organization's staff read it. */
@@ -151,7 +152,11 @@ export interface TopicStep {
   behind: boolean
   /** Messages that tag this step. */
   count: number
+  /** On a portfolio topic, what the step is. */
+  item_kind?: PortfolioItemKind
 }
+
+export type PortfolioItemKind = 'experience' | 'project'
 
 /** A plan a chat is about: where it stands, its steps, and how much talk there is about each. */
 export interface ChatTopic {
@@ -164,6 +169,16 @@ export interface ChatTopic {
   steps: TopicStep[]
   /** For your plans from elsewhere: the organization it's with. */
   org_name?: string | null
+  /** A portfolio talked about in a direct chat (source 'portfolio'): its experiences and projects are its steps. */
+  portfolio?: { username: string; user_uuid: string; mine: boolean }
+}
+
+/** Who you can talk about a portfolio, or one item in it, with: the owner gets their people, anyone else the owner. */
+export interface PortfolioChats {
+  goal_uuid: string
+  step_uuid: string | null
+  mine: boolean
+  people: Array<{ person: PersonSummary; conversation_uuid: string | null; count: number }>
 }
 
 export interface Chat extends ChatSummary {
@@ -236,6 +251,7 @@ export const connectKeys = {
   counts: () => connectUrl('/counts'),
   chat: (uuid: string, filter: ChatFilter = {}) => connectUrl(`/chats/${q(uuid)}${filterQuery(filter)}`),
   goalChat: (goalUuid: string) => connectUrl(`/goals/${q(goalUuid)}/chat`),
+  portfolioChats: (portfolioUuid: string, itemUuid?: string) => connectUrl(`/portfolios/${q(portfolioUuid)}/chats${itemUuid ? `?item_uuid=${q(itemUuid)}` : ''}`),
   cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience) => connectUrl(`/orgs/${orgId}/assignments/${q(assignmentUuid)}/chat?audience=${audience}`),
   settings: () => connectUrl('/settings'),
   plans: () => connectUrl('/plans'),
@@ -253,6 +269,10 @@ export const connectApi = {
    * error and no chat button. Its messages are read, filtered and sent like any other chat's.
    */
   cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience, token?: string) => request<CohortChat>(connectKeys.cohortChat(orgId, assignmentUuid, audience), token),
+  portfolioChats: (portfolioUuid: string, itemUuid?: string, token?: string) => request<PortfolioChats>(connectKeys.portfolioChats(portfolioUuid, itemUuid), token),
+  /** The chat to talk about a portfolio or one item in it, started if needed: the owner names who with. */
+  openPortfolioChat: (target: { portfolio_uuid: string; user_uuid?: string; item_uuid?: string }, token?: string) =>
+    request<{ conversation_uuid: string; goal_uuid: string; step_uuid: string | null }>(connectUrl('/portfolios/chat'), token, 'POST', target),
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
   send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share, staff_only: options.staffOnly || undefined,

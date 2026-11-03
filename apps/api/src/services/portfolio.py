@@ -113,13 +113,6 @@ def _get_portfolio(db_session: Session, user_id: int) -> Portfolio | None:
     ).first()
 
 
-def _launch_ready_state(user_id: int, db_session: Session) -> dict:
-    """The portfolio checklist: the learner's Launch Ready starter goal."""
-    from src.services.goals.starter import ensure_starter_goal, starter_checklist
-
-    return starter_checklist(db_session, ensure_starter_goal(db_session, user_id))
-
-
 def _save(portfolio: Portfolio, db_session: Session, now: str | None = None) -> None:
     """Bump the portfolio's revision and commit; portfolio steps the change now satisfies finish."""
     from src.services.goals.completion import on_portfolio_changed
@@ -368,6 +361,8 @@ def _timeline_dto(
 def portfolio_shell(
     portfolio: Portfolio, db_session: Session, public_only: bool = False
 ) -> dict:
+    from src.services.portfolio_records import records_for_shell
+
     user = db_session.exec(select(User).where(User.id == portfolio.user_id)).first()
     links = list(
         db_session.exec(
@@ -436,17 +431,10 @@ def portfolio_shell(
             if section.enabled
             and _enum_value(section.visibility) != PortfolioVisibility.PRIVATE.value
         ]
-    launch_ready = (
-        _launch_ready_state(portfolio.user_id, db_session)
-        if not public_only
-        else None
-    )
     # Badges earned (each award once), and, for the learner themselves, the plans that will earn one.
     earned_badges = [award_card(db_session, item) for item in awards_of(db_session, portfolio.user_id)]
     working_toward = [] if public_only else badges_in_progress(db_session, portfolio.user_id)
-    hidden_award_uuids = set(
-        (portfolio.theme_settings or {}).get("hidden_award_uuids") or []
-    )
+    hidden_award_uuids = set((portfolio.theme_settings or {}).get("hidden_award_uuids") or [])
     if public_only:
         earned_badges = [
             item
@@ -493,7 +481,7 @@ def portfolio_shell(
             "itemCount": len(earned_badges),
         },
     ]
-    return {
+    return records_for_shell(portfolio, db_session, public_only) | {
         "portfolio": (
             {
                 "portfolio_uuid": portfolio.portfolio_uuid,
@@ -540,7 +528,6 @@ def portfolio_shell(
             "total": 2,
             "blockers": blockers,
         },
-        "checklist": launch_ready,
         "permissions": {
             "canEdit": not public_only,
             "canPublish": not public_only and state != "restricted",

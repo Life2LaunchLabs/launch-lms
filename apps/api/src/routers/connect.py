@@ -9,7 +9,8 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen, ReactionToggle
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, cohort, linking, people, profile, reactions, workspace
+from src.services.connect import chats, cohort, linking, people, portfolio_talk, profile, reactions, workspace
+from src.services.connect.portfolio_talk import PortfolioChatOpen
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -41,6 +42,18 @@ async def get_chat(conversation_uuid: str, before: str | None = None, goal_uuid:
 @router.get("/goals/{goal_uuid}/chat")
 async def goal_chat(goal_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
     return workspace.goal_chat(db_session, current_user, goal_uuid)
+
+
+@router.get("/portfolios/{portfolio_uuid}/chats")
+async def portfolio_chats(portfolio_uuid: str, item_uuid: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    """The owner's people who can see their portfolio, with how much each chat says about it, or about one item."""
+    return portfolio_talk.portfolio_chats(db_session, current_user, portfolio_uuid, item_uuid)
+
+
+@router.post("/portfolios/chat")
+async def open_portfolio_chat(payload: PortfolioChatOpen, current_user: PublicUser = USER, db_session: Session = DB):
+    """The chat to talk about a portfolio, or one experience or project in it."""
+    return portfolio_talk.open_chat(db_session, current_user, payload)
 
 
 def _group_plan(org_id: int, assignment_uuid: str, db_session: Session = DB) -> None:

@@ -100,9 +100,9 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
         {error ? <p className="rounded-xl bg-white px-5 py-6 text-center text-sm text-gray-500 nice-shadow">Home couldn’t load. {error.message}</p>
           : !data ? <HomeSkeleton />
           : <div className="space-y-5">
-            {data.first_steps ? <FirstSteps data={data.first_steps} orgslug={orgslug} onDismiss={() => void dismiss('first_steps')} onTick={tick} onBrief={openBrief} /> : null}
             <div className={cn('grid grid-cols-1 items-start gap-5', rail && 'xl:grid-cols-[minmax(0,1fr)_340px]')}>
               <div className="min-w-0 space-y-5">
+                {data.first_steps ? <FirstSteps data={data.first_steps} orgslug={orgslug} onDismiss={() => void dismiss('first_steps')} onTick={tick} onBrief={openBrief} /> : null}
                 {settingUp ? <p className="py-2 text-center text-[13px] text-gray-500">Needs you, assignments and insights show up here once your first plan is out.</p> : <>
                   {shown('needs') && data.needs ? <NeedsYou data={data.needs} orgslug={orgslug} onDismissIntro={() => void dismiss('needs_intro')} /> : null}
                   {shown('assignments') && data.assignments ? <YourAssignments data={data.assignments} admin={data.viewer.admin} canRun={data.viewer.permissions.includes('run_assignments')} orgslug={orgslug} onOpen={setBrief} /> : null}

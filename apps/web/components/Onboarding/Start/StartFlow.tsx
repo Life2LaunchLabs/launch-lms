@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { AnimatePresence, motion } from 'motion/react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
+import { useGoogleSignIn } from '@services/auth/google'
 import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import '@/styles/admin-dark.css'
@@ -60,14 +61,18 @@ const ROLE_ICONS: Record<StartRole, React.ReactNode> = {
   parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, district: <Building2 size={18} />,
 }
 const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i
-const order = (state: StartState): Step[] => ['t0', 't1', 't2', 't3', 'role', 'reqs', 'plans', 'account', 'you', 'tier', ...(state.trial ? ['staff', 'groups'] as Step[] : ['learners'] as Step[]), 'done']
+// During the beta every new space is on Full, so there's no plans pick or tier step: the space is made
+// when they leave "Make it yours", then staff and groups. The 'plans' and 'tier' steps stay for after it.
+const order = (): Step[] => ['t0', 't1', 't2', 't3', 'role', 'reqs', 'account', 'you', 'staff', 'groups', 'done']
 const previewPage: Partial<Record<Step, PreviewPage>> = { reqs: 'requirements', plans: 'plans', account: 'plans', you: 'invite', learners: 'people', staff: 'people', groups: 'groups' }
-const usernameFrom = (email: string) => `${email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user'}${Math.floor(1000 + Math.random() * 9000)}`
+// The username is the public portfolio link (/user/<username>), so it never comes from the email:
+// many learners are minors, and an email often holds a full name or a school ID.
+const newUsername = () => `learner${Array.from(crypto.getRandomValues(new Uint32Array(2))).map((n) => n.toString(36)).join('').slice(0, 10)}`
 
 /**
- * Getting started: a short tour, then the role, an optional requirement framework, plans (ranked by how
- * much of it they cover) and account, then making the space theirs and the people in it. The space itself
- * is made once, at the tier step, from everything picked so far, on Free or the Full trial alike.
+ * Getting started: a short tour, then the role, an optional requirement framework and account, then making
+ * the space theirs and the people in it. The space itself is made once, when they leave "Make it yours",
+ * from everything picked so far (on Full during the beta).
  */
 export default function StartFlow() {
   const org = useOrg() as any
@@ -84,7 +89,11 @@ export default function StartFlow() {
   React.useEffect(() => {
     try {
       const saved = window.sessionStorage.getItem(STORAGE_KEY)
-      if (saved) setState({ ...fresh(), ...JSON.parse(saved) })
+      if (saved) {
+        const restoredState: StartState = { ...fresh(), ...JSON.parse(saved) }
+        // A step from an older version of this flow starts them at the role again.
+        setState(order().includes(restoredState.step) ? restoredState : { ...restoredState, step: 'role' })
+      }
     } catch { /* a fresh start */ }
     setRestored(true)
   }, [])
@@ -98,7 +107,7 @@ export default function StartFlow() {
   }, [signedIn, user?.first_name, user?.last_name])
 
   const patch = (change: Partial<StartState>) => setState((current) => ({ ...current, ...change }))
-  const steps = order(state)
+  const steps = order()
   const go = (step: Step) => { setError(''); patch({ step }) }
   const move = (direction: number) => go(steps[Math.max(0, Math.min(steps.length - 1, steps.indexOf(state.step) + direction))])
   const role = state.role ? ROLES[state.role] : null
@@ -121,7 +130,7 @@ export default function StartFlow() {
       color: state.orgOn ? state.color : '', plan_uuids: state.picked, framework_uuid: framework?.framework_uuid || null, trial,
     }, token)
     const next: StartState = { ...state, space: result.org, trial }
-    setState({ ...next, step: order(next)[order(next).indexOf('tier') + 1] })
+    setState({ ...next, step: order()[order().indexOf('you') + 1] })
   })
 
   /** Sends what's new on a people step, then moves on. */
@@ -198,7 +207,7 @@ export default function StartFlow() {
       return <><h1 className={H1}>{TOUR[index].title}</h1><p className={LEDE}>{TOUR[index].lede}</p>
         <Nav back={index > 0 ? () => move(-1) : undefined} next={() => move(1)} label="Next" /></>
     }
-    if (step === 'role') return <><Eyebrow>About you</Eyebrow><h1 className={H1}>What’s your role?</h1><p className={LEDE}>We’ll suggest plans that fit how you work.</p>
+    if (step === 'role') return <><Eyebrow>About you</Eyebrow><h1 className={H1}>What’s your role?</h1><p className={LEDE}>We’ll set up your space to fit how you work.</p>
       <div role="radiogroup" aria-label="Your role" className="mt-6 space-y-2">
         {ROLE_IDS.map((id) => <button key={id} type="button" role="radio" aria-checked={state.role === id} onClick={() => patch({ role: id, picked: state.role === id ? state.picked : [], orgOn: state.role === id ? state.orgOn : !ROLES[id].solo })}
           className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white px-3.5 py-3 text-left transition', state.role === id ? 'border-[var(--rc)] ring-2 ring-[var(--rc)]/25' : 'border-border hover:border-foreground/25')}
@@ -210,7 +219,7 @@ export default function StartFlow() {
       </div>
       <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} /></>
     if (step === 'reqs') return <><Eyebrow>Optional</Eyebrow><h1 className={H1}>Working toward requirements?</h1>
-      <p className={LEDE}>Pick the standards or graduation requirements you report on. We’ll suggest plans that cover them and track who’s met what.</p>
+      <p className={LEDE}>Pick the standards or graduation requirements you report on. We’ll track who’s met what.</p>
       <div role="radiogroup" aria-label="Requirements to track" className="mt-6 space-y-2">{frameworks.length ? frameworks.map((item) => { const on = state.framework === item.framework_uuid; return <button key={item.framework_uuid} type="button" role="radio" aria-checked={on}
         onClick={() => patch({ framework: on ? null : item.framework_uuid })}
         className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white p-2.5 text-left transition', on ? 'border-sky-600 ring-2 ring-sky-600/20' : 'border-border hover:border-foreground/25')}>
@@ -256,7 +265,7 @@ export default function StartFlow() {
           <p className="text-[12.5px] text-muted-foreground">Add your logo from Settings once you’re in.</p>
         </div> : null}
       </div>
-      <Nav back={() => move(-1)} next={() => move(1)} disabled={state.orgOn && !state.org.trim()} label={state.name || state.orgOn ? 'Continue' : 'Skip for now'} /></>
+      <Nav back={() => move(-1)} next={() => void setUp(false)} busy={busy} disabled={state.orgOn && !state.org.trim()} label={state.name || state.orgOn ? 'Continue' : 'Skip for now'} /></>
     if (step === 'tier') return <><Eyebrow>Optional</Eyebrow><h1 className={H1}>{role?.solo && !state.orgOn ? 'Working with a bigger group?' : 'Running something bigger?'}</h1>
       <p className={LEDE}>Full adds groups, more staff and bulk invites. Try it free for 30 days, or keep going on Free. You can switch anytime.</p>
       <div className="mt-7 grid grid-cols-2 gap-2.5">
@@ -386,7 +395,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     setError('')
     try {
       if (!existing) {
-        const response = await signup({ username: usernameFrom(email), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
+        const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
         if (response.status !== 200) {
           const body = await response.json().catch(() => null)
           throw new Error(typeof body?.detail === 'string' ? body.detail : body?.detail?.message || 'Could not create the account.')
@@ -402,6 +411,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
       setBusy(false)
     }
   }
+  const googleOn = useGoogleSignIn()
   const google = async () => {
     if (!existing && !age.ok()) return
     onGoogle()
@@ -413,8 +423,8 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     <p className={LEDE}>{existing ? 'We’ll add what you’ve picked to your account.' : 'Create an account so your plans are here when you come back.'}</p>
     <form className="mt-6 space-y-3.5" onSubmit={(event) => void submit(event)}>
       {existing ? null : <AgeConfirm {...age.field} />}
-      <Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />Continue with Google</Button>
-      <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />or<i className="h-px flex-1 bg-border" /></div>
+      {googleOn ? <><Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />Continue with Google</Button>
+      <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />or<i className="h-px flex-1 bg-border" /></div></> : null}
       <Field label="Email"><input className={INPUT} type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
       <Field label="Password"><input className={INPUT} type="password" autoComplete={existing ? 'current-password' : 'new-password'} placeholder={existing ? '' : 'At least 8 characters, with a number and a symbol'} value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
       {!existing && password && !strong ? <p className="text-[12.5px] text-muted-foreground">Use at least 8 characters with upper and lower case, a number and a symbol.</p> : null}

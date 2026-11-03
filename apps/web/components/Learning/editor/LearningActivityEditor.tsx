@@ -39,6 +39,8 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import useSWR from 'swr'
+import { PAGE_TEMPLATES_KEY, getPageTemplates } from '@services/learning/pageTemplates'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -150,6 +152,7 @@ export default function LearningActivityEditor({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
+  const { data: servedTemplates } = useSWR(accessToken ? [PAGE_TEMPLATES_KEY, accessToken] : null, () => getPageTemplates(accessToken))
   // The editor works on a sequence: the stored one, else the one the server converted from an older flow.
   const [activityState, setActivityState] = React.useState(() => ({
     ...activity,
@@ -973,6 +976,7 @@ export default function LearningActivityEditor({
           pages={pages}
           pageOrder={pageOrder}
           grading={gradingSettings}
+          defaults={servedTemplates?.defaults}
           onPatchGrading={patchGradingSettings}
           onPatchBlock={patchPageBlock}
           onAddQuestion={(draft) => { void addPage(draft) }}
@@ -1143,6 +1147,7 @@ export default function LearningActivityEditor({
         <NewPageDialog
           where={selectedPage && pageOrder.includes(selectedPage.page_uuid) ? `after page ${pageOrder.indexOf(selectedPage.page_uuid) + 1}` : 'at the end'}
           settings={activityState.settings}
+          served={servedTemplates}
           onClose={() => setNewPageOpen(false)}
           onPick={(draft) => { setNewPageOpen(false); void addPage(draft) }}
         />

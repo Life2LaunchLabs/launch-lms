@@ -4,70 +4,111 @@ import React from 'react'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 import { ChevronDown, Compass, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Reveal, Skeleton } from '@components/ui/skeleton'
 import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
+import { GoalTabs } from '@components/Goals/learner/GoalHeader'
+import { phaseOfGoal, type PhaseGroup } from '@components/Goals/learner/phases'
+import PhaseStack, { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
+import PhaseDialog, { type PhaseEdit } from '@components/Goals/phases/PhaseDialog'
+import useLifePlan from '@components/Goals/phases/useLifePlan'
+import { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
+import SharedWithYou from '@components/LifePlan/SharedWithYou'
 import { planVars } from '@components/Goals/planColors'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isGoalsKey } from '@services/goals/goals'
-import { homeUrl, type GoalsHomePayload } from '@services/goals/home'
+import { homeUrl } from '@services/goals/home'
+import type { LifeDoc } from '@services/life/life'
 import { goalSharingApi, myInvitationsKey, type ReceivedInvitation } from '@services/goals/sharing'
 import type { GoalSummary } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { HomeStepListSkeleton } from './HomeStepList'
-import { Week } from './WeekSection'
 
-/** The SWR key of the learner's This week payload. */
+/** The SWR key of the learner's home payload (finished goals waiting to greet them). */
 export const homeKey = () => homeUrl()
 
 type GoalsHomeProps = {
   orgslug: string
   token?: string
-  /** The learner's active goals; the overview's tabs show them above this. */
+  /** The learner's active goals, shown in the phases of their life plan. */
   goals: GoalSummary[]
   finished: GoalSummary[]
+  /** The learner's life plan; without one, goals sit in one group. */
+  life?: LifeDoc | null
   // eslint-disable-next-line no-unused-vars
   choose: (goal: GoalSummary) => void
   // eslint-disable-next-line no-unused-vars
+  onIntent?: (goal: GoalSummary) => void
+  // eslint-disable-next-line no-unused-vars
   getGoalColor: (goalUuid?: string) => string
-  onCreate: () => void
+  // eslint-disable-next-line no-unused-vars
+  onCreate: (phaseId?: string | null) => void
   creating: boolean
   finishedError?: boolean
   retryFinished?: () => void
 }
 
-/** The overview below the goal tabs: invitations, this week's steps, what comes later, then finished goals. */
-export default function GoalsHome({ orgslug, token, goals, finished, choose, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
-  const { data, error, mutate: retry } = useSWR<GoalsHomePayload>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
-  const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+const WHEN = { now: 'Now', next: 'Next', later: 'Later', done: 'Before' } as const
+const monthYear = (value?: string) => {
+  if (!value) return ''
+  const [year, month] = value.split('-').map(Number)
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+}
 
-  if (error) return <div className="rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
-  // With nothing active, finished goals stay in reach under the empty state, opened.
-  if (data && !data.goals.length && !goals.length) return <div className="flex flex-col gap-10">
-    <Invitations invitations={invitations} token={token} />
-    <EmptyHome orgslug={orgslug} onCreate={onCreate} creating={creating} />
-    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open />
-  </div>
-
-  return <div className="flex flex-col gap-10">
-    <Invitations invitations={invitations} token={token} />
-    <Reveal ready={Boolean(data)} fallback={<WeekSkeleton />}>
-      {data ? <Week data={data} orgslug={orgslug} token={token} getGoalColor={getGoalColor} /> : null}
-    </Reveal>
-    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
+/** A phase's name with when it is: "NOW Finish high school", "NEXT College from Sep 2027". */
+export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<PhaseGroup<unknown>, 'title' | 'when' | 'starts'>; as?: 'h1' | 'h2'; children?: React.ReactNode }) {
+  return <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    {group.when ? <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{WHEN[group.when]}</span> : null}
+    <Tag className="text-xl font-extrabold tracking-tight">{group.title}</Tag>
+    {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">from {monthYear(group.starts)}</span> : null}
+    {children}
   </div>
 }
 
-/** The overview's shape while the week loads: the heading, pace, bar and a few steps. */
-export function WeekSkeleton() {
-  return <div className="flex flex-col gap-4">
-    <div className="flex items-end justify-between gap-3">
-      <div className="flex flex-col gap-2"><Skeleton className="h-3 w-24 rounded-md" /><Skeleton className="h-7 w-36 rounded-lg" /></div>
-      <Skeleton className="h-10 w-20 rounded-xl" />
+/** Start a goal in a phase, or find one: one row under the phase's goals, whatever their number. */
+export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: { orgslug: string; phaseTitle?: string; empty?: boolean; onCreate: () => void; creating: boolean }) {
+  return <div className="flex flex-wrap items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 pl-4">
+    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? `No goals${phaseTitle ? ` for ${phaseTitle}` : ''} yet.` : 'Add another goal here.'}</span>
+    <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? 'Starting…' : 'Create your own'}</Button>
+    <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
+  </div>
+}
+
+/** Plans: invitations, then the phases of the learner's life as pictures, then finished goals. */
+export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
+  const router = useRouter()
+  const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { change } = useLifePlan(token)
+  const photos = usePlacePhotos(token)
+  const [phaseEdit, setPhaseEdit] = React.useState<PhaseEdit | null>(null)
+  const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
+  const dialog = <PhaseDialog edit={phaseEdit} doc={life || null} token={token} onClose={() => setPhaseEdit(null)} change={change}
+    onAdded={(id) => router.push(getUriWithOrg(orgslug, routePaths.org.phase(id)))} />
+
+  if (life?.phases?.length) {
+    const goalsIn: Record<string, number> = {}
+    for (const goal of open) { const id = phaseOfGoal(life, goal.goal_uuid); if (id) goalsIn[id] = (goalsIn[id] || 0) + 1 }
+    return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
+      <SharedWithYou token={token} />
+      <Invitations invitations={invitations} token={token} />
+      <PhaseStack doc={life} orgslug={orgslug} goalsIn={goalsIn} photos={photos} onAdd={() => setPhaseEdit({ mode: 'add' })} />
+      <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
+      {dialog}
     </div>
-    <Skeleton className="h-3 rounded-full" />
-    <HomeStepListSkeleton count={4} />
+  }
+
+  // No phases yet: start the plan with the phase they're in; goals they already have wait below.
+  return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
+    <SharedWithYou token={token} />
+    <Invitations invitations={invitations} token={token} />
+    <StartPhaseCard onStart={() => setPhaseEdit({ mode: 'add' })} />
+    {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
+      <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
+      <GoalTabs label="Your goals" goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
+      <AddToPhase orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
+    </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
+    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
+    {dialog}
   </div>
 }
 
@@ -121,7 +162,7 @@ function FinishedGoals({ goals, getGoalColor, choose, error, retry, open = false
 
 function EmptyHome({ orgslug, onCreate, creating }: { orgslug: string; onCreate: () => void; creating: boolean }) {
   return <div className="rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
-    <h2 className="text-2xl font-extrabold">Start with something that matters</h2>
+    <h2 className="text-2xl font-extrabold">Then add something to work toward</h2>
     <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Set your own goal, or pick a badge to earn and its goal shows up here.</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">
       <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Starting…' : 'Create your own'}</Button>

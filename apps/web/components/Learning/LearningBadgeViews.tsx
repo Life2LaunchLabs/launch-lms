@@ -10,6 +10,8 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { ArrowLeft, ArrowRight, Copy, Loader2, Pause, Play, Upload } from 'lucide-react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { getUriWithOrg } from '@services/config/config'
 import {
   findQuestionBlock, questionAllowsNoAnswer,
   getBlockCompletion,
@@ -19,14 +21,14 @@ import {
   resolveDisplayBinding,
   resolveDisplayNodes,
   resolveVariantBlocks,
-  setQuestionAnswer,
   type LearningBlock,
 } from '@components/Learning/schema'
 import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
 import toast from 'react-hot-toast'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
-import { ProjectCardView, type Project } from '@components/Pages/Portfolio/PortfolioShell'
+import { ProjectCardView } from '@components/Pages/Portfolio/PortfolioProjects'
+import type { Project } from '@components/Pages/Portfolio/portfolioTypes'
 import { normalizeMediaUrl } from '@services/media/media'
 import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
 import ChoiceOptions from './player/ChoiceOptions'
@@ -35,6 +37,8 @@ import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlock
 import { BlockMotion } from './player/design'
 import PageBlock, { PAGE_BLOCKS } from './player/PageBlocks'
 import BlockLayout from './player/BlockLayout'
+import WordCountHint from './player/WordCountHint'
+import { useBlockSetters } from './player/blockSetters'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
@@ -63,18 +67,11 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, run, pages,
     setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
   }, [blocks, page?.page_uuid, questionIds, setUnlocked])
 
-  const setBlockUnlocked = (blockId: string, value: boolean) => {
-    unlockedByBlockRef.current[blockId] = value
-    setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
-  }
-
-  const setBlockAnswer = (blockId: string, value: any) => {
-    setAnswer?.((current: any) => setQuestionAnswer(current, blockId, value))
-  }
+  const settersFor = useBlockSetters(questionIds, unlockedByBlockRef, setAnswer, setUnlocked)
 
   // Buttons placed in the footer render beside Continue instead (see footerButtons).
   const inline = blocks.filter((block: LearningBlock) => !isFooterButton(block))
-  const renderBlock = (block: LearningBlock) => <BlockMotion key={block.id} design={block.design} index={inline.indexOf(block)}><StandardBlockView block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} /></BlockMotion>
+  const renderBlock = (block: LearningBlock) => <BlockMotion key={block.id} design={block.design} index={inline.indexOf(block)}><StandardBlockView block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={settersFor(block.id).answer} setUnlocked={settersFor(block.id).unlocked} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} /></BlockMotion>
 
   return <BlockLayout blocks={inline} page={page} renderBlock={renderBlock} />
 }
@@ -150,7 +147,14 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, respon
       return <section className="learning-info-stack-section mx-auto my-5 max-w-sm" style={blockStyle}><ProjectCardView item={item} preview /></section>
     }
     if (variant === 'identity_header') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6 text-center" style={blockStyle}><div className="flex flex-col items-center gap-4"><div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">{value('avatar_url') ? <img src={normalizeMediaUrl(value('avatar_url'))} alt="" className="h-full w-full object-cover" /> : <span className="text-2xl font-black">{value('display_name', 'You').slice(0, 1)}</span>}</div><div><h3 className="text-2xl font-black">{value('display_name', 'Your name')}</h3><p className="mt-1 text-muted-foreground">{value('headline', 'Your tagline will appear here')}</p>{value('location_label') && <p className="mt-2 text-xs text-muted-foreground">{value('location_label')}</p>}</div></div>{value('short_bio') && <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{value('short_bio')}</p>}</section>
-    if (variant === 'traits_panel') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">What I bring</p><div className="mt-4 flex flex-col gap-2">{value('traits', 'Curious, Creative').split(',').filter(Boolean).map((trait) => <span key={trait} className="rounded-full bg-muted/50 px-3 py-1.5 text-center text-sm font-semibold">{trait.trim()}</span>)}</div></section>
+    if (variant === 'traits_panel') {
+      // Answers keep option ids ("curious"); show each option's own text.
+      const texts = new Map<string, string>()
+      for (const item of pages || []) for (const other of item?.content?.blocks || []) for (const option of other?.content?.options || []) if (option?.id && option?.text) texts.set(String(option.id), String(option.text))
+      const chips = (key: string, fallback = '') => value(key, fallback).split(',').map((item) => item.trim()).filter(Boolean).map((item) => texts.get(item) || item)
+      const group = (title: string, items: string[]) => items.length ? <div className="mt-4 first:mt-0"><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{title}</p><div className="mt-3 flex flex-col gap-2">{items.map((item) => <span key={item} className="rounded-full bg-muted/50 px-3 py-1.5 text-center text-sm font-semibold">{item}</span>)}</div></div> : null
+      return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6" style={blockStyle}>{group('What I bring', chips('traits', 'Curious, Creative'))}{group('What matters to me', chips('values'))}</section>
+    }
     if (variant === 'links_strip') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-5" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Find me online</p><div className="mt-3 flex flex-col gap-2"><span className="rounded-full bg-muted px-4 py-2 text-center text-sm font-semibold">{value('label', 'My link')}</span></div><p className="mt-3 break-all text-center text-xs text-muted-foreground">{value('url', 'https://example.com')}</p></section>
     if (variant === 'portfolio_frame') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm overflow-hidden rounded-2xl bg-background shadow-sm" style={blockStyle}><div className={`h-2 ${value('theme_id', 'default') === 'electric' ? 'bg-fuchsia-500' : value('theme_id') === 'creative' ? 'bg-orange-400' : 'bg-foreground'}`} /><div className="p-6 text-center"><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Portfolio preview</p><h3 className="mt-5 text-3xl font-black">{value('display_name', 'Your portfolio')}</h3><p className="mt-2 text-muted-foreground">{value('headline', 'Your story, project, and timeline')}</p><div className="mt-6 grid grid-cols-1 gap-3"><div className="aspect-[4/3] rounded-xl bg-muted"/><div className="aspect-[4/3] rounded-xl bg-muted/60"/></div></div></section>
     if (variant === 'share_panel') return <SharePortfolioPanel username={value('username')} blockStyle={blockStyle} />
@@ -180,7 +184,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, respon
         },
       }
     })() : block
-    const label = block.kind === 'image_upload' || block.kind === 'text_input' ? '' : String(block.content?.label || '').trim()
+    const label = block.kind === 'image_upload' || block.kind === 'text_input' || block.kind === 'categorized_multi_select' ? '' : String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         {label && <p className="text-lg font-bold text-foreground">{label}</p>}
@@ -219,13 +223,13 @@ function SharePortfolioPanel({ username, blockStyle }: { username: string; block
   const session = useLHSession() as any
   const [copied, setCopied] = React.useState(false)
   const resolvedUsername = username || session?.data?.user?.username || ''
+  // The org comes from context: on an org's own host the path has no /orgs/<slug> to read it from.
+  const orgslug = useOrg()?.slug || ''
   const href = React.useMemo(() => {
-    if (typeof window === 'undefined') return ''
-    const parts = window.location.pathname.split('/').filter(Boolean)
-    const orgIndex = parts.indexOf('orgs')
-    const orgslug = orgIndex >= 0 ? parts[orgIndex + 1] : ''
-    return orgslug && resolvedUsername ? `${window.location.origin}/orgs/${orgslug}/user/${resolvedUsername}` : ''
-  }, [resolvedUsername])
+    if (typeof window === 'undefined' || !orgslug || !resolvedUsername) return ''
+    const path = getUriWithOrg(orgslug, `/user/${resolvedUsername}`)
+    return path.startsWith('http') ? path : `${window.location.origin}${path}`
+  }, [orgslug, resolvedUsername])
   const copy = async () => {
     if (!href) return
     await navigator.clipboard?.writeText(href)
@@ -339,22 +343,22 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
     return (
       <div className="learning-question-block">
         {page.content?.label ? (
-          <div className="mb-3 min-w-0 text-lg font-bold leading-7 text-gray-900">{page.content.label}</div>
+          <p className="mb-4 min-w-0 text-base leading-7 text-muted-foreground">{page.content.label}</p>
         ) : null}
         <button
           type="button"
           disabled={uploadingInputId === 'image' || !responseMediaOwner?.id}
           onClick={() => setImagePickerOpen(true)}
-          className={`flex min-h-56 w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border border-dashed bg-white p-4 text-center shadow-sm transition ${imageUrl ? 'border-gray-200' : 'border-gray-300 hover:border-[var(--org-primary-color)]'}`}
+          className={`flex min-h-56 w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border-2 border-dashed bg-muted/40 p-4 text-center transition ${imageUrl ? 'border-border' : 'border-border hover:border-[var(--org-primary-color)]'}`}
         >
           {imageUrl ? (
             <img src={imageUrl} alt="" className="max-h-64 w-full rounded-lg object-contain" />
           ) : uploadingInputId === 'image' ? (
-            <Loader2 size={24} className="animate-spin text-gray-400" />
+            <Loader2 size={24} className="animate-spin text-muted-foreground" />
           ) : (
-            <Upload size={24} className="text-gray-400" />
+            <Upload size={24} className="text-muted-foreground" />
           )}
-          <span className="text-sm font-bold text-gray-600">
+          <span className="text-sm font-bold text-foreground">
             {uploadingInputId === 'image' ? 'Uploading image' : imageUrl ? 'Replace image' : 'Upload image'}
           </span>
         </button>
@@ -442,7 +446,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                     className={`w-full resize-none rounded-xl border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
                   />
                 )}
-                {validationError ? <p className="mt-1 text-xs font-medium text-red-600">{validationError}</p> : null}
+                {validationError ? <p className="mt-1 text-xs font-medium text-red-600">{validationError}</p> : <WordCountHint text={value} rule={rule} />}
               </div>
             )
           })}

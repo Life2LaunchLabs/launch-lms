@@ -5,6 +5,7 @@ import {
   ChartPieSlice,
   ChatsCircle,
   ClipboardText,
+  Coins,
   CreditCard,
   Cube,
   CurrencyCircleDollar,
@@ -60,6 +61,7 @@ export const PLATFORM_NAV_ICONS: Record<PlatformSection, Icon> = {
   feedback: Flag,
   demo: Flask,
   coach: Sparkle,
+  estimates: Coins,
   settings: Gear,
   news: Newspaper,
 }

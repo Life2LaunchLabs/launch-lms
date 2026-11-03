@@ -37,7 +37,11 @@ export interface GroupRequirements {
 }
 
 /** A published plan as coverage lists it, with what its card shows. */
-export interface CoveragePlan { template_uuid: string; title: string; mapped: boolean; thumbnail_image?: string; icon?: any; color?: string | null }
+export interface CoveragePlan {
+  template_uuid: string; title: string; mapped: boolean; thumbnail_image?: string; icon?: any; color?: string | null
+  /** The org's collections this plan is in. */
+  collections?: Array<{ collection_uuid: string; name: string }>
+}
 export interface CoveringStep { template_uuid: string; step_key: string; title: string; step_types: StepTypeKey[] }
 
 export interface Coverage {
@@ -102,19 +106,31 @@ export const requirementsApi = {
   group: (orgId: number, groupId: number, frameworkUuid?: string | null, token?: string) => request<GroupRequirements>(goalAdminUrl(`/groups/${groupId}/requirements${frameworkUuid ? `?framework_uuid=${q(frameworkUuid)}` : ''}`, orgId), token),
 }
 
-/** Downloads the requirement evidence CSV for the learners in scope. */
-export async function downloadRequirementEvidence(orgId: number, scope: EvidenceExportScope, token?: string) {
-  const response = await fetch(goalAdminUrl('/requirements/evidence-export', orgId), RequestBodyWithAuthHeader('POST', scope, null, token))
+/** Saves a file the API sends back, under the name it gives. */
+async function saveDownload(response: Response, fallback: string, failure: string) {
   if (!response.ok) {
     await errorHandling(response)
-    throw new Error('Could not export requirement evidence.')
+    throw new Error(failure)
   }
+  const name = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || fallback
   const url = URL.createObjectURL(await response.blob())
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = 'requirement-evidence.csv'
+  anchor.download = name
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** Downloads the requirement evidence CSV for the learners in scope. */
+export async function downloadRequirementEvidence(orgId: number, scope: EvidenceExportScope, token?: string) {
+  const response = await fetch(goalAdminUrl('/requirements/evidence-export', orgId), RequestBodyWithAuthHeader('POST', scope, null, token))
+  await saveDownload(response, 'requirement-evidence.csv', 'Could not export requirement evidence.')
+}
+
+/** Downloads the SB 3 course evidence summary PDF (a class grid, then a page per learner) for the same scope. */
+export async function downloadCourseSummary(orgId: number, scope: EvidenceExportScope, token?: string) {
+  const response = await fetch(goalAdminUrl('/requirements/course-summary', orgId), RequestBodyWithAuthHeader('POST', scope, null, token))
+  await saveDownload(response, 'course-summary.pdf', 'Could not make the course summary.')
 }

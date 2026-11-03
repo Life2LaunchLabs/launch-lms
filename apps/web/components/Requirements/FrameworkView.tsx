@@ -32,8 +32,8 @@ export default function FrameworkView({ framework, coverage, orgslug, onFlags }:
   const tree = React.useMemo(() => buildTree(framework.nodes), [framework.nodes])
   const plans = React.useMemo(() => new Map(coverage.templates.map((plan) => [plan.template_uuid, plan])), [coverage.templates])
   const steps = React.useMemo(() => new Map(coverage.nodes.map((node) => [node.node_uuid, node.covered_by || []])), [coverage.nodes])
-  const mapped = React.useMemo(() => coverage.templates.filter((plan) => plan.mapped), [coverage.templates])
-  const [selected, setSelected] = React.useState<string[]>(() => mapped.map((plan) => plan.template_uuid))
+  // Starts with no plans picked: the tree is just the requirements until plans are picked under Covered by.
+  const [selected, setSelected] = React.useState<string[]>([])
   const [filter, setFilter] = React.useState<TreeFilter>('all')
   const [query, setQuery] = React.useState('')
   const [open, setOpen] = React.useState<Set<string>>(() => new Set(kidsOf(tree, null).map((node) => node.node_uuid)))
@@ -133,9 +133,30 @@ function countLeaves(tree: ReturnType<typeof buildTree>, node: TreeNode): number
 }
 
 function PlansPicker({ plans, selected, onChange }: { plans: CoveragePlan[]; selected: string[]; onChange: (next: string[]) => void }) { // eslint-disable-line no-unused-vars
+  const [query, setQuery] = React.useState('')
   const chosen = plans.filter((plan) => selected.includes(plan.template_uuid))
-  const toggle = (uuid: string) => onChange(selected.includes(uuid) ? selected.filter((item) => item !== uuid) : plans.map((plan) => plan.template_uuid).filter((item) => item === uuid || selected.includes(item)))
-  return <Popover>
+  // Keeps the picked plans in the order they're listed.
+  const pick = (uuids: Set<string>) => onChange(plans.map((plan) => plan.template_uuid).filter((uuid) => uuids.has(uuid)))
+  const toggle = (uuid: string) => { const next = new Set(selected); if (next.has(uuid)) next.delete(uuid); else next.add(uuid); pick(next) }
+  const collections = React.useMemo(() => {
+    const byUuid = new Map<string, { collection_uuid: string; name: string; plans: string[] }>()
+    plans.forEach((plan) => (plan.collections || []).forEach((collection) => {
+      const entry = byUuid.get(collection.collection_uuid) || { ...collection, plans: [] }
+      entry.plans.push(plan.template_uuid)
+      byUuid.set(collection.collection_uuid, entry)
+    }))
+    return [...byUuid.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [plans])
+  const toggleCollection = (uuids: string[]) => {
+    const next = new Set(selected)
+    if (uuids.every((uuid) => next.has(uuid))) uuids.forEach((uuid) => next.delete(uuid))
+    else uuids.forEach((uuid) => next.add(uuid))
+    pick(next)
+  }
+  const needle = query.trim().toLowerCase()
+  const shown = needle ? plans.filter((plan) => plan.title.toLowerCase().includes(needle) || (plan.collections || []).some((collection) => collection.name.toLowerCase().includes(needle))) : plans
+  const shownCollections = needle ? collections.filter((collection) => collection.name.toLowerCase().includes(needle)) : collections
+  return <Popover onOpenChange={(open) => { if (!open) setQuery('') }}>
     <PopoverTrigger asChild>
       <button type="button" className={pill} aria-haspopup="dialog">
         <span className="font-normal text-gray-500">Covered by</span>
@@ -144,22 +165,41 @@ function PlansPicker({ plans, selected, onChange }: { plans: CoveragePlan[]; sel
         <CaretDown size={12} aria-hidden="true" />
       </button>
     </PopoverTrigger>
-    <PopoverContent align="start" className="w-[320px] p-2">
-      <div className="flex items-center justify-between px-2 pb-2 pt-1 text-xs text-gray-500">
+    <PopoverContent align="start" className="w-[340px] p-2">
+      <label className="mb-1 flex h-9 items-center gap-2 rounded-lg border border-gray-200 px-2.5">
+        <MagnifyingGlass size={14} className="text-gray-400" aria-hidden="true" />
+        <span className="sr-only">Find a plan or collection</span>
+        <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a plan or collection" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+      </label>
+      <div className="flex items-center justify-between px-2 pb-1.5 pt-1.5 text-xs text-gray-500">
         <span>Your published plans</span>
         <span className="flex gap-3"><button type="button" className="font-semibold text-violet-700" onClick={() => onChange(plans.filter((plan) => plan.mapped).map((plan) => plan.template_uuid))}>Ones that count</button><button type="button" className="font-semibold text-violet-700" onClick={() => onChange([])}>None</button></span>
       </div>
+      {shownCollections.length ? <div className="flex flex-wrap gap-1.5 px-2 pb-2" aria-label="Collections">
+        {shownCollections.map((collection) => {
+          const on = collection.plans.every((uuid) => selected.includes(uuid))
+          return <button key={collection.collection_uuid} type="button" aria-pressed={on} onClick={() => toggleCollection(collection.plans)}
+            className={cn('inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold', on ? 'border-violet-600 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-700 hover:border-gray-300')}>
+            {on ? <Check size={11} weight="bold" aria-hidden="true" /> : null}<span className="truncate">{collection.name}</span><span className="font-normal text-gray-400">{collection.plans.length}</span>
+          </button>
+        })}
+      </div> : null}
       <div className="max-h-[320px] overflow-y-auto">
-        {plans.map((plan) => {
+        {shown.map((plan) => {
           const on = selected.includes(plan.template_uuid)
+          const inCollections = (plan.collections || []).map((collection) => collection.name).join(', ')
           return <button key={plan.template_uuid} type="button" role="menuitemcheckbox" aria-checked={on} onClick={() => toggle(plan.template_uuid)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-gray-50">
             <span className={cn('grid h-4 w-4 shrink-0 place-items-center rounded border', on ? 'border-violet-600 bg-violet-600 text-white' : 'border-gray-300')}>{on ? <Check size={11} weight="bold" aria-hidden="true" /> : null}</span>
             <PlanCover plan={plan} className="h-6 w-6 rounded-md" iconSize={13} />
-            <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{plan.title}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm text-gray-900">{plan.title}</span>
+              {inCollections ? <span className="block truncate text-[11px] text-gray-500">{inCollections}</span> : null}
+            </span>
             {!plan.mapped ? <span className="shrink-0 text-[11px] text-gray-400">No linked steps</span> : null}
           </button>
         })}
-        {!plans.length ? <p className="px-2 py-4 text-sm text-gray-500">No published plans yet.</p> : null}
+        {!plans.length ? <p className="px-2 py-4 text-sm text-gray-500">No published plans yet.</p>
+          : !shown.length ? <p className="px-2 py-4 text-sm text-gray-500">No plans match.</p> : null}
       </div>
     </PopoverContent>
   </Popover>
@@ -187,7 +227,7 @@ function Detail({ node, tree, framework, plans, steps, selected, coveredBy, gaps
       {flagged ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700"><Flag size={12} weight="fill" aria-hidden="true" />Flagged</span> : null}
     </div>
     <h2 className="text-lg font-bold leading-snug text-gray-900">{node.title}</h2>
-    {node.description ? <p className="whitespace-pre-wrap text-sm text-gray-600">{node.description}</p> : null}
+    {node.description ? <p className="whitespace-pre-wrap text-sm text-gray-600 [overflow-wrap:anywhere]">{node.description}</p> : null}
     {values.length ? <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 pt-1 text-sm">{values.map(([field, value]) => <React.Fragment key={field.field_uuid}><dt className="text-gray-500">{field.name}</dt><dd className="min-w-0 break-words text-gray-900"><FieldValue field={field} value={value} /></dd></React.Fragment>)}</dl> : null}
   </div>
 

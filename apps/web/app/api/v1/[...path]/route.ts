@@ -23,7 +23,8 @@ async function proxyMultipartViaNode(
 ): Promise<Response> {
   const url = new URL(backendUrl)
   const client = url.protocol === 'https:' ? https : http
-  const requestHeaders = Object.fromEntries(headers.entries())
+  // Node's http client doesn't decompress, and the encoding header is dropped below, so ask for a plain body.
+  const requestHeaders = { ...Object.fromEntries(headers.entries()), 'accept-encoding': 'identity' }
 
   return new Promise((resolve, reject) => {
     const upstream = client.request(
@@ -175,7 +176,8 @@ async function proxyToBackend(request: NextRequest): Promise<Response> {
       multipartHeaders.set('content-type', contentType)
       multipartHeaders.set('content-length', String(bytes.byteLength))
 
-      headers.forEach((_value, key) => headers.delete(key))
+      // Deleting while iterating skips entries, so take the keys first.
+      for (const key of [...headers.keys()]) headers.delete(key)
       multipartHeaders.forEach((value, key) => headers.set(key, value))
 
       headers.set('content-length', String(bytes.byteLength))

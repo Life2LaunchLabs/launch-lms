@@ -3,6 +3,8 @@
 from copy import deepcopy
 from datetime import datetime
 from sqlmodel import Session, select
+from src.services.portfolio_identity import adopt_display_name
+from src.services.portfolio_results import sync_trait_result
 from src.db.learning import (
     LearningPage,
     LearningVariable,
@@ -306,9 +308,13 @@ def _apply_learning_variables_to_user(
             )
             portfolio.update_date = str(datetime.now())
             db_session.add(portfolio)
+            if target == "user.portfolio.display_name":
+                # The portfolio shows the identity name, so this becomes the name they go by.
+                adopt_display_name(db_session, user, str(value or "").strip())
         elif target in learner_details.TRAIT_TARGETS:
             portfolio = _portfolio(db_session, user, str(datetime.now()))
             learner_details.keep_traits(db_session, portfolio, learner_details.TRAIT_TARGETS[target], value)
+            sync_trait_result(db_session, portfolio, learner_details.TRAIT_TARGETS[target])
         elif target == "user.email":
             user.email = str(value or "").strip()
         elif target.startswith("user.profile."):

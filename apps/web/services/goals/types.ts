@@ -192,6 +192,8 @@ export interface GoalSummary {
   status: GoalStatus
   target_date: string | null
   progress: { done: number; total: number }
+  /** The first step not done yet, in goal order. */
+  next_step?: string | null
   is_subject: boolean
   badge?: BadgeSummary | null
   /** Coach's open notes on the goal (the owner's own). */

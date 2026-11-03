@@ -5,19 +5,22 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { goalLaunchApi } from '@services/goals/launch'
 import { getUriWithOrg } from '@services/config/config'
+import { lifeApi } from '@services/life/life'
 
 export const launchPath = (goalUuid: string) => `/plans/${encodeURIComponent(goalUuid)}/launch`
 
-/** Starts a new goal: a draft, opened in the launch flow to set it up. */
+/** Starts a new goal: a draft, opened in the launch flow to set it up, filed in a phase when one is given. */
 export default function useStartGoal(orgslug: string, token: string | undefined) {
   const router = useRouter()
   const pending = useRef(false)
   const [busy, setBusy] = useState(false)
-  const startGoal = async () => {
+  const startGoal = async (phaseId?: string | null) => {
     if (!token || pending.current) return
     pending.current = true; setBusy(true)
     try {
       const launch = await goalLaunchApi.start({}, token)
+      // A goal started from a phase other than the current one is filed there; it's fine if that fails.
+      if (phaseId) await lifeApi.placeGoal(launch.goal.goal_uuid, phaseId, token).catch(() => undefined)
       router.push(getUriWithOrg(orgslug, launchPath(launch.goal.goal_uuid)))
     } catch (error: any) {
       toast.error(error?.message || 'Could not start your goal. Please try again.')

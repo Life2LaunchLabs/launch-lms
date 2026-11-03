@@ -9,19 +9,11 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 from src.db.media import MediaAsset
-from src.db.portfolio import (
-    Portfolio,
-    PortfolioContentStatus,
-    PortfolioLink,
-    PortfolioSection,
-    PortfolioVisibility,
-    ProfileTrait,
-    ProjectItem,
-    ProjectItemBlock,
-    TimelineEntry,
-    TimelineProjectLink,
-)
+from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioLink, PortfolioSection, PortfolioVisibility, ProfileTrait
+from src.db.portfolio import ProjectItem, ProjectItemBlock, TimelineEntry, TimelineProjectLink
 from src.db.users import User
+from src.services.portfolio_identity import adopt_display_name
+from src.services.portfolio_results import sync_trait_result
 
 
 class PortfolioActionError(ValueError):
@@ -230,6 +222,8 @@ def apply_portfolio_outcomes(
         if kind == "set_portfolio_fields":
             for key, value in _mapped(action, local, PORTFOLIO_FIELDS).items():
                 setattr(portfolio, key, str(value or "").strip())
+                if key == "display_name":
+                    adopt_display_name(db, user, str(value or "").strip())
         elif kind == "start_plans":
             receipts[action_id] = {"type": kind, "template_uuids": _start_plans(db, user, _resolve(action.get("template_uuids"), local) or [])}
         elif kind == "create_project_item":
@@ -434,6 +428,7 @@ def apply_portfolio_outcomes(
                             update_date=now,
                         )
                     )
+            sync_trait_result(db, portfolio, trait_type)
         elif kind == "set_portfolio_links":
             links = _resolve(action.get("links"), local) or []
             if not isinstance(links, list):

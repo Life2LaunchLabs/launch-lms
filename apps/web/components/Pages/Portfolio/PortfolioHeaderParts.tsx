@@ -17,7 +17,7 @@ export function shellSocials(shell: Shell) {
   return Array.isArray(shell.portfolio.socials) ? shell.portfolio.socials.filter((social: any) => social?.type && social?.url).map((social: any) => ({ type: String(social.type), url: String(social.url) })) : []
 }
 
-const SOCIAL_OPTIONS = [
+export const SOCIAL_OPTIONS = [
   { type: 'website', label: 'Website' },
   { type: 'instagram', label: 'Instagram' },
   { type: 'linkedin', label: 'LinkedIn' },

@@ -21,6 +21,7 @@ import PlanSettings from './PlanSettings'
 import PlanSidebar from './PlanSidebar'
 import PlanSteps from './PlanSteps'
 import VisibilityChip, { useVisibility } from './VisibilityChip'
+import { PAGE_TEMPLATES_SYSTEM_TYPE } from '@services/learning/pageTemplates'
 
 /** Panels the old template tabs open on the plan page (links to /<plan>/settings keep working). */
 export type PlanPanel = 'settings' | 'versions' | 'visibility' | null
@@ -51,7 +52,8 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
   const [visibilityOpen, setVisibilityOpen] = React.useState(panel === 'visibility')
   const owned = Number(template.org_id) === orgId
   const readOnly = !!template.read_only
-  const canEdit = owned && !readOnly && !template.system_type
+  // System plans are synced from code each release, except page templates, which are edited here.
+  const canEdit = owned && !readOnly && (!template.system_type || template.system_type === PAGE_TEMPLATES_SYSTEM_TYPE)
   // Editors work on the draft right on the page (the first change starts one); everyone else sees the live version.
   const document = canEdit || !template.live_document ? template.document : template.live_document
   const basedOn = template.based_on as { org?: { name?: string } | null; version?: number | null } | null | undefined

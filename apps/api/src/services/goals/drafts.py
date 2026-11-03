@@ -74,7 +74,7 @@ def draft_meta(db: Session, template: GoalTemplate, *, unpublished: bool) -> dic
     differs from the live version."""
     if template.draft:
         return {**template.draft, "implicit": False}
-    if not unpublished or template.system_type:
+    if not unpublished or templates.release_managed(template):
         return None
     live = templates.published_version(db, template)
     return {**_meta(suggest(db, template), "", live, None), "started_at": None, "implicit": True}
@@ -89,7 +89,7 @@ def ensure_draft(db: Session, template: GoalTemplate, user_id: int | None) -> No
 def _editable(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> GoalTemplate:
     require_org_admin(current_user.id, org_id, db, "build_plans")
     template = templates.template_or_404(db, org_id, template_uuid)
-    if template.system_type:
+    if templates.release_managed(template):
         raise HTTPException(status_code=409, detail="System templates are updated with each release")
     return template
 

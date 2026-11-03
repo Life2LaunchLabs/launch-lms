@@ -39,6 +39,11 @@ function written(label: string, placeholder: string) {
 
 const standard = (title: string, blocks: any[], design: any = {}): PageDraft => ({ page_type: 'standard', title, content: { version: 3, blocks }, design })
 
+/** A served template as a new page: a copy, with nothing linking back. */
+export function fromServed(page: { page_type: PageDraft['page_type']; title: string; content: any; design: any }): PageDraft {
+  return { page_type: page.page_type, title: page.title, content: structuredClone(page.content || {}), design: structuredClone(page.design || {}) }
+}
+
 export function blankPage(): PageDraft {
   return standard('New page', [heading('')])
 }

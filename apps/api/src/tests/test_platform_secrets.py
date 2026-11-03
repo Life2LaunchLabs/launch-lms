@@ -54,3 +54,54 @@ def test_routes_are_for_superadmins_only():
     assert {route.path.split("/superadmin")[1] for route in routes} == {"/settings/keys", "/settings/keys/{name}"}
     for route in routes:
         assert require_superadmin in [dep.call for dep in route.dependant.dependencies]
+
+
+def test_google_sign_in_turns_on_once_both_keys_are_saved(db, monkeypatch):
+    import asyncio
+
+    from src.routers import google_oauth as routes
+    from src.services.auth import google_oauth
+
+    for name in ("LAUNCHLMS_GOOGLE_CLIENT_ID", "LAUNCHLMS_GOOGLE_CLIENT_SECRET", "LAUNCHLMS_AUTH_OAUTH_ENABLED"):
+        monkeypatch.delenv(name, raising=False)
+    assert google_oauth.enabled() is False and routes.google_status() == {"enabled": False}
+    off = routes.google_authorize(routes.AuthorizeRequest(redirect_uri="https://app.example/auth/callback/google"))
+    assert off.status_code == 404 and b"turned off" in off.body
+
+    platform_secrets.save(db, "google_client_id", "1234-abc.apps.googleusercontent.com", user_id=None)
+    assert google_oauth.enabled() is False  # both are needed
+    platform_secrets.save(db, "google_client_secret", "GOCSPX-secret-value", user_id=None)
+    assert routes.google_status() == {"enabled": True}
+    url = routes.google_authorize(routes.AuthorizeRequest(redirect_uri="https://app.example/auth/callback/google", state="s1"))["url"]
+    assert url.startswith("https://accounts.google.com/o/oauth2/v2/auth?") and "client_id=1234-abc.apps.googleusercontent.com" in url and "state=s1" in url
+    assert "GOCSPX" not in url
+
+    class Reply:
+        status_code = 200
+
+        def json(self):
+            return {"access_token": "ya29.token", "expires_in": 3599, "token_type": "Bearer", "scope": "email"}
+
+    sent = {}
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def post(self, url, data):
+            sent.update(data, url=url)
+            return Reply()
+
+    monkeypatch.setattr(google_oauth.httpx, "AsyncClient", Client)
+    token = asyncio.run(routes.google_token(routes.TokenRequest(code="code-1", redirect_uri="https://app.example/auth/callback/google")))
+    assert token["access_token"] == "ya29.token" and "scope" not in token
+    assert sent["client_secret"] == "GOCSPX-secret-value" and sent["code"] == "code-1"
+
+    platform_secrets.save(db, "google_client_secret", "", user_id=None)  # removing one turns it off again
+    assert google_oauth.enabled() is False

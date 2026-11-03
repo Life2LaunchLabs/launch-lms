@@ -23,9 +23,10 @@ from src.security.file_validation import validate_upload
 from src.security.org_auth import require_org_admin, require_org_membership
 from src.services.utils.link_preview import _validate_url, fetch_link_preview
 from src.services.utils.upload_content import upload_file
+from src.services.media_download import USER_AGENT
 
 _REQUEST_HEADERS = {
-    "User-Agent": "LaunchLMS Media Library/1.0",
+    "User-Agent": USER_AGENT,
     "Accept": "*/*",
 }
 

@@ -35,6 +35,17 @@ async def api_update_activity(
     return await learning_service.update_activity(request, activity_uuid, activity, current_user, db_session)
 
 
+@pages_router.get("/templates")
+async def api_page_templates(
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    """What New page and Add question offer: the page templates plan's live version, by category."""
+    from src.services.learning.page_templates import served
+
+    return served(db_session, current_user)
+
+
 @pages_router.post("/")
 async def api_create_page(
     request: Request,

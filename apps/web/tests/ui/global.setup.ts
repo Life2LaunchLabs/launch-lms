@@ -10,6 +10,8 @@ export default async function globalSetup(): Promise<void> {
   try {
     await loginNormally(page, environment)
     await expect(page).not.toHaveURL(/\/(?:auth\/)?login/)
+    // The portfolio's one-time welcome sheet would sit over every spec that opens the portfolio.
+    await page.evaluate(() => window.localStorage.setItem('portfolio-welcome-seen', '1'))
     mkdirSync('.playwright/auth', { recursive: true })
     await page.context().storageState({ path: '.playwright/auth/learner.json' })
   } finally {

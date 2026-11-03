@@ -8,6 +8,7 @@ from src.core.events.database import get_db_session
 from src.db.requirement_exports import RequirementEvidenceExport
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.services.epp import course_summary
 from src.services.goals import requirement_evidence, requirements as service
 from src.services.goals.requirements import MakeupStep, RequirementCredit
 
@@ -20,6 +21,13 @@ def api_evidence_export(org_id: int, payload: RequirementEvidenceExport, db: Ses
     return Response(content, media_type="text/csv", headers={
         "Content-Disposition": 'attachment; filename="requirement-evidence.csv"', "Cache-Control": "no-store",
     })
+
+
+@router.post("/requirements/course-summary")
+def api_course_summary(org_id: int, payload: RequirementEvidenceExport, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """SB 3 course evidence summary as a PDF: a class grid, then a page per learner. Same scope as the CSV."""
+    name, content = course_summary.course_summary_pdf(db, user, org_id, payload)
+    return Response(content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
 
 
 @router.get("/requirements/{framework_uuid}/coverage")

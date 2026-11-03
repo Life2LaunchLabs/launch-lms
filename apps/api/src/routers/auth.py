@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from config.config import get_launchlms_config
+from src.services.auth import google_oauth
+from src.services.auth.usernames import generate_username as _generate_onboarding_username
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.organizations import Organization
@@ -56,6 +57,10 @@ router = APIRouter()
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
+    # Asked at sign-up: the legal name (rosters, reports) and the name they go by (shown; the legal first name when empty).
+    first_name: str = Field(default="", max_length=100)
+    last_name: str = Field(default="", max_length=100)
+    preferred_name: str = Field(default="", max_length=100)
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
@@ -65,22 +70,9 @@ class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
 
 
-def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
-    """The next step of the learner's Launch Ready starter goal (the Welcome step at first)."""
-    from src.services.goals.starter import redirect_path
-
-    return f"/orgs/{owner_org.slug}{redirect_path(db_session, user_id)}"
-
-
-def _generate_onboarding_username(email: str, db_session: Session) -> str:
-    base = email.split("@", 1)[0].lower()
-    base = "".join(ch if ch.isalnum() else "_" for ch in base).strip("_")[:24] or "learner"
-    candidate = base
-    counter = 1
-    while db_session.exec(select(User).where(User.username == candidate)).first():
-        counter += 1
-        candidate = f"{base}_{counter}"
-    return candidate
+def _portfolio_redirect_url(owner_org: Organization) -> str:
+    """Where a new learner lands: their portfolio, whose quests are the onboarding."""
+    return f"/orgs/{owner_org.slug}/portfolio"
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -122,10 +114,10 @@ async def get_welcome_onboarding(
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    """Where onboarding continues: the starter plan for a signed-in learner, otherwise signup."""
+    """Where onboarding continues: the portfolio for a signed-in learner, otherwise signup."""
     if isinstance(current_user, AnonymousUser):
         return {"redirect_url": "/signup"}
-    return {"redirect_url": _starter_plan_redirect_url(require_owner_org(db_session), int(current_user.id), db_session)}
+    return {"redirect_url": _portfolio_redirect_url(require_owner_org(db_session))}
 
 
 @router.post("/signup/welcome/check-email")
@@ -168,8 +160,7 @@ async def complete_welcome_signup(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
         password=body.password,
-        first_name="",
-        last_name="",
+        first_name=body.first_name.strip(), last_name=body.last_name.strip(), preferred_name=body.preferred_name.strip(),
         bio="",
         details={"onboarding": {"started_at": started_at}},
         profile=profile_preset,
@@ -199,7 +190,7 @@ async def complete_welcome_signup(
 
     onboarding_payload = {
         "org_slug": (org or owner_org).slug,
-        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _starter_plan_redirect_url(owner_org, int(user.id), db_session),  # type: ignore[arg-type]
+        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org),  # type: ignore[arg-type]
     }
 
     access_token = create_access_token(
@@ -384,7 +375,7 @@ async def third_party_login(
     current_user: AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    if not get_launchlms_config().general_config.auth_oauth_enabled:
+    if not google_oauth.enabled():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="OAuth login is disabled",

@@ -1,0 +1,196 @@
+import json
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlmodel import Session
+
+from src.core.events.database import get_db_session
+from src.db.portfolio_records import (
+    ContactWrite,
+    CredentialWrite,
+    DocumentWrite,
+    HighlightsUpdate,
+    IdentityUpdate,
+    LayoutUpdate,
+    ProgressSeen,
+    QuoteAnswer,
+    QuoteAsk,
+    QuoteWrite,
+    ResultWrite,
+    ResumeVersionWrite,
+)
+from src.db.users import PublicUser
+from src.security.auth import get_current_user
+from src.db.portfolio_people import PersonAccess, PersonLink
+from src.services import people_access, portfolio_quotes as quote_asks
+from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
+
+router = APIRouter()
+User = Depends(get_current_user)
+Db = Depends(get_db_session)
+
+
+@router.patch("/me/identity")
+async def api_update_identity(payload: IdentityUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_identity.update_identity(payload, current_user, db_session)
+
+
+@router.put("/me/highlights")
+async def api_update_highlights(payload: HighlightsUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.update_highlights(payload, current_user, db_session)
+
+
+@router.put("/me/layout")
+async def api_update_layout(payload: LayoutUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.update_layout(payload, current_user, db_session)
+
+
+@router.put("/me/progress")
+async def api_mark_progress_seen(payload: ProgressSeen, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.mark_seen(payload, current_user, db_session)
+
+
+@router.post("/me/credentials")
+async def api_create_credential(payload: CredentialWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.create_credential(payload, current_user, db_session)
+
+
+@router.patch("/me/credentials/{credential_uuid}")
+async def api_update_credential(credential_uuid: str, payload: CredentialWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.update_credential(credential_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/credentials/{credential_uuid}")
+async def api_delete_credential(credential_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return records.delete_credential(credential_uuid, current_user, db_session)
+
+
+@router.post("/me/contacts")
+async def api_create_contact(payload: ContactWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.create_contact(payload, current_user, db_session)
+
+
+@router.patch("/me/contacts/{contact_uuid}")
+async def api_update_contact(contact_uuid: str, payload: ContactWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.update_contact(contact_uuid, payload, current_user, db_session)
+
+
+@router.post("/me/contacts/account")
+async def api_add_account(payload: PersonLink, current_user: PublicUser = User, db_session: Session = Db):
+    """Add someone with an account to My people by username or email."""
+    return people_access.add_account(payload, current_user, db_session)
+
+
+@router.put("/me/contacts/{contact_uuid}/account")
+async def api_link_account(contact_uuid: str, payload: PersonLink, current_user: PublicUser = User, db_session: Session = Db):
+    return people_access.link(contact_uuid, payload, current_user, db_session)
+
+
+@router.put("/me/contacts/{contact_uuid}/access")
+async def api_set_access(contact_uuid: str, payload: PersonAccess, current_user: PublicUser = User, db_session: Session = Db):
+    """The two switches: may they see and comment on the portfolio, and on the plans (budget included)."""
+    return people_access.set_access(contact_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/contacts/{contact_uuid}")
+async def api_delete_contact(contact_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return records.delete_contact(contact_uuid, current_user, db_session)
+
+
+@router.post("/me/quotes")
+async def api_create_quote(payload: QuoteWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.create_quote(payload, current_user, db_session)
+
+
+@router.post("/me/quotes/ask")
+async def api_ask_for_quote(payload: QuoteAsk, current_user: PublicUser = User, db_session: Session = Db):
+    return quote_asks.ask(payload, current_user, db_session)
+
+
+@router.delete("/me/quotes/{quote_uuid}/ask")
+async def api_take_back_ask(quote_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return quote_asks.take_back(quote_uuid, current_user, db_session)
+
+
+# The link in a quote request: no account needed, the token is the permission.
+@router.get("/quote-requests/{token}")
+async def api_quote_request(token: str, db_session: Session = Db):
+    return quote_asks.request_view(token, db_session)
+
+
+@router.post("/quote-requests/{token}")
+async def api_answer_quote_request(token: str, payload: QuoteAnswer, db_session: Session = Db):
+    return quote_asks.answer(token, payload, db_session)
+
+
+@router.patch("/me/quotes/{quote_uuid}")
+async def api_update_quote(quote_uuid: str, payload: QuoteWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.update_quote(quote_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/quotes/{quote_uuid}")
+async def api_delete_quote(quote_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return records.delete_quote(quote_uuid, current_user, db_session)
+
+
+@router.post("/me/resume-versions")
+async def api_create_resume_version(payload: ResumeVersionWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.create_resume_version(payload, current_user, db_session)
+
+
+@router.patch("/me/resume-versions/{version_uuid}")
+async def api_update_resume_version(version_uuid: str, payload: ResumeVersionWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.update_resume_version(version_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/resume-versions/{version_uuid}")
+async def api_delete_resume_version(version_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return records.delete_resume_version(version_uuid, current_user, db_session)
+
+
+@router.post("/me/documents")
+async def api_create_document(payload: DocumentWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.create_document(payload, current_user, db_session)
+
+
+@router.patch("/me/documents/{document_uuid}")
+async def api_update_document(document_uuid: str, payload: DocumentWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return records.update_document(document_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/documents/{document_uuid}")
+async def api_delete_document(document_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return records.delete_document(document_uuid, current_user, db_session)
+
+
+@router.post("/me/results")
+async def api_create_result(payload: ResultWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return results.create_result(payload, current_user, db_session)
+
+
+@router.patch("/me/results/{result_uuid}")
+async def api_update_result(result_uuid: str, payload: ResultWrite, current_user: PublicUser = User, db_session: Session = Db):
+    return results.update_result(result_uuid, payload, current_user, db_session)
+
+
+@router.delete("/me/results/{result_uuid}")
+async def api_delete_result(result_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return results.delete_result(result_uuid, current_user, db_session)
+
+
+@router.get("/me/imports")
+async def api_list_imports(current_user: PublicUser = User, db_session: Session = Db):
+    return imports.list_imports(current_user, db_session)
+
+
+@router.post("/me/imports/preview")
+async def api_preview_import(source: str = Form(...), file: UploadFile = File(...), current_user: PublicUser = User, db_session: Session = Db):
+    return await imports.preview_import(source, file, current_user, db_session)
+
+
+@router.post("/me/imports")
+async def api_run_import(source: str = Form(...), keys: str = Form("[]"), file: UploadFile = File(...), current_user: PublicUser = User, db_session: Session = Db):
+    try:
+        picked = [str(key) for key in json.loads(keys)]
+    except (ValueError, TypeError) as error:
+        raise HTTPException(status_code=422, detail="keys must be a JSON list") from error
+    return await imports.run_import(source, file, picked, current_user, db_session)

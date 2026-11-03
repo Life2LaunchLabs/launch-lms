@@ -41,13 +41,16 @@ from src.routers import (
     plans,
     portfolio,
     portfolio_people,
+    portfolio_records,
     school,
+    epp,
     requirement_frameworks,
     roles,
     search,
     usergroups,
     users,
 )
+from src.routers import life_plans as life_plans_router_module
 from src.routers import learning as learning_router_module
 from src.routers import badges as badges_router_module
 from src.routers import learning_documents as learning_documents_router_module
@@ -67,6 +70,7 @@ from src.routers.orgs import join_requests as org_join_requests
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.superadmin import router as superadmin_router
 from src.routers.platform_keys import router as platform_keys_router
+from src.routers.google_oauth import router as google_oauth_router
 from src.routers.coach_admin import router as coach_admin_router
 from src.routers.coach_reports import router as coach_reports_router
 from src.routers.utils import router as utils_router
@@ -102,6 +106,7 @@ for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_stor
     v1_router.include_router(module.router, prefix="/goals", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
 for module in (goal_admin, goal_requirements, goal_reports, goal_helper_requests):
     v1_router.include_router(module.router, prefix="/goal-admin", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(life_plans_router_module.router, prefix="/life", tags=["life plans"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(insights.router, prefix="/insights", tags=["insights"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(insights.public_router, prefix="/insights", tags=["insights"])
 v1_router.include_router(assignments_router.router, prefix="/plan-assignments", tags=["assignments"], dependencies=[Depends(get_non_api_token_user)])
@@ -137,6 +142,7 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(google_oauth_router, prefix="/auth/google", tags=["auth"])
 v1_router.include_router(auth_handoff.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(
     operations_surface.router,
@@ -258,7 +264,19 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
+    epp.router,
+    prefix="/epp",
+    tags=["epp"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
     portfolio_people.router,
+    prefix="/portfolio",
+    tags=["portfolio"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    portfolio_records.router,
     prefix="/portfolio",
     tags=["portfolio"],
     dependencies=[Depends(get_non_api_token_user)],

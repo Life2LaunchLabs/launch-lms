@@ -3,6 +3,7 @@ import React from 'react'
 import {
   Buildings,
   ChartPie,
+  Coins,
   Gear,
   Flag,
   Flask,
@@ -26,6 +27,7 @@ const ICONS: Record<PlatformSection, React.ReactNode> = {
   feedback: <Flag size={14} />,
   demo: <Flask size={14} />,
   coach: <Sparkle size={14} />,
+  estimates: <Coins size={14} />,
   settings: <Gear size={14} />,
   news: <Newspaper size={14} />,
 }

@@ -3,6 +3,7 @@
 import asyncio
 import base64
 
+import httpx
 import pytest
 
 from src.db.media import MediaAsset
@@ -74,3 +75,36 @@ def test_filenames():
     assert media_download.filename("/photos/abc", "image/jpeg", media_download.MediaType.image) == "abc.jpg"
     assert media_download.filename("hero.webp", "image/jpeg", media_download.MediaType.image) == "hero.webp"
     assert media_download.filename("", "application/pdf", media_download.MediaType.document) == "connector-document.pdf"
+
+
+_REAL_CLIENT = httpx.AsyncClient
+
+
+def _serve(monkeypatch, handler):
+    monkeypatch.setattr(media_download, "_validate_url", lambda url: url)
+    monkeypatch.setattr(media_download.httpx, "AsyncClient", lambda **kw: _REAL_CLIENT(transport=httpx.MockTransport(handler), **kw))
+
+
+def test_downloads_say_who_is_asking(monkeypatch):
+    seen = {}
+
+    def handler(request):
+        seen["agent"] = request.headers["user-agent"]
+        return httpx.Response(200, content=MP4, headers={"content-type": "video/mp4"})
+
+    _serve(monkeypatch, handler)
+    content, content_type, _ = asyncio.run(media_download.download("https://upload.example.org/clip.mp4", 10_000))
+    assert content == MP4 and content_type == "video/mp4"
+    assert "+https://" in seen["agent"]  # hosts like Wikimedia refuse agents without a contact
+
+
+def test_web_pages_and_refusals_explain_themselves(monkeypatch):
+    _serve(monkeypatch, lambda request: httpx.Response(200, content=b"<html></html>", headers={"content-type": "text/html; charset=utf-8"}))
+    with pytest.raises(Exception) as error:
+        asyncio.run(media_download.download("https://example.org/watch", 10_000))
+    assert "web page" in error.value.detail
+
+    _serve(monkeypatch, lambda request: httpx.Response(403))
+    with pytest.raises(Exception) as error:
+        asyncio.run(media_download.download("https://example.org/clip.mp4", 10_000))
+    assert "403" in error.value.detail and "data_base64" in error.value.detail
