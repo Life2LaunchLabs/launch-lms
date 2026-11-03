@@ -294,6 +294,10 @@ class LayoutUpdate(BaseModel):
     header: str | None = None
     sections: str | None = None
     look: str | None = None  # pop, studio, midnight or sunset
+    mode: str | None = None  # light, dark or system
+    accent: str | None = None  # "#rrggbb", or "" for the look's own
+    banner: str | None = None  # a gradient's id, or "image"
+    banner_image_uuid: str | None = None  # the learner's own photo, for the "image" banner
 
 
 class ProgressSeen(BaseModel):

@@ -7,8 +7,14 @@ import { RequestBodyFormWithAuthHeader, RequestBodyWithAuthHeader, errorHandling
 /** A number people notice first, and what it means. */
 export type Highlight = { value: string; label: string }
 export type LookId = 'pop' | 'studio' | 'midnight' | 'sunset'
-/** The front page's layout and the learner's look (null until they pick one). */
-export type PortfolioLayout = { header: 'left' | 'center'; sections: 'grid' | 'list'; look?: LookId | null }
+export type LookMode = 'light' | 'dark' | 'system'
+/** The front page's layout and the learner's look (null until they pick one), light or dark, accent and banner. */
+export type PortfolioLayout = {
+  header: 'left' | 'center'; sections: 'grid' | 'list'; look?: LookId | null
+  mode?: LookMode | null; accent?: string | null; banner?: string; banner_image?: { asset_uuid: string; url: string } | null
+}
+/** What a layout save takes: the accent as "" clears it, and a photo is sent by its asset. */
+export type LayoutChange = Partial<Omit<PortfolioLayout, 'banner_image'>> & { banner_image_uuid?: string }
 
 async function send(path: string, method: string, payload: unknown, token: string) {
   const response = await fetch(`${getAPIUrl()}portfolio/me/${path}`, RequestBodyWithAuthHeader(method, payload, null, token))
@@ -23,7 +29,7 @@ const crud = (path: string) => ({
 
 export const updateMyIdentity = (payload: { first_name?: string; last_name?: string; preferred_name?: string }, token: string) => send('identity', 'PATCH', payload, token)
 export const updateMyHighlights = (highlights: Highlight[], token: string): Promise<{ highlights: Highlight[]; layout: PortfolioLayout }> => send('highlights', 'PUT', { highlights }, token)
-export const updateMyLayout = (layout: Partial<PortfolioLayout>, token: string): Promise<{ highlights: Highlight[]; layout: PortfolioLayout }> => send('layout', 'PUT', layout, token)
+export const updateMyLayout = (layout: LayoutChange, token: string): Promise<{ highlights: Highlight[]; layout: PortfolioLayout }> => send('layout', 'PUT', layout, token)
 export const markProgressSeen = (quest: number, token: string): Promise<{ seen: number[] }> => send('progress', 'PUT', { quest }, token)
 export const credentials = crud('credentials')
 export const contacts = crud('contacts')
