@@ -27,6 +27,8 @@ export interface LifeCtx {
   openAdd: (side: 'in' | 'out', cat?: string) => void
   /** Delete the whole plan and go back to the start. */
   startOver: () => Promise<void>
+  /** Someone else's plan, shared with you: shown as theirs, with nothing to add or change. */
+  readOnly?: boolean
 }
 /* eslint-enable no-unused-vars */
 

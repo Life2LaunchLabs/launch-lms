@@ -20,7 +20,8 @@ from src.db.portfolio_records import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services import portfolio_quotes as quote_asks
+from src.db.portfolio_people import PersonAccess, PersonLink
+from src.services import people_access, portfolio_quotes as quote_asks
 from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
@@ -71,6 +72,23 @@ async def api_create_contact(payload: ContactWrite, current_user: PublicUser = U
 @router.patch("/me/contacts/{contact_uuid}")
 async def api_update_contact(contact_uuid: str, payload: ContactWrite, current_user: PublicUser = User, db_session: Session = Db):
     return records.update_contact(contact_uuid, payload, current_user, db_session)
+
+
+@router.post("/me/contacts/account")
+async def api_add_account(payload: PersonLink, current_user: PublicUser = User, db_session: Session = Db):
+    """Add someone with an account to My people by username or email."""
+    return people_access.add_account(payload, current_user, db_session)
+
+
+@router.put("/me/contacts/{contact_uuid}/account")
+async def api_link_account(contact_uuid: str, payload: PersonLink, current_user: PublicUser = User, db_session: Session = Db):
+    return people_access.link(contact_uuid, payload, current_user, db_session)
+
+
+@router.put("/me/contacts/{contact_uuid}/access")
+async def api_set_access(contact_uuid: str, payload: PersonAccess, current_user: PublicUser = User, db_session: Session = Db):
+    """The two switches: may they see and comment on the portfolio, and on the plans (budget included)."""
+    return people_access.set_access(contact_uuid, payload, current_user, db_session)
 
 
 @router.delete("/me/contacts/{contact_uuid}")

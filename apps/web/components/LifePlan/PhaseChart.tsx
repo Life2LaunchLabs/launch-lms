@@ -28,7 +28,7 @@ function Legend({ own }: { own: boolean }) {
 
 /** The phase's savings, things owned (stacked on savings) and debt, with its stretches to pick. */
 export default function PhaseChart() {
-  const { doc, phase, stretch, stretchesOf, selectStretch, projection, valueOf } = useLife()
+  const { doc, phase, stretch, stretchesOf, selectStretch, projection, valueOf, readOnly } = useLife()
   const [hover, setHover] = React.useState<number | null>(null)
   const [big, setBig] = React.useState(false)
   const plot = React.useRef<HTMLDivElement>(null)
@@ -61,7 +61,7 @@ export default function PhaseChart() {
   return (
     <section aria-label="Money over this phase">
       {phase.lines.length === 0 ? (
-        <p className="text-lg font-bold leading-snug sm:text-xl">Add what comes in and what goes out to see where {phase.title.charAt(0).toLowerCase() + phase.title.slice(1)} leaves you.</p>
+        <p className="text-lg font-bold leading-snug sm:text-xl">{readOnly ? 'Nothing in this phase’s budget yet.' : <>Add what comes in and what goes out to see where {phase.title.charAt(0).toLowerCase() + phase.title.slice(1)} leaves you.</>}</p>
       ) : (<>
       <p className="text-lg font-bold leading-snug sm:text-xl">
         During {phase.title.charAt(0).toLowerCase() + phase.title.slice(1)}, about <span className="text-emerald-600 dark:text-emerald-400">{money(inn)}</span> comes in and {money(out)} goes out a month.

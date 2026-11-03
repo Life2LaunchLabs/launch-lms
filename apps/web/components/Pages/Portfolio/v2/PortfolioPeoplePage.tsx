@@ -17,6 +17,8 @@ import { Textarea } from '@components/ui/textarea'
 import { getUriWithOrg } from '@services/config/config'
 import { getMyPortfolio } from '@services/portfolio/portfolio'
 import { contacts as contactsApi, quotes as quotesApi, takeBackAsk } from '@services/portfolio/records'
+import type { Setter } from './inplace'
+import { AddByAccount, PersonAccess } from './PeopleAccess'
 import { DetailHeader, Row, RowControls } from './PortfolioDetail'
 import { EmptyAdd, PersonDot, type OpenChange } from './parts'
 import type { Contact, Quote, Shell } from '../portfolioTypes'
@@ -26,9 +28,13 @@ import type { Contact, Quote, Shell } from '../portfolioTypes'
 // write it from an emailed link, and it shows on your portfolio unless you hide it.
 
 const NONE = 'none'
+const sees = (person: Contact) => {
+  const what = [person.account?.portfolio && 'portfolio', person.account?.plans && 'plans'].filter(Boolean)
+  return what.length ? `Sees your ${what.join(' and ')}` : ''
+}
 type Draft = { name: string; role_label: string; email: string; phone: string; note: string; is_reference: boolean; timeline_uuid: string }
 
-function ContactDialog({ open, onOpenChange, contact, shell, token, onSaved }: { open: boolean; onOpenChange: OpenChange; contact?: Contact; shell: Shell; token?: string; onSaved: () => void }) {
+function ContactDialog({ open, onOpenChange, contact, shell, token, onSaved, onContact }: { open: boolean; onOpenChange: OpenChange; contact?: Contact; shell: Shell; token?: string; onSaved: () => void; onContact: Setter<Contact> }) {
   const initial = (): Draft => ({ name: contact?.name || '', role_label: contact?.role_label || '', email: contact?.email || '', phone: contact?.phone || '', note: contact?.note || '', is_reference: Boolean(contact?.is_reference), timeline_uuid: contact?.timeline_uuid || NONE })
   const [draft, setDraft] = useState<Draft>(initial)
   const [busy, setBusy] = useState(false)
@@ -56,8 +62,9 @@ function ContactDialog({ open, onOpenChange, contact, shell, token, onSaved }: {
   return <Dialog open={open} onOpenChange={(next) => { if (next) setDraft(initial()); onOpenChange(next) }}>
     {ask.dialog}
     <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
-      <DialogHeader><DialogTitle>{contact ? contact.name : 'Add someone'}</DialogTitle><DialogDescription>A boss, coach, teacher or mentor. They don’t need an account, and only you see their contact details.</DialogDescription></DialogHeader>
-      <div className="grid gap-4">
+      <DialogHeader><DialogTitle>{contact ? contact.name : 'Add someone'}</DialogTitle><DialogDescription>{contact?.account ? 'Only you see their contact details and your notes.' : 'A boss, coach, teacher or mentor. They don’t need an account, and only you see their contact details.'}</DialogDescription></DialogHeader>
+      <div className="grid gap-4 pt-1">
+        {contact ? <PersonAccess contact={contact} token={token} onChange={onContact} /> : <AddByAccount token={token} onAdded={onContact} />}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5"><Label htmlFor="pp-name">Name</Label><Input id="pp-name" value={draft.name} maxLength={160} onChange={(event) => set('name', event.target.value)} placeholder="Jordan Lee" /></div>
           <div className="grid gap-1.5"><Label htmlFor="pp-role">Who they are to you</Label><Input id="pp-role" value={draft.role_label} maxLength={200} onChange={(event) => set('role_label', event.target.value)} placeholder="Owner, Tacos La Estrella" /></div>
@@ -85,6 +92,11 @@ export function PortfolioPeoplePage({ initialShell, orgslug }: { initialShell: S
   const [editing, setEditing] = useState<{ contact?: Contact } | null>(null)
   const people = shell.contacts || []
   const quotesFor = (contact: Contact) => (shell.quotes || []).filter((quote) => quote.contact_uuid === contact.contact_uuid)
+  // Access changes save on their own: keep the dialog open on that person and the list in step.
+  const showContact = (contact: Contact) => {
+    setShell((current) => ({ ...current, contacts: (current.contacts || []).some((item) => item.contact_uuid === contact.contact_uuid) ? (current.contacts || []).map((item) => item.contact_uuid === contact.contact_uuid ? contact : item) : [...(current.contacts || []), contact] }))
+    setEditing({ contact })
+  }
   const refresh = async () => { setEditing(null); if (token) setShell(await getMyPortfolio(token)) }
   const about = (quote: Quote) => shell.timeline?.find((entry) => entry.timeline_uuid === quote.timeline_uuid)?.title || shell.projects?.find((project) => project.project_uuid === quote.project_uuid)?.title || 'you'
   const takeBack = async (quote: Quote) => {
@@ -106,7 +118,7 @@ export function PortfolioPeoplePage({ initialShell, orgslug }: { initialShell: S
           <ul className="grid grid-cols-[minmax(0,1fr)]">
             <Row controls={<Button type="button" variant="ghost" size="sm" className="relative z-[1]" onClick={() => setEditing({ contact: person })}>Edit</Button>}>
               <PersonDot name={person.name} className="h-11 w-11 text-[15px]" />
-              <span className="min-w-0"><b className="block truncate text-[15px] font-extrabold">{person.name}{person.is_reference ? <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-[11px] font-bold text-muted-foreground">Reference</span> : null}</b><small className="block truncate text-[13px] font-semibold text-muted-foreground">{person.role_label || person.email}</small></span>
+              <span className="min-w-0"><b className="block truncate text-[15px] font-extrabold">{person.name}{person.is_reference ? <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-[11px] font-bold text-muted-foreground">Reference</span> : null}</b><small className="block truncate text-[13px] font-semibold text-muted-foreground">{[person.role_label || person.email, sees(person)].filter(Boolean).join(' · ')}</small></span>
             </Row>
             {quotes.map((quote) => <Row key={quote.quote_uuid} dim={quote.visibility === 'private'} controls={<RowControls name="this quote" featured={quote.featured} hidden={quote.visibility === 'private'} onFeature={() => changeQuote(quote, { featured: !quote.featured })} onHide={() => changeQuote(quote, { visibility: quote.visibility === 'private' ? 'public' : 'private' })} menu={quote.status === 'requested' ? <DropdownMenuItem onSelect={() => void takeBack(quote)} className="rounded-xl px-3 py-2">Take back the ask</DropdownMenuItem> : undefined} />}>
               <span className="w-11 shrink-0" />
@@ -117,6 +129,6 @@ export function PortfolioPeoplePage({ initialShell, orgslug }: { initialShell: S
         </li>
       })}</ul> : <EmptyAdd title="Add someone in your corner" hint="A boss, coach or teacher. They don’t need an account." onClick={() => setEditing({})} />}
     </div>
-    <ContactDialog key={editing?.contact?.contact_uuid || 'new'} open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null) }} contact={editing?.contact} shell={shell} token={token} onSaved={refresh} />
+    <ContactDialog key={editing?.contact?.contact_uuid || 'new'} open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null) }} contact={editing?.contact} shell={shell} token={token} onSaved={refresh} onContact={showContact} />
   </main>
 }

@@ -1,4 +1,5 @@
 import { getAPIUrl } from '@services/config/config'
+import type { Contact } from '@components/Pages/Portfolio/portfolioTypes'
 import { RequestBodyFormWithAuthHeader, RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
 // The portfolio's own records: who you are, the highlights band and layout, credentials, people and quotes,
@@ -28,6 +29,15 @@ export const markProgressSeen = (quest: number, token: string): Promise<{ seen: 
 export const credentials = crud('credentials')
 export const contacts = crud('contacts')
 export const quotes = crud('quotes')
+
+// My people access: add or link someone by their account, then the two switches for what they may see.
+const q = encodeURIComponent
+export const peopleAccess = {
+  add: (handle: string, token: string): Promise<Contact> => send('contacts/account', 'POST', { handle }, token),
+  link: (contactUuid: string, handle: string, token: string): Promise<Contact> => send(`contacts/${q(contactUuid)}/account`, 'PUT', { handle }, token),
+  set: (contactUuid: string, access: { portfolio: boolean; plans: boolean }, token: string): Promise<Contact> => send(`contacts/${q(contactUuid)}/access`, 'PUT', access, token),
+}
+
 export const results = crud('results')
 export const resumeVersions = crud('resume-versions')
 export const documents = crud('documents')

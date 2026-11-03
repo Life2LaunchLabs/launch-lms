@@ -60,7 +60,7 @@ def _person_dict(db: Session, row: PortfolioPerson) -> dict:
 
 def list_people(db: Session, current_user: PublicUser) -> dict:
     portfolio = _own(db, current_user)
-    rows = db.exec(select(PortfolioPerson).where(PortfolioPerson.portfolio_id == portfolio.id).order_by(col(PortfolioPerson.id))).all()
+    rows = db.exec(select(PortfolioPerson).where(PortfolioPerson.portfolio_id == portfolio.id, PortfolioPerson.portfolio == True).order_by(col(PortfolioPerson.id))).all()  # noqa: E712
     return {"people": [_person_dict(db, row) for row in rows], "choices": choices(), "visibility": portfolio_service._enum_value(portfolio.visibility)}
 
 
@@ -75,7 +75,7 @@ def add_person(db: Session, current_user: PublicUser, payload: PortfolioPersonCr
     row = db.exec(select(PortfolioPerson).where(PortfolioPerson.portfolio_id == portfolio.id, PortfolioPerson.user_id == target.id)).first()
     now = _stamp()
     if row:
-        row.role, row.update_date = role, now
+        row.role, row.portfolio, row.update_date = role, True, now
     else:
         row = PortfolioPerson(portfolio_id=int(portfolio.id), user_id=int(target.id), role=role, added_by_user_id=current_user.id, creation_date=now, update_date=now)  # type: ignore[arg-type]
         db.add(row)
@@ -120,8 +120,8 @@ def _portfolio_for(db: Session, org_id: int, username: str) -> tuple[User, Portf
 def role_for(db: Session, portfolio: Portfolio, viewer_id: int) -> str | None:
     if portfolio.user_id == viewer_id:
         return "owner"
-    row = db.exec(select(PortfolioPerson.role).where(PortfolioPerson.portfolio_id == portfolio.id, PortfolioPerson.user_id == viewer_id)).first()
-    return row if row and not connect_people.blocked(db, portfolio.user_id, viewer_id) else None
+    row = db.exec(select(PortfolioPerson).where(PortfolioPerson.portfolio_id == portfolio.id, PortfolioPerson.user_id == viewer_id)).first()
+    return row.role if row and row.portfolio and not connect_people.blocked(db, portfolio.user_id, viewer_id) else None
 
 
 def _require(db: Session, portfolio: Portfolio, viewer_id: int, comment: bool = False) -> str:
@@ -142,7 +142,19 @@ def shared_shell(db: Session, current_user: PublicUser, org_id: int, username: s
     else:
         shell = portfolio_service.get_public_shell(org_id, username, db)
     private = portfolio_service._enum_value(portfolio.visibility) == PortfolioVisibility.PRIVATE.value or not portfolio.published_at
-    return {**shell, "access": {"role": role or "public", "can_comment": role in ("owner", "commenter"), "shared_privately": bool(role) and private}}
+    plans = role == "owner" or shares_plans(db, portfolio.user_id, current_user.id)
+    return {**shell, "access": {"role": role or "public", "can_comment": role in ("owner", "commenter"), "shared_privately": bool(role) and private, "plans": plans}}
+
+
+def shares_plans(db: Session, owner_id: int, viewer_id: int) -> bool:
+    """Whether the owner switched on "plans" for this person in My people."""
+    if owner_id == viewer_id:
+        return True
+    row = db.exec(
+        select(PortfolioPerson.id).join(Portfolio, Portfolio.id == PortfolioPerson.portfolio_id)
+        .where(Portfolio.user_id == owner_id, PortfolioPerson.user_id == viewer_id, PortfolioPerson.plans == True)  # noqa: E712
+    ).first()
+    return bool(row) and not connect_people.blocked(db, owner_id, viewer_id)
 
 
 def _item_title(db: Session, portfolio: Portfolio, kind: str, item_uuid: str | None) -> str:

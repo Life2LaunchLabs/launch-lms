@@ -39,7 +39,7 @@ def test_a_private_portfolio_opens_only_for_the_people_on_it():
         assert [(item["user"]["username"], item["role"]) for item in listed["people"]] == [("sam", "viewer")]
         assert [choice["key"] for choice in listed["choices"]] == ["viewer", "commenter"]
         shell = portfolio_people.shared_shell(db, _user(OTHER), 1, "lee")
-        assert shell["access"] == {"role": "viewer", "can_comment": False, "shared_privately": True}
+        assert shell["access"] == {"role": "viewer", "can_comment": False, "shared_privately": True, "plans": False}
         # They hear about it in their chat, which also means they can now message each other.
         assert chats.list_chats(db, _user(OTHER))["chats"][0]["last_message"]["card"]["type"] == "portfolio_shared"
         assert people.knows(db, OTHER, LEARNER)
