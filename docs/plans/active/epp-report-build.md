@@ -13,8 +13,8 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 | 3. Course plan | Course list and the 24-credit tally | Merged (#307) |
 | 4. Live report | Report builder, staff view and print, student preview | Merged (#309) |
 | 5. Review and freeze | Stored records, corrections, exit record | Merged (#310) |
-| 6. Caseload and bulk PDF | Caseload screen, class export | In review |
-| 7. SB 3 course summary | One page per student, class grid | Planned |
+| 6. Caseload and bulk PDF | Caseload screen, class export | Merged (#312) |
+| 7. SB 3 course summary | One page per student, class grid | In review |
 
 ## Slice 1: school connection
 
@@ -131,3 +131,20 @@ learner; learners accept even when the school set up their account. The consent 
   plans" on a learner's School record; a PDF button on each saved record.
 - API (`/epp`): `GET /orgs/{org_id}/caseload` (`mine`), `GET /orgs/{org_id}/caseload/export` (zip), and
   `GET /orgs/{org_id}/records/{uuid}/pdf`.
+
+## Slice 7: SB 3 course summary
+
+- `services/epp/course_summary.py` reads the requirement evidence CSV's rows, scope and permissions
+  (`goals.requirement_evidence.evidence_rows`), so a teacher sees only plans they can review. Per learner and
+  standard: the evidence (step titles), and its state: reviewed (staff-approved step or staff attestation, with
+  who and when), waiting for review, changes requested, done without a review, or none yet.
+- The PDF has a class grid first (learners by standards, with how many have reviewed evidence), then a page per
+  learner with the counts, the standards table and "Credit recorded by school". Short codes (HS.HECPS.A.1 shows
+  as A.1) label the columns; long ones are numbered with a key, and the full code sits under the title.
+- Credit is never inferred. "Credit recorded by school" says yes only for a completed course on the learner's
+  EPP course plan that school staff confirmed and whose course code (or title) matches the one entered, read
+  through an active support link. Otherwise it says "Not yet", or "Not on a school record here" without a link.
+- Staff: the Export evidence dialog (assignment grid, group requirements, learner requirements) now offers
+  "Course summary PDF" beside "Download CSV", using the same course name, code, section and term.
+- API: `POST /goal-admin/requirements/course-summary?org_id=` (the CSV export's body), next to
+  `requirements/evidence-export` in `routers/goal_requirements.py`.
