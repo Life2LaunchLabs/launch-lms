@@ -8,8 +8,8 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 
 | Slice | What ships | Status |
 |---|---|---|
-| 1. School connection | Staff ask to support a learner, the learner accepts a consent card, staff open the learner's school record | Built |
-| 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Next |
+| 1. School connection | Staff ask to support a learner, the learner accepts a consent card, staff open the learner's school record | Merged (#305) |
+| 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Built |
 | 3. Course plan | Course list and the 24-credit tally | Planned |
 | 4. Live report | Report builder, staff view and print, student preview | Planned |
 | 5. Review and freeze | Stored records, corrections, exit record | Planned |
@@ -36,3 +36,16 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 Decisions taken for the pilot (from the build plan): any staff member with an active link can open a
 learner; learners accept even when the school set up their account. The consent wording
 (`CONSENT_TEXT`, version `2026-11-pilot`) needs a privacy review before a real school uses it.
+
+## Slice 2: EPP framework and plan
+
+- `services/epp/content/framework.json`: "Oregon Education Plan and Profile (EPP)", 16 requirements under
+  `EPP.INTERESTS`, `EPP.GOALS`, `EPP.COURSES`, `EPP.PROGRESS`, `EPP.ACCOMPLISHMENTS`, `EPP.CRLE` and
+  `EPP.EXTAPP`. The codes are stable: the report reads them, so never rename one.
+- `services/epp/content/plan.json`: "My Education Plan and Profile", a yearly plan in four stages with a step
+  for every requirement. Steps name their links by code (`requirement_codes`).
+- `services/epp/content.py`: `install` creates both in an organization as drafts; `steps_for_code` finds a
+  learner's steps by requirement code, however the plan was changed.
+- Both were created as drafts in the Life2Launch organization on 2026-11-03 through the Launch LMS connector
+  (framework `requirement_framework_9b570685-db8c-4581-859c-0861d907a336`, plan
+  `goal_template_4384270c-e7d1-4a7a-af6a-0414c37684d8`). Publishing is the owner's call.
