@@ -29,12 +29,16 @@ OWNED = {
     "mediaasset": "owner_user_id",
     "mediafolder": "owner_user_id",
     "usergroupuser": "user_id",
+    "lifeplan": "user_id",
+    "planweeklyfocus": "user_id",
+    "eppcourse": "user_id",
 }
 CONVERSATIONS = {
     "hubconversation": "user_id",
     "hubmemory": "user_id",
     "hubmemorypreference": "user_id",
     "hubeditrun": "user_id",
+    "hubquestion": "user_id",
 }
 CHILD_TABLES = frozenset(
     """
@@ -42,6 +46,8 @@ learningpageprogress usersavedresourcechannel portfoliosection
 projectitem projectitemblock timelineentry timelineentryblock timelineprojectlink
 portfoliolink profiletrait planrole goal_stage goal_step step_progress step_entry goal_story
 planattachment planactivity requirementattainmentsource
+portfolioresult portfolioperson portfolioquote portfoliocontact portfoliocredential
+portfoliodocument portfolioimport resumeversion
 """.split()
 )
 CONVERSATION_CHILDREN = frozenset(
@@ -62,6 +68,7 @@ ORG_SCOPED = frozenset(
     """
 requirementenrollment userresourcechannel
 usergroupuser hubconversation hubmemory hubmemorypreference hubeditrun
+eppcourse hubquestion
 """.split()
 )
 
