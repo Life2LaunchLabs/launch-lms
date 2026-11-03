@@ -54,6 +54,12 @@ class Cover(Doc):
     url: str = Field(max_length=1000, pattern=r"^(https?://|/)")
 
 
+class Tax(Doc):
+    """How the phase's taxes are worked out: the filing status for the estimate, or the learner's own effective rate."""
+    filing: Literal["single", "joint"] = "single"
+    rate: float | None = Field(default=None, ge=0, le=100)
+
+
 class Phase(Doc):
     id: str = Field(max_length=40)
     title: str = Field(max_length=120)
@@ -66,6 +72,7 @@ class Phase(Doc):
     goals: list[str] = Field(default_factory=list, max_length=100)
     # The learner's own cover photo; without one, the place's photo (or a drawing) shows.
     cover: Cover | None = None
+    tax: Tax | None = None
 
 
 class Debt(Doc):

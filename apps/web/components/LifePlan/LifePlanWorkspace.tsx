@@ -139,7 +139,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
           <OwnCard />
         </fieldset>
         <p className="mt-6 text-xs text-muted-foreground">
-          Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Amounts are before taxes; taxes aren't worked out yet.
+          Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Taxes are a rough estimate on pay from work, from the latest published federal and Oregon rates; open Taxes under Income to see how, or use your own rate.
         </p>
       </div>
       {of ? null : <AddTray target={add} onClose={() => setAdd(null)} />}
