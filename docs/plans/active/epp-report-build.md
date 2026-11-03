@@ -10,9 +10,9 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 |---|---|---|
 | 1. School connection | Staff ask to support a learner, the learner accepts a consent card, staff open the learner's school record | Merged (#305) |
 | 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Merged (#306) |
-| 3. Course plan | Course list and the 24-credit tally | Built |
-| 4. Live report | Report builder, staff view and print, student preview | Built |
-| 5. Review and freeze | Stored records, corrections, exit record | Planned |
+| 3. Course plan | Course list and the 24-credit tally | Merged (#307) |
+| 4. Live report | Report builder, staff view and print, student preview | Merged (#309) |
+| 5. Review and freeze | Stored records, corrections, exit record | Built |
 | 6. Caseload and bulk PDF | Caseload screen, class export | Planned |
 | 7. SB 3 course summary | One page per student, class grid | Planned |
 
@@ -88,3 +88,26 @@ learner; learners accept even when the school set up their account. The consent 
   show", and a preview of what the school sees; "My plan" on the accepted consent card links there.
 - API (`/epp`): `GET /orgs/{org_id}/students/{user_id}/report`, and for learners `GET /orgs/{org_id}/report`
   and `PUT /orgs/{org_id}/report/picks`.
+
+## Slice 5: review and freeze
+
+- `epprecord` (`src/db/epp_records.py`, migration `e8b4d1f6a7c2`): a frozen copy of the report JSON with the
+  kind (`annual`, `final`, `transfer`, `exit`), version, outcome, staff and learner comments, the reviewer's
+  name and the date. The learner's name and student ID are copied in, and `user_id` is set to null when the
+  account goes, so the school keeps its record. Records are never edited.
+- `services/epp/records.py`: `review` (staff with an active link) freezes the live report and marks the
+  progress component reviewed. `correct` makes a new version pointing at the one it replaces
+  (`supersedes_id`) with a reason; a superseded version can't be corrected again. Any of the school's staff
+  can list and open records, even after the link ends.
+- `freeze_exits` saves an exit record ("Left the organization") and ends the link when a supported learner
+  leaves or is removed (`cleanup_after_removal`), loses a membership through a superadmin, or deletes their
+  account. It's skipped where the tables don't exist.
+- The live report counts a review this school year (from the record history) as "Reviewed this year", and
+  lists the review history.
+- Staff: "Review and save" on the report page, the saved records under it, and
+  `/admin/threads/profiles/epp/{record_uuid}` for one record (with Correct). Record IDs read
+  `EPP-{student_id}-{school_year}-v{n}`.
+- Uploaded files aren't copied into records: the report carries no files, only text.
+- API (`/epp`): `POST /orgs/{org_id}/students/{user_id}/records`, `GET /orgs/{org_id}/records`
+  (`user_id`, `include_superseded`), `GET /orgs/{org_id}/records/{uuid}`,
+  `POST /orgs/{org_id}/records/{uuid}/corrections`, and for learners `GET /orgs/{org_id}/my_records`.

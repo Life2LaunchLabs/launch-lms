@@ -215,6 +215,8 @@ export const routePaths = {
           withQuery(`/admin/threads/profiles/people/${encodeURIComponent(username)}`, { tab: tab === 'overview' ? null : tab }),
         /** A supported learner's Education Plan and Profile report. */
         epp: (username: string) => `/admin/threads/profiles/people/${encodeURIComponent(username)}/epp`,
+        /** A frozen Education Plan and Profile record, which outlives the learner's account. */
+        eppRecord: (recordUuid: string) => `/admin/threads/profiles/epp/${encodeURIComponent(recordUuid)}`,
         /** A group: its people, its plans (one assignment's grid), or its join links. */
         group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
           withQuery(`/admin/threads/profiles/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
