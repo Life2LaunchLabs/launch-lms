@@ -9,8 +9,8 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 | Slice | What ships | Status |
 |---|---|---|
 | 1. School connection | Staff ask to support a learner, the learner accepts a consent card, staff open the learner's school record | Merged (#305) |
-| 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Built |
-| 3. Course plan | Course list and the 24-credit tally | Planned |
+| 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Merged (#306) |
+| 3. Course plan | Course list and the 24-credit tally | Built |
 | 4. Live report | Report builder, staff view and print, student preview | Planned |
 | 5. Review and freeze | Stored records, corrections, exit record | Planned |
 | 6. Caseload and bulk PDF | Caseload screen, class export | Planned |
@@ -49,3 +49,24 @@ learner; learners accept even when the school set up their account. The consent 
 - Both were created as drafts in the Life2Launch organization on 2026-11-03 through the Launch LMS connector
   (framework `requirement_framework_9b570685-db8c-4581-859c-0861d907a336`, plan
   `goal_template_4384270c-e7d1-4a7a-af6a-0414c37684d8`). Publishing is the owner's call.
+
+## Slice 3: course plan
+
+- `eppcourse` (`src/db/epp_courses.py`, migration `c3e8f1a6d9b4`): one row per course a learner plans or
+  took with a school: grade 9 to 12, diploma subject area, title, credits, status (`planned`,
+  `in_progress`, `completed`), course code, dual credit, source (`student`, `staff`, `cis`) and who
+  confirmed it and when.
+- `SUBJECTS` holds the Oregon Diploma areas and credits (24 from the class of 2027). `services/epp/courses.tally`
+  counts completed and planned (in progress counts as planned) per area; credits past what an area needs
+  count as electives. The sample report's table is a test.
+- Only staff can mark a course school confirmed, only once it's completed. Any change to a confirmed course
+  clears the confirmation, and a learner can't change or remove a confirmed course.
+- Staff reach the plan through `require_support`; learners reach their own plan while the school supports
+  them. Oregon CIS course planner rows (the "Course Plan" sheet kept with a CIS import) come in with
+  "Bring in from Oregon CIS": a course with a letter grade is completed, the rest planned, and a course
+  already there is skipped.
+- Staff see the Course plan card under the school record on a learner's profile. The learner's own editor
+  comes with the student preview in slice 4.
+- API (`/epp`): `GET/POST /orgs/{org_id}/students/{user_id}/courses`, `PUT/DELETE .../courses/{course_uuid}`,
+  `POST .../courses/{course_uuid}/confirm`, `POST .../courses/import_cis`, and for learners
+  `GET/POST /orgs/{org_id}/courses`, `PUT/DELETE /orgs/{org_id}/courses/{course_uuid}`.

@@ -43,6 +43,7 @@ from src.routers import (
     portfolio_people,
     portfolio_records,
     school,
+    epp,
     requirement_frameworks,
     roles,
     search,
@@ -260,6 +261,12 @@ v1_router.include_router(
     school.router,
     prefix="/school",
     tags=["school"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    epp.router,
+    prefix="/epp",
+    tags=["epp"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
