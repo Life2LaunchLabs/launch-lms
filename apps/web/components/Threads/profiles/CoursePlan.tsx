@@ -90,26 +90,28 @@ function Tally({ plan }: { plan: Plan }) {
   </div>
 }
 
-/**
- * A supported learner's high school course plan, on their profile under the school record: the 24-credit
- * tally, courses by grade, and adding, changing and school-confirming them. Hidden without an active link.
- */
-export default function CoursePlan({ userId }: { userId: number }) {
-  const { orgId, token } = usePeopleContext()
-  const ready = Boolean(orgId && token)
-  const { data: state } = useSWR(ready ? supportKey(orgId, userId) : null, () => supportApi.status(orgId, userId, token), { revalidateOnFocus: true })
-  const active = state?.status === 'active'
-  const { data: plan, mutate } = useSWR(ready && active ? coursePlanKey(orgId, userId) : null, () => coursesApi.plan(orgId, userId, token), { revalidateOnFocus: false })
+/** What a course plan card can do: staff can also confirm courses and bring them in from Oregon CIS. */
+// Type-only parameters, which the base no-unused-vars rule misreads.
+// eslint-disable-next-line no-unused-vars
+type PlanCall<Args extends unknown[]> = (...args: Args) => Promise<Plan>
+export interface CoursePlanActions {
+  add: PlanCall<[CourseWrite]>
+  update: PlanCall<[string, CourseWrite]>
+  remove: PlanCall<[string]>
+  confirm?: PlanCall<[string, boolean]>
+  importCis?: PlanCall<[]>
+}
+
+/** The course plan: the 24-credit tally, then courses by grade with adding and changing them. */
+export function CoursePlanCard({ plan, onChange, actions, note }: { plan: Plan | undefined; onChange: React.Dispatch<Plan>; actions: CoursePlanActions; note: string }) {
   const [busy, setBusy] = React.useState('')
   const [editing, setEditing] = React.useState<string | null>(null)
   const [adding, setAdding] = React.useState(0)
-
-  if (!active) return null
   const run = async (key: string, action: () => Promise<Plan>, done?: string) => {
     setBusy(key)
     try {
       const result = await action()
-      await mutate(result, { revalidate: false })
+      await onChange(result)
       if (done) toast.success(done)
       return result
     } catch (error: any) {
@@ -121,7 +123,7 @@ export default function CoursePlan({ userId }: { userId: number }) {
   }
   const label = (key: string) => plan?.subjects.find((subject) => subject.key === key)?.label || key
 
-  return <Card title="Course plan" aside={plan?.cis_courses ? <button type="button" disabled={Boolean(busy)} onClick={async () => { const result = await run('cis', () => coursesApi.importCis(orgId, userId, token)); if (result) toast.success(result.added ? `Brought in ${result.added} course${result.added === 1 ? '' : 's'}` : 'Those courses are already here') }}
+  return <Card title="Course plan" aside={plan?.cis_courses && actions.importCis ? <button type="button" disabled={Boolean(busy)} onClick={async () => { const result = await run('cis', () => actions.importCis!()); if (result) toast.success(result.added ? `Brought in ${result.added} course${result.added === 1 ? '' : 's'}` : 'Those courses are already here') }}
     className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold hover:bg-muted disabled:opacity-50">
     {busy === 'cis' ? <Loader2 size={13} className="animate-spin" /> : <DownloadSimple size={13} aria-hidden="true" />}Bring in from Oregon CIS
   </button> : null}>
@@ -140,30 +142,52 @@ export default function CoursePlan({ userId }: { userId: number }) {
           <ul className="divide-y divide-border/60">
             {list.map((course: EppCourse) => editing === course.course_uuid
               ? <li key={course.course_uuid} className="py-2"><CourseForm plan={plan} initial={course} label="Save" busy={busy === course.course_uuid} onCancel={() => setEditing(null)}
-                  onSave={async (value) => { if (await run(course.course_uuid, () => coursesApi.update(orgId, userId, course.course_uuid, value, token))) setEditing(null) }} /></li>
+                  onSave={async (value) => { if (await run(course.course_uuid, () => actions.update(course.course_uuid, value))) setEditing(null) }} /></li>
               : <li key={course.course_uuid} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <div className="min-w-0 flex-1 basis-56">
                   <div className="font-semibold">{course.title}{course.dual_credit ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">dual credit{course.dual_credit_school ? `, ${course.dual_credit_school}` : ''}</span> : null}</div>
                   <div className="text-xs text-muted-foreground">{label(course.subject)} · {credits(course.credits)} credit{course.credits === 1 ? '' : 's'} · {COURSE_SOURCE_LABELS[course.source]}</div>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${course.status === 'completed' ? 'bg-muted' : 'bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200'}`}>{COURSE_STATUS_LABELS[course.status]}</span>
-                {course.school_confirmed
-                  ? <button type="button" title={`Confirmed by ${course.confirmed_by?.name || 'staff'}. Select to undo.`} disabled={Boolean(busy)} onClick={() => void run(course.course_uuid, () => coursesApi.confirm(orgId, userId, course.course_uuid, false, token))}
+                {course.school_confirmed && !actions.confirm
+                  ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><Check size={12} weight="bold" aria-hidden="true" />School confirmed</span>
+                  : course.school_confirmed
+                  ? <button type="button" title={`Confirmed by ${course.confirmed_by?.name || 'staff'}. Select to undo.`} disabled={Boolean(busy)} onClick={() => void run(course.course_uuid, () => actions.confirm!(course.course_uuid, false))}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><Check size={12} weight="bold" aria-hidden="true" />School confirmed</button>
-                  : course.status === 'completed'
-                    ? <button type="button" disabled={Boolean(busy)} onClick={() => void run(course.course_uuid, () => coursesApi.confirm(orgId, userId, course.course_uuid, true, token), 'Confirmed')}
+                  : course.status === 'completed' && actions.confirm
+                    ? <button type="button" disabled={Boolean(busy)} onClick={() => void run(course.course_uuid, () => actions.confirm!(course.course_uuid, true), 'Confirmed')}
                       className="text-xs font-semibold underline disabled:opacity-50">Confirm</button>
                     : null}
+                {course.school_confirmed && !actions.confirm ? null : <>
                 <button type="button" aria-label={`Change ${course.title}`} onClick={() => { setAdding(0); setEditing(course.course_uuid) }} className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><PencilSimple size={14} /></button>
-                <button type="button" aria-label={`Remove ${course.title}`} disabled={Boolean(busy)} onClick={() => { if (confirm(`Remove ${course.title}?`)) void run(course.course_uuid, () => coursesApi.remove(orgId, userId, course.course_uuid, token)) }}
-                  className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"><Trash size={14} /></button>
+                <button type="button" aria-label={`Remove ${course.title}`} disabled={Boolean(busy)} onClick={() => { if (confirm(`Remove ${course.title}?`)) void run(course.course_uuid, () => actions.remove(course.course_uuid)) }}
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"><Trash size={14} /></button></>}
               </li>)}
           </ul>
           {adding === grade ? <CourseForm key={`add-${grade}`} plan={plan} initial={blank(grade)} label="Add" busy={busy === 'add'} onCancel={() => setAdding(0)}
-            onSave={async (value) => { if (await run('add', () => coursesApi.add(orgId, userId, value, token))) setAdding(0) }} /> : null}
+            onSave={async (value) => { if (await run('add', () => actions.add(value))) setAdding(0) }} /> : null}
         </div>
       })}
-      <p className="text-xs text-muted-foreground">Only staff can mark a completed course school confirmed. Changing a confirmed course clears it.</p>
+      <p className="text-xs text-muted-foreground">{note}</p>
     </div>}
   </Card>
+}
+
+/** A supported learner's course plan on their profile, under the school record. Hidden without an active link. */
+export default function CoursePlan({ userId }: { userId: number }) {
+  const { orgId, token } = usePeopleContext()
+  const ready = Boolean(orgId && token)
+  const { data: state } = useSWR(ready ? supportKey(orgId, userId) : null, () => supportApi.status(orgId, userId, token), { revalidateOnFocus: true })
+  const active = state?.status === 'active'
+  const { data: plan, mutate } = useSWR(ready && active ? coursePlanKey(orgId, userId) : null, () => coursesApi.plan(orgId, userId, token), { revalidateOnFocus: false })
+  if (!active) return null
+  return <CoursePlanCard plan={plan} onChange={(result) => mutate(result, { revalidate: false })}
+    note="Only staff can mark a completed course school confirmed. Changing a confirmed course clears it."
+    actions={{
+      add: (value) => coursesApi.add(orgId, userId, value, token),
+      update: (courseUuid, value) => coursesApi.update(orgId, userId, courseUuid, value, token),
+      remove: (courseUuid) => coursesApi.remove(orgId, userId, courseUuid, token),
+      confirm: (courseUuid, confirmed) => coursesApi.confirm(orgId, userId, courseUuid, confirmed, token),
+      importCis: () => coursesApi.importCis(orgId, userId, token),
+    }} />
 }

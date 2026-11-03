@@ -131,7 +131,8 @@ function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCa
         <button type="button" disabled={Boolean(busy)} onClick={() => act('accept')} className={cn(button, 'bg-foreground text-background')}>{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}Yes, share</button>
       </span> : <>
         <span className="text-xs font-semibold text-muted-foreground">{card.state === 'accepted' && card.for_me ? `${card.org_name} supports you` : SUPPORT_STATES[card.state] || card.state}</span>
-        {card.state === 'accepted' && card.for_me ? <button type="button" disabled={Boolean(busy)} onClick={() => act('stop')} className={cn(button, 'ml-auto text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'stop' ? <Loader2 size={13} className="animate-spin" /> : null}Stop sharing</button> : null}
+        {card.state === 'accepted' && card.for_me ? <Link href={getUriWithOrg(card.org_slug, routePaths.org.epp())} className={cn(button, 'ml-auto bg-foreground text-background')}>My plan</Link> : null}
+        {card.state === 'accepted' && card.for_me ? <button type="button" disabled={Boolean(busy)} onClick={() => act('stop')} className={cn(button, 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'stop' ? <Loader2 size={13} className="animate-spin" /> : null}Stop sharing</button> : null}
       </>}
     </div>
   </div>
