@@ -48,7 +48,7 @@ NAVIGATION_DESTINATIONS = {
         NavigationDestination("create_plan", "Start a goal", "/plans?hub_action=create-plan", "Open the launch flow, where the learner sets up a new goal themselves. Coach never fills it in or creates it."),
         NavigationDestination("plan_goal", "Plan it with Coach", "/plans", "Start a focused session with Coach on the goal the learner has open, so Coach can suggest stages, steps and changes on the goal page."),
         NavigationDestination("portfolio", "Open portfolio", "/portfolio", "Review the learner's portfolio and its readiness."),
-        NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline?experience=work_career", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),
+        NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline/new", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),
         NavigationDestination("add_project", "Add a project", "/portfolio/projects?newProject=1", "Add a concrete project or body of work to the portfolio."),
         NavigationDestination("badges", "Explore Discover", "/discover", "Find plans to join (many earn a badge) and resources to use."),
         NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions.", "communities"),

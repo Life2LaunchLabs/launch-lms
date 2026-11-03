@@ -157,13 +157,14 @@ def _scores_text(text: str) -> dict:
 
 
 def _interest_result(key: str, name: str, scores: dict, taken) -> dict:
+    # It lands as a RIASEC result the learner could have entered: 10 answers a letter, 0 to 4 each.
     ordered = sorted(scores, key=lambda letter: -scores[letter])
     top = ordered[:3]
     # A tie for third place is shown as one, since the profiler doesn't say which comes first.
     tied = [letter for letter in ordered[3:] if scores[letter] == scores[top[2]]]
     summary = " · ".join([HOLLAND[top[0]], HOLLAND[top[1]], " / ".join(HOLLAND[letter] for letter in [top[2], *tied])])
     code = "".join(top[:2]) + "/".join([top[2], *tied])
-    record = {"kind": "interests", "name": name, "summary": summary, "data": {"scores": scores, "code": code}, "taken_on": _month(taken)[0]}
+    record = {"kind": "interests", "name": name, "summary": summary, "data": {"template": "riasec", "scores": scores, "max": 40, "code": code}, "taken_on": _month(taken)[0]}
     return _item(key, "results", "result", name, f"{code}: {summary}", record)
 
 

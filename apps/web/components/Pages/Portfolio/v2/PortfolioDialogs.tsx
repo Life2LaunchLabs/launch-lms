@@ -5,6 +5,7 @@ import { Camera, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { Button } from '@components/ui/button'
+import { Marked } from './inplace'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
@@ -17,7 +18,7 @@ import type { Highlight, SetShell, Shell } from '../portfolioTypes'
 // The editors the new front page opens itself: who you are, the highlights band and your links.
 
 /** Your name (legal, for rosters and reports), the name you go by, a one-line intro and where you are. */
-export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avatar, onAvatarClick }: { open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string; avatar: React.ReactNode; onAvatarClick: () => void }) {
+export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avatar, onAvatarClick, mark }: { mark?: string; open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string; avatar: React.ReactNode; onAvatarClick: () => void }) {
   const [busy, setBusy] = useState(false)
   const identity = shell.identity
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -49,7 +50,7 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
         <div className="grid gap-1.5"><Label htmlFor="pf-headline">One-line intro <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-headline" name="headline" defaultValue={shell.portfolio.headline || ''} maxLength={140} placeholder="Artist and future UX designer" /></div>
         <div className="grid gap-1.5"><Label htmlFor="pf-location">Where you are <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-location" name="location_label" defaultValue={shell.portfolio.location_label || ''} maxLength={80} placeholder="Eugene, OR" /></div>
       </form>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Marked mark={mark}><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></Marked></DialogFooter>
     </DialogContent>
   </Dialog>
 }
@@ -89,7 +90,7 @@ export function HighlightsDialog({ open, onOpenChange, shell, setShell, token }:
 }
 
 /** Your links, one per site. */
-export function LinksDialog({ open, onOpenChange, shell, setShell, token }: { open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string }) {
+export function LinksDialog({ open, onOpenChange, shell, setShell, token, mark }: { mark?: string; open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string }) {
   const initial = () => Object.fromEntries(SOCIAL_OPTIONS.map((option) => [option.type, socialHandle(option.type, shellSocials(shell).find((social) => social.type === option.type)?.url || '')]))
   const [values, setValues] = useState<Record<string, string>>(initial)
   const [busy, setBusy] = useState(false)
@@ -109,7 +110,7 @@ export function LinksDialog({ open, onOpenChange, shell, setShell, token }: { op
         <Label htmlFor={`ln-${option.type}`}>{option.label}</Label>
         <Input id={`ln-${option.type}`} value={values[option.type] || ''} maxLength={300} onChange={(event) => setValues((current) => ({ ...current, [option.type]: event.target.value }))} placeholder={option.type === 'website' ? 'yourname.com' : '@handle'} />
       </div>)}</div>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Marked mark={mark}><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></Marked></DialogFooter>
     </DialogContent>
   </Dialog>
 }

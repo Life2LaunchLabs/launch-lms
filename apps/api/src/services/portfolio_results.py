@@ -13,7 +13,7 @@ from src.db.portfolio_records import PortfolioResult, ResultWrite
 from src.db.users import PublicUser
 from src.services import portfolio as portfolio_service
 
-RESULT_KINDS = {"interests", "strengths", "values", "skills", "other"}
+RESULT_KINDS = {"interests", "personality", "strengths", "values", "skills", "other"}
 
 
 def _value(item) -> str:
@@ -23,7 +23,8 @@ def _value(item) -> str:
 def result_dto(item: PortfolioResult, public_only: bool = False) -> dict:
     dto = {
         "result_uuid": item.result_uuid, "kind": item.kind, "name": item.name, "summary": item.summary,
-        "data": item.data or {}, "taken_on": item.taken_on, "featured": item.featured, "source": item.source,
+        # The learner's attached report stays theirs: visitors get the result, not the PDF.
+        "data": {key: value for key, value in (item.data or {}).items() if not (public_only and key == "pdf")}, "taken_on": item.taken_on, "featured": item.featured, "source": item.source,
     }
     return dto if public_only else dto | {"visibility": _value(item.visibility), "source_reference": item.source_reference}
 

@@ -20,17 +20,29 @@ test('portfolio.v2: the portfolio is the new one, with no switch', async ({ page
   await expect(page.getByRole('region', { name: 'Experience' })).toBeVisible()
 })
 
-test('portfolio.v2: the owner changes the layout and opens the profile', async ({ page }) => {
+async function openLook(page: import('@playwright/test').Page) {
+  await openSettings(page)
+  await page.getByRole('menuitem', { name: 'Look and layout' }).click()
+  return page.getByRole('dialog', { name: 'Your look' })
+}
+
+test('portfolio.v2: the owner changes the layout and look, and opens the profile', async ({ page }) => {
   await page.goto('/portfolio')
   const sections = page.locator('[data-layout]')
-  await openSettings(page)
-  await page.getByRole('menuitem', { name: 'List' }).click()
+  let look = await openLook(page)
+  await look.getByRole('button', { name: 'List' }).click()
   await expect(sections).toHaveAttribute('data-layout', 'list')
+  // A look themes the whole app, and the portfolio page carries it for visitors.
+  await look.getByRole('button', { name: /^Midnight/ }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'midnight')
+  await page.keyboard.press('Escape')
   await page.reload()
   await expect(sections).toHaveAttribute('data-layout', 'list')
-  await openSettings(page)
-  await page.getByRole('menuitem', { name: 'Grid' }).click()
+  await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-look', 'midnight')
+  look = await openLook(page)
+  await look.getByRole('button', { name: 'Grid' }).click()
   await expect(sections).toHaveAttribute('data-layout', 'grid')
+  await page.keyboard.press('Escape')
 
   await page.getByRole('button', { name: 'Edit your profile' }).click()
   await expect(page.getByRole('dialog', { name: 'Your profile' })).toBeVisible()
@@ -66,17 +78,18 @@ test('portfolio.v2: section pages have one-row headers and row controls', async 
     await expect(page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first()).not.toHaveAttribute('aria-pressed', before || '')
     await page.getByRole('button', { name: /^(Feature .* on your front page|Stop featuring .*)$/ }).first().click()
   }
+  // Older links that opened an editor land on the new experience page, made in place.
   await page.goto('/portfolio/timeline?experience=education')
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page).toHaveURL(/\/portfolio\/timeline\/new\?type=education/)
+  await expect(page.getByLabel('Type')).toHaveValue('education')
+  await expect(page.getByRole('button', { name: 'Add to my portfolio' })).toBeVisible()
 })
 
 test('portfolio.v2: editors for credentials, people, documents and results open from their pages', async ({ page }) => {
   test.setTimeout(90_000)
-  await page.goto('/portfolio/badges?add=credential')
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await page.getByRole('radio', { name: /Test score/ }).click()
-  await expect(page.getByRole('switch', { name: 'Show to visitors' })).toBeDisabled()
-  await page.keyboard.press('Escape')
+  // Cards and certificates wait until they can be checked; badges are what count for now.
+  await page.goto('/portfolio/badges')
+  await expect(page.getByText('Coming soon: cards and certificates')).toBeVisible()
 
   await page.goto('/portfolio/people')
   await expect(page.getByRole('heading', { level: 1, name: 'My people' })).toBeVisible()
@@ -90,7 +103,7 @@ test('portfolio.v2: editors for credentials, people, documents and results open 
 
   await page.goto('/portfolio')
   await expect(page.getByRole('region', { name: 'What I’m like' })).toBeVisible()
-  await page.getByRole('button', { name: /Edit links|Add links/ }).click()
+  await page.getByRole('button', { name: /Edit links|Add where people can find you/ }).click()
   await expect(page.getByRole('dialog', { name: 'Your links' })).toBeVisible()
 })
 

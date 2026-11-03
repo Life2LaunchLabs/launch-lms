@@ -6,7 +6,9 @@ import { RequestBodyFormWithAuthHeader, RequestBodyWithAuthHeader, errorHandling
 
 /** A number people notice first, and what it means. */
 export type Highlight = { value: string; label: string }
-export type PortfolioLayout = { header: 'left' | 'center'; sections: 'grid' | 'list' }
+export type LookId = 'pop' | 'studio' | 'midnight' | 'sunset'
+/** The front page's layout and the learner's look (null until they pick one). */
+export type PortfolioLayout = { header: 'left' | 'center'; sections: 'grid' | 'list'; look?: LookId | null }
 
 async function send(path: string, method: string, payload: unknown, token: string) {
   const response = await fetch(`${getAPIUrl()}portfolio/me/${path}`, RequestBodyWithAuthHeader(method, payload, null, token))

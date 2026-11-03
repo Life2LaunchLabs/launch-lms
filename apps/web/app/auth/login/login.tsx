@@ -3,6 +3,7 @@ import { useFormik } from 'formik'
 import React, { useState, useEffect } from 'react'
 import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
+import { useGoogleSignIn } from '@services/auth/google'
 import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -27,6 +28,7 @@ const LoginClient = (props: LoginClientProps) => {
   const { signIn } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const google = useGoogleSignIn()
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const searchParams = useSearchParams()
@@ -278,23 +280,11 @@ const LoginClient = (props: LoginClientProps) => {
           </h1>
 
           <div className={props.embedded ? 'mt-6 space-y-4' : 'mt-12 space-y-4'}>
-            <Button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isGoogleLoading}
-              variant="surface"
-              size="cta"
-              className="w-full text-[16px]"
-            >
+            {google ? <><Button type="button" onClick={handleGoogleLogin} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
               {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
             </Button>
-
-            <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-gray-400">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span>or</span>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
+            <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
             <form onSubmit={formik.handleSubmit} className="space-y-4 pt-1 text-left">
               <Input

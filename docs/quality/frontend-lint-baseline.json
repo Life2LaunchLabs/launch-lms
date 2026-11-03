@@ -47,8 +47,6 @@
     "components/Objects/StyledElements/Modal/Modal.tsx|no-unused-vars|error": 1,
     "components/Objects/StyledElements/Titles/TypeOfContentTitle.tsx|no-unused-vars|error": 1,
     "components/OrgScripts/OrgScripts.tsx|react-hooks/exhaustive-deps|warning": 1,
-    "components/Pages/Portfolio/ExperienceEditor.tsx|no-unused-vars|error": 6,
-    "components/Pages/Portfolio/ProjectEditorDialog.tsx|no-unused-vars|error": 3,
     "components/Portfolio/CategorizedMultiSelect.tsx|no-unused-vars|error": 2,
     "components/Resources/ResourceChannelStyle.tsx|react-hooks/static-components|error": 1,
     "components/Security/AdminAuthorization.tsx|no-useless-escape|error": 1,
