@@ -2,32 +2,35 @@
 
 import React from 'react'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Skeleton } from '@components/ui/skeleton'
-import { lifeApi, lifeUrl, type Estimate, type LifeDoc, type Line, type Phase } from '@services/life/life'
+import { lifeApi, lifeUrl, type LifeDoc, type Phase } from '@services/life/life'
 import { LifeContext, type LifeCtx } from './LifeContext'
-import { estimateQuery, lineValue, project, stretches, type Per } from './model'
+import { stretches, type Per } from './model'
+import useLifeNumbers from './useLifeNumbers'
 import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
 import BudgetTable from './BudgetTable'
 import { DebtCard, OneTimeCard, OwnCard, SavingsCard } from './MoneyCards'
 import AddTray, { type AddTarget } from './AddTray'
-import StartPlan from './StartPlan'
-import SharedWithYou from './SharedWithYou'
+import Link from 'next/link'
+import { Button } from '@components/ui/button'
+import { getUriWithOrg } from '@services/config/config'
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const sharedName = (person?: { username: string; name?: string } | null) => person ? (person.name?.split(' ')[0] || `@${person.username}`) : undefined
 
-/** Life plan: phases of life, each with a budget, and what the money adds up to over time.
+/** A phase's budget, and what the money adds up to over time, opened from the phase in Plans.
  *  With `of` (a user uuid) it shows that person's plan, when they shared their plans with you, and nothing saves. */
-export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
+export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: string; phaseId?: string; orgslug: string }) {
+  const router = useRouter()
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
   const { data, error, isLoading, mutate } = useSWR(token ? lifeUrl(of ? `/shared/${of}` : '/plan') : null, () => (of ? lifeApi.shared(of, token) : lifeApi.get(token)), { revalidateOnFocus: false })
   const owner = of ? sharedName((data as any)?.person) : undefined
-  const { data: catalog } = useSWR(token ? lifeUrl('/catalog') : null, () => lifeApi.catalog(token), { revalidateOnFocus: false })
   const [doc, setDoc] = React.useState<LifeDoc | null>(null)
   const [saving, setSaving] = React.useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const revision = React.useRef<number | null>(null)
@@ -35,7 +38,7 @@ export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ready, setReady] = React.useState(false)
   const [per, setPer] = React.useState<Per>('mo')
-  const [sel, setSel] = React.useState<{ phase: string; i: number } | null>(null)
+  const [sel, setSel] = React.useState<{ phase: string; i: number } | null>(phaseId ? { phase: phaseId, i: 0 } : null)
   const [openLine, setOpenLine] = React.useState<string | null>(null)
   const [add, setAdd] = React.useState<AddTarget | null>(null)
 
@@ -54,6 +57,8 @@ export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
     try {
       const res = await lifeApi.save(next, revision.current, token)
       revision.current = res.plan.revision
+      // The plans pages read the same plan: keep their copy (and its revision) current.
+      if (!of) void mutate({ plan: res.plan }, { revalidate: false })
       setSaving(pending.current ? 'saving' : 'saved')
     } catch (e: any) {
       setSaving('error')
@@ -64,7 +69,7 @@ export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
         revision.current = fresh?.plan?.revision ?? null
       } else toast.error("Couldn't save your life plan. Your last change is kept on this page.")
     }
-  }, [token, mutate])
+  }, [token, mutate, of])
 
   const commit = React.useCallback((next: LifeDoc) => {
     if (of) return
@@ -74,16 +79,12 @@ export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
     timer.current = setTimeout(() => { void flush() }, 700)
   }, [flush, of])
 
-  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  // Leaving the page saves a change still waiting for its pause.
+  const flushRef = React.useRef(flush)
+  React.useEffect(() => { flushRef.current = flush }, [flush])
+  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); void flushRef.current() }, [])
 
-  // Estimates for every line that has a metric, looked up together.
-  const queries = React.useMemo(() => {
-    if (!doc || !catalog) return []
-    return doc.phases.flatMap((p) => p.lines.map((l) => estimateQuery(catalog, p, l)).filter(Boolean)) as NonNullable<ReturnType<typeof estimateQuery>>[]
-  }, [doc, catalog])
-  const qKey = JSON.stringify(queries)
-  const { data: est, isLoading: estLoading } = useSWR(token && queries.length ? ['life-estimates', qKey] : null, () => lifeApi.estimates(queries, token), { revalidateOnFocus: false, keepPreviousData: true })
-  const estimates: Record<string, Estimate | null> = est?.estimates || {}
+  const { catalog, estimates, estimatesLoading: estLoading, valueOf, projection: proj } = useLifeNumbers(doc, token)
 
   if (!token || isLoading || (data && !ready)) {
     return <GeneralWrapperStyled><div className="mx-auto max-w-[860px] space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-40 w-full" /><Skeleton className="h-96 w-full" /></div></GeneralWrapperStyled>
@@ -91,39 +92,35 @@ export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
   if (error) return <GeneralWrapperStyled><p className="text-muted-foreground">{of ? 'This plan isn’t shared with you.' : 'Couldn’t load your life plan. Try again in a moment.'}</p></GeneralWrapperStyled>
   if (of && (!doc || !doc.phases.length)) return <GeneralWrapperStyled><p className="text-muted-foreground">{owner || 'They'} haven’t started a life plan yet.</p></GeneralWrapperStyled>
   if (!doc || !doc.phases.length) {
-    return <GeneralWrapperStyled><SharedWithYou token={token} /><StartPlan token={token} existing={doc} onStart={(next) => { commit(next); setSel({ phase: next.phases[0].id, i: 0 }) }} /></GeneralWrapperStyled>
+    return <GeneralWrapperStyled><div className="py-16 text-center">
+      <p className="text-lg font-bold">Budgets belong to a phase of your plan.</p>
+      <Button variant="brand" className="mt-4" asChild><Link href={getUriWithOrg(orgslug, '/plans')}>Go to Plans</Link></Button>
+    </div></GeneralWrapperStyled>
   }
 
   const phase: Phase = doc.phases.find((p) => p.id === sel?.phase) || doc.phases[0]
   const stretchesOf = stretches(doc, phase)
   const stretch = stretchesOf[Math.min(sel?.phase === phase.id ? sel.i : 0, stretchesOf.length - 1)]
-  const valueOf = (p: Phase, l: Line) => lineValue(l, estimates[`${p.id}:${l.id}`])
-  const projection = project(doc, valueOf)
+  const projection = proj!
 
   const ctx: LifeCtx = {
     token, doc, catalog, estimates, estimatesLoading: estLoading, per, setPer, phase, stretch, stretchesOf,
-    selectStretch: (phaseId, i) => { setSel({ phase: phaseId, i }); setOpenLine(null) },
+    selectStretch: (id, i) => {
+      setSel({ phase: id, i }); setOpenLine(null)
+      // The address follows the phase, so back and a reload land on the budget being looked at.
+      if (!of && id !== phase.id) window.history.replaceState(window.history.state, '', getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(id)}/budget`))
+    },
     projection, valueOf,
     update: (fn) => { const next = clone(doc); fn(next); commit(next) },
     updatePhase: (fn) => { const next = clone(doc); const p = next.phases.find((x) => x.id === phase.id); if (p) fn(p); commit(next) },
     openLine, setOpenLine, readOnly: Boolean(of),
     openAdd: (side, cat) => setAdd({ side, cat }),
-    startOver: async () => {
-      if (timer.current) clearTimeout(timer.current)
-      pending.current = null
-      const res = await lifeApi.remove(token)
-      if (!res.ok && res.status !== 404) { toast.error("Couldn't delete your life plan. Try again in a moment."); return }
-      revision.current = null
-      setDoc(null); setSel(null); setOpenLine(null); setSaving('idle')
-      await mutate({ plan: null }, { revalidate: false })
-    },
   }
 
   return (
     <LifeContext.Provider value={ctx}>
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
-        <ContextBar saving={saving} owner={owner} />
-        {of ? null : <SharedWithYou token={token} />}
+        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? 'Back' : `Back to ${phase.title}`} />
         <PhaseChart />
         <div className="mb-3 mt-8 flex items-center justify-between gap-3">
           <h2 className="text-2xl font-extrabold tracking-tight">Budget</h2>

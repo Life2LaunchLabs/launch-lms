@@ -96,7 +96,7 @@ export function questPath(item: QuestItem, shell: Shell): string | null {
     now: `/portfolio/timeline/new?${mark}`, xp3: `/portfolio/timeline/new?${mark}`, school: `/portfolio/timeline/new?type=education&${mark}`,
     stories: untold ? `/portfolio/timeline/${untold.timeline_uuid}?${mark}` : '/portfolio/timeline',
     made: `/portfolio/projects/new?${mark}`, work: bare ? `/portfolio/projects/${bare.project_uuid}?${mark}` : `/portfolio/projects/new?${mark}`,
-    vouched: '/portfolio/people', headed: '/life',
+    vouched: '/portfolio/people', headed: '/plans',
   }
   return paths[item.key] ?? null
 }

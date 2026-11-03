@@ -6,12 +6,13 @@ import type { LifeDoc } from '@services/life/life'
 
 export type PhaseWhen = 'done' | 'now' | 'next' | 'later'
 export type PhaseGroup<T> = { id: string | null; title: string; when: PhaseWhen | null; starts?: string; goals: T[] }
+export type PhaseTime = { phase: NonNullable<LifeDoc['phases']>[number]; index: number; when: PhaseWhen; starts: string; ends: string }
 
 const monthIndex = (value: string) => { const [year, month] = value.split('-').map(Number); return year * 12 + month - 1 }
 const monthLabel = (index: number) => `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
 
 /** The plan's phases in order, each with when it is relative to this month. */
-export function phaseTimes(doc: LifeDoc | null | undefined, today = new Date()) {
+export function phaseTimes(doc: LifeDoc | null | undefined, today = new Date()): PhaseTime[] {
   if (!doc?.phases?.length || !doc.start) return []
   const current = today.getFullYear() * 12 + today.getMonth()
   const begins: number[] = []
@@ -24,7 +25,7 @@ export function phaseTimes(doc: LifeDoc | null | undefined, today = new Date()) 
   const nextIndex = begins.findIndex((start) => start > current)
   return doc.phases.map((phase, index) => {
     const when: PhaseWhen = index === nowIndex ? 'now' : index === nextIndex ? 'next' : begins[index] > current ? 'later' : 'done'
-    return { phase, when, starts: monthLabel(begins[index]) }
+    return { phase, index, when, starts: monthLabel(begins[index]), ends: monthLabel((begins[index + 1] ?? month) - 1) }
   })
 }
 
@@ -46,4 +47,13 @@ export function groupByPhase<T extends { goal_uuid: string }>(doc: LifeDoc | nul
   return times
     .map(({ phase, when, starts }) => ({ id: phase.id, title: phase.title, when, starts, goals: goals.filter((goal) => phaseOfGoal(doc, goal.goal_uuid, today) === phase.id) }))
     .filter((group) => group.when !== 'done' || group.goals.length)
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+/** "Sep 2026" from "2026-09". */
+export const monthName = (value: string) => { const [year, month] = value.split('-').map(Number); return `${MONTHS[month - 1]} ${year}` }
+/** A phase's span in years for its card: "2026–2029", or "2026" when it starts and ends in one year. */
+export const phaseYears = (time: Pick<PhaseTime, 'starts' | 'ends'>) => {
+  const a = time.starts.slice(0, 4), b = time.ends.slice(0, 4)
+  return a === b ? a : `${a}–${b}`
 }

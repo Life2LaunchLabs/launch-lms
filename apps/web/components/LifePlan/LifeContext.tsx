@@ -25,8 +25,6 @@ export interface LifeCtx {
   openLine: string | null
   setOpenLine: (id: string | null) => void
   openAdd: (side: 'in' | 'out', cat?: string) => void
-  /** Delete the whole plan and go back to the start. */
-  startOver: () => Promise<void>
   /** Someone else's plan, shared with you: shown as theirs, with nothing to add or change. */
   readOnly?: boolean
 }

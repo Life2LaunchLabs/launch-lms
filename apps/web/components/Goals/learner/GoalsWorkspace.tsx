@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import useSWR, { preload, useSWRConfig } from 'swr'
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react'
-import { Map } from 'lucide-react'
 import { useHub } from '@components/Hub/HubContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
@@ -18,7 +17,7 @@ import { GoalEditingProvider } from '@components/Goals/edit/GoalEditing'
 import { GoalChatProvider } from '@components/Goals/chat/GoalChat'
 import { GoalCoachBar, useCoachCatchUp } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi, goalsUrl, goalUrl } from '@services/goals/goals'
 import { lifeApi, lifeUrl } from '@services/life/life'
 import { can, goalSteps, type Goal, type GoalSummary } from '@services/goals/types'
@@ -208,6 +207,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     strip = <Skeleton className="h-52 rounded-3xl" />
   }
 
+  // A goal of the learner's own goes back to its phase; one they help with goes back to Plans.
+  const backPhase = life && isSubject && selectedUuid ? life.phases.find((item) => item.id === phaseOfGoal(life, selectedUuid)) : undefined
+
   let content: React.ReactNode
   if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
   else if (detailError) content = failed('This goal could not load. It may no longer be available to you.', () => void retryDetail())
@@ -225,9 +227,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   return <GeneralWrapperStyled>
     <main className="pb-16">
       {selectedUuid
-        ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin />
-        : <div className="flex flex-wrap items-center justify-between gap-3 pb-4 pt-2"><h1 className="text-3xl font-extrabold tracking-tight">Overview</h1>
-          <Button variant="surface" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/life')}><Map size={15} />{life?.phases?.length ? 'Edit your phases' : 'Map your phases'}</Link></Button></div>}
+        ? <ContentPageHeader orgslug={orgslug} backLabel={backPhase ? backPhase.title : 'Plans'} onBack={backPhase ? () => router.push(getUriWithOrg(orgslug, routePaths.org.phase(backPhase.id))) : clear} compactBottomMargin />
+        : <h1 className="sr-only">Plans</h1>}
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
         <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug}>
