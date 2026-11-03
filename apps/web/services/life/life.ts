@@ -103,14 +103,18 @@ export const lifeApi = {
 /** A source of estimate facts, with how many facts it has by status, for platform admins. */
 export interface SourceCoverage extends EstimateSource { id: number; facts: number; by_status: Record<string, number>; levels: Record<string, number>; metrics: string[] }
 export type EstimateFileKind = 'hud_fmr' | 'bls_oews'
+export interface EstimateImportResult { job: string; status: 'running' | 'done'; kind?: EstimateFileKind; year?: number; source?: string; facts?: number; unmatched?: string[]; places?: number }
 
 export const lifeAdminApi = {
   sources: (token?: string) => request<{ sources: SourceCoverage[] }>(lifeUrl('/admin/sources'), token),
-  importFile: async (kind: EstimateFileKind, year: number, url: string, file: File, token?: string) => {
+  /** The server works out which allowed file this is (HUD FMRs or BLS OEWS) and its year, and refuses anything else. */
+  importFile: async (file: File, token?: string) => {
     const form = new FormData()
-    form.append('kind', kind); form.append('year', String(year)); form.append('url', url); form.append('file', file)
+    form.append('file', file)
     const response = await fetch(lifeUrl('/admin/import'), { method: 'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: 'include' })
-    return errorHandling(response) as Promise<{ source: string; facts: number; unmatched?: string[]; places?: number }>
+    return errorHandling(response) as Promise<EstimateImportResult>
   },
+  /** A big file keeps loading after the upload answers; ask how it is going. */
+  importStatus: (job: string, token?: string) => request<EstimateImportResult>(lifeUrl(`/admin/import/${encodeURIComponent(job)}`), token),
   review: (sourceKey: string, status: 'reviewed' | 'draft' | 'retired', token?: string) => request<{ facts: number }>(lifeUrl(`/admin/sources/${encodeURIComponent(sourceKey)}/review`), token, 'POST', { status }),
 }

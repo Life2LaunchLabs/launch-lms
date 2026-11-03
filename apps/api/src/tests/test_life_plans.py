@@ -267,3 +267,81 @@ def test_a_goal_moves_between_phases_and_only_its_learner_can_move_it():
     with pytest.raises(HTTPException, match="Goal not found"):
         move("hs", other)
     assert db.exec(select(Goal)).first().goal_uuid == goal.goal_uuid
+
+
+def test_zip_from_the_publisher_is_read():
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("oesm25all/", "")
+        zf.writestr("oesm25all/all_data.csv", OEWS_CSV)
+    with _session() as db:
+        result = importers.import_bls_oews(db, buf.getvalue(), "oesm25all.zip", year=2025, url="")
+        assert result["facts"] == 4
+    with pytest.raises(importers.ImportProblem):
+        importers.read_table(b"not a zip", "x.zip").__next__()
+
+
+def test_admin_import_answers_small_files_and_runs_big_ones_as_jobs(monkeypatch):
+    import time
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from src.routers import life_plans as life_router
+    from src.security.superadmin import require_superadmin
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=__import__("sqlalchemy.pool", fromlist=["StaticPool"]).StaticPool)
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__])
+    monkeypatch.setattr(life_router, "engine", engine)
+    app = FastAPI()
+    app.include_router(life_router.router, prefix="/life")
+    app.dependency_overrides[require_superadmin] = _user
+    with TestClient(app) as client:
+        done = client.post("/life/admin/import", files={"file": ("FY26_FMRs.csv", FMR_CSV, "text/csv")})
+        assert done.status_code == 200 and done.json()["status"] == "done" and done.json()["facts"] == 10
+        assert done.json()["source"] == "hud-fmr-fy2026-or" and done.json()["kind"] == "hud_fmr"
+
+        monkeypatch.setattr(life_router, "_IMPORT_WAIT_SECONDS", 0)
+        started = client.post("/life/admin/import", files={"file": ("FY26_FMRs.csv", FMR_CSV, "text/csv")})
+        assert started.status_code in (200, 202)
+        job = started.json()["job"]
+        for _ in range(50):
+            polled = client.get(f"/life/admin/import/{job}")
+            if polled.status_code == 200:
+                break
+            time.sleep(0.05)
+        assert polled.json()["status"] == "done" and polled.json()["facts"] == 10
+
+        monkeypatch.setattr(life_router, "_IMPORT_WAIT_SECONDS", 20)
+        bad = client.post("/life/admin/import", files={"file": ("x.csv", b"a,b,c\n1,2,3\n", "text/csv")})
+        assert bad.status_code == 400 and "can't load that file" in bad.json()["detail"]
+        assert client.get("/life/admin/import/nope").status_code == 404
+
+
+def test_import_file_works_out_the_source_and_year():
+    import io
+    import zipfile
+
+    with _session() as db:
+        hud = importers.import_file(db, FMR_CSV, "FY27_FMRs.csv")
+        assert (hud["kind"], hud["year"], hud["source"]) == ("hud_fmr", 2027, "hud-fmr-fy2027-or")
+        src = db.exec(select(EstimateSource).where(EstimateSource.key == "hud-fmr-fy2027-or")).one()
+        assert src.url == importers.HUD_FMR_URL
+        # Renamed, the population year (three years before the fiscal year) still tells it.
+        renamed = FMR_CSV.replace(b"fmr_4\n", b"fmr_4,pop2023\n", 1)
+        assert importers.import_file(db, renamed, "rents.csv")["year"] == 2026
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("oesm25all/all_data_M_2025.csv", OEWS_CSV)
+        bls = importers.import_file(db, buf.getvalue(), "download.zip")
+        assert (bls["kind"], bls["year"]) == ("bls_oews", 2025)
+        assert importers.import_file(db, OEWS_CSV, "oesm24all.csv")["year"] == 2024
+
+        with pytest.raises(importers.ImportProblem, match="couldn't tell the year"):
+            importers.import_file(db, OEWS_CSV, "wages.csv")
+        with pytest.raises(importers.ImportProblem, match="can't load that file"):
+            importers.import_file(db, b"zip code,safmr 0br,safmr 1br\n97401,1,2\n", "fy2026_safmrs.csv")

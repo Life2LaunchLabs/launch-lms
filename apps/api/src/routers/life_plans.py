@@ -3,12 +3,17 @@
 Platform admins load facts from official files and review them under /life/admin.
 """
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+import asyncio
+import logging
+from datetime import UTC, datetime
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
-from src.core.events.database import get_db_session
+from src.core.events.database import engine, get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
@@ -20,7 +25,7 @@ from src.services.life_plans import plans as plan_service
 
 router = APIRouter()
 
-MAX_UPLOAD = 60 * 1024 * 1024
+MAX_UPLOAD = 200 * 1024 * 1024  # the OEWS all-data zip is ~80 MB, its workbook ~82 MB
 
 
 class EstimateBatch(BaseModel):
@@ -97,28 +102,75 @@ def api_admin_sources(db: Session = Depends(get_db_session), user: PublicUser = 
     return {"sources": estimate_service.coverage(db)}
 
 
+# Imports of big files (the OEWS workbook takes a minute or two to read) outlive the
+# proxy's request timeout, so they run as jobs. One API process serves the app, so the
+# job table lives in memory; a restart forgets running jobs, and the import is simply
+# loaded again.
+_IMPORT_JOBS: dict[str, dict] = {}
+_IMPORT_WAIT_SECONDS = 20
+_IMPORT_TASKS: set[asyncio.Task] = set()  # keeps running jobs from being garbage-collected
+
+
+def _run_import(data: bytes, filename: str) -> dict:
+    with Session(engine) as db:
+        return importers.import_file(db, data, filename)
+
+
+async def _import_job(job_id: str, data: bytes, filename: str) -> dict:
+    job = _IMPORT_JOBS[job_id]
+    try:
+        job["result"] = await run_in_threadpool(_run_import, data, filename)
+        job["status"] = "done"
+    except importers.ImportProblem as exc:
+        job["status"], job["error"] = "failed", str(exc)
+    except Exception:  # noqa: BLE001 - report any failure to the person who started it
+        logging.exception("Life plans import %s failed", job_id)
+        job["status"], job["error"] = "failed", "The file could not be loaded. Check the server log."
+    return job
+
+
+def _job_response(job: dict, response: Response | None = None) -> dict:
+    if job["status"] == "failed":
+        raise HTTPException(status_code=400, detail=job["error"])
+    if job["status"] == "running" and response is not None:
+        response.status_code = 202
+    return {"job": job["id"], "status": job["status"], **(job.get("result") or {})}
+
+
 @router.post("/admin/import")
 async def api_admin_import(
-    kind: str = Form(...),
-    year: int = Form(..., ge=2000, le=2100),
-    url: str = Form(..., max_length=500),
+    response: Response,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db_session),
     user: PublicUser = Depends(require_superadmin),
 ):
-    """Load an official file as draft facts: kind `hud_fmr` or `bls_oews`."""
+    """Load an official file as draft facts. Only the allowed files load (HUD county
+    Fair Market Rents, BLS OEWS all-data); the source and year come from the file.
+
+    Small files answer with the result. A file that takes longer than a few seconds
+    answers 202 with a job id; poll GET /admin/import/{job} for the result."""
     data = await file.read(MAX_UPLOAD + 1)
     if len(data) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="That file is too large.")
+    job_id = uuid4().hex
+    _IMPORT_JOBS[job_id] = {"id": job_id, "status": "running", "filename": file.filename or "", "started": datetime.now(UTC).isoformat()}
+    task = asyncio.create_task(_import_job(job_id, data, file.filename or ""))
+    _IMPORT_TASKS.add(task)
+    task.add_done_callback(_IMPORT_TASKS.discard)
     try:
-        # Reading a big workbook takes a while; keep it off the event loop.
-        if kind == "hud_fmr":
-            return await run_in_threadpool(importers.import_hud_fmr, db, data, file.filename or "", fiscal_year=year, url=url)
-        if kind == "bls_oews":
-            return await run_in_threadpool(importers.import_bls_oews, db, data, file.filename or "", year=year, url=url)
-    except importers.ImportProblem as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    raise HTTPException(status_code=400, detail="Unknown kind.")
+        await asyncio.wait_for(asyncio.shield(task), timeout=_IMPORT_WAIT_SECONDS)
+    except TimeoutError:
+        pass
+    return _job_response(_IMPORT_JOBS[job_id], response)
+
+
+
+@router.get("/admin/import/{job_id}")
+def api_admin_import_status(job_id: str, response: Response, user: PublicUser = Depends(require_superadmin)):
+    """The state of an import job: running, done (with the result) or failed."""
+    job = _IMPORT_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="No such import. If the server restarted, load the file again.")
+    return _job_response(job, response)
 
 
 class ReviewBody(BaseModel):

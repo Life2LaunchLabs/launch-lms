@@ -16,7 +16,8 @@ from __future__ import annotations
 import csv
 import io
 import re
-from collections.abc import Iterator
+import itertools
+from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
 
 from sqlmodel import Session, delete, select
@@ -37,6 +38,9 @@ def _now() -> str:
 def read_table(data: bytes, filename: str) -> Iterator[dict[str, str]]:
     """Rows of the first sheet (or the CSV) as dicts keyed by lowercased header."""
     name = filename.lower()
+    if name.endswith(".zip"):
+        data, filename = _unzip_table(data)
+        name = filename.lower()
     if name.endswith(".csv"):
         text = data.decode("utf-8-sig", errors="replace")
         for row in csv.DictReader(io.StringIO(text)):
@@ -66,7 +70,26 @@ def read_table(data: bytes, filename: str) -> Iterator[dict[str, str]]:
                 continue
             yield dict(zip(header, cells))
         return
-    raise ImportProblem("Upload the publisher's .xlsx or .csv file.")
+    raise ImportProblem("Upload the publisher's .xlsx, .csv or .zip file.")
+
+
+def _unzip_table(data: bytes) -> tuple[bytes, str]:
+    """The workbook or CSV inside a publisher's zip (BLS ships OEWS as oesm25all.zip)."""
+    import zipfile
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as exc:
+        raise ImportProblem("That zip file could not be opened.") from exc
+    with zf:
+        tables = [i for i in zf.infolist() if not i.is_dir() and i.filename.lower().endswith((".xlsx", ".csv")) and not i.filename.startswith("__MACOSX/")]
+        if not tables:
+            raise ImportProblem("The zip has no .xlsx or .csv file in it.")
+        # The data file is the biggest one (BLS zips hold only the workbook today).
+        item = max(tables, key=lambda i: i.file_size)
+        if item.file_size > 400 * 1024 * 1024:
+            raise ImportProblem("The file inside the zip is too large.")
+        return zf.read(item), item.filename.rsplit("/", 1)[-1]
 
 
 def _without_core_dates(data: bytes) -> bytes:
@@ -116,9 +139,9 @@ def _replace_facts(db: Session, src: EstimateSource, facts: list[EstimateFact]) 
     return len(facts)
 
 
-def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int, url: str, state: str = "OR") -> dict:
+def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int, url: str, state: str = "OR", rows: Iterable[dict[str, str]] | None = None) -> dict:
     """HUD Fair Market Rents by county, studio to 4 bedrooms, for one state's counties."""
-    rows = list(read_table(data, filename))
+    rows = list(rows if rows is not None else read_table(data, filename))
     if not rows:
         raise ImportProblem("The file has no rows.")
     cols = rows[0].keys()
@@ -126,6 +149,8 @@ def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int,
     state_col = next((c for c in ("stusps", "state_alpha", "state_abbr", "st") if c in cols), None)
     county_col = next((c for c in ("countyname", "county_name", "county_town_name", "areaname") if c in cols), None)
     if len(fmr_cols) < 5 or not state_col or not county_col:
+        if "occ_code" in cols:
+            raise ImportProblem("This looks like the BLS wages (OEWS) file. Choose BLS wages (OEWS) as the source and load it again.")
         raise ImportProblem(f"Expected columns fmr_0..fmr_4, a state column and a county column; found {', '.join(cols)}.")
     facts: list[EstimateFact] = []
     unmatched: list[str] = []
@@ -159,12 +184,66 @@ def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int,
     return {"source": src.key, "facts": n, "unmatched": sorted(set(unmatched))[:20]}
 
 
+HUD_FMR_URL = "https://www.huduser.gov/portal/datasets/fmr.html"
+BLS_OEWS_URL = "https://www.bls.gov/oes/tables.htm"
+NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx) or BLS's OEWS all-data file (like oesm25all.zip), as the publisher gives it."
+
+
+def _zip_table_name(data: bytes) -> str:
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            tables = [i for i in zf.infolist() if not i.is_dir() and i.filename.lower().endswith((".xlsx", ".csv"))]
+            return max(tables, key=lambda i: i.file_size).filename if tables else ""
+    except zipfile.BadZipFile:
+        return ""
+
+
+def _year_from(names: list[str], patterns: tuple[str, ...]) -> int | None:
+    for name in names:
+        for pattern in patterns:
+            if m := re.search(pattern, name.lower()):
+                n = int(m.group(1))
+                return n + 2000 if n < 100 else n
+    return None
+
+
+def import_file(db: Session, data: bytes, filename: str) -> dict:
+    """Load whichever allowed file this is, working out the source and year from the file.
+
+    Allowed: HUD's county Fair Market Rents (FYxx_FMRs.xlsx) and BLS's OEWS all-data
+    file (oesmYYall.zip). Anything else is refused."""
+    names = [filename] + ([_zip_table_name(data)] if filename.lower().endswith(".zip") else [])
+    rows = read_table(data, filename)
+    first = next(rows, None)
+    if first is None:
+        raise ImportProblem("The file has no rows.")
+    cols = set(first)
+    rows = itertools.chain([first], rows)
+    if {"area", "occ_code", "h_median", "a_median"} <= cols:
+        year = _year_from(names, (r"oesm(\d{2})", r"_m_?(20\d{2})"))
+        if not year:
+            raise ImportProblem("We couldn't tell the year of this OEWS file. Upload it with the name BLS gives it, like oesm25all.zip.")
+        return {"kind": "bls_oews", "year": year, **import_bls_oews(db, data, filename, year=year, url=BLS_OEWS_URL, rows=rows)}
+    if all(f"fmr_{n}" in cols for n in range(5)) and "countyname" in cols:
+        year = _year_from(names, (r"fy_?(20\d{2}|\d{2})",))
+        if not year:
+            # HUD's county file carries the population year the FMRs were built on, three years before the fiscal year.
+            pop = next((int(c[3:]) for c in cols if re.fullmatch(r"pop20\d{2}", c)), None)
+            year = pop + 3 if pop else None
+        if not year:
+            raise ImportProblem("We couldn't tell the fiscal year of this FMR file. Upload it with the name HUD gives it, like FY27_FMRs.xlsx.")
+        return {"kind": "hud_fmr", "year": year, **import_hud_fmr(db, data, filename, fiscal_year=year, url=HUD_FMR_URL, rows=rows)}
+    raise ImportProblem(NOT_ALLOWED)
+
+
 OEWS_PCTS = (("p10", "pct10"), ("p25", "pct25"), ("p50", "median"), ("p75", "pct75"), ("p90", "pct90"))
 
 
-def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: str) -> dict:
+def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: str, rows: Iterable[dict[str, str]] | None = None) -> dict:
     """BLS OEWS wages by occupation: national, state, and Oregon's metro and nonmetro areas."""
-    rows = read_table(data, filename)
+    rows = rows if rows is not None else read_table(data, filename)
     oregon_areas = {code for _, code, _ in places.OR_COUNTIES.values()}
     facts: list[EstimateFact] = []
     kept_areas: set[str] = set()
@@ -173,6 +252,8 @@ def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: 
         if first:
             need = {"area", "occ_code", "occ_title", "h_median", "a_median"}
             if not need <= set(r):
+                if any(re.fullmatch(r"fmr_?[0-4]", c) for c in r):
+                    raise ImportProblem("This looks like the HUD Fair Market Rents file. Choose HUD Fair Market Rents as the source and load it again.")
                 raise ImportProblem(f"Expected OEWS columns {', '.join(sorted(need))}; found {', '.join(r)}.")
             first = False
         group = (r.get("o_group") or r.get("occ_group") or "").lower()
