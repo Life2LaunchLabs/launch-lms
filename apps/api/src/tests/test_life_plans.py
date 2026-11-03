@@ -299,13 +299,13 @@ def test_admin_import_answers_small_files_and_runs_big_ones_as_jobs(monkeypatch)
     app = FastAPI()
     app.include_router(life_router.router, prefix="/life")
     app.dependency_overrides[require_superadmin] = _user
-    form = {"kind": "hud_fmr", "year": "2026", "url": "https://example.com/fmr"}
     with TestClient(app) as client:
-        done = client.post("/life/admin/import", data=form, files={"file": ("fmr.csv", FMR_CSV, "text/csv")})
+        done = client.post("/life/admin/import", files={"file": ("FY26_FMRs.csv", FMR_CSV, "text/csv")})
         assert done.status_code == 200 and done.json()["status"] == "done" and done.json()["facts"] == 10
+        assert done.json()["source"] == "hud-fmr-fy2026-or" and done.json()["kind"] == "hud_fmr"
 
         monkeypatch.setattr(life_router, "_IMPORT_WAIT_SECONDS", 0)
-        started = client.post("/life/admin/import", data=form, files={"file": ("fmr.csv", FMR_CSV, "text/csv")})
+        started = client.post("/life/admin/import", files={"file": ("FY26_FMRs.csv", FMR_CSV, "text/csv")})
         assert started.status_code in (200, 202)
         job = started.json()["job"]
         for _ in range(50):
@@ -316,6 +316,32 @@ def test_admin_import_answers_small_files_and_runs_big_ones_as_jobs(monkeypatch)
         assert polled.json()["status"] == "done" and polled.json()["facts"] == 10
 
         monkeypatch.setattr(life_router, "_IMPORT_WAIT_SECONDS", 20)
-        bad = client.post("/life/admin/import", data={**form, "kind": "bls_oews"}, files={"file": ("x.csv", b"a,b\n1,2\n", "text/csv")})
-        assert bad.status_code == 400
+        bad = client.post("/life/admin/import", files={"file": ("x.csv", b"a,b,c\n1,2,3\n", "text/csv")})
+        assert bad.status_code == 400 and "can't load that file" in bad.json()["detail"]
         assert client.get("/life/admin/import/nope").status_code == 404
+
+
+def test_import_file_works_out_the_source_and_year():
+    import io
+    import zipfile
+
+    with _session() as db:
+        hud = importers.import_file(db, FMR_CSV, "FY27_FMRs.csv")
+        assert (hud["kind"], hud["year"], hud["source"]) == ("hud_fmr", 2027, "hud-fmr-fy2027-or")
+        src = db.exec(select(EstimateSource).where(EstimateSource.key == "hud-fmr-fy2027-or")).one()
+        assert src.url == importers.HUD_FMR_URL
+        # Renamed, the population year (three years before the fiscal year) still tells it.
+        renamed = FMR_CSV.replace(b"fmr_4\n", b"fmr_4,pop2023\n", 1)
+        assert importers.import_file(db, renamed, "rents.csv")["year"] == 2026
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("oesm25all/all_data_M_2025.csv", OEWS_CSV)
+        bls = importers.import_file(db, buf.getvalue(), "download.zip")
+        assert (bls["kind"], bls["year"]) == ("bls_oews", 2025)
+        assert importers.import_file(db, OEWS_CSV, "oesm24all.csv")["year"] == 2024
+
+        with pytest.raises(importers.ImportProblem, match="couldn't tell the year"):
+            importers.import_file(db, OEWS_CSV, "wages.csv")
+        with pytest.raises(importers.ImportProblem, match="can't load that file"):
+            importers.import_file(db, b"zip code,safmr 0br,safmr 1br\n97401,1,2\n", "fy2026_safmrs.csv")

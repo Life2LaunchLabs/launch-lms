@@ -8,7 +8,7 @@ import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlmodel import Session
@@ -111,17 +111,15 @@ _IMPORT_WAIT_SECONDS = 20
 _IMPORT_TASKS: set[asyncio.Task] = set()  # keeps running jobs from being garbage-collected
 
 
-def _run_import(kind: str, data: bytes, filename: str, year: int, url: str) -> dict:
+def _run_import(data: bytes, filename: str) -> dict:
     with Session(engine) as db:
-        if kind == "hud_fmr":
-            return importers.import_hud_fmr(db, data, filename, fiscal_year=year, url=url)
-        return importers.import_bls_oews(db, data, filename, year=year, url=url)
+        return importers.import_file(db, data, filename)
 
 
-async def _import_job(job_id: str, kind: str, data: bytes, filename: str, year: int, url: str) -> dict:
+async def _import_job(job_id: str, data: bytes, filename: str) -> dict:
     job = _IMPORT_JOBS[job_id]
     try:
-        job["result"] = await run_in_threadpool(_run_import, kind, data, filename, year, url)
+        job["result"] = await run_in_threadpool(_run_import, data, filename)
         job["status"] = "done"
     except importers.ImportProblem as exc:
         job["status"], job["error"] = "failed", str(exc)
@@ -142,24 +140,20 @@ def _job_response(job: dict, response: Response | None = None) -> dict:
 @router.post("/admin/import")
 async def api_admin_import(
     response: Response,
-    kind: str = Form(...),
-    year: int = Form(..., ge=2000, le=2100),
-    url: str = Form(..., max_length=500),
     file: UploadFile = File(...),
     user: PublicUser = Depends(require_superadmin),
 ):
-    """Load an official file as draft facts: kind `hud_fmr` or `bls_oews`.
+    """Load an official file as draft facts. Only the allowed files load (HUD county
+    Fair Market Rents, BLS OEWS all-data); the source and year come from the file.
 
     Small files answer with the result. A file that takes longer than a few seconds
     answers 202 with a job id; poll GET /admin/import/{job} for the result."""
-    if kind not in ("hud_fmr", "bls_oews"):
-        raise HTTPException(status_code=400, detail="Unknown kind.")
     data = await file.read(MAX_UPLOAD + 1)
     if len(data) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="That file is too large.")
     job_id = uuid4().hex
-    _IMPORT_JOBS[job_id] = {"id": job_id, "status": "running", "kind": kind, "filename": file.filename or "", "started": datetime.now(UTC).isoformat()}
-    task = asyncio.create_task(_import_job(job_id, kind, data, file.filename or "", year, url))
+    _IMPORT_JOBS[job_id] = {"id": job_id, "status": "running", "filename": file.filename or "", "started": datetime.now(UTC).isoformat()}
+    task = asyncio.create_task(_import_job(job_id, data, file.filename or ""))
     _IMPORT_TASKS.add(task)
     task.add_done_callback(_IMPORT_TASKS.discard)
     try:
