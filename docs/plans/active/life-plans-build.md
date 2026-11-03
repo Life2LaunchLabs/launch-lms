@@ -30,10 +30,29 @@ then mark the source reviewed with `POST /api/v1/life/admin/sources/{key}/review
 Oregon places (`services/life_plans/places.py`) map about 50 towns to their counties and every
 county to its BLS area (BLS county crosswalk, May 2024).
 
+## Public catalog (`services/life_plans/public_data.py`)
+
+Facts are numbers; catalog entries are things a learner picks. Both load through the same upload,
+land as drafts tied to an `EstimateSource`, and show only once that source is reviewed.
+
+- `onet`: the O*NET text database (`db_31_0_text.zip`), CC BY 4.0. `CareerEntry` per O*NET-SOC code:
+  title, description, RIASEC profile (Interests, OI scale 1 to 7), job zone, up to 25 other titles.
+  `soc` is the six-digit code BLS pay facts use. A newer release replaces the older one's careers.
+- `scorecard`: the College Scorecard most recent institution file (`Most-Recent-Cohorts-Institution.csv`,
+  or the data zip holding it). `SchoolEntry` per operating school (federal unit id): type, main degree,
+  undergrad size, admission and completion rates, median earnings 10 years after entry. In-state and
+  out-of-state tuition load as `tuition` facts (`place: us`, dims `school` + `residency`, yearly).
+- Career matching correlates the learner's six RIASEC scores with each career's profile, so any scale works
+  (the CIS import's 0 to 40, O*NET's 1 to 7). It ranks; it doesn't predict, and the response says so.
+
+Not yet: Scorecard fields of study (programs by CIP code), CareerOneStop (videos, certifications,
+apprenticeships; needs a registered key), outlook, and the budget's tuition line picking a school.
+
 ## API (`/api/v1/life`)
 
 `GET/PUT/DELETE /plan` (one plan per learner, a validated JSON document, revision check returns 409),
-`GET /catalog`, `GET /places`, `GET /occupations`, `POST /estimates`, and the admin routes above.
+`GET /catalog`, `GET /places`, `GET /occupations`, `POST /estimates`, `GET /careers`, `GET /careers/{code}`,
+`POST /careers/match`, `GET /schools`, `GET /schools/{unitid}`, and the admin routes above.
 
 ## Web (`components/LifePlan/`)
 

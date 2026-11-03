@@ -81,6 +81,10 @@ export interface Catalog {
 }
 export interface PlaceOption { key: string; label: string; detail: string; level: string }
 export interface Occupation { soc: string; title: string }
+/** A career from O*NET. `interests` is its RIASEC profile on O*NET's 1 to 7 scale; `match` comes back from careerMatch. */
+export interface Career { code: string; soc: string; title: string; job_zone: number | null; interests: Record<string, number>; top_interests: string; match?: number; description?: string; alt_titles?: string[]; source?: { key: string; title: string; license: string; url: string } | null }
+/** A school from the College Scorecard. Rates are fractions; tuition is yearly, in-state and out-of-state. */
+export interface School { unitid: string; name: string; city: string; state: string; url: string; control: string; degree: string; students: number | null; admission_rate: number | null; completion_rate: number | null; median_earnings: number | null; tuition?: { in?: number; out?: number }; source?: { key: string; title: string; released: string; url: string } | null }
 
 const q = encodeURIComponent
 
@@ -96,18 +100,24 @@ export const lifeApi = {
   catalog: (token?: string) => request<Catalog>(lifeUrl('/catalog'), token),
   places: (query: string, token?: string) => request<{ places: PlaceOption[] }>(lifeUrl(`/places?q=${q(query)}`), token),
   occupations: (query: string, token?: string) => request<{ occupations: Occupation[] }>(lifeUrl(`/occupations?q=${q(query)}`), token),
+  careers: (query: string, token?: string) => request<{ careers: Career[] }>(lifeUrl(`/careers?q=${q(query)}`), token),
+  career: (code: string, token?: string) => request<{ career: Career }>(lifeUrl(`/careers/${q(code)}`), token),
+  /** Careers whose interest profile lines up with these R, I, A, S, E and C scores (any scale). */
+  careerMatch: (scores: Record<string, number>, token?: string, jobZones?: number[]) => request<{ careers: Career[]; method: string }>(lifeUrl('/careers/match'), token, 'POST', { scores, job_zones: jobZones || null }),
+  schools: (query: string, state: string | null, token?: string) => request<{ schools: School[] }>(lifeUrl(`/schools?q=${q(query)}${state ? `&state=${q(state)}` : ''}`), token),
+  school: (unitid: string, token?: string) => request<{ school: School }>(lifeUrl(`/schools/${q(unitid)}`), token),
   metrics: (place: string | null | undefined, token?: string) => request<{ metrics: string[] }>(lifeUrl(`/metrics${place ? `?place=${q(place)}` : ''}`), token),
   estimates: (queries: EstimateQuery[], token?: string) => request<{ estimates: Record<string, Estimate | null> }>(lifeUrl('/estimates'), token, 'POST', { queries }),
 }
 
-/** A source of estimate facts, with how many facts it has by status, for platform admins. */
-export interface SourceCoverage extends EstimateSource { id: number; facts: number; by_status: Record<string, number>; levels: Record<string, number>; metrics: string[] }
-export type EstimateFileKind = 'hud_fmr' | 'bls_oews'
-export interface EstimateImportResult { job: string; status: 'running' | 'done'; kind?: EstimateFileKind; year?: number; source?: string; facts?: number; unmatched?: string[]; places?: number }
+/** A source of estimate facts or catalog entries (careers, schools), with how many it has by status, for platform admins. */
+export interface SourceCoverage extends EstimateSource { id: number; facts: number; entries?: number; by_status: Record<string, number>; levels: Record<string, number>; metrics: string[] }
+export type EstimateFileKind = 'hud_fmr' | 'bls_oews' | 'onet' | 'scorecard'
+export interface EstimateImportResult { job: string; status: 'running' | 'done'; kind?: EstimateFileKind; year?: number; source?: string; facts?: number; unmatched?: string[]; places?: number; careers?: number; schools?: number }
 
 export const lifeAdminApi = {
   sources: (token?: string) => request<{ sources: SourceCoverage[] }>(lifeUrl('/admin/sources'), token),
-  /** The server works out which allowed file this is (HUD FMRs or BLS OEWS) and its year, and refuses anything else. */
+  /** The server works out which allowed file this is (HUD FMRs, BLS OEWS, O*NET, College Scorecard) and its release, and refuses anything else. */
   importFile: async (file: File, token?: string) => {
     const form = new FormData()
     form.append('file', file)

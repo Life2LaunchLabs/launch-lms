@@ -22,6 +22,7 @@ from src.services.life_plans import estimates as estimate_service
 from src.services.life_plans import importers
 from src.services.life_plans import places as place_service
 from src.services.life_plans import plans as plan_service
+from src.services.life_plans import public_data
 
 router = APIRouter()
 
@@ -85,6 +86,50 @@ def api_occupations(q: str = "", db: Session = Depends(get_db_session), user: Pu
     return {"occupations": estimate_service.occupations(db, q)}
 
 
+@router.get("/careers")
+def api_careers(q: str = "", limit: int = 20, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Reviewed careers from O*NET, matched on their title and other titles."""
+    return {"careers": public_data.search_careers(db, q, limit=min(max(limit, 1), 50))}
+
+
+class CareerMatch(BaseModel):
+    scores: dict[str, float] = Field(description="A score for each of R, I, A, S, E and C, on any scale.")
+    job_zones: list[int] | None = None
+    limit: int = Field(default=20, ge=1, le=50)
+
+
+@router.post("/careers/match")
+def api_match_careers(body: CareerMatch, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Careers whose RIASEC profile lines up with these interest scores, closest first."""
+    try:
+        careers = public_data.match_careers(db, {k.upper(): v for k, v in body.scores.items()}, job_zones=body.job_zones, limit=body.limit)
+    except public_data.CatalogProblem as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"careers": careers, "method": "Correlation between your six interest scores and each career's O*NET interest profile; 1 means the same shape."}
+
+
+@router.get("/careers/{code}")
+def api_career(code: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    career = public_data.get_career(db, code)
+    if not career:
+        raise HTTPException(status_code=404, detail="No such career.")
+    return {"career": career}
+
+
+@router.get("/schools")
+def api_schools(q: str = "", state: str | None = None, limit: int = 20, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Reviewed schools from the College Scorecard, matched on their name."""
+    return {"schools": public_data.search_schools(db, q, state=state, limit=min(max(limit, 1), 50))}
+
+
+@router.get("/schools/{unitid}")
+def api_school(unitid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    school = public_data.get_school(db, unitid)
+    if not school:
+        raise HTTPException(status_code=404, detail="No such school.")
+    return {"school": school}
+
+
 @router.get("/metrics")
 def api_available_metrics(place: str | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Which metrics we have reviewed facts for at this place (or one it sits in)."""
@@ -143,8 +188,9 @@ async def api_admin_import(
     file: UploadFile = File(...),
     user: PublicUser = Depends(require_superadmin),
 ):
-    """Load an official file as draft facts. Only the allowed files load (HUD county
-    Fair Market Rents, BLS OEWS all-data); the source and year come from the file.
+    """Load an official file as draft facts or catalog entries. Only the allowed files
+    load (HUD county Fair Market Rents, BLS OEWS all-data, the O*NET text database, the
+    College Scorecard institution file); the source and release come from the file.
 
     Small files answer with the result. A file that takes longer than a few seconds
     answers 202 with a job id; poll GET /admin/import/{job} for the result."""
