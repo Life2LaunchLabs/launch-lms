@@ -32,6 +32,7 @@ from src.security.security import security_hash_password, security_verify_passwo
 from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
+from src.services.epp.records import freeze_exits
 from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs import staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
@@ -850,15 +851,9 @@ async def delete_user_by_id(
     # RBAC check
     await rbac_check(request, current_user, "delete", user.user_uuid, db_session)
 
-    # Schools keep the Education Plan and Profile of a supported learner whose account goes.
-    from src.services.epp.records import freeze_exits
-
-    freeze_exits(db_session, user_id)
+    freeze_exits(db_session, user_id)  # schools keep a supported learner's EPP record
     # Remove org memberships first (no CASCADE on this FK)
-    user_orgs = db_session.exec(
-        select(UserOrganization).where(UserOrganization.user_id == user_id)
-    ).all()
-    for uo in user_orgs:
+    for uo in db_session.exec(select(UserOrganization).where(UserOrganization.user_id == user_id)).all():
         db_session.delete(uo)
 
     db_session.flush()
