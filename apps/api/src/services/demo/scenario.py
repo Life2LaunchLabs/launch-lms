@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 # An empty collaborator/participant edge is not useful and can leak membership.
 USER_EDGES = frozenset(
-    "userorganization usergroupuser plancollaborator resourceauthor goal_assignment requirementassignmentbatch".split()
+    "userorganization usergroupuser usergroupstaff plancollaborator resourceauthor goal_assignment requirementassignmentbatch".split()
 )
 
 
@@ -24,6 +24,12 @@ def exclude_real_users(
         if value
     }
     lowered = {email.lower() for email in emails}
+    # A chat with anyone outside the cohort never copies, not even the cohort's side.
+    shared_chats = {
+        row["conversation_id"]
+        for row in rows.get("conversationmember", {}).values()
+        if row["user_id"] not in cohort_ids
+    }
     rows["user"] = {
         key: row for key, row in rows["user"].items() if row["id"] in cohort_ids
     }
@@ -96,6 +102,14 @@ def exclude_real_users(
                 name == "goal"
                 and row.get("subject_user_id") is not None
                 and row["subject_user_id"] not in cohort_ids
+            ):
+                remove = True
+            if name == "conversation" and row["id"] in shared_chats:
+                remove = True
+            if (
+                name == "conversationmessage"
+                and row.get("sender_user_id") is not None
+                and row["sender_user_id"] not in cohort_ids
             ):
                 remove = True
             if (
