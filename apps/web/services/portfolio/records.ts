@@ -6,12 +6,25 @@ import { RequestBodyFormWithAuthHeader, RequestBodyWithAuthHeader, errorHandling
 
 /** A number people notice first, and what it means. */
 export type Highlight = { value: string; label: string }
-export type LookId = 'pop' | 'studio' | 'midnight' | 'sunset'
+export type LookId = 'playful' | 'gallery' | 'volt'
 export type LookMode = 'light' | 'dark' | 'system'
+export type SectionType = 'highlights' | 'feature' | 'about' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people'
+/** One section in a row of the stack: its width in sixths (2, 3, 4 or 6). */
+export type StackItem = { type: SectionType; u: number }
+export type FeatureKind = 'project' | 'experience' | 'quote' | 'badge' | 'credential' | 'link'
+export type FeatureItem = { kind: FeatureKind; ref: string }
 /** The front page's layout and the learner's look (null until they pick one), light or dark, accent and banner. */
 export type PortfolioLayout = {
   header: 'left' | 'center'; sections: 'grid' | 'list'; look?: LookId | null
   mode?: LookMode | null; accent?: string | null; banner?: string; banner_image?: { asset_uuid: string; url: string } | null
+  /** Rows of up to three sections; null while the learner is on the look's suggested layout. */
+  stack?: StackItem[][] | null
+  /** The learner's own section titles, which follow them to every look. */
+  names?: Partial<Record<SectionType, string>>
+  /** Heights in px per look ("volt") and per look on phones ("volt:phone"); 0 fits the content. */
+  heights?: Record<string, Partial<Record<SectionType, number>>>
+  features?: FeatureItem[]
+  feature_autoplay?: boolean
 }
 /** What a layout save takes: the accent as "" clears it, and a photo is sent by its asset. */
 export type LayoutChange = Partial<Omit<PortfolioLayout, 'banner_image'>> & { banner_image_uuid?: string }

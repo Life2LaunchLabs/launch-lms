@@ -2,11 +2,12 @@
    A learner's look (components/Looks/looks.ts) themes the whole app when set on <html>, and a portfolio
    when set on its page, so visitors see it in its owner's look. Each look has a light side ([data-look])
    and a dark side (.dark[data-look], the same element carrying the theme class), and sets the full token
-   set, so it holds inside a page of another look. Unlayered, so it wins over the light and dark tokens.
-   An accent ([data-accent], after the looks) recolors the brand tokens of whichever look is on. */
+   set, so it holds inside a page of another look. Unlayered, so it wins over the light and dark tokens and
+   over Tailwind's utilities. An accent ([data-accent], after the looks) recolors the brand tokens.
+   After the tokens: the few components each look draws its own way (buttons app-wide, then the portfolio). */
 
-[data-look='pop'],
-[data-look='pop'] [data-org-theme] {
+[data-look='playful'],
+[data-look='playful'] [data-org-theme] {
   --background: 200 25% 97%;
   --foreground: 200 30% 9%;
   --card: 0 0% 100%;
@@ -38,141 +39,8 @@
   --look-c: #f5a524;
 }
 
-[data-look='studio'],
-[data-look='studio'] [data-org-theme] {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 7%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 7%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 7%;
-  --primary: 0 0% 7%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 95%;
-  --secondary-foreground: 0 0% 7%;
-  --muted: 0 0% 95%;
-  --muted-foreground: 0 0% 40%;
-  --accent: 0 0% 93%;
-  --accent-foreground: 0 0% 7%;
-  --border: 0 0% 88%;
-  --input: 0 0% 84%;
-  --ring: 0 0% 7%;
-  --brand: 0 0% 7%;
-  --brand-soft: 0 0% 94%;
-  --brand-ink: 0 0% 7%;
-  --shell: 0 0% 95%;
-  --raised: 0 0% 96%;
-  --edge: 0 0% 82%;
-  --radius: 0.25rem;
-  --org-page-background: #ffffff;
-  --org-primary-color: #111111;
-  --org-on-primary-color: #ffffff;
-  --look-a: #111111;
-  --look-b: #3a3a3a;
-  --look-c: #8a8a8a;
-}
-
-[data-look='midnight'],
-[data-look='midnight'] [data-org-theme] {
-  --background: 246 100% 98%;
-  --foreground: 240 40% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 40% 12%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 40% 12%;
-  --primary: 240 40% 12%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 248 80% 95%;
-  --secondary-foreground: 240 40% 12%;
-  --muted: 248 80% 95%;
-  --muted-foreground: 245 15% 42%;
-  --accent: 248 70% 93%;
-  --accent-foreground: 240 40% 12%;
-  --border: 248 45% 88%;
-  --input: 248 40% 84%;
-  --ring: 258 67% 50%;
-  --brand: 258 67% 50%;
-  --brand-soft: 252 100% 95%;
-  --brand-ink: 258 60% 40%;
-  --shell: 248 60% 93%;
-  --raised: 248 80% 96%;
-  --edge: 248 35% 80%;
-  --org-page-background: #f4f3ff;
-  --org-primary-color: #5b2bd6;
-  --org-on-primary-color: #ffffff;
-  --look-a: #5b2bd6;
-  --look-b: #00b3a6;
-  --look-c: #b9a8ff;
-}
-
-.dark[data-look='midnight'],
-.dark[data-look='midnight'] [data-org-theme] {
-  --background: 229 46% 8%;
-  --foreground: 230 100% 97%;
-  --card: 228 42% 14%;
-  --card-foreground: 230 100% 97%;
-  --popover: 228 42% 15%;
-  --popover-foreground: 230 100% 97%;
-  --primary: 230 100% 97%;
-  --primary-foreground: 229 46% 8%;
-  --secondary: 228 39% 19%;
-  --secondary-foreground: 230 100% 97%;
-  --muted: 228 39% 19%;
-  --muted-foreground: 228 30% 69%;
-  --accent: 228 36% 22%;
-  --accent-foreground: 230 100% 97%;
-  --border: 229 36% 24%;
-  --input: 229 36% 27%;
-  --ring: 233 100% 74%;
-  --brand: 233 100% 74%;
-  --brand-soft: 231 43% 23%;
-  --brand-ink: 233 100% 86%;
-  --shell: 229 50% 5%;
-  --raised: 228 39% 19%;
-  --edge: 229 36% 22%;
-  --org-page-background: #0b0f1e;
-  --org-primary-color: #7c5cff;
-  --org-on-primary-color: #ffffff;
-  --look-a: #5b2bd6;
-  --look-b: #00d1c1;
-  --look-c: #1b1f4b;
-}
-
-[data-look='sunset'],
-[data-look='sunset'] [data-org-theme] {
-  --background: 28 100% 97%;
-  --foreground: 13 40% 12%;
-  --card: 30 100% 99%;
-  --card-foreground: 13 40% 12%;
-  --popover: 30 100% 99%;
-  --popover-foreground: 13 40% 12%;
-  --primary: 13 40% 12%;
-  --primary-foreground: 30 100% 99%;
-  --secondary: 24 90% 92%;
-  --secondary-foreground: 13 40% 12%;
-  --muted: 24 90% 92%;
-  --muted-foreground: 17 23% 39%;
-  --accent: 24 85% 90%;
-  --accent-foreground: 13 40% 12%;
-  --border: 23 66% 86%;
-  --input: 23 60% 82%;
-  --ring: 18 80% 54%;
-  --brand: 18 80% 54%;
-  --brand-soft: 21 100% 92%;
-  --brand-ink: 17 73% 38%;
-  --shell: 24 80% 92%;
-  --raised: 24 90% 94%;
-  --edge: 23 50% 80%;
-  --org-page-background: #fff6ee;
-  --org-primary-color: #e8642c;
-  --org-on-primary-color: #ffffff;
-  --look-a: #f5a524;
-  --look-b: #e8642c;
-  --look-c: #c8327d;
-}
-
-.dark[data-look='pop'],
-.dark[data-look='pop'] [data-org-theme] {
+.dark[data-look='playful'],
+.dark[data-look='playful'] [data-org-theme] {
   --background: 210 33% 8%;
   --foreground: 205 40% 96%;
   --card: 210 30% 12%;
@@ -204,71 +72,144 @@
   --look-c: #f5a524;
 }
 
-.dark[data-look='studio'],
-.dark[data-look='studio'] [data-org-theme] {
-  --background: 0 0% 4%;
-  --foreground: 0 0% 95%;
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 95%;
-  --popover: 0 0% 8%;
-  --popover-foreground: 0 0% 95%;
-  --primary: 0 0% 95%;
-  --primary-foreground: 0 0% 4%;
-  --secondary: 0 0% 12%;
-  --secondary-foreground: 0 0% 95%;
-  --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 62%;
-  --accent: 0 0% 14%;
-  --accent-foreground: 0 0% 95%;
-  --border: 0 0% 18%;
-  --input: 0 0% 22%;
-  --ring: 0 0% 95%;
-  --brand: 0 0% 95%;
-  --brand-soft: 0 0% 14%;
-  --brand-ink: 0 0% 95%;
-  --shell: 0 0% 2%;
-  --raised: 0 0% 11%;
-  --edge: 0 0% 20%;
-  --radius: 0.25rem;
-  --org-page-background: #0a0a0a;
-  --org-primary-color: #f2f2f2;
-  --org-on-primary-color: #0a0a0a;
-  --look-a: #2a2a2a;
-  --look-b: #555555;
+[data-look='gallery'],
+[data-look='gallery'] [data-org-theme] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 0 0% 4%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 95%;
+  --secondary-foreground: 0 0% 4%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 0 0% 93%;
+  --accent-foreground: 0 0% 4%;
+  --border: 0 0% 85%;
+  --input: 0 0% 80%;
+  --ring: 15 100% 50%;
+  --brand: 15 100% 50%;
+  --brand-soft: 15 100% 95%;
+  --brand-ink: 15 100% 38%;
+  --shell: 0 0% 96%;
+  --raised: 0 0% 96%;
+  --edge: 0 0% 80%;
+  --radius: 0.125rem;
+  --org-page-background: #ffffff;
+  --org-primary-color: #ff3d00;
+  --org-on-primary-color: #ffffff;
+  --look-a: #ff3d00;
+  --look-b: #0b0b0b;
   --look-c: #8a8a8a;
+  --look-line: #0b0b0b;
 }
 
-.dark[data-look='sunset'],
-.dark[data-look='sunset'] [data-org-theme] {
-  --background: 18 33% 7%;
-  --foreground: 28 80% 95%;
-  --card: 18 30% 11%;
-  --card-foreground: 28 80% 95%;
-  --popover: 18 30% 12%;
-  --popover-foreground: 28 80% 95%;
-  --primary: 28 80% 95%;
-  --primary-foreground: 18 33% 7%;
-  --secondary: 18 28% 16%;
-  --secondary-foreground: 28 80% 95%;
-  --muted: 18 28% 16%;
-  --muted-foreground: 22 22% 66%;
-  --accent: 18 26% 19%;
-  --accent-foreground: 28 80% 95%;
-  --border: 18 24% 21%;
-  --input: 18 24% 24%;
-  --ring: 18 85% 58%;
-  --brand: 18 85% 58%;
-  --brand-soft: 16 45% 18%;
-  --brand-ink: 22 100% 78%;
-  --shell: 18 36% 4%;
-  --raised: 18 28% 16%;
-  --edge: 18 24% 19%;
-  --org-page-background: #1a110d;
-  --org-primary-color: #e8642c;
+.dark[data-look='gallery'],
+.dark[data-look='gallery'] [data-org-theme] {
+  --background: 0 0% 4%;
+  --foreground: 45 18% 93%;
+  --card: 0 0% 4%;
+  --card-foreground: 45 18% 93%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 45 18% 93%;
+  --primary: 45 18% 93%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 11%;
+  --secondary-foreground: 45 18% 93%;
+  --muted: 0 0% 11%;
+  --muted-foreground: 40 4% 54%;
+  --accent: 0 0% 13%;
+  --accent-foreground: 45 18% 93%;
+  --border: 0 0% 20%;
+  --input: 0 0% 24%;
+  --ring: 15 100% 55%;
+  --brand: 15 100% 55%;
+  --brand-soft: 15 45% 14%;
+  --brand-ink: 15 100% 72%;
+  --shell: 0 0% 2%;
+  --raised: 0 0% 10%;
+  --edge: 0 0% 18%;
+  --radius: 0.125rem;
+  --org-page-background: #0b0b0b;
+  --org-primary-color: #ff3d00;
   --org-on-primary-color: #ffffff;
-  --look-a: #f5a524;
-  --look-b: #e8642c;
-  --look-c: #c8327d;
+  --look-a: #ff3d00;
+  --look-b: #2a2a2a;
+  --look-c: #555555;
+  --look-line: #f2f0ea;
+}
+
+[data-look='volt'],
+[data-look='volt'] [data-org-theme] {
+  --background: 220 9% 95%;
+  --foreground: 225 11% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 225 11% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 225 11% 5%;
+  --primary: 225 11% 5%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 9% 91%;
+  --secondary-foreground: 225 11% 5%;
+  --muted: 220 9% 91%;
+  --muted-foreground: 220 5% 40%;
+  --accent: 220 9% 90%;
+  --accent-foreground: 225 11% 5%;
+  --border: 220 10% 88%;
+  --input: 220 10% 84%;
+  --ring: 76 78% 45%;
+  --brand: 76 78% 54%;
+  --brand-soft: 76 80% 92%;
+  --brand-ink: 80 70% 26%;
+  --shell: 220 9% 92%;
+  --raised: 220 9% 93%;
+  --edge: 220 10% 82%;
+  --radius: 1rem;
+  --org-page-background: #f1f2f4;
+  --org-primary-color: #b8e62e;
+  --org-on-primary-color: #0c0d0f;
+  --look-a: #b8e62e;
+  --look-b: #0c0d0f;
+  --look-c: #3d4a12;
+  --look-line: #e2e4e8;
+}
+
+.dark[data-look='volt'],
+.dark[data-look='volt'] [data-org-theme] {
+  --background: 240 6% 3%;
+  --foreground: 240 5% 96%;
+  --card: 240 5% 7%;
+  --card-foreground: 240 5% 96%;
+  --popover: 240 5% 8%;
+  --popover-foreground: 240 5% 96%;
+  --primary: 240 5% 96%;
+  --primary-foreground: 240 6% 3%;
+  --secondary: 240 5% 12%;
+  --secondary-foreground: 240 5% 96%;
+  --muted: 240 5% 12%;
+  --muted-foreground: 240 4% 62%;
+  --accent: 240 5% 14%;
+  --accent-foreground: 240 5% 96%;
+  --border: 240 5% 14%;
+  --input: 240 5% 18%;
+  --ring: 76 78% 54%;
+  --brand: 76 78% 54%;
+  --brand-soft: 76 40% 14%;
+  --brand-ink: 76 85% 70%;
+  --shell: 240 6% 2%;
+  --raised: 240 5% 11%;
+  --edge: 240 5% 16%;
+  --radius: 1rem;
+  --org-page-background: #070708;
+  --org-primary-color: #b8e62e;
+  --org-on-primary-color: #0c0d0f;
+  --look-a: #b8e62e;
+  --look-b: #1a1d10;
+  --look-c: #0c0d0f;
+  --look-line: #222226;
 }
 
 /* An accent the learner picked: its hue (set inline by accentVars) takes over the brand tokens. Doubled
@@ -295,3 +236,105 @@
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+
+/* ─── Components each look draws its own way ─── */
+
+/* Volt app-wide: Manrope for text, pill buttons without the 3D edge. */
+html[data-look='volt'] body,
+[data-portfolio-v2][data-look='volt'] { font-family: Manrope, 'Wix Madefor Text', system-ui, sans-serif; letter-spacing: -0.01em; }
+[data-look='volt'] [data-variant='brand'],
+[data-look='volt'] [data-variant='surface'] { border-radius: 999px; box-shadow: none; text-transform: none; letter-spacing: 0; transform: none; }
+[data-look='volt'] [data-variant='surface'] { border-width: 1px; }
+
+/* Gallery app-wide: square, flat buttons with mono capitals. */
+[data-look='gallery'] [data-variant='brand'],
+[data-look='gallery'] [data-variant='surface'] { border-radius: 0; box-shadow: none; transform: none; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; letter-spacing: 0.04em; }
+[data-look='gallery'] [data-variant='surface'] { border-width: 1px; border-color: var(--look-line); }
+
+/* ── The portfolio's section stack ── */
+[data-fit-hidden] { display: none !important; }
+[data-stack-editing] [data-sec] * { pointer-events: none; }
+[data-stack-editing] [data-sec] [data-edit-control],
+[data-stack-editing] [data-sec] [data-edit-control] *,
+[data-stack-editing] [data-sec] [data-hh],
+[data-stack-editing] [data-sec] [data-hh] * { pointer-events: auto; }
+[data-stack-editing] [data-sec] { user-select: none; -webkit-user-select: none; }
+[data-stack-editing] [data-sec] [contenteditable] { user-select: text; -webkit-user-select: text; }
+/* The section fills its cell, and a featured carousel fills a set height. */
+[data-sec] > [data-tile], [data-sec] > [data-feature], [data-sec] > [data-highlights-section] { height: 100%; }
+
+/* ── Gallery: art-house. No cards: thin rules, a huge serif name, work set big and uneven. ── */
+[data-portfolio-v2][data-look='gallery'] [data-pf-banner] { border-radius: 0; height: 64px; }
+[data-portfolio-v2][data-look='gallery'] [data-pf-avatar] { border-radius: 0; border-width: 0; width: 72px; height: 72px; }
+[data-portfolio-v2][data-look='gallery'] [data-pf-name] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(48px, 9vw, 104px); line-height: 0.9; letter-spacing: -0.03em; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 12px 0 0; transform: none; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-icon] { display: none; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1; letter-spacing: -0.02em; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-count] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] small,
+[data-portfolio-v2][data-look='gallery'] [data-tile] [data-item] b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-cover] { border-radius: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 28px 16px; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > * { grid-column: span 3; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 1) { grid-column: span 6; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 1) [data-cover] { aspect-ratio: 16 / 9; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 2) { margin-top: 40px; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 8px 0 0; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] b { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 46px; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-frame] { border: 0; border-radius: 0; box-shadow: none; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(28px, 5.5cqw, 52px); line-height: 1; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-slide='quote'] blockquote { font-style: italic; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-kick] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-dots] { display: none; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-count] { display: inline; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-nav] { justify-content: flex-start; }
+@container (max-width: 520px) {
+  [data-portfolio-v2][data-look='gallery'] [data-projects] > * { grid-column: span 6 !important; margin-top: 0 !important; }
+}
+
+/* ── Volt: modern minimal. Condensed capitals, tall photo tiles, one electric accent, no depth. ── */
+[data-portfolio-v2][data-look='volt'] [data-pf-banner] { border-radius: 20px; }
+[data-portfolio-v2][data-look='volt'] [data-pf-avatar] { box-shadow: 0 0 0 3px var(--org-primary-color); }
+[data-portfolio-v2][data-look='volt'] [data-pf-name] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: clamp(36px, 6vw, 60px); line-height: 1; }
+[data-portfolio-v2][data-look='volt'] [data-tile] { border-width: 1px; border-radius: 20px; box-shadow: none; transform: none; }
+[data-portfolio-v2][data-look='volt'] [data-tile-icon] { width: 10px; height: 10px; border-radius: 999px; box-shadow: none !important; background: var(--org-primary-color) !important; }
+[data-portfolio-v2][data-look='volt'] [data-tile-icon] svg { display: none; }
+[data-portfolio-v2][data-look='volt'] [data-tile-title] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.02em; font-size: 22px; }
+[data-portfolio-v2][data-look='volt'] [data-cover] { border-radius: 16px; }
+[data-portfolio-v2][data-look='volt'] [data-highlight] { background: transparent; border: 0; border-left: 3px solid var(--org-primary-color); border-radius: 0; box-shadow: none; padding: 2px 14px; }
+[data-portfolio-v2][data-look='volt'] [data-highlight] b { font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: 34px; }
+[data-portfolio-v2][data-look='volt'] [data-feature-frame] { border-width: 1px; border-radius: 22px; box-shadow: none; }
+[data-portfolio-v2][data-look='volt'] [data-feature-title] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: clamp(26px, 6cqw, 52px); line-height: 1; }
+[data-portfolio-v2][data-look='volt'] [data-feature-kick] { justify-self: start; background: var(--org-primary-color); color: var(--org-on-primary-color); border-radius: 999px; padding: 4px 10px; letter-spacing: 0.08em; }
+/* A photo slide in Volt runs edge to edge, with its words over the bottom of the picture. */
+@container (min-width: 560px) {
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'],
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] { position: relative; display: block; min-height: 300px; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'] [data-feature-media],
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-media] { position: absolute; inset: 0; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'] [data-feature-text],
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-text] { position: absolute; inset: auto 0 0 0; background: linear-gradient(0deg, rgba(0,0,0,.78), transparent); color: #fff; padding-top: 72px; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-text] .text-muted-foreground,
+  [data-portfolio-v2][data-look='volt'] [data-feature-text] .text-foreground { color: rgba(255,255,255,.85); }
+}
+
+/* ── A project's own page (visitors' view, and the owner's editor) in each look ── */
+[data-project-detail][data-look='gallery'] [data-pj-hero] { border: 0; border-radius: 0; box-shadow: none; margin-inline: calc(50% - 50vw); max-width: 100vw; aspect-ratio: 21 / 9; }
+[data-project-detail][data-look='gallery'] [data-pj-title] h1,
+[data-look='gallery'] [data-project-page] input[name='title'] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(48px, 9vw, 110px); line-height: 0.9; letter-spacing: -0.03em; }
+[data-project-detail][data-look='gallery'] [data-pj-title] p,
+[data-project-detail][data-look='gallery'] [data-pj-story] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; }
+[data-project-detail][data-look='gallery'] [data-pj-story] { columns: 2 260px; column-gap: 32px; max-width: none; }
+[data-project-detail][data-look='gallery'] [data-pj-gallery] { grid-template-columns: 1fr; gap: 32px; }
+[data-project-detail][data-look='gallery'] [data-pj-gallery] img { border-radius: 0; }
+[data-project-detail][data-look='gallery'] [data-pj-hero] ~ [data-pj-head] { order: -1; }
+[data-project-detail][data-look='volt'] [data-pj-hero] { border-width: 1px; border-radius: 24px; box-shadow: none; aspect-ratio: 16 / 8; }
+[data-project-detail][data-look='volt'] [data-pj-over] { display: block; position: absolute; inset: auto 0 0 0; padding: 72px 24px 22px; background: linear-gradient(0deg, rgba(0,0,0,.8), transparent); color: #fff; }
+[data-project-detail][data-look='volt'] [data-pj-over] p { color: rgba(255,255,255,.85); }
+[data-project-detail][data-look='volt'] [data-pj-hero] ~ [data-pj-head] { display: none; }
+[data-project-detail][data-look='volt'] [data-pj-title] h1,
+[data-look='volt'] [data-project-page] input[name='title'] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: clamp(38px, 7vw, 72px); line-height: 1; }
+[data-project-detail][data-look='volt'] [data-pj-gallery] img { border-radius: 20px; aspect-ratio: 4 / 5; }
+[data-look='gallery'] [data-project-page] .aspect-\[2\/1\] { border-radius: 0; box-shadow: none; border-width: 0; }
+[data-look='volt'] [data-project-page] .aspect-\[2\/1\] { border-width: 1px; border-radius: 24px; box-shadow: none; }

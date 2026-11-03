@@ -1323,7 +1323,8 @@ def get_public_project(org_id: int, username: str, slug: str, db_session: Sessio
     shell = get_public_shell(org_id, username, db_session)
     for project in shell["projects"]:
         if project["slug"] == slug:
-            return {"portfolio": shell["portfolio"], "project": project}
+            # The owner's look and layout come too, so the page is drawn in their look.
+            return {"portfolio": shell["portfolio"], "project": project, "layout": shell.get("layout")}
     raise HTTPException(status_code=404, detail="Project item not found")
 
 
