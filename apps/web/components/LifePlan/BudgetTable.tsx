@@ -6,6 +6,7 @@ import { Button } from '@components/ui/button'
 import { lifeApi, type Estimate, type Line, type Occupation, type Unit } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
+import { estimateTax, isTaxable, monthlyTax, stateName, stateOf, type Filing } from './tax'
 import { DEFAULT_HOURS, PER_WORD, activeAt, fromMonthly, money, monthLabel, phaseOffset, toMonthly } from './model'
 
 const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')); return Number.isFinite(v) && v >= 0 ? v : null }
@@ -17,7 +18,9 @@ export default function BudgetTable() {
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({})
   const lines = phase.lines.filter((l) => activeAt(l, stretch.m0))
   const total = (side: 'in' | 'out') => lines.filter((l) => l.side === side).reduce((a, l) => a + (valueOf(phase, l).monthly ?? 0), 0)
-  const inn = total('in'), out = total('out')
+  const pay = lines.filter(isTaxable).reduce((a, l) => a + (valueOf(phase, l).monthly ?? 0), 0)
+  const tax = monthlyTax(phase, pay)
+  const inn = total('in') - tax, out = total('out')
   const g = stretch.g0
   const debtPay = projection.debtsAt(g).reduce((a, d) => a + Math.min(d.payment, d.balance), 0)
   const saving = doc.savings.filter((s) => !s.main).reduce((a, s) => a + s.monthly, 0)
@@ -34,10 +37,11 @@ export default function BudgetTable() {
             {title}<ChevronDown className={`size-4 transition-transform ${open ? '' : '-rotate-90'}`} />
           </button>
           <span className="flex items-baseline gap-2">
-            {side === 'in' && <span className="text-xs font-semibold text-muted-foreground">before tax</span>}
+            {side === 'in' && pay > 0 && <span className="text-xs font-semibold text-muted-foreground">after tax</span>}
             <b className={`text-lg font-extrabold tabular-nums ${side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{side === 'out' && value > 0.5 ? '−' : ''}{money(fromMonthly(value, per))}</b>
           </span>
         </div>
+        {side === 'in' && pay > 0 && <TaxLine pay={pay} tax={tax} />}
         {open && (
           <div className="px-4 pb-3 sm:px-5">
             {groups.filter((x) => x.rows.length || (x.c.expected && !readOnly)).map(({ c, rows }) => (
@@ -73,6 +77,70 @@ export default function BudgetTable() {
         {(debtPay > 0 || saving > 0) && <p className="mt-1 text-xs font-semibold opacity-80">After {[debtPay > 0 && `${money(fromMonthly(debtPay, per))} to debt`, saving > 0 && `${money(fromMonthly(saving, per))} into savings`].filter(Boolean).join(' and ')}. What's left goes into your savings account.</p>}
       </div>
       <p className="sr-only">{monthLabel(doc.start, phaseOffset(doc, phase.id))}</p>
+    </div>
+  )
+}
+
+const pct = (r: number) => `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`
+
+/** One compact line under the Income total: the tax on pay from work, opening into how it's worked out. */
+function TaxLine({ pay, tax }: { pay: number; tax: number }) {
+  const { phase, per, updatePhase, readOnly } = useLife()
+  const [open, setOpen] = React.useState(false)
+  const [src, setSrc] = React.useState<string | null>(null)
+  const filing: Filing = phase.tax?.filing || 'single'
+  const own = phase.tax?.rate ?? null
+  const est = estimateTax(pay * 12, filing, stateOf(phase.place))
+  const rate = pay > 0 ? tax / pay : 0
+  const setTax = (patch: { filing?: Filing; rate?: number | null }) => updatePhase((p) => { p.tax = { filing, rate: own, ...p.tax, ...patch } })
+  return (
+    <div className="-mt-2 px-4 pb-3 sm:px-5">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-muted-foreground hover:text-foreground">
+        <span className="inline-flex items-center gap-1.5">Taxes on {money(fromMonthly(pay, per))} of pay · {pct(rate)}{own == null ? '' : ' (your rate)'}<ChevronDown className={`size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} /></span>
+        <span className="tabular-nums">{tax > 0.5 ? '−' : ''}{money(fromMonthly(tax, per))}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-3">
+          <div className={`rounded-xl bg-muted/60 p-3 ${own != null ? 'opacity-75' : ''}`}>
+            <div className="flex items-baseline justify-between text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
+              <span>Estimate</span><span className="tabular-nums normal-case tracking-normal">{pct(est.rate)} · {money(fromMonthly(est.annual / 12, per))} a {PER_WORD[per]}</span>
+            </div>
+            <ul className="mt-1">
+              {est.parts.map((x) => (
+                <li key={x.key} className="border-b border-border/60 py-1.5 text-sm last:border-b-0">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1">{x.title}</span>
+                    <span className="tabular-nums text-muted-foreground">{money(fromMonthly(x.annual / 12, per))}</span>
+                    <button type="button" onClick={() => setSrc(src === x.key ? null : x.key)} aria-expanded={src === x.key} aria-label={`Where ${x.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted"><Info className="size-3.5" /></button>
+                  </div>
+                  {src === x.key && <p className="mt-1 text-xs text-muted-foreground">{x.note}. <a className="font-semibold text-[var(--org-primary-color)] underline dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]" href={x.source.url} target="_blank" rel="noreferrer">{x.source.publisher}, {x.source.title}</a></p>}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {est.stateCovered ? '' : est.state ? `${stateName(est.state)}'s own income tax isn't included yet. ` : 'Pick a place for this phase to include state tax. '}
+              Worked out on Work income as wages for a full year, with the standard deduction and no credits. Aid isn't taxed here.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs font-semibold text-muted-foreground">Filing</span>
+              {([['single', 'Single'], ['joint', 'Married, filing together']] as [Filing, string][]).map(([k, t]) => (
+                <button key={k} type="button" aria-pressed={filing === k} disabled={readOnly} onClick={() => setTax({ filing: k })} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${filing === k ? 'bg-card text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>
+              ))}
+            </div>
+            {own != null && <Button variant="ghost" size="sm" className="mt-2" onClick={() => setTax({ rate: null })}><RotateCcw />Use the estimate</Button>}
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 text-sm">
+            {own == null && !readOnly && <button type="button" onClick={() => setTax({ rate: 0 })} className="mr-auto text-xs font-semibold text-muted-foreground underline decoration-dashed underline-offset-4 hover:text-foreground">My pay is already after tax</button>}
+            <span className="text-muted-foreground">{own == null ? 'Use your own rate' : own === 0 ? 'Your pay is already after tax' : 'Your rate'}</span>
+            <label className="inline-flex items-baseline font-semibold tabular-nums">
+              <input aria-label="Your tax rate, percent" inputMode="decimal" key={`r${own}`} defaultValue={own == null ? '' : String(own)} placeholder={(est.rate * 100).toFixed(1)}
+                style={{ width: '5ch' }}
+                className="border-b-[1.5px] border-dashed border-border bg-transparent text-right outline-none placeholder:font-normal focus:border-[var(--org-primary-color)]"
+                onBlur={(e) => { const t = e.target.value.trim(); if (!t) return; const n = parse(t.replace('%', '')); if (n == null || n > 100 || n === own) return; setTax({ rate: Math.round(n * 10) / 10 }) }} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />%
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

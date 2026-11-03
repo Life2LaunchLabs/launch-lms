@@ -30,7 +30,9 @@ export interface Line {
 
 /** A learner's own cover photo for a phase, from their media library. */
 export interface PhaseCover { url: string }
-export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[]; goals?: string[]; cover?: PhaseCover | null }
+/** How a phase's taxes are worked out: filing status for the estimate, or the learner's own effective rate (percent). */
+export interface PhaseTax { filing?: 'single' | 'joint'; rate?: number | null }
+export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null }
 /** A photo of a place, picked ahead of time from Wikimedia Commons, with the credit it is shown with. */
 export interface PlacePhoto { url: string; width?: number; height?: number; title?: string; author: string; license: string; license_url?: string; source_url: string }
 export interface When { phase: string; month: number }
