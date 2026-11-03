@@ -5,10 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig, type KeyedMutator } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowUpRight, ChevronRight, Flag, Lock, Users, X } from 'lucide-react'
+import { ArrowUpRight, BookUser, Briefcase, ChevronRight, Flag, Hammer, Lock, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatAudience, type ChatFilter, type ChatMessage, type ChatTopic, type MessageAudience, type MessageRef } from '@services/connect/connect'
+import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatAudience, type ChatFilter, type ChatMessage, type ChatTopic, type MessageAudience, type MessageRef, type TopicStep } from '@services/connect/connect'
 import { isGoalsKey } from '@services/goals/goals'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
@@ -193,7 +193,8 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const names = chat ? chat.kind !== 'direct' : false
   return <>
     {header?.(chat, mutate)}
-    {!hideTopics && (live.length || plan) ? <TopicFilters topics={live} plan={plan} filter={filter} onChange={setFilter} color={getGoalColor} stepLink={plan && step && stepHref ? stepHref(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
+    {!hideTopics && (live.length || plan) ? <TopicFilters topics={live} plan={plan} filter={filter} onChange={setFilter} color={getGoalColor}
+      stepLink={plan && step ? plan.portfolio ? portfolioItemHref(orgslug, plan, step) : stepHref?.(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-6">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
@@ -255,22 +256,32 @@ function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
     </button>)}
   </div>
   const face = planPalette(color(plan.goal_uuid))
-  const talked = plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
+  // A portfolio shows all its experiences and projects, so you can pick one to talk about.
+  const talked = plan.portfolio ? plan.steps : plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
+  const PlanIcon = plan.portfolio ? BookUser : Flag
   return <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className={shell}>
     <button type="button" onClick={() => onChange({})} aria-label="Show everything" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground hover:text-foreground"><X size={16} /></button>
     {/* With a step picked, a phone shows the plan as its flag so the step beside it fits without cutting the plan off. */}
     <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} aria-label={plan.title} title={plan.title}
       className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition-opacity" style={{ background: face.deep, color: face.deepInk, opacity: filter.step_uuid ? 0.75 : 1 }}>
-      <Flag size={13} aria-hidden="true" /><span className={cn(filter.step_uuid && 'hidden sm:inline')}>{plan.title}</span><ChevronRight size={14} className="-mr-1 opacity-80" aria-hidden="true" />
+      <PlanIcon size={13} aria-hidden="true" /><span className={cn(filter.step_uuid && 'hidden sm:inline')}>{plan.title}</span><ChevronRight size={14} className="-mr-1 opacity-80" aria-hidden="true" />
     </button>
     {talked.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid}
       onClick={() => onChange(filter.step_uuid === item.step_uuid ? { goal_uuid: plan.goal_uuid } : { goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
       className={chip(filter.step_uuid === item.step_uuid)}>
-      <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" /><span className="max-w-40 truncate sm:max-w-48">{item.title}</span>{item.count ? <span className="font-medium opacity-60">{item.count}</span> : null}
+      {item.item_kind ? (() => { const Icon = ITEM_ICONS[item.item_kind]; return <Icon className="h-3.5 w-3.5" aria-hidden="true" /> })() : <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" />}<span className="max-w-40 truncate sm:max-w-48">{item.title}</span>{item.count ? <span className="font-medium opacity-60">{item.count}</span> : null}
     </button>)}
-    {stepLink ? <Link href={stepLink} className="ml-auto flex h-9 shrink-0 items-center gap-1 px-1 text-sm font-bold text-[var(--org-primary-color)] hover:underline">Open step<ArrowUpRight size={14} /></Link> : null}
+    {stepLink ? <Link href={stepLink} className="ml-auto flex h-9 shrink-0 items-center gap-1 px-1 text-sm font-bold text-[var(--org-primary-color)] hover:underline">{plan.portfolio ? 'Open' : 'Open step'}<ArrowUpRight size={14} /></Link> : null}
   </div>
 }
+
+/** Where an experience or project talked about in a chat opens: its page for its owner, the portfolio for anyone else. */
+function portfolioItemHref(orgslug: string, topic: ChatTopic, step: TopicStep) {
+  if (!topic.portfolio?.mine) return getUriWithOrg(orgslug, `/user/${encodeURIComponent(topic.portfolio?.username || '')}`)
+  return getUriWithOrg(orgslug, `/portfolio/${step.item_kind === 'project' ? 'projects' : 'timeline'}/${encodeURIComponent(step.step_uuid)}`)
+}
+
+const ITEM_ICONS = { experience: Briefcase, project: Hammer }
 
 /** Where a message sent while filtered belongs, shown under it when you're looking wider. */
 function scopeLabel(message: ChatMessage, filter: ChatFilter) {

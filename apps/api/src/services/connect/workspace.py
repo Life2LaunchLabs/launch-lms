@@ -24,15 +24,15 @@ from src.db.organizations import Organization
 from src.db.resources import Resource
 from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
-from src.services.connect import chats, cohort, people, visibility
+from src.services.connect import chats, cohort, people, portfolio_talk, visibility
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, org_summary
 from src.services.school import chats as school_chats, roles
 
 GOAL = "goal"
 KINDS = (school_chats.SCHOOL, GOAL)
-# Chats with plans to filter by: a learner's and a plan's, and an assignment's cohort chats.
-TOPIC_KINDS = (*KINDS, cohort.COHORT)
+# Chats with plans to filter by: a learner's and a plan's, an assignment's cohort chats, and direct chats (about a portfolio).
+TOPIC_KINDS = (*KINDS, cohort.COHORT, portfolio_talk.DIRECT)
 PROGRESS = "plan_progress"
 ORG_MENTION = "org_mention"
 TOKEN = re.compile(r"<(plan|step|user|org|resource):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
@@ -202,18 +202,22 @@ def prepare(db: Session, conversation: Conversation, body: str, sender_id: int |
     refs: list[dict] = []
     rows: list[tuple[int | None, str | None]] = []
 
-    def add(ref: dict, goal: Goal | None = None, step_uuid: str | None = None) -> None:
+    def add(ref: dict, goal: Goal | None = None, step_uuid: str | None = None, uuids: list[str] | None = None) -> None:
         if not any({**item, "scope": False} == {**ref, "scope": False} for item in refs):
             refs.append(ref)
         row = (int(goal.id), step_uuid) if goal and goal.goal_uuid in goals else (None, step_uuid) if ref.get("cohort") and step_uuid else None  # type: ignore[arg-type]
-        if row and row not in rows:
-            rows.append(row)
+        for item in [row] if row else [(None, uuid) for uuid in uuids or []]:
+            if item not in rows:
+                rows.append(item)
 
     def keep(match: re.Match) -> str:
         kind, first, second = match.groups()
         ref: dict | None = None
         if kind in ("plan", "step") and in_cohort and (ref := cohort.tag(db, conversation, kind, first, second)):
             add(ref, step_uuid=ref.get("step_uuid"))
+        elif kind in ("plan", "step") and (about := portfolio_talk.tag(db, conversation, kind, first, second)):
+            ref = about[0]
+            add(ref, uuids=about[1])
         elif kind in ("plan", "step"):
             goal = goals.get(first) or _taggable(db, first, sender_id)
             step = _step(db, goal, second) if goal and kind == "step" else None
@@ -237,6 +241,10 @@ def prepare(db: Session, conversation: Conversation, body: str, sender_id: int |
     scoped = cohort.tag(db, conversation, "step", scope["goal_uuid"], scope.get("step_uuid")) if in_cohort and scope and scope.get("goal_uuid") and scope.get("step_uuid") else None
     if scoped:
         add({**scoped, "scope": True}, step_uuid=scoped["step_uuid"])
+    # A portfolio, or one of its experiences or projects, in a direct chat (see portfolio_talk.py).
+    about = portfolio_talk.tag(db, conversation, "step" if (scope or {}).get("step_uuid") else "plan", scope["goal_uuid"], scope.get("step_uuid")) if scope and scope.get("goal_uuid") and not goal and not in_cohort else None
+    if about:
+        add({**about[0], "scope": True}, uuids=about[1])
     return text, refs, rows
 
 
@@ -276,6 +284,8 @@ def _resolve_one(db: Session, ref: dict) -> dict | None:
     kind = ref.get("kind")
     if kind in ("plan", "step") and ref.get("cohort"):
         return cohort.resolve_one(db, ref)
+    if kind in ("plan", "step") and ref.get("portfolio"):
+        return portfolio_talk.resolve_one(db, ref)
     if kind in ("plan", "step"):
         goal = db.exec(select(Goal).where(Goal.goal_uuid == ref.get("goal_uuid"))).first()
         if not goal:
@@ -334,6 +344,8 @@ def filtered(query, db: Session, conversation: Conversation, goal_uuid: str | No
     """Narrow a chat's messages to the ones about a plan, or one of its steps."""
     if conversation.kind == cohort.COHORT:
         return cohort.filtered(query, db, conversation, goal_uuid, step_uuid)
+    if conversation.kind == portfolio_talk.DIRECT:
+        return portfolio_talk.filtered(query, db, conversation, goal_uuid, step_uuid)
     goal = next((item for item in goals_in(db, conversation) if item.goal_uuid == goal_uuid), None)
     if not goal:
         raise HTTPException(status_code=404, detail="That plan isn't in this chat")
@@ -381,6 +393,8 @@ def topics(db: Session, conversation: Conversation, viewer_id: int | None = None
     """The plans this chat is about, each with its steps, where they stand, and how many messages the viewer can read tag them."""
     if conversation.kind == cohort.COHORT:
         return [item for item in [cohort.topic(db, conversation, viewer_id)] if item]
+    if conversation.kind == portfolio_talk.DIRECT:
+        return portfolio_talk.topics(db, conversation, viewer_id)
     goals = goals_in(db, conversation)
     if not goals:
         return []
