@@ -36,7 +36,7 @@ from src.db.goals import (
 from src.db.goal_sharing import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.goals import access, check_ins, completion, references, schedule
+from src.services.goals import access, check_ins, completion, references, retired, schedule
 from src.services.badges.definition import goal_badge
 from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
@@ -237,6 +237,7 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
         or_(Goal.subject_user_id == current_user.id, Goal.owner_user_id == current_user.id, Goal.id.in_(member_goal_ids)),  # type: ignore[union-attr]
         or_(Goal.subject_user_id == current_user.id, Goal.assignment_id.is_(None)),  # type: ignore[union-attr]
         Goal.status != GoalStatus.ARCHIVED,
+        retired.shown(),
     )
     if not include_finished:
         statement = statement.where(Goal.status != GoalStatus.FINISHED)

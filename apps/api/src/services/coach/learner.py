@@ -14,6 +14,7 @@ from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStage, GoalStatus, GoalStep, StepProgress
+from src.services.goals import retired
 from src.services.goals.availability import ordered_steps
 from src.db.portfolio import Portfolio, PortfolioContentStatus, ProfileTrait, ProjectItem, TimelineEntry
 from src.db.users import User
@@ -58,7 +59,7 @@ def who(db: Session, user_id: int, org_id: int | None = None) -> dict:
 
 def doing(db: Session, org_id: int | None, user_id: int) -> dict:
     """The learner's own goals here or personal: active ones with progress and next steps, and the last few finished."""
-    own = select(Goal).where(Goal.subject_user_id == user_id, or_(Goal.org_id == org_id, Goal.org_id.is_(None)))  # type: ignore[union-attr]
+    own = select(Goal).where(Goal.subject_user_id == user_id, or_(Goal.org_id == org_id, Goal.org_id.is_(None)), retired.shown())  # type: ignore[union-attr]
     active = db.exec(own.where(Goal.status == GoalStatus.ACTIVE).order_by(Goal.target_date.is_(None), Goal.target_date, Goal.id).limit(MAX_GOALS)).all()  # type: ignore[arg-type]
     finished = db.exec(own.where(Goal.status == GoalStatus.FINISHED).order_by(Goal.finished_at.desc(), Goal.id.desc()).limit(3)).all()  # type: ignore[union-attr]
     ids = [goal.id for goal in active] or [0]

@@ -149,3 +149,34 @@ def test_ensure_starter_goal_checks_off_steps_already_done_in_the_portfolio():
         assert _done(db, goal) == set(KEYS)
         db.refresh(goal)
         assert goal.status == "finished" and starter.starter_checklist(db, goal)["complete"]
+
+
+def test_launch_ready_goals_never_reach_a_learner_even_when_assigned():
+    """Launch Ready is retired: neither the starter's own goal nor one an organization assigned from its template shows."""
+    from datetime import date
+
+    from src.db.goals import GoalStatus
+    from src.services.coach import learner as coach_learner
+    from src.services.goals import goals, home, home_week
+    from src.services.goals.issue import issue_goal
+    from src.db.goals import GoalCreate
+
+    with _session() as db:
+        template = starter.sync_starter_template(db)
+        version = db.get(GoalTemplateVersion, template.published_version_id)
+        own = starter.ensure_starter_goal(db, LEARNER)
+        assigned = issue_goal(db, template, version, subject_user_id=OTHER, org_id=1, source=GoalSource.ASSIGNMENT)
+        finished = issue_goal(db, template, version, subject_user_id=LEARNER, org_id=1, source=GoalSource.ASSIGNMENT)
+        finished.status = GoalStatus.FINISHED
+        db.add(finished)
+        db.commit()
+        kept = goals.create_personal_goal(db, _user(OTHER), GoalCreate(title="Run a 10k", org_id=1))["goal_uuid"]
+        retired = {own.goal_uuid, assigned.goal_uuid, finished.goal_uuid}
+
+        for user in (LEARNER, OTHER):
+            assert not retired & {row["goal_uuid"] for row in goals.list_my_goals(db, _user(user))}
+            assert not retired & {goal.goal_uuid for goal in home_week.my_goals(db, user)}
+            assert not retired & set(home.pending_celebrations(db, user))
+            assert not retired & {goal.goal_uuid for goal in home_week.with_finished(db, user, [], date.today())[0]}
+            assert all(item.get("title") != template.title for item in coach_learner.doing(db, 1, user).get("goals", []))
+        assert kept in {row["goal_uuid"] for row in goals.list_my_goals(db, _user(OTHER))}

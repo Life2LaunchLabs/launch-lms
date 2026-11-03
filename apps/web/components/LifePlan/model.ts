@@ -3,6 +3,7 @@
  * projection of savings, things you own and debt. Pure functions; no estimates are made
  * here. A line with neither the learner's number nor a sourced estimate counts as missing.
  */
+import { isTaxable, monthlyTax } from './tax'
 import type { Asset, Catalog, Debt, Estimate, LifeDoc, LifeEvent, Line, Phase, Unit } from '@services/life/life'
 
 export type Per = 'wk' | 'mo' | 'yr'
@@ -126,9 +127,11 @@ export interface Projection {
   own: number[]
   debt: number[]
   short: number[]
-  /** Per global month: money in and out from the budget (monthly lines only). */
+  /** Per global month: money in after tax and money out, from the budget (monthly lines only). */
   inn: number[]
   out: number[]
+  /** Per global month: the tax taken from pay. */
+  tax: number[]
   missing: { phase: string; line: string }[]
   /* eslint-disable no-unused-vars -- parameter names in function types */
   debtsAt: (g: number) => { debt: Debt; balance: number; payment: number }[]
@@ -141,7 +144,7 @@ export interface Projection {
 // eslint-disable-next-line no-unused-vars -- parameter names in a function type
 export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => LineValue): Projection {
   const G = Math.max(1, totalMonths(doc))
-  const sav: number[] = [], own: number[] = [], debt: number[] = [], short: number[] = [], inn: number[] = [], out: number[] = []
+  const sav: number[] = [], own: number[] = [], debt: number[] = [], short: number[] = [], inn: number[] = [], out: number[] = [], tax: number[] = []
   const missing: { phase: string; line: string }[] = []
   const debtBal: Record<string, number> = {}
   const saveBal: Record<string, number> = {}
@@ -180,10 +183,11 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
         }
       })
       ;(evAt.get(g) || []).forEach((e) => { cash += e.amount })
-      let i = 0, o = 0
-      p.lines.forEach((l) => { const v = vals.get(l.id)!.monthly; if (v == null || !activeAt(l, m)) return; if (l.side === 'in') i += v; else o += v })
-      inn.push(i); out.push(o)
-      cash += i - o
+      let i = 0, o = 0, pay = 0
+      p.lines.forEach((l) => { const v = vals.get(l.id)!.monthly; if (v == null || !activeAt(l, m)) return; if (l.side === 'in') { i += v; if (isTaxable(l)) pay += v } else o += v })
+      const t = monthlyTax(p, pay)
+      inn.push(i - t); out.push(o); tax.push(t)
+      cash += i - t - o
       doc.debts.forEach((d) => {
         const b = debtBal[d.id]; if (!b) return
         const withInt = b * (1 + d.rate / 1200)
@@ -199,7 +203,7 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
     }
   }
   return {
-    months: G, sav, own, debt, short, inn, out, missing,
+    months: G, sav, own, debt, short, inn, out, tax, missing,
     debtsAt: (t) => doc.debts.map((d) => ({ debt: d, balance: debtHist[d.id]?.[t] ?? 0, payment: d.payment })).filter((x) => x.balance > 0.5),
     savingsAt: (t) => doc.savings.map((s) => ({ id: s.id, title: s.title, balance: saveHist[s.id]?.[t] ?? 0 })),
     assetsAt: (t) => doc.assets.map((a) => ({ asset: a, value: assetHist[a.id]?.[t] ?? 0 })).filter((x) => x.value > 0.5),
