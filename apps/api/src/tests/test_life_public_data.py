@@ -25,8 +25,8 @@ ALTS = "O*NET-SOC Code\tTitle\tAlternate Title\tShort Title\tSource(s)\n15-1252.
 
 SCORECARD = b"""UNITID,INSTNM,CITY,STABBR,INSTURL,CONTROL,PREDDEG,CURROPER,UGDS,ADM_RATE,C150_4,C150_L4,MD_EARN_WNE_P10,TUITIONFEE_IN,TUITIONFEE_OUT
 209551,University of Oregon,Eugene,OR,www.uoregon.edu/,1,3,1,19000,0.86,0.73,NULL,56000,15000,42000
-208646,Lane Community College,Eugene,OR,https://www.lanecc.edu/,1,2,1,8000,NULL,NULL,0.31,PrivacySuppressed,6000,13000
-999999,Closed College,Nowhere,OR,,3,1,0,10,NULL,NULL,NULL,NULL,1,1
+208646,Lane Community College,Eugene,OR,https://www.lanecc.edu/ OR main campus,1,2,1,8000,NULL,NULL,0.31,PrivacySuppressed,6000,13000
+999999,Closed College,Nowhere,OR,www.closed.edu/ OR school of nursing,3,1,0,10,NULL,NULL,NULL,NULL,1,1
 """
 
 
@@ -141,6 +141,7 @@ def test_scorecard_loads_operating_schools_and_tuition_facts():
     assert result == {"kind": "scorecard", "source": "college-scorecard-institutions-2025-10-03", "schools": 2, "facts": 4}
     uo = db.exec(select(SchoolEntry).where(SchoolEntry.unitid == "209551")).one()
     assert uo.url == "https://www.uoregon.edu/" and uo.control == "Public" and uo.degree == "Bachelor's degrees"
+    assert db.exec(select(SchoolEntry).where(SchoolEntry.unitid == "208646")).one().url == "https://www.lanecc.edu/"
     assert uo.completion_rate == 0.73 and uo.median_earnings == 56000 and uo.students == 19000
     lane = db.exec(select(SchoolEntry).where(SchoolEntry.unitid == "208646")).one()
     assert lane.completion_rate == 0.31 and lane.median_earnings is None and lane.admission_rate is None

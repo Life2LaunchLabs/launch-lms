@@ -232,7 +232,7 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
         url=url,
         released=f"Data files dated {release}" if release else "Most recent cohorts (release date not in the file name)",
         license="U.S. government work, public domain",
-        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started. Tuition and fees are yearly published prices, before aid.",
+        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started, reported for a school and its branch campuses together. Tuition and fees are yearly published prices, before aid.",
     )
     # Keep only the columns used, so a full-width file passed in as rows stays small.
     rows = [{k: r[k] for k in SCORECARD_COLUMNS if k in r} for r in rows]
@@ -256,7 +256,8 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
         if completion is None:
             completion = _val(r.get("c150_4")) or _val(r.get("c150_l4"))
         students = _val(r.get("ugds"))
-        url_ = r.get("insturl", "")
+        # A few schools put notes after the address ("... OR school of radiologic technology").
+        url_ = (r.get("insturl", "").split() or [""])[0]
         if url_ and not url_.lower().startswith("http"):
             url_ = "https://" + url_
         db.add(SchoolEntry(unitid=unitid, name=r["instnm"], city=r.get("city", ""), state=r.get("stabbr", "").upper(), url=url_[:500], control=CONTROL.get(r.get("control", ""), ""), degree=DEGREE.get(degree_level, ""), students=int(students) if students is not None else None, admission_rate=_val(r.get("adm_rate")), completion_rate=completion, median_earnings=_val(r.get("md_earn_wne_p10")), source_id=src.id, status="draft", creation_date=now))
