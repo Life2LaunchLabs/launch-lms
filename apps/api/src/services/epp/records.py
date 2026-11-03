@@ -98,7 +98,7 @@ def review(db: Session, current_user: PublicUser, org_id: int, user_id: int, pay
     return record_dto(db, row)
 
 
-def _record(db: Session, current_user: PublicUser, org_id: int, record_uuid: str) -> EppRecord:
+def get_record(db: Session, current_user: PublicUser, org_id: int, record_uuid: str) -> EppRecord:
     _require_staff(db, current_user, org_id)
     row = db.exec(select(EppRecord).where(EppRecord.record_uuid == record_uuid, EppRecord.org_id == org_id)).first()
     if not row:
@@ -108,7 +108,7 @@ def _record(db: Session, current_user: PublicUser, org_id: int, record_uuid: str
 
 def correct(db: Session, current_user: PublicUser, org_id: int, record_uuid: str, payload: EppRecordCorrection) -> dict:
     """A new version of a record with the outcome, comments or student ID fixed. The old one stays."""
-    old = _record(db, current_user, org_id, record_uuid)
+    old = get_record(db, current_user, org_id, record_uuid)
     if old.id in superseded_ids(db, org_id):
         raise HTTPException(status_code=409, detail="A newer version of this record exists. Correct that one.")
     by = db.get(User, current_user.id)
@@ -132,7 +132,7 @@ def correct(db: Session, current_user: PublicUser, org_id: int, record_uuid: str
 
 
 def open_record(db: Session, current_user: PublicUser, org_id: int, record_uuid: str) -> dict:
-    return record_dto(db, _record(db, current_user, org_id, record_uuid))
+    return record_dto(db, get_record(db, current_user, org_id, record_uuid))
 
 
 def list_records(db: Session, current_user: PublicUser, org_id: int, user_id: int | None = None, include_superseded: bool = False) -> dict:

@@ -12,8 +12,8 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 | 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Merged (#306) |
 | 3. Course plan | Course list and the 24-credit tally | Merged (#307) |
 | 4. Live report | Report builder, staff view and print, student preview | Merged (#309) |
-| 5. Review and freeze | Stored records, corrections, exit record | Built |
-| 6. Caseload and bulk PDF | Caseload screen, class export | Planned |
+| 5. Review and freeze | Stored records, corrections, exit record | Merged (#310) |
+| 6. Caseload and bulk PDF | Caseload screen, class export | In review |
 | 7. SB 3 course summary | One page per student, class grid | Planned |
 
 ## Slice 1: school connection
@@ -111,3 +111,23 @@ learner; learners accept even when the school set up their account. The consent 
 - API (`/epp`): `POST /orgs/{org_id}/students/{user_id}/records`, `GET /orgs/{org_id}/records`
   (`user_id`, `include_superseded`), `GET /orgs/{org_id}/records/{uuid}`,
   `POST /orgs/{org_id}/records/{uuid}/corrections`, and for learners `GET /orgs/{org_id}/my_records`.
+
+## Slice 6: caseload and bulk PDF
+
+- `services/epp/caseload.py`: `caseload` lists every learner the school supports (or only those the viewer
+  counsels, `mine`) with the five components, evidence count, last review, whether a review is due, the
+  first thing to talk about, and a state: `reviewed` (this school year), `ready` (everything but the review
+  is complete), `missing`, or `waiting` (asked, not yet said yes). Any of the organization's staff can see
+  it; opening a learner still needs an active link. It builds each live report, one per learner, which is
+  the first thing to cache if caseloads reach the thousands.
+- PDFs are made on the server with ReportLab (`services/epp/pdf.py`, a new dependency), not headless
+  Chromium: the production image has no browser, and this keeps it that way. The PDF follows the web
+  report's parts and wording, so a change to one needs the other. Text uses ReportLab's bundled Vera
+  fonts; check marks use the standard ZapfDingbats font, and characters Vera lacks drop their accent.
+- File names read `Last_First_StudentID_EPP_2026-27.pdf` (accents dropped), with `_v2` and up for
+  corrected versions. The class export is a zip of each listed learner's newest reviewed record this
+  school year (exit records and corrected versions left out).
+- Staff: Education plans at `/admin/threads/profiles/epp` (`?mine=1` for I counsel), reached from "All
+  plans" on a learner's School record; a PDF button on each saved record.
+- API (`/epp`): `GET /orgs/{org_id}/caseload` (`mine`), `GET /orgs/{org_id}/caseload/export` (zip), and
+  `GET /orgs/{org_id}/records/{uuid}/pdf`.
