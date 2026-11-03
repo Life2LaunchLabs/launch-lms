@@ -13,7 +13,7 @@ const fmt = (v: number, cents = false) => v.toLocaleString('en-US', { minimumFra
 
 /** Income and expenses for the stretch in view, grouped like the Add tray. */
 export default function BudgetTable() {
-  const { doc, phase, stretch, catalog, valueOf, per, openAdd, projection } = useLife()
+  const { doc, phase, stretch, catalog, valueOf, per, openAdd, projection, readOnly } = useLife()
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({})
   const lines = phase.lines.filter((l) => activeAt(l, stretch.m0))
   const total = (side: 'in' | 'out') => lines.filter((l) => l.side === side).reduce((a, l) => a + (valueOf(phase, l).monthly ?? 0), 0)
@@ -40,11 +40,11 @@ export default function BudgetTable() {
         </div>
         {open && (
           <div className="px-4 pb-3 sm:px-5">
-            {groups.filter((x) => x.rows.length || x.c.expected).map(({ c, rows }) => (
+            {groups.filter((x) => x.rows.length || (x.c.expected && !readOnly)).map(({ c, rows }) => (
               <div key={c.key}>
                 <div className="pt-3 text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{c.title}</div>
                 {rows.map((l) => <Row key={l.id} line={l} />)}
-                {!rows.length && (
+                {!rows.length && !readOnly && (
                   <button type="button" onClick={() => openAdd(side, c.key)} className="flex w-full items-center gap-3 border-b border-border/70 py-3 text-left font-semibold text-muted-foreground hover:text-foreground">
                     <Plus className="size-4" />Add {c.title.toLowerCase()}
                   </button>
@@ -52,9 +52,9 @@ export default function BudgetTable() {
               </div>
             ))}
             {!lines.some((l) => l.side === side) && side === 'in' && <p className="pt-3 text-sm text-muted-foreground">Nothing coming in yet.</p>}
-            <button type="button" onClick={() => openAdd(side)} className="mt-2 inline-flex items-center gap-1.5 py-2 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]">
+            {readOnly ? null : <button type="button" onClick={() => openAdd(side)} className="mt-2 inline-flex items-center gap-1.5 py-2 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]">
               <Plus className="size-4" />{side === 'in' ? 'Add income' : 'Add an expense'}
-            </button>
+            </button>}
           </div>
         )}
       </div>
