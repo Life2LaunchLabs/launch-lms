@@ -1,9 +1,12 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { GraduationCap, Loader2 } from 'lucide-react'
+import { FileText, GraduationCap, Loader2 } from 'lucide-react'
+import { getUriWithOrg } from '@services/config/config'
+import { routePaths } from '@services/routing/paths'
 import { usePeopleContext } from '@components/Admin/People/usePeople'
 import { DIPLOMA_TRACK_LABELS, supportApi, supportKey, supportedLearnerKey, type DiplomaTrack, type SupportUpdate } from '@services/school/support'
 import { Card } from './ProfileFrame'
@@ -15,8 +18,8 @@ const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDa
  * their chat with the organization. Only once they say yes does the school record open: student ID, diploma
  * track, graduation year and counselor. Either side can end it, which closes the record again.
  */
-export default function SchoolSupport({ userId, name }: { userId: number; name: string }) {
-  const { orgId, token, viewerId } = usePeopleContext()
+export default function SchoolSupport({ userId, name, username }: { userId: number; name: string; username: string }) {
+  const { orgId, orgslug, token, viewerId } = usePeopleContext()
   const ready = Boolean(orgId && token)
   const { data: state, mutate } = useSWR(ready ? supportKey(orgId, userId) : null, () => supportApi.status(orgId, userId, token), { revalidateOnFocus: true })
   const active = state?.status === 'active'
@@ -83,8 +86,11 @@ export default function SchoolSupport({ userId, name }: { userId: number; name: 
         <span className="text-muted-foreground">Counselor: <b className="text-foreground">{record.counselor?.name || 'Not set'}</b></span>
         {record.counselor?.id === viewerId ? <button type="button" disabled={Boolean(busy)} onClick={() => void save({ counselor_user_id: null })} className="text-sm font-semibold underline disabled:opacity-50">Clear</button>
           : <button type="button" disabled={Boolean(busy)} onClick={() => void save({ counselor_user_id: viewerId })} className="text-sm font-semibold underline disabled:opacity-50">Make me their counselor</button>}
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.epp(username))} className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-3 text-sm font-semibold text-background">
+          <FileText size={14} aria-hidden="true" />EPP report
+        </Link>
         <button type="button" disabled={Boolean(busy)} onClick={() => { if (confirm(`End support for ${first}? Their school record closes until they say yes again.`)) void run('end', () => supportApi.end(orgId, userId, token), 'Support ended') }}
-          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-semibold hover:bg-muted disabled:opacity-50">
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-semibold hover:bg-muted disabled:opacity-50">
           {busy === 'end' ? <Loader2 size={14} className="animate-spin" /> : null}End support
         </button>
       </div>

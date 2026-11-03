@@ -11,7 +11,7 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 | 1. School connection | Staff ask to support a learner, the learner accepts a consent card, staff open the learner's school record | Merged (#305) |
 | 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Merged (#306) |
 | 3. Course plan | Course list and the 24-credit tally | Built |
-| 4. Live report | Report builder, staff view and print, student preview | Planned |
+| 4. Live report | Report builder, staff view and print, student preview | Built |
 | 5. Review and freeze | Stored records, corrections, exit record | Planned |
 | 6. Caseload and bulk PDF | Caseload screen, class export | Planned |
 | 7. SB 3 course summary | One page per student, class grid | Planned |
@@ -70,3 +70,21 @@ learner; learners accept even when the school set up their account. The consent 
 - API (`/epp`): `GET/POST /orgs/{org_id}/students/{user_id}/courses`, `PUT/DELETE .../courses/{course_uuid}`,
   `POST .../courses/{course_uuid}/confirm`, `POST .../courses/import_cis`, and for learners
   `GET/POST /orgs/{org_id}/courses`, `PUT/DELETE /orgs/{org_id}/courses/{course_uuid}`.
+
+## Slice 4: live report
+
+- `services/epp/report.py`: `build` returns the report as JSON with `schema_version` 1: the learner and
+  school record, a summary of the five required components, graduation progress (the tally, PFE and HECPS
+  credit lines, CRLE, Extended Application, Essential Skills), the course grid, each requirement's work
+  found by code, the evidence the learner picked, and "to talk about" prompts. Slice 5 freezes this JSON.
+- Only plans the school gave the learner count (`steps_for_code` now skips personal goals). Work is shown as
+  plain text with "Student entered" or "Teacher reviewed by …"; file links, staff notes, reviewer notes,
+  private items, budgets and contact details never enter it, and `_scrub` drops such keys as a last check.
+- Only a completed, staff-confirmed SB 3 course makes the report say "Credit recorded by school".
+- Evidence picks live on the support link (`learnersupport.report_picks`, migration `d5a2c9e7b3f1`). Learners
+  pick from their public portfolio items; an item made private later drops out of the report.
+- Staff: "EPP report" on the School record opens `/admin/threads/profiles/people/{username}/epp`, a white
+  report page with Print (each part starts a new sheet). Learners: `/epp` has their course plan, "What I
+  show", and a preview of what the school sees; "My plan" on the accepted consent card links there.
+- API (`/epp`): `GET /orgs/{org_id}/students/{user_id}/report`, and for learners `GET /orgs/{org_id}/report`
+  and `PUT /orgs/{org_id}/report/picks`.

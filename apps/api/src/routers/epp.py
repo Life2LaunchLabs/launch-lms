@@ -8,9 +8,10 @@ from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.epp_courses import EppCourseConfirm, EppCourseWrite
+from src.db.learner_support import ReportPicks
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.epp import courses
+from src.services.epp import courses, report
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -69,3 +70,20 @@ async def update_my_course(org_id: int, course_uuid: str, payload: EppCourseWrit
 @router.delete("/orgs/{org_id}/courses/{course_uuid}")
 async def delete_my_course(org_id: int, course_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
     return courses.my_delete(db_session, current_user, org_id, course_uuid)
+
+
+@router.get("/orgs/{org_id}/students/{user_id}/report")
+async def student_report(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """A supported learner's Education Plan and Profile report, as it stands now."""
+    return report.staff_report(db_session, current_user, org_id, user_id)
+
+
+@router.get("/orgs/{org_id}/report")
+async def my_report(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Your report with a school that supports you, the portfolio items you can choose for it, and your picks."""
+    return report.my_report(db_session, current_user, org_id)
+
+
+@router.put("/orgs/{org_id}/report/picks")
+async def set_my_report_picks(org_id: int, payload: ReportPicks, current_user: PublicUser = USER, db_session: Session = DB):
+    return report.set_picks(db_session, current_user, org_id, payload)

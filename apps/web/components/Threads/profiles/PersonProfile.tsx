@@ -104,7 +104,7 @@ function Overview({ orgslug, profile, thread, showPlans, compact }: { orgslug: s
         : <p className="text-sm text-muted-foreground">{firstName(user.name)} isn&rsquo;t working on a plan right now. Plans are given out from Plans.</p>}
     </Card>
     <LearnerBadges orgslug={orgslug} orgId={orgId} token={token} person={{ id: user.id, name: user.name, username: user.username, avatar_image: user.avatar_image, user_uuid: user.user_uuid }} />
-    <SchoolSupport userId={user.id} name={user.name} />
+    <SchoolSupport userId={user.id} name={user.name} username={user.username} />
     <CoursePlan userId={user.id} />
     <About profile={profile} />
   </>
