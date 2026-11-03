@@ -101,15 +101,40 @@ async def connect_to_db(app: FastAPI):
     app.db_engine = engine  # type: ignore
     logging.info("Launch LMS database has been started.")
 
+# Most route handlers are `async def` and run synchronous queries on the event
+# loop. A query that waits on a row lock held by another in-flight request then
+# freezes the loop, so the holder can never commit: Postgres sees no deadlock and
+# the whole API hangs (prod, 2026-11-03). Bound every request transaction so a
+# lock wait fails in seconds and an abandoned transaction is closed by Postgres.
+REQUEST_LOCK_TIMEOUT = "5s"
+REQUEST_IDLE_IN_TRANSACTION_TIMEOUT = "60s"
+
+
+def _bound_request_transactions(session: Session) -> Session:
+    if engine.dialect.name != "postgresql":
+        return session
+
+    @event.listens_for(session, "after_begin")
+    def _limit(session, transaction, connection):
+        # SET LOCAL ends with the transaction, so pooled connections that the
+        # demo workers and migrations reuse keep the server defaults.
+        connection.exec_driver_sql(
+            f"SET LOCAL lock_timeout = '{REQUEST_LOCK_TIMEOUT}'; "
+            f"SET LOCAL idle_in_transaction_session_timeout = '{REQUEST_IDLE_IN_TRANSACTION_TIMEOUT}'"
+        )
+
+    return session
+
+
 def get_db_session(request: Request):
     namespace = getattr(request.state, "demo_namespace", None)
     if namespace:
         from src.services.demo.namespaces import visitor_session
         session = visitor_session(engine, namespace, request.state.demo_session_id)
-        with session:
+        with _bound_request_transactions(session):
             yield session
     else:
-        with Session(engine) as session:
+        with _bound_request_transactions(Session(engine)) as session:
             yield session
 
 async def close_database(app: FastAPI):
