@@ -37,6 +37,9 @@ def _now() -> str:
 def read_table(data: bytes, filename: str) -> Iterator[dict[str, str]]:
     """Rows of the first sheet (or the CSV) as dicts keyed by lowercased header."""
     name = filename.lower()
+    if name.endswith(".zip"):
+        data, filename = _unzip_table(data)
+        name = filename.lower()
     if name.endswith(".csv"):
         text = data.decode("utf-8-sig", errors="replace")
         for row in csv.DictReader(io.StringIO(text)):
@@ -66,7 +69,26 @@ def read_table(data: bytes, filename: str) -> Iterator[dict[str, str]]:
                 continue
             yield dict(zip(header, cells))
         return
-    raise ImportProblem("Upload the publisher's .xlsx or .csv file.")
+    raise ImportProblem("Upload the publisher's .xlsx, .csv or .zip file.")
+
+
+def _unzip_table(data: bytes) -> tuple[bytes, str]:
+    """The workbook or CSV inside a publisher's zip (BLS ships OEWS as oesm25all.zip)."""
+    import zipfile
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as exc:
+        raise ImportProblem("That zip file could not be opened.") from exc
+    with zf:
+        tables = [i for i in zf.infolist() if not i.is_dir() and i.filename.lower().endswith((".xlsx", ".csv")) and not i.filename.startswith("__MACOSX/")]
+        if not tables:
+            raise ImportProblem("The zip has no .xlsx or .csv file in it.")
+        # The data file is the biggest one (BLS zips hold only the workbook today).
+        item = max(tables, key=lambda i: i.file_size)
+        if item.file_size > 400 * 1024 * 1024:
+            raise ImportProblem("The file inside the zip is too large.")
+        return zf.read(item), item.filename.rsplit("/", 1)[-1]
 
 
 def _without_core_dates(data: bytes) -> bytes:
