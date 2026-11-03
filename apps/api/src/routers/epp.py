@@ -8,10 +8,11 @@ from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.epp_courses import EppCourseConfirm, EppCourseWrite
+from src.db.epp_records import EppRecordCorrection, EppRecordCreate
 from src.db.learner_support import ReportPicks
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.epp import courses, report
+from src.services.epp import courses, records, report
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -87,3 +88,32 @@ async def my_report(org_id: int, current_user: PublicUser = USER, db_session: Se
 @router.put("/orgs/{org_id}/report/picks")
 async def set_my_report_picks(org_id: int, payload: ReportPicks, current_user: PublicUser = USER, db_session: Session = DB):
     return report.set_picks(db_session, current_user, org_id, payload)
+
+
+@router.post("/orgs/{org_id}/students/{user_id}/records")
+async def review_student(org_id: int, user_id: int, payload: EppRecordCreate, current_user: PublicUser = USER, db_session: Session = DB):
+    """Save the live report as reviewed with the learner: a frozen record the school keeps."""
+    return records.review(db_session, current_user, org_id, user_id, payload)
+
+
+@router.get("/orgs/{org_id}/records")
+async def org_records(org_id: int, user_id: int | None = None, include_superseded: bool = False, current_user: PublicUser = USER, db_session: Session = DB):
+    """The school's frozen records, newest first; one learner's with `user_id`."""
+    return records.list_records(db_session, current_user, org_id, user_id, include_superseded)
+
+
+@router.get("/orgs/{org_id}/records/{record_uuid}")
+async def org_record(org_id: int, record_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
+    return records.open_record(db_session, current_user, org_id, record_uuid)
+
+
+@router.post("/orgs/{org_id}/records/{record_uuid}/corrections")
+async def correct_record(org_id: int, record_uuid: str, payload: EppRecordCorrection, current_user: PublicUser = USER, db_session: Session = DB):
+    """A new version of a record; the one it corrects is kept."""
+    return records.correct(db_session, current_user, org_id, record_uuid, payload)
+
+
+@router.get("/orgs/{org_id}/my_records")
+async def my_records(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Your reviewed records with a school."""
+    return records.my_records(db_session, current_user, org_id)

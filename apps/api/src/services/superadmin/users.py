@@ -421,6 +421,10 @@ def delete_global_user(
             status_code=400, detail="You cannot delete your own account"
         )
 
+    from src.services.epp.records import freeze_exits
+
+    # Schools keep the Education Plan and Profile of a supported learner whose account goes.
+    freeze_exits(db_session, user_id)
     memberships = db_session.exec(
         select(UserOrganization).where(UserOrganization.user_id == user_id)
     ).all()
@@ -635,6 +639,9 @@ def remove_user_membership(db_session: Session, user_id: int, org_id: int) -> di
 
     _ensure_not_last_admin(db_session, user_id, org_id, None)
 
+    from src.services.epp.records import freeze_exits
+
+    freeze_exits(db_session, user_id, org_id)
     db_session.delete(membership)
     db_session.commit()
 

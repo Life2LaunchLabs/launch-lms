@@ -850,6 +850,10 @@ async def delete_user_by_id(
     # RBAC check
     await rbac_check(request, current_user, "delete", user.user_uuid, db_session)
 
+    # Schools keep the Education Plan and Profile of a supported learner whose account goes.
+    from src.services.epp.records import freeze_exits
+
+    freeze_exits(db_session, user_id)
     # Remove org memberships first (no CASCADE on this FK)
     user_orgs = db_session.exec(
         select(UserOrganization).where(UserOrganization.user_id == user_id)
