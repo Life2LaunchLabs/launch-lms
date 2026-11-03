@@ -20,6 +20,8 @@ organizationplanrole requirementframework requirementframeworkversion requiremen
 resourcetag resourcetaglink resource resourcesearchdocument
 resourcechannel resourcechannelresource resourceauthor
 usergroup usergroupresource newsarticle
+goal_template_listing orgsavedchannel orgsavedresource plan_collection plan_collection_item
+usergroupstaff
 """.split()
 )
 PERSONAL = frozenset(
@@ -29,6 +31,7 @@ learningresponseattempt badge_award plan_join_request
 requirementenrollment usersavedresource userresourcechannel resourcenoteblock
 portfolio hubconversation hubmemorypreference hubmemory hubeditrun
 inboxmessage mediaasset mediafolder
+lifeplan planweeklyfocus eppcourse epprecord learnersupport hubquestion
 """.split()
 )
 # These rows belong to the fake learner but carry the catalog creator's org_id.
@@ -42,8 +45,26 @@ portfoliolink profiletrait planrole goal_stage goal_step step_progress step_entr
 planattachment planactivity hubconversationmessage hubconversationmessageresource
 hubconversationresource hubmemorysource hubconversationmessagememory hubeditrunevent
 hubeditobjectstate requirementattainmentsource
+portfolioresult portfolioperson portfolioquote portfoliocontact portfoliocredential
+portfoliodocument portfolioimport resumeversion
 """.split()
 )
+# Connect chats: only those whose every member is in the cohort (scenario.py drops
+# the rest), and only messages the cohort wrote.
+CONNECT = frozenset(
+    """
+conversation conversationmember conversationmessage conversationmessageref conversationreaction
+""".split()
+)
+# Platform reference data with nothing personal in it (sourced budget estimates, the
+# career and school catalogs). Too large to copy into every visitor workspace, so a
+# workspace reads the live rows through a read-only view (namespaces.materialize).
+REFERENCE = frozenset("estimatesource estimatefact careerentry schoolentry".split())
+CORE = frozenset(
+    "user goal plancollaborator goal_assignment requirementassignmentbatch".split()
+)
+# Captured only for the cohort's own goals, and only invitations to cohort emails.
+SCENARIO = frozenset("planinvitation plancollaboratorrequest".split())
 # Private peer work is deliberately excluded even when it belongs to an included org.
 ANCHORS = {
     "goal_template_version": "template_id",
@@ -84,17 +105,47 @@ ANCHORS = {
     "requirementnode": "version_id",
     "resourcetaglink": "resource_id",
     "resourcechannelresource": "channel_id",
+    "plan_collection_item": "collection_id",
+    "portfolioresult": "portfolio_id",
+    "portfolioperson": "portfolio_id",
+    "portfolioquote": "portfolio_id",
+    "portfoliocontact": "portfolio_id",
+    "portfoliocredential": "portfolio_id",
+    "portfoliodocument": "portfolio_id",
+    "portfolioimport": "portfolio_id",
+    "resumeversion": "portfolio_id",
+    "conversationmember": "conversation_id",
+    "conversationmessage": "conversation_id",
+    "conversationmessageref": "message_id",
+    "conversationreaction": "message_id",
 }
+# Never exported: credentials, payments, moderation, operator tooling, other
+# people's requests and demo control state. A new table must be added to one of
+# these sets on purpose (test_demo_classification); unknown tables stay empty.
 FORBIDDEN = frozenset(
     """
 apitoken ssoconnection auditlog
 paymentsconfig paymentsenrollment paymentsoffer paymentsofferresource paymentsgroup
 paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinlink
-planinvitation plancollaboratorrequest resourcecomment
-hubadvisorconfiguration hubadvisorproviderconfiguration inboxmessagetemplate
-feedbackjiraconfiguration
+resourcecomment resourcecommentreport
+inboxmessagetemplate
+feedbackjiraconfiguration feedback_list_cache feedback_submission feedback_submission_file
+oauthauthorizationcode oauthclient oauthgrant org_signing_key platformsecret
+coach_note coach_playbook coach_policy coach_provider_key coach_release coach_report
+coach_test coach_test_run conversationreport userblock
+insight_dashboard insight_capture insight_capture_rule learningactivitypreview learningcontentbackup
+organization_join_request plan_request
+democheckpoint democonfiguration demomember demosession demousage
 """.split()
 )
+CLASSIFIED = (
+    CONTENT, PERSONAL, CHILDREN, CONNECT, REFERENCE, CORE, SCENARIO, FORBIDDEN,
+)
+
+
+def unclassified(tables) -> set[str]:
+    """Tables no policy names: they would silently publish empty."""
+    return set(tables) - frozenset().union(*CLASSIFIED)
 
 
 def encode_value(value):
@@ -220,21 +271,19 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
         )
     for name in ("goal_assignment", "requirementassignmentbatch"):
         add(name, read(name, tables[name].c.org_id.in_(org_ids)))
-    # Iterate to a fixed point; never follow private peer state or credential tables.
-    scenario_tables = {"planinvitation", "plancollaboratorrequest"}
-    allowed = (
-        scenario_tables
-        | CONTENT
-        | PERSONAL
-        | CHILDREN
-        | {
-            "user",
-            "goal",
-            "plancollaborator",
-            "goal_assignment",
-            "requirementassignmentbatch",
-        }
+    # Chats a cohort member is in; members, messages and reactions follow by anchor.
+    member = tables["conversationmember"]
+    add(
+        "conversation",
+        read(
+            "conversation",
+            tables["conversation"].c.id.in_(
+                select(member.c.conversation_id).where(member.c.user_id.in_(user_ids))
+            ),
+        ),
     )
+    # Iterate to a fixed point; never follow private peer state or credential tables.
+    allowed = SCENARIO | CONTENT | PERSONAL | CHILDREN | CONNECT | CORE
     for _ in range(len(tables)):
         before = sum(map(len, rows.values()))
         for name in allowed:

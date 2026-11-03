@@ -163,9 +163,24 @@ def materialize(engine, namespace: str, data: dict) -> None:
         conn.execute(text(f'CREATE SCHEMA "{namespace}"'))
         from sqlalchemy.schema import CreateTable, CreateIndex
 
+        from src.services.demo.checkpoints import REFERENCE
+
+        quote = conn.dialect.identifier_preparer.quote
+        # Shared reference data stays in the live schema; the workspace reads it
+        # through a view. UNION ALL makes the view read-only for visitors.
+        for name in sorted(REFERENCE):
+            live = f"public.{quote(name)}"
+            conn.execute(
+                text(
+                    f"CREATE VIEW {quote(namespace)}.{quote(name)} AS "
+                    f"SELECT * FROM {live} UNION ALL SELECT * FROM {live} WHERE false"
+                )
+            )
         # Types/extensions are already migration-managed in the primary schema.
         # Skip per-table existence checks and import cyclic references before FKs.
         for table in metadata.tables.values():
+            if table.name in REFERENCE:
+                continue
             conn.execute(CreateTable(table, include_foreign_key_constraints=[]))
             for index in table.indexes:
                 if not index.unique and not data.get(table.name):
@@ -187,11 +202,14 @@ def materialize(engine, namespace: str, data: dict) -> None:
         # Reapply constraints after all rows exist, making unsupported export gaps explicit.
         from sqlalchemy.schema import AddConstraint
 
-        quote = conn.dialect.identifier_preparer.quote
         for table in metadata.tables.values():
             for constraint in table.foreign_key_constraints:
+                if {table.name, constraint.referred_table.name} & REFERENCE:
+                    continue
                 conn.execute(AddConstraint(constraint))
         for table in metadata.tables.values():
+            if table.name in REFERENCE:
+                continue
             if "id" in table.c and str(table.c.id.type) in {"INTEGER", "BIGINT"}:
                 conn.execute(
                     text(
