@@ -6,8 +6,10 @@ entry lands as a draft tied to its source, and nothing shows until the source is
 reviewed. Numbers that come with an entry (a school's tuition) load as facts, so the
 budget resolves them like rent and pay.
 
-- O*NET database, text edition (db_31_0_text.zip): Occupation Data, Interests (RIASEC,
-  the OI scale), Job Zones and Alternate Titles.
+- O*NET database, text edition (db_31_0_text.zip): Occupation Data, interests (RIASEC,
+  the OI scale), Job Zones and other titles. Release 31.0 renamed Interests.txt to
+  Career Interest Types.txt and Alternate Titles.txt to Job Titles.txt, and added
+  Sample of Reported Titles.txt; both layouts load.
 - College Scorecard, most recent institution file (Most-Recent-Cohorts-Institution.csv,
   or the data zip that holds it): schools that are currently operating, with tuition.
 """
@@ -19,7 +21,7 @@ import io
 import math
 import re
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 
 from sqlmodel import Session, col, delete, select
 
@@ -81,11 +83,13 @@ def _onet_version(filename: str) -> str:
     return f"{int(m.group(1))}.{int(m.group(2))}"
 
 
-def _tsv(zf: zipfile.ZipFile, name: str, required: bool = True) -> list[dict[str, str]]:
-    found = next((i for i in zf.infolist() if i.filename.rsplit("/", 1)[-1].lower() == name.lower()), None)
+def _tsv(zf: zipfile.ZipFile, *names: str, required: bool = True) -> list[dict[str, str]]:
+    """The first of `names` the zip holds (O*NET renames files between releases)."""
+    by_name = {i.filename.rsplit("/", 1)[-1].lower(): i for i in zf.infolist() if not i.is_dir()}
+    found = next((by_name[n.lower()] for n in names if n.lower() in by_name), None)
     if found is None:
         if required:
-            raise CatalogProblem(f"The O*NET zip has no {name}. Upload the text edition (db_XX_X_text.zip).")
+            raise CatalogProblem(f"The O*NET zip has no {' or '.join(names)}. Upload the text edition (db_XX_X_text.zip).")
         return []
     text = zf.read(found).decode("utf-8-sig", errors="replace")
     return [{(k or "").strip().lower(): (v or "").strip() for k, v in row.items()} for row in csv.DictReader(io.StringIO(text), delimiter="\t")]
@@ -100,9 +104,10 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         raise CatalogProblem("That zip file could not be opened.") from exc
     with zf:
         occupations = _tsv(zf, "Occupation Data.txt")
-        interests = _tsv(zf, "Interests.txt", required=False)
+        interests = _tsv(zf, "Career Interest Types.txt", "Interests.txt")
         zones = _tsv(zf, "Job Zones.txt", required=False)
-        alts = _tsv(zf, "Alternate Titles.txt", required=False)
+        reported = _tsv(zf, "Sample of Reported Titles.txt", required=False)
+        alts = _tsv(zf, "Job Titles.txt", "Alternate Titles.txt", required=False)
     code_col = "o*net-soc code"
     if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
         raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
@@ -123,11 +128,17 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
             job_zone[r[code_col]] = int(float(r.get("job zone", "")))
         except ValueError:
             continue
+    # Other titles: the ones workers report (those My Next Move shows first), then the
+    # longer list of job titles, up to MAX_ALT_TITLES each.
     alt_titles: dict[str, list[str]] = {}
-    for r in alts:
-        title = r.get("alternate title", "")
+    titled = (
+        [(r, r.get("reported job title", "")) for r in reported if r.get("shown in my next move", "").upper() == "Y"]
+        + [(r, r.get("reported job title", "")) for r in reported if r.get("shown in my next move", "").upper() != "Y"]
+        + [(r, r.get("job title") or r.get("alternate title", "")) for r in alts]
+    )
+    for r, title in titled:
         bucket = alt_titles.setdefault(r.get(code_col, ""), [])
-        if title and title not in bucket and len(bucket) < MAX_ALT_TITLES:
+        if title and title.lower() != "n/a" and title not in bucket and len(bucket) < MAX_ALT_TITLES:
             bucket.append(title)
 
     src = _upsert_source(
@@ -135,7 +146,7 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         key=f"onet-{version.replace('.', '-')}",
         publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
         title=f"O*NET {version} Database",
-        dataset="Occupation Data, Interests, Job Zones and Alternate Titles",
+        dataset="Occupation Data, Career Interest Types, Job Zones and job titles",
         url=url,
         released=f"O*NET {version}",
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
@@ -176,20 +187,31 @@ def _val(text: str | None) -> float | None:
     return v if math.isfinite(v) else None
 
 
-def scorecard_rows(data: bytes, filename: str) -> Iterable[dict[str, str]]:
-    name = filename
+# The institution file has about 3,300 columns; only these are kept while reading it.
+SCORECARD_COLUMNS = ("unitid", "instnm", "city", "stabbr", "insturl", "control", "preddeg", "curroper", "ugds", "adm_rate", "c150_4", "c150_l4", "md_earn_wne_p10", "tuitionfee_in", "tuitionfee_out")
+
+
+def scorecard_rows(data: bytes, filename: str) -> Iterator[dict[str, str]]:
+    """The institution file's rows, streamed from the zip, keeping SCORECARD_COLUMNS."""
     if filename.lower().endswith(".zip"):
         member = scorecard_member(data, filename)
         if not member:
             raise CatalogProblem("The zip has no Most-Recent-Cohorts-Institution file in it.")
-        with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            info = next(i for i in zf.infolist() if i.filename.rsplit("/", 1)[-1].lower() == member)
-            data, name = zf.read(info), info.filename
-    if not name.lower().endswith(".csv"):
+        zf = zipfile.ZipFile(io.BytesIO(data))
+        info = next(i for i in zf.infolist() if i.filename.rsplit("/", 1)[-1].lower() == member)
+        stream = zf.open(info)
+    elif filename.lower().endswith(".csv"):
+        stream = io.BytesIO(data)
+    else:
         raise CatalogProblem("Upload the College Scorecard institution CSV, or the zip that holds it.")
-    text = data.decode("utf-8-sig", errors="replace")
-    for row in csv.DictReader(io.StringIO(text)):
-        yield {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+    with io.TextIOWrapper(stream, encoding="utf-8-sig", errors="replace", newline="") as text:
+        reader = csv.reader(text)
+        header = [(h or "").strip().lower() for h in next(reader, [])]
+        if not is_scorecard_columns(header):
+            raise CatalogProblem("Expected the Scorecard columns UNITID, INSTNM and STABBR.")
+        at = {name: header.index(name) for name in SCORECARD_COLUMNS if name in header}
+        for row in reader:
+            yield {name: row[i].strip() if i < len(row) else "" for name, i in at.items()}
 
 
 def _scorecard_release(filename: str) -> str:
@@ -212,7 +234,8 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
         license="U.S. government work, public domain",
         notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started. Tuition and fees are yearly published prices, before aid.",
     )
-    rows = list(rows)
+    # Keep only the columns used, so a full-width file passed in as rows stays small.
+    rows = [{k: r[k] for k in SCORECARD_COLUMNS if k in r} for r in rows]
     db.exec(delete(SchoolEntry).where(SchoolEntry.source_id == src.id))
     db.exec(delete(SchoolEntry).where(col(SchoolEntry.unitid).in_([r.get("unitid", "") for r in rows])))
     db.exec(delete(EstimateFact).where(EstimateFact.source_id == src.id))

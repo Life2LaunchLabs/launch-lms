@@ -30,10 +30,19 @@ SCORECARD = b"""UNITID,INSTNM,CITY,STABBR,INSTURL,CONTROL,PREDDEG,CURROPER,UGDS,
 """
 
 
-def _onet_zip(name: str = "db_31_0_text.zip") -> tuple[bytes, str]:
+# Release 31.0 renamed Interests.txt and Alternate Titles.txt, and added reported titles.
+JOB_TITLES = "O*NET-SOC Code\tJob Title\tShort Title\tSource(s)\n15-1252.00\tApplication Programmer\tn/a\t04\n15-1252.00\tCoder\tn/a\t04\n29-2056.00\tVet Tech\tn/a\t04\n"
+REPORTED = "O*NET-SOC Code\tReported Job Title\tShown in My Next Move\n15-1252.00\tSoftware Engineer\tN\n15-1252.00\tDeveloper\tY\n15-1252.00\tCoder\tN\n"
+
+
+def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[bytes, str]:
+    if layout == "old":
+        files = (("Occupation Data.txt", OCCUPATIONS), ("Interests.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Alternate Titles.txt", ALTS))
+    else:
+        files = (("Occupation Data.txt", OCCUPATIONS), ("Career Interest Types.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Job Titles.txt", JOB_TITLES), ("Sample of Reported Titles.txt", REPORTED))
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as zf:
-        for fname, text in (("Occupation Data.txt", OCCUPATIONS), ("Interests.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Alternate Titles.txt", ALTS), ("Read Me.txt", "readme")):
+        for fname, text in (*files, ("Read Me.txt", "readme")):
             zf.writestr(f"db_31_0_text/{fname}", text)
     return out.getvalue(), name
 
@@ -58,7 +67,7 @@ def test_onet_zip_loads_careers_as_drafts_with_interests_zones_and_other_titles(
     result = importers.import_file(db, data, name)
     assert result["kind"] == "onet" and result["careers"] == 3 and result["with_interests"] == 3
     src = db.exec(select(EstimateSource)).one()
-    assert src.key == "onet-31-0" and "CC BY 4.0" in src.license and "USDOL/ETA" in src.license
+    assert src.key == "onet-30-0" and "CC BY 4.0" in src.license and "USDOL/ETA" in src.license
     dev = db.exec(select(CareerEntry).where(CareerEntry.code == "15-1252.00")).one()
     assert dev.soc == "15-1252" and dev.job_zone == 4 and dev.status == "draft"
     assert dev.interests == {"R": 3.0, "I": 6.5, "A": 2.0, "S": 1.5, "E": 2.5, "C": 4.5}
@@ -69,13 +78,31 @@ def test_onet_zip_loads_careers_as_drafts_with_interests_zones_and_other_titles(
     assert [c["code"] for c in public_data.search_careers(db, "soft")] == ["15-1252.00"]
 
 
+def test_onet_31_layout_loads_career_interest_types_and_job_titles():
+    db = _session()
+    result = importers.import_file(db, *_onet_zip("db_31_0_text.zip", layout="new"))
+    assert result["careers"] == 3 and result["with_interests"] == 3
+    dev = db.exec(select(CareerEntry).where(CareerEntry.code == "15-1252.00")).one()
+    assert dev.interests["I"] == 6.5
+    # Reported titles shown in My Next Move come first, then the rest, then job titles.
+    assert dev.alt_titles == ["Developer", "Software Engineer", "Coder", "Application Programmer"]
+
+
+def test_onet_zip_without_interests_is_refused():
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as zf:
+        zf.writestr("db_31_0_text/Occupation Data.txt", OCCUPATIONS)
+    with pytest.raises(Exception, match="Career Interest Types"):
+        importers.import_file(_session(), out.getvalue(), "db_31_0_text.zip")
+
+
 def test_career_search_finds_other_titles_and_detail_names_the_license():
     db = _session()
     importers.import_file(db, *_onet_zip())
     _review_all(db)
     assert [c["title"] for c in public_data.search_careers(db, "vet tech")] == ["Veterinary Technologists and Technicians"]
     career = public_data.get_career(db, "15-1252.00")
-    assert career["top_interests"] == "ICR" and career["source"]["title"] == "O*NET 31.0 Database"
+    assert career["top_interests"] == "ICR" and career["source"]["title"] == "O*NET 30.0 Database"
     assert public_data.get_career(db, "00-0000.00") is None
 
 
@@ -138,8 +165,8 @@ def test_scorecard_zip_uses_the_most_recent_institution_file():
 def test_reviewing_counts_entries_and_coverage_lists_them():
     db = _session()
     importers.import_file(db, *_onet_zip())
-    assert importers.review_source(db, "onet-31-0", 1) == 3
-    row = next(s for s in estimates.coverage(db) if s["key"] == "onet-31-0")
+    assert importers.review_source(db, "onet-30-0", 1) == 3
+    row = next(s for s in estimates.coverage(db) if s["key"] == "onet-30-0")
     assert row["entries"] == 3 and row["by_status"] == {"reviewed": 3}
-    importers.review_source(db, "onet-31-0", 1, "retired")
+    importers.review_source(db, "onet-30-0", 1, "retired")
     assert public_data.search_careers(db, "") == []
