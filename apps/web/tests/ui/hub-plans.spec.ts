@@ -79,9 +79,9 @@ test('hub.action.timeline: advice can hand off to the Timeline editor', async ({
     await page.screenshot({ path: testInfo.outputPath('hub-add-timeline-action.png'), fullPage: true })
   }
   await action.click()
-  await expect(page.getByRole('dialog', { name: 'Add experience' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add to my portfolio' })).toBeVisible()
   await expect(page.getByLabel('Type')).toHaveValue('work_career')
-  await expect(page).toHaveURL((url) => url.pathname.endsWith('/portfolio/timeline') && !url.searchParams.has('experience'))
+  await expect(page).toHaveURL((url) => url.pathname.endsWith('/portfolio/timeline/new'))
   await expect(page.locator('section.hub-panel')).toContainText('Please help me add my new job to my portfolio timeline')
 })
 

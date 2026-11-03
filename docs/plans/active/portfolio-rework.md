@@ -42,6 +42,23 @@ Scope is the portfolio. Plans get their own redesign; anything that needs plan c
 "Where I'm headed" (`v2/HeadedTile.tsx`, `life_plans.plans.headed`) shows the life plan's phase now and the next two, never the
 budget; only the learner sees it until visibility is decided. Launch Ready was removed on 2 November 2026: sign-up lands on the portfolio.
 
+Sign-up asks for the first, last and display name, not a username (the account gets a random one). The first visit
+opens the "Build your brand" sheet (`v2/WelcomeDialog.tsx`, once per browser). The four looks (Pop, Studio, Midnight,
+Sunset; `components/Looks/looks.ts`, `styles/looks.css`) are the learner's theme for the whole app and the one visitors
+see their portfolio in; picking one is a sharing quest step (`layout.look` in `theme_settings`).
+
+Experiences and projects are made and edited on their own pages (`v2/ExperiencePage.tsx`, `v2/ProjectPage.tsx`,
+`v2/inplace.tsx`): a new one starts as a blank page that reads like the finished thing, optional parts wait as dashed
+chips, and one bar saves. The experience list is one list with a chip per type in use. Items without a photo get a
+picture for their kind (`v2/covers.tsx`). A quest item opens where it is done and carries its gold "!" onto the button
+that finishes it (`questPath` in `v2/progress.ts`, `?mark=`). Credentials count only what can be backed up: badges
+earned here. Uploaded cards and certificates show as "coming soon" until they can be checked.
+
+"What I'm like" results follow templates for the common assessments (`v2/resultTemplates.ts`: RIASEC sliders,
+16 types, CliftonStrengths top 5, Big Five, Enneagram), each linking to where to take it; `data.template` names it
+and the tile draws it (`v2/ResultView.tsx`, a RIASEC web). The learner enters their own result (the owner's call on
+2 November 2026) and can attach the report PDF, which visitors never get. A CIS import arrives as a RIASEC result.
+
 Held for the plans redesign: decision options in "Where I'm headed", the EPP view and sign-off, the course
 planner, and importing CIS reflections, saved items and plan history into plans.
 

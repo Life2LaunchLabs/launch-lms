@@ -1,0 +1,143 @@
+/* ─── Looks ───
+   A learner's look (components/Looks/looks.ts) themes the whole app when set on <html>, and a portfolio
+   when set on its page, so visitors see it in its owner's look. Each look sets the full token set, so it
+   holds inside a page of another look. Unlayered, so it wins over the light and dark tokens. */
+
+[data-look='pop'],
+[data-look='pop'] [data-org-theme] {
+  --background: 200 25% 97%;
+  --foreground: 200 30% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 200 30% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 200 30% 9%;
+  --primary: 200 30% 12%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 200 22% 93%;
+  --secondary-foreground: 200 30% 12%;
+  --muted: 200 22% 93%;
+  --muted-foreground: 200 10% 38%;
+  --accent: 200 22% 91%;
+  --accent-foreground: 200 30% 12%;
+  --border: 200 18% 86%;
+  --input: 200 18% 82%;
+  --ring: 218 100% 65%;
+  --brand: 218 100% 60%;
+  --brand-soft: 218 100% 95%;
+  --brand-ink: 222 70% 40%;
+  --shell: 200 20% 89%;
+  --raised: 200 22% 93%;
+  --edge: 200 16% 78%;
+  --org-page-background: #f5f8f9;
+  --org-primary-color: #4c8dff;
+  --org-on-primary-color: #ffffff;
+  --look-a: #4c8dff;
+  --look-b: #ec4f9a;
+  --look-c: #f5a524;
+}
+
+[data-look='studio'],
+[data-look='studio'] [data-org-theme] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 7%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 7%;
+  --primary: 0 0% 7%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 95%;
+  --secondary-foreground: 0 0% 7%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 0 0% 93%;
+  --accent-foreground: 0 0% 7%;
+  --border: 0 0% 88%;
+  --input: 0 0% 84%;
+  --ring: 0 0% 7%;
+  --brand: 0 0% 7%;
+  --brand-soft: 0 0% 94%;
+  --brand-ink: 0 0% 7%;
+  --shell: 0 0% 95%;
+  --raised: 0 0% 96%;
+  --edge: 0 0% 82%;
+  --radius: 0.25rem;
+  --org-page-background: #ffffff;
+  --org-primary-color: #111111;
+  --org-on-primary-color: #ffffff;
+  --look-a: #111111;
+  --look-b: #3a3a3a;
+  --look-c: #8a8a8a;
+}
+
+[data-look='midnight'],
+[data-look='midnight'] [data-org-theme] {
+  --background: 229 46% 8%;
+  --foreground: 230 100% 97%;
+  --card: 228 42% 14%;
+  --card-foreground: 230 100% 97%;
+  --popover: 228 42% 15%;
+  --popover-foreground: 230 100% 97%;
+  --primary: 230 100% 97%;
+  --primary-foreground: 229 46% 8%;
+  --secondary: 228 39% 19%;
+  --secondary-foreground: 230 100% 97%;
+  --muted: 228 39% 19%;
+  --muted-foreground: 228 30% 69%;
+  --accent: 228 36% 22%;
+  --accent-foreground: 230 100% 97%;
+  --border: 229 36% 24%;
+  --input: 229 36% 27%;
+  --ring: 233 100% 74%;
+  --brand: 233 100% 74%;
+  --brand-soft: 231 43% 23%;
+  --brand-ink: 233 100% 86%;
+  --shell: 229 50% 5%;
+  --raised: 228 39% 19%;
+  --edge: 229 36% 22%;
+  --org-page-background: #0b0f1e;
+  --org-primary-color: #7c5cff;
+  --org-on-primary-color: #ffffff;
+  --look-a: #5b2bd6;
+  --look-b: #00d1c1;
+  --look-c: #1b1f4b;
+}
+
+[data-look='sunset'],
+[data-look='sunset'] [data-org-theme] {
+  --background: 28 100% 97%;
+  --foreground: 13 40% 12%;
+  --card: 30 100% 99%;
+  --card-foreground: 13 40% 12%;
+  --popover: 30 100% 99%;
+  --popover-foreground: 13 40% 12%;
+  --primary: 13 40% 12%;
+  --primary-foreground: 30 100% 99%;
+  --secondary: 24 90% 92%;
+  --secondary-foreground: 13 40% 12%;
+  --muted: 24 90% 92%;
+  --muted-foreground: 17 23% 39%;
+  --accent: 24 85% 90%;
+  --accent-foreground: 13 40% 12%;
+  --border: 23 66% 86%;
+  --input: 23 60% 82%;
+  --ring: 18 80% 54%;
+  --brand: 18 80% 54%;
+  --brand-soft: 21 100% 92%;
+  --brand-ink: 17 73% 38%;
+  --shell: 24 80% 92%;
+  --raised: 24 90% 94%;
+  --edge: 23 50% 80%;
+  --org-page-background: #fff6ee;
+  --org-primary-color: #e8642c;
+  --org-on-primary-color: #ffffff;
+  --look-a: #f5a524;
+  --look-b: #e8642c;
+  --look-c: #c8327d;
+}
+
+/* A look set on a page, not the whole app, paints its own background. */
+:not(html)[data-look] {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}

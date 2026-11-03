@@ -2,9 +2,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from src.services.auth import google_oauth
-from src.services.auth.usernames import generate_username as _generate_onboarding_username, picked_username as _picked_username
+from src.services.auth.usernames import generate_username as _generate_onboarding_username
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.organizations import Organization
@@ -57,7 +57,10 @@ router = APIRouter()
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
-    username: str | None = None  # picked on the signup page; a random one when left out
+    # Asked at sign-up: the legal name (rosters, reports) and the name they go by (shown; the legal first name when empty).
+    first_name: str = Field(default="", max_length=100)
+    last_name: str = Field(default="", max_length=100)
+    preferred_name: str = Field(default="", max_length=100)
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
@@ -65,7 +68,6 @@ class WelcomeSignupRequest(BaseModel):
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
-    username: str | None = None
 
 
 def _portfolio_redirect_url(owner_org: Organization) -> str:
@@ -126,7 +128,6 @@ async def check_welcome_signup_email(
     existing = db_session.exec(select(User).where(User.email == body.email)).first()
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
-    _picked_username(body.username, db_session)
     return {"available": True}
 
 
@@ -156,11 +157,10 @@ async def complete_welcome_signup(
         "onboarding": {"started_at": started_at},
     }
     user_create = UserCreate(
-        username=_picked_username(body.username, db_session) or _generate_onboarding_username(body.email, db_session),
+        username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
         password=body.password,
-        first_name="",
-        last_name="",
+        first_name=body.first_name.strip(), last_name=body.last_name.strip(), preferred_name=body.preferred_name.strip(),
         bio="",
         details={"onboarding": {"started_at": started_at}},
         profile=profile_preset,

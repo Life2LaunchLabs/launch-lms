@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { AnimatePresence, motion } from 'motion/react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
+import { useGoogleSignIn } from '@services/auth/google'
 import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import '@/styles/admin-dark.css'
@@ -410,6 +411,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
       setBusy(false)
     }
   }
+  const googleOn = useGoogleSignIn()
   const google = async () => {
     if (!existing && !age.ok()) return
     onGoogle()
@@ -421,8 +423,8 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     <p className={LEDE}>{existing ? 'We’ll add what you’ve picked to your account.' : 'Create an account so your plans are here when you come back.'}</p>
     <form className="mt-6 space-y-3.5" onSubmit={(event) => void submit(event)}>
       {existing ? null : <AgeConfirm {...age.field} />}
-      <Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />Continue with Google</Button>
-      <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />or<i className="h-px flex-1 bg-border" /></div>
+      {googleOn ? <><Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />Continue with Google</Button>
+      <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />or<i className="h-px flex-1 bg-border" /></div></> : null}
       <Field label="Email"><input className={INPUT} type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
       <Field label="Password"><input className={INPUT} type="password" autoComplete={existing ? 'current-password' : 'new-password'} placeholder={existing ? '' : 'At least 8 characters, with a number and a symbol'} value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
       {!existing && password && !strong ? <p className="text-[12.5px] text-muted-foreground">Use at least 8 characters with upper and lower case, a number and a symbol.</p> : null}

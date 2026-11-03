@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation'
-import { getServerSession } from '@/lib/auth/server'
-import { getUriWithOrg } from '@services/config/config'
+import { ownerItemPage } from '@components/Pages/Portfolio/v2/portfolioPages'
 
-export default async function NewProjectPage({ params }: { params: Promise<{ orgslug: string }> }) { const { orgslug } = await params; if (!(await getServerSession())?.tokens?.access_token) redirect(getUriWithOrg(orgslug, '/')); redirect(getUriWithOrg(orgslug, '/portfolio/projects?newProject=1')) }
+type Props = { params: Promise<{ orgslug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }
+export default async function NewProjectPage({ params, searchParams }: Props) {
+  return ownerItemPage((await params).orgslug, 'project', undefined, await searchParams)
+}

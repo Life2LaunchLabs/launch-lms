@@ -20,7 +20,7 @@ export type Credential = { credential_uuid: string; kind: 'card' | 'certificate'
 export type Quote = { quote_uuid: string; body: string; confirmed: boolean; name: string; role_label: string; timeline_uuid?: string | null; project_uuid?: string | null; featured: boolean; status?: string; contact_uuid?: string; visibility?: string }
 export type Contact = { contact_uuid: string; name: string; role_label: string; email: string; phone: string; note: string; is_reference: boolean; on_app: boolean; timeline_uuid?: string | null; source?: string }
 /** A result for "What I'm like". Plans can write these; ``source`` says where it came from. */
-export type PortfolioResult = { result_uuid: string; kind: 'interests' | 'strengths' | 'values' | 'skills' | 'other'; name: string; summary: string; data: Record<string, any>; taken_on?: string | null; featured: boolean; source: string; visibility?: string }
+export type PortfolioResult = { result_uuid: string; kind: 'interests' | 'personality' | 'strengths' | 'values' | 'skills' | 'other'; name: string; summary: string; data: Record<string, any>; taken_on?: string | null; featured: boolean; source: string; visibility?: string }
 export type ResumeVersion = { version_uuid: string; name: string; layout: string; accent: string; excluded: string[] }
 export type PortfolioDocument = { document_uuid: string; kind: string; title: string; source: string; visibility: string; url: string; filename?: string; creation_date: string }
 /** What the portfolio records add to the shell. Visitors never get contacts, résumé versions or documents. */

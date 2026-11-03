@@ -173,9 +173,14 @@ def test_highlights_and_layout_show_to_visitors():
         public = service.get_public_shell(1, "maya", db)
 
         assert public["highlights"] == [{"value": "300+", "label": "hours worked"}, {"value": "3.8", "label": "GPA"}]
-        assert public["layout"] == {"header": "center", "sections": "grid"}
+        # No look until one is picked; then visitors see the portfolio in it.
+        assert public["layout"] == {"header": "center", "sections": "grid", "look": None}
+        portfolio_display.update_layout(LayoutUpdate(look="sunset"), actor, db)
+        assert service.get_public_shell(1, "maya", db)["layout"] == {"header": "center", "sections": "grid", "look": "sunset"}
         with pytest.raises(HTTPException):
             portfolio_display.update_layout(LayoutUpdate(sections="carousel"), actor, db)
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(look="neon"), actor, db)
         with pytest.raises(HTTPException):
             portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value=" ", label="GPA")]), actor, db)
 
@@ -206,3 +211,14 @@ def test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices(
         assert len(service.get_owner_shell(actor, db)["results"]) == 2
         with pytest.raises(HTTPException):
             results.create_result(ResultWrite(kind="horoscope", name="Leo"), actor, db)
+
+
+def test_a_result_from_a_template_keeps_its_report_from_visitors():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        data = {"template": "sixteen", "type": "INFJ", "pdf": {"asset_uuid": "a1", "url": "report.pdf"}}
+        mine = results.create_result(ResultWrite(kind="personality", name="16 personality types", summary="INFJ", data=data), actor, db)
+
+        assert mine["data"]["pdf"]["url"] == "report.pdf"
+        public = service.get_public_shell(1, "maya", db)["results"]
+        assert public[0]["data"] == {"template": "sixteen", "type": "INFJ"}
