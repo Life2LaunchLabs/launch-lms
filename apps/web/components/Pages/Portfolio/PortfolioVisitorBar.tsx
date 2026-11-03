@@ -46,7 +46,7 @@ export function PortfolioVisitorBar({ orgslug, username, token, shell }: { orgsl
     {access?.shared_privately ? <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-raised px-3 text-xs font-bold text-muted-foreground"><Lock className="h-3.5 w-3.5" />Shared with you</span> : null}
     {profile.can_message ? <Button variant="brand" size="sm" onClick={message} disabled={opening}>{opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Message</Button> : null}
     {profile.goals.length ? <Button variant="surface" size="sm" onClick={() => setSheet('goals')}><Target className="h-4 w-4" />Goals · {profile.goals.length}</Button> : null}
-    {access?.plans && profile.person.user_uuid ? <Button variant="surface" size="sm" asChild><Link href={getUriWithOrg(orgslug, `/life?of=${encodeURIComponent(profile.person.user_uuid)}`)}><Map className="h-4 w-4" />Life plan</Link></Button> : null}
+    {access?.plans && profile.person.user_uuid ? <Button variant="surface" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.sharedPlan(profile.person.user_uuid))}><Map className="h-4 w-4" />Plans</Link></Button> : null}
     {onPortfolio ? <CommentButton portfolioUuid={shell.portfolio?.portfolio_uuid} orgslug={orgslug} token={token} /> : null}
     <EditSheet open={sheet === 'goals'} onOpenChange={(open) => setSheet(open ? 'goals' : null)} color={SHEET_COLOR} title={`Goals ${profile.person.name} shares with you`}>
       <ul className="flex flex-col gap-2">{profile.goals.map((goal) => <li key={goal.goal_uuid}>
