@@ -4,12 +4,6 @@ import { assertActualApp } from './auth'
 
 // The portfolio front page and its section pages.
 
-// The menu sits at the top of the cover, where the guest notice can cover it, so it's opened from the keyboard.
-async function openSettings(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Settings' }).first().focus()
-  await page.keyboard.press('Enter')
-}
-
 test('portfolio.v2: the portfolio is the new one, with no switch', async ({ page }) => {
   await page.goto('/portfolio')
   await expect(page.locator('[data-portfolio-v2]')).toBeVisible()
