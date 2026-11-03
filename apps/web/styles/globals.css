@@ -3031,3 +3031,17 @@
   from { opacity: 0; transform: translateY(4px) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
+
+/* Phase covers: a drawn landscape that stands in for a photo of the phase (components/Goals/phases/PhaseScene). */
+.phase-scene {
+  --sky1: #8EC5FF; --sky2: #FFE0B8; --sun: #FFD58A; --glow: #FFE9C2; --cloud: rgb(255 255 255 / .85);
+  --far: #A8C9B4; --far2: #93AFC9; --snow: #FFFFFF; --mid: #79B08B; --tree: #4E8C64; --tree2: #3E7A55; --ground: #69A275; --road: #E9DCC3;
+  --sea: #3E9CC4; --sea2: #7CC7E3; --house: #FFF4E4; --roof: #D9694A; --win: #CFE7FF; --door: #7A4E35; --stars: 0;
+}
+.dark .phase-scene {
+  --sky1: #0E1838; --sky2: #4A3466; --sun: #F4F1E6; --glow: #6F5C9A; --cloud: rgb(160 160 210 / .22);
+  --far: #2B3A5A; --far2: #34456A; --snow: #C9D2EA; --mid: #22344A; --tree: #1A2B3B; --tree2: #142231; --ground: #1C2D3C; --road: #3A4458;
+  --sea: #1A3A5E; --sea2: #2D5B85; --house: #3B4660; --roof: #6A3F4F; --win: #FFD27A; --door: #2A2230; --stars: 1;
+}
+.phase-scene .stars { opacity: var(--stars); }
+.phase-scene.past { filter: saturate(.55); }

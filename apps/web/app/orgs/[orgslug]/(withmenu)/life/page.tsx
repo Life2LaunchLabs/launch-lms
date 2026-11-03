@@ -1,10 +1,10 @@
-import LifePlanWorkspace from '@components/LifePlan/LifePlanWorkspace'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/routing/paths'
 
 type Props = { searchParams: Promise<{ of?: string | string[] }> }
 
-/** Your life plan, or with ?of=<user uuid> someone's who shared their plans with you in My people. */
-export default async function LifePlanPage({ searchParams }: Props) {
+/** Life plans moved into Plans: phases, their goals and their budgets live there. Old links still land. */
+export default async function LifePlanMoved({ searchParams }: Props) {
   const { of } = await searchParams
-  const person = typeof of === 'string' ? of : undefined
-  return <LifePlanWorkspace key={person || 'mine'} of={person} />
+  redirect(typeof of === 'string' && of ? routePaths.org.sharedPlan(of) : routePaths.org.plans())
 }

@@ -294,6 +294,17 @@ def test_learner_finishes_steps_by_their_type_rules():
         assert view["status"] == "finished" and view["progress"] == {"done": 3, "total": 3}
 
 
+def test_the_goal_list_says_which_step_comes_next():
+    with _session() as db:
+        template = _published(db, {"type": "task", "title": "Find a clinic"}, {"type": "task", "title": "Email them"})
+        goal = _issue(db, template)
+        row = lambda: next(item for item in goals.list_my_goals(db, _user(LEARNER)) if item["goal_uuid"] == goal.goal_uuid)  # noqa: E731
+        assert row()["next_step"] == "Find a clinic"
+        view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
+        _status(db, LEARNER, goal, _step(view, "Find a clinic"), StepStatus.COMPLETED)
+        assert row()["next_step"] == "Email them"
+
+
 def test_reviewed_steps_go_to_staff_who_can_send_them_back():
     with _session() as db:
         template = _published(db, {"type": "write", "title": "Essay", "review_required": True}, {"type": "task", "title": "Interview", "completed_by": "staff"})

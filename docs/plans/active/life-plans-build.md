@@ -2,7 +2,8 @@
 
 Status: first cut, Oregon first. Builds the budget screen from the life-plans prototype
 (https://claude.ai/artifact/N2MuwREy3jdqiEaT733zSS) and follows the build plan
-(https://claude.ai/artifact/T4FDKbetAh1ktkTDRhWiUp). The page is at `/life`; it is not in the nav yet.
+(https://claude.ai/artifact/T4FDKbetAh1ktkTDRhWiUp). Since 2026-11-03 there is no `/life` page: a phase's budget opens from the phase in Plans at
+`/plans/phase/<id>/budget` (`/life` redirects to Plans, and `/life?of=` to `/plans/shared/<user uuid>`).
 
 ## The sources rule
 

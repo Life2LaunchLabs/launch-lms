@@ -4,13 +4,18 @@ import React from 'react'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { ChevronDown, Compass, Map, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, Compass, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
 import { GoalTabs } from '@components/Goals/learner/GoalHeader'
-import { groupByPhase, type PhaseGroup } from '@components/Goals/learner/phases'
+import { phaseOfGoal, type PhaseGroup } from '@components/Goals/learner/phases'
+import PhaseStack, { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
+import PhaseDialog, { type PhaseEdit } from '@components/Goals/phases/PhaseDialog'
+import useLifePlan from '@components/Goals/phases/useLifePlan'
+import SharedWithYou from '@components/LifePlan/SharedWithYou'
 import { planVars } from '@components/Goals/planColors'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isGoalsKey } from '@services/goals/goals'
 import { homeUrl } from '@services/goals/home'
 import type { LifeDoc } from '@services/life/life'
@@ -68,37 +73,41 @@ export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: {
   </div>
 }
 
-/** The overview: invitations, then each phase of the learner's life with its goals, then finished goals. */
+/** Plans: invitations, then the phases of the learner's life as pictures, then finished goals. */
 export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
+  const router = useRouter()
   const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { change } = useLifePlan(token)
+  const [phaseEdit, setPhaseEdit] = React.useState<PhaseEdit | null>(null)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
-  // With nothing active and no plan, finished goals stay in reach under the empty state, opened.
-  if (!open.length && !life?.phases?.length) return <div className="flex flex-col gap-10">
-    <Invitations invitations={invitations} token={token} />
-    <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
-    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open />
-  </div>
+  const dialog = <PhaseDialog edit={phaseEdit} doc={life || null} token={token} onClose={() => setPhaseEdit(null)} change={change}
+    onAdded={(id) => router.push(getUriWithOrg(orgslug, routePaths.org.phase(id)))} />
 
-  const groups = groupByPhase(life, open)
-  return <div className="flex flex-col gap-10">
-    <Invitations invitations={invitations} token={token} />
-    {groups.map((group) => <PhaseSection key={group.id || 'all'} group={group} orgslug={orgslug} choose={choose} onIntent={onIntent} getGoalColor={getGoalColor} onCreate={() => onCreate(group.id)} creating={creating} />)}
-    {!life?.phases?.length ? <Link href={getUriWithOrg(orgslug, '/life')} className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-border p-4 hover:border-foreground/30">
-      <Map size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0"><b className="block font-bold">Map out the phases of your life</b><small className="block text-sm text-muted-foreground">Then each goal sits in the phase it belongs to.</small></span>
-    </Link> : null}
-    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
-  </div>
-}
+  if (life?.phases?.length) {
+    const goalsIn: Record<string, number> = {}
+    for (const goal of open) { const id = phaseOfGoal(life, goal.goal_uuid); if (id) goalsIn[id] = (goalsIn[id] || 0) + 1 }
+    return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
+      <SharedWithYou token={token} />
+      <Invitations invitations={invitations} token={token} />
+      <PhaseStack doc={life} orgslug={orgslug} goalsIn={goalsIn} onAdd={() => setPhaseEdit({ mode: 'add' })} />
+      <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
+      {dialog}
+    </div>
+  }
 
-// eslint-disable-next-line no-unused-vars
-function PhaseSection({ group, orgslug, choose, onIntent, getGoalColor, onCreate, creating }: { group: PhaseGroup<GoalSummary>; orgslug: string; choose: (goal: GoalSummary) => void; onIntent?: (goal: GoalSummary) => void; getGoalColor: (goalUuid?: string) => string; onCreate: () => void; creating: boolean }) {
-  const title = group.when ? `${WHEN[group.when]}: ${group.title}` : group.title
-  return <section aria-label={title} className="flex flex-col gap-3">
-    <PhaseHeading group={group} />
-    {group.goals.length ? <GoalTabs label={`Goals for ${group.title}`} goals={group.goals} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} /> : null}
-    <AddToPhase orgslug={orgslug} phaseTitle={group.id ? group.title : undefined} empty={!group.goals.length} onCreate={onCreate} creating={creating} />
-  </section>
+  // No phases yet: start the plan with the phase they're in; goals they already have wait below.
+  return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
+    <SharedWithYou token={token} />
+    <Invitations invitations={invitations} token={token} />
+    <StartPhaseCard onStart={() => setPhaseEdit({ mode: 'add' })} />
+    {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
+      <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
+      <GoalTabs label="Your goals" goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
+      <AddToPhase orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
+    </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
+    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
+    {dialog}
+  </div>
 }
 
 /** Invitations to work on someone's goal, and goals an organization handed the learner, answered here. */
@@ -151,7 +160,7 @@ function FinishedGoals({ goals, getGoalColor, choose, error, retry, open = false
 
 function EmptyHome({ orgslug, onCreate, creating }: { orgslug: string; onCreate: () => void; creating: boolean }) {
   return <div className="rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
-    <h2 className="text-2xl font-extrabold">Start with something that matters</h2>
+    <h2 className="text-2xl font-extrabold">Then add something to work toward</h2>
     <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Set your own goal, or pick a badge to earn and its goal shows up here.</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">
       <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Starting…' : 'Create your own'}</Button>

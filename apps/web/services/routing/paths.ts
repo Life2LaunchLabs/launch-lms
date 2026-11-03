@@ -154,6 +154,11 @@ export const routePaths = {
     resources: () => '/resources',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
+    /** One phase of the learner's plan, and its budget. */
+    phase: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}`,
+    phaseBudget: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/budget`,
+    /** Someone's plan they shared with you in their My people. */
+    sharedPlan: (userUuid: string) => `/plans/shared/${encodeURIComponent(userUuid)}`,
     /** A plan learners can join, as Discover shows it; also the criteria page of the badge it earns. */
     discoverPlan: (templateUuid: string) => `/discover/plans/${encodeURIComponent(templateUuid)}`,
     /** A collection of plans an organization offers learners. */
