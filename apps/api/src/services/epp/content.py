@@ -16,7 +16,7 @@ from pathlib import Path
 
 from sqlmodel import Session, col, select
 
-from src.db.goals import Goal, GoalStep
+from src.db.goals import Goal, GoalOwnership, GoalStep
 from src.db.requirements import RequirementNode
 from src.db.users import PublicUser
 
@@ -55,14 +55,15 @@ def install(db: Session, current_user: PublicUser, org_id: int) -> dict:
 
 
 def steps_for_code(db: Session, user_id: int, org_id: int, code: str) -> list[GoalStep]:
-    """A learner's steps, in their goals with this organization, linked to the requirement with this code.
+    """A learner's steps, in plans this organization gave them or they joined, linked to the requirement with
+    this code. Their own personal goals never count, even when filed under the organization.
 
     This is how the report finds content: by code, whichever plan or step carries it.
     """
     wanted = set(db.exec(select(RequirementNode.node_uuid).where(RequirementNode.code == code)).all())
     if not wanted:
         return []
-    goal_ids = list(db.exec(select(Goal.id).where(Goal.subject_user_id == user_id, Goal.org_id == org_id)).all())
+    goal_ids = list(db.exec(select(Goal.id).where(Goal.subject_user_id == user_id, Goal.org_id == org_id, Goal.ownership == GoalOwnership.EXTERNAL)).all())
     if not goal_ids:
         return []
     steps = db.exec(select(GoalStep).where(col(GoalStep.goal_id).in_(goal_ids))).all()

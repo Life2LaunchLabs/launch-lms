@@ -6,7 +6,7 @@ and learner; asking again after a decline or an end reuses it with a new request
 """
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 # requested: waiting on the learner. active: they accepted. declined / ended: no access.
@@ -39,6 +39,8 @@ class LearnerSupport(SQLModel, table=True):
     diploma_track: str | None = None
     graduation_year: int | None = None
     counselor_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    # The portfolio items the learner chose for their report: [{"kind": "credential", "uuid": "..."}].
+    report_picks: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     creation_date: str = ""
     update_date: str = ""
 
@@ -57,3 +59,9 @@ class SupportAnswer(BaseModel):
 
     accept: bool
     request_uuid: str | None = None
+
+
+class ReportPicks(BaseModel):
+    """The portfolio items a learner chooses for their Education Plan and Profile report, in order."""
+
+    picks: list[dict] = PydanticField(default_factory=list, max_length=40)
