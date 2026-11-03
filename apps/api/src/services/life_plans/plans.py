@@ -135,6 +135,32 @@ def get_plan(db: Session, user: PublicUser) -> dict | None:
     return _view(plan) if plan else None
 
 
+def shared_plans(db: Session, user: PublicUser) -> list[dict]:
+    """The people who switched on "plans" for this person in their My people."""
+    from src.db.portfolio import Portfolio
+    from src.db.portfolio_people import PortfolioPerson
+    from src.services.connect import people as connect_people
+
+    owners = db.exec(
+        select(Portfolio.user_id).join(PortfolioPerson, PortfolioPerson.portfolio_id == Portfolio.id)
+        .where(PortfolioPerson.user_id == user.id, PortfolioPerson.plans == True)  # noqa: E712
+    ).all()
+    return [p for p in (connect_people.person(db, owner) for owner in owners if not connect_people.blocked(db, owner, int(user.id))) if p]  # type: ignore[arg-type]
+
+
+def shared_plan(db: Session, user: PublicUser, user_uuid: str) -> dict:
+    """Someone else's life plan, read-only, when they shared their plans with this person."""
+    from src.db.users import User
+    from src.services.connect import people as connect_people
+    from src.services.portfolio_people import shares_plans
+
+    owner = db.exec(select(User).where(User.user_uuid == user_uuid)).first()
+    if not owner or not shares_plans(db, int(owner.id), int(user.id)):  # type: ignore[arg-type]
+        raise HTTPException(status_code=404, detail="Plan not found")
+    plan = db.exec(select(LifePlan).where(LifePlan.user_id == owner.id)).first()
+    return {"person": connect_people.person(db, owner.id), "plan": _view(plan) if plan else None}
+
+
 def save_plan(db: Session, user: PublicUser, body: SavePlan) -> dict:
     plan = db.exec(select(LifePlan).where(LifePlan.user_id == user.id)).first()
     doc = body.document.model_dump(mode="json")

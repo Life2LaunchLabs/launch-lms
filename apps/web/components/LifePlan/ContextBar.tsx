@@ -12,7 +12,8 @@ import { monthLabel, phaseOffset, uid } from './model'
 import { PhaseForm } from './PhaseForm'
 
 /** Sticky: which phase and which stretch of it the budget below is showing. */
-export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'saved' | 'error' }) {
+/** `owner` is set when someone shared their plan with you: their name heads it, and nothing can be changed. */
+export default function ContextBar({ saving, owner }: { saving: 'idle' | 'saving' | 'saved' | 'error'; owner?: string }) {
   const { doc, phase, stretch, stretchesOf, selectStretch, update, token, startOver } = useLife()
   const [edit, setEdit] = React.useState<'edit' | 'add' | null>(null)
   const ask = useAsk()
@@ -37,8 +38,8 @@ export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'sa
   return (
     <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-border/70 bg-background/90 px-4 pb-3 pt-3 backdrop-blur sm:-mx-6 sm:px-6">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-extrabold tracking-tight">Life plan</h1>
-        <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-extrabold tracking-tight">{owner ? `${owner}’s life plan` : 'Life plan'}</h1>
+        {owner ? <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">Shared with you · view only</span> : <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground" aria-live="polite">{saving === 'saving' ? 'Saving…' : saving === 'saved' ? 'Saved' : saving === 'error' ? 'Not saved' : ''}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Plan options"><MoreHorizontal /></Button></DropdownMenuTrigger>
@@ -50,7 +51,7 @@ export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'sa
               <DropdownMenuItem className="text-destructive" onSelect={() => { void deletePlan() }}>Delete plan and start over</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </div>}
       </div>
       <div className="mt-2 grid grid-cols-[36px_minmax(0,1fr)_36px] items-center gap-1 rounded-2xl bg-card p-1 shadow-[0_1px_0_hsl(var(--border))]">
         {k > 0 ? <Button variant="ghost" size="icon" onClick={() => go(-1)} aria-label={`Earlier phase: ${doc.phases[k - 1].title}`}><ChevronLeft /></Button> : <span />}
@@ -60,7 +61,7 @@ export default function ContextBar({ saving }: { saving: 'idle' | 'saving' | 'sa
             {monthLabel(doc.start, off)} to {monthLabel(doc.start, off + phase.months - 1)}{phase.place_label ? ` · ${phase.place_label}` : ''} · phase {k + 1} of {doc.phases.length}
           </div>
         </div>
-        {k < doc.phases.length - 1 ? <Button variant="ghost" size="icon" onClick={() => go(1)} aria-label={`Next phase: ${doc.phases[k + 1].title}`}><ChevronRight /></Button> : <Button variant="ghost" size="icon" onClick={() => setEdit('add')} aria-label="Add the next phase" title="Add the next phase"><span className="text-lg leading-none">+</span></Button>}
+        {k < doc.phases.length - 1 ? <Button variant="ghost" size="icon" onClick={() => go(1)} aria-label={`Next phase: ${doc.phases[k + 1].title}`}><ChevronRight /></Button> : owner ? <span /> : <Button variant="ghost" size="icon" onClick={() => setEdit('add')} aria-label="Add the next phase" title="Add the next phase"><span className="text-lg leading-none">+</span></Button>}
       </div>
       {stretchesOf.length > 1 && (
         <div ref={chips} className="relative mt-2 flex items-center gap-2 overflow-x-auto px-0.5 py-1 [scrollbar-width:none]" role="group" aria-label="Stretches in this phase">

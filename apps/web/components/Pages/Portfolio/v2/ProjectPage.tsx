@@ -12,7 +12,8 @@ import { normalizeMediaUrl } from '@services/media/media'
 import { createPortfolioProject, deletePortfolioProject, updatePortfolioProject, updatePortfolioTimeline } from '@services/portfolio/portfolio'
 import { MonthDateRangeField } from '../MonthDateRangeField'
 import type { TimelineEntry } from '../Timeline'
-import type { Project } from '../portfolioTypes'
+import type { Contact, Project, Quote } from '../portfolioTypes'
+import { ItemQuotes } from './AskQuote'
 import { KindCover, experienceLook } from './covers'
 import { AddChip, ItemHero, ItemSection, PhotoPicker, SaveBar, blockImages, imageBlocks, quiet, type Picked, type Setter } from './inplace'
 
@@ -28,7 +29,7 @@ const STORY = [
 const textOf = (project: Project | undefined, type: string) => String(project?.blocks.find((block) => block.block_type === type)?.data?.text || '')
 const links = (entry: TimelineEntry) => (entry.projects || []).map((item: any) => ({ project_uuid: item.project_uuid, relationship_label: item.relationship_label || 'Related to this experience' }))
 
-export function ProjectPage({ project, timeline, orgslug, experience: askedExperience, mark }: { project?: Project; timeline: TimelineEntry[]; orgslug: string; experience?: string; mark?: string }) {
+export function ProjectPage({ project, timeline, orgslug, experience: askedExperience, mark, quotes = [], contacts = [] }: { project?: Project; timeline: TimelineEntry[]; orgslug: string; experience?: string; mark?: string; quotes?: Quote[]; contacts?: Contact[] }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const userId = Number(session?.data?.user?.id || 0)
@@ -144,6 +145,8 @@ export function ProjectPage({ project, timeline, orgslug, experience: askedExper
 
       <SaveBar show={dirty} busy={busy} label={project ? 'Save' : 'Add to my portfolio'} mark={project ? undefined : mark} onCancel={() => project ? window.location.reload() : router.push(list)} cancelLabel={project ? 'Undo' : 'Cancel'} />
     </form>
+    {/* Outside the form: asking for a quote is its own action, not part of saving the page. */}
+    {project ? <div className="mx-auto mt-10 max-w-[760px] px-4 sm:px-6"><ItemQuotes item={{ kind: 'project', uuid: project.project_uuid, title: project.title }} quotes={quotes} contacts={contacts} token={token} /></div> : null}
     {ask.dialog}
   </main>
 }

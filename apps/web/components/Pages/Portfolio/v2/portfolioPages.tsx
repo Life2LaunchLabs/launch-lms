@@ -62,9 +62,9 @@ export async function ownerItemPage(orgslug: string, kind: 'experience' | 'proje
   if (kind === 'experience') {
     const entry = uuid ? shell.timeline.find((item: any) => item.timeline_uuid === uuid) : undefined
     if (uuid && !entry) notFound()
-    return <><PageTitleRegistration section="Experience" detail={entry?.title || 'New experience'} /><ExperiencePage key={uuid || 'new'} entry={entry} projects={shell.projects || []} orgslug={orgslug} initialType={one('type')} mark={one('mark')} /></>
+    return <><PageTitleRegistration section="Experience" detail={entry?.title || 'New experience'} /><ExperiencePage key={uuid || 'new'} entry={entry} projects={shell.projects || []} orgslug={orgslug} initialType={one('type')} mark={one('mark')} quotes={(shell.quotes || []).filter((quote: any) => quote.timeline_uuid === uuid)} contacts={shell.contacts || []} /></>
   }
   const project = uuid ? shell.projects.find((item: any) => item.project_uuid === uuid) : undefined
   if (uuid && !project) notFound()
-  return <><PageTitleRegistration section="Projects" detail={project?.title || 'New project'} /><ProjectPage key={uuid || 'new'} project={project} timeline={shell.timeline || []} orgslug={orgslug} experience={one('experience')} mark={one('mark')} /></>
+  return <><PageTitleRegistration section="Projects" detail={project?.title || 'New project'} /><ProjectPage key={uuid || 'new'} project={project} timeline={shell.timeline || []} orgslug={orgslug} experience={one('experience')} mark={one('mark')} quotes={(shell.quotes || []).filter((quote: any) => quote.project_uuid === uuid)} contacts={shell.contacts || []} /></>
 }

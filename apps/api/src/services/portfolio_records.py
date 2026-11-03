@@ -172,7 +172,14 @@ def contact_dto(item: PortfolioContact, db_session: Session) -> dict:
         "contact_uuid": item.contact_uuid, "name": item.name, "role_label": item.role_label, "email": item.email,
         "phone": item.phone, "note": item.note, "is_reference": item.is_reference, "on_app": item.linked_user_id is not None,
         "timeline_uuid": _uuid_of(TimelineEntry, "timeline_uuid", item.timeline_entry_id, db_session), "source": item.source,
+        "account": _account_of(item, db_session),
     }
+
+
+def _account_of(item: PortfolioContact, db_session: Session) -> dict | None:
+    from src.services.people_access import access_of  # people_access imports this module
+
+    return access_of(item, db_session)
 
 
 def _apply_contact(item: PortfolioContact, payload: ContactWrite, portfolio: Portfolio, db_session: Session) -> None:
@@ -209,6 +216,12 @@ def delete_contact(contact_uuid: str, current_user: PublicUser, db_session: Sess
     item = _owned(PortfolioContact, "contact_uuid", contact_uuid, portfolio, db_session)
     for quote in db_session.exec(select(PortfolioQuote).where(PortfolioQuote.contact_id == item.id)).all():
         db_session.delete(quote)
+    if item.linked_user_id:  # taking someone out of My people also takes back what they could see
+        from src.db.portfolio_people import PortfolioPerson
+
+        access = db_session.exec(select(PortfolioPerson).where(PortfolioPerson.portfolio_id == portfolio.id, PortfolioPerson.user_id == item.linked_user_id)).first()
+        if access:
+            db_session.delete(access)
     db_session.delete(item)
     db_session.commit()
     return {"success": True}

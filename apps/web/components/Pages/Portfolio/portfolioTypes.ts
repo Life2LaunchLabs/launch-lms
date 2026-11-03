@@ -18,7 +18,9 @@ export type Shell = PortfolioRecords & { portfolio: Record<string, any>; project
 export type Identity = { first_name?: string; last_name?: string; preferred_name?: string; legal_name?: string; shown_name: string }
 export type Credential = { credential_uuid: string; kind: 'card' | 'certificate' | 'diploma' | 'test_score'; name: string; issuer: string; issued_on?: string | null; expires_on?: string | null; expected_on?: string | null; score: string; verification_status: string; photo_url?: string; timeline_uuid?: string | null; featured: boolean; visibility?: string; source?: string }
 export type Quote = { quote_uuid: string; body: string; confirmed: boolean; name: string; role_label: string; timeline_uuid?: string | null; project_uuid?: string | null; featured: boolean; status?: string; contact_uuid?: string; visibility?: string }
-export type Contact = { contact_uuid: string; name: string; role_label: string; email: string; phone: string; note: string; is_reference: boolean; on_app: boolean; timeline_uuid?: string | null; source?: string }
+export type Contact = { contact_uuid: string; name: string; role_label: string; email: string; phone: string; note: string; is_reference: boolean; on_app: boolean; timeline_uuid?: string | null; source?: string; account?: ContactAccount | null }
+/** Someone in My people who has an account: who they are, and the two switches for what they may see. */
+export type ContactAccount = { username: string; user_uuid: string; portfolio: boolean; plans: boolean }
 /** A result for "What I'm like". Plans can write these; ``source`` says where it came from. */
 export type PortfolioResult = { result_uuid: string; kind: 'interests' | 'personality' | 'strengths' | 'values' | 'skills' | 'other'; name: string; summary: string; data: Record<string, any>; taken_on?: string | null; featured: boolean; source: string; visibility?: string }
 export type ResumeVersion = { version_uuid: string; name: string; layout: string; accent: string; excluded: string[] }

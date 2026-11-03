@@ -15,14 +15,18 @@ import BudgetTable from './BudgetTable'
 import { DebtCard, OneTimeCard, OwnCard, SavingsCard } from './MoneyCards'
 import AddTray, { type AddTarget } from './AddTray'
 import StartPlan from './StartPlan'
+import SharedWithYou from './SharedWithYou'
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
+const sharedName = (person?: { username: string; name?: string } | null) => person ? (person.name?.split(' ')[0] || `@${person.username}`) : undefined
 
-/** Life plan: phases of life, each with a budget, and what the money adds up to over time. */
-export default function LifePlanWorkspace() {
+/** Life plan: phases of life, each with a budget, and what the money adds up to over time.
+ *  With `of` (a user uuid) it shows that person's plan, when they shared their plans with you, and nothing saves. */
+export default function LifePlanWorkspace({ of }: { of?: string } = {}) {
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
-  const { data, error, isLoading, mutate } = useSWR(token ? lifeUrl('/plan') : null, () => lifeApi.get(token), { revalidateOnFocus: false })
+  const { data, error, isLoading, mutate } = useSWR(token ? lifeUrl(of ? `/shared/${of}` : '/plan') : null, () => (of ? lifeApi.shared(of, token) : lifeApi.get(token)), { revalidateOnFocus: false })
+  const owner = of ? sharedName((data as any)?.person) : undefined
   const { data: catalog } = useSWR(token ? lifeUrl('/catalog') : null, () => lifeApi.catalog(token), { revalidateOnFocus: false })
   const [doc, setDoc] = React.useState<LifeDoc | null>(null)
   const [saving, setSaving] = React.useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -63,11 +67,12 @@ export default function LifePlanWorkspace() {
   }, [token, mutate])
 
   const commit = React.useCallback((next: LifeDoc) => {
+    if (of) return
     setDoc(next)
     pending.current = next
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => { void flush() }, 700)
-  }, [flush])
+  }, [flush, of])
 
   React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
 
@@ -83,9 +88,10 @@ export default function LifePlanWorkspace() {
   if (!token || isLoading || (data && !ready)) {
     return <GeneralWrapperStyled><div className="mx-auto max-w-[860px] space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-40 w-full" /><Skeleton className="h-96 w-full" /></div></GeneralWrapperStyled>
   }
-  if (error) return <GeneralWrapperStyled><p className="text-muted-foreground">Couldn't load your life plan. Try again in a moment.</p></GeneralWrapperStyled>
+  if (error) return <GeneralWrapperStyled><p className="text-muted-foreground">{of ? 'This plan isn’t shared with you.' : 'Couldn’t load your life plan. Try again in a moment.'}</p></GeneralWrapperStyled>
+  if (of && (!doc || !doc.phases.length)) return <GeneralWrapperStyled><p className="text-muted-foreground">{owner || 'They'} haven’t started a life plan yet.</p></GeneralWrapperStyled>
   if (!doc || !doc.phases.length) {
-    return <GeneralWrapperStyled><StartPlan token={token} existing={doc} onStart={(next) => { commit(next); setSel({ phase: next.phases[0].id, i: 0 }) }} /></GeneralWrapperStyled>
+    return <GeneralWrapperStyled><SharedWithYou token={token} /><StartPlan token={token} existing={doc} onStart={(next) => { commit(next); setSel({ phase: next.phases[0].id, i: 0 }) }} /></GeneralWrapperStyled>
   }
 
   const phase: Phase = doc.phases.find((p) => p.id === sel?.phase) || doc.phases[0]
@@ -100,7 +106,7 @@ export default function LifePlanWorkspace() {
     projection, valueOf,
     update: (fn) => { const next = clone(doc); fn(next); commit(next) },
     updatePhase: (fn) => { const next = clone(doc); const p = next.phases.find((x) => x.id === phase.id); if (p) fn(p); commit(next) },
-    openLine, setOpenLine,
+    openLine, setOpenLine, readOnly: Boolean(of),
     openAdd: (side, cat) => setAdd({ side, cat }),
     startOver: async () => {
       if (timer.current) clearTimeout(timer.current)
@@ -116,7 +122,8 @@ export default function LifePlanWorkspace() {
   return (
     <LifeContext.Provider value={ctx}>
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
-        <ContextBar saving={saving} />
+        <ContextBar saving={saving} owner={owner} />
+        {of ? null : <SharedWithYou token={token} />}
         <PhaseChart />
         <div className="mb-3 mt-8 flex items-center justify-between gap-3">
           <h2 className="text-2xl font-extrabold tracking-tight">Budget</h2>
@@ -126,18 +133,19 @@ export default function LifePlanWorkspace() {
             ))}
           </div>
         </div>
-        <div className="space-y-4">
+        {/* A shared plan reads like yours, with every control that would change it turned off. */}
+        <fieldset disabled={Boolean(of)} className="min-w-0 space-y-4">
           <BudgetTable />
           <OneTimeCard />
           <DebtCard />
           <SavingsCard />
           <OwnCard />
-        </div>
+        </fieldset>
         <p className="mt-6 text-xs text-muted-foreground">
           Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Amounts are before taxes; taxes aren't worked out yet.
         </p>
       </div>
-      <AddTray target={add} onClose={() => setAdd(null)} />
+      {of ? null : <AddTray target={add} onClose={() => setAdd(null)} />}
     </LifeContext.Provider>
   )
 }
