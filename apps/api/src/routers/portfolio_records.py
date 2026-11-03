@@ -12,12 +12,15 @@ from src.db.portfolio_records import (
     IdentityUpdate,
     LayoutUpdate,
     ProgressSeen,
+    QuoteAnswer,
+    QuoteAsk,
     QuoteWrite,
     ResultWrite,
     ResumeVersionWrite,
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.services import portfolio_quotes as quote_asks
 from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
@@ -78,6 +81,27 @@ async def api_delete_contact(contact_uuid: str, current_user: PublicUser = User,
 @router.post("/me/quotes")
 async def api_create_quote(payload: QuoteWrite, current_user: PublicUser = User, db_session: Session = Db):
     return records.create_quote(payload, current_user, db_session)
+
+
+@router.post("/me/quotes/ask")
+async def api_ask_for_quote(payload: QuoteAsk, current_user: PublicUser = User, db_session: Session = Db):
+    return quote_asks.ask(payload, current_user, db_session)
+
+
+@router.delete("/me/quotes/{quote_uuid}/ask")
+async def api_take_back_ask(quote_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return quote_asks.take_back(quote_uuid, current_user, db_session)
+
+
+# The link in a quote request: no account needed, the token is the permission.
+@router.get("/quote-requests/{token}")
+async def api_quote_request(token: str, db_session: Session = Db):
+    return quote_asks.request_view(token, db_session)
+
+
+@router.post("/quote-requests/{token}")
+async def api_answer_quote_request(token: str, payload: QuoteAnswer, db_session: Session = Db):
+    return quote_asks.answer(token, payload, db_session)
 
 
 @router.patch("/me/quotes/{quote_uuid}")

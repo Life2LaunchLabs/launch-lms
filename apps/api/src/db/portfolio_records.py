@@ -103,6 +103,9 @@ class PortfolioQuote(SQLModel, table=True):
     featured: bool = False
     requested_at: str | None = None
     confirmed_at: str | None = None
+    # An asked-for quote: the hash of the link's token (cleared once answered) and the learner's note.
+    request_token_hash: str | None = Field(default=None, sa_column=Column(String, nullable=True, unique=True, index=True))
+    request_note: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
     creation_date: str = ""
     update_date: str = ""
 
@@ -221,6 +224,27 @@ class QuoteWrite(BaseModel):
     project_uuid: str | None = None
     visibility: PortfolioVisibility | None = None
     featured: bool | None = None
+
+
+class QuoteAsk(BaseModel):
+    """Asking someone for a quote about one experience or project: someone in My people, or someone new."""
+
+    contact_uuid: str | None = None
+    name: str | None = PydanticField(default=None, max_length=160)
+    role_label: str | None = PydanticField(default=None, max_length=200)
+    email: str | None = PydanticField(default=None, max_length=320)
+    timeline_uuid: str | None = None
+    project_uuid: str | None = None
+    note: str = PydanticField(default="", max_length=1000)
+
+
+class QuoteAnswer(BaseModel):
+    """What the person asked writes back, signed in or from the email link."""
+
+    name: str = PydanticField(min_length=1, max_length=160)
+    role_label: str = PydanticField(default="", max_length=200)
+    body: str = PydanticField(min_length=1, max_length=2000)
+    reference: bool = False
 
 
 class ResultWrite(BaseModel):
