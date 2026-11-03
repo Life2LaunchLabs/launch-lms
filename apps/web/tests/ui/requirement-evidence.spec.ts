@@ -14,7 +14,7 @@ test('requirements.export: assignment filters learners and downloads real review
   await page.goto(`/orgs/${fixture.org_slug}/admin/plans/assignments/${fixture.assignment_uuid}/learners`)
   await assertActualApp(page)
   await page.getByRole('textbox', { name: 'Search learners' }).fill('Alex')
-  const action = page.getByRole('button', { name: 'Export evidence CSV for 1 filtered learner', exact: true })
+  const action = page.getByRole('button', { name: 'Export evidence for 1 filtered learner', exact: true })
   await expect(action).toBeVisible()
   await action.focus()
   await action.press('Enter')
@@ -47,7 +47,7 @@ test('requirements.export: assignment filters learners and downloads real review
   await expect(action).toBeFocused()
   await capture(page, testInfo, 'assignment-export-filtered.png')
   await page.getByRole('textbox', { name: 'Search learners' }).fill('no-such-learner')
-  await expect(page.getByRole('button', { name: 'Export evidence CSV for 0 filtered learners' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Export evidence for 0 filtered learners' })).toBeDisabled()
 })
 
 test('requirements.dashboard: a framework dashboard shows progress and a capture carries the evidence', async ({ page }, testInfo) => {
