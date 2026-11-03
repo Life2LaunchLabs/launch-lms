@@ -1,7 +1,9 @@
 /* ─── Looks ───
    A learner's look (components/Looks/looks.ts) themes the whole app when set on <html>, and a portfolio
-   when set on its page, so visitors see it in its owner's look. Each look sets the full token set, so it
-   holds inside a page of another look. Unlayered, so it wins over the light and dark tokens. */
+   when set on its page, so visitors see it in its owner's look. Each look has a light side ([data-look])
+   and a dark side (.dark[data-look], the same element carrying the theme class), and sets the full token
+   set, so it holds inside a page of another look. Unlayered, so it wins over the light and dark tokens.
+   An accent ([data-accent], after the looks) recolors the brand tokens of whichever look is on. */
 
 [data-look='pop'],
 [data-look='pop'] [data-org-theme] {
@@ -72,6 +74,39 @@
 
 [data-look='midnight'],
 [data-look='midnight'] [data-org-theme] {
+  --background: 246 100% 98%;
+  --foreground: 240 40% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 40% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 40% 12%;
+  --primary: 240 40% 12%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 248 80% 95%;
+  --secondary-foreground: 240 40% 12%;
+  --muted: 248 80% 95%;
+  --muted-foreground: 245 15% 42%;
+  --accent: 248 70% 93%;
+  --accent-foreground: 240 40% 12%;
+  --border: 248 45% 88%;
+  --input: 248 40% 84%;
+  --ring: 258 67% 50%;
+  --brand: 258 67% 50%;
+  --brand-soft: 252 100% 95%;
+  --brand-ink: 258 60% 40%;
+  --shell: 248 60% 93%;
+  --raised: 248 80% 96%;
+  --edge: 248 35% 80%;
+  --org-page-background: #f4f3ff;
+  --org-primary-color: #5b2bd6;
+  --org-on-primary-color: #ffffff;
+  --look-a: #5b2bd6;
+  --look-b: #00b3a6;
+  --look-c: #b9a8ff;
+}
+
+.dark[data-look='midnight'],
+.dark[data-look='midnight'] [data-org-theme] {
   --background: 229 46% 8%;
   --foreground: 230 100% 97%;
   --card: 228 42% 14%;
@@ -134,6 +169,125 @@
   --look-a: #f5a524;
   --look-b: #e8642c;
   --look-c: #c8327d;
+}
+
+.dark[data-look='pop'],
+.dark[data-look='pop'] [data-org-theme] {
+  --background: 210 33% 8%;
+  --foreground: 205 40% 96%;
+  --card: 210 30% 12%;
+  --card-foreground: 205 40% 96%;
+  --popover: 210 30% 13%;
+  --popover-foreground: 205 40% 96%;
+  --primary: 205 40% 96%;
+  --primary-foreground: 210 33% 8%;
+  --secondary: 210 26% 17%;
+  --secondary-foreground: 205 40% 96%;
+  --muted: 210 26% 17%;
+  --muted-foreground: 208 14% 66%;
+  --accent: 210 24% 20%;
+  --accent-foreground: 205 40% 96%;
+  --border: 210 22% 22%;
+  --input: 210 22% 25%;
+  --ring: 218 100% 65%;
+  --brand: 218 100% 65%;
+  --brand-soft: 220 50% 20%;
+  --brand-ink: 218 100% 82%;
+  --shell: 210 36% 5%;
+  --raised: 210 26% 17%;
+  --edge: 210 22% 20%;
+  --org-page-background: #0e151c;
+  --org-primary-color: #4c8dff;
+  --org-on-primary-color: #ffffff;
+  --look-a: #4c8dff;
+  --look-b: #ec4f9a;
+  --look-c: #f5a524;
+}
+
+.dark[data-look='studio'],
+.dark[data-look='studio'] [data-org-theme] {
+  --background: 0 0% 4%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 0 0% 95%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 62%;
+  --accent: 0 0% 14%;
+  --accent-foreground: 0 0% 95%;
+  --border: 0 0% 18%;
+  --input: 0 0% 22%;
+  --ring: 0 0% 95%;
+  --brand: 0 0% 95%;
+  --brand-soft: 0 0% 14%;
+  --brand-ink: 0 0% 95%;
+  --shell: 0 0% 2%;
+  --raised: 0 0% 11%;
+  --edge: 0 0% 20%;
+  --radius: 0.25rem;
+  --org-page-background: #0a0a0a;
+  --org-primary-color: #f2f2f2;
+  --org-on-primary-color: #0a0a0a;
+  --look-a: #2a2a2a;
+  --look-b: #555555;
+  --look-c: #8a8a8a;
+}
+
+.dark[data-look='sunset'],
+.dark[data-look='sunset'] [data-org-theme] {
+  --background: 18 33% 7%;
+  --foreground: 28 80% 95%;
+  --card: 18 30% 11%;
+  --card-foreground: 28 80% 95%;
+  --popover: 18 30% 12%;
+  --popover-foreground: 28 80% 95%;
+  --primary: 28 80% 95%;
+  --primary-foreground: 18 33% 7%;
+  --secondary: 18 28% 16%;
+  --secondary-foreground: 28 80% 95%;
+  --muted: 18 28% 16%;
+  --muted-foreground: 22 22% 66%;
+  --accent: 18 26% 19%;
+  --accent-foreground: 28 80% 95%;
+  --border: 18 24% 21%;
+  --input: 18 24% 24%;
+  --ring: 18 85% 58%;
+  --brand: 18 85% 58%;
+  --brand-soft: 16 45% 18%;
+  --brand-ink: 22 100% 78%;
+  --shell: 18 36% 4%;
+  --raised: 18 28% 16%;
+  --edge: 18 24% 19%;
+  --org-page-background: #1a110d;
+  --org-primary-color: #e8642c;
+  --org-on-primary-color: #ffffff;
+  --look-a: #f5a524;
+  --look-b: #e8642c;
+  --look-c: #c8327d;
+}
+
+/* An accent the learner picked: its hue (set inline by accentVars) takes over the brand tokens. Doubled
+   attribute so it outranks any look's light or dark side. */
+[data-accent][data-accent],
+[data-accent][data-accent] [data-org-theme] {
+  --brand: var(--accent-h) var(--accent-s) var(--accent-l);
+  --ring: var(--accent-h) var(--accent-s) var(--accent-l);
+  --brand-soft: var(--accent-h) 90% 94%;
+  --brand-ink: var(--accent-h) var(--accent-s) 34%;
+  --org-primary-color: var(--accent-hex);
+  --org-on-primary-color: var(--accent-on);
+  --look-a: var(--accent-hex);
+}
+
+.dark[data-accent][data-accent],
+.dark[data-accent][data-accent] [data-org-theme] {
+  --brand-soft: var(--accent-h) 40% 20%;
+  --brand-ink: var(--accent-h) 100% 82%;
 }
 
 /* A look set on a page, not the whole app, paints its own background. */

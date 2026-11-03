@@ -174,9 +174,20 @@ def test_highlights_and_layout_show_to_visitors():
 
         assert public["highlights"] == [{"value": "300+", "label": "hours worked"}, {"value": "3.8", "label": "GPA"}]
         # No look until one is picked; then visitors see the portfolio in it.
-        assert public["layout"] == {"header": "center", "sections": "grid", "look": None}
-        portfolio_display.update_layout(LayoutUpdate(look="sunset"), actor, db)
-        assert service.get_public_shell(1, "maya", db)["layout"] == {"header": "center", "sections": "grid", "look": "sunset"}
+        plain = {"header": "center", "sections": "grid", "look": None, "mode": None, "banner": "look", "accent": None, "banner_image": None}
+        assert public["layout"] == plain
+        portfolio_display.update_layout(LayoutUpdate(look="sunset", mode="dark", accent="#E8642C", banner="aurora"), actor, db)
+        assert service.get_public_shell(1, "maya", db)["layout"] == {**plain, "look": "sunset", "mode": "dark", "accent": "#e8642c", "banner": "aurora"}
+        # Clearing the accent goes back to the look's own.
+        assert portfolio_display.update_layout(LayoutUpdate(accent=""), actor, db)["layout"]["accent"] is None
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(accent="orange"), actor, db)
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(banner="image"), actor, db)
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(banner_image_uuid="someone-elses"), actor, db)
+        with pytest.raises(HTTPException):
+            portfolio_display.update_layout(LayoutUpdate(mode="sepia"), actor, db)
         with pytest.raises(HTTPException):
             portfolio_display.update_layout(LayoutUpdate(sections="carousel"), actor, db)
         with pytest.raises(HTTPException):

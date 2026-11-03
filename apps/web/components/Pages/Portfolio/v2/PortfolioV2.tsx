@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Download, Eye, FileText, Globe2, Lock, Palette, Pencil, SlidersHorizontal } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -18,7 +18,8 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { getMyPortfolio, publishMyPortfolio, unpublishMyPortfolio } from '@services/portfolio/portfolio'
-import { markProgressSeen, updateMyLayout } from '@services/portfolio/records'
+import { markProgressSeen, updateMyLayout, type LayoutChange } from '@services/portfolio/records'
+import { normalizeMediaUrl } from '@services/media/media'
 import { PortfolioShareButton } from '../PortfolioShareDialog'
 import { PortfolioVisitorBar } from '../PortfolioVisitorBar'
 import { VerificationMenu } from '../PortfolioHeaderParts'
@@ -27,7 +28,7 @@ import { PortfolioTiles } from './PortfolioTiles'
 import { ResultDialog } from './ResultDialog'
 import { LookDialog } from './LookDialog'
 import { WelcomeDialog } from './WelcomeDialog'
-import { LOOKS, applyLook, storedLook, type LookId } from '@components/Looks/looks'
+import { BANNERS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
 import { EmptyAdd, SPOT_RING, SpotTip, initials } from './parts'
 import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
 import { questPath, spotPaths, spotsFor, stageOf, type Quest } from './progress'
@@ -84,17 +85,24 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [questOpen, setQuestOpen] = useState(true)
   const [questList, setQuestList] = useState(false)
   const [lookOpen, setLookOpen] = useState(false)
-  const { setTheme } = useTheme()
+  const { setTheme, resolvedTheme } = useTheme()
   const editing = owner && !preview
   const [welcomeOpen, setWelcomeOpen] = useState(() => editing && !(initialShell.progress?.seen || []).length && !initialShell.portfolio.published_at && firstWelcome())
   const layout: PortfolioLayout = shell.layout || { header: 'left', sections: 'grid' }
   const look = layout.look || null
+  const accent = layout.accent || null
+  const mode = modeOf(layout)
+  // Visitors see it light or dark as the owner chose; "System" follows the visitor's device.
+  const dark = mode === 'dark' || (mode === 'system' && resolvedTheme === 'dark')
+  const bannerImage = layout.banner === 'image' && layout.banner_image ? normalizeMediaUrl(layout.banner_image.url) || layout.banner_image.url : ''
+  const bannerCss = BANNERS.find((item) => item.id === layout.banner && item.id !== 'look')?.css
   // The learner's look themes the whole app; on another device it arrives with their portfolio.
   useEffect(() => {
-    if (!owner || !look || storedLook() === look) return
-    applyLook(look)
-    setTheme(LOOKS.find((item) => item.id === look)?.dark ? 'dark' : 'light')
-  }, [owner, look, setTheme])
+    if (!owner || (!look && !accent) || (storedLook() === look && storedAccent() === accent)) return
+    const newLook = storedLook() !== look
+    applyLook(look, accent)
+    if (newLook) setTheme(mode)
+  }, [owner, look, accent, mode, setTheme])
   const centered = layout.header === 'center'
   const name = shell.identity?.shown_name || shell.portfolio.display_name || username || 'Your portfolio'
   // Without a name the portfolio would be headed by the username, which can come from an email.
@@ -139,11 +147,14 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     } catch (error: any) { toast.error(error?.message || 'Could not save that') }
   }
 
-  async function changeLayout(next: Partial<PortfolioLayout>) {
+  async function changeLayout(next: LayoutChange) {
     if (!token) return
-    if (next.look) { applyLook(next.look as LookId); setTheme(LOOKS.find((item) => item.id === next.look)?.dark ? 'dark' : 'light') }
+    const merged = { ...layout, ...next, accent: 'accent' in next ? next.accent || null : layout.accent }
+    if (next.look || 'accent' in next) applyLook(merged.look || null, merged.accent)
+    if (next.mode || (next.look && !layout.mode)) setTheme(modeOf(merged))
     const previous = shell
-    setShell({ ...shell, layout: { ...layout, ...next } })
+    const { banner_image_uuid: _photo, ...shown } = next // eslint-disable-line no-unused-vars
+    setShell({ ...shell, layout: { ...layout, ...shown, accent: merged.accent } })
     try { const saved = await updateMyLayout(next, token); setShell((current) => ({ ...current, layout: saved.layout })) }
     catch (error: any) { setShell(previous); toast.error(error?.message || 'Could not change the layout') }
   }
@@ -183,7 +194,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   </>
 
   // Visitors see the portfolio in its owner's look, whatever theme they use.
-  return <main className={`min-h-screen bg-background pb-20 text-foreground ${look && LOOKS.find((item) => item.id === look)?.dark ? 'dark' : ''}`} data-portfolio-v2 data-look={look || undefined}>
+  return <main className={`min-h-screen bg-background pb-20 text-foreground ${look && dark ? 'dark' : ''}`} data-portfolio-v2 data-look={look || undefined} data-accent={accent ? '' : undefined} style={accentVars(accent) as CSSProperties}>
     {owner ? ask.dialog : null}
     {preview ? <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-3">
       <div><b className="text-sm font-extrabold">Visitor preview</b><p className="text-xs text-muted-foreground">This is how people see your portfolio{published ? '' : ' once it’s public'}.</p></div>
@@ -191,8 +202,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     </div></div> : null}
     <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6">
       <header>
-        <div className={`relative h-[110px] overflow-hidden rounded-3xl sm:h-[150px] ${look ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]'}`}>
-          <div className="absolute inset-0 bg-[url('/texture_overlay.png')] bg-cover opacity-25 mix-blend-overlay" aria-hidden="true" />
+        <div className={`relative h-[110px] overflow-hidden rounded-3xl sm:h-[150px] ${bannerImage || bannerCss ? '' : look || accent ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]'}`} style={bannerCss && !bannerImage ? { background: bannerCss } : undefined}>
+          {bannerImage ? <img src={bannerImage} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <div className="absolute inset-0 bg-[url('/texture_overlay.png')] bg-cover opacity-25 mix-blend-overlay" aria-hidden="true" />}
           {editing ? <SettingsMenu orgslug={orgslug} onLook={() => setLookOpen(true)} spot={spots.settings} onUnpublish={published ? unpublish : undefined} /> : null}
           {spots.settings ? <SpotTip label={spots.settings} className="absolute right-3 top-[52px]" /> : null}
         </div>
@@ -234,7 +245,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     {editing ? <>
       <ProfileDialog mark={mark} open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
       <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
-      <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} onChange={(next) => void changeLayout(next)} spot={spots.settings} />
+      <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} mode={mode} dark={dark} onChange={(next) => void changeLayout(next)} spot={spots.settings} userId={Number(shell.portfolio.user_id)} token={token} />
       <WelcomeDialog open={welcomeOpen} onOpenChange={setWelcomeOpen} onStart={() => { setWelcomeOpen(false); setQuestOpen(true); setQuestList(true) }} />
       <LinksDialog mark={mark} open={linksOpen} onOpenChange={(open) => { setLinksOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} />
       <HighlightsDialog open={highlightsOpen} onOpenChange={setHighlightsOpen} shell={shell} setShell={setShell} token={token} />

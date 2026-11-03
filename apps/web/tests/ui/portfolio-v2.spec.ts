@@ -42,7 +42,16 @@ test('portfolio.v2: the owner changes the layout and look, and opens the profile
   look = await openLook(page)
   await look.getByRole('button', { name: 'Grid' }).click()
   await expect(sections).toHaveAttribute('data-layout', 'grid')
+  // Light or dark is the learner's call, whatever the look; an accent and a banner gradient stay for visitors.
+  await look.getByRole('button', { name: 'Light', exact: true }).click()
+  await expect(page.locator('[data-portfolio-v2]')).not.toHaveClass(/\bdark\b/)
+  await look.getByRole('button', { name: 'Accent #16a34a' }).click()
+  await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-accent', '')
+  await look.getByRole('button', { name: 'Forest' }).click()
   await page.keyboard.press('Escape')
+  await page.reload()
+  await expect(page.locator('[data-portfolio-v2]')).not.toHaveClass(/\bdark\b/)
+  await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-accent', '')
 
   await page.getByRole('button', { name: 'Edit your profile' }).click()
   await expect(page.getByRole('dialog', { name: 'Your profile' })).toBeVisible()
