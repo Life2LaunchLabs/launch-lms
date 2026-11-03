@@ -345,3 +345,28 @@ def test_import_file_works_out_the_source_and_year():
             importers.import_file(db, OEWS_CSV, "wages.csv")
         with pytest.raises(importers.ImportProblem, match="can't load that file"):
             importers.import_file(db, b"zip code,safmr 0br,safmr 1br\n97401,1,2\n", "fy2026_safmrs.csv")
+
+
+def test_place_photos_borrow_up_the_ladder_and_stop_short_of_the_us():
+    from src.services.life_plans import place_photos
+
+    eugene = {"url": "https://upload.wikimedia.org/eugene.jpg", "author": "A", "license": "CC BY-SA 4.0"}
+    oregon = {"url": "https://upload.wikimedia.org/oregon.jpg", "author": "B", "license": "CC0"}
+    photos = {"city:OR:eugene": eugene, "state:OR": oregon}
+    assert place_photos.photo_for("city:OR:eugene", photos) is eugene
+    # Springfield has no photo of its own: Lane County has none either, so Oregon's shows.
+    assert place_photos.photo_for("city:OR:springfield", photos) is oregon
+    assert place_photos.photo_for("county:OR:lane", photos) is oregon
+    assert place_photos.photo_for("state:CA", photos) is None
+    assert place_photos.photo_for(None, photos) is None
+    # Every stored photo has the credit the cover shows.
+    for key, photo in place_photos.stored().items():
+        assert photo["url"].startswith("https://upload.wikimedia.org/"), key
+        assert photo.get("author") and photo.get("license") and photo.get("source_url"), key
+
+
+def test_a_phase_keeps_the_learners_own_cover_photo():
+    doc = _doc(phases=[{"id": "p1", "title": "High school", "months": 12, "cover": {"url": "https://files.example.com/me.jpg"}}])
+    assert doc.phases[0].cover.url == "https://files.example.com/me.jpg"
+    with pytest.raises(ValueError):
+        _doc(phases=[{"id": "p1", "title": "High school", "months": 12, "cover": {"url": "javascript:alert(1)"}}])

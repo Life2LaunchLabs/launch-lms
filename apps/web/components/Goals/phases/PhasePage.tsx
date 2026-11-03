@@ -21,8 +21,11 @@ import { money, phaseOffset, short, type Projection } from '@components/LifePlan
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi, goalsUrl } from '@services/goals/goals'
 import type { GoalSummary } from '@services/goals/types'
-import type { LifeDoc, Phase } from '@services/life/life'
-import PhaseScene from './PhaseScene'
+import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
+import PhaseCover, { PhotoCredit } from './PhaseCover'
+import { uploadMediaAsset } from '@services/media/library'
+import { toast } from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 import PhaseDialog, { type PhaseEdit } from './PhaseDialog'
 import { KIND_ICON, PhaseStatus, kindLabel } from './PhaseStack'
 import useLifePlan from './useLifePlan'
@@ -42,7 +45,10 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const { data: all = EMPTY, isLoading: goalsLoading } = useSWR<GoalSummary[]>(token ? goalsUrl('?include_finished=true') : null, () => goalsApi.list(token), { revalidateOnFocus: true })
   const { getGoalColor } = useGoalColors(all, viewerUserId)
   const { startGoal, busy } = useStartGoal(orgslug, token)
-  const { projection } = useLifeNumbers(doc, token)
+  const { projection, catalog } = useLifeNumbers(doc, token)
+  const photos = catalog?.place_photos
+  const fileInput = React.useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = React.useState(false)
   const [edit, setEdit] = React.useState<PhaseEdit | null>(null)
 
   if (!token || isLoading) return <GeneralWrapperStyled><div className="space-y-6"><Skeleton className="h-8 w-24" /><Skeleton className="h-72 w-full rounded-[28px]" /><Skeleton className="h-64 w-full" /></div></GeneralWrapperStyled>
@@ -70,12 +76,14 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   return <GeneralWrapperStyled>
     <main className="pb-16">
       <Button variant="ghost" size="sm" className="-ml-2 mb-3" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.plans())}><ArrowLeft size={16} />Plans</Link></Button>
-      <Cover time={time}
+      <Cover time={time} photos={photos} uploading={uploading}
         menu={<DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Phase options" className="bg-white/85 text-[#15232c] backdrop-blur hover:bg-white"><MoreHorizontal /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => setEdit({ mode: 'edit', phaseId: phase.id })}>Edit this phase</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setEdit({ mode: 'add', after: phase.id })}>Add a phase after this one</DropdownMenuItem>
+            <DropdownMenuItem disabled={viewerUserId === undefined || uploading} onSelect={() => fileInput.current?.click()}>{phase.cover ? 'Change your photo' : 'Use your own photo'}</DropdownMenuItem>
+            {phase.cover ? <DropdownMenuItem onSelect={() => { void change((next) => { const p = next.phases.find((x) => x.id === phase.id); if (p) p.cover = null }) }}>{phase.place && photos?.[phase.place] ? 'Use the photo of ' + (phase.place_label || 'the place') : 'Remove your photo'}</DropdownMenuItem> : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onSelect={() => { void remove() }}>Remove this phase</DropdownMenuItem>
           </DropdownMenuContent>
@@ -106,20 +114,31 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
         <BudgetCard doc={doc} phase={phase} ends={time.ends} projection={projection} href={getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))} />
       </div>
     </main>
+    <input ref={fileInput} type="file" accept="image/*" className="hidden" aria-hidden="true" tabIndex={-1} onChange={(event) => {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (file && token && viewerUserId !== undefined) void (async () => {
+        setUploading(true)
+        try {
+          const asset = await uploadMediaAsset({ type: 'user', id: viewerUserId }, 'image', file, token, file.name)
+          await change((next) => { const p = next.phases.find((x) => x.id === phase.id); if (p) p.cover = { url: asset.url } })
+        } catch { toast.error('That photo couldn’t be uploaded. Try a smaller image.') } finally { setUploading(false) }
+      })()
+    }} />
     {ask.dialog}
     <PhaseDialog edit={edit} doc={doc} token={token} onClose={() => setEdit(null)} change={change} onAdded={(id) => router.push(getUriWithOrg(orgslug, routePaths.org.phase(id)))} />
   </GeneralWrapperStyled>
 }
 
-function Cover({ time, menu }: { time: PhaseTime; menu: React.ReactNode }) {
+function Cover({ time, menu, photos, uploading }: { time: PhaseTime; menu: React.ReactNode; photos?: Record<string, PlacePhoto>; uploading?: boolean }) {
   const { phase, when } = time
   const Icon = KIND_ICON[phase.kind] || Sparkles
   const chip = 'inline-flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5 text-xs font-extrabold text-white backdrop-blur'
   return <section aria-label={phase.title} className="relative h-[clamp(240px,30vw,320px)] overflow-hidden rounded-[28px] bg-muted text-white">
-    <PhaseScene kind={phase.kind} past={when === 'done'} className="absolute inset-0 h-full w-full" />
+    <PhaseCover phase={phase} photos={photos} past={when === 'done'} className={cn('absolute inset-0 h-full w-full', uploading && 'animate-pulse')} />
     <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgb(8_20_30/0.6))]" aria-hidden="true" />
     <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2"><PhaseStatus when={when} />{menu}</div>
-    <div className="absolute inset-x-5 bottom-5 grid gap-2.5 sm:inset-x-7 sm:bottom-6">
+    <div className="absolute inset-x-5 bottom-5 grid gap-2.5 pr-8 sm:inset-x-7 sm:bottom-6">
       <span className="inline-flex items-center gap-1.5 text-sm font-extrabold opacity-95"><Icon size={15} aria-hidden="true" />{kindLabel(phase.kind)}</span>
       <h1 className="text-[clamp(30px,6vw,48px)] font-extrabold leading-[1.02] tracking-tight [text-shadow:0_2px_20px_rgb(0_0_0/0.25)]">{phase.title}</h1>
       <div className="flex flex-wrap gap-2">
@@ -127,6 +146,7 @@ function Cover({ time, menu }: { time: PhaseTime; menu: React.ReactNode }) {
         {phase.place_label ? <span className={chip}><MapPin size={14} aria-hidden="true" />{phase.place_label}</span> : null}
       </div>
     </div>
+    <PhotoCredit phase={phase} photos={photos} className="bottom-3 right-3" />
   </section>
 }
 

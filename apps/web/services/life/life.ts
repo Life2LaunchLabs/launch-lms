@@ -28,7 +28,11 @@ export interface Line {
   end?: number | null
 }
 
-export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[]; goals?: string[] }
+/** A learner's own cover photo for a phase, from their media library. */
+export interface PhaseCover { url: string }
+export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[]; goals?: string[]; cover?: PhaseCover | null }
+/** A photo of a place, picked ahead of time from Wikimedia Commons, with the credit it is shown with. */
+export interface PlacePhoto { url: string; width?: number; height?: number; title?: string; author: string; license: string; license_url?: string; source_url: string }
 export interface When { phase: string; month: number }
 export interface Debt { id: string; kind: string; title: string; balance: number; rate: number; payment: number; start?: When | null }
 export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean }
@@ -78,6 +82,8 @@ export interface Catalog {
   asset_kinds: { key: string; title: string; icon: string }[]
   debt_kinds: { key: string; title: string }[]
   savings_kinds: { key: string; title: string }[]
+  /** Photos by place key, each place's own or borrowed from its county or state. */
+  place_photos?: Record<string, PlacePhoto>
 }
 export interface PlaceOption { key: string; label: string; detail: string; level: string }
 export interface Occupation { soc: string; title: string }

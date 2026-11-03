@@ -97,7 +97,12 @@ SAVINGS_KINDS = [
 
 
 def catalog() -> dict:
-    return {"categories": CATEGORIES, "items": ITEMS, "metrics": METRICS, "asset_kinds": ASSET_KINDS, "debt_kinds": DEBT_KINDS, "savings_kinds": SAVINGS_KINDS}
+    from src.services.life_plans.place_photos import photos_by_place
+
+    return {
+        "categories": CATEGORIES, "items": ITEMS, "metrics": METRICS, "asset_kinds": ASSET_KINDS, "debt_kinds": DEBT_KINDS, "savings_kinds": SAVINGS_KINDS,
+        "place_photos": photos_by_place(),
+    }
 
 
 def item(key: str | None) -> dict | None:
