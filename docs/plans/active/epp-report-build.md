@@ -11,7 +11,7 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 | 1. School connection | Staff ask to support a learner, the learner accepts a consent card, staff open the learner's school record | Merged (#305) |
 | 2. EPP framework and plan | Oregon EPP framework with stable codes, assignable yearly plan | Merged (#306) |
 | 3. Course plan | Course list and the 24-credit tally | Merged (#307) |
-| 4. Live report | Report builder, staff view and print, student preview | In review (#309) |
+| 4. Live report | Report builder, staff view and print, student preview | Merged (#309) |
 | 5. Review and freeze | Stored records, corrections, exit record | Built |
 | 6. Caseload and bulk PDF | Caseload screen, class export | Planned |
 | 7. SB 3 course summary | One page per student, class grid | Planned |
