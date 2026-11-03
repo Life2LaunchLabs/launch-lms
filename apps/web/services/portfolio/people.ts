@@ -26,7 +26,7 @@ export interface PortfolioThread extends PortfolioComment { replies: PortfolioCo
 export interface PortfolioComments { role: string; can_comment: boolean; threads: PortfolioThread[] }
 
 /** What a signed-in visitor can do on a portfolio, from the shell. */
-export interface PortfolioAccess { role: 'owner' | PortfolioRole | 'public'; can_comment: boolean; shared_privately: boolean }
+export interface PortfolioAccess { role: 'owner' | PortfolioRole | 'public'; can_comment: boolean; shared_privately: boolean; /** They switched on their plans for you in My people. */ plans?: boolean }
 
 export interface ProfileGoal { goal_uuid: string; title: string; status: string; icon?: string | null; target_date?: string | null; can_comment: boolean }
 export interface Profile { person: PersonSummary; goals: ProfileGoal[]; portfolio_role: string | null; chat_uuid: string | null; can_message: boolean }

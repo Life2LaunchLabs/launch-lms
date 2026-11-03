@@ -12,11 +12,12 @@ import { money, monthLabel, phaseOffset, uid } from './model'
 const num = (s: string) => { const v = Number(String(s).replace(/[$,%\s]/g, '')); return Number.isFinite(v) ? v : 0 }
 
 function Card({ title, note, onAdd, addLabel, children, empty }: { title: string; note?: string; onAdd: () => void; addLabel: string; children: React.ReactNode; empty: boolean }) {
+  const { readOnly } = useLife()
   return (
     <section className="rounded-2xl bg-card p-4 shadow-[0_1px_0_hsl(var(--border))] sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-lg font-extrabold">{title}</h3>
-        <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Plus className="size-4" />{addLabel}</button>
+        {readOnly ? null : <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Plus className="size-4" />{addLabel}</button>}
       </div>
       {note && <p className="mt-0.5 text-sm text-muted-foreground">{note}</p>}
       <div className={empty ? 'contents' : 'mt-2'}>{children}</div>

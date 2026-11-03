@@ -38,6 +38,18 @@ def api_get_plan(db: Session = Depends(get_db_session), user: PublicUser = Depen
     return {"plan": plan_service.get_plan(db, user)}
 
 
+@router.get("/shared")
+def api_shared_plans(db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Who shared their plans with this person."""
+    return {"people": plan_service.shared_plans(db, user)}
+
+
+@router.get("/shared/{user_uuid}")
+def api_shared_plan(user_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Someone's life plan, budget included, read-only, when they shared their plans with this person."""
+    return plan_service.shared_plan(db, user, user_uuid)
+
+
 @router.put("/plan")
 def api_save_plan(body: plan_service.SavePlan, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Save the whole plan document. A stale revision is refused with 409."""

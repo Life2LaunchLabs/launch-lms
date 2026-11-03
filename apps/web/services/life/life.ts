@@ -86,6 +86,10 @@ const q = encodeURIComponent
 
 export const lifeApi = {
   get: (token?: string) => request<{ plan: LifePlanView | null }>(lifeUrl('/plan'), token),
+  /** Who shared their plans with you. */
+  sharedWithMe: (token?: string) => request<{ people: { username: string; name?: string; user_uuid?: string }[] }>(lifeUrl('/shared'), token),
+  /** Someone's plan they shared with you in their My people, read-only. */
+  shared: (userUuid: string, token?: string) => request<{ person: { username: string; name?: string; user_uuid?: string } | null; plan: LifePlanView | null }>(lifeUrl(`/shared/${encodeURIComponent(userUuid)}`), token),
   save: (document: LifeDoc, revision: number | null, token?: string) => request<{ plan: LifePlanView }>(lifeUrl('/plan'), token, 'PUT', { document, revision }),
   placeGoal: (goal_uuid: string, phase_id: string | null, token?: string) => request<{ plan: LifePlanView }>(lifeUrl('/plan/goals'), token, 'PUT', { goal_uuid, phase_id }),
   remove: (token?: string) => fetch(lifeUrl('/plan'), RequestBodyWithAuthHeader('DELETE', null, null, token)),
