@@ -37,7 +37,11 @@ export interface GroupRequirements {
 }
 
 /** A published plan as coverage lists it, with what its card shows. */
-export interface CoveragePlan { template_uuid: string; title: string; mapped: boolean; thumbnail_image?: string; icon?: any; color?: string | null }
+export interface CoveragePlan {
+  template_uuid: string; title: string; mapped: boolean; thumbnail_image?: string; icon?: any; color?: string | null
+  /** The org's collections this plan is in. */
+  collections?: Array<{ collection_uuid: string; name: string }>
+}
 export interface CoveringStep { template_uuid: string; step_key: string; title: string; step_types: StepTypeKey[] }
 
 export interface Coverage {

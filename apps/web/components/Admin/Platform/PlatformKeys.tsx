@@ -10,9 +10,11 @@ import { swrFetcher } from '@services/utils/ts/requests'
 
 const PURPOSE: Record<string, string> = {
   pexels: 'Free stock photos and videos in the media picker and the connector, for every organization.',
+  google_client_id: 'With the client secret, turns on “Continue with Google” at sign-in and sign-up. In Google Cloud, add https://<your domain>/auth/callback/google as an authorized redirect URI.',
+  google_client_secret: 'With the client ID, turns on “Continue with Google”. Remove either one to turn it off.',
 }
 
-/** Platform-wide API keys (Pexels for now). Saved encrypted; only the last four characters come back. */
+/** Platform-wide API keys (Pexels, Google sign-in). Saved encrypted; only the last four characters come back. */
 export default function PlatformKeys({ token }: { token?: string }) {
   const url = token ? `${getAPIUrl()}superadmin/settings/keys` : null
   const { data, mutate } = useSWR<PlatformKey[]>(url, (key: string) => swrFetcher(key, token))

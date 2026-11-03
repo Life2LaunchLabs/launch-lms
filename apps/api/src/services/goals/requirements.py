@@ -11,7 +11,7 @@ from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlmodel import Session, SQLModel, func, select
+from sqlmodel import Session, SQLModel, col, func, select
 
 from src.db.goals import (
     DONE_STEP_STATUSES,
@@ -314,8 +314,16 @@ def credit_requirement(db: Session, current_user: PublicUser, org_id: int, user_
 
 def _template_coverage(db: Session, org_id: int, node_uuids: set[str]) -> tuple[dict[str, list[dict]], list[dict]]:
     """For the org's published templates: the steps that count toward each of these nodes, and each template with whether it maps to any."""
+    from src.db.plan_collections import PlanCollection, PlanCollectionItem
+
     by_node: dict[str, list[dict]] = {}
     templates = []
+    # The org's collections each template is in, so the Covered by picker can find and pick them by collection.
+    collections_of: dict[int, list[dict]] = {}
+    for collection, template_id in db.exec(select(PlanCollection, PlanCollectionItem.template_id)
+                                           .where(PlanCollection.org_id == org_id, col(PlanCollectionItem.collection_id) == col(PlanCollection.id))
+                                           .order_by(col(PlanCollection.name), col(PlanCollection.id))).all():
+        collections_of.setdefault(template_id, []).append({"collection_uuid": collection.collection_uuid, "name": collection.name})
     for template, version in _published_templates(db, org_id):
         mapped = False
         for _, step in iter_steps(version.document or {} if version else {}):
@@ -326,7 +334,8 @@ def _template_coverage(db: Session, org_id: int, node_uuids: set[str]) -> tuple[
                         "template_uuid": template.template_uuid, "step_key": step.get("key"), "title": step.get("title"),
                         "step_types": [step.get("type")],
                     })
-        templates.append({"template_uuid": template.template_uuid, "title": template.title, "mapped": mapped, **cover(template)})
+        templates.append({"template_uuid": template.template_uuid, "title": template.title, "mapped": mapped,
+                          "collections": collections_of.get(int(template.id or 0), []), **cover(template)})
     return by_node, templates
 
 

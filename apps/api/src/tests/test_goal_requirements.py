@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import Goal, GoalAssignmentCreate, GoalStage, GoalStep, StepEntryCreate, StepEntryKind, StepProgress, StepStatus
+from src.db.plan_collections import PlanCollection, PlanCollectionItem
 from src.db.learning import LearningActivity, LearningPage, LearningResponseAttempt, LearningRun
 from src.db.requirement_exports import RequirementEvidenceExport
 from src.db.requirements import (
@@ -37,7 +38,8 @@ TEACHER = 4
 def world():
     db = _session()
     for model in (RequirementFramework, RequirementFrameworkVersion,
-                  RequirementNode, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource):
+                  RequirementNode, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource,
+                  PlanCollection, PlanCollectionItem):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(User(id=TEACHER, user_uuid="user_4", username="teach", email="te@example.com", first_name="Terry", last_name="Teach", creation_date=NOW, update_date=NOW))
     # A teacher: can run goals for the organization, but isn't an admin.
@@ -93,6 +95,16 @@ def test_learner_requirements_show_gaps_and_staff_plan_a_makeup_or_credit_it(wor
     assert covered == {"Experiences": [], "Resume": [("Your first resume", "resume", ["upload"])], "Workplace experience": []}
     assert [{key: item[key] for key in ("template_uuid", "title", "mapped")} for item in report["templates"]] == [{"template_uuid": template_uuid, "title": "College ready", "mapped": True}]
     assert {"icon", "color", "thumbnail_image"} <= set(report["templates"][0])  # each plan's own mark, for the tree
+    assert report["templates"][0]["collections"] == []
+    # The org's collections a plan is in come with it, so Covered by can find and pick plans by collection.
+    from src.services.goals.requirements import GoalTemplate
+    template_id = db.exec(select(GoalTemplate.id).where(GoalTemplate.template_uuid == template_uuid)).one()
+    db.add(PlanCollection(id=7, collection_uuid="collection_7", org_id=1, name="Seniors"))
+    db.add(PlanCollection(id=8, collection_uuid="collection_8", org_id=2, name="Not ours"))
+    db.add(PlanCollectionItem(collection_id=7, template_id=template_id))
+    db.add(PlanCollectionItem(collection_id=8, template_id=template_id))
+    db.commit()
+    assert service.coverage(db, admin, 1, framework["framework_uuid"])["templates"][0]["collections"] == [{"collection_uuid": "collection_7", "name": "Seniors"}]
     # Staff read the same coverage; a learner can't.
     assert service.coverage(db, _user(TEACHER), 1, framework["framework_uuid"])["nodes"] == report["nodes"]
     with pytest.raises(HTTPException) as learner_coverage:

@@ -62,6 +62,117 @@ import { useHub } from '@components/Hub/HubContext'
 const TOOLTIP_CLASS = "z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20"
 const COLLAPSED_KEY = 'dash-menu-collapsed'
 
+const PLATFORM_OPEN_KEY = 'dash-platform-open'
+const PLATFORM_HEIGHT_KEY = 'dash-platform-height'
+const PLATFORM_MIN_HEIGHT = 72
+
+function readStored(key: string): string | null {
+  try { return typeof window === 'undefined' ? null : window.localStorage.getItem(key) } catch { return null }
+}
+function store(key: string, value: string) {
+  try { window.localStorage.setItem(key, value) } catch { /* only a convenience */ }
+}
+
+/**
+ * Superadmins' platform pages, under the org's tabs. It never takes more than half the sidebar (it scrolls past
+ * that), its top edge drags to make it shorter or taller, and its heading folds it away. Both are remembered.
+ */
+function PlatformSection({ orgslug, pathname, isCollapsed }: { orgslug: string; pathname: string; isCollapsed: boolean }) {
+  const [open, setOpen] = useState(() => readStored(PLATFORM_OPEN_KEY) !== 'false')
+  const [height, setHeight] = useState<number | null>(() => Number(readStored(PLATFORM_HEIGHT_KEY)) || null)
+  const ref = React.useRef<HTMLDivElement>(null)
+  const toggle = () => { setOpen(!open); store(PLATFORM_OPEN_KEY, String(!open)) }
+  const shown = open || isCollapsed
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const section = ref.current
+    const sidebar = section?.parentElement
+    if (!section || !sidebar) return
+    event.preventDefault()
+    const startY = event.clientY
+    const startHeight = section.getBoundingClientRect().height
+    let next = startHeight
+    const move = (moveEvent: PointerEvent) => {
+      next = Math.round(Math.max(PLATFORM_MIN_HEIGHT, Math.min(sidebar.clientHeight / 2, startHeight + startY - moveEvent.clientY)))
+      setHeight(next)
+    }
+    const stop = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+      store(PLATFORM_HEIGHT_KEY, String(next))
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+  const nudge = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+    event.preventDefault()
+    const section = ref.current
+    const sidebar = section?.parentElement
+    if (!section || !sidebar) return
+    const next = Math.round(Math.max(PLATFORM_MIN_HEIGHT, Math.min(sidebar.clientHeight / 2, section.getBoundingClientRect().height + (event.key === 'ArrowUp' ? 24 : -24))))
+    setHeight(next)
+    store(PLATFORM_HEIGHT_KEY, String(next))
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="relative flex max-h-[50%] shrink-0 flex-col border-t border-amber-400/20 mt-1"
+      style={shown && height ? { height } : undefined}
+    >
+      {shown ? (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize platform pages"
+          tabIndex={0}
+          onPointerDown={startDrag}
+          onKeyDown={nudge}
+          onDoubleClick={() => { setHeight(null); store(PLATFORM_HEIGHT_KEY, '') }}
+          className="absolute inset-x-0 -top-1.5 z-10 h-3 cursor-row-resize touch-none outline-none before:absolute before:inset-x-3 before:top-1/2 before:h-0.5 before:-translate-y-1/2 before:rounded-full before:bg-amber-400/0 hover:before:bg-amber-400/50 focus-visible:before:bg-amber-400/70"
+        />
+      ) : null}
+      {!isCollapsed && (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={toggle}
+          className="mx-3 mt-2 mb-1 flex shrink-0 items-center justify-between rounded px-1 text-[9px] font-semibold uppercase tracking-widest text-amber-400/60 hover:text-amber-300"
+        >
+          Platform
+          <CaretDown size={10} weight="bold" className={cn('transition-transform', !open && '-rotate-90')} aria-hidden="true" />
+        </button>
+      )}
+      {shown ? (
+        <div className={cn('min-h-0 flex-1 overflow-y-auto px-3 pb-1 [scrollbar-width:thin]', isCollapsed && 'pt-2')}>
+          {platformSections().map((section) => {
+            const Icon = PLATFORM_NAV_ICONS[section.id]
+            const isActive = section.exact
+              ? pathname === `/orgs/${orgslug}${section.href}` || pathname === section.href
+              : pathname.startsWith(`/orgs/${orgslug}${section.href}`) || pathname.startsWith(section.href)
+            return (
+              <Link
+                key={section.href}
+                href={getUriWithOrg(orgslug, section.href)}
+                aria-label={section.label}
+                className={cn(
+                  "flex items-center w-full rounded-lg transition-all",
+                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3",
+                  isActive ? "bg-amber-400/10 text-amber-300" : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-400/10"
+                )}
+              >
+                <Icon size={20} weight="fill" />
+                {!isCollapsed && <span className="text-sm font-medium">{section.label}</span>}
+              </Link>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /** The admin sidebar: the registry's tabs for this viewer, the platform pages for superadmins, then feedback and the account menu. */
 function DashLeftMenu() {
   const org = useOrg() as any
@@ -161,34 +272,7 @@ function DashLeftMenu() {
         </div>
       </div>
 
-      {showPlatform && (
-        <div className="border-t border-amber-400/20 mt-1 pt-2 px-3 pb-1">
-          {!isCollapsed && (
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-amber-400/60 px-1 mb-1">Platform</p>
-          )}
-          {platformSections().map((section) => {
-            const Icon = PLATFORM_NAV_ICONS[section.id]
-            const isActive = section.exact
-              ? pathname === `/orgs/${org.slug}${section.href}` || pathname === section.href
-              : pathname.startsWith(`/orgs/${org.slug}${section.href}`) || pathname.startsWith(section.href)
-            return (
-              <Link
-                key={section.href}
-                href={getUriWithOrg(org.slug, section.href)}
-                aria-label={section.label}
-                className={cn(
-                  "flex items-center w-full rounded-lg transition-all",
-                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3",
-                  isActive ? "bg-amber-400/10 text-amber-300" : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-400/10"
-                )}
-              >
-                <Icon size={20} weight="fill" />
-                {!isCollapsed && <span className="text-sm font-medium">{section.label}</span>}
-              </Link>
-            )
-          })}
-        </div>
-      )}
+      {showPlatform && <PlatformSection orgslug={org.slug} pathname={pathname} isCollapsed={isCollapsed} />}
 
       <div className="border-t border-white/[0.08] py-3 px-3 shrink-0">
         <DashFeedbackButton isCollapsed={isCollapsed} />

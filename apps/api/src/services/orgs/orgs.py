@@ -171,9 +171,8 @@ async def create_org(
     _invalidate_session_cache(int(current_user.id))
 
     from src.db.organization_config import OrganizationConfigDocument
-    org_config = OrganizationConfigDocument()
-
-    org_config = json.loads(org_config.model_dump_json())
+    from src.security.access.catalog import BETA_TIER  # During the beta every new organization gets it, free.
+    org_config = json.loads(OrganizationConfigDocument(**({"tier": BETA_TIER, "beta": True} if BETA_TIER else {})).model_dump_json())
 
     # OrgSettings
     org_settings = OrganizationConfig(

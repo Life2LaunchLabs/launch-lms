@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 # The keys a superadmin can set: name -> label, environment fallback, where to get one.
 SECRETS = {
     "pexels": {"label": "Pexels", "env": "PEXELS_API_KEY", "help_url": "https://www.pexels.com/api/"},
+    # Google sign-in turns on once both are saved here (services/auth/google_oauth.py).
+    "google_client_id": {"label": "Google sign-in client ID", "env": "LAUNCHLMS_GOOGLE_CLIENT_ID", "help_url": "https://console.cloud.google.com/apis/credentials"},
+    "google_client_secret": {"label": "Google sign-in client secret", "env": "LAUNCHLMS_GOOGLE_CLIENT_SECRET", "help_url": "https://console.cloud.google.com/apis/credentials"},
 }
 
 
