@@ -1,9 +1,13 @@
 """Oregon Education Plan and Profile: a learner's course plan with a school, for staff and for the learner.
 
-Staff routes need an active support link (services/school/support.require_support).
+Staff routes need an active support link (services/school/support.require_support). Records, the
+caseload and its export are for any of the organization's staff.
 """
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
@@ -12,7 +16,7 @@ from src.db.epp_records import EppRecordCorrection, EppRecordCreate
 from src.db.learner_support import ReportPicks
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.epp import courses, records, report
+from src.services.epp import caseload, courses, records, report
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -117,3 +121,28 @@ async def correct_record(org_id: int, record_uuid: str, payload: EppRecordCorrec
 async def my_records(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     """Your reviewed records with a school."""
     return records.my_records(db_session, current_user, org_id)
+
+
+def _file(name: str, body: bytes, media_type: str) -> Response:
+    return Response(content=body, media_type=media_type, headers={"Content-Disposition": f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}",
+                                                                  "Cache-Control": "no-store"})
+
+
+@router.get("/orgs/{org_id}/records/{record_uuid}/pdf")
+async def record_pdf(org_id: int, record_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
+    """One saved record as a PDF named Last_First_StudentID_EPP_2026-27.pdf."""
+    name, body = caseload.record_pdf(db_session, current_user, org_id, record_uuid)
+    return _file(name, body, "application/pdf")
+
+
+@router.get("/orgs/{org_id}/caseload")
+async def org_caseload(org_id: int, mine: bool = False, current_user: PublicUser = USER, db_session: Session = DB):
+    """The learners the school supports and where each plan stands; `mine` keeps the ones you counsel."""
+    return caseload.caseload(db_session, current_user, org_id, mine)
+
+
+@router.get("/orgs/{org_id}/caseload/export")
+async def export_caseload(org_id: int, mine: bool = False, current_user: PublicUser = USER, db_session: Session = DB):
+    """A zip with a PDF of each learner's reviewed record this school year."""
+    name, body = caseload.export_reviewed(db_session, current_user, org_id, mine)
+    return _file(name, body, "application/zip")

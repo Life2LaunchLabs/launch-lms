@@ -86,7 +86,8 @@ export default function SchoolSupport({ userId, name, username }: { userId: numb
         <span className="text-muted-foreground">Counselor: <b className="text-foreground">{record.counselor?.name || 'Not set'}</b></span>
         {record.counselor?.id === viewerId ? <button type="button" disabled={Boolean(busy)} onClick={() => void save({ counselor_user_id: null })} className="text-sm font-semibold underline disabled:opacity-50">Clear</button>
           : <button type="button" disabled={Boolean(busy)} onClick={() => void save({ counselor_user_id: viewerId })} className="text-sm font-semibold underline disabled:opacity-50">Make me their counselor</button>}
-        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.epp(username))} className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-3 text-sm font-semibold text-background">
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.eppCaseload())} className="ml-auto text-sm font-semibold underline">All plans</Link>
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.epp(username))} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-3 text-sm font-semibold text-background">
           <FileText size={14} aria-hidden="true" />EPP report
         </Link>
         <button type="button" disabled={Boolean(busy)} onClick={() => { if (confirm(`End support for ${first}? Their school record closes until they say yes again.`)) void run('end', () => supportApi.end(orgId, userId, token), 'Support ended') }}
