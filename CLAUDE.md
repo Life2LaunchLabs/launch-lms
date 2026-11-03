@@ -107,6 +107,7 @@ launch-lms/
 | `/trail` | Learning paths |
 | `/code` | Code execution (Judge0) |
 | `/analytics` | Course analytics |
+| `/epp` | Oregon Education Plan and Profile: course plan and credit tally, the live report, and frozen review records |
 | `/insights` | Insights: dashboards, running their cards, drilling into a number, the measure registry, captures and their read-only links |
 | `/search` | Global search |
 | `/instance` | Public instance metadata |

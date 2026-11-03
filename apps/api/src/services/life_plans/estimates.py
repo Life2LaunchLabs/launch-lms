@@ -134,7 +134,8 @@ def occupations(db: Session, query: str = "", limit: int = 20) -> list[dict]:
 
 
 def coverage(db: Session) -> list[dict]:
-    """Per source: how many facts, by status, for the admin coverage view."""
+    """Per source: how many facts and catalog entries, by status, for the admin coverage view."""
+    from src.services.life_plans import public_data
     out = []
     for src in db.exec(select(EstimateSource).order_by(col(EstimateSource.id))).all():
         facts = db.exec(select(EstimateFact.status, EstimateFact.metric, EstimateFact.place).where(EstimateFact.source_id == src.id)).all()
@@ -145,5 +146,8 @@ def coverage(db: Session) -> list[dict]:
             by_status[status] = by_status.get(status, 0) + 1
             levels[places.level_of(place)] = levels.get(places.level_of(place), 0) + 1
             metrics.add(metric)
-        out.append({**_source_view(src), "id": src.id, "facts": len(facts), "by_status": by_status, "levels": levels, "metrics": sorted(metrics)})
+        entries = public_data.entry_counts(db, src.id)
+        for status, n in entries.items():
+            by_status[status] = by_status.get(status, 0) + n
+        out.append({**_source_view(src), "id": src.id, "facts": len(facts), "entries": sum(entries.values()), "by_status": by_status, "levels": levels, "metrics": sorted(metrics)})
     return out

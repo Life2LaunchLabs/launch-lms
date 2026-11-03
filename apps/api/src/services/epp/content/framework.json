@@ -1,0 +1,40 @@
+{
+  "format": "launch-lms.requirement-framework",
+  "format_version": 1,
+  "framework": {
+    "name": "Oregon Education Plan and Profile (EPP)",
+    "description": "Oregon's Education Plan and Profile and the related Personalized Learning requirements for grades 7-12 (OAR 581-022-2000 and ODE's EPP guidance, read 2026-11-02). Codes are stable: the EPP report finds a student's work by these codes, so a district's own steps linked to the same requirement fill the same place in the report. Keep codes when editing; add new requirements with new codes. Graduation credits and Essential Skills are not here: the course plan and SB 3 framework cover those. Titles paraphrase the rule; ODE's text controls.",
+    "numbering": "custom"
+  },
+  "nodes": [
+    {"node_uuid": "new-interests", "code": "EPP.INTERESTS", "title": "Personal, academic and career interests", "description": "EPP component 1: the student describes their interests, strengths and the careers they're exploring.", "numbering": "custom"},
+    {"node_uuid": "new-interests-strengths", "parent_node_uuid": "new-interests", "code": "EPP.INTERESTS.STRENGTHS", "title": "Describe strengths, talents and interests"},
+    {"node_uuid": "new-interests-assessments", "parent_node_uuid": "new-interests", "code": "EPP.INTERESTS.ASSESSMENTS", "title": "Reflect on interest and career assessments", "description": "What the student learned from assessments they took this year."},
+    {"node_uuid": "new-interests-careers", "parent_node_uuid": "new-interests", "code": "EPP.INTERESTS.CAREERS", "title": "Explore career areas and occupations"},
+
+    {"node_uuid": "new-goals", "code": "EPP.GOALS", "title": "Goals and plan after high school", "description": "EPP component 2: long- and short-term goals for post-high-school next steps, reviewed at least yearly.", "numbering": "custom"},
+    {"node_uuid": "new-goals-career", "parent_node_uuid": "new-goals", "code": "EPP.GOALS.CAREER", "title": "Set career and personal goals"},
+    {"node_uuid": "new-goals-education", "parent_node_uuid": "new-goals", "code": "EPP.GOALS.EDUCATION", "title": "Choose an education or training path after high school"},
+    {"node_uuid": "new-goals-preparation", "parent_node_uuid": "new-goals", "code": "EPP.GOALS.PREPARATION", "title": "Identify what it takes to get there", "description": "The preparation the student's goals require: courses, tests, applications, money, experience."},
+    {"node_uuid": "new-goals-action", "parent_node_uuid": "new-goals", "code": "EPP.GOALS.ACTION", "title": "Write this year's action plan"},
+    {"node_uuid": "new-goals-support", "parent_node_uuid": "new-goals", "code": "EPP.GOALS.SUPPORT", "title": "Name a support network"},
+
+    {"node_uuid": "new-courses", "code": "EPP.COURSES", "title": "Course of study", "description": "EPP component 3: design and monitor a course of study toward graduation and the student's goals.", "numbering": "custom"},
+    {"node_uuid": "new-courses-plan", "parent_node_uuid": "new-courses", "code": "EPP.COURSES.PLAN", "title": "Plan courses toward graduation and goals"},
+
+    {"node_uuid": "new-progress", "code": "EPP.PROGRESS", "title": "Progress toward graduation", "description": "EPP component 4: monitor progress toward graduation at least yearly, with an adult.", "numbering": "custom"},
+    {"node_uuid": "new-progress-review", "parent_node_uuid": "new-progress", "code": "EPP.PROGRESS.REVIEW", "title": "Review progress with an adult this year", "description": "The annual review. Staff mark it done after meeting the student."},
+
+    {"node_uuid": "new-accomplishments", "code": "EPP.ACCOMPLISHMENTS", "title": "Personal accomplishments", "description": "EPP component 5: document personal accomplishments, with evidence the student chooses.", "numbering": "custom"},
+    {"node_uuid": "new-accomplishments-learning", "parent_node_uuid": "new-accomplishments", "code": "EPP.ACCOMPLISHMENTS.LEARNING", "title": "Reflect on this year's learning and achievements"},
+    {"node_uuid": "new-accomplishments-evidence", "parent_node_uuid": "new-accomplishments", "code": "EPP.ACCOMPLISHMENTS.EVIDENCE", "title": "Choose evidence of best work"},
+
+    {"node_uuid": "new-crle", "code": "EPP.CRLE", "title": "Career-related learning experiences", "description": "Personalized Learning: participate in career-related learning experiences (CRLEs) connected to the education plan.", "numbering": "custom"},
+    {"node_uuid": "new-crle-experience", "parent_node_uuid": "new-crle", "code": "EPP.CRLE.EXPERIENCE", "title": "Take part in a career-related learning experience"},
+    {"node_uuid": "new-crle-reflection", "parent_node_uuid": "new-crle", "code": "EPP.CRLE.REFLECTION", "title": "Reflect on a career-related learning experience"},
+
+    {"node_uuid": "new-extapp", "code": "EPP.EXTAPP", "title": "Extended Application", "description": "Personalized Learning: apply and extend knowledge in new and complex situations related to personal and career interests and post-high-school goals, assessed by the school.", "numbering": "custom"},
+    {"node_uuid": "new-extapp-plan", "parent_node_uuid": "new-extapp", "code": "EPP.EXTAPP.PLAN", "title": "Plan an Extended Application"},
+    {"node_uuid": "new-extapp-evidence", "parent_node_uuid": "new-extapp", "code": "EPP.EXTAPP.EVIDENCE", "title": "Complete an Extended Application collection of evidence", "description": "Assessed by school staff."}
+  ]
+}

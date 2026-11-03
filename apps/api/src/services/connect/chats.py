@@ -163,10 +163,11 @@ def _sender(db: Session, message: ConversationMessage, viewer_id: int, cache: di
 
 def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cache: dict | None = None) -> dict:
     from src.services.connect import inbox, reactions, workspace
+    from src.services.school import support
 
     refs = workspace.resolve(db, message.refs, {} if cache is None else cache, viewer_id)
     return {
-        "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": inbox.live(db, message.card, viewer_id), "refs": refs,
+        "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": support.live(db, inbox.live(db, message.card, viewer_id), viewer_id), "refs": refs,
         "preview": workspace.plain(db, message.body, message.refs, viewer_id) if message.refs else message.body,
         "sender": _sender(db, message, viewer_id, cache), "mine": message.sender_user_id == viewer_id,
         "staff_only": message.visibility == visibility.STAFF, "creation_date": message.creation_date, "update_date": message.update_date,

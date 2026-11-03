@@ -131,6 +131,8 @@ export const routePaths = {
     /** Opens Coach beside Plans, optionally resuming a conversation or starting with a prompt. */
     coachOpen: (params?: { conversation?: string; prompt?: string }) => withQuery('/plans', { coach: 'open', coach_conversation: params?.conversation, coach_prompt: params?.prompt }),
     portfolio: () => '/portfolio',
+    /** Your Education Plan and Profile with this organization, if it supports you. */
+    epp: () => '/epp',
     connect: () => '/connect',
     chat: (conversationUuid: string) => `/connect/${encodeURIComponent(conversationUuid)}`,
     /** Invitations and notices from organizations, listed in Connect. */
@@ -211,6 +213,10 @@ export const routePaths = {
         root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/threads', params),
         user: (username: string, tab?: PersonTab) =>
           withQuery(`/admin/threads/profiles/people/${encodeURIComponent(username)}`, { tab: tab === 'overview' ? null : tab }),
+        /** A supported learner's Education Plan and Profile report. */
+        epp: (username: string) => `/admin/threads/profiles/people/${encodeURIComponent(username)}/epp`,
+        /** A frozen Education Plan and Profile record, which outlives the learner's account. */
+        eppRecord: (recordUuid: string) => `/admin/threads/profiles/epp/${encodeURIComponent(recordUuid)}`,
         /** A group: its people, its plans (one assignment's grid), or its join links. */
         group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
           withQuery(`/admin/threads/profiles/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),

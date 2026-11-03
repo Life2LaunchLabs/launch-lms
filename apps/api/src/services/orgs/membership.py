@@ -45,8 +45,11 @@ def cleanup_after_removal(db: Session, org_id: int, user_id: int) -> None:
     (their collaborator rows go inactive, so history keeps who did what). Learners' chats with the
     organization and the groups' chats are brought up to date without them.
     """
+    from src.services.epp.records import freeze_exits
     from src.services.school import chats as school_chats, group_chats
 
+    # A school keeps the Education Plan and Profile of a supported learner who leaves.
+    freeze_exits(db, user_id, org_id)
     group_ids = {int(row.usergroup_id) for row in db.exec(select(UserGroupStaff).where(UserGroupStaff.org_id == org_id, UserGroupStaff.user_id == user_id)).all()}
     for row in db.exec(select(UserGroupStaff).where(UserGroupStaff.org_id == org_id, UserGroupStaff.user_id == user_id)).all():
         db.delete(row)
