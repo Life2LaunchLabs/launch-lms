@@ -143,7 +143,14 @@ type CustomResponseTyping = {
 export const getResponseMetadata = async (
   fetch_result: any
 ): Promise<CustomResponseTyping> => {
-  const json = await fetch_result.json()
+  // A server error can come back as plain text ("Internal Server Error"); keep it readable instead of failing to parse it.
+  const text = await fetch_result.text()
+  let json: any
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    json = { detail: fetch_result.status >= 500 ? 'Something went wrong on our end. Check the list before trying again: it may have gone through.' : text || fetch_result.statusText }
+  }
   if (fetch_result.status === 200) {
     return {
       success: true,

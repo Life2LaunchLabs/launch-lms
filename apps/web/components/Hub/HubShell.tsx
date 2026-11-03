@@ -13,12 +13,18 @@ import useHubGestures from './useHubGestures'
 import './hub.css'
 
 const PHONE = '(max-width: 767px)'
+// Below this the admin side (sidebar, page and panel) can't fit side by side, so Threads and Coach slide over the page.
+const COMPACT = '(max-width: 1279px)'
 
-function subscribePhone(onChange: () => void) {
-  const query = window.matchMedia(PHONE)
-  query.addEventListener('change', onChange)
-  return () => query.removeEventListener('change', onChange)
+function subscribeTo(media: string) {
+  return (onChange: () => void) => {
+    const query = window.matchMedia(media)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }
 }
+const subscribePhone = subscribeTo(PHONE)
+const subscribeCompact = subscribeTo(COMPACT)
 const MIN_WIDTH = 320
 const MAX_WIDTH = 720
 const PAGE_MIN = 560
@@ -54,6 +60,9 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
   const [started, setStarted] = useState(false)
   const [unread, setUnread] = useState(false)
   const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
+  const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia(COMPACT).matches, () => false)
+  // The admin side on a narrow desktop: the panel slides over the page instead of narrowing it.
+  const overlay = Boolean(threads) && compact && !phone && !focused
   const [frozenY, setFrozenY] = useState<number | null>(null)
   const [intent, setIntent] = useState<(HubCoachIntent & { id: number }) | null>(null)
   const [endSignal, setEndSignal] = useState(0)
@@ -216,8 +225,9 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
   const showEdge = state === 'edge' && started
   const style = { '--hub-width': `${width}px`, '--hub-frozen-y': `${-(frozenY || 0)}px` } as CSSProperties
   return <HubContext.Provider value={value}>
-    <div ref={shellRef} className={focused ? 'min-h-dvh w-full' : 'hub-shell'} data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} style={style}>
+    <div ref={shellRef} className={focused ? 'min-h-dvh w-full' : 'hub-shell'} data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} data-hub-overlay={overlay || undefined} style={style}>
       {children}
+      {overlay && state === 'open' ? <button type="button" className="hub-scrim" aria-label="Back to the page" onClick={tuck} /> : null}
       {!focused && state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label="Back to the page" onClick={tuck} /> : null}
       {!focused && showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? 'Open Coach, new reply' : 'Open Coach'} onClick={() => open()}>
         <span className={`hub-edge-dot ${unread ? 'hub-edge-dot--unread' : ''}`} aria-hidden="true" />

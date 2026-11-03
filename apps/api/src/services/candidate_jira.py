@@ -17,8 +17,7 @@ from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
-from fastapi import HTTPException, UploadFile
-from src.security.file_validation import validate_image_content
+from fastapi import HTTPException
 from src.services.feedback_configuration import environment_settings, stored_settings
 
 FEEDBACK_PROPERTY = "launchlms.feedback"
@@ -359,31 +358,14 @@ class CandidateJira:
             {"transition": {"id": match["id"]}},
         )
 
-    def add_attachment(self, issue_key: str, upload: UploadFile):
-        content = upload.file.read(MAX_ATTACHMENT_BYTES + 1)
-        upload.file.seek(0)
-        if len(content) > MAX_ATTACHMENT_BYTES:
-            raise HTTPException(
-                status_code=413, detail="Each screenshot must be 5 MB or smaller"
-            )
-        if upload.content_type not in {
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-        }:
-            raise HTTPException(
-                status_code=415,
-                detail="Only JPG, PNG, GIF, and WebP screenshots are supported",
-            )
-        if not validate_image_content(content):
-            raise HTTPException(status_code=415, detail="Screenshot content is invalid")
+    def add_screenshot(self, issue_key: str, filename: str, content_type: str, content: bytes):
+        """Attaches a screenshot already checked by services/feedback_outbox.py."""
         boundary = f"----launchlms-{uuid4().hex}"
-        safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", upload.filename or "screenshot.png")
+        safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", filename or "screenshot.png")
         body = (
             (
                 f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{safe_name}"\r\n'
-                f"Content-Type: {upload.content_type}\r\n\r\n"
+                f"Content-Type: {content_type}\r\n\r\n"
             ).encode()
             + content
             + f"\r\n--{boundary}--\r\n".encode()

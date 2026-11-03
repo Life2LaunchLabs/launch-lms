@@ -12,8 +12,11 @@ import {
   CandidateAnnouncement, CandidateFeedback, CandidateFeedbackIntent, CandidateReleaseFeed, candidateAttachmentUrl,
   commentOnCandidateFeedback, getCandidateAnnouncements, getCandidateFeedback,
   getCandidateReleases, markCandidateAnnouncementsViewed, markCandidateFeedbackViewed,
-  markCandidateReleasesViewed, resolveCandidateFeedback, submitCandidateFeedback,
+  markCandidateReleasesViewed, resolveCandidateFeedback,
 } from '@services/candidate/candidate'
+import {
+  cachedFeedbackList, discardQueued, flushFeedback, newSubmissionId, queuedFeedback, queuedItem, rememberFeedbackList, sendFeedback, type QueuedFeedback,
+} from '@services/candidate/feedbackOutbox'
 
 export type CandidatePanel = 'feedback' | 'releases' | 'announcements'
 
@@ -66,6 +69,8 @@ export function CandidatePanelContent({ panel, orgId, accessToken, feedbackConfi
   const [intent, setIntent] = useState<CandidateFeedbackIntent | null>(null)
   const [images, setImages] = useState<Array<{ file: File; preview: string }>>([])
   const [history, setHistory] = useState<CandidateFeedback[]>([])
+  // Feedback still in this browser (offline, or on its way): shown at once, sent when the connection allows.
+  const [outbox, setOutbox] = useState<QueuedFeedback[]>([])
   const [expandedItem, setExpandedItem] = useState<string | null>(null)
   const [releases, setReleases] = useState<CandidateReleaseFeed | null>(null)
   const [announcements, setAnnouncements] = useState<CandidateAnnouncement[]>([])
@@ -84,8 +89,10 @@ export function CandidatePanelContent({ panel, orgId, accessToken, feedbackConfi
     setLoading(true); setError('')
     try {
       const requests: Promise<unknown>[] = []
-      if (panel === 'feedback' && orgId && feedbackConfigured) requests.push(getCandidateFeedback(orgId, accessToken).then(async (items) => {
-        setHistory(items)
+      if (panel === 'feedback' && orgId && feedbackConfigured) requests.push(flushFeedback(orgId, accessToken).then(async () => {
+        setOutbox(await queuedFeedback(orgId))
+        const items = await getCandidateFeedback(orgId, accessToken)
+        setHistory(items); rememberFeedbackList(orgId, items)
         await markCandidateFeedbackViewed(orgId, accessToken)
         window.dispatchEvent(new CustomEvent('candidate-stream-viewed', { detail: 'feedback' }))
       }))
@@ -102,6 +109,22 @@ export function CandidatePanelContent({ panel, orgId, accessToken, feedbackConfi
     finally { setLoading(false) }
   }, [accessToken, feedbackConfigured, orgId, panel])
   useEffect(() => { void load() }, [load])
+  // The last list and anything still waiting show at once, before the server answers (after mount, so the page hydrates cleanly).
+  useEffect(() => {
+    if (panel !== 'feedback' || !orgId) return
+    setHistory((current) => current.length ? current : cachedFeedbackList(orgId))
+    void queuedFeedback(orgId).then(setOutbox)
+  }, [orgId, panel])
+
+  // Anything waiting (in this browser, or saved but not in Jira yet) is retried when the connection comes back and every 20 seconds.
+  const waiting = outbox.some((item) => !item.error) || history.some((item) => item.pending)
+  useEffect(() => {
+    if (panel !== 'feedback' || !waiting) return
+    const retry = () => { if (navigator.onLine) void load() }
+    window.addEventListener('online', retry)
+    const timer = setInterval(retry, 20000)
+    return () => { window.removeEventListener('online', retry); clearInterval(timer) }
+  }, [load, panel, waiting])
 
   useEffect(() => {
     if (panel !== 'releases' || !releases?.has_unread || !accessToken) return
@@ -124,19 +147,27 @@ export function CandidatePanelContent({ panel, orgId, accessToken, feedbackConfi
     images.forEach((image) => URL.revokeObjectURL(image.preview))
     setImages([]); setMessage(''); setIntent(null); setComposerOpen(false); setSubmitted(false)
   }
-  const submit = async () => {
+  // Thanks at once; the note is kept in this browser until the server has it, so going offline loses nothing.
+  const submit = () => {
     if (!message.trim() || !orgId || !accessToken) return
-    setLoading(true); setError('')
-    try {
-      const created = await submitCandidateFeedback(orgId, message, images.map((image) => image.file), reproductionContext(), accessToken, intent)
-      setHistory((current) => [created, ...current]); setExpandedItem(null)
-      images.forEach((image) => URL.revokeObjectURL(image.preview))
-      setImages([]); setMessage(''); setIntent(null); setComposerOpen(false); setSubmitted(true)
-      if (successTimer.current) clearTimeout(successTimer.current)
-      successTimer.current = setTimeout(() => setSubmitted(false), 1400)
-      await markCandidateFeedbackViewed(orgId, accessToken)
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not send feedback') }
-    finally { setLoading(false) }
+    const item: QueuedFeedback = { id: newSubmissionId(), orgId, message, intent, context: reproductionContext(), images: images.map((image) => image.file), createdAt: new Date().toISOString() }
+    setOutbox((current) => [item, ...current]); setExpandedItem(null); setError('')
+    images.forEach((image) => URL.revokeObjectURL(image.preview))
+    setImages([]); setMessage(''); setIntent(null); setComposerOpen(false); setSubmitted(true)
+    if (successTimer.current) clearTimeout(successTimer.current)
+    successTimer.current = setTimeout(() => setSubmitted(false), 1400)
+    void sendFeedback(item, accessToken).then((created) => {
+      if (!created) return
+      setOutbox((current) => current.filter((entry) => entry.id !== item.id))
+      setHistory((current) => { const next = [created, ...current.filter((entry) => entry.key !== created.key)]; rememberFeedbackList(orgId, next); return next })
+    }).catch((caught) => {
+      const reason = caught instanceof Error ? caught.message : 'Could not send feedback'
+      setOutbox((current) => current.map((entry) => entry.id === item.id ? { ...entry, error: reason } : entry))
+    })
+  }
+  const discard = (item: CandidateFeedback) => {
+    const id = item.key.replace(/^queued-/, '')
+    setOutbox((current) => current.filter((entry) => entry.id !== id)); void discardQueued(id)
   }
   const resolve = async (item: CandidateFeedback, outcome: 'looks_good' | 'still_happening') => {
     if (!orgId || !accessToken) return
@@ -184,14 +215,15 @@ export function CandidatePanelContent({ panel, orgId, accessToken, feedbackConfi
           <div className="grid grid-cols-2 gap-2">{FEEDBACK_INTENTS.map((option) => { const Icon = option.icon; return <button key={option.value} type="button" onClick={() => { setIntent(option.value); setComposerOpen(true) }} className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-xs font-medium transition hover:brightness-95 ${option.tone}`}><Icon size={17} className="shrink-0" /><span>{option.label}</span></button> })}</div>
           <button type="button" onClick={() => { setIntent(null); setComposerOpen(true) }} className="mt-2 flex w-full items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5 text-left text-xs text-muted-foreground hover:bg-muted"><PlusCircle size={17} />Something else…</button>
         </> : <>
-          <div className="mb-3 flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-1"><button type="button" aria-label="Back to feedback topics" onClick={closeComposer} className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeft size={18} /></button><p className="truncate text-sm font-semibold">{intentLabel(intent)}</p></div><Button type="button" size="sm" onClick={() => void submit()} disabled={!message.trim() || loading}><PaperPlaneTilt weight="fill" /> {loading ? 'Sending…' : 'Send'}</Button></div>
+          <div className="mb-3 flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-1"><button type="button" aria-label="Back to feedback topics" onClick={closeComposer} className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeft size={18} /></button><p className="truncate text-sm font-semibold">{intentLabel(intent)}</p></div><Button type="button" size="sm" onClick={submit} disabled={!message.trim()}><PaperPlaneTilt weight="fill" /> Send</Button></div>
           <Textarea autoFocus value={message} onChange={(event) => setMessage(event.target.value)} placeholder={FEEDBACK_INTENTS.find((option) => option.value === intent)?.placeholder || 'What did you notice?'} aria-label="Feedback message" className="min-h-28 resize-none" />
           {images.length ? <div className="mt-3 flex gap-2">{images.map((image) => <div key={image.preview} className="relative"><img src={image.preview} alt={image.file.name} className="h-16 w-16 rounded-lg object-cover" /><button type="button" aria-label={`Remove ${image.file.name}`} onClick={() => removeImage(image)} className="absolute -right-1 -top-1 rounded-full bg-foreground p-1 text-background"><X size={11} /></button></div>)}</div> : null}
           <div className="mt-3"><input ref={fileInput} className="hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onChange={(event) => addImages(Array.from(event.target.files || []))} /><Button type="button" variant="ghost" size="sm" onClick={() => fileInput.current?.click()} disabled={images.length >= 3}><ImageSquare /> Add screenshots <span className="text-muted-foreground">{images.length}/3</span></Button></div>
         </>}
       </div>
       <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-current opacity-20" />Your submissions<span className="h-px flex-1 bg-current opacity-20" /></div>
-      <div className="space-y-3">{!history.length && !loading ? <p className="py-8 text-center text-sm text-muted-foreground">Nothing here yet. A quick sentence is plenty.</p> : null}{[...history].sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()).map((item) => {
+      <div className="space-y-3">{!history.length && !outbox.length && !loading ? <p className="py-8 text-center text-sm text-muted-foreground">Nothing here yet. A quick sentence is plenty.</p> : null}{[...outbox.map(queuedItem), ...[...history].sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())].map((item) => {
+        const waitingItem = Boolean(item.queued || item.pending)
         const expanded = expandedItem === item.key
         const updatedAt = item.updated_at || item.created_at
         return <article key={item.key} className={`${item.status_category === 'done' ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-400/30 dark:bg-emerald-400/[0.05]' : 'border-border'} ${item.has_unread ? 'ring-1 ring-amber-400/60' : ''} overflow-hidden rounded-xl border`}>
@@ -200,11 +232,12 @@ export function CandidatePanelContent({ panel, orgId, accessToken, feedbackConfi
             {expanded ? <CaretDown className="mt-1 shrink-0 text-muted-foreground" /> : <CaretRight className="mt-1 shrink-0 text-muted-foreground" />}
           </button>
           {expanded && item.attachments.length ? <div className="flex flex-wrap gap-2 px-3 pb-2">{item.attachments.map((attachment) => <FeedbackAttachmentThumbnail key={attachment.id} item={item} attachment={attachment} orgId={orgId} accessToken={accessToken} onOpen={() => void downloadAttachment(item, attachment.id, attachment.filename)} />)}</div> : null}
-          <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-3 text-xs text-muted-foreground ${expanded ? '' : 'pt-0'}`}><Badge variant="outline">{item.status}</Badge>{item.status_category === 'done' ? <span className="flex items-center gap-1 font-medium text-emerald-600"><CheckCircle />Needs your check</span> : null}<span>{updatedAt ? new Date(updatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</span>{item.entries.length ? <span className="ml-auto flex items-center gap-1" aria-label={`${item.entries.length} comment${item.entries.length === 1 ? '' : 's'}${item.has_unread ? ', new activity' : ''}`}><ChatCircleDots />{item.entries.length}{item.has_unread ? <span className="ml-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-black">New</span> : null}</span> : null}</div>
+          <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-3 text-xs text-muted-foreground ${expanded ? '' : 'pt-0'}`}><Badge variant="outline">{item.queued && navigator.onLine === false && item.status !== 'Not sent' ? 'Waiting for a connection' : item.status}</Badge>{waitingItem && item.pending_attachments ? <span>{item.pending_attachments} screenshot{item.pending_attachments === 1 ? '' : 's'} on the way</span> : null}{item.status_category === 'done' ? <span className="flex items-center gap-1 font-medium text-emerald-600"><CheckCircle />Needs your check</span> : null}<span>{updatedAt ? new Date(updatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</span>{item.entries.length ? <span className="ml-auto flex items-center gap-1" aria-label={`${item.entries.length} comment${item.entries.length === 1 ? '' : 's'}${item.has_unread ? ', new activity' : ''}`}><ChatCircleDots />{item.entries.length}{item.has_unread ? <span className="ml-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-black">New</span> : null}</span> : null}</div>
           {expanded ? <div className="border-t border-border px-4 pb-4 pt-3">
             {item.entries.length ? <div className="mt-4 space-y-2 border-l-2 border-amber-400/40 pl-3">{item.entries.map((entry) => <div key={entry.id}><p className="text-sm">{entry.message}</p><p className="mt-1 text-xs text-muted-foreground">{entry.audience === 'tester' ? 'You' : entry.author}</p></div>)}</div> : null}
-            {commenting === item.key ? <div className="mt-4"><Textarea aria-label="Add a follow-up comment" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add anything else that might help…" /><div className="mt-2 flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={() => { setCommenting(null); setComment('') }}>Cancel</Button><Button size="sm" disabled={!comment.trim() || loading} onClick={() => void sendComment(item)}>Add comment</Button></div></div> : <Button className="mt-3" variant="ghost" size="sm" onClick={() => setCommenting(item.key)}>Add a comment</Button>}
-            {item.status_category === 'done' ? <div className="mt-4 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-400/10"><p className="text-sm font-semibold">The team marked this complete.</p><p className="mt-1 text-sm text-muted-foreground">Could you give it a quick check?</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={() => void resolve(item, 'looks_good')} disabled={loading}><CheckCircle weight="fill" />Looks good</Button><Button variant="outline" size="sm" onClick={() => void resolve(item, 'still_happening')} disabled={loading}>Still happening</Button></div></div> : null}
+            {item.queued && item.status === 'Not sent' ? <div className="mt-3 flex items-center gap-2 text-sm text-destructive"><span>{outbox.find((entry) => `queued-${entry.id}` === item.key)?.error}</span><Button variant="ghost" size="sm" onClick={() => discard(item)}>Discard</Button></div> : null}
+            {waitingItem ? <p className="text-xs text-muted-foreground">Comments open once it reaches the team.</p> : commenting === item.key ? <div className="mt-4"><Textarea aria-label="Add a follow-up comment" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add anything else that might help…" /><div className="mt-2 flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={() => { setCommenting(null); setComment('') }}>Cancel</Button><Button size="sm" disabled={!comment.trim() || loading} onClick={() => void sendComment(item)}>Add comment</Button></div></div> : <Button className="mt-3" variant="ghost" size="sm" onClick={() => setCommenting(item.key)}>Add a comment</Button>}
+            {item.status_category === 'done' && !waitingItem ? <div className="mt-4 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-400/10"><p className="text-sm font-semibold">The team marked this complete.</p><p className="mt-1 text-sm text-muted-foreground">Could you give it a quick check?</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={() => void resolve(item, 'looks_good')} disabled={loading}><CheckCircle weight="fill" />Looks good</Button><Button variant="outline" size="sm" onClick={() => void resolve(item, 'still_happening')} disabled={loading}>Still happening</Button></div></div> : null}
           </div> : null}
         </article>
       })}</div>

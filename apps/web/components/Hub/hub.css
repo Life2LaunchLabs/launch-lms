@@ -40,6 +40,16 @@
   .hub-edge { top: var(--hub-top); bottom: 0; right: 0; width: 52px; }
 }
 
+/* Narrow desktops on the admin side: the panel slides over the page, which keeps its full width behind a scrim. */
+.hub-scrim { display: none; }
+@media (min-width: 768px) {
+  .hub-shell[data-hub-overlay][data-hub-state='open'] { padding-right: 0; }
+  .hub-shell[data-hub-overlay][data-hub-state='open'] .org-layout-shell { border-right: 0; border-radius: 0; }
+  .hub-shell[data-hub-overlay] .hub-panel { border-radius: 20px; box-shadow: 0 24px 64px rgb(0 0 0 / .32); }
+  .hub-shell[data-hub-overlay] .hub-scrim { display: block; position: fixed; z-index: calc(var(--z-nav) + 1); inset: var(--hub-top) 0 0 0; border: 0; padding: 0; background: rgb(0 0 0 / .28); cursor: default; animation: hub-scrim-in .3s ease both; }
+}
+@keyframes hub-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* Phones: the page card slides left, leaving a strip; Hub fills the rest above the nav.
    Putting the page back slides Hub out with it and fades it, as if it is still there. */
 @media (max-width: 767px) {
@@ -71,7 +81,7 @@
 @keyframes hub-review-tray-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes hub-object-point { 0%, 100% { box-shadow: 0 0 0 0 hsl(var(--ring) / 0); } 28% { box-shadow: 0 0 0 3px hsl(var(--ring) / .4); } }
 @media (prefers-reduced-motion: reduce) { .hub-edit-review-tray, .hub-object-pointed { animation: none; } }
-@media print { .hub-panel, .hub-edge, .hub-resizer, .hub-page-strip { display: none; } }
+@media print { .hub-panel, .hub-edge, .hub-resizer, .hub-page-strip, .hub-scrim { display: none !important; } }
 
 /* Learner frame: navigation and content share one centered maximum width. */
 .org-page-layout { max-width: 1600px; justify-content: center; }

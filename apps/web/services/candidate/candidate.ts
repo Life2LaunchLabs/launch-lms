@@ -26,6 +26,11 @@ export interface CandidateFeedback {
   entries: Array<{ id: string; message: string; internal: boolean; audience: 'internal' | 'tester' | 'shared'; author: string; created_at?: string }>
   attachments: Array<{ id: string; filename: string; content_type: string; size: number }>
   transitions?: Array<{ id: string; name: string; to: JiraStatus }>
+  /** Saved by the server but not in Jira yet (key is pending-<uuid>). */
+  pending?: boolean
+  pending_attachments?: number
+  /** Still in this browser, waiting for a connection (key is queued-<uuid>). */
+  queued?: boolean
 }
 
 export interface CandidateRelease {
@@ -65,13 +70,15 @@ export const getCandidateFeedback = (orgId: number | undefined, token: string, a
   return result<CandidateFeedback[]>(fetch(`${getAPIUrl()}candidate/feedback?${query}`, { headers: auth(token) }))
 }
 
-export async function submitCandidateFeedback(orgId: number, message: string, images: File[], context: object, token: string, intent?: CandidateFeedbackIntent | null) {
+/** Saves feedback (the server sends it on to Jira). The same submissionUuid again never files it twice. */
+export async function submitCandidateFeedback(orgId: number, message: string, images: Blob[], context: object, token: string, intent?: CandidateFeedbackIntent | null, submissionUuid?: string) {
   const body = new FormData()
   body.append('org_id', String(orgId))
+  if (submissionUuid) body.append('submission_uuid', submissionUuid)
   body.append('message', message)
   body.append('context', JSON.stringify(context))
   if (intent) body.append('intent', intent)
-  images.forEach((image) => body.append('images', image))
+  images.forEach((image) => body.append('images', image, (image as File).name || 'screenshot.png'))
   return result<CandidateFeedback>(fetch(`${getAPIUrl()}candidate/feedback`, { method: 'POST', headers: auth(token), body }))
 }
 

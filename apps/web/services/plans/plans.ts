@@ -61,6 +61,8 @@ export type OrgAccess = {
   trial?: TrialAccess | null
   /** A Free org that hasn't tried Full yet. */
   trial_available?: boolean
+  /** Made during the beta: its tier is free for the duration of the beta. */
+  beta?: boolean
 }
 
 export const NO_ACCESS: OrgAccess = { tier: 'free', owner: false, partners: [], features: {}, limits: {} }
