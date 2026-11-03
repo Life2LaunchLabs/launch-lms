@@ -20,6 +20,7 @@ import { statusLine } from '@services/organizations/membership'
 import type { PersonTab } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
 import SchoolSupport from './SchoolSupport'
+import CoursePlan from './CoursePlan'
 
 const admin = routePaths.org.admin
 
@@ -104,6 +105,7 @@ function Overview({ orgslug, profile, thread, showPlans, compact }: { orgslug: s
     </Card>
     <LearnerBadges orgslug={orgslug} orgId={orgId} token={token} person={{ id: user.id, name: user.name, username: user.username, avatar_image: user.avatar_image, user_uuid: user.user_uuid }} />
     <SchoolSupport userId={user.id} name={user.name} />
+    <CoursePlan userId={user.id} />
     <About profile={profile} />
   </>
 }
