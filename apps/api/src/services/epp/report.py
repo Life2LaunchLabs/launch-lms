@@ -17,6 +17,7 @@ import re
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.goals import StepEntry, StepProgress
@@ -180,6 +181,13 @@ def _course_grid(plan: dict) -> list[dict]:
     return grid
 
 
+def _history(db: Session, org_id: int, learner_id: int) -> list[dict]:
+    from src.services.epp import records
+
+    bind = db.get_bind()
+    return records.history(db, org_id, learner_id) if bind is not None and inspect(bind).has_table("epprecord") else []
+
+
 def _scrub(value):
     if isinstance(value, dict):
         return {key: _scrub(item) for key, item in value.items() if key not in PRIVATE_KEYS}
@@ -209,7 +217,8 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
     crle_reviewed = [item for item in crle_done if item["source"] == "teacher_reviewed"]
     extapp = _started(work, "EPP.EXTAPP.PLAN")
     next_step = next((text for item in work["EPP.GOALS.EDUCATION"] for text in item["text"]), None)
-    reviewed = _done(work, "EPP.PROGRESS.REVIEW")
+    history = _history(db, org_id, learner_id)
+    reviewed = _done(work, "EPP.PROGRESS.REVIEW") or any(item.get("school_year") == year for item in history)
 
     components = [
         _component("interests", "Interests", _done(work, "EPP.INTERESTS.ASSESSMENTS") or bool(results),
@@ -269,8 +278,7 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
         "sections": [{"key": key, "title": title, "requirements": [{"code": code, "label": labels.get(code, code), "work": work[code]} for code in codes]}
                      for key, title, codes in SECTIONS],
         "evidence": evidence,
-        # Filled by frozen records in slice 5.
-        "reviews": [],
+        "reviews": history,
     }
     return _scrub(report)
 

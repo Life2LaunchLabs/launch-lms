@@ -89,8 +89,8 @@ export default function EppReport({ report }: { report: Report }) {
           <p className="text-[13px] text-[#3C4656]">{report.org.name}{learner.counselor ? ` · Counselor: ${learner.counselor}` : ''}</p>
         </div>
         <div className="rounded-md border border-[#1C2433] px-3 py-2 text-right">
-          <p className="text-[13px] font-bold">{report.reviews[0] ? `Reviewed ${longDate(report.reviews[0].date)}` : 'Not reviewed yet'}</p>
-          <p className="text-xs text-[#3C4656]">Live report, {longDate(report.generated_at)}</p>
+          <p className="text-[13px] font-bold">{report.reviews[0] ? `Reviewed ${longDate(report.reviews[0].date)}` : report.review ? 'Saved when leaving' : 'Not reviewed yet'}</p>
+          <p className="text-xs text-[#3C4656]">{report.review ? `Frozen record, version ${report.review.version}` : `Live report, ${longDate(report.generated_at)}`}</p>
         </div>
       </div>
       <div className="mt-5 grid gap-5 rounded-md bg-[#EEF3FE] px-4 py-3 sm:grid-cols-2">
@@ -150,9 +150,26 @@ export default function EppReport({ report }: { report: Report }) {
     <Sheet>
       <H2>7 · Look back and review</H2>
       <Requirements report={report} section="review" />
+      <h3 className="mb-2 mt-6 text-sm font-bold">Review history</h3>
+      {report.reviews.length ? <Table head={['Date', 'Reviewed with', 'Outcome']} rows={report.reviews.map((item) => [longDate(item.date), item.reviewer || 'School staff', item.outcome || '—'])} />
+        : <p className="text-[13px] text-[#505A6B]">Not reviewed yet this year.</p>}
+      {report.review && (report.review.staff_comment || report.review.learner_comment) ? <>
+        <h3 className="mb-1.5 mt-5 text-sm font-bold">Comments</h3>
+        {report.review.staff_comment ? <p className="text-[13px] leading-relaxed"><b>{report.review.reviewer || 'Staff'}:</b> {report.review.staff_comment}</p> : null}
+        {report.review.learner_comment ? <p className="mt-1 text-[13px] leading-relaxed"><b>{learner.first_name}:</b> {report.review.learner_comment}</p> : null}
+      </> : null}
+      {report.review?.correction_reason ? <p className="mt-3 text-xs text-[#3C4656]">Corrected{report.review.corrected_by ? ` by ${report.review.corrected_by}` : ''}{report.review.corrected_at ? ` on ${longDate(report.review.corrected_at)}` : ''}: {report.review.correction_reason}</p> : null}
+      <h3 className="mb-1 mt-6 text-sm font-bold">Signatures</h3>
+      <p className="text-xs text-[#3C4656]">Optional. Your school may ask for these.</p>
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)_9rem] gap-x-6 gap-y-7 text-xs">
+        {['Student', 'Parent or guardian', 'Counselor or advisor'].map((who) => <React.Fragment key={who}>
+          <div className="border-t border-[#1C2433] pt-1">{who}</div><div className="border-t border-[#1C2433] pt-1">Date</div>
+        </React.Fragment>)}
+      </div>
       <div className="mt-6 rounded-md bg-[#F4F6F9] px-4 py-3 text-[13px] leading-relaxed">
         <h3 className="mb-1 text-sm font-bold">About this report</h3>
         <p><b>Student entered</b> is written by {learner.first_name}. <b>Teacher reviewed</b> was checked by the named staff member. <b>School confirmed</b> was entered by school staff.</p>
+        {report.review ? <p className="mt-1">This is a frozen copy made for {report.org.name}. It stays the same if {learner.first_name} changes their portfolio or deletes their account. Corrections create a new version.</p> : null}
         <p className="mt-1">The school decides academic credit, and the transcript is the official record. Budgets, private items, documents and contact details aren’t included.</p>
       </div>
     </Sheet>

@@ -46,7 +46,9 @@ export interface EppReport {
   }
   sections: Array<{ key: string; title: string; requirements: Array<{ code: string; label: string; work: ReportWork[] }> }>
   evidence: EvidenceItem[]
-  reviews: Array<{ date: string; reviewer: string; outcome: string }>
+  reviews: Array<{ date: string; reviewer: string; outcome: string; kind?: string }>
+  /** Only on a frozen record: the review it was saved with. */
+  review?: { kind: string; version: number; date: string; reviewer: string; outcome: string; staff_comment: string; learner_comment: string; correction_reason?: string; corrected_by?: string; corrected_at?: string }
 }
 
 export interface Pick { kind: EvidenceItem['kind']; uuid: string }
