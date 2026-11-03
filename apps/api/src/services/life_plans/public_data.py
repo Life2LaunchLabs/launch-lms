@@ -1,0 +1,383 @@
+"""The public catalog: careers from O*NET and schools from the College Scorecard.
+
+Facts are numbers; catalog entries are things a learner can pick (a career, a school).
+Both load the same way: a superadmin uploads the publisher's file as released, every
+entry lands as a draft tied to its source, and nothing shows until the source is
+reviewed. Numbers that come with an entry (a school's tuition) load as facts, so the
+budget resolves them like rent and pay.
+
+- O*NET database, text edition (db_31_0_text.zip): Occupation Data, Interests (RIASEC,
+  the OI scale), Job Zones and Alternate Titles.
+- College Scorecard, most recent institution file (Most-Recent-Cohorts-Institution.csv,
+  or the data zip that holds it): schools that are currently operating, with tuition.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import math
+import re
+import zipfile
+from collections.abc import Iterable
+
+from sqlmodel import Session, col, delete, select
+
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
+from src.services.life_plans.estimates import REVIEWED, dims_key
+
+RIASEC = "RIASEC"
+INTEREST_NAMES = {"realistic": "R", "investigative": "I", "artistic": "A", "social": "S", "enterprising": "E", "conventional": "C"}
+ONET_URL = "https://www.onetcenter.org/database.html"
+SCORECARD_URL = "https://collegescorecard.ed.gov/data/"
+MAX_ALT_TITLES = 25
+
+
+class CatalogProblem(ValueError):
+    pass
+
+
+def _now() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).isoformat()
+
+
+# --- recognising the files ---------------------------------------------------------
+
+
+def _members(data: bytes) -> dict[str, zipfile.ZipInfo]:
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        return {}
+    with zf:
+        return {i.filename.rsplit("/", 1)[-1].lower(): i for i in zf.infolist() if not i.is_dir() and not i.filename.startswith("__MACOSX/")}
+
+
+def is_onet_zip(data: bytes, filename: str) -> bool:
+    return filename.lower().endswith(".zip") and "occupation data.txt" in _members(data)
+
+
+def scorecard_member(data: bytes, filename: str) -> str | None:
+    """The institution file inside a Scorecard zip, if this is one."""
+    if not filename.lower().endswith(".zip"):
+        return None
+    names = [n for n in _members(data) if n.startswith("most-recent-cohorts-institution") and n.endswith(".csv")]
+    return min(names, key=len) if names else None
+
+
+def is_scorecard_columns(cols: Iterable[str]) -> bool:
+    return {"unitid", "instnm", "stabbr"} <= set(cols)
+
+
+# --- O*NET -------------------------------------------------------------------------
+
+
+def _onet_version(filename: str) -> str:
+    m = re.search(r"db_(\d+)_(\d+)", filename.lower())
+    if not m:
+        raise CatalogProblem("We couldn't tell the O*NET version. Upload the zip with the name O*NET gives it, like db_31_0_text.zip.")
+    return f"{int(m.group(1))}.{int(m.group(2))}"
+
+
+def _tsv(zf: zipfile.ZipFile, name: str, required: bool = True) -> list[dict[str, str]]:
+    found = next((i for i in zf.infolist() if i.filename.rsplit("/", 1)[-1].lower() == name.lower()), None)
+    if found is None:
+        if required:
+            raise CatalogProblem(f"The O*NET zip has no {name}. Upload the text edition (db_XX_X_text.zip).")
+        return []
+    text = zf.read(found).decode("utf-8-sig", errors="replace")
+    return [{(k or "").strip().lower(): (v or "").strip() for k, v in row.items()} for row in csv.DictReader(io.StringIO(text), delimiter="\t")]
+
+
+def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL) -> dict:
+    """Careers from the O*NET text database: title, description, RIASEC profile, job zone, other titles."""
+    version = _onet_version(filename)
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as exc:
+        raise CatalogProblem("That zip file could not be opened.") from exc
+    with zf:
+        occupations = _tsv(zf, "Occupation Data.txt")
+        interests = _tsv(zf, "Interests.txt", required=False)
+        zones = _tsv(zf, "Job Zones.txt", required=False)
+        alts = _tsv(zf, "Alternate Titles.txt", required=False)
+    code_col = "o*net-soc code"
+    if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
+        raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
+
+    profile: dict[str, dict[str, float]] = {}
+    for r in interests:
+        # OI is the occupational interest score (1 to 7); IH rows are the high-point codes.
+        letter = INTEREST_NAMES.get(r.get("element name", "").lower())
+        if r.get("scale id", "").upper() != "OI" or not letter:
+            continue
+        try:
+            profile.setdefault(r[code_col], {})[letter] = round(float(r.get("data value", "")), 2)
+        except ValueError:
+            continue
+    job_zone: dict[str, int] = {}
+    for r in zones:
+        try:
+            job_zone[r[code_col]] = int(float(r.get("job zone", "")))
+        except ValueError:
+            continue
+    alt_titles: dict[str, list[str]] = {}
+    for r in alts:
+        title = r.get("alternate title", "")
+        bucket = alt_titles.setdefault(r.get(code_col, ""), [])
+        if title and title not in bucket and len(bucket) < MAX_ALT_TITLES:
+            bucket.append(title)
+
+    src = _upsert_source(
+        db,
+        key=f"onet-{version.replace('.', '-')}",
+        publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
+        title=f"O*NET {version} Database",
+        dataset="Occupation Data, Interests, Job Zones and Alternate Titles",
+        url=url,
+        released=f"O*NET {version}",
+        license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
+        notes="Interest scores are O*NET's occupational interest ratings (1 to 7) for each RIASEC type. Job zones run from 1 (little preparation) to 5 (extensive preparation).",
+    )
+    # A release replaces its own earlier load and the older release's careers, which share their codes.
+    codes = [r.get(code_col, "") for r in occupations]
+    db.exec(delete(CareerEntry).where(CareerEntry.source_id == src.id))
+    db.exec(delete(CareerEntry).where(col(CareerEntry.code).in_(codes)))
+    now = _now()
+    n = 0
+    for r in occupations:
+        code = r[code_col]
+        if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
+            continue
+        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), source_id=src.id, status="draft", creation_date=now))
+        n += 1
+    if not n:
+        raise CatalogProblem("No occupations found in Occupation Data.txt.")
+    db.commit()
+    return {"kind": "onet", "source": src.key, "careers": n, "with_interests": sum(1 for r in occupations if r[code_col] in profile)}
+
+
+# --- College Scorecard -------------------------------------------------------------
+
+CONTROL = {"1": "Public", "2": "Private nonprofit", "3": "Private for-profit"}
+DEGREE = {"1": "Certificates", "2": "Associate degrees", "3": "Bachelor's degrees", "4": "Graduate degrees"}
+
+
+def _val(text: str | None) -> float | None:
+    t = (text or "").strip()
+    if not t or t.upper() in ("NULL", "NA", "PRIVACYSUPPRESSED", "PS"):
+        return None
+    try:
+        v = float(t.replace(",", ""))
+    except ValueError:
+        return None
+    return v if math.isfinite(v) else None
+
+
+def scorecard_rows(data: bytes, filename: str) -> Iterable[dict[str, str]]:
+    name = filename
+    if filename.lower().endswith(".zip"):
+        member = scorecard_member(data, filename)
+        if not member:
+            raise CatalogProblem("The zip has no Most-Recent-Cohorts-Institution file in it.")
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            info = next(i for i in zf.infolist() if i.filename.rsplit("/", 1)[-1].lower() == member)
+            data, name = zf.read(info), info.filename
+    if not name.lower().endswith(".csv"):
+        raise CatalogProblem("Upload the College Scorecard institution CSV, or the zip that holds it.")
+    text = data.decode("utf-8-sig", errors="replace")
+    for row in csv.DictReader(io.StringIO(text)):
+        yield {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+
+
+def _scorecard_release(filename: str) -> str:
+    m = re.search(r"(\d{2})(\d{2})(20\d{2})", filename)
+    return f"{m.group(3)}-{m.group(1)}-{m.group(2)}" if m else ""
+
+
+def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCORECARD_URL, rows: Iterable[dict[str, str]] | None = None) -> dict:
+    """Schools from the Scorecard's most recent institution file, plus their yearly tuition as facts."""
+    rows = rows if rows is not None else scorecard_rows(data, filename)
+    release = _scorecard_release(filename)
+    src = _upsert_source(
+        db,
+        key=f"college-scorecard-institutions{('-' + release) if release else ''}",
+        publisher="U.S. Department of Education",
+        title="College Scorecard, most recent institution data",
+        dataset="Schools: type, size, admission and completion rates, earnings 10 years after entry, tuition and fees",
+        url=url,
+        released=f"Data files dated {release}" if release else "Most recent cohorts (release date not in the file name)",
+        license="U.S. government work, public domain",
+        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started. Tuition and fees are yearly published prices, before aid.",
+    )
+    rows = list(rows)
+    db.exec(delete(SchoolEntry).where(SchoolEntry.source_id == src.id))
+    db.exec(delete(SchoolEntry).where(col(SchoolEntry.unitid).in_([r.get("unitid", "") for r in rows])))
+    db.exec(delete(EstimateFact).where(EstimateFact.source_id == src.id))
+    now = _now()
+    schools = facts = 0
+    first = True
+    for r in rows:
+        if first:
+            if not is_scorecard_columns(r):
+                raise CatalogProblem("Expected the Scorecard columns UNITID, INSTNM and STABBR.")
+            first = False
+        if r.get("curroper", "1") not in ("1", ""):
+            continue
+        unitid = r["unitid"]
+        degree_level = r.get("preddeg", "")
+        four_year = degree_level in ("3", "4")
+        completion = _val(r.get("c150_4")) if four_year else _val(r.get("c150_l4"))
+        if completion is None:
+            completion = _val(r.get("c150_4")) or _val(r.get("c150_l4"))
+        students = _val(r.get("ugds"))
+        url_ = r.get("insturl", "")
+        if url_ and not url_.lower().startswith("http"):
+            url_ = "https://" + url_
+        db.add(SchoolEntry(unitid=unitid, name=r["instnm"], city=r.get("city", ""), state=r.get("stabbr", "").upper(), url=url_[:500], control=CONTROL.get(r.get("control", ""), ""), degree=DEGREE.get(degree_level, ""), students=int(students) if students is not None else None, admission_rate=_val(r.get("adm_rate")), completion_rate=completion, median_earnings=_val(r.get("md_earn_wne_p10")), source_id=src.id, status="draft", creation_date=now))
+        schools += 1
+        for residency, column in (("in", "tuitionfee_in"), ("out", "tuitionfee_out")):
+            v = _val(r.get(column))
+            if v is None:
+                continue
+            dims = {"school": unitid, "residency": residency}
+            db.add(EstimateFact(metric="tuition", place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} tuition and fees ({'in-state' if residency == 'in' else 'out-of-state'})", value=v, period="yr", stat="published price", source_id=src.id, status="draft", creation_date=now))
+            facts += 1
+    if not schools:
+        raise CatalogProblem("No operating schools found in the file.")
+    db.commit()
+    return {"kind": "scorecard", "source": src.key, "schools": schools, "facts": facts}
+
+
+# --- shared ------------------------------------------------------------------------
+
+
+def _upsert_source(db: Session, **fields) -> EstimateSource:
+    from src.services.life_plans.importers import upsert_source
+
+    return upsert_source(db, **fields)
+
+
+def review_entries(db: Session, source_id: int, status: str) -> int:
+    n = 0
+    for model in (CareerEntry, SchoolEntry):
+        for row in db.exec(select(model).where(model.source_id == source_id)).all():
+            row.status = status
+            db.add(row)
+            n += 1
+    return n
+
+
+def entry_counts(db: Session, source_id: int) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for model in (CareerEntry, SchoolEntry):
+        rows = db.exec(select(model.status).where(model.source_id == source_id)).all()
+        for status in rows:
+            out[status] = out.get(status, 0) + 1
+    return out
+
+
+# --- reading the catalog -----------------------------------------------------------
+
+
+def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
+    out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
+    if full:
+        out |= {"description": c.description, "alt_titles": c.alt_titles}
+    return out
+
+
+def top_interests(profile: dict) -> str:
+    """The two or three strongest RIASEC letters, like "IRC"."""
+    ranked = sorted((k for k in RIASEC if k in profile), key=lambda k: -profile[k])
+    return "".join(ranked[:3])
+
+
+def search_careers(db: Session, query: str = "", limit: int = 20) -> list[dict]:
+    rows = db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED)).all()
+    q = query.strip().lower()
+    if not q:
+        return [_career_view(c) for c in sorted(rows, key=lambda c: c.title)[:limit]]
+    scored = []
+    for c in rows:
+        title = c.title.lower()
+        if title.startswith(q):
+            rank = 0
+        elif q in title:
+            rank = 1
+        elif any(q in a.lower() for a in c.alt_titles):
+            rank = 2
+        else:
+            continue
+        scored.append((rank, c.title, c))
+    return [_career_view(c) for _, _, c in sorted(scored, key=lambda t: (t[0], t[1]))[:limit]]
+
+
+def get_career(db: Session, code: str) -> dict | None:
+    c = db.exec(select(CareerEntry).where(CareerEntry.code == code, CareerEntry.status == REVIEWED)).first()
+    if not c:
+        return None
+    src = db.get(EstimateSource, c.source_id)
+    return {**_career_view(c, full=True), "source": {"key": src.key, "title": src.title, "license": src.license, "url": src.url} if src else None}
+
+
+def _correlation(a: dict, b: dict) -> float | None:
+    xs = [float(a.get(k, 0) or 0) for k in RIASEC]
+    ys = [float(b.get(k, 0) or 0) for k in RIASEC]
+    mx, my = sum(xs) / 6, sum(ys) / 6
+    sx = math.sqrt(sum((x - mx) ** 2 for x in xs))
+    sy = math.sqrt(sum((y - my) ** 2 for y in ys))
+    if not sx or not sy:
+        return None
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sx * sy)
+
+
+def match_careers(db: Session, scores: dict, *, job_zones: list[int] | None = None, limit: int = 20) -> list[dict]:
+    """Careers whose RIASEC profile has the same shape as the learner's scores.
+
+    The match is the correlation between the two six-number profiles, so it works with
+    any scale (O*NET's 1 to 7, a 0 to 40 total). It's a "these line up" signal, not a
+    prediction, and the response says how it was worked out."""
+    if sum(1 for k in RIASEC if scores.get(k) is not None) < 6:
+        raise CatalogProblem("Send a score for each of R, I, A, S, E and C.")
+    rows = db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED)).all()
+    out = []
+    for c in rows:
+        if job_zones and c.job_zone not in job_zones:
+            continue
+        r = _correlation(scores, c.interests) if len(c.interests) == 6 else None
+        if r is None:
+            continue
+        out.append((r, c))
+    out.sort(key=lambda t: (-t[0], t[1].title))
+    return [{**_career_view(c), "match": round(r, 3)} for r, c in out[:limit]]
+
+
+def _school_view(s: SchoolEntry) -> dict:
+    return {"unitid": s.unitid, "name": s.name, "city": s.city, "state": s.state, "url": s.url, "control": s.control, "degree": s.degree, "students": s.students, "admission_rate": s.admission_rate, "completion_rate": s.completion_rate, "median_earnings": s.median_earnings}
+
+
+def search_schools(db: Session, query: str = "", state: str | None = None, limit: int = 20) -> list[dict]:
+    stmt = select(SchoolEntry).where(SchoolEntry.status == REVIEWED)
+    if state:
+        stmt = stmt.where(SchoolEntry.state == state.upper())
+    q = query.strip()
+    if q:
+        stmt = stmt.where(col(SchoolEntry.name).ilike(f"%{q}%"))
+    rows = db.exec(stmt.limit(500)).all()
+    rows = sorted(rows, key=lambda s: (not s.name.lower().startswith(q.lower()), -(s.students or 0), s.name))
+    return [_school_view(s) for s in rows[:limit]]
+
+
+def get_school(db: Session, unitid: str) -> dict | None:
+    s = db.exec(select(SchoolEntry).where(SchoolEntry.unitid == unitid, SchoolEntry.status == REVIEWED)).first()
+    if not s:
+        return None
+    src = db.get(EstimateSource, s.source_id)
+    keys = {dims_key({"school": unitid, "residency": r}): r for r in ("in", "out")}
+    tuition = {}
+    for f in db.exec(select(EstimateFact).where(EstimateFact.metric == "tuition", col(EstimateFact.dims_key).in_(list(keys)), EstimateFact.status == REVIEWED)).all():
+        tuition[keys[f.dims_key]] = f.value
+    return {**_school_view(s), "tuition": tuition, "source": {"key": src.key, "title": src.title, "released": src.released, "url": src.url} if src else None}

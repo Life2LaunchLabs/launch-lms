@@ -72,3 +72,56 @@ class EstimateFact(SQLModel, table=True):
     reviewed_at: str | None = None
     note: str = ""
     creation_date: str = ""
+
+
+class CareerEntry(SQLModel, table=True):
+    """One occupation from the O*NET database, as published.
+
+    `code` is the O*NET-SOC code (`15-1252.00`); `soc` is the six-digit SOC code it rolls
+    up to (`15-1252`), which is how BLS pay facts are keyed. `interests` holds the
+    occupation's RIASEC profile ({"R": 2.1, "I": 6.3, ...}, O*NET's 1 to 7 scale).
+    Only reviewed entries are shown.
+    """
+
+    __tablename__ = "careerentry"
+    __table_args__ = (UniqueConstraint("code"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    code: str = Field(sa_column=Column(String(16), nullable=False, index=True))
+    soc: str = Field(sa_column=Column(String(8), nullable=False, index=True))
+    title: str = ""
+    description: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    job_zone: int | None = None
+    interests: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    alt_titles: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
+    status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
+    creation_date: str = ""
+
+
+class SchoolEntry(SQLModel, table=True):
+    """One college or training school from the College Scorecard, as published.
+
+    `unitid` is the federal (IPEDS) school id. Rates are fractions (0.62), earnings are
+    yearly dollars. Tuition is not kept here: it loads as `tuition` facts, so the budget
+    finds it the same way it finds rent and pay. Only reviewed entries are shown.
+    """
+
+    __tablename__ = "schoolentry"
+    __table_args__ = (UniqueConstraint("unitid"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    unitid: str = Field(sa_column=Column(String(12), nullable=False, index=True))
+    name: str = ""
+    city: str = ""
+    state: str = Field(default="", sa_column=Column(String(4), nullable=False, index=True, server_default=""))
+    url: str = ""
+    control: str = ""
+    degree: str = ""
+    students: int | None = None
+    admission_rate: float | None = None
+    completion_rate: float | None = None
+    median_earnings: float | None = None
+    source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
+    status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
+    creation_date: str = ""

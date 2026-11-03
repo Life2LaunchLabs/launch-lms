@@ -72,6 +72,7 @@ ITEMS = [
 METRICS = {
     "rent": {"title": "Rent", "dims": ["bedrooms"], "required": []},
     "wage": {"title": "Pay", "dims": ["soc"], "required": ["soc"]},
+    "tuition": {"title": "Tuition and fees", "dims": ["school", "residency"], "required": ["school", "residency"]},
 }
 
 ASSET_KINDS = [

@@ -7,12 +7,12 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { lifeAdminApi, lifeUrl, type EstimateFileKind, type SourceCoverage } from '@services/life/life'
 import { EmptyState, LoadingRows, StatusBadge } from './shared'
 
-// The published data behind life plan estimates: HUD Fair Market Rents and BLS wages for now.
-// A file loads as draft facts; learners see a source's numbers only once it is approved here.
+// The published data behind life plans: HUD Fair Market Rents, BLS wages, O*NET careers and
+// College Scorecard schools. A file loads as drafts; learners see a source only once it is approved here.
 
 // Only these files load; the server tells which one it got, and its year, from the file itself.
-const ALLOWED = 'HUD county Fair Market Rents (like FY27_FMRs.xlsx) or BLS OEWS all-data (like oesm25all.zip), as the publisher gives them'
-const KIND_LABEL: Record<EstimateFileKind, string> = { hud_fmr: 'HUD Fair Market Rents', bls_oews: 'BLS wages' }
+const ALLOWED = 'HUD county Fair Market Rents (like FY27_FMRs.xlsx), BLS OEWS all-data (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) or the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv, or the zip that holds it), as the publisher gives them'
+const KIND_LABEL: Record<EstimateFileKind, string> = { hud_fmr: 'HUD Fair Market Rents', bls_oews: 'BLS wages', onet: 'O*NET', scorecard: 'College Scorecard' }
 const LEVELS = ['city', 'county', 'area', 'state', 'us']
 
 function UploadForm({ token, onDone }: { token?: string; onDone: () => void }) {
@@ -32,7 +32,8 @@ function UploadForm({ token, onDone }: { token?: string; onDone: () => void }) {
         result = await lifeAdminApi.importStatus(result.job, token)
       }
       if (result.status === 'running') throw new Error('Still loading after 10 minutes. Refresh this page later to see it.')
-      toast.success(`Loaded ${(result.facts || 0).toLocaleString()} ${result.kind ? KIND_LABEL[result.kind] : ''} ${result.year || ''} facts as drafts. Approve them to use them.`.replace(/\s+/g, ' '))
+      const what = [result.careers ? `${result.careers.toLocaleString()} careers` : '', result.schools ? `${result.schools.toLocaleString()} schools` : '', result.facts || !(result.careers || result.schools) ? `${(result.facts || 0).toLocaleString()} facts` : ''].filter(Boolean).join(' and ')
+      toast.success(`Loaded ${result.kind ? KIND_LABEL[result.kind] : ''} ${result.year || ''}: ${what} as drafts. Approve them to use them.`.replace(/\s+/g, ' '))
       if (result.unmatched?.length) toast(`No place found for: ${result.unmatched.slice(0, 5).join(', ')}`)
       setFile(null); if (input.current) input.current.value = ''; onDone()
     } catch (error: any) {
@@ -57,7 +58,7 @@ function SourceRow({ source, token, onDone }: { source: SourceCoverage; token?: 
   const reviewed = source.by_status.reviewed || 0, drafts = source.by_status.draft || 0, retired = source.by_status.retired || 0
   return <tr className="border-t border-gray-100 align-top">
     <td className="px-4 py-3"><b className="block">{source.title || source.key}</b><span className="text-xs text-gray-500">{source.publisher}{source.released ? ` · released ${source.released}` : ''}{source.retrieved ? ` · loaded ${source.retrieved}` : ''}</span>{source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="block text-xs text-blue-600 underline">Published here</a> : null}</td>
-    <td className="px-4 py-3 tabular-nums">{source.facts.toLocaleString()}<span className="block text-xs text-gray-500">{source.metrics.join(', ')}</span></td>
+    <td className="px-4 py-3 tabular-nums">{source.facts.toLocaleString()}<span className="block text-xs text-gray-500">{source.metrics.join(', ')}</span>{source.entries ? <span className="block text-xs text-gray-500">{source.entries.toLocaleString()} catalog entries</span> : null}</td>
     <td className="px-4 py-3 text-xs text-gray-600">{LEVELS.filter((level) => source.levels[level]).map((level) => `${level} ${source.levels[level]}`).join(' · ')}</td>
     <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{reviewed ? <StatusBadge tone="green">{reviewed} in use</StatusBadge> : null}{drafts ? <StatusBadge tone="amber">{drafts} draft</StatusBadge> : null}{retired ? <StatusBadge>{retired} retired</StatusBadge> : null}</div></td>
     <td className="px-4 py-3"><div className="flex flex-wrap justify-end gap-2">
@@ -78,7 +79,7 @@ export default function EstimateSources() {
     <p className="max-w-3xl text-sm text-gray-600">Life plans only show an estimate when it comes from a published source that you&rsquo;ve approved here. Learners can always put in their own numbers.</p>
     <div className="bg-white border border-gray-100 rounded-xl nice-shadow overflow-hidden">
       {isLoading ? <LoadingRows /> : error ? <p className="p-5 text-sm text-red-700" role="alert">The sources could not load.</p>
-        : !sources.length ? <EmptyState icon={<Coins size={32} />} message="No sources yet. Load a HUD or BLS file below." />
+        : !sources.length ? <EmptyState icon={<Coins size={32} />} message="No sources yet. Load a HUD, BLS, O*NET or College Scorecard file below." />
         : <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500"><tr><th className="px-4 py-2">Source</th><th className="px-4 py-2">Numbers</th><th className="px-4 py-2">Places</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 sr-only">Actions</th></tr></thead>
           <tbody>{sources.map((source) => <SourceRow key={source.key} source={source} token={token} onDone={() => void mutate()} />)}</tbody>

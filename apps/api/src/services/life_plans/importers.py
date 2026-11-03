@@ -186,7 +186,7 @@ def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int,
 
 HUD_FMR_URL = "https://www.huduser.gov/portal/datasets/fmr.html"
 BLS_OEWS_URL = "https://www.bls.gov/oes/tables.htm"
-NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx) or BLS's OEWS all-data file (like oesm25all.zip), as the publisher gives it."
+NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) or the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv), as the publisher gives it."
 
 
 def _zip_table_name(data: bytes) -> str:
@@ -212,8 +212,18 @@ def _year_from(names: list[str], patterns: tuple[str, ...]) -> int | None:
 def import_file(db: Session, data: bytes, filename: str) -> dict:
     """Load whichever allowed file this is, working out the source and year from the file.
 
-    Allowed: HUD's county Fair Market Rents (FYxx_FMRs.xlsx) and BLS's OEWS all-data
-    file (oesmYYall.zip). Anything else is refused."""
+    Allowed: HUD's county Fair Market Rents (FYxx_FMRs.xlsx), BLS's OEWS all-data
+    file (oesmYYall.zip), the O*NET text database (db_XX_X_text.zip) and the College
+    Scorecard institution file. Anything else is refused."""
+    from src.services.life_plans import public_data
+
+    try:
+        if public_data.is_onet_zip(data, filename):
+            return public_data.import_onet(db, data, filename)
+        if public_data.scorecard_member(data, filename):
+            return public_data.import_scorecard(db, data, filename)
+    except public_data.CatalogProblem as exc:
+        raise ImportProblem(str(exc)) from exc
     names = [filename] + ([_zip_table_name(data)] if filename.lower().endswith(".zip") else [])
     rows = read_table(data, filename)
     first = next(rows, None)
@@ -235,6 +245,11 @@ def import_file(db: Session, data: bytes, filename: str) -> dict:
         if not year:
             raise ImportProblem("We couldn't tell the fiscal year of this FMR file. Upload it with the name HUD gives it, like FY27_FMRs.xlsx.")
         return {"kind": "hud_fmr", "year": year, **import_hud_fmr(db, data, filename, fiscal_year=year, url=HUD_FMR_URL, rows=rows)}
+    if public_data.is_scorecard_columns(cols):
+        try:
+            return public_data.import_scorecard(db, data, filename, rows=rows)
+        except public_data.CatalogProblem as exc:
+            raise ImportProblem(str(exc)) from exc
     raise ImportProblem(NOT_ALLOWED)
 
 
@@ -321,5 +336,8 @@ def review_source(db: Session, source_key: str, reviewer_id: int, status: str = 
         f.reviewed_by_user_id = reviewer_id if status == "reviewed" else None
         f.reviewed_at = now if status == "reviewed" else None
         db.add(f)
+    from src.services.life_plans import public_data
+
+    entries = public_data.review_entries(db, src.id, status)
     db.commit()
-    return len(facts)
+    return len(facts) + entries
