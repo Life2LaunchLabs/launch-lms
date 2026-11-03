@@ -7,11 +7,12 @@ from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.conversations import ChatReportReview
+from src.db.learner_support import LearnerSupportUpdate, SupportAnswer
 from src.db.organization_config import MessagingPolicy
 from src.db.school import GroupStaffSet
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.school import directory, feed, group_chats, messaging, profile, reports, staff, threads, views
+from src.services.school import directory, feed, group_chats, messaging, profile, reports, staff, support, threads, views
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -36,6 +37,50 @@ async def remove_group_staff(org_id: int, group_id: int, user_id: int, current_u
 @router.get("/orgs/{org_id}/students/{user_id}")
 async def student(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     return views.student(db_session, current_user, org_id, user_id)
+
+
+@router.get("/orgs/{org_id}/students/{user_id}/support")
+async def support_status(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Whether the school supports this learner, without anything else about them."""
+    return support.status(db_session, current_user, org_id, user_id)
+
+
+@router.post("/orgs/{org_id}/students/{user_id}/support")
+async def request_support(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Ask the learner, with a consent card in their chat with the organization."""
+    return support.request(db_session, current_user, org_id, user_id)
+
+
+@router.put("/orgs/{org_id}/students/{user_id}/support")
+async def update_support(org_id: int, user_id: int, payload: LearnerSupportUpdate, current_user: PublicUser = USER, db_session: Session = DB):
+    return support.update(db_session, current_user, org_id, user_id, payload)
+
+
+@router.delete("/orgs/{org_id}/students/{user_id}/support")
+async def end_support(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return support.staff_end(db_session, current_user, org_id, user_id)
+
+
+@router.get("/orgs/{org_id}/students/{user_id}/record")
+async def open_learner(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """A supported learner's school record and what their portfolio shares. Needs an active link."""
+    return support.open_learner(db_session, current_user, org_id, user_id)
+
+
+@router.get("/support")
+async def my_supports(current_user: PublicUser = USER, db_session: Session = DB):
+    """The schools supporting you, or asking to."""
+    return support.mine(db_session, current_user)
+
+
+@router.post("/support/{support_uuid}/answer")
+async def answer_support(support_uuid: str, payload: SupportAnswer, current_user: PublicUser = USER, db_session: Session = DB):
+    return support.answer(db_session, current_user, support_uuid, payload.accept, payload.request_uuid)
+
+
+@router.post("/support/{support_uuid}/end")
+async def stop_support(support_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
+    return support.end(db_session, current_user, support_uuid)
 
 
 @router.get("/orgs/{org_id}/students/{user_id}/chat")

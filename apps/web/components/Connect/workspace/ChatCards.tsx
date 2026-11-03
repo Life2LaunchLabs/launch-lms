@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { BarChart3, Bell, Building2, Check, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
+import { BarChart3, Bell, Building2, Check, GraduationCap, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { ChatMessage, ChatTopic, InvitationCard, MessageRef, ProgressCard, StepReminderCard } from '@services/connect/connect'
@@ -11,6 +11,7 @@ import type { GroupReportCard } from '@services/goals/reports'
 import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import { goalsApi } from '@services/goals/goals'
 import { messagesApi } from '@services/messages/messages'
+import { supportApi, type SupportRequestCard } from '@services/school/support'
 import { PlanTag, StepMark } from './tags'
 
 const VERBS: Record<string, string> = { finished: 'Finished', turned_in: 'Turned in', approved: 'Approved', changes: 'Asked for changes', marked_done: 'Marked done', excused: 'Excused' }
@@ -27,6 +28,9 @@ export function CardMessage({ message, orgslug, token, topics, time, first, onTa
   </li>
   if (card.type === 'invitation') return <li className="my-2 flex justify-start">
     <InvitationView card={card} orgslug={orgslug} token={token} time={time} onAnswered={onAnswered} />
+  </li>
+  if (card.type === 'support_request') return <li className="my-2 flex justify-start">
+    <SupportView card={card} token={token} time={time} onAnswered={onAnswered} />
   </li>
   if (card.type === 'notice') return <li className={cn('flex justify-start', first && 'mt-2')}>
     <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md bg-[hsl(var(--raised)/0.55)] px-4 py-2.5 text-sm leading-6">
@@ -90,6 +94,45 @@ function InvitationView({ card, orgslug, token, time, onAnswered }: { card: Invi
         <button type="button" disabled={Boolean(busy)} onClick={() => answer(false)} className="flex h-8 items-center gap-1 rounded-full px-3 text-xs font-bold text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground disabled:opacity-50">{busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}Decline</button>
         <button type="button" disabled={Boolean(busy)} onClick={() => answer(true)} className="flex h-8 items-center gap-1 rounded-full bg-foreground px-3 text-xs font-bold text-background disabled:opacity-50">{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}Accept</button>
       </span> : <span className="ml-auto text-xs font-semibold text-muted-foreground">{pending ? 'Waiting for an answer' : ANSWERED[card.state] || card.state}</span>}
+    </div>
+  </div>
+}
+
+const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { pending: 'Waiting for an answer', accepted: 'Accepted', declined: 'Declined', ended: 'Stopped', expired: 'No longer open' }
+
+/**
+ * A school asking to support the learner's Education Plan and Profile. The learner answers here, and can
+ * stop it here later; until they say yes the school's staff see none of their school record.
+ */
+function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCard; token?: string; time: string; onAnswered: () => void }) {
+  const [busy, setBusy] = React.useState<'accept' | 'decline' | 'stop' | ''>('')
+  const act = async (kind: 'accept' | 'decline' | 'stop') => {
+    if (kind === 'stop' && !confirm(`Stop sharing with ${card.org_name}? Its staff lose access until you say yes to a new ask.`)) return
+    setBusy(kind)
+    try {
+      if (kind === 'stop') await supportApi.stop(card.support_uuid, token)
+      else await supportApi.answer(card.support_uuid, kind === 'accept', card.request_uuid, token)
+      onAnswered()
+    } catch (error: any) {
+      toast.error(error?.message || 'That didn’t go through')
+    } finally {
+      setBusy('')
+    }
+  }
+  const pending = card.state === 'pending'
+  const button = 'flex h-8 items-center gap-1 rounded-full px-3 text-xs font-bold disabled:opacity-50'
+  return <div className="w-full max-w-[400px] rounded-2xl bg-[hsl(var(--raised)/0.55)] p-3.5">
+    <span className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><GraduationCap size={14} aria-hidden="true" />School support<span className="ml-auto font-normal">{time}</span></span>
+    <span className="mt-1.5 block font-bold leading-snug">{card.for_me ? `${card.org_name} would like to support your plan` : `${card.org_name} asked to support their plan`}</span>
+    {card.for_me ? <span className="mt-0.5 block text-sm leading-6 text-muted-foreground">{card.text}</span> : null}
+    <div className="mt-3 flex items-center gap-2">
+      {pending && card.for_me ? <span className="ml-auto flex gap-1.5">
+        <button type="button" disabled={Boolean(busy)} onClick={() => act('decline')} className={cn(button, 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}Not now</button>
+        <button type="button" disabled={Boolean(busy)} onClick={() => act('accept')} className={cn(button, 'bg-foreground text-background')}>{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}Yes, share</button>
+      </span> : <>
+        <span className="text-xs font-semibold text-muted-foreground">{card.state === 'accepted' && card.for_me ? `${card.org_name} supports you` : SUPPORT_STATES[card.state] || card.state}</span>
+        {card.state === 'accepted' && card.for_me ? <button type="button" disabled={Boolean(busy)} onClick={() => act('stop')} className={cn(button, 'ml-auto text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'stop' ? <Loader2 size={13} className="animate-spin" /> : null}Stop sharing</button> : null}
+      </>}
     </div>
   </div>
 }
