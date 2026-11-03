@@ -13,6 +13,7 @@ import { phaseOfGoal, type PhaseGroup } from '@components/Goals/learner/phases'
 import PhaseStack, { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
 import PhaseDialog, { type PhaseEdit } from '@components/Goals/phases/PhaseDialog'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
+import { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -78,6 +79,7 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   const router = useRouter()
   const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { change } = useLifePlan(token)
+  const photos = usePlacePhotos(token)
   const [phaseEdit, setPhaseEdit] = React.useState<PhaseEdit | null>(null)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
   const dialog = <PhaseDialog edit={phaseEdit} doc={life || null} token={token} onClose={() => setPhaseEdit(null)} change={change}
@@ -89,7 +91,7 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
     return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
       <SharedWithYou token={token} />
       <Invitations invitations={invitations} token={token} />
-      <PhaseStack doc={life} orgslug={orgslug} goalsIn={goalsIn} onAdd={() => setPhaseEdit({ mode: 'add' })} />
+      <PhaseStack doc={life} orgslug={orgslug} goalsIn={goalsIn} photos={photos} onAdd={() => setPhaseEdit({ mode: 'add' })} />
       <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
       {dialog}
     </div>

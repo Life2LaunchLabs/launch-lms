@@ -49,6 +49,11 @@ class When(Doc):
     month: int = Field(default=0, ge=0, le=1200)
 
 
+class Cover(Doc):
+    """A photo the learner chose for a phase: one they uploaded to their media library."""
+    url: str = Field(max_length=1000, pattern=r"^(https?://|/)")
+
+
 class Phase(Doc):
     id: str = Field(max_length=40)
     title: str = Field(max_length=120)
@@ -59,6 +64,8 @@ class Phase(Doc):
     lines: list[Line] = Field(default_factory=list, max_length=200)
     # The learner's goals for this phase, by goal_uuid. A goal in no phase belongs to the current one.
     goals: list[str] = Field(default_factory=list, max_length=100)
+    # The learner's own cover photo; without one, the place's photo (or a drawing) shows.
+    cover: Cover | None = None
 
 
 class Debt(Doc):
