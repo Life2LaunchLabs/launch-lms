@@ -167,6 +167,35 @@ def test_checkpoint_media_copies_embedded_urls(
     assert original.exists()
 
 
+def test_capture_files_walks_each_storage_prefix_once(monkeypatch):
+    # On S3 a walk lists the whole prefix; one walk per record timed publishing out.
+    from src.services.demo import media
+
+    walked = []
+
+    def walk(prefix):
+        walked.append(prefix)
+        yield f"{prefix}/logos", [], ["logo.png"]
+        yield f"{prefix}/plans/plan_a/icons", [], ["icon.png"]
+
+    monkeypatch.setattr(media, "walk_directory", walk)
+    monkeypatch.setattr(media, "read_file_content", lambda path: b"image")
+    rows = {
+        "user": [],
+        "organization": [{"id": 1, "org_uuid": "org_source", "logo_image": "logo.png"}],
+        "plan": [
+            {"id": n, "org_id": 1, "plan_uuid": "plan_a", "icon": "icon.png"}
+            for n in range(50)
+        ],
+    }
+    files = media.capture_files(rows, set())
+    assert set(files) == {
+        "content/orgs/org_source/logos/logo.png",
+        "content/orgs/org_source/plans/plan_a/icons/icon.png",
+    }
+    assert walked == ["content/orgs/org_source"]
+
+
 def test_email_is_simulated_without_reading_delivery_credentials(monkeypatch):
     from src.services.email import utils
 
