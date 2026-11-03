@@ -15,6 +15,7 @@ import { MonthDateRangeField } from '../MonthDateRangeField'
 import type { TimelineEntry } from '../Timeline'
 import type { Contact, Project, Quote } from '../portfolioTypes'
 import { ItemQuotes } from './AskQuote'
+import { ItemConversations } from './PortfolioTalk'
 import { EXPERIENCE_LOOKS, KindCover, experienceLook } from './covers'
 import { AddChip, ItemHero, ItemSection, PhotoPicker, SaveBar, blockImages, imageBlocks, quiet, type Picked, type Setter } from './inplace'
 import { PALETTE, SpotTip } from './parts'
@@ -49,7 +50,7 @@ function WorkTags({ selected, setSelected }: { selected: string[]; setSelected: 
   return <div className="grid gap-3 sm:grid-cols-3">{DETAIL_GROUPS.map((group) => <fieldset key={group.label}><legend className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">{group.label}</legend><div className="flex flex-wrap gap-1.5">{group.options.map((option) => <button key={option} type="button" aria-pressed={selected.includes(option)} onClick={() => toggle(option, group)} className={`h-8 rounded-full border-2 px-3 text-xs font-bold ${selected.includes(option) ? 'border-foreground bg-foreground text-background' : 'border-border bg-card'}`}>{option}</button>)}</div></fieldset>)}</div>
 }
 
-export function ExperiencePage({ entry, projects, orgslug, initialType, mark, quotes = [], contacts = [] }: { entry?: TimelineEntry; projects: Project[]; orgslug: string; initialType?: string; mark?: string; quotes?: Quote[]; contacts?: Contact[] }) {
+export function ExperiencePage({ entry, projects, orgslug, initialType, mark, quotes = [], contacts = [], portfolioUuid }: { entry?: TimelineEntry; projects: Project[]; orgslug: string; initialType?: string; mark?: string; quotes?: Quote[]; contacts?: Contact[]; portfolioUuid?: string }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const userId = Number(session?.data?.user?.id || 0)
@@ -160,7 +161,7 @@ export function ExperiencePage({ entry, projects, orgslug, initialType, mark, qu
       <SaveBar show={dirty} busy={busy} label={entry ? 'Save' : 'Add to my portfolio'} mark={entry ? undefined : mark} onCancel={() => entry ? window.location.reload() : router.push(list)} cancelLabel={entry ? 'Undo' : 'Cancel'} />
     </form>
     {/* Outside the form: asking for a quote is its own action, not part of saving the page. */}
-    {entry ? <div className="mx-auto mt-10 max-w-[760px] px-4 sm:px-6"><ItemQuotes item={{ kind: 'experience', uuid: entry.timeline_uuid, title: entry.title }} quotes={quotes} contacts={contacts} token={token} /></div> : null}
+    {entry ? <div className="mx-auto mt-10 max-w-[760px] px-4 sm:px-6"><ItemQuotes item={{ kind: 'experience', uuid: entry.timeline_uuid, title: entry.title }} quotes={quotes} contacts={contacts} token={token} /><ItemConversations portfolioUuid={portfolioUuid} item={{ uuid: entry.timeline_uuid, title: entry.title }} orgslug={orgslug} token={token} /></div> : null}
     {ask.dialog}
   </main>
 }

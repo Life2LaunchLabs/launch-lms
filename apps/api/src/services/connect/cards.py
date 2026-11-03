@@ -10,7 +10,6 @@ from src.db.conversations import ConversationMember, ConversationMessage
 from src.services.connect import chats
 from src.services.goals.sharing_roles import _stamp
 
-PORTFOLIO_COMMENTS = "portfolio_comments"
 PORTFOLIO_SHARED = "portfolio_shared"
 GROUP_REPORT = "group_report"
 
@@ -67,12 +66,6 @@ def _gather(db: Session, author_id: int | None, recipient_id: int, same: Callabl
             return last  # type: ignore[return-value]
     fresh = {**card, "count": 1, "comment_uuids": [card.get("comment_uuid")], "mentioned_user_ids": mentioned_ids}
     return chats.post(db, conversation, int(author_id), _summary(fresh, school), kind="card", card=fresh)
-
-
-def portfolio_comment(db: Session, username: str, item_title: str, comment_uuid: str, body: str, author_id: int, recipient_id: int) -> ConversationMessage | None:
-    """Tell someone about a comment on a portfolio, in their chat with its author."""
-    card = {"type": PORTFOLIO_COMMENTS, "username": username, "item_title": item_title, "comment_uuid": comment_uuid, "excerpt": body[:140]}
-    return _gather(db, author_id, recipient_id, lambda last: last.get("username") == username, card)
 
 
 def portfolio_shared(db: Session, owner_id: int, username: str, recipient_id: int, role: str) -> ConversationMessage | None:

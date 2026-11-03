@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSWRConfig, type KeyedMutator } from 'swr'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Ban, Flag, MoreHorizontal, Users } from 'lucide-react'
@@ -21,6 +21,14 @@ import ChatWorkspace, { type TimelineItem } from './workspace/ChatWorkspace'
 
 /** Where a step opens for its learner: their plan, at that step. */
 export const learnerStepHref = (orgslug: string) => (goalUuid: string, stepUuid: string) => `${getUriWithOrg(orgslug, routePaths.org.plan(goalUuid))}?step=${encodeURIComponent(stepUuid)}`
+
+/** A link into a chat, filtered to a plan or step (or a portfolio or one item in it): `?goal=…&step=…`. */
+function useLinkedFilter() {
+  const search = useSearchParams()
+  const goal = search?.get('goal') || undefined
+  const step = search?.get('step') || undefined
+  return React.useMemo(() => goal ? { goal_uuid: goal, step_uuid: step } : {}, [goal, step])
+}
 
 /**
  * One chat beside its list. Connect and People both use it: People passes its own list to go back
@@ -41,6 +49,7 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
 }) {
   const token = useConnectToken()
   const router = useRouter()
+  const initialFilter = useLinkedFilter()
   const { mutate: mutateGlobal } = useSWRConfig()
   const [sheet, setSheet] = React.useState<'block' | 'report' | null>(null)
   const [opened, setOpened] = React.useState<Chat | undefined>()
@@ -79,7 +88,7 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
   }
 
   return <>
-    <ChatWorkspace source={{ chatUuid }} orgslug={orgslug} token={token} onChat={onChat} blocked={blocked} stepHref={learnerStepHref(orgslug)} timeline={timeline}
+    <ChatWorkspace source={{ chatUuid }} orgslug={orgslug} token={token} initialFilter={initialFilter} onChat={onChat} blocked={blocked} stepHref={learnerStepHref(orgslug)} timeline={timeline}
       empty={opened?.kind === 'direct' ? person ? <>Say hi to {person.name}. They&rsquo;ll see your first message as a request unless you already share a goal.</> : null
         : opened ? <>Nothing here yet. Say hi to {opened.title || 'the group'}: everyone in this chat sees what you send.</> : null}
       header={(chat, mutate) => chat ? <>
