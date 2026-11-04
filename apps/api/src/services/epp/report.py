@@ -150,6 +150,24 @@ def choices(db: Session, learner_id: int) -> list[dict]:
     return found
 
 
+def careers(db: Session, learner_id: int, limit: int = 8) -> list[dict]:
+    """Careers the learner saved from Discover and chose to show on their EPP, newest first, with what they wrote about each."""
+    from src.db.resources import Resource, ResourceNoteBlock, UserSavedResource
+    from src.services.life_plans.careers import code_of
+
+    rows = db.exec(select(UserSavedResource, Resource).join(Resource, Resource.id == UserSavedResource.resource_id).where(
+        UserSavedResource.user_id == learner_id, UserSavedResource.show_on_epp == True, Resource.resource_type == "career")  # noqa: E712
+        .order_by(UserSavedResource.creation_date.desc())).all()
+    out = []
+    for saved, resource in rows[:limit]:
+        notes = db.exec(select(ResourceNoteBlock).where(ResourceNoteBlock.user_id == learner_id, ResourceNoteBlock.resource_id == resource.id,
+                                                        ResourceNoteBlock.block_type == "text").order_by(ResourceNoteBlock.sort_order, ResourceNoteBlock.id)).all()
+        why = " ".join(text for text in [_plain(saved.notes)] + [_plain(note.content) for note in notes] if text)
+        out.append({"title": resource.title, "code": code_of(resource), "why": why[:400], "interest_level": saved.interest_level,
+                    "saved_on": (saved.creation_date or "")[:10]})
+    return out
+
+
 def _picked(db: Session, row: LearnerSupport, learner_id: int) -> list[dict]:
     available = {(item["kind"], item["uuid"]): item for item in choices(db, learner_id)}
     return [available[key] for key in ((pick.get("kind"), pick.get("uuid")) for pick in row.report_picks or []) if key in available]
@@ -212,6 +230,7 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
     tally = plan["tally"]
     evidence = _picked(db, row, learner_id)
     results = [item for item in choices(db, learner_id) if item["kind"] == "result"]
+    explored = careers(db, learner_id)
     crle = work["EPP.CRLE.EXPERIENCE"]
     crle_done = [item for item in crle if item["status"] in DONE | {"submitted"}]
     crle_reviewed = [item for item in crle_done if item["source"] == "teacher_reviewed"]
@@ -222,7 +241,7 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
 
     components = [
         _component("interests", "Interests", _done(work, "EPP.INTERESTS.ASSESSMENTS") or bool(results),
-                   f"{len(results)} result{'' if len(results) == 1 else 's'}, {'careers explored' if _done(work, 'EPP.INTERESTS.CAREERS') else 'no careers explored yet'}"),
+                   f"{len(results)} result{'' if len(results) == 1 else 's'}, {'careers explored' if _done(work, 'EPP.INTERESTS.CAREERS') or explored else 'no careers explored yet'}"),
         _component("goals", "Goals and next steps", all(_done(work, code) for code in ("EPP.GOALS.CAREER", "EPP.GOALS.EDUCATION", "EPP.GOALS.ACTION")),
                    "Goals, next step and action plan written" if all(_done(work, code) for code in ("EPP.GOALS.CAREER", "EPP.GOALS.EDUCATION", "EPP.GOALS.ACTION"))
                    else "Goals, next step or this year's action plan still open"),
@@ -259,6 +278,8 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
         },
         "next_step": next_step,
         "interests": [item["title"] + (f": {item['detail']}" if item["detail"] else "") for item in results][:6],
+        # Careers the learner saved in Discover and chose to show here, with why.
+        "careers": explored,
         "components": components,
         "to_talk_about": talk[:5],
         "graduation": {

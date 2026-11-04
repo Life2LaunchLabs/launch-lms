@@ -32,6 +32,14 @@ SCORECARD = b"""UNITID,INSTNM,CITY,STABBR,INSTURL,CONTROL,PREDDEG,CURROPER,UGDS,
 
 # Release 31.0 renamed Interests.txt and Alternate Titles.txt, and added reported titles.
 JOB_TITLES = "O*NET-SOC Code\tJob Title\tShort Title\tSource(s)\n15-1252.00\tApplication Programmer\tn/a\t04\n15-1252.00\tCoder\tn/a\t04\n29-2056.00\tVet Tech\tn/a\t04\n"
+TASKS = ("O*NET-SOC Code\tTitle\tTask ID\tTask\tTask Type\tIncumbents Responding\tDate\tDomain Source\n"
+         "15-1252.00\tSoftware Developers\t1\tWrite code.\tCore\t\t08/2023\tAnalyst\n"
+         "15-1252.00\tSoftware Developers\t2\tFix bugs.\tCore\t\t08/2023\tAnalyst\n"
+         "15-1252.00\tSoftware Developers\t3\tGo to meetings.\tSupplemental\t\t08/2023\tAnalyst\n")
+RATINGS = ("O*NET-SOC Code\tTitle\tTask ID\tTask\tScale ID\tCategory\tData Value\n"
+           "15-1252.00\tSoftware Developers\t1\tWrite code.\tIM\tn/a\t4.1\n"
+           "15-1252.00\tSoftware Developers\t2\tFix bugs.\tIM\tn/a\t4.6\n"
+           "15-1252.00\tSoftware Developers\t3\tGo to meetings.\tIM\tn/a\t4.9\n")
 REPORTED = "O*NET-SOC Code\tReported Job Title\tShown in My Next Move\n15-1252.00\tSoftware Engineer\tN\n15-1252.00\tDeveloper\tY\n15-1252.00\tCoder\tN\n"
 
 
@@ -39,7 +47,8 @@ def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[byte
     if layout == "old":
         files = (("Occupation Data.txt", OCCUPATIONS), ("Interests.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Alternate Titles.txt", ALTS))
     else:
-        files = (("Occupation Data.txt", OCCUPATIONS), ("Career Interest Types.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Job Titles.txt", JOB_TITLES), ("Sample of Reported Titles.txt", REPORTED))
+        files = (("Occupation Data.txt", OCCUPATIONS), ("Career Interest Types.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Job Titles.txt", JOB_TITLES), ("Sample of Reported Titles.txt", REPORTED),
+                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS))
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as zf:
         for fname, text in (*files, ("Read Me.txt", "readme")):
@@ -86,6 +95,8 @@ def test_onet_31_layout_loads_career_interest_types_and_job_titles():
     assert dev.interests["I"] == 6.5
     # Reported titles shown in My Next Move come first, then the rest, then job titles.
     assert dev.alt_titles == ["Developer", "Software Engineer", "Coder", "Application Programmer"]
+    # Core tasks first, the most important first; supplemental ones after.
+    assert dev.tasks == ["Fix bugs.", "Write code.", "Go to meetings."]
 
 
 def test_onet_zip_without_interests_is_refused():

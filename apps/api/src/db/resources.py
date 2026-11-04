@@ -13,6 +13,7 @@ class ResourceTypeEnum(str, Enum):
     guide = "guide"
     course = "course"
     school = "school"
+    career = "career"
     other = "other"
 
 
@@ -309,6 +310,10 @@ class UserSavedResourceBase(SQLModel):
     last_opened_at: str | None = None
     completed_at: str | None = None
     open_count: int = 0
+    # How into it the learner is (1 maybe, 2 into it, 3 love it). Set on careers they save.
+    interest_level: int | None = None
+    # A saved career the learner wants on their Education Plan and Profile, with their notes.
+    show_on_epp: bool = False
 
 
 class UserSavedResource(UserSavedResourceBase, table=True):
@@ -334,6 +339,8 @@ class UserSavedResourceUpdate(SQLModel):
     outcome_link: str | None = None
     completed_at: str | None = None
     open_count_increment: int | None = None
+    interest_level: int | None = Field(default=None, ge=1, le=3)
+    show_on_epp: bool | None = None
     add_to_default_channel: bool = False
     user_channel_uuids: list[str] = Field(default_factory=list)
 

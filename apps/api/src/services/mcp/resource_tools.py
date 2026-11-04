@@ -23,7 +23,7 @@ from src.services.mcp.tool import Tool
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
 
-_TYPES = ["video", "article", "guide", "tool", "assessment", "course", "school", "other"]
+_TYPES = ["video", "article", "guide", "tool", "assessment", "course", "school", "career", "other"]
 _RESOURCE_FIELDS = ("title", "description", "resource_type", "external_url", "provider_name", "provider_url", "cover_image_url",
                     "estimated_time", "is_featured", "access_mode")
 _CHANNEL_FIELDS = ("name", "description", "color", "audience", "comment_rule", "hold_links", "listed")
@@ -286,6 +286,74 @@ async def add_school_resources(request: Request, db_session: Session, ctx: Acces
     return {"channel": channel.name, "state": state, "added": added, "updated": updated, "skipped": skipped, **({"note": note} if note else {})}
 
 
+# Everyday names for the RIASEC types and O*NET job zones, used as career tags (the same words the app shows).
+_INTEREST_TAGS = {"R": "Building", "I": "Thinking", "A": "Creating", "S": "Helping", "E": "Leading", "C": "Organizing"}
+_TRAINING_TAGS = {1: "Little or no prep", 2: "High school + training", 3: "Certificate or 2-year", 4: "4-year degree", 5: "Grad school"}
+
+
+def _career_description(career: dict) -> str:
+    source = career.get("source") or {}
+    version = (source.get("title") or "O*NET").replace(" Database", "")
+    return f"{career.get('description') or ''} Career facts from {version} by USDOL/ETA, used under CC BY 4.0.".strip()
+
+
+async def add_career_resources(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    from src.db.life_plans import CareerEntry
+    from src.services.life_plans.careers import code_of, onet_link
+    from src.services.life_plans.estimates import REVIEWED
+    from src.services.life_plans.public_data import get_career, top_interests
+
+    channel = _own_channel(db_session, ctx, str(args.get("channel_uuid") or ""))
+    stmt = select(CareerEntry).where(CareerEntry.status == REVIEWED)
+    codes = args.get("codes")
+    if codes:
+        if not isinstance(codes, list):
+            raise HTTPException(status_code=422, detail="codes must be a list")
+        stmt = stmt.where(CareerEntry.code.in_([str(item) for item in codes]))  # type: ignore[union-attr]
+    zones = args.get("job_zones")
+    if zones:
+        if not isinstance(zones, list):
+            raise HTTPException(status_code=422, detail="job_zones must be a list")
+        stmt = stmt.where(CareerEntry.job_zone.in_([int(item) for item in zones]))  # type: ignore[union-attr]
+    # Careers with no interest profile ("All Other" catch-alls) can't be matched or swiped, so they're left out.
+    entries = sorted((entry for entry in db_session.exec(stmt).all() if len(entry.interests or {}) == 6), key=lambda entry: entry.title)
+    limit = args.get("limit")
+    if limit:
+        entries = entries[: max(1, int(limit))]
+    own = db_session.exec(select(Resource).where(Resource.org_id == ctx.org_id, Resource.resource_type == "career")).all()
+    by_code = {code_of(resource): resource for resource in own if code_of(resource)}
+    added, updated = [], []
+    for entry in entries:
+        career = get_career(db_session, entry.code)
+        if not career:
+            continue
+        tags = [_INTEREST_TAGS[letter] for letter in top_interests(entry.interests)[:2]] + ([_TRAINING_TAGS[entry.job_zone]] if entry.job_zone in _TRAINING_TAGS else [])
+        link = onet_link(entry.code)
+        fields = {"title": entry.title, "description": _career_description(career), "resource_type": "career", "external_url": link,
+                  "provider_name": "O*NET OnLine", "provider_url": "https://www.onetonline.org/", "access_mode": "free",
+                  "tag_uuids": await _tag_uuids(request, db_session, ctx, tags)}
+        existing = by_code.get(entry.code)
+        if existing:
+            await service.update_resource(request, existing.resource_uuid, ResourceUpdate(**fields), ctx.user, db_session)
+            resource = existing
+            updated.append(entry.title)
+        else:
+            created = await service.create_resource(request, ctx.org_id, ResourceCreate(**fields), ctx.user, db_session, enrich_metadata=False)
+            resource = _own_resource(db_session, ctx, created["resource_uuid"])
+            by_code[entry.code] = resource
+            added.append(entry.title)
+        in_channel = db_session.exec(select(ResourceChannelResource.id).where(
+            ResourceChannelResource.channel_id == channel.id, ResourceChannelResource.resource_id == resource.id)).first()
+        if not in_channel:
+            count = len(db_session.exec(select(ResourceChannelResource.id).where(ResourceChannelResource.channel_id == channel.id)).all())
+            await service.add_resource_to_channel(request, channel.channel_uuid, resource.resource_uuid, ctx.user, db_session, sort_order=count)
+        _refresh_embedding(resource.id)
+    note = None if entries else "No reviewed O*NET careers to add: load and review the O*NET database in Platform > Life plans data first."
+    # Long lists are summed up, so the answer stays readable.
+    show = lambda names: names if len(names) <= 40 else names[:40] + [f"and {len(names) - 40} more"]  # noqa: E731
+    return {"channel": channel.name, "added": show(added), "updated": show(updated), "added_count": len(added), "updated_count": len(updated), **({"note": note} if note else {})}
+
+
 _RESOURCE_TYPE = {"type": "string", "enum": _TYPES, "description": "What it is: sets its icon, color and card in Discover."}
 _AUDIENCE = {"type": "string", "enum": ["org", "groups", "staff"], "description": "Who sees the channel: everyone in the organization (default), only groups given it on the admin page, or staff only."}
 
@@ -382,6 +450,23 @@ RESOURCE_TOOLS = [
             "fill_from_link": {"type": "boolean", "description": "Fetch each new school's site preview for a cover image. Default false (slower)."},
         }, "required": ["channel_uuid"]},
         add_school_resources,
+        scope="resources:write",
+        read_only=False,
+    ),
+    Tool(
+        "add_career_resources",
+        "Add careers from O*NET",
+        "Make each reviewed O*NET career that has an interest profile a `career` resource in the given channel: its O*NET OnLine page as the link, "
+        "O*NET's description, and tags for its two strongest interest types (Building, Thinking, Creating, Helping, Leading, Organizing) and its usual training. "
+        "In the app a career opens as a profile (pay in Oregon, training, how it fits the learner's interest quiz) and feeds Career swipe. "
+        "Run it again to refresh: careers already added (matched by O*NET-SOC code) are updated, never duplicated. Pass codes or job_zones to add only some.",
+        {"properties": {
+            "channel_uuid": {"type": "string", "description": "This organization's channel to file them in (make one with save_resource_channel, e.g. \"Careers\")."},
+            "codes": {"type": "array", "items": {"type": "string"}, "description": "Only these careers (O*NET-SOC codes like 29-2042.00)."},
+            "job_zones": {"type": "array", "items": {"type": "integer"}, "description": "Only careers in these job zones (1 little preparation to 5 extensive)."},
+            "limit": {"type": "integer", "description": "Add at most this many (alphabetical). Default all."},
+        }, "required": ["channel_uuid"]},
+        add_career_resources,
         scope="resources:write",
         read_only=False,
     ),
