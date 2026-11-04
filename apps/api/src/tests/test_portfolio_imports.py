@@ -129,7 +129,7 @@ async def test_a_job_typed_in_by_hand_is_not_brought_in_again(monkeypatch):
         assert already["Animal Care Helper"] is True
         assert already["Member"] is False
         result = await imports.run_import("cis", _upload(content, "cis.zip"), [item["key"] for item in preview["items"]], actor, db)
-        assert len([row for row in db.exec(select(TimelineEntry)).all() if row.title.lower() == "animal care helper"]) == 1
+        assert len([row for row in db.exec(select(TimelineEntry)).all() if "".join(row.title.lower().split()) == "animalcarehelper"]) == 1
         assert result["added"]["experience"] >= 1
 
 
