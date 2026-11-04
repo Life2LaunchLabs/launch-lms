@@ -71,8 +71,9 @@ class WelcomeSignupEmailCheckRequest(BaseModel):
 
 
 def _portfolio_redirect_url(owner_org: Organization) -> str:
-    """Where a new learner lands: their portfolio, whose quests are the onboarding."""
-    return f"/orgs/{owner_org.slug}/portfolio"
+    """Where a new learner lands: setting up their first phase (where they live and what they're doing), which skips
+    ahead to their plans when they already have one."""
+    return f"/orgs/{owner_org.slug}/first-phase"
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -114,7 +115,7 @@ async def get_welcome_onboarding(
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    """Where onboarding continues: the portfolio for a signed-in learner, otherwise signup."""
+    """Where onboarding continues: the first phase for a signed-in learner, otherwise signup."""
     if isinstance(current_user, AnonymousUser):
         return {"redirect_url": "/signup"}
     return {"redirect_url": _portfolio_redirect_url(require_owner_org(db_session))}

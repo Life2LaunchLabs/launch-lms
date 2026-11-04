@@ -12,7 +12,6 @@ import { timelineDateLabel, type TimelineEntry } from '../Timeline'
 import { KindCover } from './covers'
 import { EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
-import { HeadedTile } from './HeadedTile'
 import { RESULT_KINDS } from './ResultDialog'
 import { ResultPicture } from './ResultView'
 import { templateOf } from './resultTemplates'
@@ -145,16 +144,14 @@ function PeopleTile({ spots, shell, owner, orgslug, wide = true }: TileProps & {
 
 /** The tiles in order. A visitor doesn't see a section with nothing in it. */
 export function PortfolioTiles(props: TileProps) {
-  // "What I'm like" pairs with "Where I'm headed" for the owner and with My people for visitors;
-  // a My people tile without a partner takes the whole row.
-  const results = !props.owner && Boolean(props.shell.results?.length)
+  // "What I'm like" pairs with My people; a My people tile without a partner takes the whole row.
+  const results = props.owner || Boolean(props.shell.results?.length)
   return <>
     <AboutTile {...props} />
     <ExperienceTile {...props} />
     <ProjectsTile {...props} />
     <CredentialsTile {...props} />
     <ResultsTile {...props} />
-    <HeadedTile shell={props.shell} owner={props.owner} orgslug={props.orgslug} spot={props.spots?.headed} />
     <PeopleTile {...props} wide={!results} />
   </>
 }

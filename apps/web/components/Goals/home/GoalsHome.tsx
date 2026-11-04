@@ -13,7 +13,6 @@ import type { PhaseGroup } from '@components/Goals/learner/phases'
 import { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
 import PlanMap from '@components/Goals/phases/PlanMap'
 import { current, normalize } from '@components/Goals/phases/graph'
-import PhaseDialog, { type PhaseEdit } from '@components/Goals/phases/PhaseDialog'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
@@ -83,10 +82,7 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   const { change } = useLifePlan(token)
   const focus = useSearchParams()?.get('phase')
   const photos = usePlacePhotos(token)
-  const [phaseEdit, setPhaseEdit] = React.useState<PhaseEdit | null>(null)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
-  const dialog = <PhaseDialog edit={phaseEdit} doc={life || null} token={token} onClose={() => setPhaseEdit(null)} change={change}
-    onAdded={(id) => router.push(getUriWithOrg(orgslug, routePaths.org.phase(id)))} />
 
   if (life?.phases?.length) {
     const now = current(normalize(life))
@@ -101,7 +97,6 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
         <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus} />
       </section>
       <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
-      {dialog}
     </div>
   }
 
@@ -109,14 +104,13 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
     <SharedWithYou token={token} />
     <Invitations invitations={invitations} token={token} />
-    <StartPhaseCard onStart={() => setPhaseEdit({ mode: 'add' })} />
+    <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
     {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
       <GoalTabs label="Your goals" goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
       <AddToPhase orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
     </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
-    {dialog}
   </div>
 }
 

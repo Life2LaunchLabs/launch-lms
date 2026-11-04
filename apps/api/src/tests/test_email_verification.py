@@ -388,6 +388,6 @@ async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_p
     create_user(db, user_id=10, username="maya")
     learner = PublicUser.model_validate(db.get(User, 10))
 
-    assert await get_welcome_onboarding(None, learner, db) == {"redirect_url": "/orgs/studio/portfolio"}
+    assert await get_welcome_onboarding(None, learner, db) == {"redirect_url": "/orgs/studio/first-phase"}
     # Launch Ready is gone: signing up no longer hands out a starter goal.
     assert db.exec(select(Goal).where(Goal.subject_user_id == 10)).all() == []
