@@ -38,7 +38,7 @@ const money = (value: number) => `$${Math.round(value / 1000)}k`
 
 export type CareerTileCareer = { code: string; title: string; top_interests: string; job_zone?: number | null; match?: number | null; pay?: { yearly: number } | null }
 
-export function CareerTile({ career, href, onOpen }: { career: CareerTileCareer; href?: string; onOpen?: () => void }) {
+export function CareerTile({ career, href, onOpen, star = false }: { career: CareerTileCareer; href?: string; onOpen?: () => void; star?: boolean }) {
   const type = CAREER_TYPES[career.top_interests?.[0]] || CAREER_TYPES.E
   const line = [career.pay ? money(career.pay.yearly) : '', career.job_zone ? TRAINING[career.job_zone] : ''].filter(Boolean).join(' · ')
   const body = <>
@@ -47,7 +47,7 @@ export function CareerTile({ career, href, onOpen }: { career: CareerTileCareer;
       {career.match != null ? <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10.5px] font-extrabold">{matchLabel(career.match)}</span> : null}
     </span>
     <b className="mt-2 line-clamp-2 text-[14px] font-extrabold leading-snug">{career.title}</b>
-    {line ? <small className="block text-[12px] font-bold text-muted-foreground">{line}</small> : null}
+    {line ? <small className="block text-[12px] font-bold text-muted-foreground">{star ? <span className="text-amber-500" aria-label="Pay where your plan goes">★ </span> : null}{line}</small> : null}
   </>
   const className = 'group block w-[150px] shrink-0 snap-start text-left'
   if (href) return <a href={href} target="_blank" rel="noreferrer" className={className} aria-label={`${career.title}, ${type.name}`}>{body}</a>

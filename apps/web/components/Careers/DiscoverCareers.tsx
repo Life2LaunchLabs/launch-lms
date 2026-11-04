@@ -27,7 +27,8 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
   React.useEffect(() => setProgress(batchProgress(org?.id)), [org?.id])
   if (!deck?.cards.length) return null
   const swipe = getUriWithOrg(orgslug, '/discover/careers')
-  const icons = deck.cards.slice(0, 3)
+  // Three cards of different colors for the billboard's little stack.
+  const icons = deck.cards.filter((card, index, all) => all.findIndex((other) => other.top_interests?.[0] === card.top_interests?.[0]) === index).concat(deck.cards).slice(0, 3)
   const starred = deck.cards.some((card) => card.my_place_pay)
 
   return <>
@@ -63,7 +64,7 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
       </div>
       <Shelf label="Careers for you">
         {deck.cards.map((card) => <Link key={card.code} href={href(card.resource_uuid)} scroll={false} className="text-foreground no-underline">
-          <CareerTile career={{ ...card, pay: card.my_place_pay ? { yearly: card.my_place_pay.yearly } : card.pay }} />
+          <CareerTile career={{ ...card, pay: card.my_place_pay ? { yearly: card.my_place_pay.yearly } : card.pay }} star={Boolean(card.my_place_pay)} />
         </Link>)}
       </Shelf>
     </section>

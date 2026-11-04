@@ -174,7 +174,8 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
             </Block> : null}
             {signedIn && !code ? <Block title="Your notes"><ResourceNotes resourceUuid={resource.resource_uuid} compact onNotesChange={() => void mutate()} /></Block> : null}
             <Block title="What others say"><ResourceComments resourceUuid={resource.resource_uuid} compact onReviewsChange={() => void mutate()} /></Block>
-            <MoreFrom resource={resource} onOpen={onOpen} />
+            {/* A career lists careers like it instead. */}
+            {code ? null : <MoreFrom resource={resource} onOpen={onOpen} />}
           </div>
         </>}
     </div>

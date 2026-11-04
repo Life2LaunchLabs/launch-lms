@@ -31,7 +31,7 @@ learningresponseattempt badge_award plan_join_request
 requirementenrollment usersavedresource userresourcechannel resourcenoteblock
 portfolio hubconversation hubmemorypreference hubmemory hubeditrun
 inboxmessage mediaasset mediafolder
-lifeplan planweeklyfocus eppcourse epprecord learnersupport hubquestion
+lifeplan planweeklyfocus eppcourse epprecord learnersupport hubquestion careerskip
 """.split()
 )
 # These rows belong to the fake learner but carry the catalog creator's org_id.

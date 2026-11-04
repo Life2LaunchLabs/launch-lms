@@ -235,7 +235,7 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
       {!deck?.has_quiz && batch.at === 0 ? <p className="m-0 rounded-2xl bg-muted px-4 py-3 text-[13px] font-semibold">
         These are in no particular order. <Link href={getUriWithOrg(orgslug, '/portfolio/interests')} className="font-extrabold underline">Take the interest quiz</Link> and the closest matches come first.
       </p> : null}
-      <div className="relative mx-auto h-[520px] w-full max-w-[400px]" aria-live="polite">
+      <div className="relative mx-auto h-[min(520px,60dvh)] min-h-[380px] w-full max-w-[400px]" aria-live="polite">
         {rest.length ? rest.map((card, index) => <div key={card.code} className="absolute inset-0" style={index === 0 && leaving ? { transform: `translate(${leaving * 120}%, 40px) rotate(${leaving * 24}deg)`, opacity: 0, transition: 'transform .24s ease, opacity .24s ease' } : undefined}>
           <Card card={card} place={index as 0 | 1 | 2} onDrag={index === 0 ? decide : undefined} onTap={index === 0 ? () => setSheet(card.resource_uuid) : undefined} />
         </div>).reverse()
