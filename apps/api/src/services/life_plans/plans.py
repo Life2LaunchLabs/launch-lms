@@ -60,6 +60,21 @@ class Tax(Doc):
     rate: float | None = Field(default=None, ge=0, le=100)
 
 
+class Activity(Doc):
+    """What the learner does in a phase: learning somewhere, working as something, and so on."""
+    kind: Literal["learning", "working", "looking", "caring", "gap", "other"] = "other"
+    level: str | None = Field(default=None, max_length=20)
+    school: str | None = Field(default=None, max_length=160)
+    school_id: str | None = Field(default=None, max_length=20)
+    # Schools still being weighed; picking one keeps the others here.
+    schools: list[str] = Field(default_factory=list, max_length=12)
+    field: str | None = Field(default=None, max_length=120)
+    career: str | None = Field(default=None, max_length=16)
+    career_title: str | None = Field(default=None, max_length=160)
+    employer: str | None = Field(default=None, max_length=160)
+    apprentice: bool = False
+
+
 class Phase(Doc):
     id: str = Field(max_length=40)
     title: str = Field(max_length=120)
@@ -73,6 +88,17 @@ class Phase(Doc):
     # The learner's own cover photo; without one, the place's photo (or a drawing) shows.
     cover: Cover | None = None
     tax: Tax | None = None
+    # When it starts (YYYY-MM). A phase lasts until the next one after it starts; `months` is
+    # only the length of a phase nothing comes after. Old plans without dates run in order.
+    starts: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
+    # The phases it comes after: none for the first, two or more where two ways join up.
+    after: list[str] = Field(default_factory=list, max_length=8)
+    # A dashed idea on the map: quick to add and remove, not yet part of the plan.
+    idea: bool = False
+    activities: list[Activity] = Field(default_factory=list, max_length=8)
+    living: str | None = Field(default=None, max_length=20)
+    # Places still being weighed (place keys); `place` is the one picked.
+    places: list[str] = Field(default_factory=list, max_length=12)
 
 
 class Debt(Doc):
@@ -131,6 +157,34 @@ class LifePlanDocument(Doc):
     events: list[Event] = Field(default_factory=list, max_length=200)
 
 
+def _check_links(doc: LifePlanDocument) -> None:
+    """Links point at phases in the plan, only forward, and never in a loop."""
+    ids = {phase.id for phase in doc.phases}
+    if len(ids) != len(doc.phases):
+        raise HTTPException(status_code=422, detail={"message": "Two phases share an id."})
+    starts = {phase.id: phase.starts for phase in doc.phases}
+    for phase in doc.phases:
+        phase.after = [pid for pid in dict.fromkeys(phase.after) if pid in ids and pid != phase.id]
+        for pid in phase.after:
+            if phase.starts and starts[pid] and starts[pid] >= phase.starts:
+                raise HTTPException(status_code=422, detail={"message": f"{phase.title} starts before a phase it comes after."})
+    parents = {phase.id: phase.after for phase in doc.phases}
+    seen: dict[str, int] = {}
+
+    def walk(pid: str) -> None:
+        if seen.get(pid) == 1:
+            raise HTTPException(status_code=422, detail={"message": "Phases can't loop back on themselves."})
+        if seen.get(pid) == 2:
+            return
+        seen[pid] = 1
+        for parent in parents[pid]:
+            walk(parent)
+        seen[pid] = 2
+
+    for pid in parents:
+        walk(pid)
+
+
 class SavePlan(BaseModel):
     document: LifePlanDocument
     revision: int | None = None
@@ -177,6 +231,7 @@ def shared_plan(db: Session, user: PublicUser, user_uuid: str) -> dict:
 
 def save_plan(db: Session, user: PublicUser, body: SavePlan) -> dict:
     plan = db.exec(select(LifePlan).where(LifePlan.user_id == user.id)).first()
+    _check_links(body.document)
     doc = body.document.model_dump(mode="json")
     if plan is None:
         plan = LifePlan(plan_uuid=f"lifeplan_{uuid4()}", user_id=user.id, document=doc, revision=1, creation_date=_now(), update_date=_now())
@@ -255,6 +310,8 @@ def headed(db: Session, user_id: int, today: datetime | None = None) -> dict:
         return {"now": None, "next": []}
     today = today or datetime.now(UTC)
     current = today.year * 12 + today.month - 1
+    if any(phase.get("starts") for phase in phases):
+        return _headed_on_map(phases, current)
     begins = _month_index(str(document["start"]))
     cards = []
     for phase in phases:
@@ -268,3 +325,35 @@ def headed(db: Session, user_id: int, today: datetime | None = None) -> dict:
     for card in cards:
         card.pop("begins")
     return {"now": now, "next": upcoming}
+
+
+def _headed_on_map(phases: list[dict], current: int) -> dict:
+    """The same answer for a plan drawn as a map: the latest phase that has started is now, and
+    what comes straight after it is next, real phases before ideas."""
+    dated = [phase for phase in phases if phase.get("starts")]
+    begins = {phase["id"]: _month_index(phase["starts"]) for phase in dated}
+    after = {phase["id"]: [pid for pid in phase.get("after") or [] if pid in begins] for phase in dated}
+    kids = {pid: sorted((p for p in dated if pid in after[p["id"]]), key=lambda p: (bool(p.get("idea")), begins[p["id"]])) for pid in begins}
+
+    def card(phase: dict) -> dict:
+        start = begins[phase["id"]]
+        follow = [begins[k["id"]] for k in kids[phase["id"]]]
+        end = min(follow) - 1 if follow else start + max(1, int(phase.get("months") or 1)) - 1
+        return {"id": phase["id"], "title": phase["title"], "kind": phase.get("kind") or "other", "place": phase.get("place_label") or "", "starts": _month_label(start), "ends": _month_label(end), "months": end - start + 1}
+
+    by_id = {p["id"]: p for p in dated}
+    real: dict[str, bool] = {}
+
+    def is_real(pid: str) -> bool:
+        # Real: not an idea, and reached by real phases (a phase after an idea is still a maybe).
+        if pid not in real:
+            real[pid] = False
+            real[pid] = not by_id[pid].get("idea") and (not after[pid] or any(is_real(parent) for parent in after[pid]))
+        return real[pid]
+
+    started = sorted((p for p in dated if begins[p["id"]] <= current and is_real(p["id"])), key=lambda p: begins[p["id"]])
+    if not started:
+        roots = sorted((p for p in dated if not after[p["id"]]), key=lambda p: begins[p["id"]])
+        return {"now": None, "next": [card(p) for p in roots[:2]]}
+    now = started[-1]
+    return {"now": card(now), "next": [card(p) for p in kids[now["id"]][:2]]}

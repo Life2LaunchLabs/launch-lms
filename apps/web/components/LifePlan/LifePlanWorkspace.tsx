@@ -11,6 +11,7 @@ import { lifeApi, lifeUrl, type LifeDoc, type Phase } from '@services/life/life'
 import { LifeContext, type LifeCtx } from './LifeContext'
 import { stretches, type Per } from './model'
 import useLifeNumbers from './useLifeNumbers'
+import { mergeRoute, normalize, routeDoc } from '@components/Goals/phases/graph'
 import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
 import BudgetTable from './BudgetTable'
@@ -31,7 +32,8 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   const token: string | undefined = session?.data?.tokens?.access_token
   const { data, error, isLoading, mutate } = useSWR(token ? lifeUrl(of ? `/shared/${of}` : '/plan') : null, () => (of ? lifeApi.shared(of, token) : lifeApi.get(token)), { revalidateOnFocus: false })
   const owner = of ? sharedName((data as any)?.person) : undefined
-  const [doc, setDoc] = React.useState<LifeDoc | null>(null)
+  // The whole map; the budget reads one route through it (see `view`).
+  const [full, setFull] = React.useState<LifeDoc | null>(null)
   const [saving, setSaving] = React.useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const revision = React.useRef<number | null>(null)
   const pending = React.useRef<LifeDoc | null>(null)
@@ -45,7 +47,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   React.useEffect(() => {
     if (!data || ready) return
     setReady(true)
-    setDoc(data.plan?.document ?? null)
+    setFull(data.plan?.document ? normalize(data.plan.document) : null)
     revision.current = data.plan?.revision ?? null
   }, [data, ready])
 
@@ -65,7 +67,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
       if (e?.status === 409) {
         toast.error('Your life plan changed in another window. Loading the newest version.')
         const fresh = await mutate()
-        setDoc(fresh?.plan?.document ?? null)
+        setFull(fresh?.plan?.document ? normalize(fresh.plan.document) : null)
         revision.current = fresh?.plan?.revision ?? null
       } else toast.error("Couldn't save your life plan. Your last change is kept on this page.")
     }
@@ -73,7 +75,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
 
   const commit = React.useCallback((next: LifeDoc) => {
     if (of) return
-    setDoc(next)
+    setFull(next)
     pending.current = next
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => { void flush() }, 700)
@@ -84,6 +86,9 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   React.useEffect(() => { flushRef.current = flush }, [flush])
   React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); void flushRef.current() }, [])
 
+  // The budget and its chart read the plan as one line: the route through the phase being looked at.
+  const routeOf = sel?.phase || phaseId || full?.phases[0]?.id
+  const doc = React.useMemo(() => (full && routeOf ? routeDoc(full, routeOf) : full), [full, routeOf])
   const { catalog, estimates, estimatesLoading: estLoading, valueOf, projection: proj } = useLifeNumbers(doc, token)
 
   if (!token || isLoading || (data && !ready)) {
@@ -111,8 +116,8 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
       if (!of && id !== phase.id) window.history.replaceState(window.history.state, '', getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(id)}/budget`))
     },
     projection, valueOf,
-    update: (fn) => { const next = clone(doc); fn(next); commit(next) },
-    updatePhase: (fn) => { const next = clone(doc); const p = next.phases.find((x) => x.id === phase.id); if (p) fn(p); commit(next) },
+    update: (fn) => { const next = clone(doc); fn(next); commit(mergeRoute(full!, next)) },
+    updatePhase: (fn) => { const next = clone(doc); const p = next.phases.find((x) => x.id === phase.id); if (p) fn(p); commit(mergeRoute(full!, next)) },
     openLine, setOpenLine, readOnly: Boolean(of),
     openAdd: (side, cat) => setAdd({ side, cat }),
   }
