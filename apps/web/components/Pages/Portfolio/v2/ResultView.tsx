@@ -1,7 +1,7 @@
 'use client'
 
 import type { PortfolioResult } from '../portfolioTypes'
-import { templateOf, type ResultTemplate } from './resultTemplates'
+import { chipTexts, templateOf, type ResultTemplate } from './resultTemplates'
 
 // A result drawn the way its assessment is usually shown: RIASEC as a six-point web, Big Five as bars,
 // a type as its letters or number, top strengths as a ranked list. Results without a template are a line.
@@ -39,6 +39,10 @@ export function ResultPicture({ result, compact = false }: { result: Pick<Portfo
     const max = Number(data.max || template.max)
     return template.id === 'riasec' ? <Radar scores={scores} axes={template.scores} max={max} size={compact ? 132 : 200} /> : <Bars template={{ ...template, max }} scores={scores} />
   }
+  if (template.input === 'chips') return <div className="grid w-full gap-2.5 text-left">{template.groups.map((group) => { const words = chipTexts(template, data, group.key); return words.length ? <div key={group.key} className="grid gap-1.5" data-chip-group={group.key}>
+    <small className="text-[11.5px] font-extrabold uppercase tracking-wide text-muted-foreground">{group.label}</small>
+    <ul className="flex flex-wrap gap-1.5">{words.slice(0, compact ? 6 : undefined).map((word) => <li key={word} className="inline-flex h-8 items-center rounded-full border-2 border-border bg-card px-3 text-[13px] font-bold">{word}</li>)}{compact && words.length > 6 ? <li className="inline-flex h-8 items-center px-1 text-[13px] font-bold text-muted-foreground">+{words.length - 6}</li> : null}</ul>
+  </div> : null })}</div>
   if (template.input === 'type') return data.type ? <span className="inline-flex items-center rounded-2xl px-4 py-2 text-[28px] font-black tracking-wider text-white" style={{ background: VIOLET, boxShadow: '0 4px 0 #6539D8' }}>{data.type}</span> : null
   return <ol className="flex flex-wrap gap-1.5">{(data.top || []).map((theme: string, index: number) => <li key={theme} className="inline-flex h-8 items-center gap-1.5 rounded-full border-2 border-border bg-card px-3 text-[13px] font-bold"><b className="text-[#6539D8] dark:text-[#b9a2ff]">{index + 1}</b>{theme}</li>)}</ol>
 }

@@ -132,6 +132,8 @@ export const RESOURCE_TYPES: Array<{ value: ResourceType; label: string; plural:
   { value: 'tool', label: 'Tool', plural: 'Tools' },
   { value: 'guide', label: 'Guide', plural: 'Guides' },
   { value: 'course', label: 'Course', plural: 'Courses' },
+  { value: 'school', label: 'School', plural: 'Schools' },
+  { value: 'career', label: 'Career', plural: 'Careers' },
   { value: 'assessment', label: 'Assessment', plural: 'Assessments' },
   { value: 'other', label: 'Other', plural: 'Other' },
 ]

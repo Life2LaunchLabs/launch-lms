@@ -12,9 +12,10 @@ import { timelineDateLabel, type TimelineEntry } from '../Timeline'
 import { KindCover } from './covers'
 import { EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
-import { HeadedTile } from './HeadedTile'
-import { RESULT_KINDS } from './ResultDialog'
+import { INTEREST_QUIZ, RESULT_KINDS } from './ResultDialog'
 import { ResultPicture } from './ResultView'
+import { useSection } from './stack/SectionStack'
+import type { SectionType } from '@services/portfolio/records'
 import { templateOf } from './resultTemplates'
 import type { Spot } from './progress'
 
@@ -25,17 +26,19 @@ type EditResult = (result?: PortfolioResult) => void
 type TileProps = { shell: Shell; setShell: SetShell; owner: boolean; orgslug: string; username?: string; token?: string; onEditLinks?: () => void; onEditResult?: EditResult; spots?: Partial<Record<Spot, string>>; spotLinks?: Partial<Record<Spot, string>> }
 
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+/** How many items a section shows: a few when it fits its content, more when it has a height to fill (what doesn't fit is hidden). */
+const useLimit = (type: SectionType, few: number) => useSection(type)?.fixed ? 12 : few
 const featuredFirst = <T extends { featured?: boolean }>(items: T[]) => [...items].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
 
 function AboutTile({ shell, setShell, owner, token, onEditLinks, spots }: TileProps) {
   const socials = shellSocials(shell)
   if (!owner && !shell.portfolio.short_bio && !socials.length) return null
   // As on the prototype's About page: the bio on top, then where people can find more of you.
-  return <Tile color="amber" icon={User} title="About me" wide spot={spots?.about || spots?.links}>
+  return <Tile section="about" color="amber" icon={User} title="About me" wide spot={spots?.about || spots?.links}>
     <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
     {socials.length || owner ? <div className="grid gap-2 border-t border-border pt-3.5">
       <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Find me</span>
-      {socials.length ? <ul className="grid gap-1.5 sm:grid-cols-2" aria-label="Links">{socials.map((social) => <li key={social.type}>
+      {socials.length ? <ul className="grid gap-1.5 @md:grid-cols-2" aria-label="Links">{socials.map((social) => <li key={social.type}>
         <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
           <Link2 className="h-4 w-4 text-muted-foreground" /><b className="truncate font-extrabold">{socialHandle(social.type, social.url) || social.url}</b><small className="text-xs font-semibold text-muted-foreground">{SOCIAL_OPTIONS.find((option) => option.type === social.type)?.label || social.type}</small>
         </a>
@@ -47,11 +50,12 @@ function AboutTile({ shell, setShell, owner, token, onEditLinks, spots }: TilePr
 
 function ExperienceTile({ spots, spotLinks, shell, owner, orgslug, username }: TileProps) {
   const entries = featuredFirst(shell.timeline || [])
+  const limit = useLimit('experience', 4)
   if (!owner && !entries.length) return null
   const href = (entry: TimelineEntry) => getUriWithOrg(orgslug, owner ? `/portfolio/timeline/${entry.timeline_uuid}` : `/user/${username}/timeline/${entry.slug}`)
-  return <Tile color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title="Experience" count={entries.length || null} href={getUriWithOrg(orgslug, spotLinks?.experience || (owner ? '/portfolio/timeline' : `/user/${username}/timeline`))} wide>
-    {entries.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{entries.slice(0, 4).map((entry) => <Link key={entry.timeline_uuid} href={href(entry)} className="group/item grid min-w-0 content-start gap-1">
-      <div className="relative mb-1 aspect-[4/3] overflow-hidden rounded-xl transition group-hover/item:-translate-y-0.5">
+  return <Tile section="experience" color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title="Experience" count={entries.length || null} href={getUriWithOrg(orgslug, spotLinks?.experience || (owner ? '/portfolio/timeline' : `/user/${username}/timeline`))} wide>
+    {entries.length ? <div className="grid grid-cols-2 gap-3 @lg:grid-cols-3 @2xl:grid-cols-4">{entries.slice(0, limit).map((entry) => <Link key={entry.timeline_uuid} data-item href={href(entry)} className="group/item grid min-w-0 content-start gap-1">
+      <div data-cover className="relative mb-1 aspect-[4/3] overflow-hidden rounded-xl transition group-hover/item:-translate-y-0.5">
         <KindCover kind="experience" type={entry.entry_type} url={entry.cover_url ? normalizeMediaUrl(entry.cover_url) : ''} />
         {entry.is_current ? <span className="absolute right-2 top-2 rounded-full bg-[#0B7D73] px-2 py-0.5 text-[11px] font-extrabold text-white">Now</span> : null}
       </div>
@@ -64,11 +68,12 @@ function ExperienceTile({ spots, spotLinks, shell, owner, orgslug, username }: T
 
 function ProjectsTile({ spots, spotLinks, shell, owner, orgslug, username }: TileProps) {
   const projects = featuredFirst(shell.projects || [])
+  const limit = useLimit('projects', 3)
   if (!owner && !projects.length) return null
   const href = (project: Project) => getUriWithOrg(orgslug, owner ? `/portfolio/projects/${project.project_uuid}` : `/user/${username}/projects/${project.slug}`)
-  return <Tile color="pink" spot={spots?.projects} icon={FolderOpen} title="Projects" count={projects.length || null} href={getUriWithOrg(orgslug, spotLinks?.projects || (owner ? '/portfolio/projects' : `/user/${username}/projects`))}>
-    {projects.length ? <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))]">{projects.slice(0, 3).map((project) => <Link key={project.project_uuid} href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
-      <div className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} /></div>
+  return <Tile section="projects" color="pink" spot={spots?.projects} icon={FolderOpen} title="Projects" count={projects.length || null} href={getUriWithOrg(orgslug, spotLinks?.projects || (owner ? '/portfolio/projects' : `/user/${username}/projects`))}>
+    {projects.length ? <div data-projects className="grid grid-cols-2 gap-2.5 @md:grid-cols-3 @2xl:grid-cols-4">{projects.slice(0, limit).map((project) => <Link key={project.project_uuid} data-item href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
+      <div data-cover className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} /></div>
       <b className="line-clamp-2 text-[12.5px] font-extrabold leading-tight">{project.title}</b>
     </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={getUriWithOrg(orgslug, spotLinks?.projects || '/portfolio/projects/new')} />}
   </Tile>
@@ -87,27 +92,36 @@ export function CredentialFace({ credential }: { credential: Credential }) {
 function CredentialsTile({ spots, shell, owner, orgslug, username }: TileProps) {
   const badges: PortfolioBadge[] = shell.badges?.featured?.length ? shell.badges.featured : shell.badges?.earned || []
   const credentials = featuredFirst(shell.credentials || [])
+  const limit = useLimit('credentials', 6)
   if (!owner && !badges.length && !credentials.length) return null
-  const items = [...credentials.filter((item) => item.featured), ...badges.map((badge) => ({ badge })), ...credentials.filter((item) => !item.featured)].slice(0, 6)
+  const items = [...credentials.filter((item) => item.featured), ...badges.map((badge) => ({ badge })), ...credentials.filter((item) => !item.featured)].slice(0, limit)
   const total = (shell.badges?.earned?.length || 0) + credentials.length
-  return <Tile color="blue" spot={spots?.credentials} icon={ShieldCheck} title="Credentials & badges" count={total || null} href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)}>
-    {items.length ? <div className="grid grid-cols-3 gap-x-2.5 gap-y-3 sm:grid-cols-[repeat(auto-fill,minmax(110px,1fr))]">{items.map((item) => 'badge' in item
-      ? <Link key={item.badge.award_uuid} href={getUriWithOrg(orgslug, routePaths.org.badgeAward(item.badge.code))} className="grid min-w-0 justify-items-center gap-1.5 text-center"><BadgeMedal badge={{ image_url: normalizeMediaUrl(item.badge.image_url || '') || '', icon: item.badge.icon, color: item.badge.color }} size={56} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.badge.name}</b></Link>
-      : <div key={item.credential_uuid} className="grid min-w-0 justify-items-center gap-1.5 text-center"><CredentialFace credential={item} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.name}</b></div>)}
+  return <Tile section="credentials" color="blue" spot={spots?.credentials} icon={ShieldCheck} title="Credentials & badges" count={total || null} href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)}>
+    {items.length ? <div className="grid grid-cols-3 gap-x-2.5 gap-y-3 @lg:grid-cols-4 @2xl:grid-cols-6">{items.map((item) => 'badge' in item
+      ? <Link key={item.badge.award_uuid} data-item href={getUriWithOrg(orgslug, routePaths.org.badgeAward(item.badge.code))} className="grid min-w-0 justify-items-center gap-1.5 text-center"><BadgeMedal badge={{ image_url: normalizeMediaUrl(item.badge.image_url || '') || '', icon: item.badge.icon, color: item.badge.color }} size={56} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.badge.name}</b></Link>
+      : <div key={item.credential_uuid} data-item className="grid min-w-0 justify-items-center gap-1.5 text-center"><CredentialFace credential={item} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.name}</b></div>)}
     </div> : null}
     {owner && !items.length ? <EmptyAdd title="Earn your first badge" hint="Finish a plan to earn one. Cards and certificates are coming soon." href={getUriWithOrg(orgslug, routePaths.org.discover())} /> : null}
   </Tile>
 }
 
-function ResultsTile({ spots, shell, owner, onEditResult }: TileProps) {
+function ResultsTile({ spots, shell, owner, orgslug, onEditResult }: TileProps) {
   const items = featuredFirst(shell.results || [])
+  const limit = useLimit('results', 4)
+  const quiz = getUriWithOrg(orgslug, '/portfolio/interests')
+  const tookQuiz = items.some((item) => item.source === INTEREST_QUIZ)
   if (!owner && !items.length) return null
-  return <Tile color="violet" spot={spots?.results} icon={Sparkles} title="What I’m like" count={items.length || null}>
-    {items.length ? <ul className="grid gap-2.5">{items.slice(0, 4).map((item) => <li key={item.result_uuid} className={`min-w-0 ${item.visibility === 'private' ? 'opacity-55' : ''}`}>
+  return <Tile section="results" color="violet" spot={spots?.results} icon={Sparkles} title="What I’m like" count={items.length || null} href={owner ? getUriWithOrg(orgslug, '/portfolio/results') : undefined}>
+    {items.length ? <ul className="grid gap-2.5">{items.slice(0, limit).map((item) => <li key={item.result_uuid} data-item className={`min-w-0 ${item.visibility === 'private' ? 'opacity-55' : ''}`}>
       {owner && onEditResult ? <button type="button" onClick={() => onEditResult(item)} className="w-full rounded-xl text-left hover:bg-muted/60"><ResultLine result={item} /></button> : <ResultLine result={item} />}
     </li>)}</ul> : null}
-    {owner && onEditResult ? items.length ? <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
-      : <EmptyAdd title="Add what you’ve learned about yourself" hint="Your RIASEC interests, a personality type or your top strengths" onClick={() => onEditResult()} /> : null}
+    {owner && onEditResult ? items.length ? <span className="flex flex-wrap gap-1">
+      {!tookQuiz ? <Link href={quiz} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-[#6539D8] hover:bg-raised dark:text-[#b9a2ff]">Take the interest quiz</Link> : null}
+      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
+    </span> : <>
+      <EmptyAdd title="Take the interest quiz" hint="30 quick questions about work you might enjoy, then careers that fit" href={quiz} />
+      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Or add a result you already have</button>
+    </> : null}
   </Tile>
 }
 
@@ -115,6 +129,8 @@ function ResultLine({ result }: { result: PortfolioResult }) {
   // A result from a known assessment shows its picture beside its line: the RIASEC web, the type, the top five.
   // A type already shows its letters, so its line is the test's name instead.
   const same = result.summary === String(result.data?.type ?? '')
+  // Skills and values are their chips, under the name.
+  if (templateOf(result)?.input === 'chips') return <span className="grid gap-2 px-1 py-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><ResultPicture result={result} compact /></span>
   if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? 'My type' : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
   // A result with no line of its own (an imported skill, say) shows its kind above its name, not its name twice.
   const bare = !result.summary?.trim() || result.summary.trim().toLowerCase() === result.name.trim().toLowerCase()
@@ -130,31 +146,42 @@ function QuoteCard({ quote }: { quote: Quote }) {
 }
 
 function PeopleTile({ spots, shell, owner, orgslug, wide = true }: TileProps & { wide?: boolean }) {
-  const quotes = featuredFirst(shell.quotes || []).filter((quote) => quote.body && quote.status !== 'requested').slice(0, 2)
+  const limit = useLimit('people', 2)
+  const quotes = featuredFirst(shell.quotes || []).filter((quote) => quote.body && quote.status !== 'requested').slice(0, limit)
   const people = shell.contacts || []
   if (!owner && !quotes.length) return null
-  return <Tile color="orange" spot={spots?.people} icon={Users} title={owner ? 'My people' : 'What people say'} count={owner ? people.length || null : null} href={owner ? getUriWithOrg(orgslug, '/portfolio/people') : undefined} wide={wide}>
+  return <Tile section="people" color="orange" spot={spots?.people} icon={Users} title={owner ? 'My people' : 'What people say'} count={owner ? people.length || null : null} href={owner ? getUriWithOrg(orgslug, '/portfolio/people') : undefined} wide={wide}>
     {owner && people.length ? <div className="flex items-center gap-3">
       <span className="flex">{people.slice(0, 5).map((person, index) => <span key={person.contact_uuid} className={index ? '-ml-2.5' : ''}><PersonDot name={person.name} className="h-8 w-8 border-2 border-card text-[11px]" /></span>)}</span>
       <span><b className="block text-sm font-extrabold">{people.length} {people.length === 1 ? 'person' : 'people'} in your corner</b><small className="block text-[12.5px] font-semibold text-muted-foreground">{count((shell.quotes || []).length, 'quote')} · {count(people.filter((person) => person.is_reference).length, 'reference')}</small></span>
     </div> : null}
-    {quotes.length ? <div className="grid gap-3.5 sm:grid-cols-2">{quotes.map((quote) => <QuoteCard key={quote.quote_uuid} quote={quote} />)}</div>
+    {quotes.length ? <div className="grid gap-3.5 @xl:grid-cols-2">{quotes.map((quote) => <div key={quote.quote_uuid} data-item><QuoteCard quote={quote} /></div>)}</div>
       : owner ? <EmptyAdd title="Ask someone for a quote" hint="A boss, coach or teacher. They don’t need an account." href={getUriWithOrg(orgslug, '/portfolio/people')} /> : null}
   </Tile>
 }
 
-/** The tiles in order. A visitor doesn't see a section with nothing in it. */
-export function PortfolioTiles(props: TileProps) {
-  // "What I'm like" pairs with "Where I'm headed" for the owner and with My people for visitors;
-  // a My people tile without a partner takes the whole row.
-  const results = !props.owner && Boolean(props.shell.results?.length)
-  return <>
-    <AboutTile {...props} />
-    <ExperienceTile {...props} />
-    <ProjectsTile {...props} />
-    <CredentialsTile {...props} />
-    <ResultsTile {...props} />
-    <HeadedTile shell={props.shell} owner={props.owner} orgslug={props.orgslug} spot={props.spots?.headed} />
-    <PeopleTile {...props} wide={!results} />
-  </>
+/** The sections, by type, for the section stack. Highlights and featured are drawn by the page. */
+export const TILE_SECTIONS: Partial<Record<SectionType, (props: TileProps) => React.ReactNode>> = { // eslint-disable-line no-unused-vars
+  about: (props) => <AboutTile {...props} />,
+  experience: (props) => <ExperienceTile {...props} />,
+  projects: (props) => <ProjectsTile {...props} />,
+  credentials: (props) => <CredentialsTile {...props} />,
+  results: (props) => <ResultsTile {...props} />,
+  people: (props) => <PeopleTile {...props} />,
+}
+
+/** Whether a section has anything to show. Owners see every section (an empty one invites them to start it). */
+export function hasSection(type: SectionType, shell: Shell, owner: boolean): boolean {
+  if (type === 'headed') return false
+  if (owner) return true
+  switch (type) {
+    case 'highlights': return Boolean(shell.highlights?.length)
+    case 'about': return Boolean(shell.portfolio.short_bio || shellSocials(shell).length)
+    case 'experience': return Boolean(shell.timeline?.length)
+    case 'projects': return Boolean(shell.projects?.length)
+    case 'credentials': return Boolean(shell.badges?.earned?.length || shell.credentials?.length)
+    case 'results': return Boolean(shell.results?.length)
+    case 'people': return (shell.quotes || []).some((quote) => quote.body && quote.status !== 'requested')
+    default: return false
+  }
 }

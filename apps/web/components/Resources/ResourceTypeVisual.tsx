@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import {
   BookOpen,
+  Briefcase,
   ClipboardCheck,
   FileText,
   GraduationCap,
   Layers,
   PlayCircle,
+  School,
   Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -42,6 +44,14 @@ const resourceTypePresentation: Record<ResourceType, ResourceTypePresentation> =
   course: {
     icon: GraduationCap,
     color: '#9a3412',
+  },
+  school: {
+    icon: School,
+    color: '#9d174d',
+  },
+  career: {
+    icon: Briefcase,
+    color: '#92400e',
   },
   other: {
     icon: Layers,

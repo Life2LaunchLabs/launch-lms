@@ -215,6 +215,22 @@ def test_plan_document_rejects_bad_values():
         _doc(debts=[{"id": "d", "title": "Loan", "balance": -5}])
 
 
+def test_plan_keeps_payment_policies_starting_points_and_401k_terms():
+    doc = _doc(
+        debts=[{"id": "d", "kind": "card", "title": "Card", "balance": 900, "rate": 22, "payment": 25, "received": False}],
+        savings=[{"id": "save", "title": "Savings account", "main": True}, {"id": "k", "kind": "k401", "title": "401(k)", "pct": 6, "match": 4}],
+        policies=[{"id": "x", "target": "d", "phase": "p1", "month": 6, "full": True}, {"id": "y", "target": "k", "phase": "p1", "month": 3, "pct": 8}],
+        card_rate=21.5,
+    )
+    doc.phases[0].starting = plan_service.Starting(savings={"save": 1200}, debts={"d": 800})
+    out = doc.model_dump()
+    assert out["policies"][0]["full"] is True and out["policies"][1]["pct"] == 8
+    assert out["savings"][1]["match"] == 4 and out["debts"][0]["received"] is False
+    assert out["phases"][0]["starting"]["debts"] == {"d": 800} and out["card_rate"] == 21.5
+    with pytest.raises(ValueError):
+        _doc(policies=[{"id": "x", "target": "d", "phase": "p1", "pct": 150}])
+
+
 def test_headed_is_the_phase_now_and_the_next_ones_without_the_budget():
     from datetime import UTC, datetime
 
@@ -370,3 +386,45 @@ def test_a_phase_keeps_the_learners_own_cover_photo():
     assert doc.phases[0].cover.url == "https://files.example.com/me.jpg"
     with pytest.raises(ValueError):
         _doc(phases=[{"id": "p1", "title": "High school", "months": 12, "cover": {"url": "javascript:alert(1)"}}])
+
+
+def _map_doc(**phases):
+    base = {"version": 1, "start": "2020-09"}
+    return plan_service.LifePlanDocument.model_validate({**base, "phases": list(phases.values())})
+
+
+def test_a_plan_drawn_as_a_map_branches_merges_and_never_loops():
+    ms = {"id": "ms", "title": "Middle school", "starts": "2020-09"}
+    hs = {"id": "hs", "title": "High school", "starts": "2023-09", "after": ["ms"], "activities": [{"kind": "learning", "level": "high", "school": "Sheldon High School"}]}
+    trade = {"id": "tr", "title": "Trade school", "starts": "2027-09", "after": ["hs"], "idea": True}
+    app = {"id": "ap", "title": "Electrician apprentice", "starts": "2027-07", "after": ["hs", "hs", "nope"], "idea": True, "activities": [{"kind": "working", "career": "47-2111.00", "career_title": "Electricians", "apprentice": True}]}
+    elec = {"id": "el", "title": "Electrician", "starts": "2030-07", "after": ["tr", "ap"], "idea": True, "places": ["or-eugene", "or-portland"]}
+    doc = _map_doc(ms=ms, hs=hs, tr=trade, ap=app, el=elec)
+    plan_service._check_links(doc)
+    by = {p.id: p for p in doc.phases}
+    assert by["ap"].after == ["hs"]  # repeats and unknown phases are dropped
+    assert by["el"].after == ["tr", "ap"]
+    assert by["ap"].activities[0].career == "47-2111.00"
+
+    with pytest.raises(HTTPException):  # comes after a phase that starts later
+        plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "starts": "2030-01"}, b={"id": "b", "title": "B", "starts": "2029-01", "after": ["a"]}))
+    with pytest.raises(HTTPException):  # a loop, with no dates to catch it
+        plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "after": ["b"]}, b={"id": "b", "title": "B", "after": ["a"]}))
+
+
+def test_headed_on_a_map_is_the_phase_now_and_what_comes_right_after():
+    from datetime import UTC, datetime
+
+    db = _session()
+    phases = [
+        {"id": "hs", "title": "High school", "starts": "2023-09", "months": 12},
+        {"id": "ap", "title": "Electrician apprentice", "starts": "2027-07", "after": ["hs"], "idea": True},
+        {"id": "col", "title": "College", "starts": "2027-09", "after": ["hs"]},
+        {"id": "el", "title": "Electrician", "starts": "2030-07", "after": ["ap"], "months": 36},
+    ]
+    db.add(LifePlan(plan_uuid="lifeplan_1", user_id=1, document={"version": 1, "start": "2023-09", "phases": phases}))
+    db.commit()
+    headed = plan_service.headed(db, 1, datetime(2026, 11, 4, tzinfo=UTC))
+    assert headed["now"]["title"] == "High school" and headed["now"]["ends"] == "2027-06"
+    assert [p["title"] for p in headed["next"]] == ["College", "Electrician apprentice"]
+    assert plan_service.headed(db, 1, datetime(2031, 1, 1, tzinfo=UTC))["now"]["title"] == "College"  # ideas are never "now"

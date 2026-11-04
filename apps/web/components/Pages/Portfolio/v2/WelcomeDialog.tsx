@@ -6,10 +6,10 @@ import type { OpenChange } from './parts'
 
 // Example portfolios in each look, made up. Shown the first time a learner opens their portfolio.
 const EXAMPLES = [
-  { name: 'Aiyana Begay', line: 'Future nurse · Bend', initials: 'AB', look: 'Pop', bg: '#f5f8f9', fg: '#0e1a21', a: '#4C8DFF', b: '#EC4F9A', chip: '#e6eefb', highlights: ['220 hrs', 'CNA'] },
-  { name: 'Marcus Hill', line: 'Game dev club president', initials: 'MH', look: 'Midnight', bg: '#0b0f1e', fg: '#eef1ff', a: '#5b2bd6', b: '#00d1c1', chip: '#1d2442', highlights: ['3 games', '1st place'] },
-  { name: 'Jordan Reyes', line: 'Welding student · Salem', initials: 'JR', look: 'Studio', bg: '#ffffff', fg: '#111111', a: '#111111', b: '#6b6b6b', chip: '#efefef', highlights: ['AWS D1.1', 'OSHA 10'] },
-  { name: 'Sofia Ramos', line: 'Barista and photographer', initials: 'SR', look: 'Sunset', bg: '#fff6ee', fg: '#2a1712', a: '#E8642C', b: '#C8327D', chip: '#fde8da', highlights: ['2 years', '40 shoots'] },
+  { name: 'Aiyana Begay', line: 'Future nurse · Bend', initials: 'AB', look: 'Playful', bg: '#f5f8f9', fg: '#0e1a21', a: '#4C8DFF', b: '#EC4F9A', chip: '#e6eefb', highlights: ['220 hrs', 'CNA'] },
+  { name: 'Marcus Hill', line: 'Game dev club president', initials: 'MH', look: 'Volt', bg: '#0b0f1e', fg: '#eef1ff', a: '#5b2bd6', b: '#00d1c1', chip: '#1d2442', highlights: ['3 games', '1st place'] },
+  { name: 'Jordan Reyes', line: 'Welding student · Salem', initials: 'JR', look: 'Gallery', bg: '#ffffff', fg: '#111111', a: '#111111', b: '#6b6b6b', chip: '#efefef', highlights: ['AWS D1.1', 'OSHA 10'] },
+  { name: 'Sofia Ramos', line: 'Barista and photographer', initials: 'SR', look: 'Playful', bg: '#fff6ee', fg: '#2a1712', a: '#E8642C', b: '#C8327D', chip: '#fde8da', highlights: ['2 years', '40 shoots'] },
 ]
 
 function Example({ example }: { example: (typeof EXAMPLES)[number] }) {

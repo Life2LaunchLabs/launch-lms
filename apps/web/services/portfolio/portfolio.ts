@@ -28,7 +28,7 @@ export async function getPublicPortfolioProject(orgId: number, username: string,
     const shell = await getPublicPortfolio(orgId, username, token)
     const project = shell.projects?.find((item: any) => item.slug === slug)
     if (!project) throw new Error('Project item not found')
-    return { portfolio: shell.portfolio, project }
+    return { portfolio: shell.portfolio, project, layout: shell.layout }
   }
   const response = await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}/projects/${encodeURIComponent(slug)}`, { cache: 'no-store' })
   return errorHandling(response)

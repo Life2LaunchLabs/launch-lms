@@ -94,9 +94,24 @@ class CareerEntry(SQLModel, table=True):
     job_zone: int | None = None
     interests: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     alt_titles: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    # What people in the job do most: O*NET's core task statements, most important first.
+    tasks: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
     status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
     creation_date: str = ""
+
+
+class CareerSkip(SQLModel, table=True):
+    """A career a learner swiped past in Career swipe. Skips only push it back in later decks; nothing is disliked."""
+
+    __tablename__ = "careerskip"
+    __table_args__ = (UniqueConstraint("user_id", "code"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    code: str = Field(sa_column=Column(String(16), nullable=False))
+    count: int = 1
+    update_date: str = ""
 
 
 class SchoolEntry(SQLModel, table=True):

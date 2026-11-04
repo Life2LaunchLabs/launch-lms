@@ -13,6 +13,7 @@ from src.db.learner_support import ReportPicks
 from src.db.plan_collections import PlanCollection, PlanCollectionItem
 from src.db.portfolio import Portfolio
 from src.db.portfolio_records import Credential
+from src.db.resources import Resource, ResourceNoteBlock, UserSavedResource
 from src.db.requirements import (
     RequirementAssignmentBatch, RequirementAttainmentSource, RequirementEnrollment, RequirementFramework, RequirementFrameworkVersion, RequirementNode,
 )
@@ -31,7 +32,7 @@ def _session():
     db = _support_session()
     SQLModel.metadata.create_all(db.get_bind(), tables=[model.__table__ for model in (  # type: ignore[attr-defined]
         EppCourse, RequirementFramework, RequirementFrameworkVersion, RequirementNode, RequirementAssignmentBatch,
-        RequirementEnrollment, RequirementAttainmentSource, PlanCollection, PlanCollectionItem)])
+        RequirementEnrollment, RequirementAttainmentSource, PlanCollection, PlanCollectionItem, Resource, UserSavedResource, ResourceNoteBlock)])
     return db
 
 

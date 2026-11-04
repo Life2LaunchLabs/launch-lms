@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { ArrowRight } from 'lucide-react'
 import DiscoverHero from './DiscoverHero'
 import ResourceShelves from './ResourceShelves'
+import DiscoverCareers from '@components/Careers/DiscoverCareers'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -54,7 +55,7 @@ export function usePlanFeed(enabled = true) {
  */
 export default function DiscoverFeed({ orgslug, showPlans = true, showResources = true }: { orgslug: string; showPlans?: boolean; showResources?: boolean }) {
   const { data: feed, error } = usePlanFeed(showPlans)
-  if (!showPlans) return <div className="flex flex-col gap-9 text-foreground"><ResourceShelves orgslug={orgslug} /></div>
+  if (!showPlans) return <div className="flex flex-col gap-9 text-foreground"><DiscoverCareers orgslug={orgslug} /><ResourceShelves orgslug={orgslug} /></div>
   if (error) return <p className="rounded-2xl bg-card p-6 text-sm font-medium text-muted-foreground">Plans couldn’t load. Refresh to try again.</p>
   if (!feed) return <Skeleton />
   const collected = new Set(feed.collections.flatMap((collection) => collection.plans.map((card) => card.template_uuid)))
@@ -70,7 +71,7 @@ export default function DiscoverFeed({ orgslug, showPlans = true, showResources 
       <SectionTitle href={collectionHref(orgslug, collection.collection_uuid)} aside={<CollectedPill cards={collection.plans} />}>{collection.name}</SectionTitle>
       <Shelf label={collection.name}>{collection.plans.map((card) => <PlanTile key={card.template_uuid} card={card} orgslug={orgslug} />)}</Shelf>
     </section>)}
-    {showResources ? <ResourceShelves orgslug={orgslug} /> : null}
+    {showResources ? <><DiscoverCareers orgslug={orgslug} /><ResourceShelves orgslug={orgslug} /></> : null}
     {!feed.plans.length && !feed.keep_going.length && !showResources ? <p className="rounded-2xl bg-card p-6 text-sm font-medium text-muted-foreground">{feed.earned_count ? 'You’ve done every plan here. New ones land soon.' : 'No plans to join yet. Check back soon.'}</p> : null}
   </div>
 }

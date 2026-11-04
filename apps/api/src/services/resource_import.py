@@ -32,7 +32,7 @@ HEADER_HINTS: list[tuple[str, tuple[str, ...]]] = [
 TYPE_WORDS = {item.value: item.value for item in ResourceTypeEnum} | {
     "articles": "article", "videos": "video", "tools": "tool", "guides": "guide", "courses": "course",
     "assessments": "assessment", "quiz": "assessment", "test": "assessment", "website": "article", "page": "article",
-    "youtube": "video", "app": "tool", "lesson": "course", "worksheet": "guide",
+    "youtube": "video", "app": "tool", "lesson": "course", "school": "school", "schools": "school", "college": "school", "university": "school", "worksheet": "guide",
 }
 LIST_SPLIT = re.compile(r"\s*[|;]\s*")
 

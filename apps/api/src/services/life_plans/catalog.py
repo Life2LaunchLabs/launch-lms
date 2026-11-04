@@ -38,6 +38,9 @@ ITEMS = [
     {"key": "dorm", "cat": "home", "title": "Dorm", "icon": "building"},
     {"key": "utilities", "cat": "home", "title": "Utilities and internet", "icon": "plug"},
     {"key": "renters_insurance", "cat": "home", "title": "Renter's insurance", "icon": "shield"},
+    {"key": "property_tax", "cat": "home", "title": "Property tax", "icon": "landmark"},
+    {"key": "home_insurance", "cat": "home", "title": "Home insurance", "icon": "shield"},
+    {"key": "home_upkeep", "cat": "home", "title": "Home upkeep", "icon": "wrench"},
     # Food
     {"key": "groceries", "cat": "food", "title": "Groceries", "icon": "shopping-cart"},
     {"key": "eating_out", "cat": "food", "title": "Eating out", "icon": "utensils"},
@@ -92,6 +95,8 @@ DEBT_KINDS = [
 
 SAVINGS_KINDS = [
     {"key": "savings", "title": "Savings account"},
+    {"key": "k401", "title": "401(k) through work"},
+    {"key": "ira", "title": "IRA"},
     {"key": "retirement", "title": "Retirement (401k or IRA)"},
     {"key": "other", "title": "Something else"},
 ]

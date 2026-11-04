@@ -60,6 +60,8 @@ function Requirements({ report, section }: { report: Report; section: string }) 
   </div>
 }
 
+const INTEREST_LEVEL: Record<number, string> = { 1: 'A little interested', 2: 'Interested', 3: 'Really interested' }
+
 function Evidence({ items, first }: { items: EvidenceItem[]; first: string }) {
   if (!items.length) return <p className="text-[13px] text-[#505A6B]">{first} hasn’t chosen anything from their portfolio yet.</p>
   return <div className="space-y-2">
@@ -115,6 +117,13 @@ export default function EppReport({ report }: { report: Report }) {
     <Sheet>
       <H2>1 · Who I am</H2>
       <Requirements report={report} section="who" />
+      {report.careers?.length ? <>
+        <h3 className="mb-2 mt-5 text-sm font-bold">Careers I’m exploring</h3>
+        <div className="space-y-2">{report.careers.map((career) => <div key={career.code || career.title} className="break-inside-avoid rounded-md border border-[#D8DDE6] px-3.5 py-2.5">
+          <div className="flex flex-wrap justify-between gap-x-4 text-sm"><b>{career.title}</b><span className="text-xs text-[#3C4656]">{INTEREST_LEVEL[career.interest_level || 0] || 'Saved'}{career.saved_on ? ` · ${monthYear(career.saved_on)}` : ''}</span></div>
+          {career.why ? <p className="mt-0.5 text-[13px]">{career.why}</p> : null}
+        </div>)}</div>
+      </> : null}
       <div className="mt-8"><H2>2 · Where I’m headed</H2></div>
       <Requirements report={report} section="headed" />
     </Sheet>

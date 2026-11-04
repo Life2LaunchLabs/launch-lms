@@ -4,7 +4,7 @@
  * here. A line with neither the learner's number nor a sourced estimate counts as missing.
  */
 import { isTaxable, monthlyTax } from './tax'
-import type { Asset, Catalog, Debt, Estimate, LifeDoc, LifeEvent, Line, Phase, Unit } from '@services/life/life'
+import type { Asset, Catalog, Debt, Estimate, LifeDoc, LifeEvent, Line, Phase, Policy, Unit } from '@services/life/life'
 
 export type Per = 'wk' | 'mo' | 'yr'
 export const PER_WORD: Record<Per, string> = { wk: 'week', mo: 'month', yr: 'year' }
@@ -113,12 +113,46 @@ export function stretches(doc: LifeDoc, phase: Phase): Stretch[] {
     if (a.sold?.phase === phase.id) mark(a.sold.month, `You sell ${a.title.toLowerCase()}`, 'tag')
   })
   doc.debts.forEach((d) => { if (d.start?.phase === phase.id && !doc.assets.some((a) => a.loan_id === d.id)) mark(d.start.month, `You take ${d.title.toLowerCase()}`, 'landmark') })
+  ;(doc.policies || []).forEach((x) => {
+    if (x.phase !== phase.id) return
+    const t = doc.debts.find((d) => d.id === x.target) || doc.savings.find((v) => v.id === x.target)
+    if (t) mark(x.month, 'pay' in x || 'full' in x ? `You change what you pay on ${t.title.toLowerCase()}` : `You change what goes into ${t.title.toLowerCase()}`, 'sliders')
+  })
   const cuts = [0, ...[...marks.keys()].sort((a, b) => a - b)]
   return cuts.map((m0, i) => {
     const m1 = (cuts[i + 1] ?? phase.months) - 1
     const mk = marks.get(m0)
     return { i, phase, m0, m1, g0: off + m0, g1: off + m1, why: mk ? mk.why : [], icon: mk ? mk.icon : 'flag' }
   })
+}
+
+export interface DebtAt {
+  debt: Debt
+  /** What is owed in that month, after a loan taken that month lands. */
+  balance: number
+  /** What is paid on it that month (0 before it starts and once it is paid off). */
+  payment: number
+  /** The least it takes that month: the minimum, or the rest when that is less. */
+  minimum: number
+  /** 'later': not taken yet; 'paid': paid off (or never had a balance); 'owing': being paid back. */
+  state: 'later' | 'owing' | 'paid'
+  /** The global month it starts, or null when the learner already has it. */
+  startsAt: number | null
+  /** The global month it is paid off, or null when it isn't within the plan. */
+  paidOffAt: number | null
+}
+
+/** One account's month: what you put in, what an employer adds, what is in it once the month's one-time things land. */
+export interface SavingAt { id: string; title: string; balance: number; put: number; match: number }
+
+/** Something that makes the lines jump in one month, to mark on the chart and explain. */
+export interface Mark {
+  g: number
+  kind: 'loan' | 'buy' | 'sell' | 'once' | 'start' | 'short'
+  title: string
+  /** Money into savings (+) or out of it (−) that month, when there is any. */
+  amount: number
+  ref: string | null
 }
 
 export interface Projection {
@@ -132,24 +166,74 @@ export interface Projection {
   out: number[]
   /** Per global month: the tax taken from pay. */
   tax: number[]
+  /** Per global month: paid on debts and put into accounts (not the main one); what is left goes to savings. */
+  paid: number[]
+  put: number[]
+  left: number[]
+  marks: Mark[]
   missing: { phase: string; line: string }[]
+  /** The rate on money you'd be short, percent a year, and whether the learner set it. */
+  cardRate: number
   /* eslint-disable no-unused-vars -- parameter names in function types */
-  debtsAt: (g: number) => { debt: Debt; balance: number; payment: number }[]
-  savingsAt: (g: number) => { id: string; title: string; balance: number }[]
+  /** Every debt in the plan, as it stands in month g once that month's one-time things have
+   *  happened (so a loan taken that month already shows), and what is paid on it that month. */
+  debtsAt: (g: number) => DebtAt[]
+  savingsAt: (g: number) => SavingAt[]
+  /** Things owned in month g, once that month's purchase or sale has happened. */
   assetsAt: (g: number) => { asset: Asset; value: number }[]
   /* eslint-enable no-unused-vars */
 }
+
+/** The monthly payment that pays a balance off in `months` at `rate` percent a year. */
+export function amortized(balance: number, rate: number, months: number): number {
+  if (balance <= 0 || months <= 0) return 0
+  const r = rate / 1200
+  return r === 0 ? balance / months : (balance * r) / (1 - Math.pow(1 + r, -months))
+}
+/** Months to pay a balance off paying `pay` a month, or null when the payment never covers the interest. */
+export function payoffMonths(balance: number, rate: number, pay: number): number | null {
+  if (balance <= 0.5) return 0
+  const r = rate / 1200
+  if (pay <= balance * r + 1e-9) return null
+  return r === 0 ? Math.ceil(balance / pay) : Math.ceil(-Math.log(1 - (r * balance) / pay) / Math.log(1 + r))
+}
+
+/** The policy in force for a target in global month g: the latest one at or before it. */
+export function policyAt(doc: LifeDoc, target: string, g: number): Policy | null {
+  let best: Policy | null = null, bestG = -1
+  for (const p of doc.policies || []) {
+    if (p.target !== target) continue
+    const pg = gOf(doc, p)
+    if (pg <= g && pg >= bestG) { best = p; bestG = pg }
+  }
+  return best
+}
+
+/** Whether taking a debt lands its money in savings: yes unless it pays for something bought, or the learner said no. */
+export const lands = (doc: LifeDoc, d: Debt) => Boolean(d.start) && (d.received ?? !doc.assets.some((a) => a.loan_id === d.id))
+
+/**
+ * The rate on money you'd be short, percent a year. There is no published default wired in yet
+ * (sources rule: no number without a source), so it is 0 until the learner sets one.
+ */
+export const CARD_RATE_DEFAULT: { rate: number; source: null } = { rate: 0, source: null }
 
 /** Month by month, from the plan's first month to the end of its last phase. */
 // eslint-disable-next-line no-unused-vars -- parameter names in a function type
 export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => LineValue): Projection {
   const G = Math.max(1, totalMonths(doc))
   const sav: number[] = [], own: number[] = [], debt: number[] = [], short: number[] = [], inn: number[] = [], out: number[] = [], tax: number[] = []
+  const paidT: number[] = [], putT: number[] = [], left: number[] = []
+  const marks: Mark[] = []
   const missing: { phase: string; line: string }[] = []
+  const cardRate = doc.card_rate ?? CARD_RATE_DEFAULT.rate
   const debtBal: Record<string, number> = {}
   const saveBal: Record<string, number> = {}
   const assetVal: Record<string, number> = {}
   const debtHist: Record<string, number[]> = {}, saveHist: Record<string, number[]> = {}, assetHist: Record<string, number[]> = {}
+  // The same, taken once each month's one-time things have landed, and what moved that month.
+  const debtOpen: Record<string, number[]> = {}, saveOpen: Record<string, number[]> = {}, assetOpen: Record<string, number[]> = {}
+  const debtPaid: Record<string, number[]> = {}, debtMin: Record<string, number[]> = {}, savePut: Record<string, number[]> = {}, saveMatch: Record<string, number[]> = {}
   const main = doc.savings.find((s) => s.main) || null
   let cash = main ? main.balance : 0
   let owed = 0
@@ -158,14 +242,20 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
   doc.assets.forEach((a) => { if (!a.bought) assetVal[a.id] = a.value })
   const evAt = new Map<number, LifeEvent[]>()
   doc.events.forEach((e) => { const g = gOf(doc, e); evAt.set(g, [...(evAt.get(g) || []), e]) })
+  const push = (h: Record<string, number[]>, id: string, v: number) => (h[id] = h[id] || []).push(v)
   const snapshot = () => {
     sav.push(Math.max(0, cash) + Object.values(saveBal).reduce((a, b) => a + b, 0))
     own.push(Object.values(assetVal).reduce((a, b) => a + b, 0))
     short.push(owed)
     debt.push(Object.values(debtBal).reduce((a, b) => a + b, 0) + owed)
-    doc.debts.forEach((d) => (debtHist[d.id] = debtHist[d.id] || []).push(debtBal[d.id] ?? 0))
-    doc.savings.forEach((s) => (saveHist[s.id] = saveHist[s.id] || []).push(s.main ? Math.max(0, cash) : saveBal[s.id] ?? 0))
-    doc.assets.forEach((a) => (assetHist[a.id] = assetHist[a.id] || []).push(assetVal[a.id] ?? 0))
+    doc.debts.forEach((d) => push(debtHist, d.id, debtBal[d.id] ?? 0))
+    doc.savings.forEach((s) => push(saveHist, s.id, s.main ? Math.max(0, cash) : saveBal[s.id] ?? 0))
+    doc.assets.forEach((a) => push(assetHist, a.id, assetVal[a.id] ?? 0))
+  }
+  const opened = () => {
+    doc.debts.forEach((d) => { push(debtOpen, d.id, debtBal[d.id] ?? 0); push(debtPaid, d.id, 0); push(debtMin, d.id, 0) })
+    doc.savings.forEach((s) => { push(saveOpen, s.id, s.main ? Math.max(0, cash) : saveBal[s.id] ?? 0); push(savePut, s.id, 0); push(saveMatch, s.id, 0) })
+    doc.assets.forEach((a) => push(assetOpen, a.id, assetVal[a.id] ?? 0))
   }
   snapshot()
   let g = 0
@@ -173,40 +263,93 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
     const vals = new Map(p.lines.map((l) => [l.id, values(p, l)]))
     p.lines.forEach((l) => { if (vals.get(l.id)!.monthly == null) missing.push({ phase: p.id, line: l.id }) })
     for (let m = 0; m < p.months; m++, g++) {
+      const before = Math.max(0, cash) - owed
+      // A starting point: the learner's real balances replace what the plan worked out.
+      if (m === 0 && p.starting) {
+        const st = p.starting
+        Object.entries(st.savings || {}).forEach(([id, v]) => {
+          const s = doc.savings.find((x) => x.id === id); if (!s) return
+          if (s.main) { cash = v; owed = 0 } else saveBal[id] = v
+        })
+        Object.entries(st.debts || {}).forEach(([id, v]) => { if (doc.debts.some((d) => d.id === id && (!d.start || gOf(doc, d.start) < g))) debtBal[id] = v })
+        if (Object.keys(st.savings || {}).length || Object.keys(st.debts || {}).length) marks.push({ g, kind: 'start', title: `Starting point for ${p.title}`, amount: Math.max(0, cash) - owed - before, ref: p.id })
+      }
       // One-time things land at the start of their month.
-      doc.debts.forEach((d) => { if (d.start && gOf(doc, d.start) === g) { debtBal[d.id] = d.balance; if (!doc.assets.some((a) => a.loan_id === d.id)) cash += d.balance } })
+      doc.debts.forEach((d) => {
+        if (!d.start || gOf(doc, d.start) !== g) return
+        debtBal[d.id] = d.balance
+        const into = lands(doc, d) ? d.balance : 0
+        cash += into
+        if (!doc.assets.some((a) => a.loan_id === d.id)) marks.push({ g, kind: 'loan', title: d.title, amount: into, ref: d.id })
+      })
       doc.assets.forEach((a) => {
-        if (a.bought && gOf(doc, a.bought) === g) { assetVal[a.id] = a.value; cash -= a.loan_id ? (a.down ?? 0) : a.value }
+        if (a.bought && gOf(doc, a.bought) === g) {
+          const outOf = a.loan_id ? (a.down ?? 0) : a.value
+          assetVal[a.id] = a.value; cash -= outOf
+          marks.push({ g, kind: 'buy', title: a.title, amount: -outOf, ref: a.id })
+        }
         if (a.sold && gOf(doc, a.sold) === g && assetVal[a.id] !== undefined) {
+          let into = a.sold.price
           cash += a.sold.price; delete assetVal[a.id]
-          if (a.loan_id && debtBal[a.loan_id]) { cash -= debtBal[a.loan_id]; debtBal[a.loan_id] = 0 }
+          if (a.loan_id && debtBal[a.loan_id]) { cash -= debtBal[a.loan_id]; into -= debtBal[a.loan_id]; debtBal[a.loan_id] = 0 }
+          marks.push({ g, kind: 'sell', title: a.title, amount: into, ref: a.id })
         }
       })
-      ;(evAt.get(g) || []).forEach((e) => { cash += e.amount })
+      ;(evAt.get(g) || []).forEach((e) => { cash += e.amount; marks.push({ g, kind: 'once', title: e.title, amount: e.amount, ref: e.id }) })
+      opened()
       let i = 0, o = 0, pay = 0
       p.lines.forEach((l) => { const v = vals.get(l.id)!.monthly; if (v == null || !activeAt(l, m)) return; if (l.side === 'in') { i += v; if (isTaxable(l)) pay += v } else o += v })
       const t = monthlyTax(p, pay)
       inn.push(i - t); out.push(o); tax.push(t)
       cash += i - t - o
+      let paid = 0, put = 0
       doc.debts.forEach((d) => {
         const b = debtBal[d.id]; if (!b) return
         const withInt = b * (1 + d.rate / 1200)
-        const pay = Math.min(withInt, d.payment)
-        debtBal[d.id] = Math.max(0, withInt - pay); cash -= pay
+        const pol = policyAt(doc, d.id, g)
+        const min = Math.min(withInt, d.payment)
+        const want = pol?.full ? withInt : Math.max(d.payment, pol?.pay ?? d.payment)
+        const amt = Math.min(withInt, want)
+        debtBal[d.id] = Math.max(0, withInt - amt); cash -= amt; paid += amt
+        debtPaid[d.id][g] = amt; debtMin[d.id][g] = min
       })
-      doc.savings.forEach((s) => { if (s.main) return; saveBal[s.id] = (saveBal[s.id] + s.monthly) * (1 + s.rate / 1200); cash -= s.monthly })
+      doc.savings.forEach((s) => {
+        if (s.main) return
+        const pol = policyAt(doc, s.id, g)
+        const pct = pol?.pct ?? s.pct ?? null
+        const c = pct != null ? (pay * pct) / 100 : (pol?.put ?? s.monthly)
+        const e = pct != null && s.match ? (pay * Math.min(pct, s.match)) / 100 : 0
+        saveBal[s.id] = (saveBal[s.id] + c + e) * (1 + s.rate / 1200); cash -= c; put += c
+        savePut[s.id][g] = c; saveMatch[s.id][g] = e
+      })
+      paidT.push(paid); putT.push(put); left.push(i - t - o - paid - put)
       doc.assets.forEach((a) => { if (assetVal[a.id] !== undefined) assetVal[a.id] *= Math.pow(1 + a.change / 100, 1 / 12) })
       if (main && cash > 0) cash *= 1 + main.rate / 1200
-      // Money you'd be short is shown as debt, with no rate: the plan has to cover it somehow.
-      if (cash < 0) { owed += -cash; cash = 0 } else if (owed > 0) { const back = Math.min(owed, cash); owed -= back; cash -= back }
+      // Money you'd be short goes on a card at its rate, and is paid back first from what is left later.
+      if (owed > 0) owed *= 1 + cardRate / 1200
+      if (cash < 0) {
+        if (owed <= 0.5) marks.push({ g, kind: 'short', title: 'Savings run out', amount: 0, ref: null })
+        owed += -cash; cash = 0
+      } else if (owed > 0) { const back = Math.min(owed, cash); owed -= back; cash -= back }
       snapshot()
     }
   }
+  const at = (t: number) => Math.min(Math.max(0, t), G - 1)
   return {
-    months: G, sav, own, debt, short, inn, out, tax, missing,
-    debtsAt: (t) => doc.debts.map((d) => ({ debt: d, balance: debtHist[d.id]?.[t] ?? 0, payment: d.payment })).filter((x) => x.balance > 0.5),
-    savingsAt: (t) => doc.savings.map((s) => ({ id: s.id, title: s.title, balance: saveHist[s.id]?.[t] ?? 0 })),
-    assetsAt: (t) => doc.assets.map((a) => ({ asset: a, value: assetHist[a.id]?.[t] ?? 0 })).filter((x) => x.value > 0.5),
+    months: G, sav, own, debt, short, inn, out, tax, paid: paidT, put: putT, left, marks, missing, cardRate,
+    debtsAt: (t) => doc.debts.map((d) => {
+      const startsAt = d.start ? gOf(doc, d.start) : null
+      const balance = debtOpen[d.id]?.[at(t)] ?? 0
+      // Paid off: the month of the last payment, the first after it starts that leaves nothing owed.
+      const from = startsAt ?? 0
+      const hist = debtHist[d.id] || []
+      let paidOffAt: number | null = null
+      if (d.balance > 0.5) for (let m = from + 1; m < hist.length; m++) if ((hist[m] ?? 0) <= 0.5) { paidOffAt = m - 1; break }
+      const state: DebtAt['state'] = startsAt != null && t < startsAt ? 'later' : balance > 0.5 ? 'owing' : 'paid'
+      return { debt: d, balance: state === 'later' ? d.balance : balance, payment: debtPaid[d.id]?.[at(t)] ?? 0, minimum: debtMin[d.id]?.[at(t)] ?? 0, state, startsAt, paidOffAt }
+    }),
+    savingsAt: (t) => doc.savings.map((s) => ({ id: s.id, title: s.title, balance: saveOpen[s.id]?.[at(t)] ?? 0, put: savePut[s.id]?.[at(t)] ?? 0, match: saveMatch[s.id]?.[at(t)] ?? 0 })),
+    assetsAt: (t) => doc.assets.map((a) => ({ asset: a, value: assetOpen[a.id]?.[at(t)] ?? 0 })).filter((x) => x.value > 0.5),
   }
 }
 

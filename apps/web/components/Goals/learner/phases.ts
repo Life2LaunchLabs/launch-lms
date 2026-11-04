@@ -1,4 +1,5 @@
 import type { LifeDoc } from '@services/life/life'
+import { endOf, normalize, whenOf, ym } from '../phases/graph'
 
 // Goals live in the phases of the learner's life plan. A goal filed in no phase belongs to the
 // phase they're in now (or the first one, before the plan starts). Without a plan, every goal
@@ -8,25 +9,11 @@ export type PhaseWhen = 'done' | 'now' | 'next' | 'later'
 export type PhaseGroup<T> = { id: string | null; title: string; when: PhaseWhen | null; starts?: string; goals: T[] }
 export type PhaseTime = { phase: NonNullable<LifeDoc['phases']>[number]; index: number; when: PhaseWhen; starts: string; ends: string }
 
-const monthIndex = (value: string) => { const [year, month] = value.split('-').map(Number); return year * 12 + month - 1 }
-const monthLabel = (index: number) => `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
-
-/** The plan's phases in order, each with when it is relative to this month. */
+/** The plan's phases by start date, each with when it is relative to this month. */
 export function phaseTimes(doc: LifeDoc | null | undefined, today = new Date()): PhaseTime[] {
   if (!doc?.phases?.length || !doc.start) return []
-  const current = today.getFullYear() * 12 + today.getMonth()
-  const begins: number[] = []
-  let month = monthIndex(doc.start)
-  for (const phase of doc.phases) { begins.push(month); month += Math.max(1, phase.months || 1) }
-  const last = doc.phases.length - 1
-  // Past the plan's end, the last phase stays the one they're in.
-  let nowIndex = begins.findIndex((start, index) => start <= current && current < (begins[index + 1] ?? month))
-  if (nowIndex < 0 && month <= current) nowIndex = last
-  const nextIndex = begins.findIndex((start) => start > current)
-  return doc.phases.map((phase, index) => {
-    const when: PhaseWhen = index === nowIndex ? 'now' : index === nextIndex ? 'next' : begins[index] > current ? 'later' : 'done'
-    return { phase, index, when, starts: monthLabel(begins[index]), ends: monthLabel((begins[index + 1] ?? month) - 1) }
-  })
+  const map = normalize(doc)
+  return map.phases.map((phase, index) => ({ phase, index, when: whenOf(map, phase, today), starts: phase.starts!, ends: ym(endOf(map, phase) - 1) }))
 }
 
 /** Where goals without a phase go: the phase now, or the first one still to come. */

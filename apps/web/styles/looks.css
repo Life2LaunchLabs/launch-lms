@@ -1,10 +1,13 @@
 /* ─── Looks ───
    A learner's look (components/Looks/looks.ts) themes the whole app when set on <html>, and a portfolio
-   when set on its page, so visitors see it in its owner's look. Each look sets the full token set, so it
-   holds inside a page of another look. Unlayered, so it wins over the light and dark tokens. */
+   when set on its page, so visitors see it in its owner's look. Each look has a light side ([data-look])
+   and a dark side (.dark[data-look], the same element carrying the theme class), and sets the full token
+   set, so it holds inside a page of another look. Unlayered, so it wins over the light and dark tokens and
+   over Tailwind's utilities. An accent ([data-accent], after the looks) recolors the brand tokens.
+   After the tokens: the few components each look draws its own way (buttons app-wide, then the portfolio). */
 
-[data-look='pop'],
-[data-look='pop'] [data-org-theme] {
+[data-look='playful'],
+[data-look='playful'] [data-org-theme] {
   --background: 200 25% 97%;
   --foreground: 200 30% 9%;
   --card: 0 0% 100%;
@@ -36,104 +39,339 @@
   --look-c: #f5a524;
 }
 
-[data-look='studio'],
-[data-look='studio'] [data-org-theme] {
+.dark[data-look='playful'],
+.dark[data-look='playful'] [data-org-theme] {
+  --background: 210 33% 8%;
+  --foreground: 205 40% 96%;
+  --card: 210 30% 12%;
+  --card-foreground: 205 40% 96%;
+  --popover: 210 30% 13%;
+  --popover-foreground: 205 40% 96%;
+  --primary: 205 40% 96%;
+  --primary-foreground: 210 33% 8%;
+  --secondary: 210 26% 17%;
+  --secondary-foreground: 205 40% 96%;
+  --muted: 210 26% 17%;
+  --muted-foreground: 208 14% 66%;
+  --accent: 210 24% 20%;
+  --accent-foreground: 205 40% 96%;
+  --border: 210 22% 22%;
+  --input: 210 22% 25%;
+  --ring: 218 100% 65%;
+  --brand: 218 100% 65%;
+  --brand-soft: 220 50% 20%;
+  --brand-ink: 218 100% 82%;
+  --shell: 210 36% 5%;
+  --raised: 210 26% 17%;
+  --edge: 210 22% 20%;
+  --org-page-background: #0e151c;
+  --org-primary-color: #4c8dff;
+  --org-on-primary-color: #ffffff;
+  --look-a: #4c8dff;
+  --look-b: #ec4f9a;
+  --look-c: #f5a524;
+}
+
+[data-look='gallery'],
+[data-look='gallery'] [data-org-theme] {
   --background: 0 0% 100%;
-  --foreground: 0 0% 7%;
+  --foreground: 0 0% 4%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 7%;
+  --card-foreground: 0 0% 4%;
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 7%;
-  --primary: 0 0% 7%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 0 0% 4%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 95%;
-  --secondary-foreground: 0 0% 7%;
+  --secondary-foreground: 0 0% 4%;
   --muted: 0 0% 95%;
   --muted-foreground: 0 0% 40%;
   --accent: 0 0% 93%;
-  --accent-foreground: 0 0% 7%;
-  --border: 0 0% 88%;
-  --input: 0 0% 84%;
-  --ring: 0 0% 7%;
-  --brand: 0 0% 7%;
-  --brand-soft: 0 0% 94%;
-  --brand-ink: 0 0% 7%;
-  --shell: 0 0% 95%;
+  --accent-foreground: 0 0% 4%;
+  --border: 0 0% 85%;
+  --input: 0 0% 80%;
+  --ring: 15 100% 50%;
+  --brand: 15 100% 50%;
+  --brand-soft: 15 100% 95%;
+  --brand-ink: 15 100% 38%;
+  --shell: 0 0% 96%;
   --raised: 0 0% 96%;
-  --edge: 0 0% 82%;
-  --radius: 0.25rem;
+  --edge: 0 0% 80%;
+  --radius: 0.125rem;
   --org-page-background: #ffffff;
-  --org-primary-color: #111111;
+  --org-primary-color: #ff3d00;
   --org-on-primary-color: #ffffff;
-  --look-a: #111111;
-  --look-b: #3a3a3a;
+  --look-a: #ff3d00;
+  --look-b: #0b0b0b;
   --look-c: #8a8a8a;
+  --look-line: #0b0b0b;
 }
 
-[data-look='midnight'],
-[data-look='midnight'] [data-org-theme] {
-  --background: 229 46% 8%;
-  --foreground: 230 100% 97%;
-  --card: 228 42% 14%;
-  --card-foreground: 230 100% 97%;
-  --popover: 228 42% 15%;
-  --popover-foreground: 230 100% 97%;
-  --primary: 230 100% 97%;
-  --primary-foreground: 229 46% 8%;
-  --secondary: 228 39% 19%;
-  --secondary-foreground: 230 100% 97%;
-  --muted: 228 39% 19%;
-  --muted-foreground: 228 30% 69%;
-  --accent: 228 36% 22%;
-  --accent-foreground: 230 100% 97%;
-  --border: 229 36% 24%;
-  --input: 229 36% 27%;
-  --ring: 233 100% 74%;
-  --brand: 233 100% 74%;
-  --brand-soft: 231 43% 23%;
-  --brand-ink: 233 100% 86%;
-  --shell: 229 50% 5%;
-  --raised: 228 39% 19%;
-  --edge: 229 36% 22%;
-  --org-page-background: #0b0f1e;
-  --org-primary-color: #7c5cff;
+.dark[data-look='gallery'],
+.dark[data-look='gallery'] [data-org-theme] {
+  --background: 0 0% 4%;
+  --foreground: 45 18% 93%;
+  --card: 0 0% 4%;
+  --card-foreground: 45 18% 93%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 45 18% 93%;
+  --primary: 45 18% 93%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 11%;
+  --secondary-foreground: 45 18% 93%;
+  --muted: 0 0% 11%;
+  --muted-foreground: 40 4% 54%;
+  --accent: 0 0% 13%;
+  --accent-foreground: 45 18% 93%;
+  --border: 0 0% 20%;
+  --input: 0 0% 24%;
+  --ring: 15 100% 55%;
+  --brand: 15 100% 55%;
+  --brand-soft: 15 45% 14%;
+  --brand-ink: 15 100% 72%;
+  --shell: 0 0% 2%;
+  --raised: 0 0% 10%;
+  --edge: 0 0% 18%;
+  --radius: 0.125rem;
+  --org-page-background: #0b0b0b;
+  --org-primary-color: #ff3d00;
   --org-on-primary-color: #ffffff;
-  --look-a: #5b2bd6;
-  --look-b: #00d1c1;
-  --look-c: #1b1f4b;
+  --look-a: #ff3d00;
+  --look-b: #2a2a2a;
+  --look-c: #555555;
+  --look-line: #f2f0ea;
 }
 
-[data-look='sunset'],
-[data-look='sunset'] [data-org-theme] {
-  --background: 28 100% 97%;
-  --foreground: 13 40% 12%;
-  --card: 30 100% 99%;
-  --card-foreground: 13 40% 12%;
-  --popover: 30 100% 99%;
-  --popover-foreground: 13 40% 12%;
-  --primary: 13 40% 12%;
-  --primary-foreground: 30 100% 99%;
-  --secondary: 24 90% 92%;
-  --secondary-foreground: 13 40% 12%;
-  --muted: 24 90% 92%;
-  --muted-foreground: 17 23% 39%;
-  --accent: 24 85% 90%;
-  --accent-foreground: 13 40% 12%;
-  --border: 23 66% 86%;
-  --input: 23 60% 82%;
-  --ring: 18 80% 54%;
-  --brand: 18 80% 54%;
-  --brand-soft: 21 100% 92%;
-  --brand-ink: 17 73% 38%;
-  --shell: 24 80% 92%;
-  --raised: 24 90% 94%;
-  --edge: 23 50% 80%;
-  --org-page-background: #fff6ee;
-  --org-primary-color: #e8642c;
+[data-look='volt'],
+[data-look='volt'] [data-org-theme] {
+  --background: 220 9% 95%;
+  --foreground: 225 11% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 225 11% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 225 11% 5%;
+  --primary: 225 11% 5%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 9% 91%;
+  --secondary-foreground: 225 11% 5%;
+  --muted: 220 9% 91%;
+  --muted-foreground: 220 5% 40%;
+  --accent: 220 9% 90%;
+  --accent-foreground: 225 11% 5%;
+  --border: 220 10% 88%;
+  --input: 220 10% 84%;
+  --ring: 76 78% 45%;
+  --brand: 76 78% 54%;
+  --brand-soft: 76 80% 92%;
+  --brand-ink: 80 70% 26%;
+  --shell: 220 9% 92%;
+  --raised: 220 9% 93%;
+  --edge: 220 10% 82%;
+  --radius: 1rem;
+  --org-page-background: #f1f2f4;
+  --org-primary-color: #b8e62e;
+  --org-on-primary-color: #0c0d0f;
+  --look-a: #b8e62e;
+  --look-b: #0c0d0f;
+  --look-c: #3d4a12;
+  --look-line: #e2e4e8;
+}
+
+.dark[data-look='volt'],
+.dark[data-look='volt'] [data-org-theme] {
+  --background: 240 6% 3%;
+  --foreground: 240 5% 96%;
+  --card: 240 5% 7%;
+  --card-foreground: 240 5% 96%;
+  --popover: 240 5% 8%;
+  --popover-foreground: 240 5% 96%;
+  --primary: 240 5% 96%;
+  --primary-foreground: 240 6% 3%;
+  --secondary: 240 5% 12%;
+  --secondary-foreground: 240 5% 96%;
+  --muted: 240 5% 12%;
+  --muted-foreground: 240 4% 62%;
+  --accent: 240 5% 14%;
+  --accent-foreground: 240 5% 96%;
+  --border: 240 5% 14%;
+  --input: 240 5% 18%;
+  --ring: 76 78% 54%;
+  --brand: 76 78% 54%;
+  --brand-soft: 76 40% 14%;
+  --brand-ink: 76 85% 70%;
+  --shell: 240 6% 2%;
+  --raised: 240 5% 11%;
+  --edge: 240 5% 16%;
+  --radius: 1rem;
+  --org-page-background: #070708;
+  --org-primary-color: #b8e62e;
+  --org-on-primary-color: #0c0d0f;
+  --look-a: #b8e62e;
+  --look-b: #1a1d10;
+  --look-c: #0c0d0f;
+  --look-line: #222226;
+}
+
+[data-look='professional'],
+[data-look='professional'] [data-org-theme] {
+  --background: 220 14% 96%;
+  --foreground: 222 18% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 18% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 18% 13%;
+  --primary: 222 18% 13%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 93%;
+  --secondary-foreground: 222 18% 13%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 7% 42%;
+  --accent: 220 14% 92%;
+  --accent-foreground: 222 18% 13%;
+  --border: 220 13% 89%;
+  --input: 220 13% 84%;
+  --ring: 221 69% 46%;
+  --brand: 221 69% 46%;
+  --brand-soft: 221 80% 95%;
+  --brand-ink: 221 69% 36%;
+  --shell: 0 0% 100%;
+  --raised: 220 14% 95%;
+  --edge: 220 13% 84%;
+  --radius: 0.5rem;
+  --org-page-background: #f3f4f6;
+  --org-primary-color: #2457c5;
   --org-on-primary-color: #ffffff;
-  --look-a: #f5a524;
-  --look-b: #e8642c;
-  --look-c: #c8327d;
+  --look-a: #2457c5;
+  --look-b: #4f7fe0;
+  --look-c: #9db7ee;
+  --look-line: #e1e4e9;
+}
+
+.dark[data-look='professional'],
+.dark[data-look='professional'] [data-org-theme] {
+  --background: 222 17% 7%;
+  --foreground: 220 15% 92%;
+  --card: 220 15% 11%;
+  --card-foreground: 220 15% 92%;
+  --popover: 220 15% 12%;
+  --popover-foreground: 220 15% 92%;
+  --primary: 220 15% 92%;
+  --primary-foreground: 222 17% 7%;
+  --secondary: 220 13% 16%;
+  --secondary-foreground: 220 15% 92%;
+  --muted: 220 13% 15%;
+  --muted-foreground: 219 9% 64%;
+  --accent: 220 13% 17%;
+  --accent-foreground: 220 15% 92%;
+  --border: 220 12% 17%;
+  --input: 220 12% 22%;
+  --ring: 220 82% 65%;
+  --brand: 220 82% 65%;
+  --brand-soft: 220 45% 18%;
+  --brand-ink: 220 90% 80%;
+  --shell: 220 15% 9%;
+  --raised: 220 13% 15%;
+  --edge: 220 12% 20%;
+  --radius: 0.5rem;
+  --org-page-background: #0f1115;
+  --org-primary-color: #5b8def;
+  --org-on-primary-color: #ffffff;
+  --look-a: #5b8def;
+  --look-b: #1f3f86;
+  --look-c: #171a1f;
+  --look-line: #262a31;
+}
+
+/* Arcade: a game HUD, after Cyberpunk 2077's menus, toned down. A red accent with cyan readouts. */
+[data-look='arcade'],
+[data-look='arcade'] [data-org-theme] {
+  --background: 225 20% 95%;
+  --foreground: 230 22% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 230 22% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 230 22% 9%;
+  --primary: 230 22% 9%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 225 18% 91%;
+  --secondary-foreground: 230 22% 9%;
+  --muted: 225 18% 91%;
+  --muted-foreground: 228 12% 40%;
+  --accent: 225 18% 90%;
+  --accent-foreground: 230 22% 9%;
+  --border: 226 18% 84%;
+  --input: 226 18% 80%;
+  --ring: 354 100% 62%;
+  --brand: 354 100% 62%;
+  --brand-soft: 354 100% 95%;
+  --brand-ink: 354 80% 42%;
+  --shell: 225 20% 92%;
+  --raised: 225 18% 92%;
+  --edge: 226 18% 78%;
+  --radius: 0rem;
+  --org-page-background: #eef0f4;
+  --org-primary-color: #ff3b4f;
+  --org-on-primary-color: #ffffff;
+  --look-a: #ff3b4f;
+  --look-b: #5a1630;
+  --look-c: #12d6e0;
+  --look-line: #cfd4e0;
+  --look-cyan: #008f99;
+}
+
+.dark[data-look='arcade'],
+.dark[data-look='arcade'] [data-org-theme] {
+  --background: 230 23% 5%;
+  --foreground: 228 40% 94%;
+  --card: 230 22% 9%;
+  --card-foreground: 228 40% 94%;
+  --popover: 230 22% 10%;
+  --popover-foreground: 228 40% 94%;
+  --primary: 228 40% 94%;
+  --primary-foreground: 230 23% 5%;
+  --secondary: 230 20% 14%;
+  --secondary-foreground: 228 40% 94%;
+  --muted: 230 20% 13%;
+  --muted-foreground: 229 14% 63%;
+  --accent: 230 20% 15%;
+  --accent-foreground: 228 40% 94%;
+  --border: 230 20% 18%;
+  --input: 230 20% 22%;
+  --ring: 354 100% 62%;
+  --brand: 354 100% 62%;
+  --brand-soft: 354 50% 16%;
+  --brand-ink: 354 100% 78%;
+  --shell: 230 25% 4%;
+  --raised: 230 20% 13%;
+  --edge: 230 20% 20%;
+  --radius: 0rem;
+  --org-page-background: #0a0b10;
+  --org-primary-color: #ff3b4f;
+  --org-on-primary-color: #ffffff;
+  --look-a: #ff3b4f;
+  --look-b: #2a0c1c;
+  --look-c: #0a3a44;
+  --look-line: #262b3d;
+  --look-cyan: #12d6e0;
+}
+
+/* An accent the learner picked: its hue (set inline by accentVars) takes over the brand tokens. Doubled
+   attribute so it outranks any look's light or dark side. */
+[data-accent][data-accent],
+[data-accent][data-accent] [data-org-theme] {
+  --brand: var(--accent-h) var(--accent-s) var(--accent-l);
+  --ring: var(--accent-h) var(--accent-s) var(--accent-l);
+  --brand-soft: var(--accent-h) 90% 94%;
+  --brand-ink: var(--accent-h) var(--accent-s) 34%;
+  --org-primary-color: var(--accent-hex);
+  --org-on-primary-color: var(--accent-on);
+  --look-a: var(--accent-hex);
+}
+
+.dark[data-accent][data-accent],
+.dark[data-accent][data-accent] [data-org-theme] {
+  --brand-soft: var(--accent-h) 40% 20%;
+  --brand-ink: var(--accent-h) 100% 82%;
 }
 
 /* A look set on a page, not the whole app, paints its own background. */
@@ -141,3 +379,227 @@
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+
+/* ─── Components each look draws its own way ─── */
+
+/* Volt app-wide: Manrope for text, pill buttons without the 3D edge. */
+html[data-look='volt'] body,
+[data-portfolio-v2][data-look='volt'] { font-family: Manrope, 'Wix Madefor Text', system-ui, sans-serif; letter-spacing: -0.01em; }
+[data-look='volt'] [data-variant='brand'],
+[data-look='volt'] [data-variant='surface'] { border-radius: 999px; box-shadow: none; text-transform: none; letter-spacing: 0; transform: none; }
+[data-look='volt'] [data-variant='surface'] { border-width: 1px; }
+
+/* Gallery app-wide: square, flat buttons with mono capitals. */
+[data-look='gallery'] [data-variant='brand'],
+[data-look='gallery'] [data-variant='surface'] { border-radius: 0; box-shadow: none; transform: none; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; letter-spacing: 0.04em; }
+[data-look='gallery'] [data-variant='surface'] { border-width: 1px; border-color: var(--look-line); }
+
+/* ── The portfolio's section stack ── */
+[data-fit-hidden] { display: none !important; }
+/* The owner's section tools (grip, rename, take out) wait out of sight until the section is pointed at. */
+[data-sec-tool] { opacity: 0; transition: opacity .15s; }
+[data-sec]:hover [data-sec-tool], [data-sec]:focus-within [data-sec-tool] { opacity: 1; }
+@media (hover: none) { [data-sec-tool] { opacity: 1; } }
+/* The section fills its cell, and a featured carousel fills a set height. */
+[data-sec] > [data-tile], [data-sec] > [data-feature], [data-sec] > [data-feature-wrap], [data-feature-wrap] > [data-feature], [data-sec] > [data-highlights-section] { height: 100%; }
+
+/* ── Each look's rhythm: the space between sections. ── */
+[data-portfolio-v2][data-look='gallery'] { --stack-gx: 40px; --stack-gy: 64px; }
+[data-portfolio-v2][data-look='volt'] { --stack-gx: 32px; --stack-gy: 48px; }
+
+/* ── Gallery: art-house. No cards: thin rules, a huge serif name, mono captions, work set big and uneven, room around everything. ── */
+[data-portfolio-v2][data-look='gallery'] [data-tile] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 16px 0 0; gap: 24px; transform: none; }
+[data-portfolio-v2][data-look='gallery'] [data-tile][data-spot] { border-top: 3px solid #f29400; box-shadow: none; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-icon] { display: none; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1; letter-spacing: -0.02em; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-count] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+[data-portfolio-v2][data-look='gallery'] [data-fit-box] { gap: 22px; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] small,
+[data-portfolio-v2][data-look='gallery'] [data-tile] [data-item] b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; line-height: 1.55; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] .bg-muted { background: transparent; border-radius: 0; box-shadow: inset 0 -1px 0 var(--look-line); }
+[data-portfolio-v2][data-look='gallery'] [data-cover] { border-radius: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-empty-add],
+[data-portfolio-v2][data-look='gallery'] [data-bio-start]:not([aria-label]) { border-width: 1px; border-radius: 0; padding: 20px; }
+[data-portfolio-v2][data-look='gallery'] [data-empty-add] > span:first-child { border-radius: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 40px 24px; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > * { grid-column: span 3; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 1) { grid-column: span 6; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 1) [data-cover] { aspect-ratio: 16 / 9; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 2) { margin-top: 48px; }
+[data-portfolio-v2][data-look='gallery'] [data-highlights-section] > section { gap: 32px; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 12px 0 0; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] b { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 52px; line-height: 1; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] span { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; font-size: 12px; margin-top: 6px; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-frame] { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(28px, 5.5cqw, 52px); line-height: 1; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-slide='quote'] blockquote { font-style: italic; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-kick] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-dots] { display: none; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-count] { display: inline; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-nav] { justify-content: flex-start; }
+/* Gallery's quest pieces: flat and square, like everything else in it. */
+[data-portfolio-v2][data-look='gallery'] [data-quest-banner] { border-radius: 0; border-width: 1px; box-shadow: none; margin-top: 28px; }
+[data-portfolio-v2][data-look='gallery'] [data-quest-banner] button { border-radius: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-quest-tail] { border-radius: 0; border-width: 1px 0 0 1px; }
+[data-portfolio-v2][data-look='gallery'] [data-quest-button] { border-radius: 0; border-width: 1px; box-shadow: none; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; letter-spacing: 0.02em; }
+@container (max-width: 520px) {
+  [data-portfolio-v2][data-look='gallery'] [data-projects] > * { grid-column: span 6 !important; margin-top: 0 !important; }
+}
+
+/* ── Volt: modern minimal, after the concept board. Nothing boxed: no card backgrounds or borders, quiet
+   sentence-case headings, hairlines where a line helps, photos with soft corners, one electric accent. ── */
+[data-portfolio-v2][data-look='volt'] [data-tile] { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0; gap: 16px; transform: none; }
+[data-portfolio-v2][data-look='volt'] [data-tile][data-spot] { box-shadow: none; }
+/* Without card edges the gold "!" sits beside the header's count and arrow instead of on a corner. */
+[data-portfolio-v2][data-look='volt'] [data-tile] > [data-spot-tip] { top: -2px; right: 44px; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] > [data-spot-tip] { top: -14px; right: 0; }
+[data-portfolio-v2][data-look='volt'] [data-tile-icon] { display: none; }
+[data-portfolio-v2][data-look='volt'] [data-tile-title] { font-family: Manrope, system-ui, sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
+[data-portfolio-v2][data-look='volt'] [data-tile-count] { font-weight: 600; }
+[data-portfolio-v2][data-look='volt'] [data-tile] .bg-muted { background: transparent; box-shadow: inset 0 0 0 1px var(--look-line); }
+[data-portfolio-v2][data-look='volt'] [data-tile] .border-t { border-color: var(--look-line); }
+[data-portfolio-v2][data-look='volt'] [data-tile] .font-extrabold { font-weight: 700; }
+[data-portfolio-v2][data-look='volt'] [data-cover] { border-radius: 14px; }
+[data-portfolio-v2][data-look='volt'] [data-empty-add],
+[data-portfolio-v2][data-look='volt'] [data-bio-start]:not([aria-label]) { border-width: 1px; border-radius: 14px; border-color: var(--look-line); }
+[data-portfolio-v2][data-look='volt'] [data-empty-add]:hover { border-color: var(--org-primary-color); }
+[data-portfolio-v2][data-look='volt'] [data-highlights-section] > section { gap: 24px; }
+[data-portfolio-v2][data-look='volt'] [data-highlight] { background: transparent; border: 0; border-left: 2px solid var(--org-primary-color); border-radius: 0; box-shadow: none; padding: 2px 0 2px 14px; }
+[data-portfolio-v2][data-look='volt'] [data-highlight] b { font-family: Manrope, system-ui, sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -0.03em; }
+[data-portfolio-v2][data-look='volt'] [data-feature-frame] { border: 0; border-radius: 20px; box-shadow: none; background: transparent; }
+[data-portfolio-v2][data-look='volt'] [data-feature-title] { font-family: Manrope, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.03em; font-size: clamp(22px, 4cqw, 34px); line-height: 1.1; }
+[data-portfolio-v2][data-look='volt'] [data-feature-kick] { justify-self: start; background: var(--org-primary-color); color: var(--org-on-primary-color); border-radius: 999px; padding: 3px 10px; letter-spacing: 0.04em; }
+/* Volt's quest pieces: hairline pills, no 3D edge. */
+[data-portfolio-v2][data-look='volt'] [data-quest-banner] { border-width: 1px; border-radius: 16px; box-shadow: none; }
+[data-portfolio-v2][data-look='volt'] [data-quest-tail] { border-width: 1px 0 0 1px; }
+[data-portfolio-v2][data-look='volt'] [data-quest-button] { border-radius: 999px; border-width: 1px; box-shadow: none; }
+/* A photo slide in Volt runs edge to edge, with its words over the bottom of the picture. */
+@container (min-width: 560px) {
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'],
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] { position: relative; display: block; min-height: 300px; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'] [data-feature-media],
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-media] { position: absolute; inset: 0; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'] [data-feature-text],
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-text] { position: absolute; inset: auto 0 0 0; background: linear-gradient(0deg, rgba(0,0,0,.72), transparent); color: #fff; padding-top: 72px; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-text] .text-muted-foreground,
+  [data-portfolio-v2][data-look='volt'] [data-feature-text] .text-foreground { color: rgba(255,255,255,.85); }
+}
+
+/* ── A project's own page (visitors' view, and the owner's editor) in each look ── */
+[data-project-detail][data-look='gallery'] [data-pj-hero] { border: 0; border-radius: 0; box-shadow: none; margin-inline: calc(50% - 50vw); max-width: 100vw; aspect-ratio: 21 / 9; }
+[data-project-detail][data-look='gallery'] [data-pj-title] h1,
+[data-look='gallery'] [data-project-page] input[name='title'] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(48px, 9vw, 110px); line-height: 0.9; letter-spacing: -0.03em; }
+[data-project-detail][data-look='gallery'] [data-pj-title] p,
+[data-project-detail][data-look='gallery'] [data-pj-story] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; }
+[data-project-detail][data-look='gallery'] [data-pj-story] { columns: 2 260px; column-gap: 32px; max-width: none; }
+[data-project-detail][data-look='gallery'] [data-pj-gallery] { grid-template-columns: 1fr; gap: 32px; }
+[data-project-detail][data-look='gallery'] [data-pj-gallery] img { border-radius: 0; }
+[data-project-detail][data-look='gallery'] [data-pj-hero] ~ [data-pj-head] { order: -1; }
+[data-project-detail][data-look='volt'] [data-pj-hero] { border-width: 1px; border-radius: 24px; box-shadow: none; aspect-ratio: 16 / 8; }
+[data-project-detail][data-look='volt'] [data-pj-over] { display: block; position: absolute; inset: auto 0 0 0; padding: 72px 24px 22px; background: linear-gradient(0deg, rgba(0,0,0,.8), transparent); color: #fff; }
+[data-project-detail][data-look='volt'] [data-pj-over] p { color: rgba(255,255,255,.85); }
+[data-project-detail][data-look='volt'] [data-pj-hero] ~ [data-pj-head] { display: none; }
+[data-project-detail][data-look='volt'] [data-pj-title] h1,
+[data-look='volt'] [data-project-page] input[name='title'] { font-family: Manrope, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.035em; font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; }
+[data-project-detail][data-look='volt'] [data-pj-gallery] img { border-radius: 20px; aspect-ratio: 4 / 5; }
+[data-look='gallery'] [data-project-page] .aspect-\[2\/1\] { border-radius: 0; box-shadow: none; border-width: 0; }
+[data-look='volt'] [data-project-page] .aspect-\[2\/1\] { border-width: 1px; border-radius: 24px; box-shadow: none; }
+
+/* ── Professional: a LinkedIn-like profile. White cards with a hairline and small corners, no depth, quiet
+   semibold headings, the section icons left out, the accent only on links and numbers. ── */
+html[data-look='professional'] body,
+[data-portfolio-v2][data-look='professional'] { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+[data-look='professional'] [data-variant='brand'],
+[data-look='professional'] [data-variant='surface'] { border-radius: 6px; box-shadow: none; text-transform: none; letter-spacing: 0; transform: none; font-weight: 600; }
+[data-look='professional'] [data-variant='surface'] { border-width: 1px; }
+[data-portfolio-v2][data-look='professional'] { --stack-gx: 16px; --stack-gy: 16px; }
+[data-portfolio-v2][data-look='professional'] [data-tile] { border-width: 1px; border-radius: 8px; box-shadow: none; padding: 20px 22px; gap: 14px; transform: none; }
+[data-portfolio-v2][data-look='professional'] [data-tile][data-spot] { border-color: #f29400; box-shadow: 0 0 0 3px rgba(255, 194, 26, .35); }
+[data-portfolio-v2][data-look='professional'] [data-tile-icon] { display: none; }
+[data-portfolio-v2][data-look='professional'] [data-tile-title] { font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
+[data-portfolio-v2][data-look='professional'] [data-tile-count] { font-weight: 500; }
+[data-portfolio-v2][data-look='professional'] [data-tile] .font-extrabold { font-weight: 600; }
+[data-portfolio-v2][data-look='professional'] [data-tile] .rounded-xl,
+[data-portfolio-v2][data-look='professional'] [data-tile] .rounded-2xl,
+[data-portfolio-v2][data-look='professional'] [data-cover] { border-radius: 6px; }
+[data-portfolio-v2][data-look='professional'] [data-empty-add],
+[data-portfolio-v2][data-look='professional'] [data-bio-start]:not([aria-label]) { border-width: 1px; border-radius: 8px; }
+[data-portfolio-v2][data-look='professional'] [data-empty-add] > span:first-child { border-radius: 6px; }
+[data-portfolio-v2][data-look='professional'] [data-highlights-section] > section { gap: 0; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); overflow: hidden; }
+[data-portfolio-v2][data-look='professional'] [data-highlight] { border: 0; border-right: 1px solid hsl(var(--border)); border-radius: 0; box-shadow: none; padding: 16px 20px; }
+[data-portfolio-v2][data-look='professional'] [data-highlight] b { font-weight: 600; font-size: 24px; color: var(--org-primary-color); }
+[data-portfolio-v2][data-look='professional'] [data-highlight] span { font-weight: 400; }
+[data-portfolio-v2][data-look='professional'] [data-feature-frame] { border-width: 1px; border-radius: 8px; box-shadow: none; }
+[data-portfolio-v2][data-look='professional'] [data-feature-title] { font-weight: 600; letter-spacing: -0.01em; }
+[data-portfolio-v2][data-look='professional'] [data-feature-kick] { font-weight: 600; letter-spacing: 0.06em; }
+[data-portfolio-v2][data-look='professional'] [data-pf-header] [data-variant] { height: 36px; justify-content: center; }
+[data-portfolio-v2][data-look='professional'] [data-pf-header] [data-quest-button] { width: 100%; }
+[data-portfolio-v2][data-look='professional'] [data-quest-banner] { border-width: 1px; border-radius: 8px; box-shadow: none; margin-top: 0; }
+[data-portfolio-v2][data-look='professional'] [data-quest-tail] { border-width: 1px 0 0 1px; }
+[data-portfolio-v2][data-look='professional'] [data-quest-button] { border-radius: 6px; border-width: 1px; box-shadow: none; font-weight: 600; }
+[data-project-detail][data-look='professional'] [data-pj-hero] { border-width: 1px; border-radius: 8px; box-shadow: none; aspect-ratio: 16 / 7; }
+[data-project-detail][data-look='professional'] [data-pj-title] h1,
+[data-look='professional'] [data-project-page] input[name='title'] { font-family: 'IBM Plex Sans', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.015em; }
+[data-look='professional'] [data-project-page] .aspect-\[2\/1\] { border-width: 1px; border-radius: 8px; box-shadow: none; }
+
+/* ── Arcade: a game HUD, after Cyberpunk 2077's menus, toned down. Panels with cut corners and a hairline
+   that follows the cut, square headings in Chakra Petch capitals with an accent bar under them, cyan
+   readouts, angled buttons. The angles are the look; the color stays to one red and one cyan. ── */
+html[data-look='arcade'] body,
+[data-portfolio-v2][data-look='arcade'] { font-family: Barlow, system-ui, sans-serif; }
+/* The cut shape is set on every element so each one cuts by its own --cut (a var resolves where it's set). */
+[data-look='arcade'] { --cut: 14px; }
+[data-look='arcade'], [data-look='arcade'] * { --cut-shape: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
+[data-look='arcade'] [data-variant='brand'],
+[data-look='arcade'] [data-variant='surface'] { --cut: 10px; border-radius: 0; box-shadow: none; transform: none; clip-path: var(--cut-shape); font-family: 'Chakra Petch', system-ui, sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+[data-look='arcade'] [data-variant='surface'] { border-width: 1px; }
+[data-portfolio-v2][data-look='arcade'] { --stack-gx: 20px; --stack-gy: 28px; }
+.dark[data-portfolio-v2][data-look='arcade'] { background: radial-gradient(1000px 420px at 80% -8%, color-mix(in srgb, var(--org-primary-color) 14%, transparent), transparent), hsl(var(--background)); }
+/* A panel: cut top-right and bottom-left, a hairline drawn along each cut, an accent tick on the top-left. */
+[data-portfolio-v2][data-look='arcade'] [data-tile],
+[data-portfolio-v2][data-look='arcade'] [data-feature-frame] { border-width: 1px; border-color: var(--look-line); border-radius: 0; box-shadow: none; transform: none; clip-path: var(--cut-shape); }
+[data-portfolio-v2][data-look='arcade'] [data-tile]::before,
+[data-portfolio-v2][data-look='arcade'] [data-feature-frame]::before { content: ''; position: absolute; top: 0; right: 0; width: var(--cut); height: var(--cut); background: linear-gradient(45deg, transparent calc(50% - 1px), var(--look-line) calc(50% - 1px) calc(50% + 0.5px), transparent calc(50% + 0.5px)); pointer-events: none; z-index: 2; }
+[data-portfolio-v2][data-look='arcade'] [data-tile]::after,
+[data-portfolio-v2][data-look='arcade'] [data-feature-frame]::after { content: ''; position: absolute; top: -1px; left: -1px; width: 56px; height: 3px; background: var(--org-primary-color); pointer-events: none; z-index: 2; }
+[data-portfolio-v2][data-look='arcade'] [data-tile][data-spot] { border-color: #f29400; }
+[data-portfolio-v2][data-look='arcade'] [data-tile] > [data-spot-tip] { top: 16px; right: 72px; }
+[data-portfolio-v2][data-look='arcade'] [data-tile-head] { padding-bottom: 10px; border-bottom: 1px solid var(--look-line); }
+[data-portfolio-v2][data-look='arcade'] [data-tile-icon] { --cut: 7px; width: 26px; height: 26px; border-radius: 0; box-shadow: none !important; background: color-mix(in srgb, var(--org-primary-color) 14%, transparent) !important; color: var(--org-primary-color); clip-path: var(--cut-shape); }
+[data-portfolio-v2][data-look='arcade'] [data-tile-icon] svg { width: 15px; height: 15px; }
+[data-portfolio-v2][data-look='arcade'] [data-tile-title] { font-family: 'Chakra Petch', system-ui, sans-serif; font-weight: 600; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; }
+[data-portfolio-v2][data-look='arcade'] [data-tile-count] { font-family: 'Chakra Petch', system-ui, sans-serif; color: var(--look-cyan); }
+[data-portfolio-v2][data-look='arcade'] [data-tile] .font-extrabold { font-weight: 600; }
+[data-portfolio-v2][data-look='arcade'] [data-tile] .rounded-xl,
+[data-portfolio-v2][data-look='arcade'] [data-tile] .rounded-2xl,
+[data-portfolio-v2][data-look='arcade'] [data-tile] .rounded-\[10px\],
+[data-portfolio-v2][data-look='arcade'] [data-cover] { border-radius: 0; }
+[data-portfolio-v2][data-look='arcade'] [data-cover] { --cut: 10px; clip-path: var(--cut-shape); }
+[data-portfolio-v2][data-look='arcade'] [data-empty-add],
+[data-portfolio-v2][data-look='arcade'] [data-bio-start]:not([aria-label]) { --cut: 10px; border-width: 1px; border-radius: 0; clip-path: var(--cut-shape); }
+[data-portfolio-v2][data-look='arcade'] [data-empty-add] > span:first-child { border-radius: 0; }
+[data-portfolio-v2][data-look='arcade'] [data-highlights-section] > section { gap: 12px; }
+[data-portfolio-v2][data-look='arcade'] [data-highlight] { --cut: 10px; position: relative; border-width: 1px; border-color: var(--look-line); border-left: 3px solid var(--org-primary-color); border-radius: 0; box-shadow: none; clip-path: var(--cut-shape); }
+[data-portfolio-v2][data-look='arcade'] [data-highlight] b { font-family: 'Chakra Petch', system-ui, sans-serif; font-weight: 700; font-size: 28px; color: var(--look-cyan); }
+[data-portfolio-v2][data-look='arcade'] [data-highlight] span { font-family: 'Chakra Petch', system-ui, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; }
+[data-portfolio-v2][data-look='arcade'] [data-feature-title] { font-family: 'Chakra Petch', system-ui, sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+[data-portfolio-v2][data-look='arcade'] [data-feature-kick] { font-family: 'Chakra Petch', system-ui, sans-serif; color: var(--look-cyan); }
+[data-portfolio-v2][data-look='arcade'] [data-feature-kick]::before { content: '// '; }
+[data-portfolio-v2][data-look='arcade'] [data-quest-banner] { --cut: 12px; border-radius: 0; box-shadow: none; clip-path: var(--cut-shape); }
+[data-portfolio-v2][data-look='arcade'] [data-quest-banner] button { border-radius: 0; }
+[data-portfolio-v2][data-look='arcade'] [data-quest-tail] { border-radius: 0; border-width: 1px 0 0 1px; }
+[data-portfolio-v2][data-look='arcade'] [data-quest-button] { --cut: 10px; border-radius: 0; border-width: 1px; box-shadow: none; clip-path: var(--cut-shape); font-family: 'Chakra Petch', system-ui, sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+/* The header's readouts and the rule under it: a line with an angled accent tab on the left. */
+[data-portfolio-v2][data-look='arcade'] [data-arcade-readout] dt { font-family: 'Chakra Petch', system-ui, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: var(--look-cyan); }
+[data-portfolio-v2][data-look='arcade'] [data-arcade-readout] dd { font-weight: 600; font-size: 14.5px; }
+[data-portfolio-v2][data-look='arcade'] [data-arcade-rule] { height: 8px; background: linear-gradient(var(--look-line), var(--look-line)) 0 100% / 100% 1px no-repeat; position: relative; }
+[data-portfolio-v2][data-look='arcade'] [data-arcade-rule]::before { content: ''; position: absolute; left: 0; bottom: 0; width: 140px; height: 8px; background: var(--org-primary-color); clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%); }
+[data-portfolio-v2][data-look='arcade'] [data-pf-chip] { border-radius: 0; font-family: 'Chakra Petch', system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; }
+[data-portfolio-v2][data-look='arcade'] [data-pf-socials] a { --cut: 6px; border-radius: 0; clip-path: var(--cut-shape); }
+.dark[data-portfolio-v2][data-look='arcade'] [data-arcade-frame] { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--org-primary-color) 55%, transparent)); }
+[data-project-detail][data-look='arcade'] [data-pj-hero] { --cut: 22px; border-radius: 0; box-shadow: none; border-width: 1px; clip-path: var(--cut-shape); aspect-ratio: 16 / 7; }
+[data-project-detail][data-look='arcade'] [data-pj-title] h1,
+[data-look='arcade'] [data-project-page] input[name='title'] { font-family: 'Chakra Petch', system-ui, sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+[data-project-detail][data-look='arcade'] [data-pj-gallery] img { border-radius: 0; --cut: 14px; clip-path: var(--cut-shape); }
+[data-look='arcade'] [data-project-page] .aspect-\[2\/1\] { border-radius: 0; box-shadow: none; border-width: 1px; --cut: 22px; clip-path: var(--cut-shape); }

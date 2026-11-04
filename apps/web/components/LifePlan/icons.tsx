@@ -1,7 +1,7 @@
 import {
   ArrowDownLeft, ArrowUpRight, Award, Bike, BookOpen, Briefcase, Building, Bus, Car, Dumbbell, Flag, Fuel, GraduationCap, HandCoins,
-  Heart, HeartPulse, House, HouseHeart, Landmark, Medal, Music, Package, Palette, PawPrint, Pencil, PiggyBank, Plane, Play, Plug,
-  Receipt, Repeat, Shield, Shirt, ShoppingCart, Smartphone, Sparkles, Square, Tag, Ticket, Users, Utensils, Wrench, type LucideIcon,
+  Heart, HeartPulse, Layers, ShoppingBag, TriangleAlert, House, HouseHeart, Landmark, Medal, Music, Package, Palette, PawPrint, Pencil, PiggyBank, Plane, Play, Plug,
+  Receipt, Repeat, SlidersHorizontal, Shield, Shirt, ShoppingCart, Smartphone, Sparkles, Square, Tag, Ticket, Users, Utensils, Wrench, type LucideIcon,
 } from 'lucide-react'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -9,8 +9,8 @@ const ICONS: Record<string, LucideIcon> = {
   building: Building, bus: Bus, car: Car, dumbbell: Dumbbell, flag: Flag, fuel: Fuel, 'graduation-cap': GraduationCap, 'hand-coins': HandCoins,
   heart: Heart, 'heart-pulse': HeartPulse, house: House, 'house-heart': HouseHeart, landmark: Landmark, medal: Medal, music: Music,
   package: Package, palette: Palette, 'paw-print': PawPrint, pencil: Pencil, 'piggy-bank': PiggyBank, plane: Plane, play: Play, plug: Plug,
-  receipt: Receipt, repeat: Repeat, shield: Shield, shirt: Shirt, 'shopping-cart': ShoppingCart, smartphone: Smartphone, sparkles: Sparkles,
-  square: Square, tag: Tag, ticket: Ticket, users: Users, utensils: Utensils, wrench: Wrench,
+  receipt: Receipt, repeat: Repeat, shield: Shield, shirt: Shirt, sliders: SlidersHorizontal, 'shopping-cart': ShoppingCart, smartphone: Smartphone, sparkles: Sparkles,
+  square: Square, layers: Layers, 'shopping-bag': ShoppingBag, 'triangle-alert': TriangleAlert, tag: Tag, ticket: Ticket, users: Users, utensils: Utensils, wrench: Wrench,
 }
 
 export function LifeIcon({ name, className = 'size-4' }: { name?: string | null; className?: string }) {

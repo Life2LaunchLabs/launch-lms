@@ -293,7 +293,18 @@ class HighlightsUpdate(BaseModel):
 class LayoutUpdate(BaseModel):
     header: str | None = None
     sections: str | None = None
-    look: str | None = None  # pop, studio, midnight or sunset
+    look: str | None = None  # playful, professional, gallery, volt or arcade
+    mode: str | None = None  # light, dark or system
+    accent: str | None = None  # "#rrggbb", or "" for the look's own
+    banner: str | None = None  # a gradient's id, or "image"
+    banner_image_uuid: str | None = None  # the learner's own photo, for the "image" banner
+    # The section stack: rows of up to three sections, each {"type", "u"} with u the width in sixths.
+    # null goes back to the look's suggested layout.
+    stack: list[list[dict]] | None = None
+    names: dict[str, str] | None = None  # section type -> the learner's own title; follows them to every look
+    heights: dict[str, dict[str, int]] | None = None  # "look" or "look:phone" -> section type -> px (0 fits the content)
+    features: list[dict] | None = None  # the featured section's items, each {"kind", "ref"}
+    feature_autoplay: bool | None = None
 
 
 class ProgressSeen(BaseModel):
