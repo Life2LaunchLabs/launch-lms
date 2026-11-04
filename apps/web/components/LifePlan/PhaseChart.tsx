@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from '@components/ui/dialog'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, short } from './model'
+import { MarkCard, MarkDot, markLabel, marksBetween } from './ChartEvents'
 
 const SAVE = '#2F7DD3', OWN = '#7A5BD0', DEBT = '#E0662E'
 
@@ -31,7 +32,17 @@ export default function PhaseChart() {
   const { doc, phase, stretch, stretchesOf, selectStretch, projection, valueOf, readOnly } = useLife()
   const [hover, setHover] = React.useState<number | null>(null)
   const [big, setBig] = React.useState(false)
+  const [pick, setPick] = React.useState<number | null>(null)
   const plot = React.useRef<HTMLDivElement>(null)
+  const pop = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => { setPick(null) }, [phase.id])
+  React.useEffect(() => {
+    if (pick === null) return
+    const away = (e: PointerEvent) => { if (pop.current && !pop.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-mark]')) setPick(null) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPick(null) }
+    document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc) }
+  }, [pick])
   const off = phaseOffset(doc, phase.id), M = Math.max(1, phase.months)
   const sav = projection.sav.slice(off, off + M + 1), own = projection.own.slice(off, off + M + 1), debt = projection.debt.slice(off, off + M + 1)
   const stack = sav.map((v, i) => v + own[i]), hasOwn = own.some((v) => v > 1)
@@ -41,6 +52,12 @@ export default function PhaseChart() {
   const pts = (a: number[]) => a.map((v, m) => `${X(m).toFixed(3)},${Y(v).toFixed(1)}`).join(' ')
   const area = (up: number[], dn: number[]) => `${pts(up)} ${dn.map((v, m) => `${X(m).toFixed(3)},${Y(v).toFixed(1)}`).reverse().join(' ')}`
   const zero = sav.map(() => 0)
+  // Things that make the lines jump, as dots on the savings line.
+  const dots = marksBetween(projection.marks, off, off + M - 1).map(([g, ms]) => {
+    const m = g - off
+    return { g, ms, x: X(m + 0.5), y: Y((stack[m] + stack[Math.min(M, m + 1)]) / 2) }
+  })
+  const picked = dots.find((d) => d.g === pick) || null
 
   // The phase in a sentence: average money in and out across its months.
   let inn = 0, out = 0
@@ -72,7 +89,7 @@ export default function PhaseChart() {
       </p>
       </>)}
       <div className="mt-3 rounded-2xl bg-card p-3 shadow-[0_1px_0_hsl(var(--border))] sm:p-4">
-        <div className="mb-1 flex items-center justify-between gap-2"><Legend own={hasOwn} /><Button variant="ghost" size="icon" onClick={() => setBig(true)} aria-label="See every phase, full screen" title="See every phase"><Maximize2 /></Button></div>
+        <div className="mb-1 flex items-center justify-between gap-2"><div><Legend own={hasOwn} />{dots.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">Tap a dot to see why the line moves.</p>}</div><Button variant="ghost" size="icon" onClick={() => setBig(true)} aria-label="See every phase, full screen" title="See every phase"><Maximize2 /></Button></div>
         <div className="relative pl-10">
           <div className="pointer-events-none absolute inset-y-0 left-0 w-9">
             {[0, hi / 2, hi].map((t) => <span key={t} className="absolute right-1 -translate-y-1/2 text-[11px] font-semibold tabular-nums text-muted-foreground" style={{ top: Y(t) }}>{t ? short(t) : '$0'}</span>)}
@@ -99,7 +116,16 @@ export default function PhaseChart() {
                 </button>
               </React.Fragment>
             ))}
-            {hover !== null && (
+            {dots.map((d) => (
+              <span key={d.g} data-mark=""><MarkDot ms={d.ms} active={pick === d.g} onClick={() => setPick(pick === d.g ? null : d.g)} style={{ left: `${d.x}%`, top: d.y }}
+                label={`${monthLabel(doc.start, d.g)}: ${markLabel(d.ms)}. Why the line moves`} /></span>
+            ))}
+            {picked && (
+              <div ref={pop} className="absolute z-[6]" style={{ top: Math.min(picked.y + 16, H - 20), ...(picked.x > 55 ? { right: `${100 - picked.x}%`, marginRight: -12 } : { left: `${picked.x}%`, marginLeft: -12 }) }}>
+                <MarkCard g={picked.g} ms={picked.ms} onClose={() => setPick(null)} onShow={() => setPick(null)} />
+              </div>
+            )}
+            {hover !== null && pick === null && (
               <>
                 <span className="pointer-events-none absolute bottom-0 top-[30px] z-[2] w-px bg-muted-foreground/50" style={{ left: `${X(hover)}%` }} />
                 <span className="pointer-events-none absolute top-8 z-[4] whitespace-nowrap rounded-xl bg-foreground px-2.5 py-2 text-xs font-semibold text-background" style={X(hover) > 60 ? { right: `${100 - X(hover)}%`, marginRight: 12 } : { left: `${X(hover)}%`, marginLeft: 12 }}>
@@ -145,6 +171,10 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ticks: [number, string][] = []
   for (let g = 0; g < G; g++) { const l = monthLabel(doc.start, g); if (l.startsWith('Jan ') && Number(l.slice(4)) % step === 0) ticks.push([g, l.slice(4)]) }
   const drag = React.useRef<{ x: number; s: number } | null>(null)
+  const [pick, setPick] = React.useState<number | null>(null)
+  React.useEffect(() => { if (!open) setPick(null) }, [open])
+  const dots = marksBetween(projection.marks, 0, G - 1)
+  const picked = dots.find(([g]) => g === pick) || null
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-3 rounded-none p-4 sm:rounded-none">
@@ -176,11 +206,16 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <polyline points={pts(projection.sav)} fill="none" stroke={SAVE} strokeWidth="2.25" />
                 <polyline points={pts(projection.debt)} fill="none" stroke={DEBT} strokeWidth="2.25" />
               </svg>
+              {dots.map(([g, ms]) => (
+                <MarkDot key={g} ms={ms} active={pick === g} onClick={() => setPick(pick === g ? null : g)} label={`${monthLabel(doc.start, g)}: ${markLabel(ms)}. Why the line moves`}
+                  style={{ left: X(g + 0.5), top: 26 + 4 + Y((stack[g] + stack[Math.min(G, g + 1)]) / 2) }} />
+              ))}
               <div className="relative h-5">{ticks.map(([g, y]) => <span key={g} className="absolute -translate-x-1/2 text-[11px] font-semibold text-muted-foreground" style={{ left: X(g) }}>{y}</span>)}</div>
             </div>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Drag to move along; use + and − to zoom.</p>
+        {picked ? <MarkCard g={picked[0]} ms={picked[1]} onClose={() => setPick(null)} onShow={onClose} className="self-start" />
+          : <p className="text-xs text-muted-foreground">Drag to move along; use + and − to zoom.{dots.length > 0 && ' Tap a dot to see why the line moves.'}</p>}
       </DialogContent>
     </Dialog>
   )
