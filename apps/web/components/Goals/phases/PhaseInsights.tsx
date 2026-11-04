@@ -14,6 +14,9 @@ const TRAINING: Record<number, string> = {
   4: 'Usually a bachelor’s degree',
   5: 'Usually a graduate degree',
 }
+// O*NET titles are mostly plural already, and a place label can be a whole area.
+const plural = (name: string) => /s$/i.test(name) ? name : `${name}s`
+const inPlace = (label: string) => / area$/i.test(label) ? `the ${label}` : label
 const Src = ({ children }: { children: React.ReactNode }) => <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />{children}</span>
 const Head = ({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) => <span className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.06em] text-muted-foreground"><Icon size={15} aria-hidden="true" />{children}</span>
 const srcText = (e: Estimate) => `${e.source.publisher} · ${e.source.title}${e.fallback && e.asked_place_label ? ` (no ${e.asked_place_label} number, so ${e.place_label})` : ''}`
@@ -57,7 +60,7 @@ export default function PhaseInsights({ phase, token, careers }: { phase: Phase;
         const min = Math.min(lo ?? mid, you ?? mid) * 0.7, max = Math.max(hi ?? mid, you ?? mid) * 1.15, X = (v: number) => Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100))
         const verdict = you && lo && hi ? (you < lo ? 'low' : you > hi ? 'high' : 'mid') : null
         return <>
-          <p className="font-semibold">{act?.apprentice ? `Once you’re through, ${name.toLowerCase()}s` : `${name}s`} in {e.place_label} typically make <b className="font-extrabold">{money(mid)}</b> a year.</p>
+          <p className="font-semibold">{act?.apprentice ? `Once you’re through, ${plural(name).toLowerCase()}` : plural(name)} in {inPlace(e.place_label)} typically make <b className="font-extrabold">{money(mid)}</b> a year.</p>
           {lo && hi ? <div className="relative h-9" role="img" aria-label={`Middle half of pay: ${money(lo)} to ${money(hi)}`}>
             <span className="absolute inset-x-0 top-3 h-2 rounded-full bg-muted" />
             <span className="absolute top-3 h-2 rounded-full bg-[color-mix(in_srgb,var(--org-primary-color)_55%,transparent)]" style={{ left: `${X(lo)}%`, width: `${X(hi) - X(lo)}%` }} />
@@ -74,7 +77,7 @@ export default function PhaseInsights({ phase, token, careers }: { phase: Phase;
           {verdict === 'mid' ? <p className="rounded-xl bg-muted px-3 py-2 text-sm font-bold">You’re in the middle of what most {name.toLowerCase()}s here make.</p> : null}
         </>
       })() : <p className="text-sm text-muted-foreground">No pay numbers for this job{phase.place_label ? ` around ${phase.place_label}` : ''} yet.</p>}
-      {c.job_zone ? <><p className="font-semibold">Usually needs: <b className="font-extrabold">{TRAINING[c.job_zone]}</b></p><Src>O*NET job zone {c.job_zone}</Src></> : null}
+      {c.job_zone ? <><p className="font-semibold">What it takes: <b className="font-extrabold">{TRAINING[c.job_zone]}</b></p><Src>O*NET job zone {c.job_zone}</Src></> : null}
     </div>)
   }
   if (schoolAct && school) sections.push(<div key="school" className="grid gap-2">

@@ -242,8 +242,8 @@ function PhaseNav({ doc, phase, orgslug, mapHref }: { doc: LifeDoc; phase: Phase
   return <nav aria-label="Phases before and after" className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
     <div className="flex min-w-0 gap-1.5 overflow-x-auto p-0.5">{prev.map((x) => <Link key={x.id} href={getUriWithOrg(orgslug, routePaths.org.phase(x.id))} className={card}><ChevronLeft size={15} aria-hidden="true" /><span className="min-w-0"><span className="block truncate">{x.title}</span><small className="block text-[11.5px] font-bold text-muted-foreground">{monthName(x.starts!)}</small></span></Link>)}</div>
     <Link href={mapHref} aria-label="Open the map here" className={cn(card, 'px-2.5')}><MapIcon size={16} aria-hidden="true" /><span className="hidden sm:inline">Map</span></Link>
-    <div className="flex min-w-0 justify-end gap-1.5 overflow-x-auto p-0.5">{next.length ? next.map((k) => <Link key={k.id} href={getUriWithOrg(orgslug, routePaths.org.phase(k.id))} className={cn(card, k.idea && 'shadow-none outline-dashed outline-2 -outline-offset-2 outline-border')}><span className="min-w-0"><span className="block truncate">{k.title}{endName(k)}</span><small className="block text-[11.5px] font-bold text-muted-foreground">{monthName(k.starts!)}</small></span><ChevronRight size={15} aria-hidden="true" /></Link>)
-      : <Link href={mapHref} className={cn(card, 'shadow-none outline-dashed outline-2 -outline-offset-2 outline-border')}><span><span className="block">What comes after?</span><small className="block text-[11.5px] font-bold text-muted-foreground">Add it on the map</small></span><Plus size={15} aria-hidden="true" /></Link>}</div>
+    <div className="flex min-w-0 justify-end gap-1.5 overflow-x-auto p-0.5">{next.length ? next.map((k) => <Link key={k.id} href={getUriWithOrg(orgslug, routePaths.org.phase(k.id))} className={cn(card, 'min-w-0 shrink', k.idea && 'shadow-none outline-dashed outline-2 -outline-offset-2 outline-border')}><span className="min-w-0"><span className="block truncate">{k.title}{endName(k)}</span><small className="block text-[11.5px] font-bold text-muted-foreground">{monthName(k.starts!)}</small></span><ChevronRight size={15} aria-hidden="true" /></Link>)
+      : <Link href={mapHref} className={cn(card, 'min-w-0 shrink shadow-none outline-dashed outline-2 -outline-offset-2 outline-border')}><span className="min-w-0"><span className="block truncate">What comes after?</span><small className="block truncate text-[11.5px] font-bold text-muted-foreground">Add it on the map</small></span><Plus size={15} aria-hidden="true" /></Link>}</div>
   </nav>
 }
 
@@ -305,18 +305,22 @@ function BudgetCard({ doc, phase, ends, projection, href }: { doc: LifeDoc; phas
     const months = Math.max(1, phase.months)
     const avg = (series: number[]) => series.slice(off, off + months).reduce((a, b) => a + b, 0) / months
     const inn = avg(projection.inn), out = avg(projection.out)
-    sentence = <>Costs about <b className="text-foreground">{money(out)}</b> a month, and about <b className="text-foreground">{money(inn)}</b> comes in.</>
     const sav = projection.sav.slice(off, off + months + 1), debt = projection.debt.slice(off, off + months + 1)
+    // With nothing going out yet, savings would be everything that comes in, so ask for the costs first.
+    const noCosts = out < 1 && !debt.some((value) => value > 0.5)
+    sentence = noCosts
+      ? <>About <b className="text-foreground">{money(inn)}</b> comes in a month. Add your costs to see what’s left.</>
+      : <>Costs about <b className="text-foreground">{money(out)}</b> a month, and about <b className="text-foreground">{money(inn)}</b> comes in.</>
     const max = Math.max(1000, ...sav, ...debt), W = 300, H = 60
     const pts = (arr: number[]) => arr.map((v, i) => `${((i / Math.max(1, arr.length - 1)) * W).toFixed(1)},${(H - (v / max) * (H - 6) - 3).toFixed(1)}`).join(' ')
-    spark = <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-16 w-full" role="img" aria-label="Savings and debt over the phase">
+    if (!noCosts) spark = <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-16 w-full" role="img" aria-label="Savings and debt over the phase">
       <polyline points={pts(sav)} fill="none" stroke="#2F6FE0" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
       <polyline points={pts(debt)} fill="none" stroke="#E8642C" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
     </svg>
     const endSav = sav[sav.length - 1] ?? 0, endDebt = debt[debt.length - 1] ?? 0
-    after = <span className="text-xs font-semibold text-muted-foreground">By {monthName(ends)}: <b className="text-foreground">{short(endSav)}</b> saved{endDebt > 0.5 ? <>, <b className="text-foreground">{short(endDebt)}</b> owed</> : null}</span>
+    if (!noCosts) after = <span className="text-xs font-semibold text-muted-foreground">By {monthName(ends)}: <b className="text-foreground">{short(endSav)}</b> saved{endDebt > 0.5 ? <>, <b className="text-foreground">{short(endDebt)}</b> owed</> : null}</span>
   }
-  return <Link href={href} className="grid gap-3 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)] transition-colors hover:bg-raised md:sticky md:top-6">
+  return <Link href={href} className="grid gap-3 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)] transition-colors hover:bg-raised">
     <span className="flex items-center justify-between gap-2"><h2 className="text-xl font-extrabold tracking-tight">Budget</h2><span className="inline-flex items-center gap-0.5 text-sm font-bold text-[var(--org-primary-color)]">{empty ? 'Start it' : 'Open'}<ChevronRight size={16} aria-hidden="true" /></span></span>
     <span className="text-[15px] leading-snug text-muted-foreground">{sentence}</span>
     {spark}

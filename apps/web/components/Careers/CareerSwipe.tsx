@@ -224,8 +224,8 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
   else if (error) body = <p className="rounded-2xl bg-card p-6 text-sm font-medium">Careers couldn’t load. Refresh to try again.</p>
   else if (!batch) body = <div className="flex h-[520px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading careers" /></div>
   else if (!batch.cards.length) body = <div className="flex flex-col gap-3 rounded-[28px] bg-card p-6">
-    <h2 className="m-0 text-xl font-extrabold">{deck?.total === 0 ? 'You’ve seen every career here' : 'No careers here yet'}</h2>
-    <p className="m-0 text-sm text-muted-foreground">{deck?.total === 0 ? 'Every career is in your library. Open one from Discover to add a note or put it on your plan.' : 'Your organization hasn’t added careers to Discover yet.'}</p>
+    <h2 className="m-0 text-xl font-extrabold">{deck?.has_careers ? 'You’ve seen every career here' : 'No careers here yet'}</h2>
+    <p className="m-0 text-sm text-muted-foreground">{deck?.has_careers ? 'Every career is in your library. Open one from Discover to add a note or put it on your plan.' : 'Your organization hasn’t added careers to Discover yet.'}</p>
     <Link href={discover} className="self-start font-extrabold underline">Back to Discover</Link>
   </div>
   else {
