@@ -110,16 +110,24 @@ export function DebtCard() {
   const [edit, setEdit] = React.useState<Debt | null>(null)
   const [isNew, setIsNew] = React.useState(false)
   const [f, setF] = React.useState<any>({})
-  const now = projection.debtsAt(stretch.g0)
+  const all = projection.debtsAt(stretch.g0)
   const short = projection.short[stretch.g0] || 0
   const open = (d: Debt | null) => {
     const x = d || { id: uid('d'), kind: 'student_loan', title: 'Student loan', balance: 0, rate: 5.5, payment: 0, start: null }
     setIsNew(!d); setEdit(x); setF({ ...x, balance: x.balance ? String(x.balance) : '', rate: String(x.rate), payment: x.payment ? String(x.payment) : '' })
   }
   const linked = (d: Debt) => doc.assets.find((a) => a.loan_id === d.id)
+  // Every debt stays in the list: one that starts later or is paid off says so, so nothing you add goes missing.
+  const sub = ({ debt, state, startsAt, paidOffAt }: (typeof all)[number]) => {
+    if (state === 'later') return `Starts ${monthLabel(doc.start, startsAt!)}${debt.payment ? `, then ${money(debt.payment)} a month` : ''}`
+    if (state === 'paid') return paidOffAt != null && paidOffAt < stretch.g0 ? `Paid off ${monthLabel(doc.start, paidOffAt)}` : 'Nothing owed'
+    if (!debt.payment) return `No payment set, at ${debt.rate}%`
+    return `${money(debt.payment)} a month at ${debt.rate}%${paidOffAt != null ? `, paid off ${monthLabel(doc.start, paidOffAt)}` : ''}`
+  }
+  const empty = !all.length && !(short > 0.5)
   return (
-    <Card title="Debt" note={!now.length && !short ? 'Loans and cards you pay back. Loans for a car or home are added with the thing you buy.' : undefined} addLabel="Add a loan" onAdd={() => open(null)} empty={!now.length && !short}>
-      {now.map(({ debt, balance, payment }) => <Item key={debt.id} icon="landmark" title={debt.title} sub={`${money(payment)} a month at ${debt.rate}%`} value={money(-balance)} onClick={() => open(debt)} />)}
+    <Card title="Debt" note={empty ? 'Loans and cards you pay back. Loans for a car or home are added with the thing you buy.' : undefined} addLabel="Add a loan" onAdd={() => open(null)} empty={empty}>
+      {all.map((x) => <Item key={x.debt.id} icon="landmark" title={x.debt.title} sub={sub(x)} value={x.state === 'paid' ? '$0' : money(-x.balance)} onClick={() => open(x.debt)} />)}
       {short > 0.5 && <div className="flex items-center gap-3 py-3"><span className="grid size-8 place-items-center rounded-xl bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"><LifeIcon name="receipt" /></span><span className="flex-1"><b className="block font-semibold">Money you'd be short</b><span className="text-xs text-muted-foreground">Your budget doesn't cover this yet.</span></span><b className="tabular-nums text-red-700 dark:text-red-300">{money(-short)}</b></div>}
       <p className="sr-only">{doc.debts.length === 1 ? "1 debt" : `${doc.debts.length} debts`}</p>
       <Editor title={isNew ? 'Add a loan' : edit?.title || 'Loan'} open={!!edit} onClose={() => setEdit(null)}

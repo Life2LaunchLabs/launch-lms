@@ -121,6 +121,20 @@ export function stretches(doc: LifeDoc, phase: Phase): Stretch[] {
   })
 }
 
+export interface DebtAt {
+  debt: Debt
+  /** What is owed in that month, after a loan taken that month lands. */
+  balance: number
+  /** What is paid on it that month (0 before it starts and once it is paid off). */
+  payment: number
+  /** 'later': not taken yet; 'paid': paid off (or never had a balance); 'owing': being paid back. */
+  state: 'later' | 'owing' | 'paid'
+  /** The global month it starts, or null when the learner already has it. */
+  startsAt: number | null
+  /** The global month it is paid off, or null when it isn't within the plan. */
+  paidOffAt: number | null
+}
+
 export interface Projection {
   months: number
   sav: number[]
@@ -134,8 +148,11 @@ export interface Projection {
   tax: number[]
   missing: { phase: string; line: string }[]
   /* eslint-disable no-unused-vars -- parameter names in function types */
-  debtsAt: (g: number) => { debt: Debt; balance: number; payment: number }[]
+  /** Every debt in the plan, as it stands in month g once that month's one-time things have
+   *  happened (so a loan taken that month already shows), and what is paid on it that month. */
+  debtsAt: (g: number) => DebtAt[]
   savingsAt: (g: number) => { id: string; title: string; balance: number }[]
+  /** Things owned in month g, once that month's purchase or sale has happened. */
   assetsAt: (g: number) => { asset: Asset; value: number }[]
   /* eslint-enable no-unused-vars */
 }
@@ -150,6 +167,8 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
   const saveBal: Record<string, number> = {}
   const assetVal: Record<string, number> = {}
   const debtHist: Record<string, number[]> = {}, saveHist: Record<string, number[]> = {}, assetHist: Record<string, number[]> = {}
+  // The same, taken once each month's one-time things have landed, and what was paid on each debt.
+  const debtOpen: Record<string, number[]> = {}, saveOpen: Record<string, number[]> = {}, assetOpen: Record<string, number[]> = {}, debtPaid: Record<string, number[]> = {}
   const main = doc.savings.find((s) => s.main) || null
   let cash = main ? main.balance : 0
   let owed = 0
@@ -167,6 +186,11 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
     doc.savings.forEach((s) => (saveHist[s.id] = saveHist[s.id] || []).push(s.main ? Math.max(0, cash) : saveBal[s.id] ?? 0))
     doc.assets.forEach((a) => (assetHist[a.id] = assetHist[a.id] || []).push(assetVal[a.id] ?? 0))
   }
+  const opened = () => {
+    doc.debts.forEach((d) => { (debtOpen[d.id] = debtOpen[d.id] || []).push(debtBal[d.id] ?? 0); (debtPaid[d.id] = debtPaid[d.id] || []).push(0) })
+    doc.savings.forEach((s) => (saveOpen[s.id] = saveOpen[s.id] || []).push(s.main ? Math.max(0, cash) : saveBal[s.id] ?? 0))
+    doc.assets.forEach((a) => (assetOpen[a.id] = assetOpen[a.id] || []).push(assetVal[a.id] ?? 0))
+  }
   snapshot()
   let g = 0
   for (const p of doc.phases) {
@@ -183,6 +207,7 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
         }
       })
       ;(evAt.get(g) || []).forEach((e) => { cash += e.amount })
+      opened()
       let i = 0, o = 0, pay = 0
       p.lines.forEach((l) => { const v = vals.get(l.id)!.monthly; if (v == null || !activeAt(l, m)) return; if (l.side === 'in') { i += v; if (isTaxable(l)) pay += v } else o += v })
       const t = monthlyTax(p, pay)
@@ -193,6 +218,7 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
         const withInt = b * (1 + d.rate / 1200)
         const pay = Math.min(withInt, d.payment)
         debtBal[d.id] = Math.max(0, withInt - pay); cash -= pay
+        debtPaid[d.id][g] = pay
       })
       doc.savings.forEach((s) => { if (s.main) return; saveBal[s.id] = (saveBal[s.id] + s.monthly) * (1 + s.rate / 1200); cash -= s.monthly })
       doc.assets.forEach((a) => { if (assetVal[a.id] !== undefined) assetVal[a.id] *= Math.pow(1 + a.change / 100, 1 / 12) })
@@ -204,9 +230,21 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
   }
   return {
     months: G, sav, own, debt, short, inn, out, tax, missing,
-    debtsAt: (t) => doc.debts.map((d) => ({ debt: d, balance: debtHist[d.id]?.[t] ?? 0, payment: d.payment })).filter((x) => x.balance > 0.5),
-    savingsAt: (t) => doc.savings.map((s) => ({ id: s.id, title: s.title, balance: saveHist[s.id]?.[t] ?? 0 })),
-    assetsAt: (t) => doc.assets.map((a) => ({ asset: a, value: assetHist[a.id]?.[t] ?? 0 })).filter((x) => x.value > 0.5),
+    debtsAt: (t) => doc.debts.map((d) => {
+      const at = Math.min(Math.max(0, t), G - 1)
+      const startsAt = d.start ? gOf(doc, d.start) : null
+      const open = debtOpen[d.id] || []
+      const balance = open[at] ?? 0
+      // Paid off: the month of the last payment, the first after it starts that leaves nothing owed.
+      const from = startsAt ?? 0
+      const hist = debtHist[d.id] || []
+      let paidOffAt: number | null = null
+      if (d.balance > 0.5) for (let m = from + 1; m < hist.length; m++) if ((hist[m] ?? 0) <= 0.5) { paidOffAt = m - 1; break }
+      const state: DebtAt['state'] = startsAt != null && t < startsAt ? 'later' : balance > 0.5 ? 'owing' : 'paid'
+      return { debt: d, balance: state === 'later' ? d.balance : balance, payment: debtPaid[d.id]?.[at] ?? 0, state, startsAt, paidOffAt }
+    }),
+    savingsAt: (t) => doc.savings.map((s) => ({ id: s.id, title: s.title, balance: saveOpen[s.id]?.[Math.min(Math.max(0, t), G - 1)] ?? 0 })),
+    assetsAt: (t) => doc.assets.map((a) => ({ asset: a, value: assetOpen[a.id]?.[Math.min(Math.max(0, t), G - 1)] ?? 0 })).filter((x) => x.value > 0.5),
   }
 }
 

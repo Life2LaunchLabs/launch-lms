@@ -22,7 +22,7 @@ export default function BudgetTable() {
   const tax = monthlyTax(phase, pay)
   const inn = total('in') - tax, out = total('out')
   const g = stretch.g0
-  const debtPay = projection.debtsAt(g).reduce((a, d) => a + Math.min(d.payment, d.balance), 0)
+  const debtPay = projection.debtsAt(g).reduce((a, d) => a + d.payment, 0)
   const saving = doc.savings.filter((s) => !s.main).reduce((a, s) => a + s.monthly, 0)
   const left = inn - out - debtPay - saving
   const cats = catalog?.categories || []
