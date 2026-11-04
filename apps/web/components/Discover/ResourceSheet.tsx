@@ -49,7 +49,7 @@ function MoreFrom({ resource, onOpen }: { resource: Resource; onOpen: Dispatch<s
   return <Block title={`More in ${channel.name}`}>
     <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {others.map((item) => <button key={item.resource_uuid} type="button" onClick={() => onOpen(item.resource_uuid)} className="flex w-[160px] shrink-0 flex-col gap-1.5 text-left">
-        <ResourceCover resource={item} className="rounded-xl" titleClassName="text-[12px]" />
+        <ResourceCover resource={item} className="rounded-xl" />
         <span className="line-clamp-2 text-[13px] font-extrabold leading-tight">{item.title}</span>
       </button>)}
     </div>
@@ -129,7 +129,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
         : !resource || !meta || !Kind ? <div className="flex min-h-72 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading" /></div>
         : <>
           <div className="px-[18px] pt-[18px] sm:pt-[18px]">
-            <ResourceCover resource={resource} className="rounded-[20px]" titleClassName="px-[18px] pt-4 text-[22px]" />
+            <ResourceCover resource={resource} className="rounded-[20px]" />
           </div>
           <div className="flex flex-col gap-[18px] px-[22px] pb-7 pt-[18px]">
             <div className="flex flex-wrap items-center gap-2 text-[12.5px] font-bold text-muted-foreground">
