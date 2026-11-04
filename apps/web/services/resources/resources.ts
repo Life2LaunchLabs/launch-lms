@@ -14,6 +14,7 @@ export type ResourceType =
   | 'guide'
   | 'course'
   | 'school'
+  | 'career'
   | 'other'
 
 export interface ResourceChannel {
@@ -66,6 +67,10 @@ export interface SavedResourceState {
   last_opened_at: string | null
   completed_at: string | null
   open_count: number
+  /** For a career: how into it the learner is, 1 to 3. */
+  interest_level?: number | null
+  /** For a career: shown on the learner's Education Plan and Profile. */
+  show_on_epp?: boolean
   creation_date: string
   update_date: string
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ComponentType } from 'react'
+import { createElement, type ComponentType } from 'react'
 import {
   Briefcase, Calculator, ChefHat, ClipboardList, CodeXml, Compass, DraftingCompass, Factory, FlaskConical, GraduationCap, Hammer, HandHeart,
   HeartPulse, Medal, Palette, Scale, Scissors, Shield, ShoppingBag, SprayCan, Stethoscope, TreePine, Truck, Wrench,
@@ -29,23 +29,28 @@ const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '43': ClipboardList, '45': TreePine, '47': Hammer, '49': Wrench, '51': Factory, '53': Truck, '55': Medal,
 }
 
+/** The icon for a career's SOC major group. */
+export function CareerIcon({ code, className }: { code: string; className?: string }) {
+  return createElement(ICONS[code.slice(0, 2)] || Compass, { className })
+}
+
 const money = (value: number) => `$${Math.round(value / 1000)}k`
 
 export type CareerTileCareer = { code: string; title: string; top_interests: string; job_zone?: number | null; match?: number | null; pay?: { yearly: number } | null }
 
 export function CareerTile({ career, href, onOpen }: { career: CareerTileCareer; href?: string; onOpen?: () => void }) {
   const type = CAREER_TYPES[career.top_interests?.[0]] || CAREER_TYPES.E
-  const Icon = ICONS[career.code.slice(0, 2)] || Compass
   const line = [career.pay ? money(career.pay.yearly) : '', career.job_zone ? TRAINING[career.job_zone] : ''].filter(Boolean).join(' · ')
   const body = <>
     <span className="relative grid aspect-square w-full place-items-center overflow-hidden rounded-[20px] text-white shadow-[0_4px_0_rgba(0,0,0,0.18)] transition-transform group-hover:-translate-y-0.5 group-active:translate-y-[3px]" style={{ background: type.color }}>
-      <Icon className="h-14 w-14 opacity-95" />
+      <CareerIcon code={career.code} className="h-14 w-14 opacity-95" />
       {career.match != null ? <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10.5px] font-extrabold">{matchLabel(career.match)}</span> : null}
     </span>
     <b className="mt-2 line-clamp-2 text-[14px] font-extrabold leading-snug">{career.title}</b>
     {line ? <small className="block text-[12px] font-bold text-muted-foreground">{line}</small> : null}
   </>
   const className = 'group block w-[150px] shrink-0 snap-start text-left'
-  return href ? <a href={href} target="_blank" rel="noreferrer" className={className} aria-label={`${career.title}, ${type.name}`}>{body}</a>
-    : <button type="button" onClick={onOpen} className={className}>{body}</button>
+  if (href) return <a href={href} target="_blank" rel="noreferrer" className={className} aria-label={`${career.title}, ${type.name}`}>{body}</a>
+  // Inside a link of its own (Discover's shelf), the tile is just its picture and words.
+  return onOpen ? <button type="button" onClick={onOpen} className={className}>{body}</button> : <span className={className}>{body}</span>
 }

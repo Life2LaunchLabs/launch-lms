@@ -2,10 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import useSWR from 'swr'
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { careersApi } from '@services/life/careers'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
 import { getInterestQuiz, takeInterestQuiz, type InterestQuiz, type QuizCareer, type QuizTaken } from '@services/portfolio/records'
@@ -180,7 +184,7 @@ function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken
       </div>
       {taken.careers.length ? <>
         <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Training">{FILTERS.map((item) => <button key={item.id} type="button" role="radio" aria-checked={filter === item.id} onClick={() => setFilter(item.id)} className={`h-9 rounded-full border-2 px-3.5 text-[13px] font-extrabold ${filter === item.id ? 'border-[#6539D8] bg-[#8B5CF6] text-white' : 'border-border bg-card'}`}>{item.label}</button>)}</div>
-        {careers.length ? <CareerCarousel key={filter} careers={careers} />
+        {careers.length ? <CareerCarousel key={filter} careers={careers} orgslug={orgslug} />
           : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">None of your closest matches fit this filter. Try another.</p>}
       </> : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">Career matches will show up here once the career list is loaded. Your result is saved, so you won’t need to take the quiz again.</p>}
     </section>
@@ -188,7 +192,15 @@ function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken
 }
 
 /** One row of career cards that scrolls sideways (swipe on a phone, arrows on a computer). */
-function CareerCarousel({ careers }: { careers: QuizCareer[] }) {
+function CareerCarousel({ careers, orgslug }: { careers: QuizCareer[]; orgslug: string }) {
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const token: string | undefined = session?.data?.tokens?.access_token
+  const router = useRouter()
+  // A career the organization has in Discover opens its profile there; others open My Next Move.
+  const codes = careers.map((career) => career.code)
+  const { data } = useSWR(token && org?.id ? ['career-links', org.id, codes.join(',')] : null, () => careersApi.links(org.id, codes, token!))
+  const links = data?.links || {}
   const row = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: false })
   const look = () => { const el = row.current; if (el) setEdges({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth > el.scrollWidth - 8 }) }
@@ -198,7 +210,9 @@ function CareerCarousel({ careers }: { careers: QuizCareer[] }) {
   return <div className="relative -mx-4 sm:mx-0">
     <button type="button" aria-label="Earlier careers" onClick={() => step(-1)} disabled={edges.start} className={`${arrow} -left-5`}><ChevronLeft className="h-5 w-5" /></button>
     <ul ref={row} onScroll={look} aria-label="Careers that fit your interests" className="flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-      {careers.map((career) => <li key={career.code}><CareerTile career={career} href={`https://www.mynextmove.org/profile/summary/${career.code}`} /></li>)}
+      {careers.map((career) => <li key={career.code}>{links[career.code]
+        ? <CareerTile career={career} onOpen={() => router.push(getUriWithOrg(orgslug, `/discover?r=${links[career.code].replace(/^resource_/, '')}`))} />
+        : <CareerTile career={career} href={`https://www.mynextmove.org/profile/summary/${career.code}`} />}</li>)}
     </ul>
     <button type="button" aria-label="More careers" onClick={() => step(1)} disabled={edges.end} className={`${arrow} -right-5`}><ChevronRight className="h-5 w-5" /></button>
   </div>

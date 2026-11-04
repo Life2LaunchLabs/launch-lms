@@ -8,12 +8,15 @@ import { ArrowUpRight, Bookmark, Loader2, Sparkles, Star, X } from 'lucide-react
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useHub } from '@components/Hub/HubContext'
+import CareerProfile from '@components/Careers/CareerProfile'
+import CareerTake from '@components/Careers/CareerTake'
 import ResourceComments from '@components/Resources/ResourceComments'
 import ResourceNotes from '@components/Resources/ResourceNotes'
 import SaveDropdown from '@components/Resources/SaveDropdown'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getResource, getResources, saveResource, unsaveResource, type Resource } from '@services/resources/resources'
+import { careerCode } from '@services/life/careers'
 import { cn } from '@/lib/utils'
 import ResourceCover, { resourceKind, resourceSite, resourceSource } from './ResourceCover'
 
@@ -68,6 +71,8 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
   const uuid = resourceUuid.startsWith('resource_') ? resourceUuid : `resource_${resourceUuid}`
   const { data: resource, error, mutate } = useSWR(session?.status === 'loading' ? null : ['discover-resource', uuid, token || 'public'], () => getResource(uuid, token))
   const [saving, setSaving] = React.useState(false)
+  // A career just saved here: its take opens fresh, with "Add to my EPP" on.
+  const [fresh, setFresh] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
   const panel = React.useRef<HTMLDivElement>(null)
   const openButton = React.useRef<HTMLButtonElement>(null)
@@ -89,6 +94,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
   }, [onClose])
   React.useEffect(() => {
     panel.current?.scrollTo({ top: 0 })
+    setFresh(false)
     if (resource) openButton.current?.focus({ preventScroll: true })
   }, [resource?.resource_uuid]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -105,6 +111,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
     try {
       const result: any = resource.is_saved ? await unsaveResource(resource.resource_uuid, token) : await saveResource(resource.resource_uuid, { add_to_default_channel: false }, token)
       if (!result?.success) throw new Error()
+      setFresh(!resource.is_saved && resource.resource_type === 'career')
       await mutate()
     } catch {
       toast.error(resource.is_saved ? 'Couldn’t remove it. Try again.' : 'Couldn’t save it. Try again.')
@@ -116,6 +123,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
   const meta = resource ? resourceMeta(resource) : null
   const Kind = meta?.kind.icon
   const site = resource ? resourceSite(resource) : ''
+  const code = resource?.resource_type === 'career' ? careerCode(resource.external_url) : null
 
   const sheet = <div className="fixed inset-0 flex items-end justify-center sm:items-center sm:p-6" style={{ zIndex: 'var(--z-modal)' }}>
     <div aria-hidden="true" className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={onClose} />
@@ -159,7 +167,12 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
                 onSaveChange={() => void mutate()} onMembershipChange={() => void mutate()} variant="menu"
                 share={{ title: resource.title, description: resource.description, url: getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid)) }} /> : null}
             </div>
-            {signedIn ? <Block title="Your notes"><ResourceNotes resourceUuid={resource.resource_uuid} compact onNotesChange={() => void mutate()} /></Block> : null}
+            {code && signedIn ? <CareerProfile code={code} token={token} onOpen={onOpen} /> : null}
+            {code && signedIn && resource.is_saved ? <Block title="Your take">
+              <CareerTake key={`${resource.resource_uuid}-${fresh}`} resourceUuid={resource.resource_uuid} state={resource.user_state} token={token} fresh={fresh}
+                onSaved={() => { setFresh(false); void mutate() }} />
+            </Block> : null}
+            {signedIn && !code ? <Block title="Your notes"><ResourceNotes resourceUuid={resource.resource_uuid} compact onNotesChange={() => void mutate()} /></Block> : null}
             <Block title="What others say"><ResourceComments resourceUuid={resource.resource_uuid} compact onReviewsChange={() => void mutate()} /></Block>
             <MoreFrom resource={resource} onOpen={onOpen} />
           </div>
