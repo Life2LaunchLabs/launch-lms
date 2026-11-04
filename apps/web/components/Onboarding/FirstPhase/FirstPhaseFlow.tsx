@@ -119,7 +119,7 @@ export default function FirstPhaseFlow() {
   return <div className="min-h-screen bg-background">
     <div className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col gap-6 px-4 py-6 sm:py-10">
       <div className="flex items-center gap-3">
-        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} aria-label="Back" className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-0"><ArrowLeft size={18} aria-hidden="true" /></button>
+        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} aria-label="Previous question" className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-0"><ArrowLeft size={18} aria-hidden="true" /></button>
         <div className="flex flex-1 gap-1.5" aria-label={`Step ${step + 1} of ${steps.length}`}>{steps.map((x, i) => <span key={x} className={cn('h-2 flex-1 rounded-full', i <= step ? 'bg-[var(--org-primary-color)]' : 'bg-muted')} />)}</div>
       </div>
       <div><h1 className="text-[clamp(26px,6vw,34px)] font-extrabold leading-tight tracking-tight">{question.q}</h1><p className="mt-1 text-muted-foreground">{question.sub}</p></div>
