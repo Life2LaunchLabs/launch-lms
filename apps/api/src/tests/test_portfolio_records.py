@@ -202,13 +202,13 @@ def test_section_stack_names_heights_and_features():
         actor = _learner(db, published=True)
         stack = [[{"type": "projects", "u": 4}, {"type": "people", "u": 2}], [{"type": "about", "u": 3}], [{"type": "nope", "u": 6}, {"type": "projects", "u": 6}],
                  [{"type": "credentials", "u": 5}, {"type": "results", "u": 2}, {"type": "headed", "u": 2}]]
-        layout = portfolio_display.update_layout(LayoutUpdate(stack=stack, names={"projects": "  My builds ", "bogus": "x"}, heights={"volt": {"projects": 420, "about": 5000}, "volt:phone": {"projects": 300}, "neon": {"about": 1}},
+        layout = portfolio_display.update_layout(LayoutUpdate(stack=stack, names={"projects": "  My builds ", "bogus": "x"}, heights={"volt": {"projects": 420, "about": 5000}, "volt:phone": {"projects": 300}, "arcade": {"people": 200}, "neon": {"about": 1}},
                                                               features=[{"kind": "project", "ref": "p1"}, {"kind": "project", "ref": "p1"}, {"kind": "spell", "ref": "x"}, {"kind": "link", "ref": "instagram"}], feature_autoplay=True), actor, db)["layout"]
         # Each section once, widths put right, unknown sections dropped, and bio and experience always on the page.
         assert layout["stack"] == [[{"type": "projects", "u": 4}, {"type": "people", "u": 2}], [{"type": "about", "u": 6}],
                                    [{"type": "credentials", "u": 2}, {"type": "results", "u": 2}, {"type": "headed", "u": 2}], [{"type": "experience", "u": 6}]]
         assert layout["names"] == {"projects": "My builds"}
-        assert layout["heights"] == {"volt": {"projects": 420, "about": 1200}, "volt:phone": {"projects": 300}}
+        assert layout["heights"] == {"volt": {"projects": 420, "about": 1200}, "volt:phone": {"projects": 300}, "arcade": {"people": 200}}
         assert layout["features"] == [{"kind": "project", "ref": "p1"}, {"kind": "link", "ref": "instagram"}] and layout["feature_autoplay"] is True
         # null goes back to the look's suggested layout, and leaves the rest alone.
         layout = portfolio_display.update_layout(LayoutUpdate(stack=None), actor, db)["layout"]

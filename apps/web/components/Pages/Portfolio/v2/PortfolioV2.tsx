@@ -33,7 +33,9 @@ import { ResultDialog } from './ResultDialog'
 import { LookDialog } from './LookDialog'
 import { WelcomeDialog } from './WelcomeDialog'
 import { BANNERS, LOOKS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
-import { CornerEdit, EmptyAdd, SPOT_RING, SectionBar, SpotTip, initials } from './parts'
+import { CornerEdit, EmptyAdd, SectionBar, SpotTip, initials } from './parts'
+import { PortfolioHeader, cornerClass } from './PortfolioHeader'
+import { shellSocials } from '../PortfolioHeaderParts'
 import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
 import { questPath, spotPaths, spotsFor, stageOf, type Quest } from './progress'
 import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
@@ -42,16 +44,14 @@ import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 // tiles in a grid or a list. Quests, the résumé builder and the editors come in later phases.
 
 function Avatar({ url, name, size = 'h-[92px] w-[92px] text-[32px]' }: { url?: string; name: string; size?: string }) {
-  return <span data-pf-avatar className={`grid shrink-0 place-items-center overflow-hidden rounded-full border-[5px] border-background bg-[linear-gradient(140deg,#FFC56B,#EC4F9A_60%,#8B5CF6)] font-extrabold text-white ${size}`}>
+  return <span className={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-[linear-gradient(140deg,#FFC56B,#EC4F9A_60%,#8B5CF6)] font-extrabold text-white ${size}`}>
     {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : initials(name)}
   </span>
 }
 
-const CORNER = 'inline-flex h-[34px] items-center gap-1.5 rounded-full bg-black/50 px-3 text-[12.5px] font-bold text-white backdrop-blur transition hover:bg-black/60'
-
-function SettingsMenu({ orgslug, onLook, onUnpublish }: { orgslug: string; onLook: () => void; onUnpublish?: () => void }) {
+function SettingsMenu({ orgslug, onLook, onUnpublish, className }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; className: string }) {
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" aria-label="Settings" className={CORNER}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">Settings</span></button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" aria-label="Settings" className={className}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">Settings</span></button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60 rounded-2xl p-2">
       <DropdownMenuItem onSelect={onLook} className="rounded-xl px-3 py-2"><Palette className="h-4 w-4" />Look and layout</DropdownMenuItem>
       <DropdownMenuSeparator />
@@ -117,7 +117,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const hasName = Boolean(shell.identity?.preferred_name || shell.identity?.first_name || shell.portfolio.display_name)
   const avatarUrl = shell.portfolio.avatar_image ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image) : ''
   const now = (shell.timeline || []).find((entry) => entry.is_current)
-  const meta = [now ? [now.title, now.organization].filter(Boolean).join(' at ') : '', shell.portfolio.location_label].filter(Boolean).join(' · ')
+  const nowLabel = now ? [now.title, now.organization].filter(Boolean).join(' at ') : ''
   const highlights = shell.highlights || []
   const published = Boolean(shell.portfolio.published_at)
   const resumeHref = getUriWithOrg(orgslug, owner ? '/portfolio/resume' : `/user/${username}/resume`)
@@ -265,6 +265,24 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     <Button asChild variant="surface" size="icon" className="h-10 w-10 shrink-0" aria-label="Preview as a visitor" title="Preview as a visitor"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="h-4 w-4" /></Link></Button>
   </>
 
+  // Professional puts the header in a column beside everything else.
+  const side = lookId === 'professional'
+  const cornerFor = (onBanner: boolean) => <>
+    <button type="button" onClick={() => setLookOpen(true)} className={`${cornerClass(onBanner)} ${spots.settings ? 'ring-4 ring-[#ffc21a]' : ''}`}><Palette className="h-[15px] w-[15px]" />Look</button>
+    <button type="button" onClick={() => setArranging(!arranging)} aria-pressed={arranging} className={`${cornerClass(onBanner)} ${arranging ? '!bg-foreground !text-background' : ''}`}>{arranging ? <Check className="h-[15px] w-[15px]" /> : <LayoutGrid className="h-[15px] w-[15px]" />}{arranging ? 'Done' : 'Edit page'}</button>
+    <SettingsMenu orgslug={orgslug} className={cornerClass(onBanner)} onLook={() => setLookOpen(true)} onUnpublish={published ? unpublish : undefined} />
+  </>
+  const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.portfolio.location_label || ''}
+    socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onProfile={() => setProfileOpen(true)}
+    stats={([[shell.projects?.length || 0, 'Projects'], [(shell.badges?.earned?.length || 0) + (shell.credentials?.length || 0), 'Badges'], [shell.timeline?.length || 0, 'Experience']] as Array<[number, string]>).filter(([value]) => value > 0)}
+    banner={{ image: bannerImage, css: bannerCss, fallback: look || accent ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]' }}
+    marks={<>{shell.mastered ? <MasteryBadge /> : null}{editing ? <span data-pf-chip className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}</>}
+    corner={editing && !side ? cornerFor : undefined}
+    actions={editing ? ownerActions : !owner ? <>
+      <Button asChild variant="brand" className="h-10"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>
+      {username ? <PortfolioVisitorBar orgslug={orgslug} username={username} token={token} shell={shell} /> : null}
+    </> : null} />
+
   // Visitors see the portfolio in its owner's look, whatever theme they use.
   return <main className={`min-h-screen bg-background pb-20 text-foreground ${look && dark ? 'dark' : ''}`} data-portfolio-v2 data-look={look || undefined} data-accent={accent ? '' : undefined} style={accentVars(accent) as CSSProperties}>
     {owner ? ask.dialog : null}
@@ -272,40 +290,12 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       <div><b className="text-sm font-extrabold">Visitor preview</b><p className="text-xs text-muted-foreground">This is how people see your portfolio{published ? '' : ' once it’s public'}.</p></div>
       <Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="h-4 w-4" />Back to editing</Link></Button>
     </div></div> : null}
-    <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6">
-      <header>
-        <div data-pf-banner className={`relative h-[110px] overflow-hidden rounded-3xl sm:h-[150px] ${bannerImage || bannerCss ? '' : look || accent ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]'}`} style={bannerCss && !bannerImage ? { background: bannerCss } : undefined}>
-          {bannerImage ? <img src={bannerImage} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <div className="absolute inset-0 bg-[url('/texture_overlay.png')] bg-cover opacity-25 mix-blend-overlay" aria-hidden="true" />}
-          {/* The owner's corner: always the top right, whatever the look, so trying looks on never moves it. */}
-          {editing ? <div className="absolute right-3 top-3 z-[2] flex items-center gap-1.5">
-            <button type="button" onClick={() => setLookOpen(true)} className={`${CORNER} ${spots.settings ? 'ring-4 ring-[#ffc21a]' : ''}`}><Palette className="h-[15px] w-[15px]" />Look</button>
-            <button type="button" onClick={() => setArranging(!arranging)} aria-pressed={arranging} className={`${CORNER} ${arranging ? '!bg-white !text-black' : ''}`}>{arranging ? <Check className="h-[15px] w-[15px]" /> : <LayoutGrid className="h-[15px] w-[15px]" />}{arranging ? 'Done' : 'Edit page'}</button>
-            <SettingsMenu orgslug={orgslug} onLook={() => setLookOpen(true)} onUnpublish={published ? unpublish : undefined} />
-          </div> : null}
-          {spots.settings ? <SpotTip label={spots.settings} className="absolute right-3 top-[52px]" /> : null}
-        </div>
-        <div className={`relative -mt-[46px] px-1 sm:-mt-14 sm:px-[22px] ${centered ? 'text-center' : ''}`}>
-          {spots.avatar ? <SpotTip label={spots.avatar} className="absolute left-[118px] top-[50px] sm:left-[150px] sm:top-[62px]" /> : null}
-          {editing ? <button type="button" onClick={() => setProfileOpen(true)} aria-label="Edit your profile" className={`group relative inline-block rounded-full outline-none ${spots.avatar ? `border-2 ${SPOT_RING}` : ''} focus-visible:ring-2 focus-visible:ring-foreground`}><Avatar url={avatarUrl} name={name} /><span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><Pencil className="h-3.5 w-3.5" /></span></button> : <Avatar url={avatarUrl} name={name} />}
-          <div className="min-w-0 pt-2.5">
-            <div className={`group relative flex flex-wrap items-center gap-x-3 gap-y-1 ${centered ? 'justify-center' : ''}`}>
-              {spots.name ? <SpotTip label={spots.name} className="relative order-last" /> : null}
-              <h1 data-pf-name className="break-words text-[clamp(26px,3vw,34px)] font-extrabold leading-[1.1] tracking-[-0.02em]">{editing && !hasName ? <button type="button" onClick={() => setProfileOpen(true)} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : name}</h1>
-              {shell.mastered ? <MasteryBadge /> : null}
-              {editing ? <span className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}
-            </div>
-            {shell.portfolio.headline ? <p className={`mt-1 line-clamp-2 max-w-[60ch] text-base ${centered ? 'mx-auto' : ''}`}>{shell.portfolio.headline}</p>
-              : editing ? <button type="button" onClick={() => setProfileOpen(true)} className="mt-1 text-base italic text-muted-foreground hover:text-foreground">Add a one-line intro (optional)</button> : null}
-            {meta ? <p className="mt-1 truncate text-[13.5px] font-semibold text-muted-foreground">{meta}</p> : null}
-            <div className={`mt-3.5 flex gap-2 flex-wrap ${centered ? 'justify-center' : ''}`}>
-              {editing ? ownerActions : !owner ? <>
-                <Button asChild variant="brand" className="h-10"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>
-                {username ? <PortfolioVisitorBar orgslug={orgslug} username={username} token={token} shell={shell} /> : null}
-              </> : null}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className={`mx-auto px-4 pt-4 sm:px-6 sm:pt-6 ${side ? 'max-w-[1140px] md:grid md:grid-cols-[290px_minmax(0,1fr)] md:items-start md:gap-7' : 'max-w-[960px]'}`}>
+      {side && editing ? <div className="mb-3 flex flex-wrap justify-end gap-1.5 md:hidden">{cornerFor(false)}</div> : null}
+      {header}
+      <div className="min-w-0 max-md:mt-2">
+        {/* Professional's corner sits over the stack: still the page's top right. */}
+        {side && editing ? <div className="relative mb-3 flex flex-wrap justify-end gap-1.5 max-md:hidden">{cornerFor(false)}{spots.settings ? <SpotTip label={spots.settings} className="absolute right-0 top-[40px]" /> : null}</div> : null}
       {stage && questOpen ? <QuestBanner stage={stage} list={questList} onList={() => setQuestList(!questList)} busy={busy}
         onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
         onUnlock={(quest) => seeUnlock(quest, quest.n === 1 ? publish : quest.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null}
@@ -325,6 +315,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
         <b className="mr-1 text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Add a section</b>
         {addable.map((type) => <button key={type} type="button" onClick={() => addSection(type)} className="inline-flex h-8 items-center gap-1 rounded-full border-2 border-border bg-card px-3 text-[13px] font-bold hover:bg-raised">{type === 'feature' ? <Sparkles className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}{LOOK_NAMES[lookId][type] || SECTION_LABELS[type]}</button>)}
       </div> : null}
+      </div>
     </div>
     {editing ? <>
       <ProfileDialog mark={mark} open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
