@@ -14,7 +14,7 @@ import { SOCIAL_OPTIONS, shellSocials, socialHandle } from '../../PortfolioHeade
 import { timelineDateLabel } from '../../Timeline'
 import type { Shell } from '../../portfolioTypes'
 import { KindCover } from '../covers'
-import { PersonDot, SectionBar } from '../parts'
+import { PersonDot } from '../parts'
 import { CredentialFace } from '../PortfolioTiles'
 import { useSection } from './SectionStack'
 
@@ -79,22 +79,21 @@ export function FeatureSection({ slides, autoplay }: { slides: Slide[]; autoplay
   const count = slides.length
   const index = count ? at % count : 0
   useEffect(() => {
-    if (!autoplay || count < 2 || paused || ctx?.editing || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    if (!autoplay || count < 2 || paused || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
     const timer = window.setInterval(() => setAt((value) => value + 1), 6000)
     return () => window.clearInterval(timer)
-  }, [autoplay, count, paused, ctx?.editing])
+  }, [autoplay, count, paused])
   if (!count) return null
   const go = (step: number) => setAt((value) => (((value + step) % count) + count) % count)
   const title = ctx?.title || 'Featured'
   return <section aria-label="Featured" aria-roledescription={count > 1 ? 'carousel' : undefined} data-feature className="@container flex min-w-0 flex-col" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
-    <SectionBar section="feature" />
     <div data-feature-frame className={`group/feat relative min-h-[240px] overflow-hidden rounded-3xl border-2 border-border bg-card shadow-[0_4px_0_hsl(var(--border))] ${ctx?.fixed ? 'min-h-0 flex-1' : ''}`}>
       <div className="flex h-full transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none" style={{ transform: `translateX(-${index * 100}%)` }}>
         {slides.map((slide, n) => {
           const body = <SlideBody slide={slide} kicker={title} />
           const hidden = n !== index
           return <div key={`${slide.kind}-${slide.key}`} className="h-full w-full shrink-0" aria-hidden={hidden || undefined} role={count > 1 ? 'group' : undefined} aria-roledescription={count > 1 ? 'slide' : undefined} aria-label={count > 1 ? `${n + 1} of ${count}` : undefined}>
-            {slide.href && !ctx?.editing ? slide.external
+            {slide.href ? slide.external
               ? <a href={slide.href} target="_blank" rel="noreferrer" tabIndex={hidden ? -1 : undefined} className="block h-full">{body}</a>
               : <Link href={slide.href} tabIndex={hidden ? -1 : undefined} className="block h-full">{body}</Link> : body}
           </div>

@@ -41,25 +41,27 @@ export function Cover({ url, seed, label, className = '' }: { url?: string; seed
 
 /**
  * One section of the front page: a colored icon, the title and count, then a preview of what's inside.
- * In the section stack it takes its title from the stack (the learner's name for it, or the look's), and in
- * edit mode its header row turns into the section's controls: a grip, the title to rename, and the rest.
+ * In the section stack it takes its title from the stack (the learner's name for it, or the look's). For the
+ * owner the header row also carries the section's tools, shown when the section is pointed at: a grip to
+ * move it, the title to rename, a pencil to its editor and the button that takes it out.
  */
 export function Tile({ color, icon: Icon, title, count, href, wide = false, children, label, spot, section }: { color: TileColor; icon: ComponentType<{ className?: string }>; title: string; count?: number | null; href?: string; wide?: boolean; children: ReactNode; label?: string; spot?: string; section?: SectionType }) {
   const [face, edge] = PALETTE[color]
   const ctx = useSection(section)
   const editing = Boolean(ctx?.editing)
   const shown = ctx?.title || title
-  const heading = <div className="flex min-w-0 items-center gap-2.5" data-tile-head>
-    {editing ? <GripVertical className="-ml-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
+  const arrow = <ChevronRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+  const heading = <div className="relative flex min-w-0 items-center gap-2.5" data-tile-head>
+    {/* Out in the margin, so the header doesn't shift when the tools show. */}
+    {editing ? <Grip label={shown} className="absolute -left-[19px] top-1/2 !w-4 -translate-y-1/2" /> : null}
     <span data-tile-icon className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
     <h2 data-tile-title className="min-w-0 truncate text-[17px] font-extrabold">{editing && ctx?.rename ? <EditableTitle value={shown} onSave={ctx.rename} />
-      : href && !editing ? <Link href={href} className="outline-none after:absolute after:inset-0 after:rounded-3xl focus-visible:underline">{shown}</Link> : shown}</h2>
-    {!editing && ctx?.edit ? <EditButton label={shown} onClick={ctx.edit} /> : null}
+      : href ? <Link href={href} className="outline-none after:absolute after:inset-0 after:rounded-3xl focus-visible:underline">{shown}</Link> : shown}</h2>
+    {ctx?.edit ? <EditButton label={shown} onClick={ctx.edit} /> : null}
     <span className="flex-1" />
-    {editing ? ctx?.controls : <>
-      {count ? <span data-tile-count className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
-      {href ? <ChevronRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" /> : null}
-    </>}
+    {count ? <span data-tile-count className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
+    {href ? editing ? <Link href={href} aria-label={`Open ${shown}`} className="relative z-[2]">{arrow}</Link> : arrow : null}
+    {editing ? ctx?.controls : null}
   </div>
   return <section aria-label={label || title} data-tile data-spot={spot ? "" : undefined} data-wide={wide || undefined} className={`@container group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition ${editing ? '' : 'hover:-translate-y-0.5'} ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
     {spot ? <SpotTip label={spot} /> : null}
@@ -69,17 +71,26 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
   </section>
 }
 
+/** The handle a section is moved by. Only it starts a drag, so everything else in the section keeps working. */
+export function Grip({ label, className = '-ml-1' }: { label: string; className?: string }) {
+  return <button type="button" data-grip data-sec-tool aria-label={`Move ${label}`} title="Drag to move" className={`z-[2] grid h-8 w-5 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground hover:bg-raised hover:text-foreground active:cursor-grabbing ${className}`}><GripVertical className="h-4 w-4" /></button>
+}
+
 /** The pencil beside a section's title that opens what edits it. It shows on hover (always on touch screens). */
 export function EditButton({ label, onClick, className = '' }: { label: string; onClick: () => void; className?: string }) {
   return <button type="button" data-section-edit onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClick() }} aria-label={`Edit ${label}`} title={`Edit ${label}`}
     className={`relative z-[2] grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 transition hover:bg-raised hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 group-hover/sec:opacity-100 [@media(hover:none)]:opacity-100 ${className}`}><Pencil className="h-4 w-4" /></button>
 }
 
-/** The edit pencil for a section with no title row (highlights, featured): top left, over the section. */
-export function CornerEdit({ section, label }: { section: SectionType; label: string }) {
+/** The owner's tools for a section with no title row (highlights, featured): grip, pencil and take out, top left over it. */
+export function SectionTools({ section, label }: { section: SectionType; label: string }) {
   const ctx = useSection(section)
-  if (!ctx?.edit || ctx.editing) return null
-  return <EditButton label={label} onClick={ctx.edit} className="absolute left-2 top-2 z-[4] border border-border bg-card shadow-sm" />
+  if (!ctx?.editing) return null
+  return <div data-sec-tool className="absolute left-2 top-2 z-[4] flex items-center gap-0.5 rounded-full border border-border bg-card p-0.5 shadow-sm">
+    <Grip label={label} className="ml-0.5" />
+    {ctx.edit ? <EditButton label={label} onClick={ctx.edit} className="!h-7 !w-7 !opacity-100" /> : null}
+    {ctx.controls}
+  </div>
 }
 
 /** A section title renamed in place: click, type, Enter or click away to keep it, Escape to leave it. */
@@ -88,17 +99,6 @@ export function EditableTitle({ value, onSave }: { value: string; onSave: (next:
     className="cursor-text rounded-md px-1 outline-none ring-[var(--org-primary-color)] decoration-dashed decoration-2 underline-offset-4 hover:underline focus:ring-2"
     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.target as HTMLElement).blur() } else if (event.key === 'Escape') { (event.target as HTMLElement).textContent = value; (event.target as HTMLElement).blur() } }}
     onBlur={(event) => { const next = (event.target.textContent || '').trim(); if (next !== value) onSave(next) }}>{value}</span>
-}
-
-/** The header row a section without one (highlights, featured) gets in edit mode, for its controls. */
-export function SectionBar({ section }: { section: SectionType }) {
-  const ctx = useSection(section)
-  if (!ctx?.editing) return null
-  return <div className="mb-2 flex min-w-0 items-center gap-2.5" data-tile-head>
-    <GripVertical className="-ml-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-    <h2 className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-muted-foreground">{ctx.rename ? <EditableTitle value={ctx.title} onSave={ctx.rename} /> : ctx.title}</h2>
-    {ctx.controls}
-  </div>
 }
 
 /** What an owner sees where a section is empty: one dashed row that starts it. */

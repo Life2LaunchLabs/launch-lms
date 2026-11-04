@@ -105,7 +105,7 @@ function PlayfulHeader({ p }: { p: HeaderProps }) {
 
 /** Professional: a profile column beside the stack, like LinkedIn or Read.cv. */
 function ProfessionalHeader({ p }: { p: HeaderProps }) {
-  return <header data-pf-header="side" className="relative overflow-hidden rounded-lg border border-border bg-card md:sticky md:top-4">
+  return <header data-pf-header="side" className="relative overflow-hidden rounded-lg border border-border bg-card">
     <Banner p={p} className="h-[84px]" />
     <div className="relative grid gap-3 px-5 pb-5">
       <AvatarSpot p={p} className="absolute left-[112px] top-0" />
