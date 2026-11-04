@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, Download, Eye, FileText, Globe2, LayoutGrid, Lock, Palette, Pencil, Plus, SlidersHorizontal, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Download, Eye, FileText, Globe2, Lock, Palette, SlidersHorizontal, Trophy, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import toast from 'react-hot-toast'
 
@@ -32,8 +32,8 @@ import type { SectionType } from '@services/portfolio/records'
 import { ResultDialog } from './ResultDialog'
 import { LookDialog } from './LookDialog'
 import { WelcomeDialog } from './WelcomeDialog'
-import { BANNERS, LOOKS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
-import { CornerEdit, EmptyAdd, SectionBar, SpotTip, initials } from './parts'
+import { BANNERS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
+import { EmptyAdd, QuestMark, SectionTools, SpotTip, Tile, initials } from './parts'
 import { PortfolioHeader, cornerClass } from './PortfolioHeader'
 import { shellSocials } from '../PortfolioHeaderParts'
 import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
@@ -49,11 +49,12 @@ function Avatar({ url, name, size = 'h-[92px] w-[92px] text-[32px]' }: { url?: s
   </span>
 }
 
-function SettingsMenu({ orgslug, onLook, onUnpublish, className }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; className: string }) {
+/** The owner's corner: Settings, which holds the look. A quest step for the look marks both the button and the item. */
+function SettingsMenu({ orgslug, onLook, onUnpublish, className, spot }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; className: string; spot?: string }) {
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" aria-label="Settings" className={className}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">Settings</span></button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" aria-label="Settings" className={`${className} ${spot ? 'ring-4 ring-[#ffc21a]' : ''}`}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">Settings</span></button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60 rounded-2xl p-2">
-      <DropdownMenuItem onSelect={onLook} className="rounded-xl px-3 py-2"><Palette className="h-4 w-4" />Look and layout</DropdownMenuItem>
+      <DropdownMenuItem onSelect={onLook} className={`rounded-xl px-3 py-2 ${spot ? 'bg-[#ffc21a]/20' : ''}`}><Palette className="h-4 w-4" /><span className="flex-1">Look and layout</span>{spot ? <QuestMark className="h-[18px] w-[18px]" /> : null}</DropdownMenuItem>
       <DropdownMenuSeparator />
       {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">Make my portfolio private</DropdownMenuItem> : null}
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>My documents</Link></DropdownMenuItem>
@@ -91,7 +92,6 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [questOpen, setQuestOpen] = useState(true)
   const [questList, setQuestList] = useState(false)
   const [lookOpen, setLookOpen] = useState(false)
-  const [arranging, setArranging] = useState(false)
   const [featureOpen, setFeatureOpen] = useState(false)
   const { setTheme, resolvedTheme } = useTheme()
   const editing = owner && !preview
@@ -226,26 +226,25 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     void changeLayout({ heights })
   }
   const addable = ALL_SECTIONS.filter((type) => type === 'feature' ? !slides.length : !stored.some((row) => row.some((item) => item.type === type)))
-  const pill = 'inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-extrabold text-foreground hover:bg-raised'
-  const controls = (type: SectionType) => <span className="flex shrink-0 items-center gap-1" data-edit-control>
-    {type === 'feature' ? <button type="button" onClick={() => setFeatureOpen(true)} className={pill}><Pencil className="h-3.5 w-3.5" />Edit</button> : null}
-    {type === 'highlights' ? <button type="button" onClick={() => setHighlightsOpen(true)} className={pill}><Pencil className="h-3.5 w-3.5" />Edit</button> : null}
-    {REQUIRED.includes(type) ? <span className="px-1 text-[11px] font-bold text-muted-foreground">Always on</span>
-      : <button type="button" onClick={() => removeSection(type)} aria-label={`Take out ${titleOf(type)}`} title="Take this section out" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>}
-  </span>
+  // Bio and experience are always on the page; the rest can be taken out (and come back from the adds below).
+  const controls = (type: SectionType) => REQUIRED.includes(type) ? null
+    : <button type="button" data-sec-tool onClick={() => removeSection(type)} aria-label={`Take out ${titleOf(type)}`} title="Take this section out" className="relative z-[2] grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>
   // One click from the page: each section's pencil opens what edits it.
   const edits: Partial<Record<SectionType, () => void>> = {
     feature: () => setFeatureOpen(true), highlights: () => setHighlightsOpen(true),
     about: () => document.querySelector<HTMLElement>('[data-sec="about"] [data-bio-start]')?.click(),
     experience: () => page('/portfolio/timeline'), projects: () => page('/portfolio/projects'), credentials: () => page('/portfolio/badges'),
-    results: () => setResultEditor({}), people: () => page('/portfolio/people'), headed: () => page('/plans'),
+    results: () => page('/portfolio/results'), people: () => page('/portfolio/people'), headed: () => page('/plans'),
   }
   const tileProps = { spots, spotLinks, shell, setShell, owner: editing, orgslug, username, token, onEditLinks: () => setLinksOpen(true), onEditResult: (result?: PortfolioResult) => setResultEditor({ result }) }
   const renderSection = (type: SectionType) => {
-    if (type === 'feature') return <div className="relative flex min-w-0 flex-col [&>*]:flex-1" data-feature-wrap><CornerEdit section="feature" label="featured" /><FeatureSection slides={slides} autoplay={Boolean(layout.feature_autoplay)} /></div>
+    if (type === 'feature') return <div className="relative flex min-w-0 flex-col [&>*]:flex-1" data-feature-wrap><SectionTools section="feature" label={titleOf('feature')} /><FeatureSection slides={slides} autoplay={Boolean(layout.feature_autoplay)} /></div>
+    // Empty highlights on the page is a section like the others, with its add inside.
+    if (type === 'highlights' && !highlights.length) return <Tile section="highlights" color="violet" icon={Trophy} title="Highlights" wide>
+      <EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} />
+    </Tile>
     if (type === 'highlights') return <div className="group relative flex min-w-0 flex-col" data-highlights-section>
-      {highlights.length ? <CornerEdit section="highlights" label="highlights" /> : null}
-      <SectionBar section="highlights" />
+      <SectionTools section="highlights" label={titleOf('highlights')} />
       {highlights.length ? <section aria-label="Highlights" className="@container relative grid grid-cols-2 gap-3 @md:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
         {highlights.map((item, index) => <div key={index} data-item data-highlight className="min-w-0 rounded-2xl border-2 border-border bg-card px-4 py-3 shadow-[0_4px_0_hsl(var(--border))]"><b className="block truncate text-[21px] font-extrabold leading-[1.1] tabular-nums">{item.value}</b><span className="mt-0.5 block text-[13px] font-semibold text-muted-foreground">{item.label}</span></div>)}
       </section> : <EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} />}
@@ -267,11 +266,16 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
 
   // Professional puts the header in a column beside everything else.
   const side = lookId === 'professional'
-  const cornerFor = (onBanner: boolean) => <>
-    <button type="button" onClick={() => setLookOpen(true)} className={`${cornerClass(onBanner)} ${spots.settings ? 'ring-4 ring-[#ffc21a]' : ''}`}><Palette className="h-[15px] w-[15px]" />Look</button>
-    <button type="button" onClick={() => setArranging(!arranging)} aria-pressed={arranging} className={`${cornerClass(onBanner)} ${arranging ? '!bg-foreground !text-background' : ''}`}>{arranging ? <Check className="h-[15px] w-[15px]" /> : <LayoutGrid className="h-[15px] w-[15px]" />}{arranging ? 'Done' : 'Edit page'}</button>
-    <SettingsMenu orgslug={orgslug} className={cornerClass(onBanner)} onLook={() => setLookOpen(true)} onUnpublish={published ? unpublish : undefined} />
-  </>
+  const cornerFor = (onBanner: boolean) => <SettingsMenu orgslug={orgslug} className={cornerClass(onBanner)} spot={spots.settings} onLook={() => setLookOpen(true)} onUnpublish={published ? unpublish : undefined} />
+  const quest = stage && questOpen ? <QuestBanner stage={stage} list={questList} onList={() => setQuestList(!questList)} busy={busy}
+    onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
+    onUnlock={(next) => seeUnlock(next, next.n === 1 ? publish : next.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null
+  const ADD_HINTS: Record<SectionType, string> = {
+    highlights: 'The numbers people notice first, like hours worked, a GPA or a win', feature: 'Put a project, a quote or a link up top',
+    about: 'A few lines about you', experience: 'Jobs, volunteering, teams and clubs', projects: 'Things you made, with a photo and a line',
+    credentials: 'Cards, certificates and badges', results: 'Quiz and test results that say what you’re like', headed: 'Where you are now, and what’s next',
+    people: 'Quotes from people who know your work',
+  }
   const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.portfolio.location_label || ''}
     socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onProfile={() => setProfileOpen(true)}
     stats={([[shell.projects?.length || 0, 'Projects'], [(shell.badges?.earned?.length || 0) + (shell.credentials?.length || 0), 'Badges'], [shell.timeline?.length || 0, 'Experience']] as Array<[number, string]>).filter(([value]) => value > 0)}
@@ -292,35 +296,28 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     </div></div> : null}
     <div className={`mx-auto px-4 pt-4 sm:px-6 sm:pt-6 ${side ? 'max-w-[1140px] md:grid md:grid-cols-[290px_minmax(0,1fr)] md:items-start md:gap-7' : 'max-w-[960px]'}`}>
       {side && editing ? <div className="mb-3 flex flex-wrap justify-end gap-1.5 md:hidden">{cornerFor(false)}</div> : null}
-      {header}
+      {/* Professional's column: the profile, then the quest under it, so its arrow points up at its button. */}
+      {side ? <div className={`grid min-w-0 content-start ${questList ? '' : 'md:sticky md:top-4'}`}>{header}{quest}</div> : header}
       <div className="min-w-0 max-md:mt-2">
         {/* Professional's corner sits over the stack: still the page's top right. */}
         {side && editing ? <div className="relative mb-3 flex flex-wrap justify-end gap-1.5 max-md:hidden">{cornerFor(false)}{spots.settings ? <SpotTip label={spots.settings} className="absolute right-0 top-[40px]" /> : null}</div> : null}
-      {stage && questOpen ? <QuestBanner stage={stage} list={questList} onList={() => setQuestList(!questList)} busy={busy}
-        onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
-        onUnlock={(quest) => seeUnlock(quest, quest.n === 1 ? publish : quest.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null}
-
-      {arranging ? <div className="sticky top-2 z-[30] mt-4 flex flex-wrap items-center gap-2 rounded-[20px] bg-foreground py-2 pl-4 pr-2 text-background shadow-lg" role="toolbar" aria-label="Edit page">
-        <span className="min-w-[200px] flex-1 text-[13px] font-semibold">Drag a section to move it, or onto another to share its row. Drag the gap between two for width and a bottom edge for height. Click a title to rename it.</span>
-        {custom ? <button type="button" onClick={() => void changeLayout({ stack: null, heights: Object.fromEntries(Object.entries(layout.heights || {}).filter(([key]) => key.split(':')[0] !== lookId)) })} className="h-8 rounded-full bg-background/15 px-3 text-xs font-extrabold hover:bg-background/25">Use {LOOKS.find((one) => one.id === lookId)?.name}’s suggested layout</button> : null}
-        <button type="button" onClick={() => setArranging(false)} className="inline-flex h-8 items-center gap-1 rounded-full bg-[var(--org-primary-color)] px-3.5 text-xs font-extrabold text-[var(--org-on-primary-color)]"><Check className="h-3.5 w-3.5" />Done</button>
-      </div> : null}
+      {side ? null : quest}
 
       <div className="mt-[22px]" data-layout="stack">
-        <SectionStack look={lookId} rows={rows} editing={arranging} render={renderSection} onMove={onMove} onHeight={setHeights}
+        <SectionStack look={lookId} rows={rows} editing={editing} render={renderSection} onMove={onMove} onHeight={setHeights}
           heightOf={(type, phone) => layout.heights?.[phone ? `${lookId}:phone` : lookId]?.[type] || null}
-          context={(type) => ({ editing: arranging, look: lookId, title: titleOf(type), rename: rename(type), controls: controls(type), edit: editing ? edits[type] : undefined })} />
+          context={(type) => ({ editing, look: lookId, title: titleOf(type), rename: rename(type), controls: controls(type), edit: editing ? edits[type] : undefined })} />
       </div>
-      {arranging && addable.length ? <div className="mt-5 flex flex-wrap items-center gap-2 rounded-3xl border-2 border-dashed border-border p-4">
-        <b className="mr-1 text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Add a section</b>
-        {addable.map((type) => <button key={type} type="button" onClick={() => addSection(type)} className="inline-flex h-8 items-center gap-1 rounded-full border-2 border-border bg-card px-3 text-[13px] font-bold hover:bg-raised">{type === 'feature' ? <Sparkles className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}{LOOK_NAMES[lookId][type] || SECTION_LABELS[type]}</button>)}
-      </div> : null}
+      {/* Sections not on the page come back from here, each drawn like any empty section's add. */}
+      {editing && addable.length ? <section aria-label="Add a section" className="mt-[var(--stack-gy,16px)] grid gap-3 sm:grid-cols-2">
+        {addable.map((type) => <EmptyAdd key={type} title={`Add ${(layout.names?.[type] || LOOK_NAMES[lookId][type] || SECTION_LABELS[type]).toLowerCase()}`} hint={ADD_HINTS[type]} onClick={() => addSection(type)} />)}
+      </section> : null}
       </div>
     </div>
     {editing ? <>
       <ProfileDialog mark={mark} open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
       <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
-      <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} mode={mode} dark={dark} onChange={(next) => void changeLayout(next)} spot={spots.settings} userId={Number(shell.portfolio.user_id)} token={token} />
+      <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} onSuggested={custom ? () => void changeLayout({ stack: null, heights: Object.fromEntries(Object.entries(layout.heights || {}).filter(([key]) => key.split(':')[0] !== lookId)) }) : undefined} mode={mode} dark={dark} onChange={(next) => void changeLayout(next)} spot={spots.settings} userId={Number(shell.portfolio.user_id)} token={token} />
       <WelcomeDialog open={welcomeOpen} onOpenChange={setWelcomeOpen} onStart={() => { setWelcomeOpen(false); setQuestOpen(true); setQuestList(true) }} />
       <LinksDialog mark={mark} open={linksOpen} onOpenChange={(open) => { setLinksOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} />
       <FeatureDialog open={featureOpen} onOpenChange={setFeatureOpen} items={layout.features || []} autoplay={Boolean(layout.feature_autoplay)} choices={choices} onChange={changeFeatures} onAutoplay={(on) => void changeLayout({ feature_autoplay: on })} />

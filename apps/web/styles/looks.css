@@ -397,13 +397,10 @@ html[data-look='volt'] body,
 
 /* ── The portfolio's section stack ── */
 [data-fit-hidden] { display: none !important; }
-[data-stack-editing] [data-sec] * { pointer-events: none; }
-[data-stack-editing] [data-sec] [data-edit-control],
-[data-stack-editing] [data-sec] [data-edit-control] *,
-[data-stack-editing] [data-sec] [data-hh],
-[data-stack-editing] [data-sec] [data-hh] * { pointer-events: auto; }
-[data-stack-editing] [data-sec] { user-select: none; -webkit-user-select: none; }
-[data-stack-editing] [data-sec] [contenteditable] { user-select: text; -webkit-user-select: text; }
+/* The owner's section tools (grip, rename, take out) wait out of sight until the section is pointed at. */
+[data-sec-tool] { opacity: 0; transition: opacity .15s; }
+[data-sec]:hover [data-sec-tool], [data-sec]:focus-within [data-sec-tool] { opacity: 1; }
+@media (hover: none) { [data-sec-tool] { opacity: 1; } }
 /* The section fills its cell, and a featured carousel fills a set height. */
 [data-sec] > [data-tile], [data-sec] > [data-feature], [data-sec] > [data-feature-wrap], [data-feature-wrap] > [data-feature], [data-sec] > [data-highlights-section] { height: 100%; }
 

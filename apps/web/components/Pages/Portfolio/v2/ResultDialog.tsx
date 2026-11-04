@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ChevronRight, ExternalLink, FileText, Paperclip, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ChevronRight, CircleDollarSign, ExternalLink, FileText, Paperclip, Play, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -23,9 +23,10 @@ import type { Setter } from './inplace'
 import { ResultPicture } from './ResultView'
 import { RESULT_TEMPLATES, filled, summaryFor, templateOf, type ResultTemplate } from './resultTemplates'
 
-// Adding or changing one of "What I'm like". A result follows one of the known assessments (pick it, then
-// set the sliders, the type or the top picks, and attach the PDF if there is one), or is "something else":
-// a name and a line. Skills are a list. Results a plan wrote can be hidden or removed here too.
+// Adding or changing one of "What I'm like". A result follows one of the known assessments: take it (here,
+// for the interest quiz, or where it's offered, marked free or paid), then copy the result in with its
+// sliders, type or top picks, and attach the PDF if there is one. Skills are a list. Older free-form results
+// can still be changed or removed, but new ones always follow an assessment.
 
 /** The source of a result the in-app interest quiz wrote; its scores come from the quiz, so they aren't typed over. */
 export const INTEREST_QUIZ = 'interest_quiz'
@@ -41,6 +42,24 @@ export const RESULT_KINDS = [
 
 type Draft = { kind: PortfolioResult['kind']; name: string; summary: string; taken_on: string; visible: boolean; data: Record<string, any> }
 type Step = { template?: ResultTemplate; custom?: PortfolioResult['kind'] } | null
+
+/** Free or paid, said plainly: a paid test costs money, and that should never be a surprise. */
+export function PriceTag({ free }: { free: boolean }) {
+  return free ? <span className="inline-flex h-6 shrink-0 normal-case tracking-normal items-center rounded-full bg-[#16a34a]/12 px-2 text-[11.5px] font-extrabold text-[#15803d] dark:text-[#4ade80]">Free</span>
+    : <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-[#f5a524]/20 normal-case tracking-normal px-2 text-[11.5px] font-extrabold text-[#9a5b00] dark:text-[#fbbf24]"><CircleDollarSign className="h-3.5 w-3.5" />Paid</span>
+}
+
+/** Where to take an assessment, as big buttons: the in-app quiz first, then the sites that offer it. */
+export function TakeIt({ template, quizHref }: { template: ResultTemplate; quizHref?: string }) {
+  const here = template.id === 'riasec' && quizHref
+  return <div className="grid gap-2" data-take-it>
+    {here ? <Button asChild variant="brand" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref}><span className="inline-flex items-center gap-2"><Play className="h-4 w-4" />Take it here · 5 min</span><PriceTag free /></Link></Button> : null}
+    {/* The main button is the first free way to take it; a paid one is never the big colored button. */}
+    {template.take.map((place) => <Button key={place.url} asChild variant={!here && place === template.take.find((one) => one.free) ? 'brand' : 'surface'} className="h-12 w-full min-w-0 justify-between gap-2 text-[15px]">
+      <a href={place.url} target="_blank" rel="noreferrer"><span className="flex min-w-0 items-center gap-2 overflow-hidden"><ExternalLink className="h-4 w-4 shrink-0" /><span className="truncate">Take it on {place.label}</span></span><PriceTag free={place.free} /></a>
+    </Button>)}
+  </div>
+}
 
 /** The form for one assessment: sliders, a type to tap, or picks in order. */
 function TemplateFields({ template, data, setData }: { template: ResultTemplate; data: Record<string, any>; setData: Setter<Record<string, any>> }) {
@@ -60,11 +79,12 @@ function TemplateFields({ template, data, setData }: { template: ResultTemplate;
   </div>
 }
 
-export function ResultDialog({ open, onOpenChange, result, kind: startKind, token, onSaved }: { open: boolean; onOpenChange: OpenChange; result?: PortfolioResult | null; kind?: PortfolioResult['kind']; token?: string; onSaved: () => void }) {
+export function ResultDialog({ open, onOpenChange, result, kind: startKind, template: startTemplate, token, onSaved }: { open: boolean; onOpenChange: OpenChange; result?: PortfolioResult | null; kind?: PortfolioResult['kind']; template?: string; token?: string; onSaved: () => void }) {
   const session = useLHSession() as any
   const userId = Number(session?.data?.user?.id || 0)
-  const firstStep = (): Step => result ? (templateOf(result) ? { template: templateOf(result) } : { custom: result.kind }) : startKind ? { custom: startKind } : null
-  const initial = (): Draft => ({ kind: result?.kind || startKind || 'interests', name: result?.name || '', summary: result?.summary || '', taken_on: result?.taken_on || '', visible: result ? result.visibility !== 'private' : true, data: result?.data || {} })
+  const started = RESULT_TEMPLATES.find((item) => item.id === startTemplate)
+  const firstStep = (): Step => result ? (templateOf(result) ? { template: templateOf(result) } : { custom: result.kind }) : started ? { template: started } : startKind ? { custom: startKind } : null
+  const initial = (): Draft => ({ kind: result?.kind || started?.kind || startKind || 'interests', name: result?.name || started?.name || '', summary: result?.summary || '', taken_on: result?.taken_on || '', visible: result ? result.visibility !== 'private' : true, data: result?.data || (started ? { template: started.id } : {}) })
   const [step, setStep] = useState<Step>(firstStep)
   const [draft, setDraft] = useState<Draft>(initial)
   const [busy, setBusy] = useState(false)
@@ -102,21 +122,21 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, toke
 
   const back = !result && step ? <button type="button" onClick={() => setStep(null)} className="mb-1 inline-flex w-fit items-center gap-1 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />All results</button> : null
   const title = result ? result.name : template ? template.name : step ? (kind?.value === 'skills' ? 'Your skills' : 'Something else') : 'Add a result'
-  const description = !step ? 'Pick the test you took. You’ll copy your result in, and can add the PDF too.' : template ? template.blurb : draft.kind === 'skills' ? 'Things you can do. Separate them with commas; each one counts.' : 'Something a quiz or a person helped you learn about yourself.'
+  const description = !step ? 'Pick a test. Take it, then copy your result in; you can add the PDF too.' : template ? template.blurb : draft.kind === 'skills' ? 'Things you can do. Separate them with commas; each one counts.' : 'Something a quiz or a person helped you learn about yourself.'
 
   return <Dialog open={open} onOpenChange={(next) => { if (next) { setDraft(initial()); setStep(firstStep()) } onOpenChange(next) }}>
     {ask.dialog}
     <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto">
       <DialogHeader>{back}<DialogTitle>{title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
       {!step ? <div className="grid gap-2">
-        {RESULT_TEMPLATES.map((item) => <button key={item.id} type="button" onClick={() => choose(item)} className="flex items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-left hover:border-[#8B5CF6]"><span className="min-w-0 flex-1"><b className="block text-[15px] font-extrabold">{item.name}</b><small className="block text-[13px] font-semibold text-muted-foreground">{item.blurb}</small></span><ChevronRight className="h-5 w-5 text-muted-foreground" /></button>)}
-        <button type="button" onClick={() => { setStep({ custom: 'other' }); set('kind', 'other') }} className="rounded-2xl border-2 border-dashed border-border p-3 text-left text-[14px] font-bold text-muted-foreground hover:text-foreground">Something else: a name and a line</button>
+        {RESULT_TEMPLATES.map((item) => <button key={item.id} type="button" onClick={() => choose(item)} className="flex items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-left hover:border-[#8B5CF6]"><span className="min-w-0 flex-1"><b className="block text-[15px] font-extrabold">{item.name}</b><small className="block text-[13px] font-semibold text-muted-foreground">{item.blurb}</small></span><PriceTag free={item.id === 'riasec' || item.take.some((place) => place.free)} /><ChevronRight className="h-5 w-5 text-muted-foreground" /></button>)}
       </div> : <div className="grid gap-4">
         {fromQuiz ? <div className="grid justify-items-center gap-3 rounded-2xl bg-muted/60 p-4 text-foreground">
           <ResultPicture result={{ data: draft.data }} /><b className="text-center text-[15px] font-extrabold">{result?.summary}</b>
           {quizHref ? <Button asChild variant="surface" size="sm"><Link href={quizHref}>See your careers or take it again</Link></Button> : null}
         </div> : template ? <>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-bold"><span className="text-muted-foreground">Haven’t taken it?</span>{template.id === 'riasec' && quizHref ? <Link href={quizHref} className="inline-flex items-center gap-1 text-[#6539D8] hover:underline dark:text-[#b9a2ff]">Take it here<span className="text-muted-foreground">(5 min)</span></Link> : null}{template.take.map((place) => <a key={place.url} href={place.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#6539D8] hover:underline dark:text-[#b9a2ff]">{place.label}<span className="text-muted-foreground">({place.free ? 'free' : 'paid'})</span><ExternalLink className="h-3.5 w-3.5" /></a>)}</div>
+          {result ? null : <><TakeIt template={template} quizHref={quizHref} />
+            <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground"><span className="h-px flex-1 bg-border" />Already took it? Copy your result in<span className="h-px flex-1 bg-border" /></p></>}
           <TemplateFields template={template} data={draft.data} setData={(data) => set('data', data)} />
           {filled(template, draft.data) ? <div className="grid justify-items-center gap-2 rounded-2xl bg-muted/60 p-4 text-foreground"><ResultPicture result={{ data: draft.data }} /><b className="text-center text-[15px] font-extrabold">{summaryFor(template, draft.data)}</b></div> : null}
         </> : <>

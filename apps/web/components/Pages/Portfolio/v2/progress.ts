@@ -97,6 +97,8 @@ export function questPath(item: QuestItem, shell: Shell): string | null {
     stories: untold ? `/portfolio/timeline/${untold.timeline_uuid}?${mark}` : '/portfolio/timeline',
     made: `/portfolio/projects/new?${mark}`, work: bare ? `/portfolio/projects/${bare.project_uuid}?${mark}` : `/portfolio/projects/new?${mark}`,
     vouched: '/portfolio/people', headed: '/plans',
+    // What you're like starts with the interest quiz (RIASEC), right here.
+    like: `/portfolio/interests?${mark}`,
   }
   return paths[item.key] ?? null
 }

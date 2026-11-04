@@ -15,8 +15,9 @@ test('portfolio.v2: the portfolio is the new one, with no switch', async ({ page
 })
 
 async function openLook(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Look', exact: true }).focus()
-  await page.keyboard.press('Enter')
+  // The look lives in Settings.
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('menuitem', { name: /Look and layout/ }).click()
   return page.getByRole('dialog', { name: 'Your look' })
 }
 
@@ -54,23 +55,25 @@ test('portfolio.v2: the owner tries on looks, and opens the profile', async ({ p
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('portfolio.v2: edit page moves, takes out and renames sections in place', async ({ page }) => {
+test('portfolio.v2: the owner moves and takes out sections in place, any time', async ({ page }) => {
   await page.goto('/portfolio')
-  await page.getByRole('button', { name: 'Edit page' }).click()
-  await expect(page.getByRole('toolbar', { name: 'Edit page' })).toBeVisible()
-  // Bio and experience can't be taken out; the rest can, and come back from "Add a section". Titles follow the look, so go by section.
+  await expect(page.getByRole('button', { name: 'Edit page' })).toHaveCount(0)
+  // Bio and experience can't be taken out; the rest can, and come back from the adds below. Titles follow the look, so go by section.
   await expect(page.locator('[data-sec="about"]').getByRole('button', { name: /^Take out/ })).toHaveCount(0)
+  await page.locator('[data-sec="headed"]').hover()
   await page.locator('[data-sec="headed"]').getByRole('button', { name: /^Take out/ }).click()
   await expect(page.locator('[data-sec="headed"]')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /^Use .* suggested layout$/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Add a section' }).locator('[data-empty-add]').first()).toBeVisible()
   // Drag About onto the top of the section before it: it gets a row of its own there.
   const order = () => page.locator('[data-sec]:not([hidden])').evaluateAll((all) => all.sort((a, b) => Number((a as HTMLElement).dataset.gr) - Number((b as HTMLElement).dataset.gr) || a.getBoundingClientRect().left - b.getBoundingClientRect().left).map((one) => (one as HTMLElement).dataset.sec))
   const start = await order()
   const before = start[start.indexOf('about') - 1]
   const target = page.locator(`[data-sec="${before}"]`), about = page.locator('[data-sec="about"]')
   await target.evaluate((node) => window.scrollBy(0, node.getBoundingClientRect().top - 120))
-  const to = (await target.boundingBox())!, from = (await about.boundingBox())!
-  await page.mouse.move(from.x + from.width / 2, from.y + 60)
+  // Only the grip moves a section.
+  await about.hover()
+  const to = (await target.boundingBox())!, from = (await about.locator('[data-grip]').first().boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(from.x + from.width / 2, from.y + 30, { steps: 4 })
   await expect(page.locator('[data-ph]')).toBeVisible()
@@ -79,9 +82,11 @@ test('portfolio.v2: edit page moves, takes out and renames sections in place', a
   await expect(page.locator('[data-ph]')).toHaveCount(0)
   const end = await order()
   expect(end.indexOf('about')).toBeLessThan(end.indexOf(before!))
-  await page.getByRole('button', { name: /^Use .* suggested layout$/ }).click()
+  // The look's own layout comes back from the look dialog.
+  const look = await openLook(page)
+  await look.getByRole('button', { name: /^Use .*’s layout$/ }).click()
   await expect(page.locator('[data-sec="headed"]')).toHaveCount(1)
-  await page.getByRole('toolbar', { name: 'Edit page' }).getByRole('button', { name: 'Done' }).click()
+  await page.keyboard.press('Escape')
 })
 
 test('portfolio.v2: the visitor preview and phone width', async ({ page }) => {
@@ -186,9 +191,22 @@ test('portfolio.v2: a résumé PDF is read into a pick list', async ({ page }) =
 
 test('portfolio.v2: each section is one click from its editor', async ({ page }) => {
   await page.goto('/portfolio')
-  // The pencil beside a section's title opens what edits it, without going into Edit page.
+  // The pencil beside a section's title opens what edits it.
   const experience = page.locator('[data-sec="experience"]')
   await experience.hover()
   await experience.getByRole('button', { name: /^Edit / }).click()
   await expect(page).toHaveURL(/\/portfolio\/timeline/)
+})
+
+test('portfolio.v2: what I’m like has its own page, and adding a result starts with taking the test', async ({ page }) => {
+  await page.goto('/portfolio/results')
+  await expect(page.getByRole('heading', { name: 'What I’m like', level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Add a result' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add a result' })
+  // Every test says whether it's free or paid, and there's no free-form "name and a line" any more.
+  await expect(dialog.getByText('Something else')).toHaveCount(0)
+  await dialog.getByRole('button', { name: /CliftonStrengths/ }).click()
+  await expect(page.getByRole('link', { name: /Take it on Gallup CliftonStrengths/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Take it on Gallup CliftonStrengths/ }).getByText('Paid')).toBeVisible()
+  await page.keyboard.press('Escape')
 })

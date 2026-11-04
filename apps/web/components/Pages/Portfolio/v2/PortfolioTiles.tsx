@@ -112,7 +112,7 @@ function ResultsTile({ spots, shell, owner, orgslug, onEditResult }: TileProps) 
   const quiz = getUriWithOrg(orgslug, '/portfolio/interests')
   const tookQuiz = items.some((item) => item.source === INTEREST_QUIZ)
   if (!owner && !items.length) return null
-  return <Tile section="results" color="violet" spot={spots?.results} icon={Sparkles} title="What I’m like" count={items.length || null}>
+  return <Tile section="results" color="violet" spot={spots?.results} icon={Sparkles} title="What I’m like" count={items.length || null} href={owner ? getUriWithOrg(orgslug, '/portfolio/results') : undefined}>
     {items.length ? <ul className="grid gap-2.5">{items.slice(0, limit).map((item) => <li key={item.result_uuid} data-item className={`min-w-0 ${item.visibility === 'private' ? 'opacity-55' : ''}`}>
       {owner && onEditResult ? <button type="button" onClick={() => onEditResult(item)} className="w-full rounded-xl text-left hover:bg-muted/60"><ResultLine result={item} /></button> : <ResultLine result={item} />}
     </li>)}</ul> : null}

@@ -5,8 +5,9 @@ import type { LookId, SectionType } from '@services/portfolio/records'
 import { type Row, type Slot, copyRows, lift, place, rangeOf, resizeGap } from './model'
 
 // The section stack, laid out and edited in place. Every section sits in one CSS grid of six columns, placed
-// by row and column, so moving one never remounts it. In edit mode: drag a section to move it (drop it on
-// another to share its row), drag the gap between two to resize them, drag the bottom edge for height.
+// by row and column, so moving one never remounts it. The owner can always arrange it (each change saves):
+// drag a section by its grip to move it (drop it on another to share its row), drag the gap between two to
+// resize them, drag the bottom edge for height. Everything else in a section keeps working as usual.
 // On a phone it's one column in the same order, with heights of its own.
 
 /** What a section needs to know from the stack it's in. */
@@ -223,7 +224,7 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
   function onPointerDown(event: React.PointerEvent) {
     if (!editing || event.button !== 0) return
     const target = event.target as HTMLElement
-    if (target.closest('[data-edit-control], input, textarea, select, [contenteditable="true"]')) return
+    if (!target.closest('[data-grip], [data-gut], [data-hh]')) return
     const gut = target.closest<HTMLElement>('[data-gut]'), hh = target.closest<HTMLElement>('[data-hh]'), sec = target.closest<HTMLElement>('[data-sec]')
     if (gut) {
       const r = Number(gut.dataset.r)
@@ -237,7 +238,7 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
       const [lo, hi] = rangeOf(look)
       const h0 = sec.getBoundingClientRect().height
       drag.current = { kind: 'height', types, lo, hi, y: event.clientY, h0, h: Math.round(h0) }
-    } else if (sec) drag.current = { kind: 'pending', type: sec.dataset.sec as SectionType, x: event.clientX, y: event.clientY }
+    } else if (sec && target.closest('[data-grip]')) drag.current = { kind: 'pending', type: sec.dataset.sec as SectionType, x: event.clientX, y: event.clientY }
     else return
     event.preventDefault()
     document.body.classList.add('select-none', ...(sec && !hh ? ['cursor-grabbing'] : []))
@@ -253,15 +254,15 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
   shown.forEach((row) => row.forEach((item) => { provided[item.type] = { ...context(item.type), fixed: Boolean(heights[item.type]) } }))
   if (view?.lifted) provided[view.lifted] = { ...context(view.lifted), fixed: false }
 
-  return <SectionProvider value={provided}><div ref={box} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} data-stack data-stack-editing={editing || undefined} className="relative grid grid-cols-6 items-stretch gap-x-[var(--stack-gx,16px)] gap-y-[var(--stack-gy,16px)]">
+  return <SectionProvider value={provided}><div ref={box} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} data-stack data-stack-editing={editing || undefined} className="group/stack relative grid grid-cols-6 items-stretch gap-x-[var(--stack-gx,16px)] gap-y-[var(--stack-gy,16px)]">
     {cells.map((cell) => {
       if (cell.ph) return <div key={cell.key} data-ph data-r={cell.r} data-gr={cell.row} aria-hidden="true" className="grid min-h-[110px] place-items-center rounded-3xl border-2 border-dashed border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_10%,transparent)] text-xs font-extrabold text-[var(--org-primary-color)] transition-all" style={{ gridRow: cell.row, gridColumn: cell.col, height: slot?.newRow ? (drag.current?.kind === 'move' ? drag.current.h : 140) : undefined }}>Drop here</div>
       if (cell.gut !== undefined) return <div key={cell.key} data-gut={cell.gut} data-r={cell.r} title="Drag to resize both" className="group/gut relative z-[3] -ml-[var(--stack-gx,16px)] flex w-[var(--stack-gx,16px)] cursor-col-resize touch-none items-center justify-center self-stretch" style={{ gridRow: cell.row, gridColumn: cell.col }}>
-        <span className="h-12 w-1.5 rounded-full bg-[var(--org-primary-color)] opacity-40 transition-all group-hover/gut:h-20 group-hover/gut:opacity-100" />
+        <span className="h-12 w-1.5 rounded-full bg-[var(--org-primary-color)] opacity-0 transition-all group-hover/stack:opacity-30 group-hover/gut:h-20 group-hover/gut:opacity-100 [@media(hover:none)]:opacity-30" />
       </div>
       const type = cell.type!
       const h = heights[type]
-      return <div key={cell.key} data-sec={type} data-r={cell.r} data-gr={cell.row} data-fixed={h ? '' : undefined} hidden={cell.r < 0} className={`group/sec relative flex min-w-0 flex-col [&>*]:flex-1 ${editing ? 'cursor-grab touch-none' : ''}`} style={{ gridRow: cell.row, gridColumn: cell.col, height: h ? `${h}px` : undefined }}>
+      return <div key={cell.key} data-sec={type} data-r={cell.r} data-gr={cell.row} data-fixed={h ? '' : undefined} hidden={cell.r < 0} className="group/sec relative flex min-w-0 flex-col [&>*]:flex-1" style={{ gridRow: cell.row, gridColumn: cell.col, height: h ? `${h}px` : undefined }}>
         {render(type)}
         {editing ? <div data-hh title="Drag to set the height. Double-click to fit the content." className="absolute inset-x-0 bottom-[calc(var(--stack-gy,16px)/-2-8px)] z-[3] flex h-4 cursor-ns-resize touch-none items-center justify-center opacity-0 transition group-hover/sec:opacity-100">
           <span className="h-1.5 w-14 rounded-full bg-[var(--org-primary-color)]" />

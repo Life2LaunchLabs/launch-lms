@@ -87,8 +87,14 @@ function useTail() {
       setLeft(Math.min(Math.max(at.left + at.width / 2 - box.left, 24), box.width - 24))
     }
     place()
+    // Buttons move when web fonts arrive or the row reflows (a look's mono or serif type), so follow them.
+    const watch = new ResizeObserver(place)
+    const button = document.querySelector<HTMLElement>('[data-quest-button]')
+    if (banner) watch.observe(banner)
+    if (button) { watch.observe(button); if (button.parentElement) watch.observe(button.parentElement) }
+    void document.fonts?.ready.then(place)
     window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
+    return () => { watch.disconnect(); window.removeEventListener('resize', place) }
   }, [banner])
   return [setBanner, left] as const
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, ImagePlus, Monitor, Moon, Pipette, Sun } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ImagePlus, LayoutGrid, Monitor, Moon, Pipette, Sun } from 'lucide-react'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { ACCENTS, BANNERS, LOOKS, MODES, type LookMode } from '@components/Looks/looks'
@@ -85,7 +85,7 @@ const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="
 const MODE_ICONS: Record<LookMode, React.ReactNode> = { light: <Sun className="h-3.5 w-3.5" />, dark: <Moon className="h-3.5 w-3.5" />, system: <Monitor className="h-3.5 w-3.5" /> }
 
 /** The learner's look (their theme for the whole app): the look, light or dark, an accent, and the banner. */
-export function LookDialog({ open, onOpenChange, layout, mode, dark, onChange, spot, userId, token }: { open: boolean; onOpenChange: OpenChange; layout: PortfolioLayout; mode: LookMode; dark: boolean; onChange: Change; spot?: string; userId: number; token?: string }) {
+export function LookDialog({ open, onOpenChange, layout, mode, dark, onChange, onSuggested, spot, userId, token }: { open: boolean; onOpenChange: OpenChange; layout: PortfolioLayout; mode: LookMode; dark: boolean; onChange: Change; onSuggested?: () => void; spot?: string; userId: number; token?: string }) {
   const [picking, setPicking] = useState(false)
   const accent = layout.accent || ''
   const banner = layout.banner || 'look'
@@ -101,6 +101,11 @@ export function LookDialog({ open, onOpenChange, layout, mode, dark, onChange, s
         <LookCard look={LOOKS[index]} dark={dark} index={index} count={LOOKS.length} onStep={step} />
         {!layout.look ? <p className="mt-2 text-center text-xs font-bold text-muted-foreground">You haven’t picked one yet. <button type="button" className="underline" onClick={() => onChange({ look: LOOKS[index].id })}>Wear {LOOKS[index].name}</button></p> : null}
       </section>
+      {/* Changes to the page save as they're made; this puts back the look's own arrangement. */}
+      {onSuggested ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3">
+        <small className="min-w-[180px] flex-1 text-[13px] font-semibold text-muted-foreground">You’ve arranged your page yourself. Want {LOOKS[index].name}’s own layout instead?</small>
+        <button type="button" onClick={onSuggested} className="inline-flex h-9 items-center gap-1.5 rounded-full border-2 border-border bg-card px-3.5 text-[13px] font-bold hover:bg-raised"><LayoutGrid className="h-4 w-4" />Use {LOOKS[index].name}’s layout</button>
+      </div> : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Heading>Mode</Heading>
         <Segments label="Light or dark" value={mode} options={MODES.map((item) => [item.id, item.label, MODE_ICONS[item.id]])} onPick={(next) => onChange({ mode: next })} />
