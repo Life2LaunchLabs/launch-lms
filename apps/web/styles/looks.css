@@ -262,51 +262,85 @@ html[data-look='volt'] body,
 [data-stack-editing] [data-sec] { user-select: none; -webkit-user-select: none; }
 [data-stack-editing] [data-sec] [contenteditable] { user-select: text; -webkit-user-select: text; }
 /* The section fills its cell, and a featured carousel fills a set height. */
-[data-sec] > [data-tile], [data-sec] > [data-feature], [data-sec] > [data-highlights-section] { height: 100%; }
+[data-sec] > [data-tile], [data-sec] > [data-feature], [data-sec] > [data-feature-wrap], [data-feature-wrap] > [data-feature], [data-sec] > [data-highlights-section] { height: 100%; }
 
-/* ── Gallery: art-house. No cards: thin rules, a huge serif name, work set big and uneven. ── */
+/* ── Each look's rhythm: the space between sections. ── */
+[data-portfolio-v2][data-look='gallery'] { --stack-gx: 40px; --stack-gy: 64px; }
+[data-portfolio-v2][data-look='volt'] { --stack-gx: 32px; --stack-gy: 48px; }
+
+/* ── Gallery: art-house. No cards: thin rules, a huge serif name, mono captions, work set big and uneven, room around everything. ── */
 [data-portfolio-v2][data-look='gallery'] [data-pf-banner] { border-radius: 0; height: 64px; }
 [data-portfolio-v2][data-look='gallery'] [data-pf-avatar] { border-radius: 0; border-width: 0; width: 72px; height: 72px; }
-[data-portfolio-v2][data-look='gallery'] [data-pf-name] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(48px, 9vw, 104px); line-height: 0.9; letter-spacing: -0.03em; }
-[data-portfolio-v2][data-look='gallery'] [data-tile] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 12px 0 0; transform: none; }
+[data-portfolio-v2][data-look='gallery'] [data-pf-name] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(48px, 9vw, 104px); line-height: 0.92; letter-spacing: -0.03em; margin-top: 8px; }
+[data-portfolio-v2][data-look='gallery'] [data-pf-head] { padding-bottom: 24px; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 16px 0 0; gap: 24px; transform: none; }
+[data-portfolio-v2][data-look='gallery'] [data-tile][data-spot] { border-top: 3px solid #f29400; box-shadow: none; }
 [data-portfolio-v2][data-look='gallery'] [data-tile-icon] { display: none; }
-[data-portfolio-v2][data-look='gallery'] [data-tile-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1; letter-spacing: -0.02em; }
+[data-portfolio-v2][data-look='gallery'] [data-tile-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1; letter-spacing: -0.02em; }
 [data-portfolio-v2][data-look='gallery'] [data-tile-count] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+[data-portfolio-v2][data-look='gallery'] [data-fit-box] { gap: 22px; }
 [data-portfolio-v2][data-look='gallery'] [data-tile] small,
-[data-portfolio-v2][data-look='gallery'] [data-tile] [data-item] b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] [data-item] b { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; line-height: 1.55; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] .bg-muted { background: transparent; border-radius: 0; box-shadow: inset 0 -1px 0 var(--look-line); }
 [data-portfolio-v2][data-look='gallery'] [data-cover] { border-radius: 0; }
-[data-portfolio-v2][data-look='gallery'] [data-projects] { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 28px 16px; }
+[data-portfolio-v2][data-look='gallery'] [data-empty-add],
+[data-portfolio-v2][data-look='gallery'] [data-bio-start]:not([aria-label]) { border-width: 1px; border-radius: 0; padding: 20px; }
+[data-portfolio-v2][data-look='gallery'] [data-empty-add] > span:first-child { border-radius: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 40px 24px; }
 [data-portfolio-v2][data-look='gallery'] [data-projects] > * { grid-column: span 3; }
 [data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 1) { grid-column: span 6; }
 [data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 1) [data-cover] { aspect-ratio: 16 / 9; }
-[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 2) { margin-top: 40px; }
-[data-portfolio-v2][data-look='gallery'] [data-highlight] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 8px 0 0; }
-[data-portfolio-v2][data-look='gallery'] [data-highlight] b { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 46px; }
-[data-portfolio-v2][data-look='gallery'] [data-feature-frame] { border: 0; border-radius: 0; box-shadow: none; }
+[data-portfolio-v2][data-look='gallery'] [data-projects] > :nth-child(3n + 2) { margin-top: 48px; }
+[data-portfolio-v2][data-look='gallery'] [data-highlights-section] > section { gap: 32px; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] { background: transparent; border: 0; border-top: 1px solid var(--look-line); border-radius: 0; box-shadow: none; padding: 12px 0 0; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] b { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 52px; line-height: 1; }
+[data-portfolio-v2][data-look='gallery'] [data-highlight] span { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; font-size: 12px; margin-top: 6px; }
+[data-portfolio-v2][data-look='gallery'] [data-feature-frame] { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 [data-portfolio-v2][data-look='gallery'] [data-feature-title] { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(28px, 5.5cqw, 52px); line-height: 1; }
 [data-portfolio-v2][data-look='gallery'] [data-feature-slide='quote'] blockquote { font-style: italic; }
 [data-portfolio-v2][data-look='gallery'] [data-feature-kick] { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
 [data-portfolio-v2][data-look='gallery'] [data-feature-dots] { display: none; }
 [data-portfolio-v2][data-look='gallery'] [data-feature-count] { display: inline; }
 [data-portfolio-v2][data-look='gallery'] [data-feature-nav] { justify-content: flex-start; }
+/* Gallery's quest pieces: flat and square, like everything else in it. */
+[data-portfolio-v2][data-look='gallery'] [data-quest-banner] { border-radius: 0; border-width: 1px; box-shadow: none; margin-top: 28px; }
+[data-portfolio-v2][data-look='gallery'] [data-quest-banner] button { border-radius: 0; }
+[data-portfolio-v2][data-look='gallery'] [data-quest-tail] { border-radius: 0; border-width: 1px 0 0 1px; }
+[data-portfolio-v2][data-look='gallery'] [data-quest-button] { border-radius: 0; border-width: 1px; box-shadow: none; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; letter-spacing: 0.02em; }
 @container (max-width: 520px) {
   [data-portfolio-v2][data-look='gallery'] [data-projects] > * { grid-column: span 6 !important; margin-top: 0 !important; }
 }
 
-/* ── Volt: modern minimal. Condensed capitals, tall photo tiles, one electric accent, no depth. ── */
+/* ── Volt: modern minimal, after the concept board. Nothing boxed: no card backgrounds or borders, quiet
+   sentence-case headings, hairlines where a line helps, photos with soft corners, one electric accent. ── */
 [data-portfolio-v2][data-look='volt'] [data-pf-banner] { border-radius: 20px; }
-[data-portfolio-v2][data-look='volt'] [data-pf-avatar] { box-shadow: 0 0 0 3px var(--org-primary-color); }
-[data-portfolio-v2][data-look='volt'] [data-pf-name] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: clamp(36px, 6vw, 60px); line-height: 1; }
-[data-portfolio-v2][data-look='volt'] [data-tile] { border-width: 1px; border-radius: 20px; box-shadow: none; transform: none; }
-[data-portfolio-v2][data-look='volt'] [data-tile-icon] { width: 10px; height: 10px; border-radius: 999px; box-shadow: none !important; background: var(--org-primary-color) !important; }
-[data-portfolio-v2][data-look='volt'] [data-tile-icon] svg { display: none; }
-[data-portfolio-v2][data-look='volt'] [data-tile-title] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.02em; font-size: 22px; }
-[data-portfolio-v2][data-look='volt'] [data-cover] { border-radius: 16px; }
-[data-portfolio-v2][data-look='volt'] [data-highlight] { background: transparent; border: 0; border-left: 3px solid var(--org-primary-color); border-radius: 0; box-shadow: none; padding: 2px 14px; }
-[data-portfolio-v2][data-look='volt'] [data-highlight] b { font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: 34px; }
-[data-portfolio-v2][data-look='volt'] [data-feature-frame] { border-width: 1px; border-radius: 22px; box-shadow: none; }
-[data-portfolio-v2][data-look='volt'] [data-feature-title] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: clamp(26px, 6cqw, 52px); line-height: 1; }
-[data-portfolio-v2][data-look='volt'] [data-feature-kick] { justify-self: start; background: var(--org-primary-color); color: var(--org-on-primary-color); border-radius: 999px; padding: 4px 10px; letter-spacing: 0.08em; }
+[data-portfolio-v2][data-look='volt'] [data-pf-avatar] { box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px var(--org-primary-color); }
+[data-portfolio-v2][data-look='volt'] [data-pf-name] { font-family: Manrope, system-ui, sans-serif; font-weight: 800; font-size: clamp(30px, 3.6vw, 44px); line-height: 1.05; letter-spacing: -0.035em; }
+[data-portfolio-v2][data-look='volt'] [data-tile] { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0; gap: 16px; transform: none; }
+[data-portfolio-v2][data-look='volt'] [data-tile][data-spot] { box-shadow: none; }
+/* Without card edges the gold "!" sits beside the header's count and arrow instead of on a corner. */
+[data-portfolio-v2][data-look='volt'] [data-tile] > [data-spot-tip] { top: -2px; right: 44px; }
+[data-portfolio-v2][data-look='gallery'] [data-tile] > [data-spot-tip] { top: -14px; right: 0; }
+[data-portfolio-v2][data-look='volt'] [data-tile-icon] { display: none; }
+[data-portfolio-v2][data-look='volt'] [data-tile-title] { font-family: Manrope, system-ui, sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
+[data-portfolio-v2][data-look='volt'] [data-tile-count] { font-weight: 600; }
+[data-portfolio-v2][data-look='volt'] [data-tile] .bg-muted { background: transparent; box-shadow: inset 0 0 0 1px var(--look-line); }
+[data-portfolio-v2][data-look='volt'] [data-tile] .border-t { border-color: var(--look-line); }
+[data-portfolio-v2][data-look='volt'] [data-tile] .font-extrabold { font-weight: 700; }
+[data-portfolio-v2][data-look='volt'] [data-cover] { border-radius: 14px; }
+[data-portfolio-v2][data-look='volt'] [data-empty-add],
+[data-portfolio-v2][data-look='volt'] [data-bio-start]:not([aria-label]) { border-width: 1px; border-radius: 14px; border-color: var(--look-line); }
+[data-portfolio-v2][data-look='volt'] [data-empty-add]:hover { border-color: var(--org-primary-color); }
+[data-portfolio-v2][data-look='volt'] [data-highlights-section] > section { gap: 24px; }
+[data-portfolio-v2][data-look='volt'] [data-highlight] { background: transparent; border: 0; border-left: 2px solid var(--org-primary-color); border-radius: 0; box-shadow: none; padding: 2px 0 2px 14px; }
+[data-portfolio-v2][data-look='volt'] [data-highlight] b { font-family: Manrope, system-ui, sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -0.03em; }
+[data-portfolio-v2][data-look='volt'] [data-feature-frame] { border: 0; border-radius: 20px; box-shadow: none; background: transparent; }
+[data-portfolio-v2][data-look='volt'] [data-feature-title] { font-family: Manrope, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.03em; font-size: clamp(22px, 4cqw, 34px); line-height: 1.1; }
+[data-portfolio-v2][data-look='volt'] [data-feature-kick] { justify-self: start; background: var(--org-primary-color); color: var(--org-on-primary-color); border-radius: 999px; padding: 3px 10px; letter-spacing: 0.04em; }
+/* Volt's quest pieces: hairline pills, no 3D edge. */
+[data-portfolio-v2][data-look='volt'] [data-quest-banner] { border-width: 1px; border-radius: 16px; box-shadow: none; }
+[data-portfolio-v2][data-look='volt'] [data-quest-tail] { border-width: 1px 0 0 1px; }
+[data-portfolio-v2][data-look='volt'] [data-quest-button] { border-radius: 999px; border-width: 1px; box-shadow: none; }
 /* A photo slide in Volt runs edge to edge, with its words over the bottom of the picture. */
 @container (min-width: 560px) {
   [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'],
@@ -314,7 +348,7 @@ html[data-look='volt'] body,
   [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'] [data-feature-media],
   [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-media] { position: absolute; inset: 0; }
   [data-portfolio-v2][data-look='volt'] [data-feature-slide='project'] [data-feature-text],
-  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-text] { position: absolute; inset: auto 0 0 0; background: linear-gradient(0deg, rgba(0,0,0,.78), transparent); color: #fff; padding-top: 72px; }
+  [data-portfolio-v2][data-look='volt'] [data-feature-slide='experience'] [data-feature-text] { position: absolute; inset: auto 0 0 0; background: linear-gradient(0deg, rgba(0,0,0,.72), transparent); color: #fff; padding-top: 72px; }
   [data-portfolio-v2][data-look='volt'] [data-feature-text] .text-muted-foreground,
   [data-portfolio-v2][data-look='volt'] [data-feature-text] .text-foreground { color: rgba(255,255,255,.85); }
 }
@@ -334,7 +368,7 @@ html[data-look='volt'] body,
 [data-project-detail][data-look='volt'] [data-pj-over] p { color: rgba(255,255,255,.85); }
 [data-project-detail][data-look='volt'] [data-pj-hero] ~ [data-pj-head] { display: none; }
 [data-project-detail][data-look='volt'] [data-pj-title] h1,
-[data-look='volt'] [data-project-page] input[name='title'] { font-family: Anton, Impact, 'Arial Narrow', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: clamp(38px, 7vw, 72px); line-height: 1; }
+[data-look='volt'] [data-project-page] input[name='title'] { font-family: Manrope, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.035em; font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; }
 [data-project-detail][data-look='volt'] [data-pj-gallery] img { border-radius: 20px; aspect-ratio: 4 / 5; }
 [data-look='gallery'] [data-project-page] .aspect-\[2\/1\] { border-radius: 0; box-shadow: none; border-width: 0; }
 [data-look='volt'] [data-project-page] .aspect-\[2\/1\] { border-width: 1px; border-radius: 24px; box-shadow: none; }

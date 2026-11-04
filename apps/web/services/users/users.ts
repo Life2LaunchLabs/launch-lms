@@ -50,3 +50,26 @@ export async function uploadUserProfileFeaturedImage(
   const res = await getResponseMetadata(result)
   return res
 }
+
+/**
+ * Download my data: a zip of everything the platform keeps about the signed-in person, with their uploaded files.
+ * Saves it in the browser and returns the file name.
+ */
+export async function downloadMyData(access_token: string): Promise<string> {
+  const response = await fetch(`${getAPIUrl()}users/me/data-export`, RequestBodyWithAuthHeader('GET', null, null, access_token))
+  if (!response.ok) {
+    await errorHandling(response)
+    throw new Error('Your data could not be downloaded.')
+  }
+  const header = response.headers.get('Content-Disposition') || ''
+  const name = header.match(/filename="([^"]+)"/)?.[1] || 'launch-lms-data.zip'
+  const href = URL.createObjectURL(await response.blob())
+  const anchor = document.createElement('a')
+  anchor.href = href
+  anchor.download = name
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(href), 1000)
+  return name
+}

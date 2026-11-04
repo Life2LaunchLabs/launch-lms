@@ -11,7 +11,7 @@ import { type Row, type Slot, copyRows, lift, place, rangeOf, resizeGap } from '
 
 /** What a section needs to know from the stack it's in. */
 // eslint-disable-next-line no-unused-vars
-export type SectionCtx = { editing: boolean; fixed: boolean; look: LookId; title: string; rename?: (title: string) => void; controls?: ReactNode }
+export type SectionCtx = { editing: boolean; fixed: boolean; look: LookId; title: string; rename?: (title: string) => void; controls?: ReactNode; edit?: () => void }
 const Ctx = createContext<Partial<Record<SectionType, SectionCtx>>>({})
 export const useSection = (type?: SectionType): SectionCtx | undefined => {
   const all = useContext(Ctx)
@@ -29,8 +29,8 @@ const PHONE = 640
 const sameSlot = (a?: Slot, b?: Slot) => JSON.stringify(a) === JSON.stringify(b)
 const reduced = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-export function SectionStack({ rows, editing, render, context, heightOf, onMove, onHeight }: {
-  rows: Row[]; editing: boolean; render: (type: SectionType) => ReactNode // eslint-disable-line no-unused-vars
+export function SectionStack({ look, rows, editing, render, context, heightOf, onMove, onHeight }: {
+  look: LookId; rows: Row[]; editing: boolean; render: (type: SectionType) => ReactNode // eslint-disable-line no-unused-vars
   context: (type: SectionType) => Omit<SectionCtx, 'fixed'> // eslint-disable-line no-unused-vars
   heightOf: (type: SectionType, phone: boolean) => number | null // eslint-disable-line no-unused-vars
   onMove: (rows: Row[]) => void // eslint-disable-line no-unused-vars
@@ -82,10 +82,10 @@ export function SectionStack({ rows, editing, render, context, heightOf, onMove,
   const heights: Partial<Record<SectionType, number>> = {}
   shown.forEach((row) => {
     const types = row.map((item) => item.type)
-    if (phone) types.forEach((type) => { const h = live?.types.includes(type) ? live.h : heightOf(type, true); if (h) { const [lo, hi] = rangeOf([type]); heights[type] = Math.max(lo, Math.min(hi, h)) } })
+    if (phone) types.forEach((type) => { const h = live?.types.includes(type) ? live.h : heightOf(type, true); if (h) { const [lo, hi] = rangeOf(look); heights[type] = Math.max(lo, Math.min(hi, h)) } })
     else {
       const asked = types.map((type) => live?.types.includes(type) ? live.h : heightOf(type, false)).filter((h): h is number => Boolean(h))
-      if (asked.length) { const [lo, hi] = rangeOf(types); const h = Math.max(lo, Math.min(hi, Math.max(...asked))); types.forEach((type) => { heights[type] = h }) }
+      if (asked.length) { const [lo, hi] = rangeOf(look); const h = Math.max(lo, Math.min(hi, Math.max(...asked))); types.forEach((type) => { heights[type] = h }) }
     }
   })
 
@@ -234,7 +234,7 @@ export function SectionStack({ rows, editing, render, context, heightOf, onMove,
       const type = sec.dataset.sec as SectionType
       const r = Number(sec.dataset.r)
       const types = phone ? [type] : rows[r].map((item) => item.type)
-      const [lo, hi] = rangeOf(types)
+      const [lo, hi] = rangeOf(look)
       const h0 = sec.getBoundingClientRect().height
       drag.current = { kind: 'height', types, lo, hi, y: event.clientY, h0, h: Math.round(h0) }
     } else if (sec) drag.current = { kind: 'pending', type: sec.dataset.sec as SectionType, x: event.clientX, y: event.clientY }
@@ -253,17 +253,17 @@ export function SectionStack({ rows, editing, render, context, heightOf, onMove,
   shown.forEach((row) => row.forEach((item) => { provided[item.type] = { ...context(item.type), fixed: Boolean(heights[item.type]) } }))
   if (view?.lifted) provided[view.lifted] = { ...context(view.lifted), fixed: false }
 
-  return <SectionProvider value={provided}><div ref={box} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} data-stack data-stack-editing={editing || undefined} className="relative grid grid-cols-6 items-stretch gap-4">
+  return <SectionProvider value={provided}><div ref={box} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} data-stack data-stack-editing={editing || undefined} className="relative grid grid-cols-6 items-stretch gap-x-[var(--stack-gx,16px)] gap-y-[var(--stack-gy,16px)]">
     {cells.map((cell) => {
       if (cell.ph) return <div key={cell.key} data-ph data-r={cell.r} data-gr={cell.row} aria-hidden="true" className="grid min-h-[110px] place-items-center rounded-3xl border-2 border-dashed border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_10%,transparent)] text-xs font-extrabold text-[var(--org-primary-color)] transition-all" style={{ gridRow: cell.row, gridColumn: cell.col, height: slot?.newRow ? (drag.current?.kind === 'move' ? drag.current.h : 140) : undefined }}>Drop here</div>
-      if (cell.gut !== undefined) return <div key={cell.key} data-gut={cell.gut} data-r={cell.r} title="Drag to resize both" className="group/gut relative z-[3] -ml-4 flex w-4 cursor-col-resize touch-none items-center justify-center self-stretch" style={{ gridRow: cell.row, gridColumn: cell.col }}>
+      if (cell.gut !== undefined) return <div key={cell.key} data-gut={cell.gut} data-r={cell.r} title="Drag to resize both" className="group/gut relative z-[3] -ml-[var(--stack-gx,16px)] flex w-[var(--stack-gx,16px)] cursor-col-resize touch-none items-center justify-center self-stretch" style={{ gridRow: cell.row, gridColumn: cell.col }}>
         <span className="h-12 w-1.5 rounded-full bg-[var(--org-primary-color)] opacity-40 transition-all group-hover/gut:h-20 group-hover/gut:opacity-100" />
       </div>
       const type = cell.type!
       const h = heights[type]
       return <div key={cell.key} data-sec={type} data-r={cell.r} data-gr={cell.row} data-fixed={h ? '' : undefined} hidden={cell.r < 0} className={`group/sec relative flex min-w-0 flex-col [&>*]:flex-1 ${editing ? 'cursor-grab touch-none' : ''}`} style={{ gridRow: cell.row, gridColumn: cell.col, height: h ? `${h}px` : undefined }}>
         {render(type)}
-        {editing ? <div data-hh title="Drag to set the height. Double-click to fit the content." className="absolute inset-x-0 -bottom-3 z-[3] flex h-4 cursor-ns-resize touch-none items-center justify-center opacity-0 transition group-hover/sec:opacity-100">
+        {editing ? <div data-hh title="Drag to set the height. Double-click to fit the content." className="absolute inset-x-0 bottom-[calc(var(--stack-gy,16px)/-2-8px)] z-[3] flex h-4 cursor-ns-resize touch-none items-center justify-center opacity-0 transition group-hover/sec:opacity-100">
           <span className="h-1.5 w-14 rounded-full bg-[var(--org-primary-color)]" />
           <small className="absolute left-[calc(50%+36px)] whitespace-nowrap text-[11px] font-bold text-muted-foreground">{h ? `${h} px` : 'Fits its content'}</small>
         </div> : null}

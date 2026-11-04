@@ -182,3 +182,12 @@ test('portfolio.v2: a résumé PDF is read into a pick list', async ({ page }) =
   await page.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.getByRole('button', { name: 'Upload a résumé' })).toBeVisible()
 })
+
+test('portfolio.v2: each section is one click from its editor', async ({ page }) => {
+  await page.goto('/portfolio')
+  // The pencil beside a section's title opens what edits it, without going into Edit page.
+  const experience = page.locator('[data-sec="experience"]')
+  await experience.hover()
+  await experience.getByRole('button', { name: /^Edit / }).click()
+  await expect(page).toHaveURL(/\/portfolio\/timeline/)
+})

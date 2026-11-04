@@ -24,8 +24,8 @@ function LookCard({ look, dark, onStep, index, count }: { look: (typeof LOOKS)[n
       <button type="button" onClick={() => onStep(-1)} aria-label="Previous look" className={arrow}><ChevronLeft className="h-5 w-5" /></button>
       <div className="relative h-[150px] min-w-0 flex-1 overflow-hidden rounded-2xl border border-black/10 p-3" style={{ background }} aria-hidden="true">
         <i className="absolute inset-x-3 top-3 h-[44px]" style={{ background: `linear-gradient(120deg, ${a}, ${b})`, borderRadius: radius }} />
-        <b className="absolute left-4 top-[66px] text-[26px] leading-none" style={{ fontFamily: look.font, color: ink, textTransform: look.id === 'volt' ? 'uppercase' : 'none', fontWeight: look.id === 'playful' ? 900 : 400 }}>{look.id === 'gallery' ? <>Maya <em style={{ color: a }}>Torres</em></> : 'Maya Torres'}</b>
-        <i className="absolute bottom-3 left-3 h-[34px] w-[38%]" style={{ background: look.id === 'gallery' ? 'transparent' : c, borderTop: look.id === 'gallery' ? `1px solid ${ink}` : undefined, borderRadius: radius, boxShadow: look.id === 'playful' ? `0 3px 0 ${dark ? '#24323f' : '#d5dde2'}` : undefined }} />
+        <b className="absolute left-4 top-[66px] text-[26px] leading-none" style={{ fontFamily: look.font, color: ink, fontWeight: look.id === 'gallery' ? 400 : 800, letterSpacing: look.id === 'volt' ? '-0.03em' : undefined }}>{look.id === 'gallery' ? <>Maya <em style={{ color: a }}>Torres</em></> : 'Maya Torres'}</b>
+        <i className="absolute bottom-3 left-3 h-[34px] w-[38%]" style={{ background: look.id === 'playful' ? c : 'transparent', borderTop: look.id === 'playful' ? undefined : `1px solid ${look.id === 'gallery' ? ink : a}`, borderRadius: radius, boxShadow: look.id === 'playful' ? `0 3px 0 ${dark ? '#24323f' : '#d5dde2'}` : undefined }} />
         <i className="absolute bottom-3 right-3 h-[34px] w-[calc(62%-30px)]" style={{ background: a, opacity: look.id === 'volt' ? 1 : 0.35, borderRadius: look.id === 'volt' ? 999 : radius }} />
       </div>
       <button type="button" onClick={() => onStep(1)} aria-label="Next look" className={arrow}><ChevronRight className="h-5 w-5" /></button>

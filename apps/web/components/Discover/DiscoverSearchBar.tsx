@@ -42,7 +42,7 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
   const active = [
     ...(filters.type ? [{ key: 'type', label: filters.type === 'plans' ? 'Plans' : 'Resources', clear: () => onFilters({ ...filters, type: '', resourceTypes: filters.type === 'resources' ? [] : filters.resourceTypes }) }] : []),
     ...filters.resourceTypes.map((value) => ({ key: value, label: RESOURCE_TYPES.find((item) => item.value === value)?.label || value, clear: () => onFilters({ ...filters, resourceTypes: filters.resourceTypes.filter((item) => item !== value) }) })),
-    ...(filters.saved ? [{ key: 'saved', label: 'Saved', clear: () => onFilters({ ...filters, saved: false }) }] : []),
+    ...(filters.saved ? [{ key: 'saved', label: 'My library', clear: () => onFilters({ ...filters, saved: false }) }] : []),
   ]
   const count = active.length
 
@@ -75,7 +75,7 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
             {RESOURCE_TYPES.map((type) => <DropdownMenuCheckboxItem key={type.value} checked={filters.resourceTypes.includes(type.value)} onSelect={(event) => event.preventDefault()} onCheckedChange={(checked) => onFilters({ ...filters, resourceTypes: checked ? [...filters.resourceTypes, type.value] : filters.resourceTypes.filter((item) => item !== type.value) })}>{type.label}</DropdownMenuCheckboxItem>)}
             {signedIn ? <>
               <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem checked={filters.saved} onSelect={(event) => event.preventDefault()} onCheckedChange={(checked) => onFilters({ ...filters, saved: Boolean(checked) })}>Saved only</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filters.saved} onSelect={(event) => event.preventDefault()} onCheckedChange={(checked) => onFilters({ ...filters, saved: Boolean(checked) })}>My library</DropdownMenuCheckboxItem>
             </> : null}
           </> : null}
         </DropdownMenuContent>

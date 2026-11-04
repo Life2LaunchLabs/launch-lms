@@ -12,6 +12,7 @@ class ResourceTypeEnum(str, Enum):
     tool = "tool"
     guide = "guide"
     course = "course"
+    school = "school"
     other = "other"
 
 
