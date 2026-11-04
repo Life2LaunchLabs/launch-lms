@@ -155,6 +155,8 @@ function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken
   const top = taken.code.split('')
   const keep = FILTERS.find((item) => item.id === filter)!.keep
   const careers = taken.careers.filter((career) => keep(career.job_zone))
+  // Six equal scores have no shape to compare with a career, so there's nothing to match on.
+  const even = new Set(Object.values(taken.scores)).size === 1
   return <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
     <section className="rounded-3xl border border-border bg-card p-5 sm:p-7">
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
