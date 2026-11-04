@@ -189,13 +189,39 @@ test('portfolio.v2: a résumé PDF is read into a pick list', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Upload a résumé' })).toBeVisible()
 })
 
-test('portfolio.v2: each section is one click from its editor', async ({ page }) => {
+test('portfolio.v2: a section’s title opens its page, and its pencil renames it', async ({ page }) => {
   await page.goto('/portfolio')
-  // The pencil beside a section's title opens what edits it.
   const experience = page.locator('[data-sec="experience"]')
   await experience.hover()
-  await experience.getByRole('button', { name: /^Edit / }).click()
+  // The pencil makes the title editable; leaving it unchanged keeps the name.
+  await experience.getByRole('button', { name: /^Edit the name of / }).click()
+  await expect(experience.getByRole('textbox', { name: 'Section title' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(experience.getByRole('textbox', { name: 'Section title' })).toHaveCount(0)
+  // Empty space in What I'm like opens its page too.
+  await page.locator('[data-sec="results"]').scrollIntoViewIfNeeded()
+  // Find a spot inside the tile's body that isn't a link or button of its own, and click it.
+  const spot = await page.locator('[data-sec="results"] [data-tile]').evaluate((tile) => {
+    const box = tile.getBoundingClientRect()
+    for (let y = box.bottom - 6; y > box.top + 60; y -= 8) for (let x = box.left + 6; x < box.right - 6; x += 12) {
+      if ((document.elementFromPoint(x, y) as HTMLElement | null)?.hasAttribute('data-tile-link')) return { x, y }
+    }
+    return null
+  })
+  expect(spot).not.toBeNull()
+  await page.mouse.click(spot!.x, spot!.y)
+  await expect(page).toHaveURL(/\/portfolio\/results/)
+  await page.goBack()
+  await experience.locator('[data-tile-title] a').click()
   await expect(page).toHaveURL(/\/portfolio\/timeline/)
+})
+
+test('portfolio.v2: the header has a hover pencil for your details', async ({ page }) => {
+  await page.goto('/portfolio')
+  await page.locator('[data-pf-name]').hover()
+  await page.getByRole('button', { name: 'Edit your details' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
 })
 
 test('portfolio.v2: what I’m like has its own page, and adding a result starts with taking the test', async ({ page }) => {
@@ -208,5 +234,18 @@ test('portfolio.v2: what I’m like has its own page, and adding a result starts
   await dialog.getByRole('button', { name: /CliftonStrengths/ }).click()
   await expect(page.getByRole('link', { name: /Take it on Gallup CliftonStrengths/ })).toBeVisible()
   await expect(page.getByRole('link', { name: /Take it on Gallup CliftonStrengths/ }).getByText('Paid')).toBeVisible()
-  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  // Skills and values are chips you tap, right here.
+  await page.getByRole('button', { name: 'Add a result' }).click()
+  await page.getByRole('dialog', { name: 'Add a result' }).getByRole('button', { name: /Skills and values/ }).click()
+  const chips = page.getByRole('dialog', { name: 'Skills and values' })
+  await chips.getByRole('button', { name: 'Focus', exact: true }).click()
+  await chips.getByRole('button', { name: 'Honesty', exact: true }).click()
+  await chips.getByRole('button', { name: 'Save' }).click()
+  const card = page.locator('[data-result-card]', { hasText: 'Skills and values' })
+  await expect(card.locator('[data-chip-group="values"]').getByText('Honesty')).toBeVisible()
+  await card.getByRole('button', { name: 'Open Skills and values' }).click()
+  await page.getByRole('dialog', { name: 'Skills and values' }).getByRole('button', { name: 'Remove' }).click()
+  await page.getByRole('dialog', { name: /^Remove Skills and values/ }).getByRole('button', { name: 'Remove' }).click()
+  await expect(card).toHaveCount(0)
 })

@@ -1,13 +1,13 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { BriefcaseBusiness, Globe, Instagram, Linkedin, MapPin, Pencil, Sparkles, X as XLogo, Youtube } from 'lucide-react'
+import { BriefcaseBusiness, Globe, Instagram, Linkedin, MapPin, Pencil, X as XLogo, Youtube } from 'lucide-react'
 import type { LookId } from '@services/portfolio/records'
-import { SPOT_RING, SpotTip, initials } from './parts'
+import { EditButton, SPOT_RING, SpotTip, initials } from './parts'
 
 // The portfolio's header, which each look builds its own way: Playful's banner with the photo over its edge,
-// Professional's profile column, Gallery's masthead with the name set huge, Volt's profile row with stats
-// and no cover, and Arcade's angled splash. The pieces are the same; only how they're put together changes.
+// Professional's profile column, Gallery's masthead with the name set huge, Volt's clean profile row
+// with no cover, and Arcade's angled splash. The pieces are the same; only how they're put together changes.
 
 export type HeaderProps = {
   look: LookId
@@ -20,8 +20,6 @@ export type HeaderProps = {
   now: string
   place: string
   socials: Array<{ type: string; url: string }>
-  /** Counts Volt shows beside the name, like its concept: projects, badges, experience. */
-  stats: Array<[number, string]>
   banner: { image: string; css?: string; fallback: string }
   /** The mastery badge and the owner's public/private chip. */
   marks: ReactNode
@@ -59,7 +57,9 @@ function Photo({ p, className }: { p: HeaderProps; className: string }) {
 }
 
 function Name({ p, className, children }: { p: HeaderProps; className: string; children?: ReactNode }) {
-  return <h1 data-pf-name className={className}>{p.editing && !p.hasName ? <button type="button" onClick={p.onProfile} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : children || p.name}</h1>
+  return <><h1 data-pf-name className={className}>{p.editing && !p.hasName ? <button type="button" onClick={p.onProfile} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : children || p.name}</h1>
+    {/* The same hover pencil the sections have: it opens your name, intro, photo and the rest. */}
+    {p.editing ? <EditButton label="your details" onClick={p.onProfile} className="self-center group-hover/hdr:opacity-100" /> : null}</>
 }
 
 function Intro({ p, className = '' }: { p: HeaderProps; className?: string }) {
@@ -153,19 +153,14 @@ function GalleryHeader({ p }: { p: HeaderProps }) {
   </header>
 }
 
-/** Volt: the concept board's profile row. No cover: the photo in an accent ring, the name, your links, and counts on the right. */
+/** Volt: the concept board's profile row. No cover and no frame: the photo, the name, where you are and your links. */
 function VoltHeader({ p }: { p: HeaderProps }) {
   return <header data-pf-header="profile" className="relative">
     <Corner p={p} onBanner={false} className="mb-3 justify-end" />
     {p.spots.settings ? <SpotTip label={p.spots.settings} className="absolute right-0 top-[40px]" /> : null}
     <div className="relative flex flex-wrap items-center gap-x-7 gap-y-5">
       <AvatarSpot p={p} className="absolute left-[112px] top-0" />
-      <div className="relative shrink-0 p-[6px]">
-        <Photo p={p} className="h-[104px] w-[104px] rounded-full text-[34px] sm:h-[120px] sm:w-[120px]" />
-        <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border-2 border-[var(--org-primary-color)]" />
-        <Sparkles aria-hidden="true" className="pointer-events-none absolute -right-2 top-0 h-5 w-5 text-[var(--org-primary-color)]" />
-        <Sparkles aria-hidden="true" className="pointer-events-none absolute -left-3 bottom-3 h-3.5 w-3.5 text-[var(--org-primary-color)]" />
-      </div>
+      <Photo p={p} className="h-[104px] w-[104px] rounded-full text-[34px] sm:h-[120px] sm:w-[120px]" />
       <div className="grid min-w-[220px] flex-1 gap-1.5">
         <div className="relative flex flex-wrap items-center gap-2"><NameSpot p={p} /><Name p={p} className="text-[clamp(28px,3.4vw,40px)] font-extrabold leading-[1.05] tracking-[-0.035em]" />{p.marks}</div>
         <Intro p={p} className="text-[15px] text-muted-foreground" />
@@ -175,9 +170,6 @@ function VoltHeader({ p }: { p: HeaderProps }) {
         </div>
         <Socials socials={p.socials} className="mt-1" />
       </div>
-      {p.stats.length ? <dl className="flex gap-7 max-sm:w-full max-sm:justify-between" data-pf-stats>{p.stats.map(([value, label]) => <div key={label} className="grid justify-items-center">
-        <dt className="order-2 text-xs font-semibold text-muted-foreground">{label}</dt><dd className="text-[28px] font-extrabold tabular-nums tracking-[-0.03em]">{value}</dd>
-      </div>)}</dl> : null}
     </div>
     <div className="mt-5 flex flex-wrap gap-2">{p.actions}</div>
   </header>
@@ -211,7 +203,7 @@ function ArcadeHeader({ p }: { p: HeaderProps }) {
   </header>
 }
 
-export function PortfolioHeader(props: HeaderProps) {
+function LookHeader(props: HeaderProps) {
   switch (props.look) {
     case 'professional': return <ProfessionalHeader p={props} />
     case 'gallery': return <GalleryHeader p={props} />
@@ -219,6 +211,10 @@ export function PortfolioHeader(props: HeaderProps) {
     case 'arcade': return <ArcadeHeader p={props} />
     default: return <PlayfulHeader p={props} />
   }
+}
+
+export function PortfolioHeader(props: HeaderProps) {
+  return <div className="group/hdr"><LookHeader {...props} /></div>
 }
 
 /** The owner's Look, Edit page and Settings buttons: light glass on a banner, plain pills on the page. */
