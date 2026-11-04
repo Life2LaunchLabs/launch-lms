@@ -4,14 +4,15 @@ import React from 'react'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, Compass, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
 import { GoalTabs } from '@components/Goals/learner/GoalHeader'
-import { phaseOfGoal, type PhaseGroup } from '@components/Goals/learner/phases'
-import PhaseStack, { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
-import PhaseDialog, { type PhaseEdit } from '@components/Goals/phases/PhaseDialog'
+import type { PhaseGroup } from '@components/Goals/learner/phases'
+import { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
+import PlanMap from '@components/Goals/phases/PlanMap'
+import { current, normalize } from '@components/Goals/phases/graph'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
@@ -79,21 +80,23 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   const router = useRouter()
   const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { change } = useLifePlan(token)
+  const focus = useSearchParams()?.get('phase')
   const photos = usePlacePhotos(token)
-  const [phaseEdit, setPhaseEdit] = React.useState<PhaseEdit | null>(null)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
-  const dialog = <PhaseDialog edit={phaseEdit} doc={life || null} token={token} onClose={() => setPhaseEdit(null)} change={change}
-    onAdded={(id) => router.push(getUriWithOrg(orgslug, routePaths.org.phase(id)))} />
 
   if (life?.phases?.length) {
-    const goalsIn: Record<string, number> = {}
-    for (const goal of open) { const id = phaseOfGoal(life, goal.goal_uuid); if (id) goalsIn[id] = (goalsIn[id] || 0) + 1 }
-    return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
+    const now = current(normalize(life))
+    return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8">
       <SharedWithYou token={token} />
       <Invitations invitations={invitations} token={token} />
-      <PhaseStack doc={life} orgslug={orgslug} goalsIn={goalsIn} photos={photos} onAdd={() => setPhaseEdit({ mode: 'add' })} />
+      <section aria-labelledby="plan-map" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="plan-map" className="text-2xl font-extrabold tracking-tight">Your map</h2>
+          {now ? <Button variant="brand" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(now.id))}>You’re in {now.title}</Link></Button> : null}
+        </div>
+        <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus} />
+      </section>
       <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
-      {dialog}
     </div>
   }
 
@@ -101,14 +104,13 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
     <SharedWithYou token={token} />
     <Invitations invitations={invitations} token={token} />
-    <StartPhaseCard onStart={() => setPhaseEdit({ mode: 'add' })} />
+    <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
     {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
       <GoalTabs label="Your goals" goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
       <AddToPhase orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
     </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
-    {dialog}
   </div>
 }
 

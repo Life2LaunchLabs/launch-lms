@@ -8,7 +8,8 @@ export type Row = StackItem[]
 /** Where a dragged section would land: a new full row before row r, or into row r at position i. */
 export type Slot = { newRow: true; r: number } | { newRow: false; r: number; i: number }
 
-export const ALL_SECTIONS: SectionType[] = ['highlights', 'feature', 'about', 'experience', 'projects', 'credentials', 'results', 'headed', 'people']
+// "Where I'm headed" left the portfolio (plans and the EPP report show it); saved stacks may still name it and it stays hidden.
+export const ALL_SECTIONS: SectionType[] = ['highlights', 'feature', 'about', 'experience', 'projects', 'credentials', 'results', 'people']
 /** Bio and experience are always on the page. */
 export const REQUIRED: SectionType[] = ['about', 'experience']
 /** What the "Add a section" chips call each one. */
@@ -35,12 +36,12 @@ export const HEIGHTS: Record<LookId, [number, number]> = { playful: [140, 900], 
 const full = (type: SectionType): Row => [{ type, u: 6 }]
 const pair = (a: SectionType, b: SectionType): Row => [{ type: a, u: 3 }, { type: b, u: 3 }]
 const SUGGESTED: Record<LookId, Row[]> = {
-  playful: [full('highlights'), full('feature'), full('about'), full('experience'), pair('projects', 'credentials'), pair('results', 'headed'), full('people')],
-  gallery: [full('feature'), full('projects'), [{ type: 'about', u: 2 }, { type: 'experience', u: 4 }], full('highlights'), [{ type: 'credentials', u: 2 }, { type: 'results', u: 2 }, { type: 'headed', u: 2 }], full('people')],
+  playful: [full('highlights'), full('feature'), full('about'), full('experience'), pair('projects', 'credentials'), full('results'), full('people')],
+  gallery: [full('feature'), full('projects'), [{ type: 'about', u: 2 }, { type: 'experience', u: 4 }], full('highlights'), [{ type: 'credentials', u: 2 }, { type: 'results', u: 2 }], full('people')],
   // The identity column sits beside the stack, so it reads like a profile: summary, then experience first.
-  professional: [full('highlights'), full('about'), full('experience'), full('feature'), full('projects'), pair('credentials', 'people'), pair('results', 'headed')],
-  arcade: [full('feature'), full('highlights'), full('projects'), full('credentials'), pair('experience', 'people'), pair('results', 'headed'), full('about')],
-  volt: [full('feature'), full('highlights'), full('projects'), pair('about', 'experience'), [{ type: 'credentials', u: 4 }, { type: 'results', u: 2 }], pair('people', 'headed')],
+  professional: [full('highlights'), full('about'), full('experience'), full('feature'), full('projects'), pair('credentials', 'people'), full('results')],
+  arcade: [full('feature'), full('highlights'), full('projects'), full('credentials'), pair('experience', 'people'), full('results'), full('about')],
+  volt: [full('feature'), full('highlights'), full('projects'), pair('about', 'experience'), [{ type: 'credentials', u: 4 }, { type: 'results', u: 2 }], full('people')],
 }
 
 export const lookOf = (layout?: PortfolioLayout | null): LookId => (layout?.look && layout.look in SUGGESTED ? layout.look : 'playful')
