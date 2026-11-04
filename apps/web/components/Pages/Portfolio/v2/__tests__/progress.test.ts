@@ -15,7 +15,7 @@ describe('portfolio quests', () => {
   })
 
   test('finishing a quest shows its unlock until it is seen, then the next quest starts', () => {
-    const done = shell({ identity: { first_name: 'Maya', last_name: 'Rivera', shown_name: 'Maya' }, portfolio: { avatar_image: 'me.jpg', short_bio: 'Hi', socials: [] }, timeline: [entry()], projects: [{ cover_url: '' }], layout: { header: 'left', sections: 'grid', look: 'sunset' } })
+    const done = shell({ identity: { first_name: 'Maya', last_name: 'Rivera', shown_name: 'Maya' }, portfolio: { avatar_image: 'me.jpg', short_bio: 'Hi', socials: [] }, timeline: [entry()], projects: [{ cover_url: '' }], layout: { header: 'left', sections: 'grid', look: 'playful' } })
     const stage = stageOf(done)
     expect(stage.kind).toBe('unlocked')
     expect(unlocked(stage, 1)).toBe(true)
