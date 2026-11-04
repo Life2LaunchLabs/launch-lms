@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Check, ExternalLink, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
 import { getInterestQuiz, takeInterestQuiz, type InterestQuiz, type QuizCareer, type QuizTaken } from '@services/portfolio/records'
+import { CareerTile } from '@components/Careers/CareerTile'
 import { DetailHeader } from './PortfolioDetail'
 import { Radar } from './ResultView'
 
@@ -28,7 +29,6 @@ const MEANS: Record<string, string> = {
   C: 'Organizing: details, records, data and clear steps.',
 }
 // O*NET job zones, said simply.
-const PREP: Record<number, string> = { 1: 'Little or no training', 2: 'High school and some training', 3: 'Training or a 2-year degree', 4: 'A 4-year degree', 5: 'A graduate degree' }
 const FILTERS = [
   { id: 'all', label: 'All', keep: () => true },
   { id: 'no-degree', label: 'No 4-year degree', keep: (zone: number | null) => !zone || zone <= 3 },
@@ -46,7 +46,6 @@ function writeDraft(answers: number[] | null) {
 type Start = (fresh: boolean) => void
 // eslint-disable-next-line no-unused-vars
 type Answer = (value: number) => void
-const money = (value: number) => `$${Math.round(value / 1000)}k`
 
 export function InterestQuizPage({ orgslug }: { orgslug: string }) {
   const session = useLHSession() as any
@@ -152,12 +151,11 @@ function Question({ quiz, answers, saving, onAnswer, onBack }: { quiz: InterestQ
 
 function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken: QuizTaken; orgslug: string; onRetake: () => void }) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('all')
-  const [more, setMore] = useState(false)
   const label = (key: string) => quiz.types.find((type) => type.key === key)?.label || key
   const top = taken.code.split('')
   const keep = FILTERS.find((item) => item.id === filter)!.keep
   const careers = taken.careers.filter((career) => keep(career.job_zone))
-  return <div className="grid gap-5">
+  return <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
     <section className="rounded-3xl border border-border bg-card p-5 sm:p-7">
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
         <div className="text-foreground"><Radar scores={taken.scores} axes={quiz.types} max={quiz.max} size={210} /></div>
@@ -181,26 +179,29 @@ function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken
         <div><h2 className="text-xl font-extrabold">Careers that fit your interests</h2><p className="text-sm font-semibold text-muted-foreground">Closest match first. Interests are one piece; what you’re good at and what you value matter too.</p></div>
       </div>
       {taken.careers.length ? <>
-        <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Training">{FILTERS.map((item) => <button key={item.id} type="button" role="radio" aria-checked={filter === item.id} onClick={() => { setFilter(item.id); setMore(false) }} className={`h-9 rounded-full border-2 px-3.5 text-[13px] font-extrabold ${filter === item.id ? 'border-[#6539D8] bg-[#8B5CF6] text-white' : 'border-border bg-card'}`}>{item.label}</button>)}</div>
-        {careers.length ? <ul className="grid gap-2.5 sm:grid-cols-2">{careers.slice(0, more ? careers.length : 8).map((career) => <CareerCard key={career.code} career={career} />)}</ul>
+        <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Training">{FILTERS.map((item) => <button key={item.id} type="button" role="radio" aria-checked={filter === item.id} onClick={() => setFilter(item.id)} className={`h-9 rounded-full border-2 px-3.5 text-[13px] font-extrabold ${filter === item.id ? 'border-[#6539D8] bg-[#8B5CF6] text-white' : 'border-border bg-card'}`}>{item.label}</button>)}</div>
+        {careers.length ? <CareerCarousel key={filter} careers={careers} />
           : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">None of your closest matches fit this filter. Try another.</p>}
-        {!more && careers.length > 8 ? <button type="button" onClick={() => setMore(true)} className="mt-3 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-muted hover:text-foreground">Show {careers.length - 8} more</button> : null}
       </> : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">Career matches will show up here once the career list is loaded. Your result is saved, so you won’t need to take the quiz again.</p>}
     </section>
   </div>
 }
 
-function CareerCard({ career }: { career: QuizCareer }) {
-  return <li className="min-w-0">
-    <a href={`https://www.mynextmove.org/profile/summary/${career.code}`} target="_blank" rel="noreferrer" className="flex h-full min-w-0 flex-col gap-1.5 rounded-2xl border-2 border-border bg-card p-3.5 shadow-[0_3px_0_hsl(var(--border))] transition hover:border-[#8B5CF6]">
-      <span className="flex items-start gap-2"><b className="min-w-0 flex-1 text-[15px] font-extrabold leading-snug">{career.title}</b><ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Opens My Next Move" /></span>
-      <span className="flex flex-wrap gap-1.5 text-[12px] font-bold">
-        <span className="rounded-full bg-[#E4DAFF] px-2 py-0.5 tracking-wider text-[#4C2BB0] dark:bg-[#3b2a6b] dark:text-[#d9ccff]">{career.top_interests}</span>
-        {career.job_zone ? <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{PREP[career.job_zone]}</span> : null}
-        {career.pay ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" title={`Median pay in ${career.pay.place}${career.pay.year ? `, ${career.pay.year}` : ''}, for a full-time year (BLS)`}>{money(career.pay.yearly)} a year{career.pay.place === 'Oregon' ? ' in Oregon' : ''}</span> : null}
-      </span>
-    </a>
-  </li>
+/** One row of career cards that scrolls sideways (swipe on a phone, arrows on a computer). */
+function CareerCarousel({ careers }: { careers: QuizCareer[] }) {
+  const row = useRef<HTMLUListElement>(null)
+  const [edges, setEdges] = useState({ start: true, end: false })
+  const look = () => { const el = row.current; if (el) setEdges({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth > el.scrollWidth - 8 }) }
+  useEffect(look, [careers])
+  const step = (direction: number) => row.current?.scrollBy({ left: direction * row.current.clientWidth * 0.85, behavior: 'smooth' })
+  const arrow = 'absolute top-[56px] z-10 hidden h-10 w-10 place-items-center rounded-full border-2 border-border bg-card shadow-[0_3px_0_hsl(var(--border))] hover:bg-raised disabled:opacity-0 sm:grid'
+  return <div className="relative -mx-4 sm:mx-0">
+    <button type="button" aria-label="Earlier careers" onClick={() => step(-1)} disabled={edges.start} className={`${arrow} -left-5`}><ChevronLeft className="h-5 w-5" /></button>
+    <ul ref={row} onScroll={look} aria-label="Careers that fit your interests" className="flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+      {careers.map((career) => <li key={career.code}><CareerTile career={career} href={`https://www.mynextmove.org/profile/summary/${career.code}`} /></li>)}
+    </ul>
+    <button type="button" aria-label="More careers" onClick={() => step(1)} disabled={edges.end} className={`${arrow} -right-5`}><ChevronRight className="h-5 w-5" /></button>
+  </div>
 }
 
 function Credit({ quiz }: { quiz: InterestQuiz | null }) {
