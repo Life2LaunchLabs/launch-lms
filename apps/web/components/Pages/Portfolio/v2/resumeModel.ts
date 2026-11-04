@@ -1,5 +1,6 @@
 import { timelineDateLabel, type TimelineEntry } from '../Timeline'
 import type { Shell } from '../portfolioTypes'
+import { skillsOf, templateOf } from './resultTemplates'
 
 // The résumé is a view of the portfolio: these sections, built from what's there, minus what a version took off.
 // Keys match the API's excluded list: "section:<key>", "timeline:<uuid>", "credential:<uuid>", "project:<uuid>",
@@ -49,7 +50,7 @@ export function buildResume(shell: Shell, excluded: string[]) {
     } else if (section.key === 'profile') text = [shell.portfolio.headline, shell.portfolio.short_bio].filter(Boolean).join('. ').replace(/\.\./g, '.')
     else if (section.key === 'projects') items = [...(shell.projects || [])].sort((a, b) => Number(b.featured) - Number(a.featured)).map((project) => ({ key: `project:${project.project_uuid}`, title: project.title, text: project.subtitle || project.summary }))
     else if (section.key === 'certifications') items = credentials.filter((item) => item.kind === 'card' || item.kind === 'certificate').map((item) => ({ key: `credential:${item.credential_uuid}`, title: item.name, detail: item.issuer, when: item.expires_on ? `Valid until ${month(item.expires_on)}` : month(item.issued_on) }))
-    else if (section.key === 'skills') text = (shell.results || []).filter((result) => ['skills', 'strengths'].includes(result.kind) && result.visibility !== 'private').map((result) => result.summary).filter(Boolean).join(' · ')
+    else if (section.key === 'skills') text = (shell.results || []).filter((result) => ['skills', 'strengths'].includes(result.kind) && result.visibility !== 'private').map((result) => templateOf(result)?.input === 'chips' ? skillsOf(result).join(' · ') : result.summary).filter(Boolean).join(' · ')
     else if (section.key === 'references') items = (shell.contacts || []).filter((person) => person.is_reference).map((person) => ({ key: `contact:${person.contact_uuid}`, title: person.name, detail: person.role_label }))
     if (!items.length && !text) continue
     if (off.has(`section:${section.key}`)) { removedSections.push(section.key); continue }

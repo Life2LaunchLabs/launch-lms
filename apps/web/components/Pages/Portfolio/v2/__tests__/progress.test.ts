@@ -46,5 +46,11 @@ describe('portfolio quests', () => {
     expect(third({ headed: { now: { title: 'High school' }, next: [{ title: 'College' }] } }).find((item) => item.key === 'headed')?.done).toBe(true)
     expect(third({ results: [{ kind: 'skills', summary: 'CAD' }] }).find((item) => item.key === 'like')?.done).toBe(false)
     expect(third({ results: [{ kind: 'interests', summary: 'Artistic' }] }).find((item) => item.key === 'like')?.done).toBe(true)
+    expect(third({ results: [{ kind: 'skills', summary: 'Focus', data: { template: 'skills-values', skills: ['focus'], values: ['honesty'] } }] }).find((item) => item.key === 'like')?.done).toBe(true)
+  })
+
+  test('the skills and values chips count their skills, not their values', () => {
+    const [, second] = quests(shell({ results: [{ kind: 'skills', summary: 'Focus · Listening', data: { template: 'skills-values', skills: ['focus', 'listening', 'Welding'], values: ['honesty', 'family'], custom: { skills: [{ id: 'Welding', text: 'Welding' }] } } }] }))
+    expect(second.items.find((item) => item.key === 'skills')?.done).toBe(true)
   })
 })

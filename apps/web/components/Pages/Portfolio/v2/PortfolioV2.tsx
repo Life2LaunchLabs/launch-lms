@@ -30,6 +30,7 @@ import { FeatureDialog, FeatureSection, featureChoices, resolveFeatures } from '
 import { ALL_SECTIONS, LOOK_NAMES, REQUIRED, SECTION_LABELS, type Row, copyRows, lookOf, mergeHidden, norm, sameRows, suggested, visibleRows } from './stack/model'
 import type { SectionType } from '@services/portfolio/records'
 import { ResultDialog } from './ResultDialog'
+import { SKILLS_VALUES } from './resultTemplates'
 import { LookDialog } from './LookDialog'
 import { WelcomeDialog } from './WelcomeDialog'
 import { BANNERS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
@@ -85,7 +86,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const [highlightsOpen, setHighlightsOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [linksOpen, setLinksOpen] = useState(false)
-  const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult; kind?: PortfolioResult['kind'] } | null>(null)
+  const [resultEditor, setResultEditor] = useState<{ result?: PortfolioResult; kind?: PortfolioResult['kind']; template?: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const ask = useAsk()
   const router = useRouter()
@@ -137,7 +138,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     if (path) return page(path)
     setMark(item.label)
     const go: Record<string, () => void> = {
-      name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ kind: 'skills' }),
+      name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       proven: () => page(routePaths.org.discover()), look: () => setLookOpen(true),
       like: () => document.querySelector('[aria-label="What I’m like"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
@@ -278,7 +279,6 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   }
   const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.portfolio.location_label || ''}
     socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onProfile={() => setProfileOpen(true)}
-    stats={([[shell.projects?.length || 0, 'Projects'], [(shell.badges?.earned?.length || 0) + (shell.credentials?.length || 0), 'Badges'], [shell.timeline?.length || 0, 'Experience']] as Array<[number, string]>).filter(([value]) => value > 0)}
     banner={{ image: bannerImage, css: bannerCss, fallback: look || accent ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]' }}
     marks={<>{shell.mastered ? <MasteryBadge /> : null}{editing ? <span data-pf-chip className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}</>}
     corner={editing && !side ? cornerFor : undefined}
@@ -316,7 +316,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     </div>
     {editing ? <>
       <ProfileDialog mark={mark} open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
-      <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
+      <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.template || resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} template={resultEditor?.template} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
       <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} onSuggested={custom ? () => void changeLayout({ stack: null, heights: Object.fromEntries(Object.entries(layout.heights || {}).filter(([key]) => key.split(':')[0] !== lookId)) }) : undefined} mode={mode} dark={dark} onChange={(next) => void changeLayout(next)} spot={spots.settings} userId={Number(shell.portfolio.user_id)} token={token} />
       <WelcomeDialog open={welcomeOpen} onOpenChange={setWelcomeOpen} onStart={() => { setWelcomeOpen(false); setQuestOpen(true); setQuestList(true) }} />
       <LinksDialog mark={mark} open={linksOpen} onOpenChange={(open) => { setLinksOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} />
