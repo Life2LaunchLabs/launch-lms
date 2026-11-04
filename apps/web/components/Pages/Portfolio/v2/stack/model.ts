@@ -24,11 +24,11 @@ export const LOOK_NAMES: Record<LookId, Record<SectionType, string>> = {
   volt: { highlights: 'By the numbers', feature: 'Featured', about: 'About', experience: 'Journey', projects: 'Latest work', credentials: 'Badges', results: 'My type', headed: 'Next up', people: 'Shoutouts' },
 }
 
-/** Smallest and largest height each section can be dragged to, in px. In between it shows as much as fits. */
-export const HEIGHTS: Record<SectionType, [number, number]> = {
-  highlights: [96, 220], feature: [200, 560], about: [160, 560], experience: [200, 760], projects: [220, 900],
-  credentials: [160, 600], results: [160, 600], headed: [160, 520], people: [160, 600],
-}
+/**
+ * The smallest and largest height a section can be dragged to in each look, in px: one range for every
+ * section, so sections sharing a row never fight over it. In between, a section shows as much as fits.
+ */
+export const HEIGHTS: Record<LookId, [number, number]> = { playful: [140, 900], gallery: [160, 1000], volt: [140, 900] }
 
 const full = (type: SectionType): Row => [{ type, u: 6 }]
 const pair = (a: SectionType, b: SectionType): Row => [{ type: a, u: 3 }, { type: b, u: 3 }]
@@ -122,9 +122,5 @@ export function heightOf(layout: PortfolioLayout | null | undefined, look: LookI
   return saved ? saved : null
 }
 
-/** The tightest range that suits every section in a row (they share one height). */
-export function rangeOf(types: SectionType[]): [number, number] {
-  const lo = Math.max(...types.map((type) => HEIGHTS[type][0]))
-  const hi = Math.max(lo, Math.min(...types.map((type) => HEIGHTS[type][1])))
-  return [lo, hi]
-}
+/** The height range for a look. */
+export const rangeOf = (look: LookId): [number, number] => HEIGHTS[look] || HEIGHTS.playful
