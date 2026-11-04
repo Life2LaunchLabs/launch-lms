@@ -10,8 +10,10 @@ export type { LookId, LookMode }
  */
 export const LOOKS: Array<{ id: LookId; name: string; blurb: string; colors: [string, string, string, string]; night: [string, string, string, string]; font: string }> = [
   { id: 'playful', name: 'Playful', blurb: 'Chunky cards and buttons with a 3D edge, heavy rounding, a color for every section.', colors: ['#f5f8f9', '#4C8DFF', '#EC4F9A', '#F5A524'], night: ['#0e151c', '#4C8DFF', '#EC4F9A', '#1c2733'], font: 'inherit' },
+  { id: 'professional', name: 'Professional', blurb: 'Reads like a LinkedIn profile: you in a column on the left, your sections on the right, thin lines and no depth. Made for applications.', colors: ['#f3f4f6', '#2457c5', '#1b1f27', '#ffffff'], night: ['#0f1115', '#5b8def', '#e8eaee', '#171a1f'], font: '"IBM Plex Sans", system-ui, sans-serif' },
   { id: 'gallery', name: 'Gallery', blurb: 'Art-house: your name set huge in a serif, the work big and uneven like a gallery wall. No cards, one loud accent.', colors: ['#ffffff', '#ff3d00', '#0b0b0b', '#ececec'], night: ['#0b0b0b', '#ff3d00', '#f2f0ea', '#1c1c1c'], font: '"Instrument Serif", Georgia, serif' },
   { id: 'volt', name: 'Volt', blurb: 'Modern and minimal: nothing boxed, quiet headings, soft photo corners and one electric accent.', colors: ['#f1f2f4', '#b8e62e', '#0c0d0f', '#ffffff'], night: ['#070708', '#b8e62e', '#f4f4f5', '#121214'], font: 'Manrope, system-ui, sans-serif' },
+  { id: 'arcade', name: 'Arcade', blurb: 'A game HUD: cut corners and angled panels, a splash across the top, stats like a character sheet, a red accent with cyan.', colors: ['#eef0f4', '#ff3b4f', '#12d6e0', '#ffffff'], night: ['#0a0b10', '#ff3b4f', '#12d6e0', '#12141c'], font: '"Chakra Petch", system-ui, sans-serif' },
 ]
 
 export const MODES: Array<{ id: LookMode; label: string }> = [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'system', label: 'System' }]
@@ -63,7 +65,7 @@ export const LOOK_KEY = 'launch-look'
 export const ACCENT_KEY = 'launch-accent'
 
 /** Runs in <head> before the page paints: the look and accent this browser last used. */
-export const LOOK_BOOT = `try{var d=document.documentElement,l=localStorage.getItem('${LOOK_KEY}');if(/^(pop|studio|midnight|sunset)$/.test(l||''))l='playful';if(/^(playful|gallery|volt)$/.test(l||''))d.dataset.look=l;var a=JSON.parse(localStorage.getItem('${ACCENT_KEY}')||'null');if(a&&a['--accent-h']){for(var k in a)d.style.setProperty(k,a[k]);d.dataset.accent=''}}catch(e){}`
+export const LOOK_BOOT = `try{var d=document.documentElement,l=localStorage.getItem('${LOOK_KEY}');if(/^(pop|studio|midnight|sunset)$/.test(l||''))l='playful';if(/^(playful|professional|gallery|volt|arcade)$/.test(l||''))d.dataset.look=l;var a=JSON.parse(localStorage.getItem('${ACCENT_KEY}')||'null');if(a&&a['--accent-h']){for(var k in a)d.style.setProperty(k,a[k]);d.dataset.accent=''}}catch(e){}`
 
 /** Apply a look (and its accent) to the whole app in this browser, and remember them for the next visit. */
 export function applyLook(look: LookId | null, accent?: string | null) {

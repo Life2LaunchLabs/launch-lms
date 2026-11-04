@@ -13,21 +13,56 @@ import type { PortfolioLayout } from '../portfolioTypes'
 // eslint-disable-next-line no-unused-vars
 type Change = (next: LayoutChange) => void
 
-/** The look being worn, as one card: a little page in its type and colors. Arrows try on the next one. */
-function LookCard({ look, dark, onStep, index, count }: { look: (typeof LOOKS)[number]; dark: boolean; onStep: (step: number) => void; index: number; count: number }) { // eslint-disable-line no-unused-vars
+/** A tiny version of each look's own header and first sections, in its type and colors. */
+function Mini({ look, dark }: { look: (typeof LOOKS)[number]; dark: boolean }) {
   const [background, a, b, c] = dark ? look.night : look.colors
   const ink = dark ? '#f4f4f5' : '#111111'
-  const radius = look.id === 'gallery' ? 0 : look.id === 'volt' ? 14 : 18
+  const line = dark ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.12)'
+  const font = { fontFamily: look.font }
+  const cut = (n: number) => `polygon(0 0, calc(100% - ${n}px) 0, 100% ${n}px, 100% 100%, ${n}px 100%, 0 calc(100% - ${n}px))`
+  const box = 'absolute block'
+  return <div className="relative h-[150px] min-w-0 flex-1 overflow-hidden rounded-2xl border border-black/10" style={{ background }} aria-hidden="true">
+    {look.id === 'playful' ? <>
+      <i className={`${box} inset-x-3 top-3 h-[44px] rounded-[14px]`} style={{ background: `linear-gradient(120deg, ${a}, ${b})` }} />
+      <i className={`${box} left-5 top-[38px] h-9 w-9 rounded-full border-[3px]`} style={{ background: c, borderColor: background }} />
+      <b className={`${box} left-5 top-[80px] text-[20px] font-extrabold`} style={{ color: ink }}>Maya Torres</b>
+      <i className={`${box} bottom-3 left-3 h-[26px] w-[44%] rounded-[12px]`} style={{ background: dark ? '#16212b' : '#fff', boxShadow: `0 3px 0 ${line}` }} />
+      <i className={`${box} bottom-3 right-3 h-[26px] w-[calc(56%-30px)] rounded-[12px]`} style={{ background: c, boxShadow: `0 3px 0 ${line}` }} />
+    </> : look.id === 'professional' ? <>
+      <span className={`${box} bottom-3 left-3 top-3 w-[34%] overflow-hidden rounded-[6px] border`} style={{ background: c, borderColor: line }}>
+        <i className="block h-6" style={{ background: a }} />
+        <i className="ml-2 -mt-3 block h-7 w-7 rounded-full border-2" style={{ background: b, borderColor: c }} />
+        <b className="mx-2 mt-1 block text-[12px] font-semibold" style={{ ...font, color: ink }}>Maya Torres</b>
+        <i className="mx-2 mt-1 block h-1.5 w-3/4 rounded" style={{ background: line }} /><i className="mx-2 mt-1 block h-4 rounded-[4px]" style={{ background: a }} />
+      </span>
+      {[12, 58, 104].map((top) => <i key={top} className={`${box} left-[calc(34%+20px)] right-3 h-[38px] rounded-[6px] border`} style={{ top, background: c, borderColor: line }} />)}
+    </> : look.id === 'gallery' ? <>
+      <i className={`${box} inset-x-3 top-4 h-px`} style={{ background: ink }} />
+      <b className={`${box} left-3 top-[22px] text-[40px] font-normal leading-[0.85] tracking-[-0.03em]`} style={{ ...font, color: ink }}>Maya<br /><em style={{ color: a }}>Torres</em></b>
+      <i className={`${box} bottom-3 left-3 h-[30px] w-[30%]`} style={{ background: c }} /><i className={`${box} bottom-3 right-3 h-[30px] w-[calc(70%-36px)] border-t`} style={{ borderColor: ink }} />
+    </> : look.id === 'volt' ? <>
+      <i className={`${box} left-4 top-5 h-12 w-12 rounded-full`} style={{ background: line, boxShadow: `0 0 0 2px ${background}, 0 0 0 4px ${a}` }} />
+      <b className={`${box} left-[84px] top-[24px] text-[19px] font-extrabold tracking-[-0.03em]`} style={{ ...font, color: ink }}>Maya Torres</b>
+      <i className={`${box} left-[84px] top-[52px] h-1.5 w-20 rounded`} style={{ background: line }} />
+      {[0, 1, 2].map((n) => <b key={n} className={`${box} top-[24px] text-[15px] font-extrabold`} style={{ ...font, color: ink, right: 14 + n * 30 }}>{[12, 8, 23][n]}</b>)}
+      {[0, 1, 2].map((n) => <i key={n} className={`${box} bottom-3 h-[52px] w-[calc(33%-14px)] rounded-[10px]`} style={{ left: `calc(${n * 33}% + ${12 - n * 2}px)`, background: n === 0 ? a : line }} />)}
+    </> : <>
+      <i className={`${box} inset-x-0 top-0 h-[56px]`} style={{ background: `linear-gradient(120deg, ${b}, ${a})`, clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%)' }} />
+      <i className={`${box} left-4 top-[34px] h-11 w-11`} style={{ background: a, clipPath: cut(9) }} />
+      <b className={`${box} left-[70px] top-[60px] text-[17px] font-bold uppercase tracking-[0.04em]`} style={{ ...font, color: ink }}>Maya Torres</b>
+      <i className={`${box} left-[70px] top-[84px] h-1 w-14`} style={{ background: b === '#12d6e0' ? b : '#12d6e0' }} />
+      <i className={`${box} bottom-3 left-3 h-[30px] w-[44%] border`} style={{ borderColor: line, clipPath: cut(8) }} /><i className={`${box} bottom-3 right-3 h-[30px] w-[calc(56%-30px)]`} style={{ background: a, clipPath: cut(8) }} />
+    </>}
+  </div>
+}
+
+/** The look being worn, as one card: a little page in its type and colors. Arrows try on the next one. */
+function LookCard({ look, dark, onStep, index, count }: { look: (typeof LOOKS)[number]; dark: boolean; onStep: (step: number) => void; index: number; count: number }) { // eslint-disable-line no-unused-vars
   const arrow = 'grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-border bg-card text-foreground transition hover:bg-raised'
   return <div className="grid gap-3">
     <div className="flex items-center gap-3">
       <button type="button" onClick={() => onStep(-1)} aria-label="Previous look" className={arrow}><ChevronLeft className="h-5 w-5" /></button>
-      <div className="relative h-[150px] min-w-0 flex-1 overflow-hidden rounded-2xl border border-black/10 p-3" style={{ background }} aria-hidden="true">
-        <i className="absolute inset-x-3 top-3 h-[44px]" style={{ background: `linear-gradient(120deg, ${a}, ${b})`, borderRadius: radius }} />
-        <b className="absolute left-4 top-[66px] text-[26px] leading-none" style={{ fontFamily: look.font, color: ink, fontWeight: look.id === 'gallery' ? 400 : 800, letterSpacing: look.id === 'volt' ? '-0.03em' : undefined }}>{look.id === 'gallery' ? <>Maya <em style={{ color: a }}>Torres</em></> : 'Maya Torres'}</b>
-        <i className="absolute bottom-3 left-3 h-[34px] w-[38%]" style={{ background: look.id === 'playful' ? c : 'transparent', borderTop: look.id === 'playful' ? undefined : `1px solid ${look.id === 'gallery' ? ink : a}`, borderRadius: radius, boxShadow: look.id === 'playful' ? `0 3px 0 ${dark ? '#24323f' : '#d5dde2'}` : undefined }} />
-        <i className="absolute bottom-3 right-3 h-[34px] w-[calc(62%-30px)]" style={{ background: a, opacity: look.id === 'volt' ? 1 : 0.35, borderRadius: look.id === 'volt' ? 999 : radius }} />
-      </div>
+      <Mini look={look} dark={dark} />
       <button type="button" onClick={() => onStep(1)} aria-label="Next look" className={arrow}><ChevronRight className="h-5 w-5" /></button>
     </div>
     <div className="grid justify-items-center gap-1 text-center">
@@ -44,6 +79,8 @@ function Segments<T extends string>({ value, options, onPick, label }: { value: 
   </div>
 }
 
+/** Looks whose header has no banner. */
+const NO_BANNER = ['gallery', 'volt']
 const Heading = ({ children }: { children: React.ReactNode }) => <h3 className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{children}</h3>
 const MODE_ICONS: Record<LookMode, React.ReactNode> = { light: <Sun className="h-3.5 w-3.5" />, dark: <Moon className="h-3.5 w-3.5" />, system: <Monitor className="h-3.5 w-3.5" /> }
 
@@ -79,7 +116,7 @@ export function LookDialog({ open, onOpenChange, layout, mode, dark, onChange, s
           </label>
         </div>
       </section>
-      <section aria-label="Banner" className="grid gap-2.5">
+      {NO_BANNER.includes(LOOKS[index].id) ? <p className="text-[13px] font-semibold text-muted-foreground">{LOOKS[index].name} has no banner: your name and photo lead the page. The banner you pick shows in the other looks.</p> : <section aria-label="Banner" className="grid gap-2.5">
         <Heading>Banner</Heading>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
           {BANNERS.map((item) => <button key={item.id} type="button" aria-pressed={banner === item.id} onClick={() => onChange({ banner: item.id })} className={`grid gap-1 text-left ${banner === item.id ? '' : 'opacity-90 hover:opacity-100'}`}>
@@ -93,7 +130,7 @@ export function LookDialog({ open, onOpenChange, layout, mode, dark, onChange, s
             <small className="px-0.5 text-[11px] font-bold text-muted-foreground">{layout.banner_image ? (banner === 'image' ? 'Change photo' : 'Your photo') : 'Upload'}</small>
           </button>
         </div>
-      </section>
+      </section>}
       <MediaPickerDialog open={picking} onOpenChange={setPicking} title="Banner photo" description="Upload a wide photo, or pick one you’ve used. It sits across the top of your portfolio." owner={{ type: 'user', id: userId }} mediaType="image" accessToken={token} onSave={(asset) => { setPicking(false); onChange({ banner_image_uuid: asset.asset_uuid }) }} />
     </DialogContent>
   </Dialog>

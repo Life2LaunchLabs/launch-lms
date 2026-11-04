@@ -6,7 +6,7 @@ import { RequestBodyFormWithAuthHeader, RequestBodyWithAuthHeader, errorHandling
 
 /** A number people notice first, and what it means. */
 export type Highlight = { value: string; label: string }
-export type LookId = 'playful' | 'gallery' | 'volt'
+export type LookId = 'playful' | 'professional' | 'gallery' | 'volt' | 'arcade'
 export type LookMode = 'light' | 'dark' | 'system'
 export type SectionType = 'highlights' | 'feature' | 'about' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people'
 /** One section in a row of the stack: its width in sixths (2, 3, 4 or 6). */

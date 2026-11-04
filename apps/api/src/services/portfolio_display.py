@@ -14,7 +14,7 @@ from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSee
 from src.db.users import PublicUser
 from src.services import portfolio as portfolio_service
 
-LOOKS = {"playful", "gallery", "volt"}
+LOOKS = {"playful", "professional", "gallery", "volt", "arcade"}
 # Looks before the section stack were color themes. Each becomes Playful with its color as the accent.
 LEGACY_LOOKS = {"pop": None, "studio": "#111111", "midnight": "#5b2bd6", "sunset": "#e8642c"}
 # Banner backgrounds (components/Looks/looks.ts), drawn in the accent; "look" follows the look's own colors.
@@ -37,7 +37,7 @@ REQUIRED_SECTIONS = {"about", "experience"}
 WIDTHS = {2, 3, 4, 6}
 FEATURE_KINDS = {"project", "experience", "quote", "badge", "credential", "link"}
 MAX_FEATURES = 12
-HEIGHT_KEY = re.compile(r"^(playful|gallery|volt)(:phone)?$")
+HEIGHT_KEY = re.compile(r"^(playful|professional|gallery|volt|arcade)(:phone)?$")
 
 
 def _clean_stack(stack) -> list[list[dict]] | None:
