@@ -4,7 +4,7 @@ import React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
-import type { Asset, Debt, LifeEvent, When } from '@services/life/life'
+import type { LifeEvent, When } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, uid } from './model'
@@ -71,7 +71,6 @@ function WhenSelect({ value, onChange, already }: { value: When | null; onChange
     </select>
   )
 }
-const whenLabel = (doc: any, w?: When | null) => (w ? monthLabel(doc.start, phaseOffset(doc, w.phase) + w.month) : '')
 
 export function OneTimeCard() {
   const { doc, phase, stretch, update, projection, setOpenLine } = useLife()
@@ -104,60 +103,6 @@ export function OneTimeCard() {
         </div>
         <Field label="How much"><input className={inputCls} inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="$0" /></Field>
         <Field label="When"><select className={inputCls} value={f.month} onChange={(e) => setF({ ...f, month: Number(e.target.value) })}>{Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}</select></Field>
-      </Editor>
-    </Card>
-  )
-}
-
-export function OwnCard() {
-  const { doc, phase, catalog, stretch, projection, update } = useLife()
-  const [edit, setEdit] = React.useState<Asset | null>(null)
-  const [isNew, setIsNew] = React.useState(false)
-  const [f, setF] = React.useState<any>({})
-  const at = projection.assetsAt(stretch.g0)
-  const open = (a: Asset | null) => {
-    const x = a || { id: uid('a'), kind: 'car', title: 'Car', value: 0, change: 0, bought: null, down: null, loan_id: null, sold: null }
-    const loan = doc.debts.find((d) => d.id === x.loan_id)
-    setIsNew(!a); setEdit(x)
-    setF({ ...x, value: x.value ? String(x.value) : '', change: String(x.change), down: x.down != null ? String(x.down) : '', loan: !!loan, rate: loan ? String(loan.rate) : '', payment: loan ? String(loan.payment) : '', sell: !!x.sold, soldAt: x.sold ? { phase: x.sold.phase, month: x.sold.month } : null, price: x.sold ? String(x.sold.price) : '' })
-  }
-  const icon = (k: string) => catalog?.asset_kinds.find((x) => x.key === k)?.icon || 'package'
-  return (
-    <Card title="Things you own" note={!at.length ? 'Like a car. Its value counts on top of your savings.' : undefined} addLabel="Add" onAdd={() => open(null)} empty={!at.length && !doc.assets.length}>
-      {doc.assets.map((a) => { const v = at.find((x) => x.asset.id === a.id)?.value; return <Item key={a.id} icon={icon(a.kind)} title={a.title} sub={a.bought ? `Get it ${whenLabel(doc, a.bought)}` : a.sold ? `Sell it ${whenLabel(doc, a.sold)}` : undefined} value={v ? money(v) : '—'} onClick={() => open(a)} /> })}
-      <Editor title={isNew ? 'Add something you own' : edit?.title || 'Thing you own'} open={!!edit} onClose={() => setEdit(null)}
-        onRemove={isNew ? undefined : () => update((d) => { d.assets = d.assets.filter((x) => x.id !== edit!.id); if (edit!.loan_id) d.debts = d.debts.filter((x) => x.id !== edit!.loan_id) })}
-        onSave={() => update((d) => {
-          const value = num(f.value)
-          const a: Asset = { ...edit!, kind: f.kind, title: f.title.trim() || 'Something', value, change: num(f.change), bought: f.bought || null, sold: f.sell && f.soldAt ? { ...f.soldAt, price: num(f.price) } : null, down: null }
-          const old = d.debts.find((x) => x.id === edit!.loan_id)
-          if (f.bought && f.loan) {
-            const down = Math.min(value, num(f.down))
-            const loan: Debt = { id: old?.id || uid('d'), kind: a.kind === 'home' ? 'mortgage' : a.kind === 'car' ? 'car_loan' : 'personal', title: `${a.title} loan`, balance: value - down, rate: num(f.rate), payment: num(f.payment), start: f.bought }
-            d.debts = [...d.debts.filter((x) => x.id !== loan.id), loan]
-            a.loan_id = loan.id; a.down = down
-          } else { if (old) d.debts = d.debts.filter((x) => x.id !== old.id); a.loan_id = null }
-          d.assets = [...d.assets.filter((x) => x.id !== a.id), a]
-        })}>
-        <Field label="Kind"><select className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value, title: catalog?.asset_kinds.find((k) => k.key === e.target.value)?.title || f.title })}>
-          {catalog?.asset_kinds.map((k) => <option key={k.key} value={k.key}>{k.title}</option>)}</select></Field>
-        <Field label="Name"><input className={inputCls} value={f.title || ''} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
-        <Field label="When"><WhenSelect value={f.bought || null} onChange={(w) => setF({ ...f, bought: w })} already="I already own it" /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={f.bought ? 'Price' : "What it's worth"}><input className={inputCls} inputMode="decimal" value={f.value || ''} onChange={(e) => setF({ ...f, value: e.target.value })} placeholder="$0" /></Field>
-          <Field label="Value change (% a year)"><input className={inputCls} inputMode="decimal" value={f.change || ''} onChange={(e) => setF({ ...f, change: e.target.value })} placeholder="0" /></Field>
-        </div>
-        {f.bought && <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!f.loan} onChange={(e) => setF({ ...f, loan: e.target.checked })} />Pay with a loan</label>}
-        {f.bought && f.loan && <div className="grid grid-cols-3 gap-2">
-          <Field label="Down"><input className={inputCls} inputMode="decimal" value={f.down || ''} onChange={(e) => setF({ ...f, down: e.target.value })} placeholder="$0" /></Field>
-          <Field label="Rate %"><input className={inputCls} inputMode="decimal" value={f.rate || ''} onChange={(e) => setF({ ...f, rate: e.target.value })} /></Field>
-          <Field label="A month"><input className={inputCls} inputMode="decimal" value={f.payment || ''} onChange={(e) => setF({ ...f, payment: e.target.value })} placeholder="$0" /></Field>
-        </div>}
-        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!f.sell} onChange={(e) => setF({ ...f, sell: e.target.checked, soldAt: f.soldAt || { phase: phase.id, month: phase.months - 1 } })} />Sell it later</label>
-        {f.sell && <div className="grid grid-cols-2 gap-3">
-          <Field label="When"><WhenSelect value={f.soldAt} onChange={(w) => setF({ ...f, soldAt: w })} /></Field>
-          <Field label="For"><input className={inputCls} inputMode="decimal" value={f.price || ''} onChange={(e) => setF({ ...f, price: e.target.value })} placeholder="$0" /></Field>
-        </div>}
       </Editor>
     </Card>
   )
