@@ -305,18 +305,22 @@ function BudgetCard({ doc, phase, ends, projection, href }: { doc: LifeDoc; phas
     const months = Math.max(1, phase.months)
     const avg = (series: number[]) => series.slice(off, off + months).reduce((a, b) => a + b, 0) / months
     const inn = avg(projection.inn), out = avg(projection.out)
-    sentence = <>Costs about <b className="text-foreground">{money(out)}</b> a month, and about <b className="text-foreground">{money(inn)}</b> comes in.</>
     const sav = projection.sav.slice(off, off + months + 1), debt = projection.debt.slice(off, off + months + 1)
+    // With nothing going out yet, savings would be everything that comes in, so ask for the costs first.
+    const noCosts = out < 1 && !debt.some((value) => value > 0.5)
+    sentence = noCosts
+      ? <>About <b className="text-foreground">{money(inn)}</b> comes in a month. Add your costs to see what’s left.</>
+      : <>Costs about <b className="text-foreground">{money(out)}</b> a month, and about <b className="text-foreground">{money(inn)}</b> comes in.</>
     const max = Math.max(1000, ...sav, ...debt), W = 300, H = 60
     const pts = (arr: number[]) => arr.map((v, i) => `${((i / Math.max(1, arr.length - 1)) * W).toFixed(1)},${(H - (v / max) * (H - 6) - 3).toFixed(1)}`).join(' ')
-    spark = <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-16 w-full" role="img" aria-label="Savings and debt over the phase">
+    if (!noCosts) spark = <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-16 w-full" role="img" aria-label="Savings and debt over the phase">
       <polyline points={pts(sav)} fill="none" stroke="#2F6FE0" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
       <polyline points={pts(debt)} fill="none" stroke="#E8642C" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
     </svg>
     const endSav = sav[sav.length - 1] ?? 0, endDebt = debt[debt.length - 1] ?? 0
-    after = <span className="text-xs font-semibold text-muted-foreground">By {monthName(ends)}: <b className="text-foreground">{short(endSav)}</b> saved{endDebt > 0.5 ? <>, <b className="text-foreground">{short(endDebt)}</b> owed</> : null}</span>
+    if (!noCosts) after = <span className="text-xs font-semibold text-muted-foreground">By {monthName(ends)}: <b className="text-foreground">{short(endSav)}</b> saved{endDebt > 0.5 ? <>, <b className="text-foreground">{short(endDebt)}</b> owed</> : null}</span>
   }
-  return <Link href={href} className="grid gap-3 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)] transition-colors hover:bg-raised md:sticky md:top-6">
+  return <Link href={href} className="grid gap-3 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)] transition-colors hover:bg-raised">
     <span className="flex items-center justify-between gap-2"><h2 className="text-xl font-extrabold tracking-tight">Budget</h2><span className="inline-flex items-center gap-0.5 text-sm font-bold text-[var(--org-primary-color)]">{empty ? 'Start it' : 'Open'}<ChevronRight size={16} aria-hidden="true" /></span></span>
     <span className="text-[15px] leading-snug text-muted-foreground">{sentence}</span>
     {spark}

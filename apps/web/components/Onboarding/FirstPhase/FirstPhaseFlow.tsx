@@ -113,7 +113,7 @@ export default function FirstPhaseFlow() {
     doing: { q: 'What are you doing these days?', sub: 'School, a job or both. Add as many as you like.' },
     since: { q: 'Since when?', sub: 'Roughly is fine. A phase lasts until the next one starts.' },
     card: { q: 'Here’s your first phase', sub: 'Change its name, or use your own photo.' },
-    goal: { q: `What do you want to get done in ${title.toLowerCase()}?`, sub: 'Pick a few to start. Each becomes a goal you can break into steps.' },
+    goal: { q: 'What do you want to get done in this phase?', sub: 'Pick a few to start. Each becomes a goal you can break into steps.' },
   }[s]
 
   return <div className="min-h-screen bg-background">

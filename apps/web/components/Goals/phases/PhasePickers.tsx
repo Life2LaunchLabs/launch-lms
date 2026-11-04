@@ -91,8 +91,8 @@ export function ActivityPicker({ token, state, onPick }: { token?: string; state
 
   if (kind === 'working' && !career) return <div className="grid gap-2">{backBtn}
     <SearchBox value={q} onChange={setQ} label="Job" placeholder="A job: barista, nurse, electrician…" />
-    <ul className="grid gap-1.5">{careers.map((c) => <li key={c.code}><button type="button" className={cn(tile, 'w-full')} onClick={() => { setCareer(c); setQ('') }}><span className="grid"><span>{c.title}</span>{c.alt_titles?.length ? <small className="text-xs font-semibold text-muted-foreground">{c.alt_titles.slice(0, 3).join(', ')}</small> : null}</span></button></li>)}</ul>
-    <p className="text-xs text-muted-foreground">Jobs come from O*NET, so pay and training facts can follow.</p>
+    <ul className="grid gap-1.5">{careers.map((c) => <li key={c.code}><button type="button" className={cn(tile, 'w-full')} onClick={() => { setCareer(c); setQ('') }}><span className="grid"><span>{c.title}</span>{c.alt_titles?.length ? <small className="text-xs font-semibold text-muted-foreground">{c.alt_titles.slice(0, 3).join(', ')}</small> : null}</span></button></li>)}{q.trim() ? <li><button type="button" className={cn(tile, 'w-full')} onClick={() => onPick({ kind: 'working', career_title: q.trim() })}>Use “{q.trim()}”</button></li> : null}</ul>
+    <p className="text-xs text-muted-foreground">Listed jobs come from O*NET, so pay and training facts can follow.</p>
   </div>
 
   if (kind === 'working' && career) {
