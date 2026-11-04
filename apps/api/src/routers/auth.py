@@ -71,8 +71,7 @@ class WelcomeSignupEmailCheckRequest(BaseModel):
 
 
 def _portfolio_redirect_url(owner_org: Organization) -> str:
-    """Where a new learner lands: setting up their first phase (where they live and what they're doing), which skips
-    ahead to their plans when they already have one."""
+    """Where a new learner lands: their first phase (skipped when they already have a plan)."""
     return f"/orgs/{owner_org.slug}/first-phase"
 
 
