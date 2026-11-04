@@ -26,6 +26,8 @@ export interface Line {
   settings: Record<string, any>
   start: number
   end?: number | null
+  /** A running cost of something owned (an asset id): it goes when the thing does. */
+  asset?: string | null
 }
 
 /** A learner's own cover photo for a phase, from their media library. */

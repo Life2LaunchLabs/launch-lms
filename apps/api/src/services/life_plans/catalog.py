@@ -38,6 +38,9 @@ ITEMS = [
     {"key": "dorm", "cat": "home", "title": "Dorm", "icon": "building"},
     {"key": "utilities", "cat": "home", "title": "Utilities and internet", "icon": "plug"},
     {"key": "renters_insurance", "cat": "home", "title": "Renter's insurance", "icon": "shield"},
+    {"key": "property_tax", "cat": "home", "title": "Property tax", "icon": "landmark"},
+    {"key": "home_insurance", "cat": "home", "title": "Home insurance", "icon": "shield"},
+    {"key": "home_upkeep", "cat": "home", "title": "Home upkeep", "icon": "wrench"},
     # Food
     {"key": "groceries", "cat": "food", "title": "Groceries", "icon": "shopping-cart"},
     {"key": "eating_out", "cat": "food", "title": "Eating out", "icon": "utensils"},

@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui
 import type { Debt, LifeDoc, Policy, Saving, When } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
-import { PER_WORD, amortized, fromMonthly, lands, money, monthLabel, payoffMonths, phaseOffset, policyAt, toMonthly, uid, type DebtAt, type SavingAt } from './model'
+import { LinkedTerms, LoanStory } from './LoanStory'
+import { PER_WORD, fromMonthly, lands, money, monthLabel, payoffMonths, phaseOffset, policyAt, toMonthly, uid, type DebtAt, type SavingAt } from './model'
 
 const num = (s: string) => { const v = Number(String(s).replace(/[$,%\s]/g, '')); return Number.isFinite(v) && v >= 0 ? v : 0 }
-const fieldCls = 'h-10 rounded-xl border border-border bg-background px-3 font-normal outline-none focus:border-[var(--org-primary-color)]'
+export const fieldCls = 'h-10 rounded-xl border border-border bg-background px-3 font-normal outline-none focus:border-[var(--org-primary-color)]'
 const linkCls = 'font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]'
 
 const DEBT_ICON: Record<string, string> = { student_loan: 'graduation-cap', car_loan: 'car', mortgage: 'house', card: 'receipt', personal: 'hand-coins', other: 'landmark' }
@@ -27,7 +28,7 @@ function setPolicy(doc: LifeDoc, target: string, phase: string, month: number, p
 }
 
 /** A number typed in place, styled like the value it replaces. */
-function InPlace({ value, onCommit, label, prefix = '$', suffix, width = 6, disabled }: { value: number; onCommit: (v: number) => void; label: string; prefix?: string; suffix?: string; width?: number; disabled?: boolean }) {
+export function InPlace({ value, onCommit, label, prefix = '$', suffix, width = 6, disabled }: { value: number; onCommit: (v: number) => void; label: string; prefix?: string; suffix?: string; width?: number; disabled?: boolean }) {
   return (
     <label className="inline-flex items-baseline font-extrabold tabular-nums">
       {prefix}
@@ -40,7 +41,7 @@ function InPlace({ value, onCommit, label, prefix = '$', suffix, width = 6, disa
 }
 
 /** The lines behind a number, in a box so they don't read as part of the tally. */
-function Facts({ rows, note }: { rows: [string, React.ReactNode][]; note?: React.ReactNode }) {
+export function Facts({ rows, note }: { rows: [string, React.ReactNode][]; note?: React.ReactNode }) {
   return (
     <div className="rounded-xl bg-muted/60 p-3 text-sm">
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
@@ -51,7 +52,7 @@ function Facts({ rows, note }: { rows: [string, React.ReactNode][]; note?: React
   )
 }
 
-function RowShell({ id, icon, title, value, tone, children, onRemove }: { id: string; icon: string; title: string; value: React.ReactNode; tone?: 'muted' | 'bad'; children: React.ReactNode; onRemove?: () => void }) {
+export function RowShell({ id, icon, title, value, tone, children, onRemove }: { id: string; icon: string; title: string; value: React.ReactNode; tone?: 'muted' | 'bad'; children: React.ReactNode; onRemove?: () => void }) {
   const { openLine, setOpenLine, readOnly } = useLife()
   const open = openLine === id
   return (
@@ -136,7 +137,7 @@ function DebtRow({ at }: { at: DebtAt }) {
         ['Minimum', `${money(fromMonthly(state === 'owing' ? minimum : d.payment, per))} a ${PER_WORD[per]}`],
         ['Paid off', off],
         ...(state === 'later' ? [['Money into savings', lands(doc, d) ? `+${money(d.balance)} when you take it` : 'No']] as [string, string][] : []),
-      ]} note={linked ? <>This loan pays for {linked.title.toLowerCase()}.</> : state === 'later' ? 'Payments start the month after you take it.' : 'What you pay carries on until you change it in a later stretch.'} />
+      ]} note={linked ? <>This loan pays for {linked.title.toLowerCase()}.</> : state === 'later' ? 'Payments start the month you take it out.' : 'What you pay carries on until you change it in a later stretch.'} />
       {state === 'owing' && !readOnly && (
         <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-2">
           {card && <button type="button" aria-pressed={!!pol?.full} onClick={() => update((doc2) => setPolicy(doc2, d.id, phase.id, stretch.m0, { full: !pol?.full, pay: null }))} className={`mr-auto rounded-full px-3 py-1 text-xs font-semibold ring-1 ${pol?.full ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>Pay it all off</button>}
@@ -152,8 +153,8 @@ function DebtRow({ at }: { at: DebtAt }) {
           <label className="grid gap-1 text-sm font-semibold">Kind<select className={fieldCls} value={d.kind} onChange={(e) => edit((x) => { x.kind = e.target.value })}>{catalog?.debt_kinds.map((k) => <option key={k.key} value={k.key}>{k.title}</option>)}</select></label>
           <label className="grid gap-1 text-sm font-semibold">{d.start ? 'How much you borrow' : `What you owe at ${monthLabel(doc.start, 0)}`}<input className={fieldCls} inputMode="decimal" defaultValue={String(d.balance)} onBlur={(e) => edit((x) => { x.balance = num(e.target.value) })} /></label>
           <label className="grid gap-1 text-sm font-semibold">Interest (% a year)<input className={fieldCls} inputMode="decimal" defaultValue={String(d.rate)} onBlur={(e) => edit((x) => { x.rate = num(e.target.value) })} /></label>
-          <label className="grid gap-1 text-sm font-semibold">Minimum a month<input className={fieldCls} inputMode="decimal" key={`min${d.payment}`} defaultValue={String(d.payment)} onBlur={(e) => edit((x) => { x.payment = num(e.target.value) })} /></label>
-          <YearsHelper balance={d.balance} rate={d.rate} onPick={(min) => edit((x) => { x.payment = Math.ceil(min) })} />
+          <div className="sm:col-span-2"><LinkedTerms idPrefix={d.id} balance={d.balance} rate={d.rate} payment={d.payment} onPayment={(v) => edit((x) => { x.payment = v })} /></div>
+          <div className="sm:col-span-2"><LoanStory planStart={doc.start} startG={startsAt ?? 0} balance={d.balance} rate={d.rate} payment={d.payment} lands={lands(doc, d)} already={!d.start} /></div>
           {(!d.start || (startsAt != null && startsAt < phaseOffset(doc, phase.id))) && (
             <label className="grid gap-1 text-sm font-semibold sm:col-span-2">What you really owe when {phase.title} starts (optional)
               <input className={fieldCls} inputMode="decimal" placeholder="Leave empty to carry on from before" defaultValue={startOwe != null ? String(startOwe) : ''}
@@ -163,22 +164,6 @@ function DebtRow({ at }: { at: DebtAt }) {
         </div>
       )}
     </RowShell>
-  )
-}
-
-/** Work out a minimum from a payoff time, for loans that come with a term. */
-function YearsHelper({ balance, rate, onPick }: { balance: number; rate: number; onPick: (min: number) => void }) {
-  const [years, setYears] = React.useState('')
-  const n = num(years)
-  const min = n > 0 ? amortized(balance, rate, Math.round(n * 12)) : 0
-  return (
-    <div className="grid gap-1 text-sm font-semibold">Or pay it off in
-      <div className="flex items-center gap-2">
-        <input className={`${fieldCls} w-20`} inputMode="decimal" value={years} onChange={(e) => setYears(e.target.value)} placeholder="10" aria-label="Years to pay it off" />
-        <span className="font-normal text-muted-foreground">years</span>
-        {min > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => onPick(min)}>Use {money(Math.ceil(min))}/mo</Button>}
-      </div>
-    </div>
   )
 }
 
@@ -267,7 +252,7 @@ const ACCOUNT_KINDS: { key: string; title: string; icon: string }[] = [
   { key: 'savings', title: 'Another savings account', icon: 'piggy-bank' },
 ]
 
-function Pick({ icon, label, note, onClick }: { icon: string; label: string; note?: string; onClick: () => void }) {
+export function Pick({ icon, label, note, onClick }: { icon: string; label: string; note?: string; onClick: () => void }) {
   return (
     <li><button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left font-semibold hover:bg-muted">
       <span className="grid size-9 place-items-center rounded-xl bg-muted"><LifeIcon name={icon} /></span><span className="flex-1">{label}{note && <small className="block font-normal text-muted-foreground">{note}</small>}</span><ChevronRight className="size-4 text-muted-foreground" />
@@ -302,7 +287,7 @@ export function MoneyTray({ onClose }: { onClose: () => void }) {
   )
 }
 
-function WhenPick({ value, onChange }: { value: When; onChange: (w: When) => void }) {
+export function WhenPick({ value, onChange }: { value: When; onChange: (w: When) => void }) {
   const { doc } = useLife()
   return (
     <select className={fieldCls} value={`${value.phase}|${value.month}`} onChange={(e) => { const [p, m] = e.target.value.split('|'); onChange({ phase: p, month: Number(m) }) }} aria-label="When">
@@ -312,34 +297,44 @@ function WhenPick({ value, onChange }: { value: When; onChange: (w: When) => voi
 }
 
 function DebtForm({ kind, title, onDone }: { kind: string; title: string; onDone: () => void }) {
-  const { phase, stretch, update, setOpenLine } = useLife()
+  const { doc, phase, stretch, update, setOpenLine } = useLife()
   const card = kind === 'card'
-  const [f, setF] = React.useState({ title: card ? 'Credit card' : title, later: false, when: { phase: phase.id, month: stretch.m0 } as When, received: true, balance: '', rate: '', payment: '', years: '' })
+  const [f, setF] = React.useState({ title: card ? 'Credit card' : title, later: !card, when: { phase: phase.id, month: stretch.m0 } as When, received: true, balance: '', rate: '' })
+  const [payment, setPayment] = React.useState(0)
   const bal = num(f.balance), rate = num(f.rate)
-  const fromYears = num(f.years) > 0 ? Math.ceil(amortized(bal, rate, Math.round(num(f.years) * 12))) : null
+  const startG = f.later ? phaseOffset(doc, f.when.phase) + f.when.month : 0
   const add = () => {
-    const d: Debt = { id: uid('d'), kind, title: f.title.trim() || title, balance: bal, rate, payment: f.payment.trim() ? num(f.payment) : fromYears ?? 0, start: f.later ? f.when : null, received: f.later ? f.received : null }
-    update((doc) => { doc.debts.push(d) })
+    const d: Debt = { id: uid('d'), kind, title: f.title.trim() || title, balance: bal, rate, payment, start: f.later ? f.when : null, received: f.later ? f.received : null }
+    update((doc2) => { doc2.debts.push(d) })
     setOpenLine(`m:${d.id}`)
     onDone()
   }
+  const choice = (later: boolean, label: string, sub: string) => (
+    <button type="button" aria-pressed={f.later === later} onClick={() => setF({ ...f, later })}
+      className={`rounded-xl px-3 py-2 text-left ring-1 ${f.later === later ? 'bg-[color-mix(in_srgb,var(--org-primary-color)_14%,transparent)] ring-[var(--org-primary-color)]' : 'ring-border hover:bg-muted'}`}>
+      <b className="block text-sm">{label}</b><small className="block text-xs text-muted-foreground">{sub}</small>
+    </button>
+  )
   return (
     <form className="space-y-4 pt-2" onSubmit={(e) => { e.preventDefault(); add() }}>
       <label className="grid gap-1 text-sm font-semibold">Name<input className={fieldCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
-      {!card && <div className="flex gap-1.5">
-        {([[false, 'I owe this now'], [true, "I'll take it later"]] as [boolean, string][]).map(([v, t]) => <button key={t} type="button" aria-pressed={f.later === v} onClick={() => setF({ ...f, later: v })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${f.later === v ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>{t}</button>)}
-      </div>}
+      <div className="grid gap-1.5 text-sm font-semibold">When does it start?
+        <div className="grid grid-cols-2 gap-2">
+          {choice(true, card ? 'I start using it' : 'I take it out', 'On a date in your plan. The money comes in then.')}
+          {choice(false, 'I already owe it', `Owed from the start of your plan, ${monthLabel(doc.start, 0)}. No money comes in.`)}
+        </div>
+      </div>
       {f.later && <>
-        <label className="grid gap-1 text-sm font-semibold">When<WhenPick value={f.when} onChange={(w) => setF({ ...f, when: w })} /></label>
+        <label className="grid gap-1 text-sm font-semibold">Date you take it out<WhenPick value={f.when} onChange={(w) => setF({ ...f, when: w })} /></label>
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={f.received} onChange={(e) => setF({ ...f, received: e.target.checked })} />The money goes into my savings</label>
       </>}
       <div className="grid grid-cols-2 gap-3">
         <label className="grid gap-1 text-sm font-semibold">{f.later ? 'How much you borrow' : 'What you owe'}<input className={fieldCls} inputMode="decimal" value={f.balance} onChange={(e) => setF({ ...f, balance: e.target.value })} placeholder="$0" autoFocus /></label>
         <label className="grid gap-1 text-sm font-semibold">Interest (% a year)<input className={fieldCls} inputMode="decimal" value={f.rate} onChange={(e) => setF({ ...f, rate: e.target.value })} placeholder="0" /></label>
-        <label className="grid gap-1 text-sm font-semibold">Minimum a month<input className={fieldCls} inputMode="decimal" value={f.payment} onChange={(e) => setF({ ...f, payment: e.target.value })} placeholder={fromYears != null ? String(fromYears) : '$0'} /></label>
-        {!card && <label className="grid gap-1 text-sm font-semibold">Or paid off in (years)<input className={fieldCls} inputMode="decimal" value={f.years} onChange={(e) => setF({ ...f, years: e.target.value })} placeholder="10" /></label>}
       </div>
-      <p className="text-xs text-muted-foreground">{card ? "Your statement shows the balance, the rate and the minimum." : "Your loan papers show the rate and the monthly payment. Paying more than the minimum is usually allowed and pays it off sooner."}</p>
+      <LinkedTerms idPrefix="new" balance={bal} rate={rate} payment={payment} onPayment={setPayment} />
+      <LoanStory planStart={doc.start} startG={startG} balance={bal} rate={rate} payment={payment} lands={f.later && f.received} already={!f.later} />
+      <p className="text-xs text-muted-foreground">{card ? 'Your statement shows the balance, the rate and the minimum.' : 'Your loan papers show the rate and the monthly payment. Paying more than the minimum is usually allowed and pays it off sooner; you can do that later, stretch by stretch.'}</p>
       <Button type="submit" variant="brand" className="w-full">Add {f.title.trim() ? `"${f.title.trim()}"` : ''}</Button>
     </form>
   )

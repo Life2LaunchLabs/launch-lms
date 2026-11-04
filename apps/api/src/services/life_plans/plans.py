@@ -42,6 +42,8 @@ class Line(Doc):
     settings: dict = Field(default_factory=dict)
     start: int = Field(default=0, ge=0, le=1200)
     end: int | None = Field(default=None, ge=0, le=1200)
+    # A running cost of something the learner owns (an asset id): it goes when the thing does.
+    asset: str | None = Field(default=None, max_length=40)
 
 
 class When(Doc):
