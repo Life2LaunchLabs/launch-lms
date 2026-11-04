@@ -5,7 +5,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 
-export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences'
+export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences' | 'data'
 
 /** Settings: one page for your account, how the app looks, and what Coach remembers. */
 export default function AccountPageShell({ children }: { children: React.ReactNode }) {
