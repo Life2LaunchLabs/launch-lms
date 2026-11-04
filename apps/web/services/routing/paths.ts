@@ -165,7 +165,8 @@ export const routePaths = {
     discoverPlan: (templateUuid: string) => `/discover/plans/${encodeURIComponent(templateUuid)}`,
     /** A collection of plans an organization offers learners. */
     discoverCollection: (collectionUuid: string) => `/discover/collections/${encodeURIComponent(collectionUuid)}`,
-    resource: (resourceUuid: string) => `/discover/resources/${encodeURIComponent(resourceUuid.replace(/^resource_/, ''))}`,
+    /** A resource opens as a sheet over Discover. */
+    resource: (resourceUuid: string) => withQuery('/discover', { r: resourceUuid.replace(/^resource_/, '') }),
     user: (username: string) => `/user/${username}`,
     userProjects: (username: string) => `/user/${username}/projects`,
     userProjectDetail: (username: string, slug: string) => `/user/${username}/projects/${encodeURIComponent(slug)}`,
