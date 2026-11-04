@@ -13,7 +13,7 @@ import { KindCover } from './covers'
 import { EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
 import { HeadedTile } from './HeadedTile'
-import { RESULT_KINDS } from './ResultDialog'
+import { INTEREST_QUIZ, RESULT_KINDS } from './ResultDialog'
 import { ResultPicture } from './ResultView'
 import { useSection } from './stack/SectionStack'
 import type { SectionType } from '@services/portfolio/records'
@@ -106,16 +106,23 @@ function CredentialsTile({ spots, shell, owner, orgslug, username }: TileProps) 
   </Tile>
 }
 
-function ResultsTile({ spots, shell, owner, onEditResult }: TileProps) {
+function ResultsTile({ spots, shell, owner, orgslug, onEditResult }: TileProps) {
   const items = featuredFirst(shell.results || [])
   const limit = useLimit('results', 4)
+  const quiz = getUriWithOrg(orgslug, '/portfolio/interests')
+  const tookQuiz = items.some((item) => item.source === INTEREST_QUIZ)
   if (!owner && !items.length) return null
   return <Tile section="results" color="violet" spot={spots?.results} icon={Sparkles} title="What I’m like" count={items.length || null}>
     {items.length ? <ul className="grid gap-2.5">{items.slice(0, limit).map((item) => <li key={item.result_uuid} data-item className={`min-w-0 ${item.visibility === 'private' ? 'opacity-55' : ''}`}>
       {owner && onEditResult ? <button type="button" onClick={() => onEditResult(item)} className="w-full rounded-xl text-left hover:bg-muted/60"><ResultLine result={item} /></button> : <ResultLine result={item} />}
     </li>)}</ul> : null}
-    {owner && onEditResult ? items.length ? <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
-      : <EmptyAdd title="Add what you’ve learned about yourself" hint="Your RIASEC interests, a personality type or your top strengths" onClick={() => onEditResult()} /> : null}
+    {owner && onEditResult ? items.length ? <span className="flex flex-wrap gap-1">
+      {!tookQuiz ? <Link href={quiz} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-[#6539D8] hover:bg-raised dark:text-[#b9a2ff]">Take the interest quiz</Link> : null}
+      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
+    </span> : <>
+      <EmptyAdd title="Take the interest quiz" hint="30 quick questions about work you might enjoy, then careers that fit" href={quiz} />
+      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Or add a result you already have</button>
+    </> : null}
   </Tile>
 }
 

@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
@@ -21,7 +22,7 @@ from src.db.portfolio_records import (
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.db.portfolio_people import PersonAccess, PersonLink
-from src.services import people_access, portfolio_quotes as quote_asks
+from src.services import interest_quiz, people_access, portfolio_quotes as quote_asks
 from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
@@ -160,6 +161,22 @@ async def api_update_document(document_uuid: str, payload: DocumentWrite, curren
 @router.delete("/me/documents/{document_uuid}")
 async def api_delete_document(document_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
     return records.delete_document(document_uuid, current_user, db_session)
+
+
+class QuizAnswers(BaseModel):
+    answers: list[int]
+
+
+@router.get("/me/interest-quiz")
+async def api_interest_quiz(current_user: PublicUser = User, db_session: Session = Db):
+    """The interest quiz, and the learner's last result with matching careers if they've taken it."""
+    return interest_quiz.latest(current_user, db_session)
+
+
+@router.post("/me/interest-quiz")
+async def api_take_interest_quiz(payload: QuizAnswers, current_user: PublicUser = User, db_session: Session = Db):
+    """Scores the 30 answers (0 to 4 each), saves the result to "What I'm like" and returns matching careers."""
+    return interest_quiz.take(payload.answers, current_user, db_session)
 
 
 @router.post("/me/results")
