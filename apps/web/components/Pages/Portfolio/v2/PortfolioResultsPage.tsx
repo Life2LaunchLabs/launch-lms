@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Plus, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -14,7 +13,7 @@ import { DetailHeader, RowControls } from './PortfolioDetail'
 import { EmptyAdd } from './parts'
 import { INTEREST_QUIZ, PriceTag, RESULT_KINDS, ResultDialog, TakeIt } from './ResultDialog'
 import { ResultPicture } from './ResultView'
-import { RESULT_TEMPLATES, templateOf } from './resultTemplates'
+import { RESULT_TEMPLATES, isFree, templateOf } from './resultTemplates'
 import type { PortfolioResult, Shell } from '../portfolioTypes'
 
 // What I'm like, on its own page: every result as a card, drawn the way its test shows it, with the star to
@@ -28,7 +27,7 @@ function ResultCard({ result, onOpen, onFeature, onHide }: { result: PortfolioRe
   const template = templateOf(result)
   const kind = RESULT_KINDS.find((item) => item.value === result.kind)?.label || ''
   const hidden = result.visibility === 'private'
-  const same = result.summary === String(result.data?.type ?? '')
+  const same = result.summary === String(result.data?.type ?? '') || template?.input === 'chips'
   return <li className="group/row relative grid min-w-0 content-start gap-3 rounded-3xl border-2 border-border bg-card p-5 shadow-[0_4px_0_hsl(var(--border))]" data-result-card>
     <div className="flex min-w-0 items-start gap-2">
       <span className={`min-w-0 flex-1 ${hidden ? 'opacity-55' : ''}`}>
@@ -51,8 +50,10 @@ export function PortfolioResultsPage({ initialShell, orgslug }: { initialShell: 
   const [shell, setShell] = useState(initialShell)
   const [editor, setEditor] = useState<{ result?: PortfolioResult; template?: string; kind?: PortfolioResult['kind'] } | null>(null)
   const quizHref = getUriWithOrg(orgslug, '/portfolio/interests')
-  const items = (shell.results || []).filter((item) => item.kind !== 'skills')
-  const skills = (shell.results || []).filter((item) => item.kind === 'skills')
+  // An older skills line (from before the chips, or an import) keeps its own row of chips below.
+  const legacy = (item: PortfolioResult) => item.kind === 'skills' && !templateOf(item)
+  const items = (shell.results || []).filter((item) => !legacy(item))
+  const skills = (shell.results || []).filter(legacy)
   const taken = new Set(items.map((item) => templateOf(item)?.id).filter(Boolean))
   const more = RESULT_TEMPLATES.filter((item) => !taken.has(item.id))
 
@@ -79,15 +80,16 @@ export function PortfolioResultsPage({ initialShell, orgslug }: { initialShell: 
       {more.length ? <section className="mt-10 grid gap-4" aria-label="Tests to take">
         <div><h2 className="text-lg font-extrabold">Tests to take</h2><p className="text-sm font-semibold text-muted-foreground">Take one, then copy your result in. Paid tests cost money on the site that runs them.</p></div>
         <ul className="grid gap-4 sm:grid-cols-2">{more.map((item) => {
-          const free = item.id === 'riasec' || item.take.some((place) => place.free)
+          const free = isFree(item)
           return <li key={item.id} className="grid content-start gap-3 rounded-3xl border-2 border-dashed border-border p-5" data-test-card>
             <div className="flex items-start gap-2"><span className="min-w-0 flex-1"><b className="block text-[16px] font-extrabold">{item.name}</b><small className="block text-[13px] font-semibold text-muted-foreground">{item.blurb}</small></span><PriceTag free={free} /></div>
-            <TakeIt template={item} quizHref={quizHref} />
-            <button type="button" onClick={() => setEditor({ template: item.id })} className="w-fit rounded-lg px-1 text-sm font-bold text-muted-foreground hover:text-foreground">Already took it? Add your result</button>
+            {item.input === 'chips' ? <Button type="button" variant="brand" className="h-12 w-full justify-between text-[15px]" onClick={() => setEditor({ template: item.id })}><span className="inline-flex items-center gap-2"><Plus className="h-4 w-4" />Pick yours · 2 min</span><PriceTag free /></Button> : <>
+              <TakeIt template={item} quizHref={quizHref} />
+              <button type="button" onClick={() => setEditor({ template: item.id })} className="w-fit rounded-lg px-1 text-sm font-bold text-muted-foreground hover:text-foreground">Already took it? Add your result</button>
+            </>}
           </li>
         })}</ul>
       </section> : null}
-      {!skills.length ? <p className="mt-8 text-sm font-semibold text-muted-foreground">Know what you’re good at? <button type="button" onClick={() => setEditor({ kind: 'skills' })} className="font-bold text-foreground underline underline-offset-4">Add your skills</button> · <Link href={getUriWithOrg(orgslug, '/portfolio')} className="underline underline-offset-4">Back to your portfolio</Link></p> : null}
     </div>
     <ResultDialog key={editor?.result?.result_uuid || `new-${editor?.template || editor?.kind || ''}`} open={Boolean(editor)} onOpenChange={(open) => { if (!open) setEditor(null) }}
       result={editor?.result} template={editor?.template} kind={editor?.kind} token={token} onSaved={async () => { setEditor(null); await reload() }} />

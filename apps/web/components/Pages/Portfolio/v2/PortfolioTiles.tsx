@@ -130,6 +130,8 @@ function ResultLine({ result }: { result: PortfolioResult }) {
   // A result from a known assessment shows its picture beside its line: the RIASEC web, the type, the top five.
   // A type already shows its letters, so its line is the test's name instead.
   const same = result.summary === String(result.data?.type ?? '')
+  // Skills and values are their chips, under the name.
+  if (templateOf(result)?.input === 'chips') return <span className="grid gap-2 px-1 py-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><ResultPicture result={result} compact /></span>
   if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? 'My type' : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
   // A result with no line of its own (an imported skill, say) shows its kind above its name, not its name twice.
   const bare = !result.summary?.trim() || result.summary.trim().toLowerCase() === result.name.trim().toLowerCase()

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { ComponentType, ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { ChevronRight, GripVertical, Pencil, Plus } from 'lucide-react'
 import type { SectionType } from '@services/portfolio/records'
 import { useSection } from './stack/SectionStack'
@@ -50,24 +50,30 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
   const ctx = useSection(section)
   const editing = Boolean(ctx?.editing)
   const shown = ctx?.title || title
+  const [renaming, setRenaming] = useState(false)
   const arrow = <ChevronRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+  // The title (and anywhere in the tile that isn't its own link or button) opens the section's page; the
+  // pencil beside it makes the title editable, so renaming never gets in the way of getting there.
   const heading = <div className="relative flex min-w-0 items-center gap-2.5" data-tile-head>
     {/* Out in the margin, so the header doesn't shift when the tools show. */}
     {editing ? <Grip label={shown} className="absolute -left-[19px] top-1/2 !w-4 -translate-y-1/2" /> : null}
     <span data-tile-icon className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
-    <h2 data-tile-title className="min-w-0 truncate text-[17px] font-extrabold">{editing && ctx?.rename ? <EditableTitle value={shown} onSave={ctx.rename} />
-      : href ? <Link href={href} className="outline-none after:absolute after:inset-0 after:rounded-3xl focus-visible:underline">{shown}</Link> : shown}</h2>
-    {ctx?.edit ? <EditButton label={shown} onClick={ctx.edit} /> : null}
+    <h2 data-tile-title className={`min-w-0 truncate text-[17px] font-extrabold ${renaming ? 'relative z-[2]' : ''}`}>{renaming && ctx?.rename ? <EditableTitle value={shown} onSave={ctx.rename} autoFocus onDone={() => setRenaming(false)} />
+      : href ? <Link href={href} className="outline-none focus-visible:underline">{shown}</Link> : shown}</h2>
+    {editing && ctx?.rename && !renaming ? <EditButton label={`the name of ${shown}`} onClick={() => setRenaming(true)} /> : null}
     <span className="flex-1" />
     {count ? <span data-tile-count className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
-    {href ? editing ? <Link href={href} aria-label={`Open ${shown}`} className="relative z-[2]">{arrow}</Link> : arrow : null}
+    {href ? arrow : null}
     {editing ? ctx?.controls : null}
   </div>
-  return <section aria-label={label || title} data-tile data-spot={spot ? "" : undefined} data-wide={wide || undefined} className={`@container group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition ${editing ? '' : 'hover:-translate-y-0.5'} ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
+  return <section aria-label={label || title} data-tile data-spot={spot ? "" : undefined} data-wide={wide || undefined} className={`@container group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition ${href ? 'hover:-translate-y-0.5' : ''} ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
+    {/* The whole tile opens the section's page; the title is the same link for keyboards and screen readers. */}
+    {href ? <Link href={href} aria-hidden="true" tabIndex={-1} data-tile-link className="absolute inset-0 rounded-3xl" /> : null}
     {spot ? <SpotTip label={spot} /> : null}
     {heading}
-    {/* Links and buttons inside sit above the tile's own link. In a section with a set height, what doesn't fit is hidden. */}
-    <div data-fit-box className={`relative z-[1] flex min-w-0 flex-col gap-3.5 [&_a]:relative [&_button]:relative ${ctx?.fixed ? 'min-h-0 flex-1 overflow-hidden' : ''}`}>{children}</div>
+    {/* Not positioned itself, so the tile's link covers its empty space; links, buttons and fields inside sit
+        above that link. In a section with a set height, what doesn't fit is hidden. */}
+    <div data-fit-box className={`flex min-w-0 flex-col gap-3.5 [&_a]:relative [&_button]:relative [&_input]:relative [&_textarea]:relative [&_[contenteditable]]:relative ${ctx?.fixed ? 'min-h-0 flex-1 overflow-hidden' : ''}`}>{children}</div>
   </section>
 }
 
@@ -94,11 +100,19 @@ export function SectionTools({ section, label }: { section: SectionType; label: 
 }
 
 /** A section title renamed in place: click, type, Enter or click away to keep it, Escape to leave it. */
-export function EditableTitle({ value, onSave }: { value: string; onSave: (next: string) => void }) { // eslint-disable-line no-unused-vars
-  return <span data-edit-control contentEditable suppressContentEditableWarning spellCheck={false} role="textbox" aria-label="Section title" title="Click to rename"
+export function EditableTitle({ value, onSave, autoFocus = false, onDone }: { value: string; onSave: (next: string) => void; autoFocus?: boolean; onDone?: () => void }) { // eslint-disable-line no-unused-vars
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const node = ref.current
+    if (!autoFocus || !node) return
+    node.focus()
+    const range = document.createRange(); range.selectNodeContents(node)
+    const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range)
+  }, [autoFocus])
+  return <span ref={ref} data-edit-control contentEditable suppressContentEditableWarning spellCheck={false} role="textbox" aria-label="Section title" title="Click to rename"
     className="cursor-text rounded-md px-1 outline-none ring-[var(--org-primary-color)] decoration-dashed decoration-2 underline-offset-4 hover:underline focus:ring-2"
     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.target as HTMLElement).blur() } else if (event.key === 'Escape') { (event.target as HTMLElement).textContent = value; (event.target as HTMLElement).blur() } }}
-    onBlur={(event) => { const next = (event.target.textContent || '').trim(); if (next !== value) onSave(next) }}>{value}</span>
+    onBlur={(event) => { const next = (event.target.textContent || '').trim(); if (next !== value) onSave(next); onDone?.() }}>{value}</span>
 }
 
 /** What an owner sees where a section is empty: one dashed row that starts it. */
