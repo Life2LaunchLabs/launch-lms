@@ -42,6 +42,7 @@ export function SectionStack({ rows, editing, render, context, heightOf, onMove,
   const [live, setLive] = useState<{ types: SectionType[]; h: number } | null>(null)
   const drag = useRef<Drag | null>(null)
   const rects = useRef<Record<string, DOMRect>>({})
+  const arranged = useRef('')
   const shown = view?.rows || rows
 
   useEffect(() => {
@@ -101,13 +102,17 @@ export function SectionStack({ rows, editing, render, context, heightOf, onMove,
       const bottom = area.getBoundingClientRect().bottom + 1
       items.map((item) => [item, item.getBoundingClientRect().bottom > bottom] as const).forEach(([item, out], k) => { if (out && k > 0) item.setAttribute('data-fit-hidden', '') })
     })
+    // Glide only when the arrangement changed: not on the first layout, a resize or the switch to one column.
+    const key = `${phone}:${JSON.stringify(shown)}`
+    const moved = Boolean(arranged.current) && arranged.current !== key && arranged.current.startsWith(`${phone}:`)
+    arranged.current = key
     const next: Record<string, DOMRect> = {}
     el.querySelectorAll<HTMLElement>('[data-sec]:not([hidden])').forEach((sec) => {
       const rect = sec.getBoundingClientRect()
       const key = sec.dataset.sec || ''
       next[key] = new DOMRect(rect.x, rect.y + window.scrollY, rect.width, rect.height)
       const was = rects.current[key]
-      if (!was || live || reduced() || !sec.animate) return
+      if (!was || !moved || live || reduced() || !sec.animate) return
       const dx = was.x - rect.x, dy = was.y - (rect.y + window.scrollY)
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || Math.abs(was.width - rect.width) > 1) {
         const sx = was.width / Math.max(rect.width, 1)

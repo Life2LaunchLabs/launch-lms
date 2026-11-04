@@ -24,7 +24,12 @@ test('portfolio.v2: the owner tries on looks, and opens the profile', async ({ p
   await page.goto('/portfolio')
   let look = await openLook(page)
   // A look themes the whole app, and the portfolio page carries it for visitors. The arrows try on the next one.
-  await look.getByRole('button', { name: 'Next look' }).click()
+  // Step through until Gallery is on, wherever this learner's look started.
+  for (let step = 0; step < 3 && (await page.locator('html').getAttribute('data-look')) !== 'gallery'; step++) {
+    const before = await page.locator('html').getAttribute('data-look')
+    await look.getByRole('button', { name: 'Next look' }).click()
+    await expect(page.locator('html')).not.toHaveAttribute('data-look', before || '')
+  }
   await expect(page.locator('html')).toHaveAttribute('data-look', 'gallery')
   await page.keyboard.press('Escape')
   await page.reload()
@@ -52,21 +57,27 @@ test('portfolio.v2: edit page moves, takes out and renames sections in place', a
   await page.goto('/portfolio')
   await page.getByRole('button', { name: 'Edit page' }).click()
   await expect(page.getByRole('toolbar', { name: 'Edit page' })).toBeVisible()
-  // Bio and experience can't be taken out; the rest can, and come back from "Add a section".
-  await expect(page.getByRole('button', { name: /^Take out About/ })).toHaveCount(0)
-  await page.getByRole('button', { name: /^Take out Where/ }).click()
+  // Bio and experience can't be taken out; the rest can, and come back from "Add a section". Titles follow the look, so go by section.
+  await expect(page.locator('[data-sec="about"]').getByRole('button', { name: /^Take out/ })).toHaveCount(0)
+  await page.locator('[data-sec="headed"]').getByRole('button', { name: /^Take out/ }).click()
   await expect(page.locator('[data-sec="headed"]')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Use .* suggested layout$/ })).toBeVisible()
-  // Drag projects onto the top of experience: it gets its own row there.
-  const projects = page.locator('[data-sec="projects"]'), experience = page.locator('[data-sec="experience"]')
-  const from = (await projects.boundingBox())!, to = (await experience.boundingBox())!
-  await page.mouse.move(from.x + from.width / 2, from.y + 40)
+  // Drag About onto the top of the section before it: it gets a row of its own there.
+  const order = () => page.locator('[data-sec]:not([hidden])').evaluateAll((all) => all.sort((a, b) => Number((a as HTMLElement).dataset.gr) - Number((b as HTMLElement).dataset.gr) || a.getBoundingClientRect().left - b.getBoundingClientRect().left).map((one) => (one as HTMLElement).dataset.sec))
+  const start = await order()
+  const before = start[start.indexOf('about') - 1]
+  const target = page.locator(`[data-sec="${before}"]`), about = page.locator('[data-sec="about"]')
+  await target.evaluate((node) => window.scrollBy(0, node.getBoundingClientRect().top - 120))
+  const to = (await target.boundingBox())!, from = (await about.boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + 60)
   await page.mouse.down()
-  await page.mouse.move(from.x + from.width / 2, from.y + 80, { steps: 4 })
-  await page.mouse.move(to.x + to.width / 2, to.y + 12, { steps: 12 })
+  await page.mouse.move(from.x + from.width / 2, from.y + 30, { steps: 4 })
   await expect(page.locator('[data-ph]')).toBeVisible()
+  await page.mouse.move(to.x + to.width / 2, to.y + 12, { steps: 12 })
   await page.mouse.up()
   await expect(page.locator('[data-ph]')).toHaveCount(0)
+  const end = await order()
+  expect(end.indexOf('about')).toBeLessThan(end.indexOf(before!))
   await page.getByRole('button', { name: /^Use .* suggested layout$/ }).click()
   await expect(page.locator('[data-sec="headed"]')).toHaveCount(1)
   await page.getByRole('toolbar', { name: 'Edit page' }).getByRole('button', { name: 'Done' }).click()
