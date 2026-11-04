@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { BookOpen, ClipboardCheck, FileText, GraduationCap, Link2, Play, School, Wrench, type LucideIcon } from 'lucide-react'
+import { BookOpen, Briefcase, ClipboardCheck, FileText, GraduationCap, Link2, Play, School, Wrench, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import type { Resource, ResourceType } from '@services/resources/resources'
@@ -21,6 +21,7 @@ export const RESOURCE_KIND: Record<ResourceType, { label: string; icon: LucideIc
   assessment: { label: 'Quiz', icon: ClipboardCheck, verb: 'Take it on', color: '#8155ef' },
   course: { label: 'Course', icon: GraduationCap, verb: 'Start on', color: '#ec8320' },
   school: { label: 'School', icon: School, verb: 'Visit', color: '#d6407a' },
+  career: { label: 'Career', icon: Briefcase, verb: 'Full report on', color: '#e0a21b' },
   other: { label: 'Link', icon: Link2, verb: 'Open on', color: '#5f6f82' },
 }
 
@@ -136,6 +137,19 @@ function Drawing({ type }: { type: ResourceType }) {
       <span className="h-[7%] w-full shrink-0 bg-white" />
       <span className="h-[6%] w-[108%] shrink-0 rounded-b-sm bg-white/80" />
     </span>
+  }
+  if (type === 'career') {
+    // A career card: a round badge, then six interest bars in the interest types' colors.
+    return <Screen className="justify-center">
+      <span className="flex items-center gap-[6%]">
+        <span className="h-[22px] w-[22px] shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <Bar className="h-[9px] bg-muted-foreground/35" width="55%" />
+      </span>
+      <span className="mt-[4%] flex h-[42%] items-end gap-[5%]">
+        {[['#e8742a', 45], ['#3b7bf0', 80], ['#d9468f', 35], ['#22a06b', 95], ['#8b5cf6', 55], ['#0e9aab', 40]].map(([bar, height]) =>
+          <span key={bar} className="flex-1 rounded-t-[3px]" style={{ height: `${height}%`, backgroundColor: bar as string }} />)}
+      </span>
+    </Screen>
   }
   return <Screen>
     <Bar className="h-[9px] bg-muted-foreground/35" width="50%" />

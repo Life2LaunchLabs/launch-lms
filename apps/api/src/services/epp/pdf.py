@@ -154,6 +154,23 @@ def _section(report: dict, key: str, heading: str, styles: dict) -> list:
     return parts
 
 
+INTEREST_LEVEL = {1: "A little interested", 2: "Interested", 3: "Really interested"}
+
+
+def _careers(report: dict, styles: dict) -> list:
+    """The careers the learner chose to show, with how interested they are and why."""
+    careers = report.get("careers") or []
+    if not careers:
+        return []
+    parts = [Paragraph("Careers I'm exploring", styles["h3"])]
+    for career in careers:
+        when = f" · {_date(career['saved_on'], False)}" if career.get("saved_on") else ""
+        parts.append(KeepTogether([Paragraph(f"<b>{_safe(career['title'])}</b>", styles["body"]),
+                                   Paragraph(_safe(INTEREST_LEVEL.get(career.get("interest_level") or 0, "Saved") + when), styles["muted"]),
+                                   *([Paragraph(_safe(career["why"]), styles["body"])] if career.get("why") else []), Spacer(1, 4)]))
+    return parts
+
+
 def _courses(report: dict, styles: dict) -> list:
     def cell(courses: list[dict]) -> Paragraph:
         bits = [('<font color="#1B4FCC">%s</font>' if course["status"] != "completed" else "%s") % _safe(course["title"] + (" (dual credit)" if course.get("dual_credit") else "") + (" ✓" if course.get("school_confirmed") else ""))
@@ -241,7 +258,7 @@ def render(report: dict) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=LETTER, leftMargin=0.75 * inch, rightMargin=0.75 * inch, topMargin=0.7 * inch, bottomMargin=0.8 * inch,
                             title=f"{learner['name']}: Education Plan and Profile {report['school_year']}", author=report["org"]["name"])
     story = [*_summary(report, styles), PageBreak(),
-             *_section(report, "who", "1 · Who I am", styles), Spacer(1, 12), *_section(report, "headed", "2 · Where I'm headed", styles), PageBreak(),
+             *_section(report, "who", "1 · Who I am", styles), *_careers(report, styles), Spacer(1, 12), *_section(report, "headed", "2 · Where I'm headed", styles), PageBreak(),
              *_courses(report, styles), PageBreak(), *_progress(report, styles), PageBreak(),
              *_section(report, "beyond", "5 · Learning beyond the classroom", styles), Spacer(1, 12), *_evidence(report, styles), PageBreak(),
              *_section(report, "review", "7 · Look back and review", styles), *_review(report, styles)]

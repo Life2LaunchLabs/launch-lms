@@ -37,6 +37,8 @@ export interface EppReport {
   learner: { name: string; first_name: string; student_id: string | null; grade: number | null; graduation_year: number | null; diploma_track: string | null; diploma: string | null; counselor: string | null }
   next_step: string | null
   interests: string[]
+  /** Careers the learner saved and chose to show here, with why. */
+  careers?: Array<{ title: string; code: string | null; why: string; interest_level: number | null; saved_on: string | null }>
   components: Array<{ key: string; label: string; status: ComponentStatus; detail: string }>
   to_talk_about: string[]
   graduation: { tally: CoursePlan['tally']; beyond_credits: Array<{ key: string; label: string; detail: string; attention?: boolean }> }

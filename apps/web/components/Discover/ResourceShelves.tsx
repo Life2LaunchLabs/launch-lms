@@ -21,8 +21,13 @@ export const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
   { value: 'assessment', label: 'Quizzes' },
   { value: 'course', label: 'Courses' },
   { value: 'school', label: 'Schools' },
+  { value: 'career', label: 'Careers' },
   { value: 'other', label: 'More resources' },
 ]
+
+// Careers have their own place on Discover (Career swipe and Careers for you), so a long career list never
+// crowds the other shelves out.
+const SHELF_TYPES = RESOURCE_TYPES.map((type) => type.value).filter((type) => type !== 'career').join(',')
 
 function minutes(value: number | null) {
   if (!value) return ''
@@ -85,7 +90,7 @@ export default function ResourceShelves({ orgslug }: { orgslug: string }) {
   const org = useOrg() as any
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
-  const { data: resources } = useSWR(org?.id ? ['discover-resources', org.id, token || 'public'] : null, () => getResources(org.id, { limit: 50 }, token))
+  const { data: resources } = useSWR(org?.id ? ['discover-resources', org.id, token || 'public'] : null, () => getResources(org.id, { limit: 50, resource_types: SHELF_TYPES }, token))
   const { data: channels } = useSWR(org?.id ? ['discover-channels', org.id, token || 'public'] : null, () => getResourceChannels(org.id, token))
   if (!resources?.length) return null
   const order = new Map((channels?.channels || []).map((channel, index) => [channel.channel_uuid, index]))

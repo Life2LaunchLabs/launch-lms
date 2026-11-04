@@ -17,6 +17,7 @@ from src.core.events.database import engine, get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
+from src.services.life_plans import careers as career_service
 from src.services.life_plans import catalog as catalog_service
 from src.services.life_plans import estimates as estimate_service
 from src.services.life_plans import importers
@@ -106,6 +107,49 @@ def api_match_careers(body: CareerMatch, db: Session = Depends(get_db_session), 
     except public_data.CatalogProblem as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"careers": careers, "method": "Correlation between your six interest scores and each career's O*NET interest profile; 1 means the same shape."}
+
+
+def _signed_in(user) -> PublicUser:
+    if not getattr(user, "id", None) or getattr(user, "user_uuid", "") == "user_anonymous":
+        raise HTTPException(status_code=401, detail="Sign in to explore careers.")
+    return user
+
+
+@router.get("/careers/deck")
+def api_career_deck(org_id: int, size: int = 10, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Career swipe's next careers: the organization's career resources the learner hasn't saved, closest to their
+    interest quiz first, skipped ones pushed back."""
+    return career_service.deck(db, _signed_in(user), org_id, size=min(max(size, 1), 10))
+
+
+@router.get("/careers/links")
+def api_career_links(org_id: int, codes: str = "", db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The career resource to open for each O*NET-SOC code, where the organization has one."""
+    wanted = [code.strip() for code in codes.split(",") if code.strip()][:100]
+    return {"links": career_service.links(db, user, org_id, wanted)}
+
+
+@router.get("/careers/{code}/profile")
+def api_career_profile(code: str, org_id: int | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """A career's page: what it is, what people do, pay in Oregon and where the learner's phases are, training,
+    how it lines up with their interest quiz, and similar careers. Every fact says where it came from."""
+    found = career_service.profile(db, _signed_in(user), code, org_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="No such career.")
+    return found
+
+
+@router.post("/careers/{code}/skip")
+def api_career_skip(code: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Swiped past in Career swipe: it comes back later, after careers not seen yet."""
+    if not career_service.CODE.fullmatch(code):
+        raise HTTPException(status_code=400, detail="That isn't an O*NET-SOC code.")
+    return career_service.skip(db, _signed_in(user), code)
+
+
+@router.delete("/careers/{code}/skip")
+def api_career_unskip(code: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return career_service.unskip(db, _signed_in(user), code)
 
 
 @router.get("/careers/{code}")

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import {
   BookOpen,
+  Briefcase,
   ClipboardCheck,
   FileText,
   GraduationCap,
@@ -47,6 +48,10 @@ const resourceTypePresentation: Record<ResourceType, ResourceTypePresentation> =
   school: {
     icon: School,
     color: '#9d174d',
+  },
+  career: {
+    icon: Briefcase,
+    color: '#92400e',
   },
   other: {
     icon: Layers,

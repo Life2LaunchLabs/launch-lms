@@ -33,6 +33,7 @@ INTEREST_NAMES = {"realistic": "R", "investigative": "I", "artistic": "A", "soci
 ONET_URL = "https://www.onetcenter.org/database.html"
 SCORECARD_URL = "https://collegescorecard.ed.gov/data/"
 MAX_ALT_TITLES = 25
+MAX_TASKS = 5
 
 
 class CatalogProblem(ValueError):
@@ -108,6 +109,8 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         zones = _tsv(zf, "Job Zones.txt", required=False)
         reported = _tsv(zf, "Sample of Reported Titles.txt", required=False)
         alts = _tsv(zf, "Job Titles.txt", "Alternate Titles.txt", required=False)
+        task_rows = _tsv(zf, "Task Statements.txt", required=False)
+        ratings = _tsv(zf, "Task Ratings.txt", required=False)
     code_col = "o*net-soc code"
     if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
         raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
@@ -141,12 +144,29 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         if title and title.lower() != "n/a" and title not in bucket and len(bucket) < MAX_ALT_TITLES:
             bucket.append(title)
 
+    # What people in the job do: core tasks, the most important first (O*NET's importance rating, 1 to 5).
+    importance: dict[tuple[str, str], float] = {}
+    for r in ratings:
+        if r.get("scale id", "").upper() == "IM":
+            try:
+                importance[(r.get(code_col, ""), r.get("task id", ""))] = float(r.get("data value", ""))
+            except ValueError:
+                continue
+    ranked_tasks: dict[str, list[tuple[int, float, str]]] = {}
+    for r in task_rows:
+        text = r.get("task", "")
+        if not text:
+            continue
+        core = 0 if r.get("task type", "").lower() == "core" else 1
+        ranked_tasks.setdefault(r.get(code_col, ""), []).append((core, -importance.get((r.get(code_col, ""), r.get("task id", "")), 0), text))
+    tasks = {code: [text for _, _, text in sorted(rows)[:MAX_TASKS]] for code, rows in ranked_tasks.items()}
+
     src = _upsert_source(
         db,
         key=f"onet-{version.replace('.', '-')}",
         publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
         title=f"O*NET {version} Database",
-        dataset="Occupation Data, Career Interest Types, Job Zones and job titles",
+        dataset="Occupation Data, Career Interest Types, Job Zones, job titles and task statements",
         url=url,
         released=f"O*NET {version}",
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
@@ -162,7 +182,7 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         code = r[code_col]
         if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
             continue
-        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), source_id=src.id, status="draft", creation_date=now))
+        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []), source_id=src.id, status="draft", creation_date=now))
         n += 1
     if not n:
         raise CatalogProblem("No occupations found in Occupation Data.txt.")
@@ -309,7 +329,7 @@ def entry_counts(db: Session, source_id: int) -> dict[str, int]:
 def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
     out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
     if full:
-        out |= {"description": c.description, "alt_titles": c.alt_titles}
+        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or []}
     return out
 
 
