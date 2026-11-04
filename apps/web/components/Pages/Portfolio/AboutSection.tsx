@@ -34,7 +34,7 @@ export function AboutSection({ shell, setShell, owner, token }: { shell: Shell; 
   </section>
   return <section aria-label="Bio" className="group/bio relative">
     {bio ? <p className="max-w-3xl whitespace-pre-line text-lg leading-8 text-foreground/90">{bio}</p>
-      : <button type="button" onClick={start} className="w-full rounded-2xl border-2 border-dashed border-border px-5 py-6 text-left text-base text-muted-foreground transition hover:border-[var(--org-primary-color)] hover:text-foreground">Write a short bio: who you are, what you’re working toward, what you care about.</button>}
-    {owner && bio ? <button type="button" onClick={start} className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground" aria-label="Edit bio"><Pencil className="h-3.5 w-3.5" />Edit bio</button> : null}
+      : <button type="button" data-bio-start onClick={start} className="w-full rounded-2xl border-2 border-dashed border-border px-5 py-6 text-left text-base text-muted-foreground transition hover:border-[var(--org-primary-color)] hover:text-foreground">Write a short bio: who you are, what you’re working toward, what you care about.</button>}
+    {owner && bio ? <button type="button" data-bio-start onClick={start} className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground" aria-label="Edit bio"><Pencil className="h-3.5 w-3.5" />Edit bio</button> : null}
   </section>
 }
