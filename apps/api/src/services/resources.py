@@ -999,18 +999,9 @@ async def save_resource_for_user(request: Request, resource_uuid: str, save_data
             )
         ).all()
         channel_ids.extend(channel.id for channel in rows)
-    if save_data.notes is not None:
-        saved_resource.notes = save_data.notes
-    if save_data.outcome_text is not None:
-        saved_resource.outcome_text = save_data.outcome_text
-    if save_data.outcome_link is not None:
-        saved_resource.outcome_link = save_data.outcome_link
-    if save_data.completed_at is not None:
-        saved_resource.completed_at = save_data.completed_at
-    if save_data.interest_level is not None:
-        saved_resource.interest_level = save_data.interest_level
-    if save_data.show_on_epp is not None:
-        saved_resource.show_on_epp = save_data.show_on_epp
+    for field in ("notes", "outcome_text", "outcome_link", "completed_at", "interest_level", "show_on_epp"):
+        if getattr(save_data, field) is not None:
+            setattr(saved_resource, field, getattr(save_data, field))
     if save_data.open_count_increment:
         saved_resource.open_count += save_data.open_count_increment
         saved_resource.last_opened_at = _now()
