@@ -141,7 +141,7 @@ test('legacy resource and search links land in Discover with their query', () =>
 test('legacy Coach links open Coach beside Plans, or the resource or search they named', () => {
   assert.equal(coachFromLegacy({}), '/plans?coach=open')
   assert.equal(coachFromLegacy({ conversation: 'hub_conversation_1' }), '/plans?coach=open&coach_conversation=hub_conversation_1')
-  assert.equal(coachFromLegacy({ resource: 'resource_abc' }), '/discover/resources/abc')
+  assert.equal(coachFromLegacy({ resource: 'resource_abc' }), '/discover?r=abc')
   assert.equal(coachFromLegacy({ q: 'resume help' }), '/discover?q=resume+help')
   assert.equal(coachFromLegacy({ view: 'resources' }), '/discover?type=resources')
 })
@@ -223,7 +223,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
   assert.equal(routePaths.org.userTimeline('jane'), '/user/jane/timeline')
   assert.equal(routePaths.org.search('ai prompts'), '/discover?q=ai+prompts')
-  assert.equal(routePaths.org.resource('resource_1'), '/discover/resources/1')
+  assert.equal(routePaths.org.resource('resource_1'), '/discover?r=1')
 
   assert.equal(routePaths.org.portfolioBadges(), '/portfolio/badges')
   assert.equal(routePaths.org.discover(), '/discover')

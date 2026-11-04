@@ -53,7 +53,7 @@ def test_add_a_resource_into_a_channel_then_change_and_unfile_it(resources_mcp):
     resource = added["structuredContent"]
     assert resource["created"] is True and resource["provider_name"] == "Example" and resource["cover_image_url"] == "https://example.com/og.png"
     assert sorted(resource["tags"]) == ["Quiz", "careers"] and [c["name"] for c in resource["channels"]] == ["Careers"]
-    assert "warning" not in resource and resource["discover_url"].endswith("/discover/resources/" + resource["resource_uuid"].removeprefix("resource_"))
+    assert "warning" not in resource and resource["discover_url"].endswith("/discover?r=" + resource["resource_uuid"].removeprefix("resource_"))
 
     listed = call("list_resources", {"resource_types": ["assessment"]})["structuredContent"]["resources"]
     assert [item["title"] for item in listed] == ["Career quiz"]

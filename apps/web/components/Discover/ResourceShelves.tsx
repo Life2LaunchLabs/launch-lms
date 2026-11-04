@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { Clock } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -9,7 +10,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
 import { SectionTitle, Shelf } from './PlanArt'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getResourceThumbnailMediaDirectory } from '@services/media/media'
+import { resourceImage } from './ResourceCover'
 import { getResources, type Resource, type ResourceType } from '@services/resources/resources'
 import { cn } from '@/lib/utils'
 
@@ -29,16 +30,24 @@ function minutes(value: number | null) {
   return value < 60 ? `${value} min` : `${Math.floor(value / 60)}h${value % 60 ? ` ${value % 60}m` : ''}`
 }
 
-export function resourceImage(resource: Resource) {
-  return resource.thumbnail_image && resource.owner_org_uuid
-    ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url
-}
+export { resourceImage } from './ResourceCover'
 
 /** A resource on a shelf or in results: its cover, title, and where it's from. */
-export function ResourceTile({ resource, orgslug, fill = false }: { resource: Resource; orgslug: string; fill?: boolean }) {
+/** Where a card goes: the same Discover view with the resource's sheet open over it. */
+export function useResourceHref() {
+  const pathname = usePathname()
+  const params = useSearchParams()
+  return React.useCallback((resourceUuid: string) => {
+    const next = new URLSearchParams(params.toString())
+    next.set('r', resourceUuid.replace(/^resource_/, ''))
+    return `${pathname}?${next}`
+  }, [params, pathname])
+}
+
+export function ResourceTile({ resource, fill = false }: { resource: Resource; orgslug?: string; fill?: boolean }) {
   const time = minutes(resource.estimated_time)
-  return <Link href={getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid))} className={cn('group flex flex-col gap-2.5 text-foreground no-underline', fill ? 'w-full' : 'w-[240px] shrink-0')}>
+  const href = useResourceHref()
+  return <Link href={href(resource.resource_uuid)} scroll={false} className={cn('group flex flex-col gap-2.5 text-foreground no-underline', fill ? 'w-full' : 'w-[240px] shrink-0')}>
     <span className="relative block aspect-[16/10] overflow-hidden rounded-2xl shadow-[0_4px_0_hsl(var(--edge))] transition-transform duration-200 group-hover:-translate-y-[3px]">
       <ResourceTypeVisual type={resource.resource_type} title="" imageSrc={resourceImage(resource)} iconClassName="h-10 w-10" />
       {resource.is_saved ? <span className="absolute left-2.5 top-2.5 rounded-full bg-black/60 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white">Saved</span> : null}

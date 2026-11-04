@@ -36,7 +36,7 @@ def _slug(db_session: Session, org_id: int) -> str:
 
 def _urls(db_session: Session, org_id: int, resource_uuid: str) -> dict:
     base = f"{frontend_url()}/orgs/{_slug(db_session, org_id)}"
-    return {"discover_url": f"{base}/discover/resources/{resource_uuid.removeprefix('resource_')}",
+    return {"discover_url": f"{base}/discover?r={resource_uuid.removeprefix('resource_')}",
             "editor_url": f"{base}/admin/resources/item/{resource_uuid}"}
 
 

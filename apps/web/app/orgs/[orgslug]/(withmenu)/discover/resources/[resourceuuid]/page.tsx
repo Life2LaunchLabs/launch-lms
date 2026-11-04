@@ -1,6 +1,8 @@
-import ResourceDetailPage from '@components/Discover/ResourceDetailPage'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 
+/** Old resource pages: a resource now opens as a sheet over Discover. */
 export default async function DiscoverResourcePage({ params }: { params: Promise<{ orgslug: string; resourceuuid: string }> }) {
-  const { orgslug, resourceuuid } = await params
-  return <ResourceDetailPage orgslug={orgslug} resourceUuid={decodeURIComponent(resourceuuid)} />
+  const { resourceuuid } = await params
+  redirect(routePaths.org.resource(decodeURIComponent(resourceuuid)))
 }
