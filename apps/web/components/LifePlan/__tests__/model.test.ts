@@ -99,3 +99,16 @@ describe('life plan money model', () => {
     expect(p.marks.filter((x) => x.kind === 'short')).toHaveLength(1)
   })
 })
+
+describe('loan story', () => {
+  test('a schedule pays off and counts the interest', async () => {
+    const { schedule } = await import('../LoanStory')
+    const s = schedule(12000, 0, 100)
+    expect(s.months).toBe(120)
+    expect(Math.round(s.total)).toBe(12000)
+    const i = schedule(12000, 6, 133.23)
+    expect(i.months).toBe(120)
+    expect(Math.abs(i.total - 12000 - 3987.6) < 1).toBe(true)
+    expect(schedule(10000, 12, 100).months).toBe(null)
+  })
+})

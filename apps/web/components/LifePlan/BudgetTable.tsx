@@ -154,7 +154,7 @@ function Row({ line }: { line: Line }) {
   const sign = line.side === 'out' ? '−' : ''
   const value = v.monthly == null ? null : fromMonthly(v.monthly, per)
   return (
-    <div className="border-b border-border/70 last:border-b-0">
+    <div id={`row-${line.id}`} className="border-b border-border/70 last:border-b-0">
       <button type="button" aria-expanded={open} onClick={() => setOpenLine(open ? null : line.id)} className="flex w-full items-center gap-3 py-3 text-left">
         <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} /></span>
         <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
