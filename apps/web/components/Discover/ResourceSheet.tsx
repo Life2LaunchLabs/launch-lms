@@ -2,12 +2,14 @@
 
 import React, { type Dispatch } from 'react'
 import { createPortal } from 'react-dom'
+import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { toast } from 'react-hot-toast'
 import { ArrowUpRight, Bookmark, Loader2, Sparkles, Star, X } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useHub } from '@components/Hub/HubContext'
+import AddToPlans from '@components/Careers/AddToPlans'
 import CareerProfile from '@components/Careers/CareerProfile'
 import CareerTake from '@components/Careers/CareerTake'
 import ResourceComments from '@components/Resources/ResourceComments'
@@ -73,6 +75,9 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
   const [saving, setSaving] = React.useState(false)
   // A career just saved here: its take opens fresh, with "Add to my EPP" on.
   const [fresh, setFresh] = React.useState(false)
+  const [planning, setPlanning] = React.useState<{ code: string; title: string; job_zone?: number | null } | null>(null)
+  // From the plan map's "Start from a career": the phase the career goes after.
+  const after = useSearchParams()?.get('after')
   const [mounted, setMounted] = React.useState(false)
   const panel = React.useRef<HTMLDivElement>(null)
   const openButton = React.useRef<HTMLButtonElement>(null)
@@ -167,7 +172,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
                 onSaveChange={() => void mutate()} onMembershipChange={() => void mutate()} variant="menu"
                 share={{ title: resource.title, description: resource.description, url: getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid)) }} /> : null}
             </div>
-            {code && signedIn ? <CareerProfile code={code} token={token} onOpen={onOpen} /> : null}
+            {code && signedIn ? <CareerProfile code={code} token={token} onOpen={onOpen} onAddToPlans={(profile) => setPlanning(profile.career)} /> : null}
             {code && signedIn && resource.is_saved ? <Block title="Your take">
               <CareerTake key={`${resource.resource_uuid}-${fresh}`} resourceUuid={resource.resource_uuid} state={resource.user_state} token={token} fresh={fresh}
                 onSaved={() => { setFresh(false); void mutate() }} />
@@ -180,5 +185,5 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
         </>}
     </div>
   </div>
-  return mounted ? createPortal(sheet, document.body) : null
+  return mounted ? createPortal(<>{sheet}{planning && token ? <AddToPlans career={planning} token={token} orgslug={orgslug} after={after} onClose={() => setPlanning(null)} /> : null}</>, document.body) : null
 }
