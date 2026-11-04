@@ -1,8 +1,9 @@
+import { PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/traitOptions'
 import type { PortfolioResult } from '../portfolioTypes'
 
 // The assessments "What I'm like" knows. Each one is a form the learner fills from a result they got
-// somewhere else (we link to where to take it), shown the way that assessment is usually shown. Anything
-// else is "Something else": a name and a line. The result's `data.template` names its template.
+// somewhere else (we link to where to take it), shown the way that assessment is usually shown. Skills and
+// values is our own: chips to tap, right here. The result's `data.template` names its template.
 
 export type Score = { key: string; label: string }
 type Base = { id: string; name: string; kind: PortfolioResult['kind']; blurb: string; take: Array<{ label: string; url: string; free: boolean }> }
@@ -10,6 +11,11 @@ export type ResultTemplate =
   | Base & { input: 'scores'; scores: Score[]; max: number }
   | Base & { input: 'type'; options: Array<{ value: string; label: string }> }
   | Base & { input: 'pick'; options: string[]; count: number }
+  | Base & { input: 'chips'; groups: ChipGroup[] }
+
+/** One set of chips in a chip test: picked ids go in data[key], your own chips in data.custom[key]. */
+export type ChipGroup = { key: 'skills' | 'values'; label: string; hint: string; options: CategorizedOption[] }
+export const SKILLS_VALUES = 'skills-values'
 
 export const HOLLAND: Score[] = [
   { key: 'R', label: 'Realistic' }, { key: 'I', label: 'Investigative' }, { key: 'A', label: 'Artistic' },
@@ -28,8 +34,30 @@ export const RESULT_TEMPLATES: ResultTemplate[] = [
   { id: 'sixteen', name: '16 personality types', kind: 'personality', input: 'type', options: SIXTEEN.map((code) => ({ value: code, label: code })), blurb: 'Four letters, like INFJ, in the Myers-Briggs style.', take: [{ label: 'A free 16-type test', url: 'https://www.16personalities.com/free-personality-test', free: true }, { label: 'The official MBTI', url: 'https://www.mbtionline.com', free: false }] },
   { id: 'clifton', name: 'CliftonStrengths top 5', kind: 'strengths', input: 'pick', options: CLIFTON, count: 5, blurb: 'Your five strongest talent themes, in order.', take: [{ label: 'Gallup CliftonStrengths', url: 'https://www.gallup.com/cliftonstrengths', free: false }] },
   { id: 'bigfive', name: 'Big Five', kind: 'personality', input: 'scores', scores: BIG_FIVE, max: 100, blurb: 'Five traits, each from low to high.', take: [{ label: 'Open Big Five test', url: 'https://bigfive-test.com', free: true }] },
+  { id: SKILLS_VALUES, name: 'Skills and values', kind: 'skills', input: 'chips', blurb: 'Tap what you’re good at and what matters most to you.', take: [], groups: [
+    { key: 'skills', label: 'Skills', hint: 'What you’re good at. Add your own, like Spanish or welding.', options: PORTFOLIO_STRENGTHS },
+    { key: 'values', label: 'Values', hint: 'What matters most to you. They guide your choices.', options: PORTFOLIO_VALUES },
+  ] },
   { id: 'enneagram', name: 'Enneagram', kind: 'personality', input: 'type', options: ENNEAGRAM.map((name, index) => ({ value: String(index + 1), label: `${index + 1} · ${name}` })), blurb: 'One of nine types.', take: [{ label: 'Truity Enneagram test', url: 'https://www.truity.com/test/enneagram-personality-test', free: true }] },
 ]
+
+/** Free to take: ours, or offered free somewhere. */
+export const isFree = (template: ResultTemplate) => template.id === 'riasec' || !template.take.length || template.take.some((place) => place.free)
+
+/** The words of the chips picked in one group of a chip test, in the order they were picked. */
+export function chipTexts(template: Extract<ResultTemplate, { input: 'chips' }>, data: Record<string, any>, key: ChipGroup['key']): string[] {
+  const group = template.groups.find((item) => item.key === key)
+  const known = [...(group?.options || []), ...((data.custom?.[key] || []) as CategorizedOption[])]
+  return ((data[key] || []) as string[]).map((id) => known.find((option) => option.id === id)?.text || id)
+}
+
+/** The skills a result names: a chip test's picked skills, or an older skills line split at its commas. */
+export function skillsOf(result: Pick<PortfolioResult, 'kind' | 'summary' | 'data'>): string[] {
+  const template = templateOf(result)
+  if (template?.input === 'chips') return chipTexts(template, result.data || {}, 'skills')
+  if (result.kind !== 'skills') return []
+  return (result.summary || '').split(/[,;·]/).map((part) => part.trim()).filter(Boolean)
+}
 
 export const templateOf = (result?: Pick<PortfolioResult, 'data'> | null) => RESULT_TEMPLATES.find((item) => item.id === result?.data?.template)
 
@@ -40,6 +68,7 @@ export function summaryFor(template: ResultTemplate, data: Record<string, any>):
     const top = [...template.scores].sort((a, b) => Number(scores[b.key] || 0) - Number(scores[a.key] || 0))
     return template.id === 'bigfive' ? top.slice(0, 2).map((item) => `High ${item.label.toLowerCase()}`).join(' · ') : top.slice(0, 3).map((item) => item.label).join(' · ')
   }
+  if (template.input === 'chips') { const skills = chipTexts(template, data, 'skills'); return (skills.length ? skills : chipTexts(template, data, 'values')).join(' · ') }
   if (template.input === 'type') return template.id === 'enneagram' ? (data.type ? `Type ${data.type}, the ${ENNEAGRAM[Number(data.type) - 1]}` : '') : String(data.type || '')
   return (data.top || []).join(' · ')
 }
@@ -48,5 +77,6 @@ export function summaryFor(template: ResultTemplate, data: Record<string, any>):
 export function filled(template: ResultTemplate, data: Record<string, any>): boolean {
   if (template.input === 'scores') return template.scores.some((item) => Number(data.scores?.[item.key]) > 0)
   if (template.input === 'type') return Boolean(data.type)
+  if (template.input === 'chips') return template.groups.some((group) => (data[group.key] || []).length > 0)
   return (data.top || []).length === template.count
 }

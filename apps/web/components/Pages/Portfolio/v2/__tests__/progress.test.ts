@@ -15,7 +15,7 @@ describe('portfolio quests', () => {
   })
 
   test('finishing a quest shows its unlock until it is seen, then the next quest starts', () => {
-    const done = shell({ identity: { first_name: 'Maya', last_name: 'Rivera', shown_name: 'Maya' }, portfolio: { avatar_image: 'me.jpg', short_bio: 'Hi', socials: [] }, timeline: [entry()], projects: [{ cover_url: '' }], layout: { header: 'left', sections: 'grid', look: 'sunset' } })
+    const done = shell({ identity: { first_name: 'Maya', last_name: 'Rivera', shown_name: 'Maya' }, portfolio: { avatar_image: 'me.jpg', short_bio: 'Hi', socials: [] }, timeline: [entry()], projects: [{ cover_url: '' }], layout: { header: 'left', sections: 'grid', look: 'playful' } })
     const stage = stageOf(done)
     expect(stage.kind).toBe('unlocked')
     expect(unlocked(stage, 1)).toBe(true)
@@ -43,5 +43,11 @@ describe('portfolio quests', () => {
     const third = (over: Record<string, any>) => quests(shell(over))[2].items
     expect(third({ results: [{ kind: 'skills', summary: 'CAD' }] }).find((item) => item.key === 'like')?.done).toBe(false)
     expect(third({ results: [{ kind: 'interests', summary: 'Artistic' }] }).find((item) => item.key === 'like')?.done).toBe(true)
+    expect(third({ results: [{ kind: 'skills', summary: 'Focus', data: { template: 'skills-values', skills: ['focus'], values: ['honesty'] } }] }).find((item) => item.key === 'like')?.done).toBe(true)
+  })
+
+  test('the skills and values chips count their skills, not their values', () => {
+    const [, second] = quests(shell({ results: [{ kind: 'skills', summary: 'Focus · Listening', data: { template: 'skills-values', skills: ['focus', 'listening', 'Welding'], values: ['honesty', 'family'], custom: { skills: [{ id: 'Welding', text: 'Welding' }] } } }] }))
+    expect(second.items.find((item) => item.key === 'skills')?.done).toBe(true)
   })
 })

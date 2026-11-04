@@ -215,6 +215,22 @@ def test_plan_document_rejects_bad_values():
         _doc(debts=[{"id": "d", "title": "Loan", "balance": -5}])
 
 
+def test_plan_keeps_payment_policies_starting_points_and_401k_terms():
+    doc = _doc(
+        debts=[{"id": "d", "kind": "card", "title": "Card", "balance": 900, "rate": 22, "payment": 25, "received": False}],
+        savings=[{"id": "save", "title": "Savings account", "main": True}, {"id": "k", "kind": "k401", "title": "401(k)", "pct": 6, "match": 4}],
+        policies=[{"id": "x", "target": "d", "phase": "p1", "month": 6, "full": True}, {"id": "y", "target": "k", "phase": "p1", "month": 3, "pct": 8}],
+        card_rate=21.5,
+    )
+    doc.phases[0].starting = plan_service.Starting(savings={"save": 1200}, debts={"d": 800})
+    out = doc.model_dump()
+    assert out["policies"][0]["full"] is True and out["policies"][1]["pct"] == 8
+    assert out["savings"][1]["match"] == 4 and out["debts"][0]["received"] is False
+    assert out["phases"][0]["starting"]["debts"] == {"d": 800} and out["card_rate"] == 21.5
+    with pytest.raises(ValueError):
+        _doc(policies=[{"id": "x", "target": "d", "phase": "p1", "pct": 150}])
+
+
 def test_headed_is_the_phase_now_and_the_next_ones_without_the_budget():
     from datetime import UTC, datetime
 

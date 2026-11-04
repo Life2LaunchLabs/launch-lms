@@ -26,19 +26,23 @@ export interface Line {
   settings: Record<string, any>
   start: number
   end?: number | null
+  /** A running cost of something owned (an asset id): it goes when the thing does. */
+  asset?: string | null
 }
 
 /** A learner's own cover photo for a phase, from their media library. */
 export interface PhaseCover { url: string }
 /** How a phase's taxes are worked out: filing status for the estimate, or the learner's own effective rate (percent). */
 export interface PhaseTax { filing?: 'single' | 'joint'; rate?: number | null }
+/** Real numbers to start a phase from, where estimates meet what is actually there: by saving or debt id. */
+export interface Starting { savings?: Record<string, number>; debts?: Record<string, number> }
 /** What a learner does in a phase. `career` is an O*NET code; `schools` are ones still being weighed. */
 export interface Activity { kind: 'learning' | 'working' | 'looking' | 'caring' | 'gap' | 'other'; level?: string | null; school?: string | null; school_id?: string | null; schools?: string[]; field?: string | null; career?: string | null; career_title?: string | null; employer?: string | null; apprentice?: boolean }
 export interface Phase {
   id: string; title: string; kind: string; place?: string | null; place_label?: string
   /** Only the length of a phase nothing comes after; otherwise it runs until the next one starts. */
   months: number
-  lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null
+  lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null; starting?: Starting | null
   /** When it starts, YYYY-MM. Old plans have none and run one after another from the plan's start. */
   starts?: string | null
   /** The phases it comes after: none for the first, two or more where two ways join up. */
@@ -53,8 +57,12 @@ export interface Phase {
 /** A photo of a place, picked ahead of time from Wikimedia Commons, with the credit it is shown with. */
 export interface PlacePhoto { url: string; width?: number; height?: number; title?: string; author: string; license: string; license_url?: string; source_url: string }
 export interface When { phase: string; month: number }
-export interface Debt { id: string; kind: string; title: string; balance: number; rate: number; payment: number; start?: When | null }
-export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean }
+/** A debt: what is owed, its rate and the minimum a month. Taking it later (start) can land the money in savings. */
+export interface Debt { id: string; kind: string; title: string; balance: number; rate: number; payment: number; start?: When | null; received?: boolean | null }
+/** An account. A 401(k) puts in pct of pay, and the employer matches up to match percent of pay. */
+export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean; pct?: number | null; match?: number | null }
+/** From a month on, until the next one: what you pay on a debt (at least its minimum, or all of it), or put into an account. */
+export interface Policy { id: string; target: string; phase: string; month: number; pay?: number | null; full?: boolean | null; put?: number | null; pct?: number | null }
 export interface Asset { id: string; kind: string; title: string; value: number; change: number; bought?: When | null; down?: number | null; loan_id?: string | null; sold?: (When & { price: number }) | null }
 export interface LifeEvent { id: string; phase: string; month: number; title: string; amount: number }
 
@@ -67,6 +75,9 @@ export interface LifeDoc {
   savings: Saving[]
   assets: Asset[]
   events: LifeEvent[]
+  policies?: Policy[]
+  /** The learner's rate for the card that covers being short, percent a year. */
+  card_rate?: number | null
 }
 
 export interface LifePlanView { plan_uuid: string; revision: number; document: LifeDoc; update_date: string }

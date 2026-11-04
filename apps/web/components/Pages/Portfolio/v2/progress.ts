@@ -1,4 +1,5 @@
 import type { Shell } from '../portfolioTypes'
+import { skillsOf } from './resultTemplates'
 
 // Progress on the portfolio is three quests, each unlocking a real action: sharing, then the résumé,
 // then the mastery badge by the learner's name. Everything is worked out from the portfolio itself;
@@ -25,7 +26,7 @@ function quest(n: 1 | 2 | 3, items: QuestItem[]): Quest {
 export function quests(shell: Shell): Quest[] {
   const timeline = shell.timeline || []
   const projects = shell.projects || []
-  const skills = new Set((shell.results || []).filter((item) => item.kind === 'skills').flatMap((item) => item.summary.split(/[,;·]/).map((part) => part.trim().toLowerCase()).filter(Boolean)))
+  const skills = new Set((shell.results || []).flatMap((item) => skillsOf(item).map((part) => part.toLowerCase())))
   for (const badge of shell.badges?.earned || []) for (const skill of badge.skills || []) skills.add(skill.toLowerCase())
   const socials = (shell.portfolio.socials || []) as Array<{ url?: string }>
   return [
@@ -50,7 +51,7 @@ export function quests(shell: Shell): Quest[] {
       count('vouched', 'Get vouched for', (shell.quotes || []).filter((item) => item.confirmed).length, 2, 'people', '2 quotes confirmed by a boss, coach or teacher'),
       // Only what can be backed up counts: a badge earned here. Uploaded cards wait until they can be checked.
       count('proven', 'Prove it', (shell.badges?.earned || []).length, 1, 'credentials', 'Earn a badge by finishing a plan'),
-      count('like', 'Show what you’re like', (shell.results || []).filter((item) => item.kind !== 'skills').length, 1, 'results', 'Your interests, strengths or values'),
+      count('like', 'Show what you’re like', (shell.results || []).filter((item) => item.kind !== 'skills' || (item.data?.values || []).length).length, 1, 'results', 'Your interests, strengths or values'),
     ]),
   ]
 }
@@ -96,6 +97,8 @@ export function questPath(item: QuestItem, shell: Shell): string | null {
     stories: untold ? `/portfolio/timeline/${untold.timeline_uuid}?${mark}` : '/portfolio/timeline',
     made: `/portfolio/projects/new?${mark}`, work: bare ? `/portfolio/projects/${bare.project_uuid}?${mark}` : `/portfolio/projects/new?${mark}`,
     vouched: '/portfolio/people',
+    // What you're like starts with the interest quiz (RIASEC), right here.
+    like: `/portfolio/interests?${mark}`,
   }
   return paths[item.key] ?? null
 }

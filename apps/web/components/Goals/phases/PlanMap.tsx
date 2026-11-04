@@ -269,7 +269,7 @@ function AddCard({ doc, adding, setAdding, onSubmit, orgslug }: { doc: LifeDoc; 
       placeholder={adding.mode === 'before' ? 'Elementary school, moved to Eugene…' : 'Gap year, trade school, move to Portland…'}
       className="h-12 rounded-2xl bg-muted px-3 text-base font-bold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />
     <div className="flex flex-wrap items-center justify-between gap-2">
-      {adding.mode === 'before' ? <span /> : <Link href={getUriWithOrg(orgslug, `/discover?type=career&after=${encodeURIComponent(from.id)}`)} className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--org-primary-color)]"><Compass size={15} aria-hidden="true" />Start from a career instead</Link>}
+      {adding.mode === 'before' ? <span /> : <Link href={getUriWithOrg(orgslug, `/discover/careers?after=${encodeURIComponent(from.id)}`)} className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--org-primary-color)]"><Compass size={15} aria-hidden="true" />Start from a career instead</Link>}
       <span className="flex gap-1.5"><Button type="button" size="sm" variant="ghost" onClick={() => setAdding(null)}>Cancel</Button><Button type="submit" size="sm" variant="brand">Add</Button></span>
     </div>
   </form>

@@ -8,6 +8,7 @@ import GeneralWrapper from '@components/Objects/StyledElements/Wrappers/GeneralW
 import DiscoverFeed from './DiscoverFeed'
 import DiscoverResults from './DiscoverResults'
 import DiscoverSearchBar, { filtersApplied, type DiscoverFilters } from './DiscoverSearchBar'
+import ResourceSheet from './ResourceSheet'
 
 /**
  * Discover: plans to join (many earn a badge) and resources to use, searchable from the top. With no search
@@ -38,6 +39,10 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const onQuery = React.useCallback((value: string) => update({ q: value }), [update])
   const onFilters = (value: DiscoverFilters) => update({ type: value.type, resource_types: value.resourceTypes.join(','), saved: value.saved ? '1' : '' })
 
+  const resource = params.get('r') || ''
+  const closeResource = React.useCallback(() => update({ r: '' }), [update])
+  const openResource = React.useCallback((uuid: string) => update({ r: uuid.replace(/^resource_/, '') }), [update])
+
   const searching = Boolean(query) || filtersApplied(filters)
   const content = <GeneralWrapper wide>
     <main className="flex flex-col gap-6 pb-16 pt-2 text-foreground">
@@ -46,6 +51,7 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
       {searching
         ? <DiscoverResults orgslug={orgslug} query={query} filters={filters} showPlans={showPlans} showResources={showResources} />
         : <DiscoverFeed orgslug={orgslug} showPlans={showPlans} showResources={showResources} />}
+      {resource ? <ResourceSheet resourceUuid={resource} orgslug={orgslug} onClose={closeResource} onOpen={openResource} /> : null}
     </main>
   </GeneralWrapper>
   return content

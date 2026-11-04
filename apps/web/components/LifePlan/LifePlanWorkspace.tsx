@@ -15,7 +15,9 @@ import { mergeRoute, normalize, routeDoc } from '@components/Goals/phases/graph'
 import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
 import BudgetTable from './BudgetTable'
-import { DebtCard, OneTimeCard, OwnCard, SavingsCard } from './MoneyCards'
+import { OneTimeCard } from './MoneyCards'
+import { YouOwnCard } from './YouOwn'
+import { SavingsDebtCard } from './SavingsDebt'
 import AddTray, { type AddTarget } from './AddTray'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
@@ -138,10 +140,9 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
         <fieldset disabled={Boolean(of)} className="min-w-0 space-y-4">
           <BudgetTable />
+          <SavingsDebtCard />
           <OneTimeCard />
-          <DebtCard />
-          <SavingsCard />
-          <OwnCard />
+          <YouOwnCard />
         </fieldset>
         <p className="mt-6 text-xs text-muted-foreground">
           Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Taxes are a rough estimate on pay from work, from the latest published federal and Oregon rates; open Taxes under Income to see how, or use your own rate.

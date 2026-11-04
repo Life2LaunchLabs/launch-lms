@@ -9,6 +9,7 @@ from src.services.mcp import handlers
 from src.services.mcp.coach_tools import COACH_TOOLS
 from src.services.mcp.insights_tools import INSIGHTS_TOOLS
 from src.services.mcp.media_tools import MEDIA_TOOLS
+from src.services.mcp.resource_tools import RESOURCE_TOOLS
 from src.services.mcp.tool import Handler, Tool  # noqa: F401  (re-exported)
 
 _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'launch-lms.activity', format_version 1). See get_activity_schema."}
@@ -335,6 +336,7 @@ TOOLS = [
         read_only=False,
     ),
     *MEDIA_TOOLS,
+    *RESOURCE_TOOLS,
     *INSIGHTS_TOOLS,
     *COACH_TOOLS,
 ]

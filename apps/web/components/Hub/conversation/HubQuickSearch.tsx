@@ -25,6 +25,7 @@ const RESOURCE_TYPES: Array<{ value: 'all' | ResourceType; label: string }> = [
   { value: 'article', label: 'Articles' },
   { value: 'video', label: 'Videos' },
   { value: 'course', label: 'Courses' },
+  { value: 'school', label: 'Schools' },
   { value: 'guide', label: 'Guides' },
   { value: 'tool', label: 'Tools' },
   { value: 'assessment', label: 'Assessments' },

@@ -3,40 +3,48 @@ import type { LookId, LookMode, PortfolioLayout } from '@services/portfolio/reco
 export type { LookId, LookMode }
 
 /**
- * A learner's look: their theme for the whole app, and the one visitors see their portfolio in.
- * The colors are background, then accents A, B and C, in light mode. Each look has a light and a dark side
- * (styles/looks.css, keyed on [data-look] and .dark); the learner picks light, dark or their device's.
+ * A learner's look: their theme for the whole app, and the one visitors see their portfolio in. A look is more
+ * than colors: type, corners, depth, and how the portfolio's sections are drawn (styles/looks.css). Nothing
+ * moves between looks. Each has a light and a dark side, and the learner's accent recolors it.
+ * The colors are background, then accents A, B and C, in light mode, then the same in dark mode.
  */
-export const LOOKS: Array<{ id: LookId; name: string; blurb: string; colors: [string, string, string, string]; night: [string, string, string, string] }> = [
-  { id: 'pop', name: 'Pop', blurb: 'Bright and colorful', colors: ['#f5f8f9', '#4C8DFF', '#EC4F9A', '#F5A524'], night: ['#0e151c', '#4C8DFF', '#EC4F9A', '#1c2733'] },
-  { id: 'studio', name: 'Studio', blurb: 'Black and white, lots of space', colors: ['#ffffff', '#111111', '#8a8a8a', '#d9d9d9'], night: ['#0a0a0a', '#f2f2f2', '#8a8a8a', '#262626'] },
-  { id: 'midnight', name: 'Midnight', blurb: 'Violet and teal, with a glow', colors: ['#f4f3ff', '#5b2bd6', '#00b3a6', '#e4e0ff'], night: ['#0b0f1e', '#5b2bd6', '#00d1c1', '#141a31'] },
-  { id: 'sunset', name: 'Sunset', blurb: 'Warm and soft', colors: ['#fff6ee', '#E8642C', '#C8327D', '#F5A524'], night: ['#1a110d', '#E8642C', '#C8327D', '#2e1d16'] },
+export const LOOKS: Array<{ id: LookId; name: string; blurb: string; colors: [string, string, string, string]; night: [string, string, string, string]; font: string }> = [
+  { id: 'playful', name: 'Playful', blurb: 'Chunky cards and buttons with a 3D edge, heavy rounding, a color for every section.', colors: ['#f5f8f9', '#4C8DFF', '#EC4F9A', '#F5A524'], night: ['#0e151c', '#4C8DFF', '#EC4F9A', '#1c2733'], font: 'inherit' },
+  { id: 'professional', name: 'Professional', blurb: 'Reads like a LinkedIn profile: you in a column on the left, your sections on the right, thin lines and no depth. Made for applications.', colors: ['#f3f4f6', '#2457c5', '#1b1f27', '#ffffff'], night: ['#0f1115', '#5b8def', '#e8eaee', '#171a1f'], font: '"IBM Plex Sans", system-ui, sans-serif' },
+  { id: 'gallery', name: 'Gallery', blurb: 'Art-house: your name set huge in a serif, the work big and uneven like a gallery wall. No cards, one loud accent.', colors: ['#ffffff', '#ff3d00', '#0b0b0b', '#ececec'], night: ['#0b0b0b', '#ff3d00', '#f2f0ea', '#1c1c1c'], font: '"Instrument Serif", Georgia, serif' },
+  { id: 'volt', name: 'Volt', blurb: 'Modern and minimal: nothing boxed, quiet headings, soft photo corners and one electric accent.', colors: ['#f1f2f4', '#b8e62e', '#0c0d0f', '#ffffff'], night: ['#070708', '#b8e62e', '#f4f4f5', '#121214'], font: 'Manrope, system-ui, sans-serif' },
+  { id: 'arcade', name: 'Arcade', blurb: 'A game HUD: cut corners and angled panels, a splash across the top, stats like a character sheet, a red accent with cyan.', colors: ['#eef0f4', '#ff3b4f', '#12d6e0', '#ffffff'], night: ['#0a0b10', '#ff3b4f', '#12d6e0', '#12141c'], font: '"Chakra Petch", system-ui, sans-serif' },
 ]
 
 export const MODES: Array<{ id: LookMode; label: string }> = [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'system', label: 'System' }]
 
 /** Accents to pick from; any color works too. */
-export const ACCENTS = ['#4c8dff', '#7c5cff', '#ec4f9a', '#e8642c', '#f5a524', '#16a34a', '#00b3a6', '#111111']
+export const ACCENTS = ['#4c8dff', '#7c5cff', '#ec4f9a', '#e8642c', '#f5a524', '#b8e62e', '#16a34a', '#00b3a6', '#111111']
 
-/** Banner gradients. "look" follows the look's colors, and the accent when there is one. */
+/** Banner backgrounds, all drawn in the accent (the look's own color until the learner picks one). */
+const C = 'var(--org-primary-color)'
+const shade = (pct: number, to = '#000') => `color-mix(in srgb, ${C} ${pct}%, ${to})`
+const turn = (deg: number, light = 'l') => `oklch(from ${C} ${light} c calc(h + ${deg}))`
 export const BANNERS: Array<{ id: string; name: string; css: string }> = [
   { id: 'look', name: 'My look', css: 'linear-gradient(120deg,var(--look-a),var(--look-b) 60%,var(--look-c))' },
-  { id: 'ocean', name: 'Ocean', css: 'linear-gradient(120deg,#0f4c81,#2f80ed 55%,#56ccf2)' },
-  { id: 'aurora', name: 'Aurora', css: 'linear-gradient(120deg,#1d1446,#5b2bd6 45%,#00d1c1)' },
-  { id: 'ember', name: 'Ember', css: 'linear-gradient(120deg,#7a1f1f,#e8642c 55%,#f5a524)' },
-  { id: 'candy', name: 'Candy', css: 'linear-gradient(120deg,#ff7eb3,#ec4f9a 40%,#7c5cff)' },
-  { id: 'forest', name: 'Forest', css: 'linear-gradient(120deg,#0b3d2e,#16a34a 55%,#a3e635)' },
-  { id: 'mono', name: 'Mono', css: 'linear-gradient(120deg,#111111,#3a3a3a 55%,#8a8a8a)' },
+  { id: 'solid', name: 'Solid', css: C },
+  { id: 'fade', name: 'Fade', css: `linear-gradient(120deg, ${shade(65)}, ${C} 55%, ${shade(55, '#fff')})` },
+  { id: 'glow', name: 'Glow', css: `radial-gradient(120% 160% at 85% 0%, ${shade(45, '#fff')}, ${C} 42%, ${shade(45)})` },
+  { id: 'duo', name: 'Duo', css: `linear-gradient(120deg, ${C}, ${turn(70)})` },
+  { id: 'mesh', name: 'Mesh', css: `radial-gradient(at 15% 20%, ${turn(60)} 0, transparent 55%), radial-gradient(at 85% 10%, ${turn(-50, 'calc(l + .12)')} 0, transparent 50%), radial-gradient(at 65% 95%, ${turn(140)} 0, transparent 55%), ${C}` },
+  { id: 'stripes', name: 'Stripes', css: `repeating-linear-gradient(-45deg, ${C} 0 18px, ${shade(82)} 18px 36px)` },
+  { id: 'dots', name: 'Dots', css: `radial-gradient(${shade(45, '#fff')} 2.2px, transparent 2.8px) 0 0 / 18px 18px, ${C}` },
+  { id: 'grid', name: 'Grid', css: `linear-gradient(${shade(70, '#fff')} 1px, transparent 1px) 0 0 / 26px 26px, linear-gradient(90deg, ${shade(70, '#fff')} 1px, transparent 1px) 0 0 / 26px 26px, ${C}` },
+  { id: 'rays', name: 'Rays', css: `repeating-conic-gradient(from 0deg at 82% 130%, ${C} 0 7deg, ${shade(84, '#fff')} 7deg 14deg)` },
+  { id: 'dusk', name: 'Dusk', css: `linear-gradient(180deg, ${shade(35)}, ${C} 62%, ${turn(45, 'calc(l + .2)')})` },
+  { id: 'ink', name: 'Ink', css: `radial-gradient(90% 140% at 100% 0%, ${shade(70, '#0c0c0e')}, transparent 60%), #0c0c0e` },
 ]
 
 export const isLook = (value: unknown): value is LookId => LOOKS.some((look) => look.id === value)
 
-/** Light, dark or the device's. Before the learner picks, the look decides as it used to: Midnight dark, the rest light. */
+/** Light, dark or the device's. Until the learner picks, it follows the device. */
 export function modeOf(layout: Pick<PortfolioLayout, 'look' | 'mode'>): LookMode {
-  if (layout.mode) return layout.mode
-  if (!layout.look) return 'system'
-  return layout.look === 'midnight' ? 'dark' : 'light'
+  return layout.mode || 'system'
 }
 
 /** The accent as the tokens' hue and saturation, set inline where [data-accent] is (styles/looks.css). */
@@ -57,7 +65,7 @@ export const LOOK_KEY = 'launch-look'
 export const ACCENT_KEY = 'launch-accent'
 
 /** Runs in <head> before the page paints: the look and accent this browser last used. */
-export const LOOK_BOOT = `try{var d=document.documentElement,l=localStorage.getItem('${LOOK_KEY}');if(/^(pop|studio|midnight|sunset)$/.test(l||''))d.dataset.look=l;var a=JSON.parse(localStorage.getItem('${ACCENT_KEY}')||'null');if(a&&a['--accent-h']){for(var k in a)d.style.setProperty(k,a[k]);d.dataset.accent=''}}catch(e){}`
+export const LOOK_BOOT = `try{var d=document.documentElement,l=localStorage.getItem('${LOOK_KEY}');if(/^(pop|studio|midnight|sunset)$/.test(l||''))l='playful';if(/^(playful|professional|gallery|volt|arcade)$/.test(l||''))d.dataset.look=l;var a=JSON.parse(localStorage.getItem('${ACCENT_KEY}')||'null');if(a&&a['--accent-h']){for(var k in a)d.style.setProperty(k,a[k]);d.dataset.accent=''}}catch(e){}`
 
 /** Apply a look (and its accent) to the whole app in this browser, and remember them for the next visit. */
 export function applyLook(look: LookId | null, accent?: string | null) {

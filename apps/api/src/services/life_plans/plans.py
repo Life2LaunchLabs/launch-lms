@@ -42,6 +42,8 @@ class Line(Doc):
     settings: dict = Field(default_factory=dict)
     start: int = Field(default=0, ge=0, le=1200)
     end: int | None = Field(default=None, ge=0, le=1200)
+    # A running cost of something the learner owns (an asset id): it goes when the thing does.
+    asset: str | None = Field(default=None, max_length=40)
 
 
 class When(Doc):
@@ -75,6 +77,11 @@ class Activity(Doc):
     apprentice: bool = False
 
 
+class Starting(Doc):
+    savings: dict[str, float] = Field(default_factory=dict, max_length=40)
+    debts: dict[str, float] = Field(default_factory=dict, max_length=60)
+
+
 class Phase(Doc):
     id: str = Field(max_length=40)
     title: str = Field(max_length=120)
@@ -99,6 +106,8 @@ class Phase(Doc):
     living: str | None = Field(default=None, max_length=20)
     # Places still being weighed (place keys); `place` is the one picked.
     places: list[str] = Field(default_factory=list, max_length=12)
+    # Real balances to start the phase from, by saving or debt id; without them it starts where the last one ended.
+    starting: Starting | None = None
 
 
 class Debt(Doc):
@@ -109,6 +118,8 @@ class Debt(Doc):
     rate: float = Field(default=0, ge=0, le=100)
     payment: float = Field(default=0, ge=0, le=10_000_000)
     start: When | None = None
+    # Taking the loan lands its money in savings; None means yes unless it pays for something bought.
+    received: bool | None = None
 
 
 class Saving(Doc):
@@ -119,6 +130,21 @@ class Saving(Doc):
     rate: float = Field(default=0, ge=0, le=100)
     monthly: float = Field(default=0, ge=0, le=10_000_000)
     main: bool = False
+    # A 401(k): percent of pay put in, and the employer match up to this percent of pay.
+    pct: float | None = Field(default=None, ge=0, le=100)
+    match: float | None = Field(default=None, ge=0, le=100)
+
+
+class Policy(Doc):
+    """From a month on, until the next one for the same target: what is paid on a debt or put into an account."""
+    id: str = Field(max_length=40)
+    target: str = Field(max_length=40)
+    phase: str = Field(max_length=40)
+    month: int = Field(default=0, ge=0, le=1200)
+    pay: float | None = Field(default=None, ge=0, le=10_000_000)
+    full: bool | None = None
+    put: float | None = Field(default=None, ge=0, le=10_000_000)
+    pct: float | None = Field(default=None, ge=0, le=100)
 
 
 class Sale(Doc):
@@ -155,6 +181,8 @@ class LifePlanDocument(Doc):
     savings: list[Saving] = Field(default_factory=list, max_length=20)
     assets: list[Asset] = Field(default_factory=list, max_length=40)
     events: list[Event] = Field(default_factory=list, max_length=200)
+    policies: list[Policy] = Field(default_factory=list, max_length=400)
+    card_rate: float | None = Field(default=None, ge=0, le=100)
 
 
 def _check_links(doc: LifePlanDocument) -> None:
