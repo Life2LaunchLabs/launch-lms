@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile
 from openpyxl import Workbook
 from sqlmodel import select
 
-from src.db.portfolio import Portfolio, PortfolioLink, ProjectItem, TimelineEntry
+from src.db.portfolio import Portfolio, PortfolioLink, ProjectItem, TimelineEntry, TimelineEntryCreate
 from src.db.portfolio_records import Credential, PortfolioContact, PortfolioDocument, PortfolioImport, PortfolioQuote, PortfolioResult
 from src.services import media as media_service, portfolio as service, portfolio_imports as imports
 from src.services.portfolio_import_sources import read_export
@@ -112,6 +112,25 @@ async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(mo
         assert [item["title"] for item in again["items"] if not item["already"]] == ["Volunteer"]
         assert (await imports.run_import("cis", _upload(content, "cis.zip"), [item["key"] for item in again["items"]], actor, db))["added"] == {"experience": 1}
         assert len(imports.list_imports(actor, db)) == 2
+
+
+async def test_a_job_typed_in_by_hand_is_not_brought_in_again(monkeypatch):
+    monkeypatch.setattr(media_service, "upload_file", _fake_upload_file)
+    content = _cis_zip()
+    with _session() as db:
+        actor = _learner(db)
+        service.create_timeline(TimelineEntryCreate(title="animal care  helper", organization="PET STORE", start_date="2026-06-01"), actor, db)
+        # Same title and place, a different year: a second stint, so it still comes in.
+        service.create_timeline(TimelineEntryCreate(title="Member", organization="Art Club", start_date="2021-09-01"), actor, db)
+
+        preview = await imports.preview_import("cis", _upload(content, "cis.zip"), actor, db)
+
+        already = {item["title"]: item["already"] for item in preview["items"] if item["kind"] == "timeline"}
+        assert already["Animal Care Helper"] is True
+        assert already["Member"] is False
+        result = await imports.run_import("cis", _upload(content, "cis.zip"), [item["key"] for item in preview["items"]], actor, db)
+        assert len([row for row in db.exec(select(TimelineEntry)).all() if "".join(row.title.lower().split()) == "animalcarehelper"]) == 1
+        assert result["added"]["experience"] >= 1
 
 
 async def test_a_linkedin_export_brings_jobs_projects_skills_and_recommendations():

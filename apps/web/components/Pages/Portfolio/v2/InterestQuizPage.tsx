@@ -155,6 +155,8 @@ function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken
   const top = taken.code.split('')
   const keep = FILTERS.find((item) => item.id === filter)!.keep
   const careers = taken.careers.filter((career) => keep(career.job_zone))
+  // Six equal scores have no shape to compare with a career, so there's nothing to match on.
+  const even = new Set(Object.values(taken.scores)).size === 1
   return <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
     <section className="rounded-3xl border border-border bg-card p-5 sm:p-7">
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
@@ -182,7 +184,8 @@ function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken
         <div className="mb-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Training">{FILTERS.map((item) => <button key={item.id} type="button" role="radio" aria-checked={filter === item.id} onClick={() => setFilter(item.id)} className={`h-9 rounded-full border-2 px-3.5 text-[13px] font-extrabold ${filter === item.id ? 'border-[#6539D8] bg-[#8B5CF6] text-white' : 'border-border bg-card'}`}>{item.label}</button>)}</div>
         {careers.length ? <CareerCarousel key={filter} careers={careers} />
           : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">None of your closest matches fit this filter. Try another.</p>}
-      </> : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">Career matches will show up here once the career list is loaded. Your result is saved, so you won’t need to take the quiz again.</p>}
+      </> : even ? <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">Your answers came out even across all six interests, so nothing stands out to match careers to yet. Take it again and lean into what you’d really like or dislike.</p>
+      : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">Career matches will show up here once the career list is loaded. Your result is saved, so you won’t need to take the quiz again.</p>}
     </section>
   </div>
 }
