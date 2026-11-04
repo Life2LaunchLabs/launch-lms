@@ -293,7 +293,7 @@ class HighlightsUpdate(BaseModel):
 class LayoutUpdate(BaseModel):
     header: str | None = None
     sections: str | None = None
-    look: str | None = None  # playful, gallery or volt
+    look: str | None = None  # playful, professional, gallery, volt or arcade
     mode: str | None = None  # light, dark or system
     accent: str | None = None  # "#rrggbb", or "" for the look's own
     banner: str | None = None  # a gradient's id, or "image"

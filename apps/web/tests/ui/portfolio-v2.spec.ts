@@ -25,7 +25,7 @@ test('portfolio.v2: the owner tries on looks, and opens the profile', async ({ p
   let look = await openLook(page)
   // A look themes the whole app, and the portfolio page carries it for visitors. The arrows try on the next one.
   // Step through until Gallery is on, wherever this learner's look started.
-  for (let step = 0; step < 3 && (await page.locator('html').getAttribute('data-look')) !== 'gallery'; step++) {
+  for (let step = 0; step < 5 && (await page.locator('html').getAttribute('data-look')) !== 'gallery'; step++) {
     const before = await page.locator('html').getAttribute('data-look')
     await look.getByRole('button', { name: 'Next look' }).click()
     await expect(page.locator('html')).not.toHaveAttribute('data-look', before || '')
@@ -35,12 +35,13 @@ test('portfolio.v2: the owner tries on looks, and opens the profile', async ({ p
   await page.reload()
   await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-look', 'gallery')
   look = await openLook(page)
-  // Light or dark is the learner's call, whatever the look; an accent and a banner pattern stay for visitors.
+  // Light or dark is the learner's call, whatever the look, and an accent stays for visitors. Gallery has no banner.
   await look.getByRole('button', { name: 'Light', exact: true }).click()
   await expect(page.locator('[data-portfolio-v2]')).not.toHaveClass(/\bdark\b/)
   await look.getByRole('button', { name: 'Accent #16a34a' }).click()
   await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-accent', '')
-  await look.getByRole('button', { name: 'Stripes' }).click()
+  await expect(look.getByText(/Gallery has no banner/)).toBeVisible()
+  await expect(look.getByRole('button', { name: 'Stripes' })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.locator('[data-portfolio-v2]')).not.toHaveClass(/\bdark\b/)

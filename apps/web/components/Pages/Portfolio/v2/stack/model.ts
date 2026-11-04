@@ -21,6 +21,8 @@ export const SECTION_LABELS: Record<SectionType, string> = {
 export const LOOK_NAMES: Record<LookId, Record<SectionType, string>> = {
   playful: { ...SECTION_LABELS },
   gallery: { highlights: 'Numbers', feature: 'Now showing', about: 'Info', experience: 'CV', projects: 'Work', credentials: 'Certified', results: 'Character', headed: 'Next', people: 'Said about me' },
+  professional: { highlights: 'At a glance', feature: 'Featured', about: 'About', experience: 'Experience', projects: 'Projects', credentials: 'Licenses and certifications', results: 'Strengths', headed: 'Goals', people: 'Recommendations' },
+  arcade: { highlights: 'Stats', feature: 'Featured', about: 'Bio', experience: 'History', projects: 'Showcase', credentials: 'Achievements', results: 'Class', headed: 'Next quest', people: 'Squad says' },
   volt: { highlights: 'By the numbers', feature: 'Featured', about: 'About', experience: 'Journey', projects: 'Latest work', credentials: 'Badges', results: 'My type', headed: 'Next up', people: 'Shoutouts' },
 }
 
@@ -28,13 +30,16 @@ export const LOOK_NAMES: Record<LookId, Record<SectionType, string>> = {
  * The smallest and largest height a section can be dragged to in each look, in px: one range for every
  * section, so sections sharing a row never fight over it. In between, a section shows as much as fits.
  */
-export const HEIGHTS: Record<LookId, [number, number]> = { playful: [140, 900], gallery: [160, 1000], volt: [140, 900] }
+export const HEIGHTS: Record<LookId, [number, number]> = { playful: [140, 900], professional: [120, 900], gallery: [160, 1000], volt: [140, 900], arcade: [140, 900] }
 
 const full = (type: SectionType): Row => [{ type, u: 6 }]
 const pair = (a: SectionType, b: SectionType): Row => [{ type: a, u: 3 }, { type: b, u: 3 }]
 const SUGGESTED: Record<LookId, Row[]> = {
   playful: [full('highlights'), full('feature'), full('about'), full('experience'), pair('projects', 'credentials'), pair('results', 'headed'), full('people')],
   gallery: [full('feature'), full('projects'), [{ type: 'about', u: 2 }, { type: 'experience', u: 4 }], full('highlights'), [{ type: 'credentials', u: 2 }, { type: 'results', u: 2 }, { type: 'headed', u: 2 }], full('people')],
+  // The identity column sits beside the stack, so it reads like a profile: summary, then experience first.
+  professional: [full('highlights'), full('about'), full('experience'), full('feature'), full('projects'), pair('credentials', 'people'), pair('results', 'headed')],
+  arcade: [full('feature'), full('highlights'), full('projects'), full('credentials'), pair('experience', 'people'), pair('results', 'headed'), full('about')],
   volt: [full('feature'), full('highlights'), full('projects'), pair('about', 'experience'), [{ type: 'credentials', u: 4 }, { type: 'results', u: 2 }], pair('people', 'headed')],
 }
 
