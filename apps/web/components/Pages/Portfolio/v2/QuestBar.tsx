@@ -95,7 +95,7 @@ function useTail() {
 
 function Tail({ left, color }: { left: number | null; color: string }) {
   if (left === null) return null
-  return <span aria-hidden="true" className="absolute -top-[9px] h-4 w-4 -translate-x-1/2 rotate-45 rounded-[3px] border-l-2 border-t-2 bg-card" style={{ left, borderColor: color }} />
+  return <span aria-hidden="true" data-quest-tail className="absolute -top-[9px] h-4 w-4 -translate-x-1/2 rotate-45 rounded-[3px] border-l-2 border-t-2 bg-card" style={{ left, borderColor: color }} />
 }
 
 /** What the open quest asks for, or the unlock moment once it's finished. */
@@ -105,7 +105,7 @@ export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, bu
   const { quest } = stage
   if (stage.kind === 'unlocked') {
     const unlock = UNLOCKS[quest.n]
-    return <section aria-label={unlock.title} className="week-gold [&>*]:relative [&>*]:z-[1] relative mt-4 flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-[#5a3600] shadow-[0_4px_0_var(--week-gold-edge)]">
+    return <section aria-label={unlock.title} data-quest-banner className="week-gold [&>*]:relative [&>*]:z-[1] relative mt-4 flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-[#5a3600] shadow-[0_4px_0_var(--week-gold-edge)]">
       <UnlockConfetti quest={quest} />
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/50">{quest.n === 3 ? <Rocket className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />}</span>
       <div className="min-w-0 flex-1"><b className="block text-[15.5px] font-extrabold">{unlock.title}</b><small className="block text-[13px] font-semibold opacity-80">{unlock.body}</small></div>
@@ -115,7 +115,7 @@ export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, bu
   }
   const color = quest.n === 3 ? AMBER : BLUE
   const edge = `color-mix(in srgb, ${color} 55%, hsl(var(--card)))`
-  return <section ref={placeBanner} aria-label={quest.title} className="relative mt-4 rounded-2xl border-2 bg-card p-2 shadow-[0_4px_0_hsl(var(--border))]" style={{ borderColor: edge }}>
+  return <section ref={placeBanner} aria-label={quest.title} data-quest-banner className="relative mt-4 rounded-2xl border-2 bg-card p-2 shadow-[0_4px_0_hsl(var(--border))]" style={{ borderColor: edge }}>
     <Tail left={tailLeft} color={edge} />
     <div className="flex items-center gap-1">
       <button type="button" onClick={onList} aria-expanded={list} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-muted">

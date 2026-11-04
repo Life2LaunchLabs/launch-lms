@@ -33,7 +33,7 @@ import { ResultDialog } from './ResultDialog'
 import { LookDialog } from './LookDialog'
 import { WelcomeDialog } from './WelcomeDialog'
 import { BANNERS, LOOKS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
-import { EmptyAdd, SPOT_RING, SectionBar, SpotTip, initials } from './parts'
+import { CornerEdit, EmptyAdd, SPOT_RING, SectionBar, SpotTip, initials } from './parts'
 import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
 import { questPath, spotPaths, spotsFor, stageOf, type Quest } from './progress'
 import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
@@ -233,14 +233,21 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     {REQUIRED.includes(type) ? <span className="px-1 text-[11px] font-bold text-muted-foreground">Always on</span>
       : <button type="button" onClick={() => removeSection(type)} aria-label={`Take out ${titleOf(type)}`} title="Take this section out" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>}
   </span>
+  // One click from the page: each section's pencil opens what edits it.
+  const edits: Partial<Record<SectionType, () => void>> = {
+    feature: () => setFeatureOpen(true), highlights: () => setHighlightsOpen(true),
+    about: () => document.querySelector<HTMLElement>('[data-sec="about"] [data-bio-start]')?.click(),
+    experience: () => page('/portfolio/timeline'), projects: () => page('/portfolio/projects'), credentials: () => page('/portfolio/badges'),
+    results: () => setResultEditor({}), people: () => page('/portfolio/people'), headed: () => page('/plans'),
+  }
   const tileProps = { spots, spotLinks, shell, setShell, owner: editing, orgslug, username, token, onEditLinks: () => setLinksOpen(true), onEditResult: (result?: PortfolioResult) => setResultEditor({ result }) }
   const renderSection = (type: SectionType) => {
-    if (type === 'feature') return <FeatureSection slides={slides} autoplay={Boolean(layout.feature_autoplay)} />
-    if (type === 'highlights') return <div className="flex min-w-0 flex-col" data-highlights-section>
+    if (type === 'feature') return <div className="relative flex min-w-0 flex-col [&>*]:flex-1" data-feature-wrap><CornerEdit section="feature" label="featured" /><FeatureSection slides={slides} autoplay={Boolean(layout.feature_autoplay)} /></div>
+    if (type === 'highlights') return <div className="group relative flex min-w-0 flex-col" data-highlights-section>
+      {highlights.length ? <CornerEdit section="highlights" label="highlights" /> : null}
       <SectionBar section="highlights" />
       {highlights.length ? <section aria-label="Highlights" className="@container relative grid grid-cols-2 gap-3 @md:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
         {highlights.map((item, index) => <div key={index} data-item data-highlight className="min-w-0 rounded-2xl border-2 border-border bg-card px-4 py-3 shadow-[0_4px_0_hsl(var(--border))]"><b className="block truncate text-[21px] font-extrabold leading-[1.1] tabular-nums">{item.value}</b><span className="mt-0.5 block text-[13px] font-semibold text-muted-foreground">{item.label}</span></div>)}
-        {editing && !arranging ? <button type="button" onClick={() => setHighlightsOpen(true)} aria-label="Edit highlights" title="Edit highlights" className="absolute -right-2 -top-3 grid h-[30px] w-[30px] place-items-center rounded-full border-2 border-border bg-card text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button> : null}
       </section> : <EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} />}
     </div>
     return TILE_SECTIONS[type]?.(tileProps) ?? null
@@ -310,9 +317,9 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       </div> : null}
 
       <div className="mt-[22px]" data-layout="stack">
-        <SectionStack rows={rows} editing={arranging} render={renderSection} onMove={onMove} onHeight={setHeights}
+        <SectionStack look={lookId} rows={rows} editing={arranging} render={renderSection} onMove={onMove} onHeight={setHeights}
           heightOf={(type, phone) => layout.heights?.[phone ? `${lookId}:phone` : lookId]?.[type] || null}
-          context={(type) => ({ editing: arranging, look: lookId, title: titleOf(type), rename: rename(type), controls: controls(type) })} />
+          context={(type) => ({ editing: arranging, look: lookId, title: titleOf(type), rename: rename(type), controls: controls(type), edit: editing ? edits[type] : undefined })} />
       </div>
       {arranging && addable.length ? <div className="mt-5 flex flex-wrap items-center gap-2 rounded-3xl border-2 border-dashed border-border p-4">
         <b className="mr-1 text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Add a section</b>
