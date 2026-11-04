@@ -92,6 +92,8 @@ DEBT_KINDS = [
 
 SAVINGS_KINDS = [
     {"key": "savings", "title": "Savings account"},
+    {"key": "k401", "title": "401(k) through work"},
+    {"key": "ira", "title": "IRA"},
     {"key": "retirement", "title": "Retirement (401k or IRA)"},
     {"key": "other", "title": "Something else"},
 ]

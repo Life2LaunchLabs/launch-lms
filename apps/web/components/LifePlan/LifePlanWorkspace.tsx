@@ -14,7 +14,8 @@ import useLifeNumbers from './useLifeNumbers'
 import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
 import BudgetTable from './BudgetTable'
-import { DebtCard, OneTimeCard, OwnCard, SavingsCard } from './MoneyCards'
+import { OneTimeCard, OwnCard } from './MoneyCards'
+import { SavingsDebtCard } from './SavingsDebt'
 import AddTray, { type AddTarget } from './AddTray'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
@@ -133,9 +134,8 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
         <fieldset disabled={Boolean(of)} className="min-w-0 space-y-4">
           <BudgetTable />
+          <SavingsDebtCard />
           <OneTimeCard />
-          <DebtCard />
-          <SavingsCard />
           <OwnCard />
         </fieldset>
         <p className="mt-6 text-xs text-muted-foreground">

@@ -4,7 +4,7 @@ import React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
-import type { Asset, Debt, LifeEvent, Saving, When } from '@services/life/life'
+import type { Asset, Debt, LifeEvent, When } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, uid } from './model'
@@ -74,18 +74,22 @@ function WhenSelect({ value, onChange, already }: { value: When | null; onChange
 const whenLabel = (doc: any, w?: When | null) => (w ? monthLabel(doc.start, phaseOffset(doc, w.phase) + w.month) : '')
 
 export function OneTimeCard() {
-  const { doc, phase, stretch, update } = useLife()
+  const { doc, phase, stretch, update, projection, setOpenLine } = useLife()
   const [edit, setEdit] = React.useState<LifeEvent | null>(null)
   const [isNew, setIsNew] = React.useState(false)
   const [f, setF] = React.useState({ title: '', amount: '', dir: 'out' as 'in' | 'out', month: 0 })
   const evs = doc.events.filter((e) => e.phase === phase.id).sort((a, b) => a.month - b.month)
   const off = phaseOffset(doc, phase.id)
+  // Loan money lands here too, so a short month sits next to the money that covers it.
+  const loans = projection.marks.filter((x) => x.kind === 'loan' && x.amount > 0.5 && x.g >= off && x.g < off + phase.months)
+  const goTo = (id: string | null) => { if (!id) return; setOpenLine(`m:${id}`); requestAnimationFrame(() => document.getElementById(`row-m:${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })) }
   const open = (e: LifeEvent | null) => {
     const ev = e || { id: uid('e'), phase: phase.id, month: stretch.m0, title: '', amount: 0 }
     setIsNew(!e); setEdit(ev); setF({ title: ev.title, amount: ev.amount ? String(Math.abs(ev.amount)) : '', dir: ev.amount > 0 ? 'in' : 'out', month: ev.month })
   }
   return (
-    <Card title="One-time money" note={evs.length ? undefined : 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.'} addLabel="Add" onAdd={() => open(null)} empty={!evs.length}>
+    <Card title="One-time money" note={evs.length || loans.length ? undefined : 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.'} addLabel="Add" onAdd={() => open(null)} empty={!evs.length && !loans.length}>
+      {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
       {evs.map((e) => <Item key={e.id} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
       <Editor title={isNew ? 'Add one-time money' : 'One-time money'} open={!!edit} onClose={() => setEdit(null)}
         onRemove={isNew ? undefined : () => update((d) => { d.events = d.events.filter((x) => x.id !== edit!.id) })}
@@ -100,85 +104,6 @@ export function OneTimeCard() {
         </div>
         <Field label="How much"><input className={inputCls} inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="$0" /></Field>
         <Field label="When"><select className={inputCls} value={f.month} onChange={(e) => setF({ ...f, month: Number(e.target.value) })}>{Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}</select></Field>
-      </Editor>
-    </Card>
-  )
-}
-
-export function DebtCard() {
-  const { doc, catalog, stretch, projection, update } = useLife()
-  const [edit, setEdit] = React.useState<Debt | null>(null)
-  const [isNew, setIsNew] = React.useState(false)
-  const [f, setF] = React.useState<any>({})
-  const all = projection.debtsAt(stretch.g0)
-  const short = projection.short[stretch.g0] || 0
-  const open = (d: Debt | null) => {
-    const x = d || { id: uid('d'), kind: 'student_loan', title: 'Student loan', balance: 0, rate: 5.5, payment: 0, start: null }
-    setIsNew(!d); setEdit(x); setF({ ...x, balance: x.balance ? String(x.balance) : '', rate: String(x.rate), payment: x.payment ? String(x.payment) : '' })
-  }
-  const linked = (d: Debt) => doc.assets.find((a) => a.loan_id === d.id)
-  // Every debt stays in the list: one that starts later or is paid off says so, so nothing you add goes missing.
-  const sub = ({ debt, state, startsAt, paidOffAt }: (typeof all)[number]) => {
-    if (state === 'later') return `Starts ${monthLabel(doc.start, startsAt!)}${debt.payment ? `, then ${money(debt.payment)} a month` : ''}`
-    if (state === 'paid') return paidOffAt != null && paidOffAt < stretch.g0 ? `Paid off ${monthLabel(doc.start, paidOffAt)}` : 'Nothing owed'
-    if (!debt.payment) return `No payment set, at ${debt.rate}%`
-    return `${money(debt.payment)} a month at ${debt.rate}%${paidOffAt != null ? `, paid off ${monthLabel(doc.start, paidOffAt)}` : ''}`
-  }
-  const empty = !all.length && !(short > 0.5)
-  return (
-    <Card title="Debt" note={empty ? 'Loans and cards you pay back. Loans for a car or home are added with the thing you buy.' : undefined} addLabel="Add a loan" onAdd={() => open(null)} empty={empty}>
-      {all.map((x) => <Item key={x.debt.id} icon="landmark" title={x.debt.title} sub={sub(x)} value={x.state === 'paid' ? '$0' : money(-x.balance)} onClick={() => open(x.debt)} />)}
-      {short > 0.5 && <div className="flex items-center gap-3 py-3"><span className="grid size-8 place-items-center rounded-xl bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"><LifeIcon name="receipt" /></span><span className="flex-1"><b className="block font-semibold">Money you'd be short</b><span className="text-xs text-muted-foreground">Your budget doesn't cover this yet.</span></span><b className="tabular-nums text-red-700 dark:text-red-300">{money(-short)}</b></div>}
-      <p className="sr-only">{doc.debts.length === 1 ? "1 debt" : `${doc.debts.length} debts`}</p>
-      <Editor title={isNew ? 'Add a loan' : edit?.title || 'Loan'} open={!!edit} onClose={() => setEdit(null)}
-        onRemove={isNew ? undefined : () => update((d) => { d.debts = d.debts.filter((x) => x.id !== edit!.id); d.assets.forEach((a) => { if (a.loan_id === edit!.id) a.loan_id = null }) })}
-        onSave={() => {
-          const x: Debt = { ...edit!, kind: f.kind, title: f.title.trim() || 'Loan', balance: num(f.balance), rate: num(f.rate), payment: num(f.payment), start: f.start }
-          update((d) => { d.debts = [...d.debts.filter((y) => y.id !== x.id), x] })
-        }}>
-        <Field label="Kind"><select className={inputCls} value={f.kind} onChange={(e) => { const k = catalog?.debt_kinds.find((x) => x.key === e.target.value); setF({ ...f, kind: e.target.value, title: f.title && f.title !== catalog?.debt_kinds.find((x) => x.key === f.kind)?.title ? f.title : k?.title || '' }) }}>
-          {catalog?.debt_kinds.map((k) => <option key={k.key} value={k.key}>{k.title}</option>)}</select></Field>
-        <Field label="Name"><input className={inputCls} value={f.title || ''} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
-        <Field label={f.start ? 'How much you borrow' : 'What you owe now'}><input className={inputCls} inputMode="decimal" value={f.balance || ''} onChange={(e) => setF({ ...f, balance: e.target.value })} placeholder="$0" /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Interest (% a year)"><input className={inputCls} inputMode="decimal" value={f.rate || ''} onChange={(e) => setF({ ...f, rate: e.target.value })} /></Field>
-          <Field label="Payment a month"><input className={inputCls} inputMode="decimal" value={f.payment || ''} onChange={(e) => setF({ ...f, payment: e.target.value })} placeholder="$0" /></Field>
-        </div>
-        {edit && !linked(edit) && <Field label="When"><WhenSelect value={f.start || null} onChange={(w) => setF({ ...f, start: w })} already="I already have it" /></Field>}
-        <p className="text-xs text-muted-foreground">Put in your loan's real rate and payment. We don't estimate these yet.</p>
-      </Editor>
-    </Card>
-  )
-}
-
-export function SavingsCard() {
-  const { doc, catalog, stretch, projection, update } = useLife()
-  const [edit, setEdit] = React.useState<Saving | null>(null)
-  const [isNew, setIsNew] = React.useState(false)
-  const [f, setF] = React.useState<any>({})
-  const at = projection.savingsAt(stretch.g0)
-  const open = (s: Saving | null) => {
-    const x = s || { id: uid('s'), kind: 'retirement', title: 'Retirement (401k or IRA)', balance: 0, rate: 0, monthly: 0, main: false }
-    setIsNew(!s); setEdit(x); setF({ ...x, balance: x.balance ? String(x.balance) : '', rate: String(x.rate), monthly: x.monthly ? String(x.monthly) : '' })
-  }
-  return (
-    <Card title="Savings" note="Your savings account gets whatever is left over each month." addLabel="Add" onAdd={() => open(null)} empty={false}>
-      {doc.savings.map((s) => <Item key={s.id} icon="piggy-bank" title={s.title} sub={s.main ? `Started with ${money(s.balance)}` : `${money(s.monthly)} a month`} value={money(at.find((x) => x.id === s.id)?.balance ?? 0)} onClick={() => open(s)} />)}
-      <Editor title={isNew ? 'Add savings' : edit?.title || 'Savings'} open={!!edit} onClose={() => setEdit(null)}
-        onRemove={isNew || edit?.main ? undefined : () => update((d) => { d.savings = d.savings.filter((x) => x.id !== edit!.id) })}
-        onSave={() => {
-          const x: Saving = { ...edit!, kind: f.kind, title: f.title.trim() || 'Savings', balance: num(f.balance), rate: num(f.rate), monthly: edit!.main ? 0 : num(f.monthly) }
-          update((d) => { d.savings = d.savings.some((y) => y.id === x.id) ? d.savings.map((y) => (y.id === x.id ? x : y)) : [...d.savings, x] })
-        }}>
-        {!edit?.main && <Field label="Kind"><select className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value, title: catalog?.savings_kinds.find((k) => k.key === e.target.value)?.title || f.title })}>
-          {catalog?.savings_kinds.map((k) => <option key={k.key} value={k.key}>{k.title}</option>)}</select></Field>}
-        <Field label="Name"><input className={inputCls} value={f.title || ''} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
-        <Field label={`What's in it at ${monthLabel(doc.start, 0)}`}><input className={inputCls} inputMode="decimal" value={f.balance || ''} onChange={(e) => setF({ ...f, balance: e.target.value })} placeholder="$0" /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          {!edit?.main && <Field label="Put in a month"><input className={inputCls} inputMode="decimal" value={f.monthly || ''} onChange={(e) => setF({ ...f, monthly: e.target.value })} placeholder="$0" /></Field>}
-          <Field label="Growth (% a year)"><input className={inputCls} inputMode="decimal" value={f.rate || ''} onChange={(e) => setF({ ...f, rate: e.target.value })} placeholder="0" /></Field>
-        </div>
-        <p className="text-xs text-muted-foreground">Use your account's real rate. We don't estimate growth yet, so it starts at 0%.</p>
       </Editor>
     </Card>
   )
