@@ -39,7 +39,7 @@ export interface SwipeCard extends Omit<FullCareer, 'match'> {
   my_place_pay: { place: string; yearly: number } | null
 }
 
-export interface CareerDeck { cards: SwipeCard[]; total: number; has_quiz: boolean }
+export interface CareerDeck { cards: SwipeCard[]; total: number; has_careers: boolean; has_quiz: boolean }
 
 /** The O*NET-SOC code a career resource is about, read from its O*NET OnLine link. */
 export const careerCode = (url?: string | null) => (url || '').match(/(\d{2}-\d{4}\.\d{2})/)?.[1] || null

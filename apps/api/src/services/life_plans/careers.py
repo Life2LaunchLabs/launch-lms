@@ -179,7 +179,7 @@ def deck(db: Session, user: PublicUser, org_id: int, size: int = DECK_SIZE) -> d
     interests first, with skipped ones pushed back. Without a quiz result they come in a steady shuffle."""
     resources = career_resources(db, user, org_id)
     if not resources:
-        return {"cards": [], "total": 0, "has_quiz": quiz_scores(db, user.id) is not None}
+        return {"cards": [], "total": 0, "has_careers": False, "has_quiz": quiz_scores(db, user.id) is not None}
     saved = set(db.exec(select(UserSavedResource.resource_id).where(UserSavedResource.user_id == user.id, col(UserSavedResource.resource_id).in_([r.id for r in resources.values()]))).all())
     skips = {row.code: row.count for row in db.exec(select(CareerSkip).where(CareerSkip.user_id == user.id)).all()}
     entries = {c.code: c for c in db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED, col(CareerEntry.code).in_(list(resources)))).all()}
@@ -218,7 +218,7 @@ def deck(db: Session, user: PublicUser, org_id: int, size: int = DECK_SIZE) -> d
             "pay": {"yearly": oregon[entry.soc]} if entry.soc in oregon else None,
             "my_place_pay": {"place": local[entry.soc][0], "yearly": local[entry.soc][1]} if entry.soc in local else None,
         })
-    return {"cards": cards, "total": len(candidates), "has_quiz": scores is not None}
+    return {"cards": cards, "total": len(candidates), "has_careers": True, "has_quiz": scores is not None}
 
 
 def skip(db: Session, user: PublicUser, code: str) -> dict:
