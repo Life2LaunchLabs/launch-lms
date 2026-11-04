@@ -11,7 +11,7 @@ export type { LookId, LookMode }
 export const LOOKS: Array<{ id: LookId; name: string; blurb: string; colors: [string, string, string, string]; night: [string, string, string, string]; font: string }> = [
   { id: 'playful', name: 'Playful', blurb: 'Chunky cards and buttons with a 3D edge, heavy rounding, a color for every section.', colors: ['#f5f8f9', '#4C8DFF', '#EC4F9A', '#F5A524'], night: ['#0e151c', '#4C8DFF', '#EC4F9A', '#1c2733'], font: 'inherit' },
   { id: 'gallery', name: 'Gallery', blurb: 'Art-house: your name set huge in a serif, the work big and uneven like a gallery wall. No cards, one loud accent.', colors: ['#ffffff', '#ff3d00', '#0b0b0b', '#ececec'], night: ['#0b0b0b', '#ff3d00', '#f2f0ea', '#1c1c1c'], font: '"Instrument Serif", Georgia, serif' },
-  { id: 'volt', name: 'Volt', blurb: 'Modern and minimal: bold condensed type, one electric accent, tall photo tiles, no depth.', colors: ['#f1f2f4', '#b8e62e', '#0c0d0f', '#ffffff'], night: ['#070708', '#b8e62e', '#f4f4f5', '#121214'], font: 'Anton, Impact, "Arial Narrow", sans-serif' },
+  { id: 'volt', name: 'Volt', blurb: 'Modern and minimal: nothing boxed, quiet headings, soft photo corners and one electric accent.', colors: ['#f1f2f4', '#b8e62e', '#0c0d0f', '#ffffff'], night: ['#070708', '#b8e62e', '#f4f4f5', '#121214'], font: 'Manrope, system-ui, sans-serif' },
 ]
 
 export const MODES: Array<{ id: LookMode; label: string }> = [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'system', label: 'System' }]
