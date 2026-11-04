@@ -33,7 +33,7 @@ export function HeadedTile({ shell, owner, orgslug, spot }: { shell: Shell; owne
   const headed = shell.headed || { now: null, next: [] }
   const href = getUriWithOrg(orgslug, '/plans')
   const empty = !headed.now && !headed.next.length
-  return <Tile color="lime" spot={spot} icon={Flag} title="Where I’m headed" href={href} label="Where I’m headed">
+  return <Tile section="headed" color="lime" spot={spot} icon={Flag} title="Where I’m headed" href={href} label="Where I’m headed">
     {headed.now ? <PhaseRow phase={headed.now} label="Now" now /> : null}
     {headed.next.map((phase, index) => <PhaseRow key={phase.id || index} phase={phase} label={index ? 'After that' : 'Next'} />)}
     {empty ? <EmptyAdd title="Plan your now and next" hint="Where you are right now, and the phase that comes after." href={href} />

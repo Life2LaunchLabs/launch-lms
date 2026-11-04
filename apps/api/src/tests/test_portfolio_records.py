@@ -174,10 +174,11 @@ def test_highlights_and_layout_show_to_visitors():
 
         assert public["highlights"] == [{"value": "300+", "label": "hours worked"}, {"value": "3.8", "label": "GPA"}]
         # No look until one is picked; then visitors see the portfolio in it.
-        plain = {"header": "center", "sections": "grid", "look": None, "mode": None, "banner": "look", "accent": None, "banner_image": None}
+        plain = {"header": "center", "sections": "grid", "look": None, "mode": None, "banner": "look", "accent": None, "banner_image": None,
+                 "stack": None, "names": {}, "heights": {}, "features": [], "feature_autoplay": False}
         assert public["layout"] == plain
-        portfolio_display.update_layout(LayoutUpdate(look="sunset", mode="dark", accent="#E8642C", banner="aurora"), actor, db)
-        assert service.get_public_shell(1, "maya", db)["layout"] == {**plain, "look": "sunset", "mode": "dark", "accent": "#e8642c", "banner": "aurora"}
+        portfolio_display.update_layout(LayoutUpdate(look="gallery", mode="dark", accent="#E8642C", banner="glow"), actor, db)
+        assert service.get_public_shell(1, "maya", db)["layout"] == {**plain, "look": "gallery", "mode": "dark", "accent": "#e8642c", "banner": "glow"}
         # Clearing the accent goes back to the look's own.
         assert portfolio_display.update_layout(LayoutUpdate(accent=""), actor, db)["layout"]["accent"] is None
         with pytest.raises(HTTPException):
@@ -194,6 +195,35 @@ def test_highlights_and_layout_show_to_visitors():
             portfolio_display.update_layout(LayoutUpdate(look="neon"), actor, db)
         with pytest.raises(HTTPException):
             portfolio_display.update_highlights(HighlightsUpdate(highlights=[Highlight(value=" ", label="GPA")]), actor, db)
+
+
+def test_section_stack_names_heights_and_features():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        stack = [[{"type": "projects", "u": 4}, {"type": "people", "u": 2}], [{"type": "about", "u": 3}], [{"type": "nope", "u": 6}, {"type": "projects", "u": 6}],
+                 [{"type": "credentials", "u": 5}, {"type": "results", "u": 2}, {"type": "headed", "u": 2}]]
+        layout = portfolio_display.update_layout(LayoutUpdate(stack=stack, names={"projects": "  My builds ", "bogus": "x"}, heights={"volt": {"projects": 420, "about": 5000}, "volt:phone": {"projects": 300}, "neon": {"about": 1}},
+                                                              features=[{"kind": "project", "ref": "p1"}, {"kind": "project", "ref": "p1"}, {"kind": "spell", "ref": "x"}, {"kind": "link", "ref": "instagram"}], feature_autoplay=True), actor, db)["layout"]
+        # Each section once, widths put right, unknown sections dropped, and bio and experience always on the page.
+        assert layout["stack"] == [[{"type": "projects", "u": 4}, {"type": "people", "u": 2}], [{"type": "about", "u": 6}],
+                                   [{"type": "credentials", "u": 2}, {"type": "results", "u": 2}, {"type": "headed", "u": 2}], [{"type": "experience", "u": 6}]]
+        assert layout["names"] == {"projects": "My builds"}
+        assert layout["heights"] == {"volt": {"projects": 420, "about": 1200}, "volt:phone": {"projects": 300}}
+        assert layout["features"] == [{"kind": "project", "ref": "p1"}, {"kind": "link", "ref": "instagram"}] and layout["feature_autoplay"] is True
+        # null goes back to the look's suggested layout, and leaves the rest alone.
+        layout = portfolio_display.update_layout(LayoutUpdate(stack=None), actor, db)["layout"]
+        assert layout["stack"] is None and layout["names"] == {"projects": "My builds"}
+
+
+def test_old_color_looks_become_playful_with_their_color():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        portfolio = service.get_or_create_portfolio(actor, db)
+        portfolio.theme_settings = {"layout": {"look": "midnight", "banner": "aurora"}}
+        db.add(portfolio)
+        db.commit()
+        layout = service.get_public_shell(1, "maya", db)["layout"]
+        assert (layout["look"], layout["accent"], layout["mode"], layout["banner"]) == ("playful", "#5b2bd6", "dark", "look")
 
 
 def test_seen_unlocks_stay_and_only_mastery_shows_to_visitors():

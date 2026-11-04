@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import type { ComponentType, ReactNode } from 'react'
-import { ChevronRight, Plus } from 'lucide-react'
+import { ChevronRight, GripVertical, Plus } from 'lucide-react'
+import type { SectionType } from '@services/portfolio/records'
+import { useSection } from './stack/SectionStack'
 
 // Pieces the new portfolio front page shares: tile colors, generated covers, the tile frame and empty prompts.
 
@@ -37,21 +39,51 @@ export function Cover({ url, seed, label, className = '' }: { url?: string; seed
   </div>
 }
 
-/** One section of the front page: a colored icon, the title and count, then a preview of what's inside. */
-export function Tile({ color, icon: Icon, title, count, href, wide = false, children, label, spot }: { color: TileColor; icon: ComponentType<{ className?: string }>; title: string; count?: number | null; href?: string; wide?: boolean; children: ReactNode; label?: string; spot?: string }) {
+/**
+ * One section of the front page: a colored icon, the title and count, then a preview of what's inside.
+ * In the section stack it takes its title from the stack (the learner's name for it, or the look's), and in
+ * edit mode its header row turns into the section's controls: a grip, the title to rename, and the rest.
+ */
+export function Tile({ color, icon: Icon, title, count, href, wide = false, children, label, spot, section }: { color: TileColor; icon: ComponentType<{ className?: string }>; title: string; count?: number | null; href?: string; wide?: boolean; children: ReactNode; label?: string; spot?: string; section?: SectionType }) {
   const [face, edge] = PALETTE[color]
-  const heading = <div className="flex items-center gap-2.5">
-    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
-    <h2 className="min-w-0 flex-1 truncate text-[17px] font-extrabold">{href ? <Link href={href} className="outline-none after:absolute after:inset-0 after:rounded-3xl focus-visible:underline">{title}</Link> : title}</h2>
-    {count ? <span className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
-    {href ? <ChevronRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" /> : null}
+  const ctx = useSection(section)
+  const editing = Boolean(ctx?.editing)
+  const shown = ctx?.title || title
+  const heading = <div className="flex min-w-0 items-center gap-2.5" data-tile-head>
+    {editing ? <GripVertical className="-ml-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
+    <span data-tile-icon className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
+    <h2 data-tile-title className="min-w-0 flex-1 truncate text-[17px] font-extrabold">{editing && ctx?.rename ? <EditableTitle value={shown} onSave={ctx.rename} />
+      : href && !editing ? <Link href={href} className="outline-none after:absolute after:inset-0 after:rounded-3xl focus-visible:underline">{shown}</Link> : shown}</h2>
+    {editing ? ctx?.controls : <>
+      {count ? <span data-tile-count className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
+      {href ? <ChevronRight className="h-5 w-5 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" /> : null}
+    </>}
   </div>
-  return <section aria-label={label || title} data-tile data-wide={wide || undefined} className={`group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition hover:-translate-y-0.5 ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
+  return <section aria-label={label || title} data-tile data-wide={wide || undefined} className={`@container group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition ${editing ? '' : 'hover:-translate-y-0.5'} ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
     {spot ? <SpotTip label={spot} /> : null}
     {heading}
-    {/* Links and buttons inside sit above the tile's own link. */}
-    <div className="relative z-[1] flex min-w-0 flex-col gap-3.5 [&_a]:relative [&_button]:relative">{children}</div>
+    {/* Links and buttons inside sit above the tile's own link. In a section with a set height, what doesn't fit is hidden. */}
+    <div data-fit-box className={`relative z-[1] flex min-w-0 flex-col gap-3.5 [&_a]:relative [&_button]:relative ${ctx?.fixed ? 'min-h-0 flex-1 overflow-hidden' : ''}`}>{children}</div>
   </section>
+}
+
+/** A section title renamed in place: click, type, Enter or click away to keep it, Escape to leave it. */
+export function EditableTitle({ value, onSave }: { value: string; onSave: (next: string) => void }) { // eslint-disable-line no-unused-vars
+  return <span data-edit-control contentEditable suppressContentEditableWarning spellCheck={false} role="textbox" aria-label="Section title" title="Click to rename"
+    className="cursor-text rounded-md px-1 outline-none ring-[var(--org-primary-color)] decoration-dashed decoration-2 underline-offset-4 hover:underline focus:ring-2"
+    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.target as HTMLElement).blur() } else if (event.key === 'Escape') { (event.target as HTMLElement).textContent = value; (event.target as HTMLElement).blur() } }}
+    onBlur={(event) => { const next = (event.target.textContent || '').trim(); if (next !== value) onSave(next) }}>{value}</span>
+}
+
+/** The header row a section without one (highlights, featured) gets in edit mode, for its controls. */
+export function SectionBar({ section }: { section: SectionType }) {
+  const ctx = useSection(section)
+  if (!ctx?.editing) return null
+  return <div className="mb-2 flex min-w-0 items-center gap-2.5" data-tile-head>
+    <GripVertical className="-ml-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    <h2 className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-muted-foreground">{ctx.rename ? <EditableTitle value={ctx.title} onSave={ctx.rename} /> : ctx.title}</h2>
+    {ctx.controls}
+  </div>
 }
 
 /** What an owner sees where a section is empty: one dashed row that starts it. */
