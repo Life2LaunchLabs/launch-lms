@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ArrowLeft, ChevronRight, ExternalLink, FileText, Paperclip, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
 import { useAsk } from '@components/ui/ask-dialog'
@@ -12,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Switch } from '@components/ui/switch'
+import { getUriWithOrg } from '@services/config/config'
 import { normalizeMediaUrl } from '@services/media/media'
 import { results as resultsApi } from '@services/portfolio/records'
 import type { PortfolioResult } from '../portfolioTypes'
@@ -23,6 +26,9 @@ import { RESULT_TEMPLATES, filled, summaryFor, templateOf, type ResultTemplate }
 // Adding or changing one of "What I'm like". A result follows one of the known assessments (pick it, then
 // set the sliders, the type or the top picks, and attach the PDF if there is one), or is "something else":
 // a name and a line. Skills are a list. Results a plan wrote can be hidden or removed here too.
+
+/** The source of a result the in-app interest quiz wrote; its scores come from the quiz, so they aren't typed over. */
+export const INTEREST_QUIZ = 'interest_quiz'
 
 export const RESULT_KINDS = [
   { value: 'interests', label: 'Interests', example: 'Artistic · Social · Investigative' },
@@ -64,6 +70,9 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, toke
   const [busy, setBusy] = useState(false)
   const [picker, setPicker] = useState(false)
   const ask = useAsk()
+  const org = useOrg() as any
+  const quizHref = org?.slug ? getUriWithOrg(org.slug, '/portfolio/interests') : ''
+  const fromQuiz = result?.source === INTEREST_QUIZ
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const template = step?.template
   const kind = RESULT_KINDS.find((item) => item.value === draft.kind)
@@ -103,8 +112,11 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, toke
         {RESULT_TEMPLATES.map((item) => <button key={item.id} type="button" onClick={() => choose(item)} className="flex items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-left hover:border-[#8B5CF6]"><span className="min-w-0 flex-1"><b className="block text-[15px] font-extrabold">{item.name}</b><small className="block text-[13px] font-semibold text-muted-foreground">{item.blurb}</small></span><ChevronRight className="h-5 w-5 text-muted-foreground" /></button>)}
         <button type="button" onClick={() => { setStep({ custom: 'other' }); set('kind', 'other') }} className="rounded-2xl border-2 border-dashed border-border p-3 text-left text-[14px] font-bold text-muted-foreground hover:text-foreground">Something else: a name and a line</button>
       </div> : <div className="grid gap-4">
-        {template ? <>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-bold"><span className="text-muted-foreground">Haven’t taken it?</span>{template.take.map((place) => <a key={place.url} href={place.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#6539D8] hover:underline dark:text-[#b9a2ff]">{place.label}<span className="text-muted-foreground">({place.free ? 'free' : 'paid'})</span><ExternalLink className="h-3.5 w-3.5" /></a>)}</div>
+        {fromQuiz ? <div className="grid justify-items-center gap-3 rounded-2xl bg-muted/60 p-4 text-foreground">
+          <ResultPicture result={{ data: draft.data }} /><b className="text-center text-[15px] font-extrabold">{result?.summary}</b>
+          {quizHref ? <Button asChild variant="surface" size="sm"><Link href={quizHref}>See your careers or take it again</Link></Button> : null}
+        </div> : template ? <>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-bold"><span className="text-muted-foreground">Haven’t taken it?</span>{template.id === 'riasec' && quizHref ? <Link href={quizHref} className="inline-flex items-center gap-1 text-[#6539D8] hover:underline dark:text-[#b9a2ff]">Take it here<span className="text-muted-foreground">(5 min)</span></Link> : null}{template.take.map((place) => <a key={place.url} href={place.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#6539D8] hover:underline dark:text-[#b9a2ff]">{place.label}<span className="text-muted-foreground">({place.free ? 'free' : 'paid'})</span><ExternalLink className="h-3.5 w-3.5" /></a>)}</div>
           <TemplateFields template={template} data={draft.data} setData={(data) => set('data', data)} />
           {filled(template, draft.data) ? <div className="grid justify-items-center gap-2 rounded-2xl bg-muted/60 p-4 text-foreground"><ResultPicture result={{ data: draft.data }} /><b className="text-center text-[15px] font-extrabold">{summaryFor(template, draft.data)}</b></div> : null}
         </> : <>

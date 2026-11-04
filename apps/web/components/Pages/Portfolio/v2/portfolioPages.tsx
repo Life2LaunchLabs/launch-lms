@@ -8,6 +8,7 @@ import { PortfolioDetail, type DetailView } from './PortfolioDetail'
 import { PortfolioPeoplePage } from './PortfolioPeoplePage'
 import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
 import { PortfolioImportPage } from './PortfolioImportPage'
+import { InterestQuizPage } from './InterestQuizPage'
 import { ResumeBuilder } from './ResumeBuilder'
 import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 import { ExperiencePage } from './ExperiencePage'
@@ -40,11 +41,12 @@ export async function publicPortfolioPage(orgslug: string, username: string, vie
     : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
 }
 
-/** My people, My documents and imports. */
-export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import') {
+/** My people, My documents, imports and the interest quiz. */
+export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import' | 'interests') {
   const token = await getServerAccessToken()
   if (!token) redirect(getUriWithOrg(orgslug, '/'))
   if (page === 'import') return <PortfolioImportPage orgslug={orgslug} />
+  if (page === 'interests') return <><PageTitleRegistration section="What I’m like" detail="Interest quiz" /><InterestQuizPage orgslug={orgslug} /></>
   const shell = await getMyPortfolio(token)
   return page === 'people' ? <PortfolioPeoplePage initialShell={shell} orgslug={orgslug} /> : <PortfolioDocumentsPage initialShell={shell} orgslug={orgslug} />
 }

@@ -95,3 +95,19 @@ async function quoteRequest(token: string, method: string, payload?: unknown) {
 }
 export const getQuoteRequest = (token: string): Promise<QuoteRequestView> => quoteRequest(token, 'GET')
 export const answerQuoteRequest = (token: string, payload: { name: string; role_label: string; body: string; reference: boolean }) => quoteRequest(token, 'POST', payload)
+
+// The interest quiz (O*NET's Mini Interest Profiler): 30 activities rated 0 to 4. Taking it saves the RIASEC
+// result to "What I'm like" and returns careers whose interest profile lines up, with pay where we have it.
+export type QuizCareer = { code: string; soc: string; title: string; job_zone: number | null; top_interests: string; match: number; pay: { yearly: number; place: string; year: number | null } | null }
+export type InterestQuiz = {
+  items: Array<{ n: number; type: string; text: string }>
+  answers: Array<{ value: number; label: string }>
+  types: Array<{ key: string; label: string }>
+  max: number; credit: string; links: { tool: string; license: string }
+}
+export type QuizTaken = { result: any; scores: Record<string, number>; code: string; careers: QuizCareer[] }
+export const getInterestQuiz = async (token: string): Promise<{ quiz: InterestQuiz; taken: QuizTaken | null }> => {
+  const response = await fetch(`${getAPIUrl()}portfolio/me/interest-quiz`, RequestBodyWithAuthHeader('GET', null, null, token))
+  return errorHandling(response)
+}
+export const takeInterestQuiz = (answers: number[], token: string): Promise<QuizTaken> => send('interest-quiz', 'POST', { answers }, token)
