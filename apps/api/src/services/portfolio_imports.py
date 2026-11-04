@@ -49,7 +49,14 @@ def _existing(portfolio_id: int, source: str, db_session: Session) -> set[str]:
         keys |= {row for row in db_session.exec(select(model.source_reference).where(model.portfolio_id == portfolio_id)).all() if row}
     keys |= {f"doc:{title}" for title in db_session.exec(select(PortfolioDocument.title).where(PortfolioDocument.portfolio_id == portfolio_id, PortfolioDocument.source == source)).all()}
     keys |= {f"url:{url}" for url in db_session.exec(select(PortfolioLink.url).where(PortfolioLink.portfolio_id == portfolio_id)).all()}
+    for title, organization, start in db_session.exec(select(TimelineEntry.title, TimelineEntry.organization, TimelineEntry.start_date).where(TimelineEntry.portfolio_id == portfolio_id)).all():
+        entry = _entry_key(title, organization)
+        keys |= {entry, f"{entry}|{(start or '')[:4]}"}
     return keys
+
+
+def _entry_key(title: str, organization: str) -> str:
+    return "entry:" + "|".join(" ".join((part or "").lower().split()) for part in (title, organization))
 
 
 def _already(item: dict, existing: set[str], portfolio=None) -> bool:
@@ -59,7 +66,18 @@ def _already(item: dict, existing: set[str], portfolio=None) -> bool:
         return f"doc:{item['title']}" in existing
     if item["kind"] == "link":
         return f"url:{item['record']['url']}" in existing
+    if item["kind"] == "timeline" and _same_entry(item["record"], existing):
+        return True
     return item["key"] in existing
+
+
+def _same_entry(record: dict, existing: set[str]) -> bool:
+    """The learner may have typed this one in already: same title and place, starting the same year or undated."""
+    entry = _entry_key(record.get("title", ""), record.get("organization", ""))
+    year = (record.get("start_date") or "")[:4]
+    if not year:
+        return entry in existing
+    return f"{entry}|{year}" in existing or f"{entry}|" in existing
 
 
 async def preview_import(source: str, upload: UploadFile, current_user: PublicUser, db_session: Session) -> dict:

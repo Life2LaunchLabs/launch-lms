@@ -60,9 +60,9 @@ test('portfolio.v2: the owner moves and takes out sections in place, any time', 
   await expect(page.getByRole('button', { name: 'Edit page' })).toHaveCount(0)
   // Bio and experience can't be taken out; the rest can, and come back from the adds below. Titles follow the look, so go by section.
   await expect(page.locator('[data-sec="about"]').getByRole('button', { name: /^Take out/ })).toHaveCount(0)
-  await page.locator('[data-sec="headed"]').hover()
-  await page.locator('[data-sec="headed"]').getByRole('button', { name: /^Take out/ }).click()
-  await expect(page.locator('[data-sec="headed"]')).toHaveCount(0)
+  await page.locator('[data-sec="people"]').hover()
+  await page.locator('[data-sec="people"]').getByRole('button', { name: /^Take out/ }).click()
+  await expect(page.locator('[data-sec="people"]')).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Add a section' }).locator('[data-empty-add]').first()).toBeVisible()
   // Drag About onto the top of the section before it: it gets a row of its own there.
   const order = () => page.locator('[data-sec]:not([hidden])').evaluateAll((all) => all.sort((a, b) => Number((a as HTMLElement).dataset.gr) - Number((b as HTMLElement).dataset.gr) || a.getBoundingClientRect().left - b.getBoundingClientRect().left).map((one) => (one as HTMLElement).dataset.sec))
@@ -85,7 +85,7 @@ test('portfolio.v2: the owner moves and takes out sections in place, any time', 
   // The look's own layout comes back from the look dialog.
   const look = await openLook(page)
   await look.getByRole('button', { name: /^Use .*’s layout$/ }).click()
-  await expect(page.locator('[data-sec="headed"]')).toHaveCount(1)
+  await expect(page.locator('[data-sec="people"]')).toHaveCount(1)
   await page.keyboard.press('Escape')
 })
 

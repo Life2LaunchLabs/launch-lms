@@ -20,7 +20,9 @@ import type { PortfolioResult, Shell } from '../portfolioTypes'
 // feature it on the front page and the eye to hide it. Below, the tests you haven't added, each with a big
 // way to take it (free or paid, said plainly) and a way to copy in a result you already have.
 
-const SOURCES: Record<string, string> = { [INTEREST_QUIZ]: 'From the interest quiz', manual: 'Added by you', plan: 'From a plan', import: 'Imported' }
+const SOURCES: Record<string, string> = { [INTEREST_QUIZ]: 'From the interest quiz', manual: 'Added by you', plan: 'From a plan', import: 'Imported', cis: 'From Oregon CIS', linkedin: 'From LinkedIn', resume: 'From your résumé' }
+// An imported skill is one skill with a name; its summary is a description. A typed line lists several in its summary.
+const skillChips = (item: PortfolioResult) => ['cis', 'linkedin', 'resume'].includes(item.source) ? [item.name] : item.summary.split(/[,;·]/)
 const month = (value?: string | null) => value ? new Date(`${value.slice(0, 7)}-01T12:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''
 
 function ResultCard({ result, onOpen, onFeature, onHide }: { result: PortfolioResult; onOpen: () => void; onFeature: () => void; onHide: () => void }) {
@@ -74,7 +76,7 @@ export function PortfolioResultsPage({ initialShell, orgslug }: { initialShell: 
 
       {skills.length ? <section className="mt-8 grid gap-3" aria-label="Skills">
         <h2 className="text-lg font-extrabold">Skills</h2>
-        <button type="button" onClick={() => setEditor({ result: skills[0] })} className="flex flex-wrap gap-1.5 rounded-2xl border-2 border-border bg-card p-4 text-left hover:bg-muted/40">{skills.flatMap((item) => item.summary.split(/[,;·]/).map((part) => part.trim()).filter(Boolean)).map((skill) => <span key={skill} className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-[13px] font-bold">{skill}</span>)}</button>
+        <button type="button" onClick={() => setEditor({ result: skills[0] })} className="flex flex-wrap gap-1.5 rounded-2xl border-2 border-border bg-card p-4 text-left hover:bg-muted/40">{skills.flatMap((item) => skillChips(item).map((part) => part.trim()).filter(Boolean)).map((skill) => <span key={skill} className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-[13px] font-bold">{skill}</span>)}</button>
       </section> : null}
 
       {more.length ? <section className="mt-10 grid gap-4" aria-label="Tests to take">

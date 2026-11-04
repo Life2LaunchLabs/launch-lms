@@ -25,9 +25,9 @@ function Card({ title, note, onAdd, addLabel, children, empty }: { title: string
   )
 }
 
-function Item({ icon, title, sub, value, tone, onClick }: { icon: string; title: string; sub?: string; value: string; tone?: 'in' | 'out'; onClick: () => void }) {
+function Item({ id, icon, title, sub, value, tone, onClick }: { id?: string; icon: string; title: string; sub?: string; value: string; tone?: 'in' | 'out'; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 border-b border-border/70 py-3 text-left last:border-b-0">
+    <button id={id} type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-lg border-b border-border/70 py-3 text-left last:border-b-0">
       <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted"><LifeIcon name={icon} /></span>
       <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{title}</span>{sub && <span className="block truncate text-xs text-muted-foreground">{sub}</span>}</span>
       <span className={`font-semibold tabular-nums ${tone === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{value}</span>
@@ -89,7 +89,7 @@ export function OneTimeCard() {
   return (
     <Card title="One-time money" note={evs.length || loans.length ? undefined : 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.'} addLabel="Add" onAdd={() => open(null)} empty={!evs.length && !loans.length}>
       {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
-      {evs.map((e) => <Item key={e.id} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
+      {evs.map((e) => <Item key={e.id} id={`row-ev:${e.id}`} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
       <Editor title={isNew ? 'Add one-time money' : 'One-time money'} open={!!edit} onClose={() => setEdit(null)}
         onRemove={isNew ? undefined : () => update((d) => { d.events = d.events.filter((x) => x.id !== edit!.id) })}
         onSave={() => {

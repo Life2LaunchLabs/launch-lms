@@ -36,7 +36,24 @@ export interface PhaseCover { url: string }
 export interface PhaseTax { filing?: 'single' | 'joint'; rate?: number | null }
 /** Real numbers to start a phase from, where estimates meet what is actually there: by saving or debt id. */
 export interface Starting { savings?: Record<string, number>; debts?: Record<string, number> }
-export interface Phase { id: string; title: string; kind: string; place?: string | null; place_label?: string; months: number; lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null; starting?: Starting | null }
+/** What a learner does in a phase. `career` is an O*NET code; `schools` are ones still being weighed. */
+export interface Activity { kind: 'learning' | 'working' | 'looking' | 'caring' | 'gap' | 'other'; level?: string | null; school?: string | null; school_id?: string | null; schools?: string[]; field?: string | null; career?: string | null; career_title?: string | null; employer?: string | null; apprentice?: boolean }
+export interface Phase {
+  id: string; title: string; kind: string; place?: string | null; place_label?: string
+  /** Only the length of a phase nothing comes after; otherwise it runs until the next one starts. */
+  months: number
+  lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null; starting?: Starting | null
+  /** When it starts, YYYY-MM. Old plans have none and run one after another from the plan's start. */
+  starts?: string | null
+  /** The phases it comes after: none for the first, two or more where two ways join up. */
+  after?: string[]
+  /** A dashed idea on the map: quick to add and remove. */
+  idea?: boolean
+  activities?: Activity[]
+  living?: string | null
+  /** Place keys still being weighed; `place` is the one picked. */
+  places?: string[]
+}
 /** A photo of a place, picked ahead of time from Wikimedia Commons, with the credit it is shown with. */
 export interface PlacePhoto { url: string; width?: number; height?: number; title?: string; author: string; license: string; license_url?: string; source_url: string }
 export interface When { phase: string; month: number }

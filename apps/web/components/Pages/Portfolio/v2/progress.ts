@@ -6,7 +6,7 @@ import { skillsOf } from './resultTemplates'
 // the API only keeps which unlocks the learner has seen, so an unlock never goes away again.
 
 /** Where a quest item is done on the front page. The page outlines that spot with the item's instruction. */
-export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'headed' | 'people' | 'settings' | 'name'
+export type Spot = 'avatar' | 'about' | 'links' | 'experience' | 'projects' | 'credentials' | 'results' | 'people' | 'settings' | 'name'
 export type QuestItem = { key: string; label: string; detail?: string; done: boolean; have?: number; need?: number; spot: Spot }
 export type Quest = { n: 1 | 2 | 3; title: string; why: string; items: QuestItem[]; done: number; total: number; complete: boolean }
 /** working: items left on quest n. unlocked: quest n is finished and its unlock moment hasn't been seen. mastered: all done. */
@@ -52,7 +52,6 @@ export function quests(shell: Shell): Quest[] {
       // Only what can be backed up counts: a badge earned here. Uploaded cards wait until they can be checked.
       count('proven', 'Prove it', (shell.badges?.earned || []).length, 1, 'credentials', 'Earn a badge by finishing a plan'),
       count('like', 'Show what you’re like', (shell.results || []).filter((item) => item.kind !== 'skills' || (item.data?.values || []).length).length, 1, 'results', 'Your interests, strengths or values'),
-      { key: 'headed', label: 'Plan your now and next', detail: 'The phase you’re in now and the one after it', done: Boolean(shell.headed?.now && shell.headed.next.length), spot: 'headed' },
     ]),
   ]
 }
@@ -97,7 +96,7 @@ export function questPath(item: QuestItem, shell: Shell): string | null {
     now: `/portfolio/timeline/new?${mark}`, xp3: `/portfolio/timeline/new?${mark}`, school: `/portfolio/timeline/new?type=education&${mark}`,
     stories: untold ? `/portfolio/timeline/${untold.timeline_uuid}?${mark}` : '/portfolio/timeline',
     made: `/portfolio/projects/new?${mark}`, work: bare ? `/portfolio/projects/${bare.project_uuid}?${mark}` : `/portfolio/projects/new?${mark}`,
-    vouched: '/portfolio/people', headed: '/plans',
+    vouched: '/portfolio/people',
     // What you're like starts with the interest quiz (RIASEC), right here.
     like: `/portfolio/interests?${mark}`,
   }

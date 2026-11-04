@@ -12,7 +12,6 @@ import { timelineDateLabel, type TimelineEntry } from '../Timeline'
 import { KindCover } from './covers'
 import { EmptyAdd, PALETTE, PersonDot, Tile, colorFor } from './parts'
 import type { Credential, PortfolioBadge, PortfolioResult, Project, Quote, SetShell, Shell } from '../portfolioTypes'
-import { HeadedTile } from './HeadedTile'
 import { INTEREST_QUIZ, RESULT_KINDS } from './ResultDialog'
 import { ResultPicture } from './ResultView'
 import { useSection } from './stack/SectionStack'
@@ -168,13 +167,12 @@ export const TILE_SECTIONS: Partial<Record<SectionType, (props: TileProps) => Re
   projects: (props) => <ProjectsTile {...props} />,
   credentials: (props) => <CredentialsTile {...props} />,
   results: (props) => <ResultsTile {...props} />,
-  headed: (props) => <HeadedTile shell={props.shell} owner={props.owner} orgslug={props.orgslug} spot={props.spots?.headed} />,
   people: (props) => <PeopleTile {...props} />,
 }
 
 /** Whether a section has anything to show. Owners see every section (an empty one invites them to start it). */
 export function hasSection(type: SectionType, shell: Shell, owner: boolean): boolean {
-  if (type === 'headed') return owner
+  if (type === 'headed') return false
   if (owner) return true
   switch (type) {
     case 'highlights': return Boolean(shell.highlights?.length)
