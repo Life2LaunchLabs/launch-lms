@@ -4,7 +4,6 @@ from typing import Literal
 
 import redis
 from config.config import get_launchlms_config
-from fastapi.responses import StreamingResponse
 from fastapi import (
     APIRouter,
     Depends,
@@ -30,8 +29,7 @@ from src.db.users import (
 )
 from src.security.auth import get_authenticated_user, get_current_user
 from src.services.orgs.orgs import get_org_join_mechanism
-from src.services.security.rate_limiting import check_password_reset_rate_limit, check_rate_limit
-from src.services.users.data_export import build_zip
+from src.services.security.rate_limiting import check_password_reset_rate_limit
 from src.services.users.password_reset import (
     change_password_with_reset_code,
     change_password_with_reset_code_platform,
@@ -118,36 +116,6 @@ async def api_get_current_user(
     Get current user
     """
     return current_user.model_dump()
-
-
-@router.get("/me/data-export")
-async def api_download_my_data(
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
-):
-    """Download my data: a zip of everything the platform keeps about you, in JSON, with your uploaded files."""
-    if isinstance(current_user, AnonymousUser) or not getattr(current_user, "id", None):
-        raise HTTPException(status_code=401, detail="Sign in to download your data")
-    try:
-        allowed, _, retry_after = check_rate_limit(f"data_export:{current_user.id}", max_attempts=5, window_seconds=60 * 60)
-    except Exception:  # no Redis (tests, a local run) never blocks the download
-        allowed, retry_after = True, 0
-    if not allowed:
-        raise HTTPException(status_code=429, detail="You've downloaded your data a few times this hour. Try again later.",
-                            headers={"Retry-After": str(retry_after)})
-    name, body = build_zip(db_session, current_user)
-
-    def chunks():
-        try:
-            while chunk := body.read(1024 * 1024):
-                yield chunk
-        finally:
-            body.close()
-
-    return StreamingResponse(chunks(), media_type="application/zip", headers={
-        "Content-Disposition": f'attachment; filename="{name}"',
-        "Cache-Control": "no-store",
-    })
 
 
 @router.get("/session")
