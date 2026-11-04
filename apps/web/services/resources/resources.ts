@@ -13,6 +13,7 @@ export type ResourceType =
   | 'tool'
   | 'guide'
   | 'course'
+  | 'school'
   | 'other'
 
 export interface ResourceChannel {

@@ -95,3 +95,39 @@ def test_scopes_and_organization_are_enforced(resources_mcp):
     assert call("save_resource", {"resource_uuid": "resource_other", "title": "Mine now"})["isError"]
     assert call("get_resource", {"resource_uuid": "resource_other"})["isError"]
     assert session.exec(select(Resource).where(Resource.resource_uuid == "resource_other")).one().title == "Theirs"
+
+
+def test_schools_from_the_college_scorecard_become_school_resources(resources_mcp):
+    from src.db.life_plans import EstimateFact, EstimateSource, SchoolEntry
+    from src.services.life_plans.estimates import dims_key
+
+    session, _, call, _ = resources_mcp
+    bind = session.get_bind()
+    for model in (EstimateSource, EstimateFact, SchoolEntry):
+        model.__table__.create(bind, checkfirst=True)
+    source = EstimateSource(key="scorecard", title="College Scorecard", released="2025-06")
+    session.add(source)
+    session.commit()
+    session.add(SchoolEntry(unitid="209551", name="University of Oregon", city="Eugene", state="OR", url="www.uoregon.edu/", control="Public",
+                            degree="Graduate degrees", students=19000, admission_rate=0.86, completion_rate=0.74, median_earnings=56000,
+                            source_id=source.id, status="reviewed"))
+    session.add(SchoolEntry(unitid="1", name="Draft College", state="OR", url="draft.edu", source_id=source.id, status="draft"))
+    session.add(SchoolEntry(unitid="2", name="No Site College", state="OR", url="", source_id=source.id, status="reviewed"))
+    session.add(EstimateFact(metric="tuition", place="US-OR", dims={"school": "209551", "residency": "in"},
+                             dims_key=dims_key({"school": "209551", "residency": "in"}), value=13700, period="yr", source_id=source.id, status="reviewed"))
+    session.commit()
+    channel = call("save_resource_channel", {"name": "Oregon schools"})["structuredContent"]
+
+    first = call("add_school_resources", {"channel_uuid": channel["channel_uuid"]})
+    assert not first.get("isError"), first
+    first = first["structuredContent"]
+    assert first["added"] == ["University of Oregon"] and [s["name"] for s in first["skipped"]] == ["No Site College"]
+    school = session.exec(select(Resource).where(Resource.title == "University of Oregon")).one()
+    assert school.resource_type == "school" and school.external_url == "https://www.uoregon.edu/"
+    assert "Public school in Eugene, OR" in school.description and "86% of applicants admitted" in school.description
+    assert "$13,700" in school.description and "College Scorecard, released 2025-06" in school.description
+
+    again = call("add_school_resources", {"channel_uuid": channel["channel_uuid"]})["structuredContent"]
+    assert again["added"] == [] and again["updated"] == ["University of Oregon"]
+    assert len(session.exec(select(Resource).where(Resource.resource_type == "school")).all()) == 1
+    assert len(session.exec(select(ResourceChannelResource)).all()) == 1

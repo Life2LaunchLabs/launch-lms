@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { BookOpen, ClipboardCheck, FileText, GraduationCap, Link2, Play, Wrench, type LucideIcon } from 'lucide-react'
+import { BookOpen, ClipboardCheck, FileText, GraduationCap, Link2, Play, School, Wrench, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import type { Resource, ResourceType } from '@services/resources/resources'
@@ -20,6 +20,7 @@ export const RESOURCE_KIND: Record<ResourceType, { label: string; icon: LucideIc
   tool: { label: 'Tool', icon: Wrench, verb: 'Open on', color: '#0e9fb2' },
   assessment: { label: 'Quiz', icon: ClipboardCheck, verb: 'Take it on', color: '#8155ef' },
   course: { label: 'Course', icon: GraduationCap, verb: 'Start on', color: '#ec8320' },
+  school: { label: 'School', icon: School, verb: 'Visit', color: '#d6407a' },
   other: { label: 'Link', icon: Link2, verb: 'Open on', color: '#5f6f82' },
 }
 
@@ -118,6 +119,22 @@ function Drawing({ type }: { type: ResourceType }) {
         <Bar className="h-[8px] bg-muted-foreground/35" width="70%" />
         <span className="block h-[4px] rounded-full bg-border"><span className="block h-full w-[45%] rounded-full" style={{ backgroundColor: color }} /></span>
       </span>
+    </span>
+  }
+  if (type === 'school') {
+    // A campus hall: roof, columns and steps, with a pennant on top.
+    return <span className="absolute inset-x-[22%] bottom-[10%] top-[14%] flex flex-col items-center">
+      <span className="relative h-[20%] w-full shrink-0">
+        <span className="absolute inset-y-0 left-1/2 w-[2px] bg-white/80" />
+        <span className="absolute left-1/2 top-0 h-[50%] w-[14%] rounded-r-sm bg-white" />
+      </span>
+      <span className="h-[16%] w-full shrink-0 bg-white [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
+      <span className="h-[7%] w-full shrink-0 bg-white" />
+      <span className="flex w-[90%] flex-1 justify-between bg-white/25 px-[6%]">
+        {[0, 1, 2, 3].map((index) => <span key={index} className="w-[11%] bg-white" />)}
+      </span>
+      <span className="h-[7%] w-full shrink-0 bg-white" />
+      <span className="h-[6%] w-[108%] shrink-0 rounded-b-sm bg-white/80" />
     </span>
   }
   return <Screen>

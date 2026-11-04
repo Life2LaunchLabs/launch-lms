@@ -23,7 +23,7 @@ from src.services.mcp.tool import Tool
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
 
-_TYPES = ["video", "article", "guide", "tool", "assessment", "course", "other"]
+_TYPES = ["video", "article", "guide", "tool", "assessment", "course", "school", "other"]
 _RESOURCE_FIELDS = ("title", "description", "resource_type", "external_url", "provider_name", "provider_url", "cover_image_url",
                     "estimated_time", "is_featured", "access_mode")
 _CHANNEL_FIELDS = ("name", "description", "color", "audience", "comment_rule", "hold_links", "listed")
@@ -205,6 +205,87 @@ def _refresh_embedding(resource_id: int) -> None:
         asyncio.get_running_loop().create_task(refresh_resource_search_embedding_task(resource_id))
 
 
+def _school_link(url: str) -> str:
+    url = (url or "").strip()
+    if not url:
+        return ""
+    return url if url.startswith(("http://", "https://")) else f"https://{url.lstrip('/')}"
+
+
+def _school_description(school: dict) -> str:
+    """One plain paragraph of the school's College Scorecard facts, each one only when the Scorecard has it."""
+    where = ", ".join(part for part in (school.get("city"), school.get("state")) if part)
+    kind = f"{school['control']} school" if school.get("control") else "School"
+    first = f"{kind} in {where}" if where else kind
+    if school.get("degree"):
+        first += f", awarding up to {school['degree'].lower()}" if school["degree"] != "Certificates" else ", awarding certificates"
+    facts = []
+    if school.get("students"):
+        facts.append(f"{school['students']:,} students")
+    if school.get("admission_rate") is not None:
+        facts.append(f"{round(school['admission_rate'] * 100)}% of applicants admitted")
+    if school.get("completion_rate") is not None:
+        facts.append(f"{round(school['completion_rate'] * 100)}% finish")
+    tuition = (school.get("tuition") or {}).get("in")
+    if tuition:
+        facts.append(f"in-state tuition about ${round(tuition):,} a year")
+    if school.get("median_earnings"):
+        facts.append(f"graduates earn about ${round(school['median_earnings']):,} a year ten years after starting")
+    text = first + "."
+    if facts:
+        text += " " + "; ".join(facts) + "."
+    source = school.get("source") or {}
+    released = f", released {source['released']}" if source.get("released") else ""
+    return text + f" Figures from the U.S. Department of Education's College Scorecard{released}."
+
+
+async def add_school_resources(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    from src.db.life_plans import SchoolEntry
+    from src.services.life_plans.estimates import REVIEWED
+    from src.services.life_plans.public_data import get_school
+
+    channel = _own_channel(db_session, ctx, str(args.get("channel_uuid") or ""))
+    state = str(args.get("state") or "OR").upper()
+    stmt = select(SchoolEntry).where(SchoolEntry.status == REVIEWED, SchoolEntry.state == state)
+    unitids = args.get("unitids")
+    if unitids:
+        if not isinstance(unitids, list):
+            raise HTTPException(status_code=422, detail="unitids must be a list")
+        stmt = stmt.where(SchoolEntry.unitid.in_([str(item) for item in unitids]))  # type: ignore[union-attr]
+    entries = sorted(db_session.exec(stmt).all(), key=lambda entry: entry.name)
+    own = db_session.exec(select(Resource).where(Resource.org_id == ctx.org_id, Resource.resource_type == "school")).all()
+    by_link = {resource.external_url.rstrip("/").lower(): resource for resource in own}
+    added, updated, skipped = [], [], []
+    for entry in entries:
+        school = get_school(db_session, entry.unitid)
+        link = _school_link(entry.url)
+        if not school or not link:
+            skipped.append({"unitid": entry.unitid, "name": entry.name, "why": "no website in the College Scorecard"})
+            continue
+        fields = {"title": entry.name, "description": _school_description(school), "resource_type": "school", "external_url": link,
+                  "provider_name": entry.name, "provider_url": link, "access_mode": "free",
+                  "tag_uuids": await _tag_uuids(request, db_session, ctx, [tag for tag in (entry.control, entry.degree) if tag])}
+        existing = by_link.get(link.rstrip("/").lower())
+        if existing:
+            await service.update_resource(request, existing.resource_uuid, ResourceUpdate(**fields), ctx.user, db_session)
+            resource = existing
+            updated.append(entry.name)
+        else:
+            created = await service.create_resource(request, ctx.org_id, ResourceCreate(**fields), ctx.user, db_session,
+                                                    enrich_metadata=bool(args.get("fill_from_link", False)))
+            resource = _own_resource(db_session, ctx, created["resource_uuid"])
+            by_link[link.rstrip("/").lower()] = resource
+            added.append(entry.name)
+        in_channel = db_session.exec(select(ResourceChannelResource.id).where(
+            ResourceChannelResource.channel_id == channel.id, ResourceChannelResource.resource_id == resource.id)).first()
+        if not in_channel:
+            count = len(db_session.exec(select(ResourceChannelResource.id).where(ResourceChannelResource.channel_id == channel.id)).all())
+            await service.add_resource_to_channel(request, channel.channel_uuid, resource.resource_uuid, ctx.user, db_session, sort_order=count)
+        _refresh_embedding(resource.id)
+    note = None if entries else f"No reviewed College Scorecard schools for {state}: load and review them in Platform > Life plans data first."
+    return {"channel": channel.name, "state": state, "added": added, "updated": updated, "skipped": skipped, **({"note": note} if note else {})}
+
+
 _RESOURCE_TYPE = {"type": "string", "enum": _TYPES, "description": "What it is: sets its icon, color and card in Discover."}
 _AUDIENCE = {"type": "string", "enum": ["org", "groups", "staff"], "description": "Who sees the channel: everyone in the organization (default), only groups given it on the admin page, or staff only."}
 
@@ -285,6 +366,22 @@ RESOURCE_TOOLS = [
             "listed": {"type": "boolean"},
         }},
         save_resource_channel,
+        scope="resources:write",
+        read_only=False,
+    ),
+    Tool(
+        "add_school_resources",
+        "Add schools from the College Scorecard",
+        "Make each reviewed College Scorecard school in a state (default OR) a `school` resource in the given channel: its website as the link, "
+        "and a short description of its Scorecard facts (students, admission, completion, in-state tuition, earnings) with the source named. "
+        "Run it again to refresh: schools already added (matched by website) are updated, never duplicated. Pass unitids to add only some.",
+        {"properties": {
+            "channel_uuid": {"type": "string", "description": "This organization's channel to file them in (make one with save_resource_channel)."},
+            "state": {"type": "string", "description": "Two-letter state. Default OR."},
+            "unitids": {"type": "array", "items": {"type": "string"}, "description": "Only these schools (federal school ids)."},
+            "fill_from_link": {"type": "boolean", "description": "Fetch each new school's site preview for a cover image. Default false (slower)."},
+        }, "required": ["channel_uuid"]},
+        add_school_resources,
         scope="resources:write",
         read_only=False,
     ),

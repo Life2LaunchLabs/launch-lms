@@ -20,6 +20,7 @@ export const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
   { value: 'tool', label: 'Tools' },
   { value: 'assessment', label: 'Quizzes' },
   { value: 'course', label: 'Courses' },
+  { value: 'school', label: 'Schools' },
   { value: 'other', label: 'More resources' },
 ]
 
