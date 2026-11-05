@@ -160,7 +160,14 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
       ])
       const created = response.data?.created || 0
       const skipped = (response.data?.results || []).length - created
-      toast.success(`${created} invitation${created === 1 ? '' : 's'} created${skipped ? ` · ${skipped} skipped` : ''}`, { id: toastId })
+      // An invitation is saved even when its email doesn't go out; say so, with the reason, instead of a plain success.
+      const unsent = (response.data?.results || []).filter((item: any) => item.status === 'invited' && item.email_sent === false)
+      if (unsent.length) {
+        const reason = String(unsent[0].detail || '').replace("Invitation saved, but the email didn't send. ", '')
+        toast.error(`${created} invitation${created === 1 ? '' : 's'} saved, but ${unsent.length === created ? (created === 1 ? 'the email' : 'the emails') : `${unsent.length} email${unsent.length === 1 ? '' : 's'}`} didn't send. ${reason} You can resend from the list.`, { id: toastId, duration: 10000 })
+      } else {
+        toast.success(`${created} invitation${created === 1 ? '' : 's'} sent${skipped ? ` · ${skipped} skipped` : ''}`, { id: toastId })
+      }
       close()
       onInvited?.()
     } catch (error: any) {

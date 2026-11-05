@@ -227,7 +227,7 @@ function OrgUsers() {
     const res = await resendUserInvitation(org.id, invitationUuid, access_token)
     if (res.status === 200) {
       await mutateInvitedUsers()
-      toast.success('Invitation resent', { id: toastId })
+      if (res.data?.email_sent === false) toast.error(res.data?.detail || "The email didn't send", { id: toastId, duration: 10000 }); else toast.success('Invitation resent', { id: toastId })
     } else toast.error(res.data?.detail || 'Could not resend invitation', { id: toastId })
   }
 
