@@ -78,25 +78,29 @@ export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: {
 /** Plans: invitations, then the phases of the learner's life as pictures, then finished goals. */
 export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
   const router = useRouter()
-  const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { data: invitations = [], isLoading: invitesLoading } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { change } = useLifePlan(token)
-  const focus = useSearchParams()?.get('phase')
+  const params = useSearchParams()
+  const focus = params?.get('phase')
+  const wantsMap = Boolean(focus || params?.has('map'))
+  const nowPhase = life?.phases?.length ? current(normalize(life)) : undefined
+  // Plans opens on the phase you're in; the map is one tap from there (?map or ?phase=). Invitations waiting keep you here to answer them.
+  const toPhase = Boolean(nowPhase && !wantsMap && token && !invitesLoading && !invitations.length)
+  React.useEffect(() => { if (toPhase && nowPhase) router.replace(getUriWithOrg(orgslug, routePaths.org.phase(nowPhase.id))) }, [toPhase, nowPhase?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const photos = usePlacePhotos(token)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
 
   if (life?.phases?.length) {
-    const now = current(normalize(life))
-    return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8">
+    if (toPhase) return null
+    const now = nowPhase
+    return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6">
       <SharedWithYou token={token} />
       <Invitations invitations={invitations} token={token} />
       <section aria-labelledby="plan-map" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="plan-map" className="text-2xl font-extrabold tracking-tight">Your map</h2>
-          {now ? <Button variant="brand" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(now.id))}>You’re in {now.title}</Link></Button> : null}
-        </div>
-        <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus} />
+        <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus}
+          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">Your map</h1>}
+          actions={now ? <Button variant="brand" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(now.id))}>You’re in {now.title}</Link></Button> : null} />
       </section>
-      <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} />
     </div>
   }
 
