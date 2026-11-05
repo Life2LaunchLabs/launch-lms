@@ -20,7 +20,7 @@ from src.services.resource_comments import (
     report_comment,
     update_comment,
 )
-from src.services.resource_export import export_resources
+from src.services.resource_export import export_counts, export_resources
 from src.services.resource_import import ImportRequest, fill_in_imported, import_rows, read_spreadsheet
 from src.services.resource_library import (
     get_channel,
@@ -170,12 +170,27 @@ def api_export_resources(
     file_format: Literal["xlsx", "csv"] = Query(default="xlsx", alias="format"),
     channels: str | None = Query(default=None, description="Channel uuids, comma separated; `none` is resources in no channel"),
     types: str | None = Query(default=None, description="Resource types, comma separated"),
+    starred: bool = False,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    """Staff: the organization's resources as a spreadsheet (simple or full), narrowed to some channels and types."""
-    content, name, media_type = export_resources(org_id, current_user, db_session, detail, file_format, channels, types)
+    """Staff: the organization's resources as a spreadsheet (simple or full), narrowed to some channels, types, or starred ones."""
+    content, name, media_type = export_resources(org_id, current_user, db_session, detail, file_format, channels, types, starred)
     return Response(content=content, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@router.get("/org/{org_id}/export/counts")
+def api_export_counts(
+    org_id: int,
+    channels: str | None = None,
+    types: str | None = None,
+    starred: bool = False,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """How many resources each export choice gives, for the counts on the export dialog."""
+    split = lambda value: [part.strip() for part in (value or "").split(",") if part.strip()]  # noqa: E731
+    return export_counts(org_id, current_user, db_session, split(channels), split(types), starred)
 
 
 @router.put("/channels/{channel_uuid}/order")

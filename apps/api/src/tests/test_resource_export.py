@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 
 from src.db.goals import StepEntry
 from src.db.resource_library import OrgSavedChannel
-from src.db.resources import ResourceComment, ResourceTag, ResourceTagLink, UserSavedResource
+from src.db.resources import Resource, ResourceComment, ResourceTag, ResourceTagLink, UserSavedResource
 from src.services import resource_export as export
 from src.services import resource_import as importer
 from src.tests.test_resource_access import LEARNER, NOW, PARTNER, PLAIN, STAFF, _channel, _resource, _user, _world
@@ -41,7 +41,7 @@ def test_simple_export_lists_the_orgs_resources_with_their_channels_and_reimport
         header, rows = export.export_rows(PLAIN, _user(STAFF), db)
         assert header == export.SIMPLE
         assert [row[0] for row in rows] == ["Resource 10", "Resource 11", "Resource 12"]
-        assert rows[0] == ["Resource 10", "https://example.com/10", "=HYPERLINK(\"x\")", "guide", "OES", 20, "Channel 1; Channel 2", "health"]
+        assert rows[0] == ["Resource 10", "https://example.com/10", "=HYPERLINK(\"x\")", "guide", "OES", 20, "Channel 1; Channel 2", "health", "", "resource_10"]
         # Its columns are the ones the importer guesses.
         assert sorted(importer.guess_field(name, set()) for name in header) == sorted(importer.FIELDS)
 
@@ -85,3 +85,20 @@ def test_files_open_and_keep_formulas_as_text():
         content, name, _ = export.export_resources(PLAIN, _user(STAFF), db, "full", "csv", "channel_1,channel_2")
         rows = list(csv.reader(io.StringIO(content.decode("utf-8-sig"))))
         assert name.endswith("-full-" + name.split("-full-")[1]) and rows[0][-1] == "Updated" and len(rows) == 3
+
+
+def test_counts_for_the_dialog_and_starred_only():
+    with _world() as db:
+        _setup(db)
+        second = db.get(Resource, 11)
+        second.is_featured = True
+        db.add(second)
+        db.commit()
+        counts = export.export_counts(PLAIN, _user(STAFF), db, ["channel_2"])
+        assert counts["channels"] == {"channel_1": 1, "channel_2": 2, "none": 1}
+        assert (counts["types"], counts["total"], counts["all"], counts["starred"], counts["any"]) == ({"guide": 1, "video": 1}, 2, 2, 1, 3)
+        assert export.export_counts(PLAIN, _user(STAFF), db, types=["video"], starred=True)["total"] == 1
+        # Starred ones lead the sheet.
+        _, rows = export.export_rows(PLAIN, _user(STAFF), db)
+        assert [row[0] for row in rows] == ["Resource 11", "Resource 10", "Resource 12"]
+        assert [row[0] for row in export.export_rows(PLAIN, _user(STAFF), db, starred=True)[1]] == ["Resource 11"]

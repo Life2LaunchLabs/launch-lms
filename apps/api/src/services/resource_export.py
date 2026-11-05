@@ -1,9 +1,9 @@
 """An organization's resources as a spreadsheet, for staff: simple (what each one is and where it goes) or full.
 
-Simple columns match what the importer reads (``resource_import.FIELDS``), so a simple export can be
-edited and brought back in. Full adds the rest: cost, cover, flags, ids, dates, and how learners use it
+Simple columns match what the importer reads (``resource_import.FIELDS``), so an export can be edited and
+brought back in, updating the resources it came from (matched by Resource ID, else link). Full adds the rest: cost, cover, live, dates, and how learners use it
 (saves, opens from Discover and plan steps, reviews, average rating). Rows can be narrowed to some channels (the org's own and the
-Library channels it saved; ``none`` stands for resources in no channel) and some types.
+Library channels it saved; ``none`` stands for resources in no channel), some types, and starred only.
 """
 
 from __future__ import annotations
@@ -34,8 +34,8 @@ from src.db.users import PublicUser
 from src.services import resources as base
 
 NO_CHANNEL = "none"
-SIMPLE = ["Title", "Link", "Description", "Type", "Provider", "Minutes", "Channel", "Tags"]
-FULL = [*SIMPLE, "Cost", "Featured", "Live", "Provider site", "Cover image", "Saves", "Opens", "Reviews", "Average rating", "Resource ID", "Created", "Updated"]
+SIMPLE = ["Title", "Link", "Description", "Type", "Provider", "Minutes", "Channel", "Tags", "Starred", "Resource ID"]
+FULL = [*SIMPLE, "Cost", "Live", "Provider site", "Cover image", "Saves", "Opens", "Reviews", "Average rating", "Created", "Updated"]
 MIME = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "csv": "text/csv; charset=utf-8"}
 
 
@@ -51,34 +51,89 @@ def _day(stamp: str | None) -> str:
     return (stamp or "")[:10]
 
 
-def export_rows(org_id: int, current_user: PublicUser, db_session: Session, detail: Literal["simple", "full"] = "simple",
-                channel_uuids: list[str] | None = None, types: list[str] | None = None) -> tuple[list[str], list[list]]:
-    base._get_org_or_404(org_id, db_session)
-    base._require_staff(current_user, org_id, db_session)
-    channels = base._org_channels(org_id, db_session)
-    by_uuid = {channel.channel_uuid: channel for channel in channels}
-    wanted = set(channel_uuids or [])
-    unknown = wanted - set(by_uuid) - {NO_CHANNEL}
+class _Scope:
+    """What can be exported: the org's own resources and those in the Library channels it saved, with their channels."""
+
+    def __init__(self, org_id: int, db_session: Session):
+        self.channels = base._org_channels(org_id, db_session)
+        self.by_uuid = {channel.channel_uuid: channel for channel in self.channels}
+        channel_ids = {int(channel.id): channel for channel in self.channels}  # type: ignore[arg-type]
+        placed = db_session.exec(select(ResourceChannelResource).where(ResourceChannelResource.channel_id.in_(list(channel_ids)))).all() if channel_ids else []  # type: ignore[attr-defined]
+        self.filed: dict[int, list[str]] = defaultdict(list)
+        self.channel_uuids: dict[int, set[str]] = defaultdict(set)
+        for row in sorted(placed, key=lambda item: (item.channel_id, item.sort_order, item.id or 0)):
+            channel = channel_ids[int(row.channel_id)]
+            self.filed[int(row.resource_id)].append(channel.name)
+            self.channel_uuids[int(row.resource_id)].add(channel.channel_uuid)
+        in_saved = {int(row.resource_id) for row in placed if channel_ids[int(row.channel_id)].org_id != org_id}
+        query = select(Resource).where((Resource.org_id == org_id) | (Resource.id.in_(in_saved or {-1})))  # type: ignore[attr-defined]
+        # Starred first, then by title, the way the org sees its resources.
+        self.resources = sorted(db_session.exec(query).all(), key=lambda item: (not item.is_featured, (item.title or "").lower()))
+        self.org_id = org_id
+
+    def pick(self, channel_uuids: set[str] | None = None, types: set[str] | None = None, starred: bool = False) -> list[Resource]:
+        picked = []
+        for item in self.resources:
+            key = int(item.id)  # type: ignore[arg-type]
+            if channel_uuids:
+                if not (self.channel_uuids.get(key, set()) & channel_uuids or (NO_CHANNEL in channel_uuids and not self.filed.get(key) and item.org_id == self.org_id)):
+                    continue
+            elif item.org_id != self.org_id:
+                # Library resources come only with the saved channel they're in.
+                continue
+            if types and _value(item.resource_type) not in types:
+                continue
+            if starred and not item.is_featured:
+                continue
+            picked.append(item)
+        return picked
+
+
+def _check(scope: _Scope, channel_uuids: list[str] | None, types: list[str] | None) -> None:
+    unknown = set(channel_uuids or []) - set(scope.by_uuid) - {NO_CHANNEL}
     if unknown:
         raise HTTPException(status_code=404, detail=f"Channel not found: {sorted(unknown)[0]}")
     bad_types = set(types or []) - {item.value for item in ResourceTypeEnum}
     if bad_types:
         raise HTTPException(status_code=422, detail=f"Unknown resource type: {sorted(bad_types)[0]}")
 
-    channel_ids = {int(channel.id): channel for channel in channels}  # type: ignore[arg-type]
-    filed: dict[int, list[str]] = defaultdict(list)
-    placed = db_session.exec(select(ResourceChannelResource).where(ResourceChannelResource.channel_id.in_(list(channel_ids)))).all() if channel_ids else []  # type: ignore[attr-defined]
-    for row in sorted(placed, key=lambda item: (item.channel_id, item.sort_order, item.id or 0)):
-        filed[int(row.resource_id)].append(channel_ids[int(row.channel_id)].name)
-    in_wanted = {int(row.resource_id) for row in placed if channel_ids[int(row.channel_id)].channel_uuid in wanted}
 
-    # The org's own resources, plus what sits in the Library channels it saved when those are asked for.
-    query = select(Resource).where((Resource.org_id == org_id) | (Resource.id.in_(in_wanted or {-1})))  # type: ignore[attr-defined]
-    if types:
-        query = query.where(Resource.resource_type.in_(types))  # type: ignore[attr-defined]
-    resources = db_session.exec(query.order_by(Resource.title)).all()
-    if wanted:
-        resources = [item for item in resources if int(item.id) in in_wanted or (NO_CHANNEL in wanted and not filed.get(int(item.id)))]  # type: ignore[arg-type]
+def _scope(org_id: int, current_user: PublicUser, db_session: Session, channel_uuids: list[str] | None, types: list[str] | None) -> _Scope:
+    base._get_org_or_404(org_id, db_session)
+    base._require_staff(current_user, org_id, db_session)
+    scope = _Scope(org_id, db_session)
+    _check(scope, channel_uuids, types)
+    return scope
+
+
+def export_counts(org_id: int, current_user: PublicUser, db_session: Session, channel_uuids: list[str] | None = None,
+                  types: list[str] | None = None, starred: bool = False) -> dict:
+    """How many rows each choice gives, for the dialog's chips.
+
+    ``channels``: per channel, and ``any`` for no channel filter (starred filter only). ``types``: per type within the chosen
+    channels. ``all`` and ``starred``: within the chosen channels and types, either way. ``total``: what the download holds.
+    """
+    scope = _scope(org_id, current_user, db_session, channel_uuids, types)
+    chosen, kinds = set(channel_uuids or []), set(types or [])
+    in_channels = scope.pick(chosen, None, starred)
+    by_type: dict[str, int] = defaultdict(int)
+    for item in in_channels:
+        by_type[_value(item.resource_type)] += 1
+    return {
+        "channels": {uuid: len(scope.pick({uuid}, None, starred)) for uuid in [*scope.by_uuid, NO_CHANNEL]},
+        "any": len(scope.pick(set(), None, starred)),
+        "types": dict(by_type),
+        "all": len(scope.pick(chosen, kinds, False)),
+        "starred": len(scope.pick(chosen, kinds, True)),
+        "total": len(scope.pick(chosen, kinds, starred)),
+    }
+
+
+def export_rows(org_id: int, current_user: PublicUser, db_session: Session, detail: Literal["simple", "full"] = "simple",
+                channel_uuids: list[str] | None = None, types: list[str] | None = None, starred: bool = False) -> tuple[list[str], list[list]]:
+    scope = _scope(org_id, current_user, db_session, channel_uuids, types)
+    resources = scope.pick(set(channel_uuids or []), set(types or []), starred)
+    filed = scope.filed
 
     ids = [int(item.id) for item in resources]  # type: ignore[arg-type]
     tags: dict[int, list[str]] = defaultdict(list)
@@ -107,12 +162,13 @@ def export_rows(org_id: int, current_user: PublicUser, db_session: Session, deta
     for item in resources:
         key = int(item.id)  # type: ignore[arg-type]
         row: list = [item.title or "", item.external_url or "", item.description or "", _value(item.resource_type), item.provider_name or "",
-                     item.estimated_time if item.estimated_time is not None else "", "; ".join(filed.get(key, [])), "; ".join(sorted(tags.get(key, []), key=str.lower))]
+                     item.estimated_time if item.estimated_time is not None else "", "; ".join(filed.get(key, [])), "; ".join(sorted(tags.get(key, []), key=str.lower)),
+                     "yes" if item.is_featured else "", item.resource_uuid]
         if detail == "full":
             saves, opens = usage.get(key, (0, 0))
             count, average = reviews.get(key, (0, None))
-            row += [_value(item.access_mode), "yes" if item.is_featured else "", "yes" if item.is_live else "", item.provider_url or "", item.cover_image_url or "",
-                    saves, opens, count, average if average is not None else "", item.resource_uuid, _day(item.creation_date), _day(item.update_date)]
+            row += [_value(item.access_mode), "yes" if item.is_live else "", item.provider_url or "", item.cover_image_url or "",
+                    saves, opens, count, average if average is not None else "", _day(item.creation_date), _day(item.update_date)]
         rows.append(row)
     return (FULL if detail == "full" else SIMPLE), rows
 
@@ -157,8 +213,8 @@ def filename(org_slug: str | None, detail: str, file_format: str) -> str:
 
 
 def export_resources(org_id: int, current_user: PublicUser, db_session: Session, detail: Literal["simple", "full"] = "simple",
-                     file_format: Literal["xlsx", "csv"] = "xlsx", channels: str | None = None, types: str | None = None) -> tuple[bytes, str, str]:
+                     file_format: Literal["xlsx", "csv"] = "xlsx", channels: str | None = None, types: str | None = None, starred: bool = False) -> tuple[bytes, str, str]:
     """The file's bytes, its name and its media type."""
-    header, rows = export_rows(org_id, current_user, db_session, detail, _split(channels), _split(types))
+    header, rows = export_rows(org_id, current_user, db_session, detail, _split(channels), _split(types), starred)
     org = base._get_org_or_404(org_id, db_session)
     return render(header, rows, file_format), filename(getattr(org, "slug", None), detail, file_format), MIME[file_format]
