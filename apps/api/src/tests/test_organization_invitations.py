@@ -331,7 +331,7 @@ async def test_managed_join_link_is_hashed_domain_limited_and_reserves_seats(ses
 @pytest.mark.asyncio
 async def test_resend_enforces_cooldown(session: Session, monkeypatch):
     _seed(session)
-    invitation = _invitation(last_sent_at=datetime.utcnow(), delivery_attempts=1)
+    invitation = _invitation(last_sent_at=datetime.utcnow(), delivery_attempts=1, email_sent=True, delivery_status="delivered")
     session.add(invitation)
     session.commit()
 

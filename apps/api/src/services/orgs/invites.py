@@ -251,8 +251,11 @@ def send_direct_invitation_email(
     invitation_token: str,
     base_url: str,
     setup: dict | None = None,
+    idempotency_key: str | None = None,
 ):
     """Send a recipient-specific invitation without a managed signup code.
+
+    Raises EmailDeliveryError (services/email/utils.py) with a reason when the email can't be sent.
 
     ``setup`` (services/orgs/staff_setup.describe) adds the inviter's note and, for staff, the assignments
     they'll be on or what they'll be able to do.
@@ -287,5 +290,6 @@ def send_direct_invitation_email(
     </body>
 </html>
 """,
+        idempotency_key=idempotency_key,
     )
     return True

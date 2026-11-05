@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import aliased
@@ -29,7 +30,7 @@ from src.security.access.access import is_staff_role, org_access, require_role_c
 from src.security.access.catalog import LIMITS
 from src.security.org_auth import is_org_member, require_org_owner_admin, staff_permissions
 from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
-from src.services.email.utils import get_base_url_from_request
+from src.services.email.utils import EmailDeliveryError, get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
 from src.services.orgs.membership import assigned_user_ids as learners_on_plans, cleanup_after_removal
 from src.services.orgs.orgs import rbac_check
@@ -1001,23 +1002,14 @@ async def invite_batch_users(
     org_read = OrganizationRead.model_validate(org)
     user_read = UserRead.model_validate(user)
     base_url = get_base_url_from_request(request)
+    result_by_email = {result.email: result for result in results if result.status == "invited"}
     for invitation in new_invitations:
-        try:
-            invitation.email_sent = bool(send_direct_invitation_email(
-                org_read,
-                user_read,
-                invitation.email,
-                invitation.invitation_uuid,
-                base_url,
-                setup=staff_setup.describe(db_session, invitation),
-            ))
-        except Exception:
-            logging.exception("Failed to send organization invitation to %s", invitation.email)
-            invitation.email_sent = False
-        invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
-        invitation.delivery_attempts = 1
-        invitation.last_sent_at = datetime.utcnow()
-        invitation.updated_at = datetime.utcnow()
+        failure = await _deliver_invitation(invitation, org_read, user_read, base_url, db_session)
+        result = result_by_email.get(invitation.email)
+        if result:
+            result.email_sent = invitation.email_sent
+            if failure:
+                result.detail = f"Invitation saved, but the email didn't send. {failure}"
     db_session.commit()
 
     if new_invitations:
@@ -1034,6 +1026,42 @@ async def invite_batch_users(
         )
 
     return InviteUsersResponse(created=len(new_invitations), results=results, usergroup_id=usergroup_id)
+
+
+async def _deliver_invitation(
+    invitation: OrganizationInvitation,
+    org_read: OrganizationRead,
+    inviter: UserRead,
+    base_url: str,
+    db_session: Session,
+) -> str | None:
+    """Email one invitation and record how it went on the row (not committed). Returns the reason it
+    didn't send, or None. The send runs off the event loop: the provider call and its retries block."""
+    from src.services.orgs import staff_setup
+    attempt = (invitation.delivery_attempts or 0) + 1
+    failure: str | None = None
+    try:
+        setup = staff_setup.describe(db_session, invitation)
+        await run_in_threadpool(
+            send_direct_invitation_email,
+            org_read, inviter, invitation.email, invitation.invitation_uuid, base_url,
+            setup=setup,
+            idempotency_key=f"{invitation.invitation_uuid}:{attempt}",
+        )
+    except EmailDeliveryError as exc:
+        failure = exc.reason
+    except Exception:
+        logging.exception("Failed to send organization invitation %s", invitation.invitation_uuid)
+        failure = "Something went wrong sending it. Try again in a minute."
+    if failure:
+        logging.warning("Organization invitation %s not emailed: %s", invitation.invitation_uuid, failure)
+    invitation.email_sent = failure is None
+    invitation.delivery_status = "delivered" if failure is None else "delivery_failed"
+    invitation.delivery_attempts = attempt
+    invitation.last_sent_at = datetime.utcnow()
+    invitation.updated_at = datetime.utcnow()
+    db_session.add(invitation)
+    return failure
 
 
 async def get_list_of_invited_users(
@@ -1158,21 +1186,15 @@ async def resend_invited_user(
         raise HTTPException(status_code=404, detail="Active invitation not found")
     if invitation.delivery_attempts >= 5:
         raise HTTPException(status_code=429, detail="This invitation has reached its resend limit")
-    if invitation.last_sent_at and invitation.last_sent_at > datetime.utcnow() - timedelta(minutes=10):
+    if invitation.email_sent and invitation.last_sent_at and invitation.last_sent_at > datetime.utcnow() - timedelta(minutes=10):
         raise HTTPException(status_code=429, detail="Wait 10 minutes before resending this invitation")
     inviter = db_session.exec(select(User).where(User.id == current_user.id)).first()
     if not inviter:
         raise HTTPException(status_code=401, detail="Authentication required")
-    from src.services.orgs import staff_setup
-    invitation.email_sent = bool(send_direct_invitation_email(
-        OrganizationRead.model_validate(org), UserRead.model_validate(inviter), invitation.email,
-        invitation.invitation_uuid, get_base_url_from_request(request),
-        setup=staff_setup.describe(db_session, invitation),
-    ))
-    invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
-    invitation.delivery_attempts += 1
-    invitation.last_sent_at = datetime.utcnow()
-    invitation.updated_at = datetime.utcnow()
+    failure = await _deliver_invitation(
+        invitation, OrganizationRead.model_validate(org), UserRead.model_validate(inviter),
+        get_base_url_from_request(request), db_session,
+    )
     db_session.add(invitation)
     db_session.commit()
     from src.services.audit_logs import record_audit_log
@@ -1182,4 +1204,6 @@ async def resend_invited_user(
         ip_address=request.client.host if request.client else None,
         request_metadata={"invitation_uuid": invitation.invitation_uuid, "delivery_attempts": invitation.delivery_attempts},
     )
-    return {"detail": "Invitation resent", "delivery_attempts": invitation.delivery_attempts}
+    if failure:
+        return {"detail": f"The email didn't send. {failure}", "email_sent": False, "delivery_attempts": invitation.delivery_attempts}
+    return {"detail": "Invitation resent", "email_sent": True, "delivery_attempts": invitation.delivery_attempts}

@@ -24,8 +24,9 @@ export default function PendingInvites({ empty }: { empty?: string } = {}) {
     try {
       const response = resend ? await resendUserInvitation(orgId, invitationUuid, token) : await revokeUserInvitation(orgId, invitationUuid, token)
       if (!response.success) throw new Error(response.data?.detail || 'That didn’t work')
-      toast.success(resend ? 'Invitation sent again' : 'Invitation taken back')
       await mutate()
+      if (resend && response.data?.email_sent === false) throw new Error(response.data?.detail || 'The email didn’t send')
+      toast.success(resend ? 'Invitation sent again' : 'Invitation taken back')
     } catch (error: any) {
       toast.error(error?.message || 'That didn’t work')
     } finally {
@@ -39,7 +40,7 @@ export default function PendingInvites({ empty }: { empty?: string } = {}) {
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><Mail size={16} /></span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-semibold">{invite.email}</span>
-        <span className="block truncate text-sm text-muted-foreground">{[invite.role?.name, invite.usergroup?.name].filter(Boolean).join(' · ') || 'Invited'}</span>
+        <span className="block truncate text-sm text-muted-foreground">{invite.delivery_status === 'delivery_failed' ? <span className="text-rose-600">Email didn’t send · resend it</span> : [invite.role?.name, invite.usergroup?.name].filter(Boolean).join(' · ') || 'Invited'}</span>
       </span>
       <button type="button" onClick={() => void act(invite.invitation_uuid, true)} disabled={Boolean(busy)} aria-label={`Resend the invitation to ${invite.email}`} title="Resend" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><RotateCw size={15} /></button>
       <button type="button" onClick={() => void act(invite.invitation_uuid, false)} disabled={Boolean(busy)} aria-label={`Take back the invitation to ${invite.email}`} title="Take back" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X size={15} /></button>
