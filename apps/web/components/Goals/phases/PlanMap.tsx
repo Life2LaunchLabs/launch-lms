@@ -20,7 +20,7 @@ import {
 type Change = (fn: (next: LifeDoc) => void) => Promise<LifeDoc | null>
 type Adding = { mode: 'after' | 'before' | 'branch' | 'between'; from: string; to?: string; name: string }
 
-const LEAF = 150, GAP = 34, MINW = 74, LEFT = 66, LH = 86, TOP = 26, BH = 56
+const LEAF = 300, GAP = 48, MINW = 240, LEFT = 70, LH = 180, TOP = 30, BH = 152
 
 /**
  * Where everything sits: time runs left to right at true scale, squeezed so a short phase is never
@@ -34,7 +34,7 @@ function layout(doc: LifeDoc, width: number) {
   const marks = [...new Set(doc.phases.map((p) => mi(p.starts!)))].sort((a, b) => a - b)
   const avail = Math.max(320, width)
   const span = Math.max(1, marks[marks.length - 1] - marks[0])
-  const ppm = Math.max(3.5, (avail - LEFT - LEAF - 70) / span)
+  const ppm = Math.max(7, (avail - LEFT - LEAF - 70) / span)
   const xs = [LEFT]
   for (let i = 1; i < marks.length; i++) xs.push(xs[i - 1] + Math.max(MINW + GAP, (marks[i] - marks[i - 1]) * ppm))
   // Time inside a bar lands on the bar; the gap between bars is the moment one ends and the next starts.
@@ -53,13 +53,13 @@ function layout(doc: LifeDoc, width: number) {
   }
   const box = (p: Phase) => { const x = X(mi(p.starts!)), leaf = !kids(doc, p.id).length; return { x, w: leaf ? LEAF : Math.max(MINW, X(endOf(doc, p)) - x - GAP) } }
   const lanes = Math.max(0, ...Object.values(lane)) + 1
-  return { lane, X, unX, box, lanes, W: Math.max(avail, xs[xs.length - 1] + LEAF + 70), H: TOP + lanes * LH + 26 }
+  return { lane, X, unX, box, lanes, W: Math.max(avail, xs[xs.length - 1] + LEAF + 70), H: TOP + lanes * LH + 30 }
 }
 
 const lengthText = (months: number) => months < 12 ? `${months} month${months === 1 ? '' : 's'}` : `${Math.floor(months / 12)} yr${months % 12 ? ` ${months % 12} mo` : ''}`
 
 /** The plan as a map you build on: phases and pluses, nothing else. */
-export default function PlanMap({ doc: raw, orgslug, token, photos, change, focus }: { doc: LifeDoc; orgslug: string; token?: string; photos?: Record<string, PlacePhoto>; change: Change; focus?: string | null }) {
+export default function PlanMap({ doc: raw, orgslug, token, photos, change, focus, title, actions }: { doc: LifeDoc; orgslug: string; token?: string; photos?: Record<string, PlacePhoto>; change: Change; focus?: string | null; title?: React.ReactNode; actions?: React.ReactNode }) {
   const router = useRouter()
   const doc = React.useMemo(() => normalize(raw), [raw])
   const wrap = React.useRef<HTMLDivElement>(null)
@@ -155,29 +155,31 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     bars.push(<React.Fragment key={p.id}>
       <button type="button" data-phase={p.id} onClick={() => open(p.id)} title={`${p.title} · from ${monthText(p.starts!)}`}
         style={{ left: x, top: y, width: w, height: BH }}
-        className={cn('absolute isolate overflow-hidden rounded-2xl text-left text-white shadow-[0_8px_18px_-12px_rgb(0_0_0/0.6)]',
+        className={cn('absolute isolate flex flex-col justify-end overflow-hidden rounded-[26px] text-left text-white shadow-[0_18px_34px_-20px_rgb(0_0_0/0.7)] transition-transform hover:-translate-y-0.5',
+          wh === 'done' && !sel && 'opacity-80',
           sel === p.id && 'outline outline-[3px] outline-offset-2 outline-foreground',
           over && (canJoin(doc, drag!.id, p.id) ? 'outline outline-[3px] outline-offset-2 outline-[var(--go,#1f9d5a)]' : 'outline-dashed outline-[3px] outline-offset-2 outline-destructive'))}>
         <PhaseCover phase={p} photos={photos} past={wh === 'done'} className={cn('absolute inset-0 -z-20 h-full w-full', p.idea && 'saturate-[.35]')} />
-        <span className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgb(8_20_30/0.72),rgb(8_20_30/0.25))]" aria-hidden="true" />
-        {p.idea ? <span className="pointer-events-none absolute inset-0 z-10 rounded-2xl border-[2.5px] border-dashed border-white/85" aria-hidden="true" /> : null}
-        <span className="grid min-w-0 gap-px px-3 py-2">
-          <b className="truncate text-[15px] font-extrabold">{wh === 'now' ? '● ' : ''}{p.title}</b>
-          <small className="truncate text-[11.5px] font-bold opacity-90">{monthText(p.starts!)}{p.idea ? ' · idea' : ''}</small>
+        <span className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,transparent_25%,rgb(8_20_30/0.78))]" aria-hidden="true" />
+        {p.idea ? <span className="pointer-events-none absolute inset-0 z-10 rounded-[26px] border-[3px] border-dashed border-white/85" aria-hidden="true" /> : null}
+        {wh === 'now' ? <span className="absolute left-3 top-3 rounded-full bg-[var(--org-primary-color)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-on-primary-color,#fff)]">You’re here</span> : null}
+        <span className="grid min-w-0 gap-0.5 px-4 pb-3.5">
+          <b className="truncate text-[clamp(18px,2.2vw,24px)] font-extrabold leading-tight tracking-tight">{p.title}</b>
+          <small className="truncate text-[12.5px] font-bold opacity-90">{monthText(p.starts!)}{p.place_label ? ` · ${p.place_label.split(',')[0]}` : ''}{p.idea ? ' · idea' : ''}</small>
         </span>
       </button>
       <button type="button" onClick={() => { setSel(sel === p.id ? null : p.id); setAdding(null); setConfirmRm(null); setRenaming(null) }}
         aria-label={`More for ${p.title}`} title="Details, rename, remove, join up" aria-pressed={sel === p.id}
-        style={{ left: x + w - 30, top: y + 30 }}
-        className={cn('absolute z-[3] grid h-[22px] w-6 place-items-center rounded-lg text-white', sel === p.id ? 'bg-foreground text-background' : 'bg-black/45 hover:bg-foreground hover:text-background')}>
-        <MoreHorizontal size={14} aria-hidden="true" />
+        style={{ left: x + w - 42, top: y + 10 }}
+        className={cn('absolute z-[3] grid size-8 place-items-center rounded-full text-white backdrop-blur', sel === p.id ? 'bg-foreground text-background' : 'bg-black/40 hover:bg-foreground hover:text-background')}>
+        <MoreHorizontal size={16} aria-hidden="true" />
       </button>
     </React.Fragment>)
     for (const pid of p.after || []) {
       const pp = byId(doc, pid)
       if (!pp) continue
       const a = L.box(pp), same = yOf(pp) === y, y0 = yOf(pp) + BH / 2, y1 = y + BH / 2, x0 = a.x + a.w
-      links.push(<path key={`${pid}-${p.id}`} d={same ? `M${x0} ${y0} H${x}` : `M${x0} ${y0} C ${x0 + 22} ${y0}, ${x - 22} ${y1}, ${x} ${y1}`} fill="none" stroke="hsl(var(--border))" strokeWidth={3} strokeDasharray={p.idea ? '6 6' : undefined} />)
+      links.push(<path key={`${pid}-${p.id}`} d={same ? `M${x0} ${y0} H${x}` : `M${x0} ${y0} C ${x0 + 22} ${y0}, ${x - 22} ${y1}, ${x} ${y1}`} fill="none" stroke="hsl(var(--border))" strokeWidth={4} strokeLinecap="round" strokeDasharray={p.idea ? '8 8' : undefined} />)
       // A small plus on a link adds a phase in between: only around the phase in focus, so the map stays clean.
       if (mi(p.starts!) > thisMonthIndex() && (p.id === focusId || pid === focusId)) {
         const mx = same ? (x0 + x) / 2 : x - 9
@@ -186,12 +188,12 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     }
     if (leaf) plus.push(<button key={`after-${p.id}`} type="button" onPointerDown={(e) => onPointerDown(e, p.id)} onClick={() => { setAdding({ mode: 'after', from: p.id, name: '' }); setSel(null) }}
       aria-label={`Add a phase after ${p.title}. Drag onto a later phase to join up with it.`} title="Add after, or drag onto a later phase to join it"
-      style={{ left: x + w + 12, top: y + 9, transform: drag?.id === p.id ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined, touchAction: 'none' }}
-      className={cn('absolute z-[4] grid size-[38px] cursor-grab place-items-center rounded-full bg-card text-foreground shadow-[0_0_0_2px_hsl(var(--border)),0_4px_0_hsl(var(--border))] hover:text-[var(--org-primary-color)]', drag?.id === p.id && 'z-50 cursor-grabbing')}>
+      style={{ left: x + w + 14, top: y + BH / 2 - 22, transform: drag?.id === p.id ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined, touchAction: 'none' }}
+      className={cn('absolute z-[4] grid size-11 cursor-grab place-items-center rounded-full bg-card text-foreground shadow-[0_0_0_2px_hsl(var(--border)),0_4px_0_hsl(var(--border))] hover:text-[var(--org-primary-color)]', drag?.id === p.id && 'z-50 cursor-grabbing')}>
       <Plus size={18} aria-hidden="true" />
     </button>)
     if (!p.after?.length) plus.push(<button key={`before-${p.id}`} type="button" onClick={() => { setAdding({ mode: 'before', from: p.id, name: '' }); setSel(null) }} aria-label="Add an earlier phase" title="Add an earlier phase"
-      style={{ left: x - 52, top: y + 9 }} className="absolute z-[4] grid size-[38px] place-items-center rounded-full bg-card text-foreground opacity-60 shadow-[0_0_0_2px_hsl(var(--border)),0_4px_0_hsl(var(--border))] hover:opacity-100">
+      style={{ left: x - 58, top: y + BH / 2 - 22 }} className="absolute z-[4] grid size-11 place-items-center rounded-full bg-card text-foreground opacity-60 shadow-[0_0_0_2px_hsl(var(--border)),0_4px_0_hsl(var(--border))] hover:opacity-100">
       <Plus size={18} aria-hidden="true" />
     </button>)
     // Under the end of a phase that already leads somewhere: another option after it.
@@ -219,15 +221,18 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
         </span>
         <span className="inline-flex gap-1.5"><Button size="sm" variant="brand" onClick={() => { setPicking(false); setComparing(true) }}>Compare {monthText(at)}</Button><Button size="sm" variant="ghost" onClick={() => setPicking(false)}>Cancel</Button></span>
       </div> : <>
-        <p className="text-sm text-muted-foreground">Tap a phase to open it, or ⋯ for details. Dashed ones are ideas: quick to add, quick to drop.</p>
-        {all.length > 1 ? <Button size="sm" variant="surface" onClick={() => { setPicking(true); setSel(null); setAdding(null) }}><Scale size={16} aria-hidden="true" />Compare</Button> : null}
+        {title || <span />}
+        <span className="flex flex-wrap items-center gap-2">
+          {all.length > 1 ? <Button size="sm" variant="surface" onClick={() => { setPicking(true); setSel(null); setAdding(null) }}><Scale size={16} aria-hidden="true" />Compare</Button> : null}
+          {actions}
+        </span>
       </>}
     </div>
 
-    <div ref={wrap} className="overflow-x-auto rounded-[22px] bg-card shadow-[0_1px_0_hsl(var(--border)),0_12px_28px_-24px_rgb(10_30_50/0.5)]">
+    <div ref={wrap} className="-mx-4 overflow-x-auto px-4 [scrollbar-width:thin] sm:-mx-6 sm:px-6">
       <div className={cn('relative', picking && 'cursor-crosshair')} style={{ width: L.W, height: L.H }} onClick={picking ? pickAt : undefined}>
-        <div className="pointer-events-none absolute inset-y-0 border-l-[2.5px] border-[var(--org-primary-color)]" style={{ left: L.X(thisMonthIndex()) }}>
-          <span className="absolute bottom-2 left-1.5 whitespace-nowrap text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-primary-color)]">Today</span>
+        <div className="pointer-events-none absolute inset-y-0 border-l-2 border-dashed border-[var(--org-primary-color)] opacity-70" style={{ left: L.X(thisMonthIndex()) }}>
+          <span className="absolute left-1.5 top-0 whitespace-nowrap text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-primary-color)]">Today</span>
         </div>
         {picking ? <div className="pointer-events-none absolute inset-y-0 z-[6] border-l-[2.5px] border-dashed border-foreground" style={{ left: L.X(at) }}>
           <span className="absolute left-1.5 top-1 whitespace-nowrap rounded-lg bg-foreground px-2 py-0.5 text-xs font-extrabold text-background">{monthText(at)}</span>
@@ -237,6 +242,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       </div>
     </div>
 
+    {adding || selPhase ? <div className="fixed inset-0 z-40 bg-black/30" aria-hidden="true" onClick={() => { setAdding(null); setSel(null); setConfirmRm(null); setRenaming(null) }} /> : null}
     {adding ? <AddCard doc={doc} adding={adding} setAdding={setAdding} onSubmit={submitAdd} orgslug={orgslug} /> : selPhase ? <DetailCard
       doc={doc} phase={selPhase} photos={photos} all={all} confirmRm={confirmRm === selPhase.id} renaming={renaming?.id === selPhase.id ? renaming.title : null}
       onOpen={() => open(selPhase.id)}
@@ -251,9 +257,12 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   </div>
 }
 
+/** Add and details float over the map, so nothing sits under it. */
+const SHEET = 'fixed inset-x-3 bottom-3 z-50 mx-auto max-w-[580px] rounded-[24px] bg-card shadow-[0_0_0_1px_hsl(var(--border)),0_24px_60px_-20px_rgb(0_0_0/0.6)] sm:bottom-6'
+
 function MiniPlus({ x, y, label, onClick }: { x: number; y: number; label: string; onClick: () => void }) {
   return <button type="button" onClick={onClick} aria-label={label} title={label} style={{ left: x, top: y }}
-    className="absolute z-[4] grid size-[22px] place-items-center rounded-full bg-card text-muted-foreground shadow-[0_0_0_2px_hsl(var(--border))] before:absolute before:-inset-[11px] hover:text-[var(--org-primary-color)] hover:shadow-[0_0_0_2px_var(--org-primary-color)]">
+    className="absolute z-[4] grid size-[24px] place-items-center rounded-full bg-card text-muted-foreground shadow-[0_0_0_2px_hsl(var(--border))] before:absolute before:-inset-[11px] hover:text-[var(--org-primary-color)] hover:shadow-[0_0_0_2px_var(--org-primary-color)]">
     <Plus size={12} aria-hidden="true" />
   </button>
 }
@@ -262,7 +271,7 @@ function AddCard({ doc, adding, setAdding, onSubmit, orgslug }: { doc: LifeDoc; 
    
   const from = byId(doc, adding.from)!
   const label = adding.mode === 'before' ? `Before ${from.title}` : adding.mode === 'between' ? `Between ${from.title} and ${byId(doc, adding.to)?.title}` : kids(doc, from.id).length ? `Another option after ${from.title}` : `After ${from.title}`
-  return <form onSubmit={onSubmit} className="grid max-w-[560px] gap-2.5 rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
+  return <form onSubmit={onSubmit} className={cn(SHEET, 'grid gap-2.5 p-4')}>
     <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
     { }
     <input autoFocus aria-label="Phase name" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })}
@@ -289,7 +298,7 @@ function DetailCard(props: {
   const fixed = wh === 'now' || wh === 'done'
   const act = p.activities?.[0]
   const what = act ? (act.career_title || act.school || act.field || act.employer || '') : ''
-  return <div className="grid overflow-hidden rounded-[22px] bg-card shadow-[0_0_0_2px_hsl(var(--border))] sm:grid-cols-[150px_minmax(0,1fr)]">
+  return <div role="dialog" aria-label={p.title} className={cn(SHEET, 'grid overflow-hidden sm:grid-cols-[150px_minmax(0,1fr)]')}>
     <div className="relative h-24 sm:h-auto"><PhaseCover phase={p} photos={photos} className="absolute inset-0 h-full w-full" /></div>
     <div className="grid gap-2.5 p-4">
       <div>
