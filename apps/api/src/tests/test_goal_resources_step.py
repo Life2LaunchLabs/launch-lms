@@ -1,10 +1,11 @@
 import pytest
 from fastapi import HTTPException
 
-from src.db.goals import StepResourceVisit, StepStatus
+from src.db.goals import StepStatus
 from src.db.resources import Resource
 from src.services.goals import entries, goals
 from src.services.goals.types import step_type
+from src.services.goals.types.resources import StepResourceVisit
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _issue, _published, _session, _status, _step, _user
 
 

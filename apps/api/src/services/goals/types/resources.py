@@ -12,13 +12,20 @@ waits for staff to mark it done, whatever was opened.
 from __future__ import annotations
 
 from fastapi import HTTPException
-from pydantic import Field
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.services.goals.types.base import Config, StepState, StepType
 from src.services.goals.types.explore import Suggestion, resource_or_422
 
 MAX_RESOURCES = 8
+
+
+class StepResourceVisit(BaseModel):
+    """A learner opening one of the step's resources, or writing their note on it."""
+
+    opened: bool = False
+    note: str | None = Field(default=None, max_length=10000)
 
 
 class ResourcesConfig(Config):

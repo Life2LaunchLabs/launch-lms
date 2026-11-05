@@ -461,13 +461,6 @@ class StepEntryCreate(SQLModel):
     period: date | None = None
 
 
-class StepResourceVisit(SQLModel):
-    """A learner opening one of a Resources step's resources, or writing their note on it."""
-
-    opened: bool = False
-    note: str | None = Field(default=None, max_length=10000)
-
-
 class StepEntryUpdate(SQLModel):
     title: str | None = Field(default=None, max_length=500)
     note: str | None = Field(default=None, max_length=10000)

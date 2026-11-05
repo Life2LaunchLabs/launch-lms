@@ -7,13 +7,14 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, func, select
 
-from src.db.goals import DONE_STEP_STATUSES, GoalStep, StepEntry, StepEntryCreate, StepEntryUpdate, StepResourceVisit, StepStatus
+from src.db.goals import DONE_STEP_STATUSES, GoalStep, StepEntry, StepEntryCreate, StepEntryUpdate, StepStatus
 from src.db.resources import Resource
 from src.db.media import MediaAsset
 from src.db.users import PublicUser
 from src.services.goals import access, completion
 from src.services.goals.goals import _mark_started, _now, _require_contribute, _require_open, _value, goal_dict, step_or_404
 from src.services.goals.types import step_type
+from src.services.goals.types.resources import StepResourceVisit
 from src.services.goals.types.routine import check_update
 
 

@@ -15,12 +15,12 @@ from src.db.goals import (
     StepEntryUpdate,
     StepMove,
     StepNote,
-    StepResourceVisit,
     StepStatusChange,
     StepSubmission,
     StepUpdate,
 )
 from src.db.users import PublicUser
+from src.services.goals.types.resources import StepResourceVisit
 from src.security.auth import get_current_user
 from src.services.goals import entries, goals as service, schedule, structure
 
