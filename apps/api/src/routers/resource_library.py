@@ -1,6 +1,8 @@
 """Resource routes for staff's view of their resources and the Library, org saves, and comments with moderation."""
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, UploadFile
+from typing import Literal
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, Response, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session
 from src.core.events.database import get_db_session
@@ -18,6 +20,7 @@ from src.services.resource_comments import (
     report_comment,
     update_comment,
 )
+from src.services.resource_export import export_resources
 from src.services.resource_import import ImportRequest, fill_in_imported, import_rows, read_spreadsheet
 from src.services.resource_library import (
     get_channel,
@@ -158,6 +161,21 @@ async def api_import_rows(
         background_tasks.add_task(fill_in_imported, org_id, fill_in)
         background_tasks.add_task(backfill_resource_search_documents, org_id)
     return result
+
+
+@router.get("/org/{org_id}/export")
+def api_export_resources(
+    org_id: int,
+    detail: Literal["simple", "full"] = "simple",
+    file_format: Literal["xlsx", "csv"] = Query(default="xlsx", alias="format"),
+    channels: str | None = Query(default=None, description="Channel uuids, comma separated; `none` is resources in no channel"),
+    types: str | None = Query(default=None, description="Resource types, comma separated"),
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Staff: the organization's resources as a spreadsheet (simple or full), narrowed to some channels and types."""
+    content, name, media_type = export_resources(org_id, current_user, db_session, detail, file_format, channels, types)
+    return Response(content=content, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @router.put("/channels/{channel_uuid}/order")
