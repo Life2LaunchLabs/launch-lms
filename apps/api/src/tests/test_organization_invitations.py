@@ -139,7 +139,7 @@ async def test_batch_invite_validates_deduplicates_and_records_role_and_group(se
         return True
 
     monkeypatch.setattr(org_users_service, "rbac_check", allow_rbac)
-    monkeypatch.setattr(org_users_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(org_invites_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
     monkeypatch.setattr("src.security.superadmin.is_user_superadmin", lambda *_args, **_kwargs: True)
 
     current_user = PublicUser(id=1, user_uuid="user_1", username="owner", email="owner@example.com", first_name="O", last_name="Wner", is_superadmin=True)
@@ -182,7 +182,7 @@ async def test_enterprise_org_can_invite_maintainer_with_real_seat_checks(sessio
         return True
 
     monkeypatch.setattr(org_users_service, "rbac_check", allow_rbac)
-    monkeypatch.setattr(org_users_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(org_invites_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
     monkeypatch.setattr("src.security.superadmin.is_user_superadmin", lambda *_args, **_kwargs: True)
 
     current_user = PublicUser(id=1, user_uuid="user_1", username="owner", email="owner@example.com", first_name="O", last_name="Wner", is_superadmin=True)

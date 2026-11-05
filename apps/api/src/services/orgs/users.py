@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
-from starlette.concurrency import run_in_threadpool
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import aliased
@@ -30,8 +29,8 @@ from src.security.access.access import is_staff_role, org_access, require_role_c
 from src.security.access.catalog import LIMITS
 from src.security.org_auth import is_org_member, require_org_owner_admin, staff_permissions
 from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
-from src.services.email.utils import EmailDeliveryError, get_base_url_from_request
-from src.services.orgs.invites import send_direct_invitation_email
+from src.services.email.utils import get_base_url_from_request
+from src.services.orgs.invites import deliver_invitation
 from src.services.orgs.membership import assigned_user_ids as learners_on_plans, cleanup_after_removal
 from src.services.orgs.orgs import rbac_check
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
@@ -1004,7 +1003,7 @@ async def invite_batch_users(
     base_url = get_base_url_from_request(request)
     result_by_email = {result.email: result for result in results if result.status == "invited"}
     for invitation in new_invitations:
-        failure = await _deliver_invitation(invitation, org_read, user_read, base_url, db_session)
+        failure = await deliver_invitation(invitation, org_read, user_read, base_url, db_session)
         result = result_by_email.get(invitation.email)
         if result:
             result.email_sent = invitation.email_sent
@@ -1026,42 +1025,6 @@ async def invite_batch_users(
         )
 
     return InviteUsersResponse(created=len(new_invitations), results=results, usergroup_id=usergroup_id)
-
-
-async def _deliver_invitation(
-    invitation: OrganizationInvitation,
-    org_read: OrganizationRead,
-    inviter: UserRead,
-    base_url: str,
-    db_session: Session,
-) -> str | None:
-    """Email one invitation and record how it went on the row (not committed). Returns the reason it
-    didn't send, or None. The send runs off the event loop: the provider call and its retries block."""
-    from src.services.orgs import staff_setup
-    attempt = (invitation.delivery_attempts or 0) + 1
-    failure: str | None = None
-    try:
-        setup = staff_setup.describe(db_session, invitation)
-        await run_in_threadpool(
-            send_direct_invitation_email,
-            org_read, inviter, invitation.email, invitation.invitation_uuid, base_url,
-            setup=setup,
-            idempotency_key=f"{invitation.invitation_uuid}:{attempt}",
-        )
-    except EmailDeliveryError as exc:
-        failure = exc.reason
-    except Exception:
-        logging.exception("Failed to send organization invitation %s", invitation.invitation_uuid)
-        failure = "Something went wrong sending it. Try again in a minute."
-    if failure:
-        logging.warning("Organization invitation %s not emailed: %s", invitation.invitation_uuid, failure)
-    invitation.email_sent = failure is None
-    invitation.delivery_status = "delivered" if failure is None else "delivery_failed"
-    invitation.delivery_attempts = attempt
-    invitation.last_sent_at = datetime.utcnow()
-    invitation.updated_at = datetime.utcnow()
-    db_session.add(invitation)
-    return failure
 
 
 async def get_list_of_invited_users(
@@ -1191,7 +1154,7 @@ async def resend_invited_user(
     inviter = db_session.exec(select(User).where(User.id == current_user.id)).first()
     if not inviter:
         raise HTTPException(status_code=401, detail="Authentication required")
-    failure = await _deliver_invitation(
+    failure = await deliver_invitation(
         invitation, OrganizationRead.model_validate(org), UserRead.model_validate(inviter),
         get_base_url_from_request(request), db_session,
     )

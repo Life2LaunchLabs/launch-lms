@@ -1,13 +1,15 @@
 import html
+import logging
 import hashlib
 import secrets
 from urllib.parse import quote
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import EmailStr
 from sqlmodel import Session, select
-from src.db.organization_invitations import OrganizationJoinLink
+from src.db.organization_invitations import OrganizationInvitation, OrganizationJoinLink
 from src.db.organizations import (
     Organization,
     OrganizationRead,
@@ -16,7 +18,7 @@ from src.db.usergroups import UserGroup
 from src.db.users import AnonymousUser, PublicUser, UserRead
 from src.security.rbac.constants import USER_ROLE_ID
 from src.security.access.access import org_access, require_capacity
-from src.services.email.utils import send_email
+from src.services.email.utils import EmailDeliveryError, send_email
 from src.services.orgs.orgs import rbac_check
 
 
@@ -293,3 +295,40 @@ def send_direct_invitation_email(
         idempotency_key=idempotency_key,
     )
     return True
+
+
+async def deliver_invitation(
+    invitation: OrganizationInvitation,
+    org_read: OrganizationRead,
+    inviter: UserRead,
+    base_url: str,
+    db_session: Session,
+) -> str | None:
+    """Email one invitation and record how it went on the row (not committed). Returns the reason it
+    didn't send, or None. The send runs off the event loop: the provider call and its retries block."""
+    from src.services.orgs import staff_setup
+    attempt = (invitation.delivery_attempts or 0) + 1
+    failure: str | None = None
+    try:
+        setup = staff_setup.describe(db_session, invitation)
+        await run_in_threadpool(
+            send_direct_invitation_email,
+            org_read, inviter, invitation.email, invitation.invitation_uuid, base_url,
+            setup=setup,
+            idempotency_key=f"{invitation.invitation_uuid}:{attempt}",
+        )
+    except EmailDeliveryError as exc:
+        failure = exc.reason
+    except Exception:
+        logging.exception("Failed to send organization invitation %s", invitation.invitation_uuid)
+        failure = "Something went wrong sending it. Try again in a minute."
+    if failure:
+        logging.warning("Organization invitation %s not emailed: %s", invitation.invitation_uuid, failure)
+    invitation.email_sent = failure is None
+    invitation.delivery_status = "delivered" if failure is None else "delivery_failed"
+    invitation.delivery_attempts = attempt
+    invitation.last_sent_at = datetime.utcnow()
+    invitation.updated_at = datetime.utcnow()
+    db_session.add(invitation)
+    return failure
+

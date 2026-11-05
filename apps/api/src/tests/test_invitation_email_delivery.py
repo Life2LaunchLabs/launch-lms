@@ -11,6 +11,7 @@ from src.db.organization_invitations import InviteUsersRequest, OrganizationInvi
 from src.db.users import PublicUser
 from src.services.email import utils as email_utils
 from src.services.email.utils import EmailDeliveryError
+from src.services.orgs import invites as org_invites_service
 from src.services.orgs import users as org_users_service
 from src.tests.test_organization_invitations import _invitation, _seed, session  # noqa: F401
 
@@ -40,7 +41,7 @@ async def test_batch_invite_keeps_invitation_and_reports_why_the_email_failed(se
             raise EmailDeliveryError("The app's daily email limit is used up, so the email wasn't sent.")
         return True
 
-    monkeypatch.setattr(org_users_service, "send_direct_invitation_email", send)
+    monkeypatch.setattr(org_invites_service, "send_direct_invitation_email", send)
     result = await org_users_service.invite_batch_users(
         _request(), 1, InviteUsersRequest(emails=["ok@example.com", "bounced@example.com"], role_id=4), session, _owner(),
     )
@@ -73,7 +74,7 @@ async def test_resend_after_a_failed_email_needs_no_wait_and_says_whether_it_sen
             raise outcome
         return outcome
 
-    monkeypatch.setattr(org_users_service, "send_direct_invitation_email", send)
+    monkeypatch.setattr(org_invites_service, "send_direct_invitation_email", send)
     failed = await org_users_service.resend_invited_user(_request(), 1, "invite_1", session, _owner())
     assert failed["email_sent"] is False and "Couldn't reach" in failed["detail"]
     sent = await org_users_service.resend_invited_user(_request(), 1, "invite_1", session, _owner())
