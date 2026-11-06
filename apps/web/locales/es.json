@@ -4178,7 +4178,9 @@
       "title": "Idioma",
       "description": "El idioma de los menús, botones y mensajes de la app. Se guarda en tu cuenta, así que te sigue en cualquier dispositivo.",
       "saved": "Idioma guardado",
-      "more_soon": "Pronto habrá más idiomas. Por ahora, algunos textos escritos por tu escuela o programa pueden seguir en inglés."
+      "more_soon": "Pronto habrá más idiomas. Por ahora, algunos textos escritos por tu escuela o programa pueden seguir en inglés.",
+      "auto_title": "Traducir los textos de escuelas y programas",
+      "auto_description": "Los planes, recursos y carreras escritos en inglés se traducen automáticamente. Apágalo para ver el texto original."
     }
   },
   "phases": {
@@ -4340,5 +4342,11 @@
       "title": "Tendencias",
       "empty": "Todavía no hay actividad reciente"
     }
+  },
+  "translate": {
+    "auto": "Traducido automáticamente",
+    "original": "Texto original",
+    "show_original": "Ver original",
+    "show_translated": "Ver traducción"
   }
 }

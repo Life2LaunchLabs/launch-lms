@@ -4172,7 +4172,9 @@
       "title": "Language",
       "description": "The language the app uses for its menus, buttons and messages. It is saved on your account, so it follows you to any device.",
       "saved": "Language saved",
-      "more_soon": "More languages are coming. Text written by your school or program may still be in English for now."
+      "more_soon": "More languages are coming. Text written by your school or program may still be in English for now.",
+      "auto_title": "Translate text from schools and programs",
+      "auto_description": "Plans, resources and careers written in English are translated for you automatically. Turn it off to see the original text."
     }
   },
   "phases": {
@@ -4328,5 +4330,11 @@
     "next": "Next",
     "place_placeholder": "Eugene, Bend, Coos County…",
     "place_search": "Search towns and counties"
+  },
+  "translate": {
+    "auto": "Translated automatically",
+    "original": "Original text",
+    "show_original": "Show original",
+    "show_translated": "Show translation"
   }
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
@@ -65,9 +66,9 @@ export default function DiscoverHero({ slides = [], orgslug }: { slides?: Discov
       </button>)}
     </div> : null}
     <div aria-live={autoplay && !paused ? 'off' : 'polite'} className="relative z-10 mt-auto flex w-full flex-col items-start gap-3 p-6 pt-16 md:max-w-[62%] md:p-10">
-      <p className="text-xs font-extrabold uppercase tracking-widest opacity-90">{slide.eyebrow}</p>
-      <h2 className="text-3xl font-extrabold leading-tight tracking-tight md:text-4xl">{slide.title}</h2>
-      {slide.description ? <p className="line-clamp-3 max-w-lg text-sm leading-6 opacity-90 md:text-base">{slide.description}</p> : null}
+      <p className="text-xs font-extrabold uppercase tracking-widest opacity-90"><Tx text={slide.eyebrow} /></p>
+      <h2 className="text-3xl font-extrabold leading-tight tracking-tight md:text-4xl"><Tx text={slide.title} /></h2>
+      {slide.description ? <p className="line-clamp-3 max-w-lg text-sm leading-6 opacity-90 md:text-base"><Tx text={slide.description} /></p> : null}
       {href ? <Button asChild variant="surface" size="tall" className="mt-2 border-0 bg-white text-[#10181c] shadow-[0_4px_0_rgba(0,0,0,.35)] hover:bg-white/90"><Link href={href}>{slide.action_label || 'Learn more'}</Link></Button> : <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">Coming soon</span>}
     </div>
   </section>

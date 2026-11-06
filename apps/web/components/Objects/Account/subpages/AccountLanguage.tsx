@@ -8,11 +8,13 @@ import i18next from 'i18next'
 import { settingsCard, SettingsHeader } from '@components/Objects/Account/AccountPageShell'
 import { useLanguage } from '@components/Utils/useLanguage'
 import { MENU_LANGUAGES } from '@/lib/languages'
+import { useContentTranslation } from '@components/Utils/useContentTranslation'
 
 /** The language the platform's own text is shown in; saved on the account. */
 export default function AccountLanguage() {
   const { t } = useTranslation()
   const { language, setLanguage } = useLanguage()
+  const { active, translating, showOriginal, showTranslated } = useContentTranslation()
 
   const choose = async (code: string) => {
     if (code === language) return
@@ -48,6 +50,20 @@ export default function AccountLanguage() {
         })}
       </div>
       <p className="mt-4 max-w-2xl text-sm text-muted-foreground">{t('settings.language.more_soon')}</p>
+      {active ? (
+        <label className="mt-5 flex max-w-2xl cursor-pointer items-start gap-3 rounded-xl border border-border p-4">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4"
+            checked={translating}
+            onChange={(event) => (event.target.checked ? showTranslated() : showOriginal())}
+          />
+          <span>
+            <span className="block text-sm font-bold text-foreground">{t('settings.language.auto_title')}</span>
+            <span className="block text-sm text-muted-foreground">{t('settings.language.auto_description')}</span>
+          </span>
+        </label>
+      ) : null}
     </div>
   )
 }

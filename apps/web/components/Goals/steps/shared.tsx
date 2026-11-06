@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import { Check, Clock3, NotebookPen, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
 import { Button } from '@components/ui/button'
@@ -79,7 +80,7 @@ export function StepIntro({ step }: { step: Step }) {
   const materials = step.materials.filter((item) => item && (item.url || item.title))
   if (!step.description && !materials.length) return null
   return <div className="flex flex-col gap-2">
-    {step.description ? <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/80">{step.description}</p> : null}
+    {step.description ? <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/80"><Tx text={step.description} /></p> : null}
     {materials.length ? <div className="flex flex-wrap gap-1.5">
       {materials.map((item, index) => <a key={index} href={String(item.url || '#')} target="_blank" rel="noreferrer" className="rounded-[10px] border-[1.5px] bg-background px-2.5 py-1.5 text-xs font-bold hover:border-[var(--plan-face)]">{String(item.title || item.url)}</a>)}
     </div> : null}
