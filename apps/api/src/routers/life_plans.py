@@ -19,6 +19,7 @@ from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services.life_plans import careers as career_service
 from src.services.life_plans import catalog as catalog_service
+from src.services.life_plans import datasets as dataset_service
 from src.services.life_plans import estimates as estimate_service
 from src.services.life_plans import importers
 from src.services.life_plans import places as place_service
@@ -189,6 +190,52 @@ def api_estimates(body: EstimateBatch, db: Session = Depends(get_db_session), us
 @router.get("/admin/sources")
 def api_admin_sources(db: Session = Depends(get_db_session), user: PublicUser = Depends(require_superadmin)):
     return {"sources": estimate_service.coverage(db)}
+
+
+@router.get("/admin/datasets")
+def api_admin_datasets(db: Session = Depends(get_db_session), user: PublicUser = Depends(require_superadmin)):
+    """The datasets we expect, each with its loaded releases (newest first) and their tables."""
+    return {"datasets": dataset_service.catalog(db)}
+
+
+def _dataset_filters(metric: str = "", level: str = "", status: str = "", job_zone: str = "", state: str = "", control: str = "") -> dict[str, str]:
+    return {"metric": metric, "level": level, "status": status, "job_zone": job_zone, "state": state, "control": control}
+
+
+@router.get("/admin/datasets/{source_key}/rows")
+def api_admin_dataset_rows(
+    source_key: str,
+    table: str = "facts",
+    q: str = "",
+    page: int = 1,
+    per_page: int = 50,
+    filters: dict = Depends(_dataset_filters),
+    db: Session = Depends(get_db_session),
+    user: PublicUser = Depends(require_superadmin),
+):
+    """One page of a release's table (facts, careers or schools), searched and filtered."""
+    try:
+        return dataset_service.rows(db, source_key, table, q=q, filters=filters, page=page, per_page=per_page)
+    except dataset_service.DatasetProblem as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/admin/datasets/{source_key}/export")
+def api_admin_dataset_export(
+    source_key: str,
+    table: str = "facts",
+    q: str = "",
+    filters: dict = Depends(_dataset_filters),
+    db: Session = Depends(get_db_session),
+    user: PublicUser = Depends(require_superadmin),
+):
+    """The same rows as CSV, every page, with the same search and filters."""
+    try:
+        text = dataset_service.export_csv(db, source_key, table, q=q, filters=filters)
+    except dataset_service.DatasetProblem as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    name = dataset_service.export_name(source_key, table)
+    return Response(content=text, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 # Imports of big files (the OEWS workbook takes a minute or two to read) outlive the

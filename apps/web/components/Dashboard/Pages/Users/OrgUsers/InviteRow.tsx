@@ -30,7 +30,7 @@ export default function InviteRow({ invite, hasUserGroups, messages, onResend, o
           </div>
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-gray-800">{invite.email}</div>
-            <div className="text-xs text-gray-400">{invite.source === 'csv' ? 'CSV invitation' : 'Invitation'} · {String(invite.delivery_status || 'queued').replace('_', ' ')}</div>
+            <div className="text-xs text-gray-400">{invite.source === 'csv' ? 'CSV invitation' : 'Invitation'} · {invite.delivery_status === 'delivery_failed' ? <span className="text-rose-600">email didn’t send, resend it</span> : String(invite.delivery_status || 'queued').replace('_', ' ')}</div>
           </div>
         </div>
       </td>
