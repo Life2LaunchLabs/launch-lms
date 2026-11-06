@@ -6,7 +6,7 @@ import UserAvatar from '@components/Objects/UserAvatar'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
 
-export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences' | 'data'
+export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences' | 'accessibility' | 'data'
 
 /** Settings: one page for your account, how the app looks, and what Coach remembers. */
 export default function AccountPageShell({ children }: { children: React.ReactNode }) {

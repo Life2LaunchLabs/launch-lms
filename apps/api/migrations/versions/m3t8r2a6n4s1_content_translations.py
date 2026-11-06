@@ -1,7 +1,7 @@
 """Saved machine translations of organization and outside text
 
 Revision ID: m3t8r2a6n4s1
-Revises: k7c3a9r5e1e2
+Revises: m2r4e6l8s0a1
 Create Date: 2026-11-06
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "m3t8r2a6n4s1"
-down_revision = "k7c3a9r5e1e2"
+down_revision = "m2r4e6l8s0a1"
 branch_labels = None
 depends_on = None
 

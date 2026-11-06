@@ -622,7 +622,10 @@ test('route access exposes only the new public portfolio surfaces', () => {
   assert.equal(classifyRoute('/user/maya').kind, 'public')
   assert.equal(classifyRoute('/user/maya/work').kind, 'public')
   assert.equal(classifyRoute('/user/maya/work/community-garden').kind, 'public')
-  assert.equal(classifyRoute('/user/maya/resume').kind, 'protected')
+  for (const page of ['/timeline', '/timeline/barista', '/projects', '/projects/robot-arm', '/badges', '/resume', '/achievements']) {
+    assert.equal(classifyRoute(`/user/maya${page}`).kind, 'public', page)
+  }
+  assert.equal(classifyRoute('/user/maya/portfolio/post').kind, 'protected')
 })
 
 test('request policy serves welcome onboarding from the app route', () => {

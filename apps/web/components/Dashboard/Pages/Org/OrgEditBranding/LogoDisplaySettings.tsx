@@ -12,6 +12,8 @@ import { revalidateTags } from '@services/utils/ts/requests'
 import { updateOrgDarkLogoConfig, updateOrgHideOrgNameConfig } from '@services/settings/org'
 import { cn } from '@/lib/utils'
 
+export { default as DarkFaviconSettings } from './DarkFaviconSettings'
+
 type DarkLogo = { separate_dark_logo: boolean; dark_logo_image: string }
 
 function SettingRow({ title, description, checked, disabled, onCheckedChange }: { title: string; description: string; checked: boolean; disabled: boolean; onCheckedChange: React.ComponentProps<typeof Switch>['onCheckedChange'] }) {

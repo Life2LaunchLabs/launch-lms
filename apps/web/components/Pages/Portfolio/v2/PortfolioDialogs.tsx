@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { getMyPortfolio, updateMyPortfolio } from '@services/portfolio/portfolio'
-import { updateMyHighlights, updateMyIdentity } from '@services/portfolio/records'
+import { updateMyHighlights, updateMyIdentity, updateResumeContact } from '@services/portfolio/records'
+import { RESUME_CONTACT_ITEM } from './progress'
 import { SOCIAL_OPTIONS, normalizeSocialInput, shellSocials, socialHandle } from '../PortfolioHeaderParts'
 import type { OpenChange } from './parts'
 import type { Highlight, SetShell, Shell } from '../portfolioTypes'
@@ -29,6 +30,8 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
     if (!text('first_name')) return toast.error('Add your first name')
     setBusy(true)
     try {
+      const contact = { email: text('resume_email'), phone: text('resume_phone') }
+      if (contact.email !== (shell.resume_contact?.email || '') || contact.phone !== (shell.resume_contact?.phone || '')) await updateResumeContact(contact, token)
       await updateMyIdentity({ first_name: text('first_name'), last_name: text('last_name'), preferred_name: text('preferred_name') }, token)
       // The identity save bumps the revision, so read it back before saving the rest.
       const current = await getMyPortfolio(token)
@@ -49,6 +52,15 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
         <div className="grid gap-1.5"><Label htmlFor="pf-preferred">Name you go by <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-preferred" name="preferred_name" defaultValue={identity?.preferred_name || ''} maxLength={80} placeholder={identity?.legal_name || ''} autoComplete="nickname" /><p className="text-xs text-muted-foreground">The whole name you want people to see, like “Mya Rivera”. It’s shown on your portfolio and around the app instead of your legal name.</p></div>
         <div className="grid gap-1.5"><Label htmlFor="pf-headline">One-line intro <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-headline" name="headline" defaultValue={shell.portfolio.headline || ''} maxLength={140} placeholder="Artist and future UX designer" /></div>
         <div className="grid gap-1.5"><Label htmlFor="pf-location">Where you are <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-location" name="location_label" defaultValue={shell.portfolio.location_label || ''} maxLength={80} placeholder="Eugene, OR" /></div>
+        {/* Printed on the résumé so an employer can reach them; the portfolio never shows these. */}
+        <fieldset className="grid gap-3 rounded-2xl border border-border p-3.5">
+          <legend className="px-1 text-sm font-bold">For your résumé</legend>
+          <p className="-mt-1 text-xs text-muted-foreground">Only printed on your résumé, so employers can reach you. Your portfolio never shows them.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5"><Label htmlFor="pf-resume-email">Email</Label><Input id="pf-resume-email" name="resume_email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || 'you@example.com'} autoComplete="email" autoFocus={mark === RESUME_CONTACT_ITEM} /></div>
+            <div className="grid gap-1.5"><Label htmlFor="pf-resume-phone">Phone</Label><Input id="pf-resume-phone" name="resume_phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
+          </div>
+        </fieldset>
       </form>
       <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Marked mark={mark}><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></Marked></DialogFooter>
     </DialogContent>

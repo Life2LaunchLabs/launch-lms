@@ -16,6 +16,7 @@ import { getResource, saveResource, unsaveResource } from '@services/resources/r
 import { cn } from '@/lib/utils'
 import { CAREER_TYPES, TRAINING, CareerIcon, matchLabel } from './CareerTile'
 import CareerTake from './CareerTake'
+import { ReadAloudText, SpeakButton, useAutoRead, useSpeechId } from '@components/Accessibility/ReadAloud'
 
 export const BATCH = 10
 export const deckKey = (orgId?: number) => ['career-deck', orgId]
@@ -90,6 +91,11 @@ function Card({ card, place, onDrag, onTap }: { card: SwipeCard; place: 0 | 1 | 
   const yes = shift ? Math.max(0, Math.min(1, shift.dx / 90)) : 0
   const no = shift ? Math.max(0, Math.min(1, -shift.dx / 90)) : 0
 
+  // Read aloud: the title, then pay and training said in words.
+  const speechId = useSpeechId('career')
+  const spoken = [card.title, pay ? `About $${(Math.round(pay.yearly / 1000) * 1000).toLocaleString('en-US')} a year${card.my_place_pay ? ` in ${card.my_place_pay.place}` : ' in Oregon'}.` : '', card.job_zone ? `Usual training: ${TRAINING[card.job_zone]}.` : ''].filter(Boolean).map((part) => /[.!?]$/.test(part) ? part : `${part}.`).join(' ')
+  useAutoRead(speechId, spoken, place === 0)
+
   return <article ref={el} {...handlers} aria-hidden={place !== 0} style={{ ...style, zIndex: 3 - place }}
     className={cn('absolute inset-0 flex touch-pan-y select-none flex-col overflow-hidden rounded-[28px] bg-card shadow-[0_6px_0_hsl(var(--edge)),0_20px_50px_rgba(0,0,0,.15)]', place === 0 ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none')}>
     <div className="relative flex min-h-0 flex-[1.15] items-center justify-center text-white" style={{ backgroundColor: color }}>
@@ -101,7 +107,10 @@ function Card({ card, place, onDrag, onTap }: { card: SwipeCard; place: 0 | 1 | 
       <span aria-hidden="true" className="absolute right-5 top-14 rotate-12 rounded-xl border-4 border-slate-200 px-3 py-1 text-2xl font-black text-slate-100" style={{ opacity: no }}>LATER</span>
     </div>
     <div className="flex flex-col gap-2 p-5">
-      <h2 className="m-0 text-balance text-[24px] font-extrabold leading-[1.12] tracking-tight">{card.title}</h2>
+      <div className="flex items-start gap-2">
+        <h2 className="m-0 min-w-0 flex-1 text-balance text-[24px] font-extrabold leading-[1.12] tracking-tight"><ReadAloudText id={speechId} text={card.title} /></h2>
+        {place === 0 ? <SpeakButton id={speechId} text={spoken} label={`Hear about ${card.title}`} /> : null}
+      </div>
       {card.alt_titles?.length ? <p className="m-0 line-clamp-1 text-[13px] font-semibold text-muted-foreground">Also called {card.alt_titles.slice(0, 2).join(', ')}</p> : null}
       {onTap ? <button type="button" onClick={onTap} className="flex items-center gap-0.5 self-start text-[14px] font-extrabold text-[var(--org-primary-color)]">What it’s like<ChevronRight size={16} aria-hidden="true" /></button> : null}
       <div className="mt-1 grid grid-cols-2 gap-2">

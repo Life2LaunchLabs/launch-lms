@@ -21,6 +21,7 @@ import { lifeApi, lifeUrl, type Activity, type PlaceOption, type Phase } from '@
 import { uploadMediaAsset } from '@services/media/library'
 import { tr } from '@/lib/tr'
 import { useTranslation } from 'react-i18next'
+import { MicButton, ReadToMeToggle, SpokenQuestion } from '@components/Accessibility/ReadAloud'
 
 type Draft = { place: PlaceOption | null; living: string | null; activities: Activity[]; starts: string; title: string; titleTouched: boolean; cover: string | null }
 
@@ -125,8 +126,9 @@ export default function FirstPhaseFlow() {
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} aria-label={t('onboarding.previous')} className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-0"><ArrowLeft size={18} aria-hidden="true" /></button>
         <div className="flex flex-1 gap-1.5" aria-label={t('onboarding.step_of', { step: step + 1, total: steps.length })}>{steps.map((x, i) => <span key={x} className={cn('h-2 flex-1 rounded-full', i <= step ? 'bg-[var(--org-primary-color)]' : 'bg-muted')} />)}</div>
+        <ReadToMeToggle />
       </div>
-      <div><h1 className="text-[clamp(26px,6vw,34px)] font-extrabold leading-tight tracking-tight">{question.q}</h1><p className="mt-1 text-muted-foreground">{question.sub}</p></div>
+      <SpokenQuestion key={s} title={question.q} sub={question.sub} className="text-[clamp(26px,6vw,34px)] font-extrabold leading-tight tracking-tight" subClassName="mt-1 text-muted-foreground" />
 
       {s === 'where' ? <PlaceSearch token={token} value={d.place} onPick={(place) => { setD({ ...d, place }); setStep(1) }} /> : null}
       {s === 'living' ? <LivingPicker value={d.living} onPick={(living) => { setD({ ...d, living }); setTimeout(() => setStep(2), 160) }} /> : null}
@@ -163,7 +165,8 @@ export default function FirstPhaseFlow() {
           return <button key={idea} type="button" aria-pressed={on} onClick={() => setGoals(on ? goals.filter((x) => x !== idea) : [...goals, idea])} className={cn(chip(on), 'inline-flex items-center gap-1.5')}>{on ? <Target size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}{idea}</button>
         })}</div>
         <label className="flex h-12 items-center gap-2 rounded-2xl bg-muted px-3"><Target size={18} className="text-muted-foreground" aria-hidden="true" />
-          <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder={t('onboarding.write_own')} aria-label={t('onboarding.own_goal')} className="h-full w-full bg-transparent text-base font-bold outline-none" /></label>
+          <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder={t('onboarding.write_own')} aria-label={t('onboarding.own_goal')} className="h-full w-full bg-transparent text-base font-bold outline-none" />
+          <MicButton value={own} onChange={setOwn} size="sm" label="Say your own goal" /></label>
         {org?.name ? <p className="text-sm text-muted-foreground">{t('onboarding.org_plans', { org: org.name })}</p> : null}
       </div> : null}
 
@@ -189,7 +192,8 @@ function PlaceSearch({ token, value, onPick }: { token?: string; value: PlaceOpt
   }, [q, token])
   return <div className="grid gap-2">
     <label className="flex h-14 items-center gap-2 rounded-2xl bg-muted px-4"><Search size={20} className="text-muted-foreground" aria-hidden="true" />
-      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('onboarding.place_placeholder')} aria-label={t('onboarding.place_search')} className="h-full w-full bg-transparent text-lg font-bold outline-none" /></label>
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('onboarding.place_placeholder')} aria-label={t('onboarding.place_search')} className="h-full w-full bg-transparent text-lg font-bold outline-none" />
+      <MicButton value="" onChange={(said) => setQ(said.replace(/[.!?]+$/, ''))} label="Say your town" /></label>
     <ul className="grid gap-1.5">{rows.map((r) => <li key={r.key}><button type="button" onClick={() => onPick(r)} aria-pressed={value?.key === r.key}
       className={cn('flex w-full items-baseline justify-between gap-3 rounded-2xl bg-card px-4 py-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]', value?.key === r.key && 'shadow-[0_0_0_2px_var(--org-primary-color)]')}>
       <span>{r.label}</span><small className="text-xs font-semibold text-muted-foreground">{r.detail}</small></button></li>)}</ul>

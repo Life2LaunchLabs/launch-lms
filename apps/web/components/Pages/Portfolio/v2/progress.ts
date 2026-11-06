@@ -12,6 +12,9 @@ export type Quest = { n: 1 | 2 | 3; title: string; why: string; items: QuestItem
 /** working: items left on quest n. unlocked: quest n is finished and its unlock moment hasn't been seen. mastered: all done. */
 export type Stage = { kind: 'working' | 'unlocked'; quest: Quest } | { kind: 'mastered' }
 
+/** The quest item for the résumé's email or phone, done in the profile dialog. */
+export const RESUME_CONTACT_ITEM = 'Add an email or phone for your résumé'
+
 const TITLES = { 1: 'Unlock sharing', 2: 'Unlock your résumé', 3: 'Portfolio mastery' } as const
 const WHY = { 1: 'Finish these to share your portfolio.', 2: 'Finish these to turn your portfolio into a résumé.', 3: 'Round it out to earn the mastery badge by your name.' } as const
 
@@ -28,7 +31,6 @@ export function quests(shell: Shell): Quest[] {
   const projects = shell.projects || []
   const skills = new Set((shell.results || []).flatMap((item) => skillsOf(item).map((part) => part.toLowerCase())))
   for (const badge of shell.badges?.earned || []) for (const skill of badge.skills || []) skills.add(skill.toLowerCase())
-  const socials = (shell.portfolio.socials || []) as Array<{ url?: string }>
   return [
     quest(1, [
       // Asked at sign-up, so it's usually ticked already.
@@ -42,7 +44,8 @@ export function quests(shell: Shell): Quest[] {
     quest(2, [
       count('xp3', 'Add 3 experiences', timeline.length, 3, 'experience'),
       { key: 'school', label: 'Add your school', done: timeline.some((entry) => entry.entry_type === 'education'), spot: 'experience' },
-      { key: 'links', label: 'Add a link where people can find you', done: socials.some((social) => social.url), spot: 'links' },
+      // A résumé needs a way to reach you, not a social link; the email and phone stay off the portfolio.
+      { key: 'contact', label: RESUME_CONTACT_ITEM, done: Boolean(shell.resume_contact?.email?.trim() || shell.resume_contact?.phone?.trim()), spot: 'name' },
       count('skills', 'Name 3 skills', skills.size, 3, 'results'),
     ]),
     quest(3, [

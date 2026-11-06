@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import JSON, Column, Index
 from sqlmodel import Field, SQLModel
 from src.db.roles import RoleRead
@@ -64,6 +64,12 @@ class UserReadPublic(UserBase):
     email_verified: bool = False
     avatar_image: str | None = ""
     bio: str | None = ""
+
+    @field_validator("details", mode="after")
+    @classmethod
+    def _private_details(cls, value: dict | None) -> dict | None:
+        """Accessibility settings are the learner's own; other people never see them."""
+        return {key: item for key, item in value.items() if key != "accessibility"} if isinstance(value, dict) else value
 
 
 class PublicUser(UserRead):

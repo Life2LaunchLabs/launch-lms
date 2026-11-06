@@ -16,6 +16,7 @@ import { getInterestQuiz, takeInterestQuiz, type InterestQuiz, type QuizCareer, 
 import { CareerTile } from '@components/Careers/CareerTile'
 import { DetailHeader } from './PortfolioDetail'
 import { Radar } from './ResultView'
+import { SpeakButton, SpokenQuestion } from '@components/Accessibility/ReadAloud'
 
 // The interest quiz: O*NET's Mini Interest Profiler, one activity at a time. Tap how you'd feel about doing it
 // and the next one comes up. At the end the result is saved to "What I'm like" and careers that line up are
@@ -137,7 +138,7 @@ function Question({ quiz, answers, saving, onAnswer, onBack }: { quiz: InterestQ
     <div key={item.n} className="grid min-h-[180px] place-items-center rounded-3xl border-2 border-border bg-card px-6 py-10 text-center shadow-[0_5px_0_hsl(var(--border))] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-4">
       <div>
         <p className="mb-2 text-xs font-extrabold uppercase tracking-wider text-muted-foreground">How would you feel about this?</p>
-        <h2 className="text-[clamp(24px,5vw,34px)] font-extrabold leading-tight" aria-live="polite">{item.text}</h2>
+        <SpokenQuestion title={item.text} as="h2" className="text-[clamp(24px,5vw,34px)] font-extrabold leading-tight" />
       </div>
     </div>
     <div className="grid grid-cols-5 gap-2" role="group" aria-label="Your answer">
@@ -148,7 +149,10 @@ function Question({ quiz, answers, saving, onAnswer, onBack }: { quiz: InterestQ
         <span className="text-[11.5px] font-extrabold leading-tight sm:text-[13px]">{option.label}</span>
       </button>)}
     </div>
-    <p className="hidden text-center text-xs font-semibold text-muted-foreground sm:block">Tip: press 1 to 5 to answer.</p>
+    <div className="flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground">
+      <SpeakButton size="sm" label="Hear the answers" text={quiz.answers.map((option) => option.label).join('. ')} />
+      <span><span aria-hidden="true">Hear the answers</span><span className="hidden sm:inline"> · Tip: press 1 to 5 to answer.</span></span>
+    </div>
     {saving ? <p className="text-center text-sm font-bold text-muted-foreground">Working out your result…</p> : null}
   </section>
 }

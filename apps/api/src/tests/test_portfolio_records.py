@@ -16,6 +16,7 @@ from src.db.portfolio_records import (
     PortfolioQuote,
     QuoteWrite,
     ResultWrite,
+    ResumeContactUpdate,
     ResumeVersionWrite,
 )
 from src.db.roles import Role
@@ -236,6 +237,28 @@ def test_seen_unlocks_stay_and_only_mastery_shows_to_visitors():
         assert public["mastered"] is True and "progress" not in public
         with pytest.raises(HTTPException):
             portfolio_display.mark_seen(ProgressSeen(quest=4), actor, db)
+
+
+def test_visitors_get_the_resume_once_it_is_unlocked():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        assert service.get_public_shell(1, "maya", db)["resume_unlocked"] is False
+        portfolio_display.mark_seen(ProgressSeen(quest=2), actor, db)
+        assert service.get_public_shell(1, "maya", db)["resume_unlocked"] is True
+
+
+def test_resume_contact_is_the_owners_alone():
+    with _session() as db:
+        actor = _learner(db, published=True)
+        assert service.get_owner_shell(actor, db)["resume_contact"] == {"email": "", "phone": ""}
+        saved = portfolio_display.update_resume_contact(ResumeContactUpdate(email=" maya@example.com ", phone="(541) 555-0123"), actor, db)
+        assert saved == {"email": "maya@example.com", "phone": "(541) 555-0123"}
+        assert service.get_owner_shell(actor, db)["resume_contact"] == saved
+        public = service.get_public_shell(1, "maya", db)
+        assert "resume_contact" not in public and "maya@example.com" not in str(public)
+        for bad in (ResumeContactUpdate(email="maya"), ResumeContactUpdate(phone="12"), ResumeContactUpdate(phone="call me")):
+            with pytest.raises(HTTPException):
+                portfolio_display.update_resume_contact(bad, actor, db)
 
 
 def test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices():
