@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -48,7 +49,7 @@ export function PlanTile({ card, orgslug, width = 196, fill = false }: { card: P
       <Tag card={card} />
       {card.goal ? <span className="absolute inset-x-3.5 bottom-3 block h-2 overflow-hidden rounded-full bg-white/80"><span className="block h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${percent}%` }} /></span> : null}
     </span>
-    <span className="px-0.5 text-base font-black leading-tight">{card.title}</span>
+    <span className="px-0.5 text-base font-black leading-tight"><Tx text={card.title} /></span>
     {card.org ? <span className="-mt-1 truncate px-0.5 text-[13px] font-semibold text-muted-foreground">{card.org.name}</span> : null}
   </Link>
 }

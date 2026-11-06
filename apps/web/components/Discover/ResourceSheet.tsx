@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx, TranslatedNote } from '@components/Utils/useContentTranslation'
 import React, { type Dispatch } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
@@ -55,7 +56,7 @@ function MoreFrom({ resource, onOpen }: { resource: Resource; onOpen: Dispatch<s
     <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {others.map((item) => <button key={item.resource_uuid} type="button" onClick={() => onOpen(item.resource_uuid)} className="flex w-[160px] shrink-0 flex-col gap-1.5 text-left">
         <ResourceCover resource={item} className="rounded-xl" />
-        <span className="line-clamp-2 text-[13px] font-extrabold leading-tight">{item.title}</span>
+        <span className="line-clamp-2 text-[13px] font-extrabold leading-tight"><Tx text={item.title} /></span>
       </button>)}
     </div>
   </Block>
@@ -149,8 +150,9 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
               <span className="flex items-center gap-1 rounded-full bg-foreground px-2.5 py-1 font-extrabold text-background"><Kind size={12} aria-hidden="true" />{meta.kind.label}</span>
               <span>{meta.line}</span>
             </div>
-            <h2 id="resource-sheet-title" className="m-0 text-balance text-[26px] font-extrabold leading-[1.12] tracking-tight">{resource.title}</h2>
-            {resource.description ? <p className="m-0 max-w-prose text-[15px] text-muted-foreground">{resource.description}</p> : null}
+            <h2 id="resource-sheet-title" className="m-0 text-balance text-[26px] font-extrabold leading-[1.12] tracking-tight"><Tx text={resource.title} /></h2>
+            {resource.description ? <p className="m-0 max-w-prose text-[15px] text-muted-foreground"><Tx text={resource.description} /></p> : null}
+            <TranslatedNote className="-mt-2 m-0 text-xs text-muted-foreground" />
             {resource.rating_count ? <p className="-mt-2 m-0 flex items-center gap-1.5 text-[13px] font-bold text-muted-foreground">
               <Star size={14} className="fill-amber-400 text-amber-400" aria-hidden="true" />
               <span className="text-foreground">{(resource.average_rating || 0).toFixed(1)}</span>{resource.rating_count === 1 ? '1 review' : `${resource.rating_count} reviews`}

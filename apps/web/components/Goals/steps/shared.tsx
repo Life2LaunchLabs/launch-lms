@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import { Check, Clock3, NotebookPen, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
 import { Button } from '@components/ui/button'
@@ -86,7 +87,7 @@ export function StepIntro({ step }: { step: Step }) {
   if (!step.description && !materials.length) return <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" className="self-end" />
   return <div className="flex flex-col gap-2">
     <div className="flex items-start gap-2">
-      {step.description ? <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm leading-6 text-foreground/80">{step.description}</p> : <span className="flex-1" />}
+      {step.description ? <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm leading-6 text-foreground/80"><Tx text={step.description} /></p> : <span className="flex-1" />}
       <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" />
     </div>
     {materials.length ? <div className="flex flex-wrap gap-1.5">

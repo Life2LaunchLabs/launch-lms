@@ -2,6 +2,7 @@
 import PageLoading from '@components/Objects/Loaders/PageLoading';
 import { useSession } from '@components/Contexts/AuthContext';
 import React, { useContext, createContext } from 'react'
+import { LanguageSync } from '@components/Utils/useLanguage'
 
 export const SessionContext = createContext({}) as any
 
@@ -14,6 +15,7 @@ function LHSessionProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <SessionContext.Provider value={session}>
+            <LanguageSync />
             {children}
         </SessionContext.Provider>
     )

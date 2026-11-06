@@ -7,14 +7,16 @@ import { HeaderProfileBox } from '@components/Security/HeaderProfileBox'
 import { OrgLogo } from '@components/Objects/OrgLogo'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import { getUriWithOrg } from '@services/config/config'
+import { useTranslation } from 'react-i18next'
 
 export function GuestHeader({ orgslug }: { orgslug: string }) {
   const org = useOrg() as any
   const colors = getMenuColorClasses('')
+  const { t } = useTranslation()
 
   return (
     <nav
-      aria-label="Top navigation"
+      aria-label={t('nav.top_navigation')}
       className="relative h-[60px] border-b border-border bg-card/95 backdrop-blur-lg"
       style={{ zIndex: 'var(--z-nav)' }}
     >

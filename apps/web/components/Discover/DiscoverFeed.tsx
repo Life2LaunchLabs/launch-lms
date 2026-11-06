@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { ArrowRight } from 'lucide-react'
@@ -23,7 +24,7 @@ function KeepGoing({ cards, orgslug }: { cards: PlanOfferCard[]; orgslug: string
           className="group flex w-[min(340px,80vw)] shrink-0 items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-foreground no-underline shadow-[0_4px_0_hsl(var(--edge))]">
           <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: tileColor(card.template_uuid) }}><PlanArt card={card} size={44} /></span>
           <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span className="truncate text-base font-extrabold">{card.title}</span>
+            <span className="truncate text-base font-extrabold"><Tx text={card.title} /></span>
             <span className="text-[13px] text-muted-foreground">{card.goal!.done} of {card.goal!.total} steps done</span>
             <span className="block h-2.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${percent}%` }} /></span>
           </span>
@@ -68,7 +69,7 @@ export default function DiscoverFeed({ orgslug, showPlans = true, showResources 
       <Shelf label="Explore plans">{loose.slice(0, 12).map((card) => <PlanTile key={card.template_uuid} card={card} orgslug={orgslug} />)}</Shelf>
     </section> : null}
     {feed.collections.map((collection) => <section key={collection.collection_uuid} aria-label={collection.name} className="flex flex-col gap-3.5">
-      <SectionTitle href={collectionHref(orgslug, collection.collection_uuid)} aside={<CollectedPill cards={collection.plans} />}>{collection.name}</SectionTitle>
+      <SectionTitle href={collectionHref(orgslug, collection.collection_uuid)} aside={<CollectedPill cards={collection.plans} />}><Tx text={collection.name} /></SectionTitle>
       <Shelf label={collection.name}>{collection.plans.map((card) => <PlanTile key={card.template_uuid} card={card} orgslug={orgslug} />)}</Shelf>
     </section>)}
     {showResources ? <><DiscoverCareers orgslug={orgslug} /><ResourceShelves orgslug={orgslug} /></> : null}

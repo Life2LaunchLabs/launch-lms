@@ -6,9 +6,9 @@ import { settingsCard, SettingsHeader } from '@components/Objects/Account/Accoun
 import { useTranslation } from 'react-i18next'
 
 const THEME_OPTIONS = [
-  { id: 'light', icon: Sun, label: 'Light' },
-  { id: 'dark', icon: Moon, label: 'Dark' },
-  { id: 'system', icon: Monitor, label: 'System' },
+  { id: 'light', icon: Sun, label: 'settings.appearance.light' },
+  { id: 'dark', icon: Moon, label: 'settings.appearance.dark' },
+  { id: 'system', icon: Monitor, label: 'settings.appearance.system' },
 ]
 
 function AccountPreferences() {
@@ -21,7 +21,7 @@ function AccountPreferences() {
 
   return (
     <div className={`${settingsCard} p-5 sm:p-6`}>
-      <SettingsHeader icon={Palette} title="Appearance" description="Choose how the app looks to you." />
+      <SettingsHeader icon={Palette} title={t('settings.appearance.title')} description={t('settings.appearance.description')} />
       <div className="mt-5">
         <div className="grid max-w-2xl grid-cols-3 gap-3">
           {THEME_OPTIONS.map((option) => {
@@ -40,14 +40,13 @@ function AccountPreferences() {
                 }`}
               >
                 <Icon size={22} />
-                <span className="text-sm font-bold">{option.label}</span>
+                <span className="text-sm font-bold">{t(option.label)}</span>
               </button>
             )
           })}
         </div>
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-          System follows your device setting. Your choice is saved on this
-          browser.
+          {t('settings.appearance.note')}
         </p>
       </div>
     </div>

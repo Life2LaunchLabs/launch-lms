@@ -101,8 +101,26 @@
         "sso": {
           "description": "El inicio de sesión único (SSO) es una función premium disponible solo para organizaciones en nuestro plan Enterprise. Actualiza para habilitar la autenticación segura a través del proveedor de identidad de tu organización.",
           "title": "Función Enterprise"
+        },
+        "podcasts": {
+          "title": "Función Standard",
+          "description": "Los podcasts son una función disponible solo para organizaciones con el plan Standard o superior. Mejora tu plan para crear y compartir podcasts con tus miembros."
+        },
+        "custom_domains": {
+          "title": "Función Standard",
+          "description": "Los dominios propios son una función disponible solo para organizaciones con el plan Standard o superior. Mejora tu plan para usar tu propio dominio."
+        },
+        "analytics": {
+          "title": "Función Standard",
+          "description": "Las estadísticas son una función disponible solo para organizaciones con el plan Standard o superior. Mejora tu plan para ver datos sobre tus estudiantes y tu contenido."
+        },
+        "course_analytics": {
+          "title": "Función Pro",
+          "description": "Las estadísticas de cursos son una función disponible solo para organizaciones con el plan Pro o superior. Mejora tu plan para ver la participación, las inscripciones y el progreso de cada curso."
         }
-      }
+      },
+      "upgrade_to": "Mejorar a",
+      "current_plan": "Plan actual"
     },
     "features": {
       "disabled": {
@@ -162,7 +180,9 @@
     "creating": "Creando...",
     "view_details": "Ver detalles",
     "close": "Cerrar",
-    "optional": "opcional"
+    "optional": "opcional",
+    "resources": "Recursos",
+    "news": "Noticias"
   },
   "banner": {
     "viewing_as_guest": "Estás viendo {{name}} como invitado.",
@@ -281,7 +301,29 @@
       },
       "try_again": "Intentar de nuevo"
     },
-    "sso_error": "La autenticación SSO falló. Por favor, inténtalo de nuevo."
+    "sso_error": "La autenticación SSO falló. Por favor, inténtalo de nuevo.",
+    "add_first_last": "Escribe tu nombre y apellido.",
+    "signup_failed": "No pudimos empezar tu registro",
+    "continue_google": "Continuar con Google",
+    "enter_email": "Escribe tu correo electrónico",
+    "email_address": "Correo electrónico",
+    "create_org_first": "Primero crea tu cuenta. Después le pondrás nombre a tu organización.",
+    "or_with_email": "o con tu correo",
+    "or": "o",
+    "create_free_account": "Crea tu cuenta gratis",
+    "continue": "Continuar",
+    "sign_in": "Iniciar sesión",
+    "agree_prefix": "Al continuar, aceptas los",
+    "terms_of_service": "Términos de servicio",
+    "agree_and": "y la",
+    "privacy_policy": "Política de privacidad",
+    "agree_suffix": " de Launch LMS.",
+    "name_you_go_by_optional": "Nombre que usas (opcional)",
+    "name_you_go_by": "Nombre que usas",
+    "age_required": "Launch LMS es para personas de 15 años o más. Confirma tu edad para continuar.",
+    "age_confirm": "Tengo 15 años o más",
+    "email_verification_required": "Verifica tu correo",
+    "email_verification_required_join": "Verifica tu correo antes de unirte a una organización. Busca el correo de verificación en tu bandeja de entrada."
   },
   "validation": {
     "required": "Obligatorio",
@@ -569,7 +611,11 @@
       "filter_by_group": "Filter by group",
       "info_title": "Group Filter",
       "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
-    }
+    },
+    "finish_course": "Terminar el curso",
+    "get_started": "Empezar",
+    "coming_soon": "Próximamente",
+    "coming_soon_detail": "Este curso todavía no está disponible. ¡Vuelve más tarde!"
   },
   "communities": {
     "title": "Comunidades",
@@ -999,7 +1045,8 @@
     "security": "Seguridad",
     "my_courses": "Mis Cursos",
     "no_purchased_courses": "Aún no hay cursos comprados",
-    "purchased_courses_description": "Los cursos que hayas comprado o a los que te hayas suscrito aparecerán aquí"
+    "purchased_courses_description": "Los cursos que hayas comprado o a los que te hayas suscrito aparecerán aquí",
+    "purchases": "Compras"
   },
   "user": {
     "user_settings": "Ajustes de usuario",
@@ -1323,7 +1370,8 @@
           "access": "Acceso",
           "contributors": "Colaboradores",
           "certification": "Certificación",
-          "seo": "SEO"
+          "seo": "SEO",
+          "analytics": "Estadísticas"
         },
         "access_denied": {
           "title": "Acceso denegado",
@@ -1374,6 +1422,12 @@
         },
         "errors": {
           "save_failed": "Error al guardar la estructura del curso."
+        },
+        "export": {
+          "title": "Exportar curso",
+          "description": "Descarga este curso como archivo ZIP para guardarlo o importarlo en otra instalación de Launch LMS.",
+          "button": "Exportar curso",
+          "exporting": "Exportando..."
         }
       },
       "access": {
@@ -1855,7 +1909,8 @@
             "assignments": "Tareas",
             "dynamic": "Dinámico",
             "dynamic_page": "Página dinámica",
-            "scorm": "Scorm"
+            "scorm": "Scorm",
+            "quiz": "Cuestionario"
           },
           "toasts": {
             "deleting": "Eliminando actividad...",
@@ -1982,7 +2037,15 @@
           "twitter_description_max_length": "La descripción de Twitter debe tener 200 caracteres o menos",
           "twitter_title_max_length": "El título de Twitter debe tener 70 caracteres o menos"
         }
-      }
+      },
+      "limit_reached": "Llegaste al límite de cursos ({{limit}})",
+      "setting_coming_soon": "Marcando como próximamente...",
+      "removing_coming_soon": "Quitando próximamente...",
+      "coming_soon_set": "Curso marcado como próximamente",
+      "coming_soon_removed": "Se quitó próximamente",
+      "coming_soon_error": "No se pudo cambiar el estado de próximamente",
+      "click_to_set_coming_soon": "Marcar como próximamente",
+      "click_to_remove_coming_soon": "Quitar próximamente"
     },
     "organization": {
       "settings": {
@@ -1997,7 +2060,8 @@
           "features": "Funcionalidades",
           "usage": "Usage",
           "other": "Otros",
-          "sso": "SSO"
+          "sso": "SSO",
+          "domains": "Dominios"
         },
         "pages": {
           "general": {
@@ -2035,6 +2099,10 @@
           "usage": {
             "title": "Usage",
             "subtitle": "Monitor your organization's resource usage and plan limits"
+          },
+          "domains": {
+            "title": "Dominios propios",
+            "subtitle": "Configura dominios propios para tu organización"
           }
         },
         "name": "Nombre de la organización",
@@ -2314,6 +2382,16 @@
           "featured_courses": {
             "label": "Cursos",
             "description": "Añade una sección para mostrar cursos seleccionados"
+          },
+          "in_progress": {
+            "label": "En curso",
+            "description": "Muestra los cursos en los que la persona está inscrita",
+            "editor_description": "Esta sección muestra automáticamente los cursos en los que está inscrita la persona que inició sesión. No hace falta configurarla."
+          },
+          "trending": {
+            "label": "Tendencias",
+            "description": "Muestra lo más reciente en conversaciones, recursos y cursos",
+            "editor_description": "Muestra la actividad reciente en conversaciones, recursos y cursos, de la más nueva a la más vieja. No hace falta configurarla."
           }
         },
         "add_section": "Añadir sección",
@@ -3365,7 +3443,28 @@
       },
       "button_block": {
         "enter_link_url": "Ingresa URL del enlace"
-      }
+      },
+      "magic_block": "Bloque mágico (hecho con IA)"
+    },
+    "ai_panel": {
+      "title": "Editor con IA",
+      "input_placeholder": "Pide ayuda a la IA con tu contenido...",
+      "how_can_i_help": "¿Cómo puedo ayudarte a mejorar tu contenido?",
+      "improve_writing": "Mejorar la redacción",
+      "add_examples": "Agregar ejemplos",
+      "simplify": "Simplificar",
+      "expand": "Ampliar",
+      "add_quiz": "Agregar cuestionario",
+      "translate": "Traducir",
+      "add_summary": "Agregar resumen",
+      "add_tip": "Agregar consejo",
+      "add_definition": "Agregar definición",
+      "clear_chat": "Borrar chat",
+      "clear_selection": "Quitar selección",
+      "block_selected": "bloque seleccionado",
+      "question_improve": "¿Cómo puedo mejorar esto?",
+      "question_add_quiz": "Agrega un cuestionario",
+      "question_summary": "Agrega un resumen"
     }
   },
   "embed": {
@@ -3542,6 +3641,12 @@
       "certification_rate": {
         "title": "Tasa de certificación",
         "description": "% de completadores que reclaman certificados"
+      },
+      "groups_retention": {
+        "title": "Permanencia por grupo",
+        "description": "% de personas activas después de la semana de registro",
+        "groups": "Grupo",
+        "size": "Tamaño"
       }
     },
     "course_analytics": {
@@ -3614,7 +3719,8 @@
         "sample": "muestra",
         "samples": "muestras",
         "min": "min",
-        "avg_per_learner": "Prom. por estudiante"
+        "avg_per_learner": "Prom. por estudiante",
+        "in_groups": "en grupos"
       },
       "type_labels": {
         "video": "Video",
@@ -3711,7 +3817,8 @@
         "cohort_size": "Tamaño de cohorte",
         "current_retention": "Retención actual",
         "days_since_first": "Días desde la primera actividad",
-        "day_label": "Día {{day}}"
+        "day_label": "Día {{day}}",
+        "groups_size": "Tamaño del grupo"
       },
       "completion_velocity": {
         "title": "Velocidad de finalización",
@@ -3758,6 +3865,12 @@
       "pagination": {
         "range": "{{from}}–{{to}} de {{total}}"
       }
+    },
+    "export": {
+      "button": "Exportar",
+      "json": "Descargar JSON",
+      "csv": "Descargar CSV",
+      "downloading": "Exportando..."
     }
   },
   "boards": {
@@ -3882,7 +3995,8 @@
       "thick": "Grueso",
       "undo": "Deshacer",
       "redo": "Rehacer",
-      "podcast": "Podcast"
+      "podcast": "Podcast",
+      "todo": "Pendiente"
     },
     "zoom": {
       "zoom_in": "Acercar",
@@ -3988,5 +4102,251 @@
       "results": "{{count}} resultado para \"{{query}}\"",
       "results_plural": "{{count}} resultados para \"{{query}}\""
     }
+  },
+  "nav": {
+    "goals": "Metas",
+    "discover": "Descubrir",
+    "connect": "Conectar",
+    "portfolio": "Portafolio",
+    "coach": "Coach",
+    "coach_new_reply": "Coach, respuesta nueva",
+    "unread_messages": "{{label}}, mensajes sin leer",
+    "mobile_navigation": "Navegación móvil",
+    "top_navigation": "Navegación superior",
+    "open_sidebar": "Abrir barra lateral",
+    "collapse_sidebar": "Cerrar barra lateral",
+    "send_feedback": "Enviar comentarios",
+    "feedback": "Comentarios",
+    "settings": "Ajustes"
+  },
+  "settings": {
+    "cancel": "Cancelar",
+    "change": "Cambiar",
+    "sign_out": "Cerrar sesión",
+    "password_failed": "No se pudo cambiar la contraseña",
+    "password_failed_retry": "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
+    "memory": {
+      "load_failed": "No se pudo cargar la memoria de Coach.",
+      "save_failed": "No se pudo guardar la memoria de Coach.",
+      "clear_failed": "No se pudieron borrar los recuerdos de Coach.",
+      "title": "Memoria de Coach",
+      "description": "Deja que Coach recuerde tus metas, gustos, límites y lo que te importa para tus próximas conversaciones en esta organización.",
+      "enable": "Activar la memoria de Coach",
+      "off": "La memoria está apagada. Tus recuerdos guardados se quedan, pero Coach no los usará ni los cambiará.",
+      "what": "Lo que Coach recuerda",
+      "edit_any": "Puedes editar o borrar cualquier recuerdo cuando quieras.",
+      "clear_all": "Borrar todo",
+      "clear_title": "¿Borrar todos los recuerdos de Coach?",
+      "clear_description": "Esto borra todos los recuerdos guardados en esta organización. Tus conversaciones no se borran.",
+      "search": "Buscar recuerdos",
+      "loading": "Cargando recuerdos…",
+      "no_match": "Ningún recuerdo coincide con tu búsqueda.",
+      "none": "Coach todavía no ha guardado ningún recuerdo."
+    },
+    "data": {
+      "preparing_toast": "Preparando tus datos…",
+      "downloading": "Tus datos se están descargando.",
+      "failed": "No se pudieron descargar tus datos. Inténtalo en un minuto.",
+      "title": "Tus datos",
+      "description": "Descarga una copia de todo lo que has agregado: tu perfil, portafolio, planes, insignias, respuestas, mensajes, chats con Coach, recursos guardados y los archivos que subiste. Llega como un archivo zip que puedes guardar o llevar contigo.",
+      "school_records": "Tu escuela o programa guarda sus propios registros y puede exportarlos por ti.",
+      "preparing": "Preparando…",
+      "download": "Descargar mis datos"
+    },
+    "general": {
+      "invalid_email": "Correo no válido",
+      "email_required": "Escribe tu correo",
+      "username_required": "Escribe un nombre de usuario",
+      "first_name_required": "Escribe tu nombre",
+      "last_name_required": "Escribe tu apellido",
+      "bio_too_long": "Tu biografía debe tener 400 caracteres o menos",
+      "load_failed": "No se pudieron cargar tus datos",
+      "avatar_failed": "No se pudo cambiar tu foto",
+      "update_failed": "No se pudo guardar tu perfil",
+      "image_title": "Cambia tu foto de perfil",
+      "image_description": "Sube una imagen, pega un enlace o elige una de tu biblioteca."
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "description": "Elige cómo se ve la app.",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema",
+      "note": "Sistema usa el ajuste de tu dispositivo. Tu elección se guarda en este navegador."
+    },
+    "language": {
+      "title": "Idioma",
+      "description": "El idioma de los menús, botones y mensajes de la app. Se guarda en tu cuenta, así que te sigue en cualquier dispositivo.",
+      "saved": "Idioma guardado",
+      "more_soon": "Pronto habrá más idiomas. Por ahora, algunos textos escritos por tu escuela o programa pueden seguir en inglés.",
+      "auto_title": "Traducir los textos de escuelas y programas",
+      "auto_description": "Los planes, recursos y carreras escritos en inglés se traducen automáticamente. Apágalo para ver el texto original."
+    }
+  },
+  "phases": {
+    "living": {
+      "family": "Con mi familia",
+      "own": "En mi propia casa",
+      "roommates": "Con compañeros de casa",
+      "partner": "Con mi pareja",
+      "dorm": "En una residencia estudiantil",
+      "other": "Otra cosa"
+    },
+    "kinds": {
+      "learning": "Estudiando",
+      "learning_hint": "Escuela, universidad, capacitación",
+      "working": "Trabajando",
+      "working_hint": "Un trabajo, un aprendizaje",
+      "looking": "Buscando trabajo",
+      "looking_hint": "Entre trabajos",
+      "caring": "Cuidando a mi familia",
+      "caring_hint": "Hijos, padres",
+      "gap": "Tiempo libre o viajes",
+      "gap_hint": "Un descanso, explorar",
+      "other": "Otra cosa",
+      "other_hint": "Recuperándome, haciendo voluntariado…"
+    },
+    "levels": {
+      "middle": "Escuela intermedia",
+      "middle_short": "Escuela intermedia",
+      "high": "Escuela secundaria (high school)",
+      "high_short": "Secundaria",
+      "ged": "GED o clases para adultos",
+      "ged_short": "GED",
+      "trade": "Escuela técnica o certificado",
+      "trade_short": "Escuela técnica",
+      "cc": "Colegio comunitario",
+      "cc_short": "Colegio comunitario",
+      "uni": "Universidad",
+      "uni_short": "Universidad",
+      "grad": "Posgrado",
+      "grad_short": "Posgrado"
+    },
+    "school": "Escuela",
+    "schools_in_mind": "{{level}} · {{count}} en mente",
+    "apprentice": "Aprendiz de {{job}}",
+    "job_at": "{{job}} en {{employer}}",
+    "this_phase": "Esta etapa",
+    "lines": {
+      "pay_at": "Sueldo en {{employer}}",
+      "pay_as": "Sueldo como {{job}}",
+      "a_worker": "trabajador",
+      "family_home": "Vivir con la familia",
+      "dorm": "Residencia estudiantil",
+      "rent": "Renta"
+    },
+    "check": {
+      "place": "Dónde",
+      "living": "Cómo vives",
+      "doing": "Qué estás haciendo",
+      "starts": "Cuándo empieza",
+      "budget": "Un presupuesto",
+      "goals": "Una meta"
+    },
+    "month": "Mes",
+    "year": "Año",
+    "back": "Atrás",
+    "search_colleges": "Busca universidades y programas",
+    "type_school": "Escribe el nombre de tu escuela",
+    "use_typed": "Usar “{{text}}”",
+    "not_sure_where": "Todavía no sé dónde",
+    "skip_school": "Saltar el nombre de la escuela",
+    "job": "Trabajo",
+    "job_placeholder": "Un trabajo: barista, enfermero, electricista…",
+    "onet_note": "Los trabajos de la lista vienen de O*NET, así que podemos mostrar datos de sueldo y capacitación.",
+    "career_where": "{{career}}: ¿dónde?",
+    "employer": "Empleador",
+    "employer_placeholder": "Nombre del empleador (opcional)",
+    "at_employer": "En {{employer}}",
+    "skip_employer": "Saltar el empleador",
+    "as_apprentice": "Como aprendiz"
+  },
+  "onboarding": {
+    "ideas": {
+      "middle": {
+        "ready_hs": "Prepararme para la secundaria",
+        "club": "Probar un club o deporte nuevo",
+        "good_at": "Descubrir en qué soy bueno"
+      },
+      "high": {
+        "graduate": "Graduarme a tiempo",
+        "license": "Sacar mi licencia de manejar",
+        "gpa": "Subir mi promedio (GPA)",
+        "after_hs": "Decidir qué hacer después de la secundaria"
+      },
+      "ged": {
+        "pass_ged": "Pasar mis exámenes del GED",
+        "schedule": "Hacer un horario de estudio",
+        "after_ged": "Decidir qué hacer después del GED"
+      },
+      "college": {
+        "first_year": "Terminar mi primer año",
+        "study_group": "Encontrar un grupo de estudio",
+        "major": "Elegir una carrera",
+        "scholarships": "Solicitar becas"
+      },
+      "working": {
+        "first_90": "Pasar mis primeros 90 días",
+        "save_1000": "Ahorrar mis primeros $1,000",
+        "new_skill": "Aprender algo nuevo en el trabajo",
+        "raise": "Pedir un aumento"
+      },
+      "looking": {
+        "land_job": "Conseguir trabajo",
+        "resume": "Actualizar mi currículum",
+        "interviews": "Practicar entrevistas"
+      },
+      "other": {
+        "routine": "Crear una rutina",
+        "save_up": "Ahorrar",
+        "whats_next": "Decidir qué sigue"
+      }
+    },
+    "now": "Ahora",
+    "goal_add_failed": "No se pudo agregar “{{title}}”. Puedes agregarla desde tu etapa.",
+    "photo_failed": "No se pudo subir esa foto. Prueba con una imagen más pequeña.",
+    "where_hi": "¡Hola, {{name}}! ¿Dónde vives ahora?",
+    "where": "¿Dónde vives ahora?",
+    "where_sub": "Basta con un pueblo, ciudad o condado.",
+    "living": "¿Con quién vives?",
+    "living_sub": "Esto ayuda con tu presupuesto. Puedes cambiarlo cuando quieras.",
+    "doing": "¿Qué estás haciendo estos días?",
+    "doing_sub": "Escuela, un trabajo o los dos. Agrega todo lo que quieras.",
+    "since": "¿Desde cuándo?",
+    "since_sub": "Más o menos está bien. Una etapa dura hasta que empieza la siguiente.",
+    "card": "Esta es tu primera etapa",
+    "card_sub": "Cámbiale el nombre o usa tu propia foto.",
+    "goal": "¿Qué quieres lograr en esta etapa?",
+    "goal_sub": "Elige algunas para empezar. Cada una se vuelve una meta que puedes dividir en pasos.",
+    "previous": "Pregunta anterior",
+    "step_of": "Paso {{step}} de {{total}}",
+    "remove": "Quitar {{name}}",
+    "add_else": "Agregar otra cosa (un trabajo, otra escuela…)",
+    "phase_name": "Nombre de la etapa",
+    "since_month": "desde {{month}}",
+    "another_photo": "Otra foto",
+    "own_photo": "Usar mi propia foto",
+    "use_ours": "Usar la nuestra",
+    "write_own": "O escribe la tuya",
+    "own_goal": "Tu propia meta",
+    "org_plans": "Los planes de {{org}} también llegan a esta etapa, junto a tus propias metas.",
+    "skip_for_now": "Saltar por ahora",
+    "start_plan": "Empezar mi plan",
+    "start_without": "Empezar sin metas",
+    "next": "Siguiente",
+    "place_placeholder": "Eugene, Bend, condado de Coos…",
+    "place_search": "Busca pueblos, ciudades y condados"
+  },
+  "landing": {
+    "trending": {
+      "title": "Tendencias",
+      "empty": "Todavía no hay actividad reciente"
+    }
+  },
+  "translate": {
+    "auto": "Traducido automáticamente",
+    "original": "Texto original",
+    "show_original": "Ver original",
+    "show_translated": "Ver traducción"
   }
 }

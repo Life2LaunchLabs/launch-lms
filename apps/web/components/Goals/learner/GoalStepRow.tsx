@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
@@ -76,7 +77,7 @@ export function GoalStepRow({ goal, step, viewer, perspective, selected, last, o
     <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-2', selected && (locked ? 'border-border' : 'border-[var(--plan-face)]'))}>
       <div className="flex items-start gap-1">
         <button type="button" onClick={onSelect} tabIndex={-1} className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-          <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{step.title}</span>
+          <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{goal.source !== 'none' ? <Tx text={step.title} /> : step.title}</span>
           {shownStatus ? <span className="text-xs font-semibold text-muted-foreground">{shownStatus}</span> : null}
         </button>
         <span className="-mt-1 shrink-0"><StepChatButton step={step} quiet={!selected} label={perspective === 'cohort' ? 'Discuss' : undefined} /></span>
