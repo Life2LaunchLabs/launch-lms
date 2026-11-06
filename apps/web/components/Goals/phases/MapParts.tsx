@@ -74,7 +74,7 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-opt={opt} data-title={p.title} onClick={onOpen} title={`${p.title} · from ${monthText(p.starts!)}`}
+  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={`${p.title} · from ${monthText(p.starts!)}`}
     {...drag}
     className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>

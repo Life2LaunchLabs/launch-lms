@@ -14,12 +14,16 @@ import PhaseSheet from './PhaseSheet'
 import MoveBar, { type Moving } from './MoveBar'
 import { PendingCard, PhaseCard, RankSheet, Target, Tray, type Env } from './MapParts'
 import {
-  byId, endOf, endsKey, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep,
+  byId, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep,
 } from './graph'
 
 type Change = (fn: (next: LifeDoc) => void) => Promise<LifeDoc | null>
-/** Where a dragged piece would land: after `at` in line, or as a new option in the split `at`. */
-type Spot = { at: string; inline: boolean; text: string; el: HTMLElement; slot?: boolean }
+/**
+ * Where a dragged piece would land: after `at` in line, or as a new option in the split `at`. `home`
+ * puts it back where it was; `index` (a split's options row) or `beside` (an option's card) say where
+ * among the options it goes.
+ */
+type Spot = { at: string; inline: boolean; text: string; el: HTMLElement; slot?: boolean; home?: boolean; index?: number; beside?: string }
 
 const SHOWN_KEY = 'plans-map-shown'
 const HOLD_KEY = 'plans-map-hold'
@@ -93,7 +97,15 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     return () => ro.disconnect()
   }, [comparing])
 
-  const setShown = React.useCallback((key: string, id: string) => setShownState((s) => { const next = { ...s, [key]: id }; try { localStorage.setItem(SHOWN_KEY, JSON.stringify(next)) } catch { /* not kept */ } return next }), [])
+  const keepShown = (next: Record<string, string>) => { try { localStorage.setItem(SHOWN_KEY, JSON.stringify(next)) } catch { /* not kept */ } return next }
+  const setShown = React.useCallback((key: string, id: string) => setShownState((s) => keepShown({ ...s, [key]: id })), [])
+  /** Show every option on the way to a phase (and, when a split moved under another phase, keep what it showed). */
+  const showWay = (d: LifeDoc, id: string, moved?: { from: string; to: string }) => setShownState((s) => {
+    const next = { ...s }
+    if (moved && s[moved.from]) next[moved.to] = s[moved.from]
+    for (let x = byId(d, id), n = 0; x?.after?.length && n < 200; x = byId(d, x.after[0]), n++) next[splitOf(x)!] = x.id
+    return keepShown(next)
+  })
   // Which option each split shows is remembered on this device. Opening on a phase shows the way to it.
   React.useEffect(() => {
     const s = readShown()
@@ -121,20 +133,32 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   // Phases move one at a time; a career's route moves as a whole until it is placed.
   const heldIds = React.useMemo(() => (moving ? (moving.loose ? moving.loose.ids : pieceOf(doc, moving.head, true)) : []), [moving, doc])
   const held = React.useMemo(() => new Set(heldIds), [heldIds])
+  // The map as it is without the phase being moved: where it can go is worked out on this.
+  const without = React.useMemo(() => (moving && !moving.loose ? lift(doc, moving.head, true) : base), [moving, doc, base])
   const startMove = (head: string, dragging = false) => { setSheet(null); setPending(null); setMoving({ head, only: true, dragging }) }
   const startNew = (dragging: boolean) => {
     setSheet(null); setPending(null)
     const loose = loosePiece(doc, [{ title: 'New phase', years: 1 }])
     setMoving({ head: loose.ids[0], only: false, loose, fresh: true, dragging, label: 'Where does the new phase go?' })
   }
-  const drop = async (at: string, inline: boolean) => {
+  const drop = async (at: string, inline: boolean, where: { index?: number; beside?: string } = {}) => {
     if (!moving) return
     const ids = heldIds
     let lifted = moving.loose ? moving.loose.doc : lift(doc, moving.head, true)
     if (moving.fresh) { lifted = structuredClone(lifted); byId(lifted, ids[0])!.starts = ym(freshStart(lifted, at, inline)) }
-    const placed = place(lifted, ids, at, inline)
+    let placed = place(lifted, ids, at, inline)
+    // Among a split's options it goes where it was dropped: first, last, or right after the card it went beside.
+    const key = !inline && splitOf(byId(placed, ids[0])!)
+    if (key && (where.index != null || where.beside)) {
+      const order = optionsOf(placed, key).map((q) => q.id).filter((id) => id !== ids[0])
+      const j = where.beside ? order.indexOf(where.beside) + 1 : Math.min(where.index!, order.length)
+      order.splice(j < 0 ? order.length : j, 0, ids[0])
+      placed = rank(placed, order)
+    }
     setMoving(null)
-    setShown(at, ids[0])
+    // Show the way to where it landed, so it never seems to vanish into an option that isn't showing. In
+    // line before a split, the split now hangs off the piece: it keeps showing the option it showed.
+    showWay(placed, ids[0], inline ? { from: at, to: heldShape(placed, ids).tail || ids[ids.length - 1] } : undefined)
     requestAnimationFrame(() => document.querySelector(`[data-card="${ids[0]}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
     if (moving.route) { setRoute(null); setPending({ doc: placed, id: ids[0], name: moving.label || '', ids }) }
     else if (moving.fresh) setPending({ doc: placed, id: ids[0], name: pending?.id === ids[0] ? pending.name : '' })
@@ -166,7 +190,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
 
   // While dragging: over the middle of a phase means an option beside it, over a split's options row an
   // option in that split (hold over one to show it, and go deeper), anywhere else the nearest gap.
-  const lifting = React.useRef<{ ghost: HTMLElement; x0: number; y0: number; x: number; y: number; scroll?: number; spot: Spot | null; drill?: { id: string; timer: ReturnType<typeof setTimeout> }; page?: { k: string; timer: ReturnType<typeof setInterval> } } | null>(null)
+  const lifting = React.useRef<{ ghost: HTMLElement; x0: number; y0: number; x: number; y: number; scroll?: number; spot: Spot | null; drill?: { id: string; timer: ReturnType<typeof setTimeout> }; flip?: { k: string; ax: number; ext: number; ay: number; dir?: number; timer?: ReturnType<typeof setInterval> } } | null>(null)
   const moveRef = React.useRef<(x: number, y: number) => void>(() => {})
   const ghostMove = React.useCallback((x: number, y: number) => {
     const l = lifting.current
@@ -175,24 +199,41 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     l.x = x; l.y = y
     const el = document.elementFromPoint(x, y) as HTMLElement | null
     const row = el?.closest<HTMLElement>('[data-band-key]'), chip = el?.closest<HTMLElement>('[data-chip]'), card = el?.closest<HTMLElement>('[data-opt]')
+    const home = el?.closest<HTMLElement>('[data-card][data-held]')
     let spot: Spot | null = null
-    if (row) spot = { at: row.dataset.bandKey!, inline: false, text: 'A new option here', el: row }
-    else if (card) { const r = card.getBoundingClientRect(); if (y > r.top + r.height * 0.2 && y < r.bottom - r.height * 0.2) spot = { at: card.dataset.opt!, inline: false, text: `An option beside ${card.dataset.title}`, el: card } }
+    // Still over where it came from: it goes back there.
+    if (home) spot = { at: '', inline: false, home: true, text: 'Put it back', el: home }
+    else if (row) {
+      // Among the options, where the finger is: before the first, between two, or after the last.
+      const chips = [...row.querySelectorAll<HTMLElement>('[data-chip]:not([data-held])')]
+      const index = chips.filter((c) => { const r = c.getBoundingClientRect(); return x > r.left + r.width / 2 }).length
+      spot = { at: row.dataset.bandKey!, inline: false, index, el: row, text: !chips.length || index >= chips.length ? 'The last option' : index === 0 ? 'The first option' : `Option ${index + 1}` }
+    } else if (card) { const r = card.getBoundingClientRect(); if (y > r.top + r.height * 0.2 && y < r.bottom - r.height * 0.2) spot = { at: card.dataset.opt!, inline: false, beside: card.dataset.card, text: `An option beside ${card.dataset.title}`, el: card } }
     if (chip && chip.dataset.chip !== l.drill?.id) {
       if (l.drill) clearTimeout(l.drill.timer)
       const key = row!.dataset.bandKey!, id = chip.dataset.chip!
       l.drill = { id, timer: setTimeout(() => setShown(key, id), 450) }
     } else if (!chip && l.drill) { clearTimeout(l.drill.timer); l.drill = undefined }
-    // Carried out to the left or right edge of a split, it flips to the option that way, again every moment
-    // it stays. Only when moved there: a thumb that picked the card up near the edge doesn't flip anything.
-    const tray = el?.closest<HTMLElement>('[data-tray]')
-    const tr = tray?.getBoundingClientRect()
-    const side = tr ? (x < tr.left + 32 && x < l.x0 - 32 ? -1 : x > tr.right - 32 && x > l.x0 + 32 ? 1 : 0) : 0
-    const pk = side && tray ? `${tray.dataset.tray}${side}` : ''
-    if (pk !== (l.page?.k || '')) {
-      if (l.page) clearInterval(l.page.timer)
-      l.page = undefined
-      if (pk && tray) l.page = { k: pk, timer: setInterval(() => { const ids = tray.dataset.opts!.split(','), j = Number(tray.dataset.index) + side; if (j >= 0 && j < ids.length) setShown(tray.dataset.tray!, ids[j]) }, 650) }
+    // Over a split's options, a clear sideways pull flips to the next option that way, one per pull. Held
+    // at the edge of the screen it keeps flipping, slowly. Up and down never flips.
+    const tray = el?.closest<HTMLElement>('[data-tray]'), tk = tray?.dataset.tray || ''
+    const flip = (dir: number) => { if (!tray) return; const ids = tray.dataset.opts!.split(','), j = Number(tray.dataset.index) + dir; if (j >= 0 && j < ids.length) { setShown(tk, ids[j]); navigator.vibrate?.(8) } }
+    if (tk !== (l.flip?.k || '')) {
+      if (l.flip?.timer) clearInterval(l.flip.timer)
+      l.flip = tray ? { k: tk, ax: x, ext: x, ay: y } : undefined
+    } else if (l.flip) {
+      // `ax` is where the last flip happened, `ext` the farthest the finger went past it: pulling on flips
+      // again after the same distance, and so does pulling back from wherever it got to.
+      const f = l.flip, dy = y - f.ay
+      if (f.dir && (x - f.ext) * f.dir > 0) f.ext = x
+      const on = f.dir ? (x - f.ax) * f.dir : Math.abs(x - f.ax), back = f.dir ? (f.ext - x) * f.dir : 0
+      const go = (dir: number) => { flip(dir); f.dir = dir; f.ax = f.ext = x; f.ay = y }
+      if (on >= 56 && on > Math.abs(dy)) go(f.dir || Math.sign(x - f.ax))
+      else if (back >= 56 && back > Math.abs(dy)) go(-f.dir!)
+      else if (Math.abs(dy) >= 56) { f.ax = f.ext = x; f.ay = y; f.dir = undefined }
+      const edge = f.dir && (f.dir > 0 ? x > window.innerWidth - 36 : x < 36)
+      if (edge && !f.timer) { const dir = f.dir!; f.timer = setInterval(() => flip(dir), 1100) }
+      else if (!edge && f.timer) { clearInterval(f.timer); f.timer = undefined }
     }
     if (!spot) {
       let best: HTMLElement | null = null, bd = Infinity
@@ -201,10 +242,15 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       const s = best as HTMLElement | null
       if (s) { const mode = s.dataset.modes!; spot = { at: s.dataset.slot!, inline: mode === 'in', slot: true, el: s, text: mode === 'in' ? `Right after ${s.dataset.title}` : `After ${s.dataset.title}` } }
     }
-    if (spot?.el !== l.spot?.el) {
+    if (spot?.el !== l.spot?.el || spot?.index !== l.spot?.index) {
       // Only marks: nothing is inserted, so the layout (and what's under the finger) stays put.
       wrap.current?.querySelectorAll<HTMLElement>('[data-hot]').forEach((b) => { delete b.dataset.hot })
+      wrap.current?.querySelectorAll<HTMLElement>('[data-ins]').forEach((b) => { delete b.dataset.ins })
       if (spot) spot.el.dataset.hot = '1'
+      if (spot?.index != null) {
+        const chips = [...spot.el.querySelectorAll<HTMLElement>('[data-chip]:not([data-held])')]
+        if (chips[spot.index]) chips[spot.index].dataset.ins = 'l'; else if (chips.length) chips[chips.length - 1].dataset.ins = 'r'
+      }
       l.spot = spot
       l.ghost.textContent = spot?.text || 'Drop it on the map'
     }
@@ -227,16 +273,17 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     lifting.current = null
     if (!l) return
     if (l.drill) clearTimeout(l.drill.timer)
-    if (l.page) clearInterval(l.page.timer)
+    if (l.flip?.timer) clearInterval(l.flip.timer)
     if (l.scroll) cancelAnimationFrame(l.scroll)
     l.ghost.remove()
     pagePinned(false)
-    wrap.current?.querySelectorAll<HTMLElement>('[data-hot]').forEach((b) => { delete b.dataset.hot })
+    wrap.current?.querySelectorAll<HTMLElement>('[data-hot],[data-ins]').forEach((b) => { delete b.dataset.hot; delete b.dataset.ins })
     const stop = (e: MouseEvent) => { e.stopPropagation(); e.preventDefault() }
     window.addEventListener('click', stop, { capture: true, once: true })
     setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50)
     // The touch listeners were set up before the piece lifted, so the drop reads the latest render.
-    if (l.spot) void dropRef.current(l.spot.at, l.spot.inline)
+    if (l.spot?.home) setMoving(null)
+    else if (l.spot) void dropRef.current(l.spot.at, l.spot.inline, l.spot)
     else setMoving((m) => (m ? { ...m, dragging: false } : m))
   }, [])
   const ghostStart = (text: string, x: number, y: number) => {
@@ -247,6 +294,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     pagePinned(true)
     lifting.current = { ghost, x0: x, y0: y, x, y, spot: null }
     ghostMove(x, y)
+    // Look again once the map shows what's moving: a finger that hasn't moved is over where the piece came from.
+    requestAnimationFrame(() => requestAnimationFrame(() => { const l = lifting.current; if (l) moveRef.current(l.x, l.y) }))
     navigator.vibrate?.(12)
   }
   const liftCard = (p: Phase, x: number, y: number) => { startMove(p.id, true); ghostStart(p.title, x, y) }
@@ -330,8 +379,10 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   const card = (p: Phase) => {
     if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
       onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
-    const key = splitOf(p), wh = whenOf(base, p)
-    const opt = moving && key && wh !== 'done' && wh !== 'now' && !held.has(p.id) && !(p.after || []).some((a) => held.has(a)) ? key : undefined
+    const wh = whenOf(base, p), lp = moving ? byId(without, p.id) : undefined
+    // Even the phase right after the one moving can take it as an option: worked out as if it were gone.
+    const key = lp && splitOf(lp)
+    const opt = moving && key && wh !== 'done' && wh !== 'now' && !held.has(p.id) ? key : undefined
     return <PhaseCard key={`c-${p.id}`} p={p} env={env} opt={opt} onOpen={() => setSheet({ id: p.id })} onLift={(x, y) => liftCard(p, x, y)} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
   }
 
@@ -357,8 +408,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       <div data-band-key={key} className={cn('flex items-center gap-2 rounded-full py-1.5 transition-colors data-[hot]:bg-foreground/10', wide && 'mx-auto w-full max-w-[620px]')} style={pad}>
         <span className="shrink-0 text-[13px] font-extrabold text-muted-foreground">Options</span>
         <div role="tablist" aria-label={label} className="-my-0.5 flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none]">
-          {options.map((q) => <button key={q.id} type="button" role="tab" data-chip={q.id} aria-selected={q === sel} onClick={() => setShown(key, q.id)}
-            className={cn('shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-extrabold shadow-[0_0_0_1.5px_hsl(var(--border))]', q === sel ? 'bg-foreground text-background shadow-none' : 'bg-card', q.idea && q !== sel && 'shadow-[0_0_0_1.5px_hsl(var(--border))] [border-style:dashed]')}>{q.title}</button>)}
+          {options.map((q) => <button key={q.id} type="button" role="tab" data-chip={q.id} data-held={held.has(q.id) || undefined} aria-selected={q === sel} onClick={() => setShown(key, q.id)}
+            className={cn('shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-extrabold data-[ins=l]:!shadow-[-7px_0_0_-3px_hsl(var(--foreground))] data-[ins=r]:!shadow-[7px_0_0_-3px_hsl(var(--foreground))] shadow-[0_0_0_1.5px_hsl(var(--border))]', q === sel ? 'bg-foreground text-background shadow-none' : 'bg-card', q.idea && q !== sel && 'shadow-[0_0_0_1.5px_hsl(var(--border))] [border-style:dashed]')}>{q.title}</button>)}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button type="button" aria-label={`More for ${label.toLowerCase()}`} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
@@ -381,7 +432,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       out.push(...(group.length > 1 ? band(splitOf(meet)!, group.map((g) => byId(base, g.after![0])?.title).join(' or '), group, stop, depth) : chain(meet, stop, depth)))
     } else if (!meet) {
       // After every option: something they all lead to.
-      const ends = endsKey(base, key)
+      // Worked out without the phase being moved, so an option's last phase can still go after them all.
+      const ends = endsKey(without, key)
       if (ends && !ends.split(/[:,]/).some((id) => held.has(id))) out.push(gapAt(`j-${key}`, undefined, undefined, ends, `all ${options.length} options`))
     }
     return out
