@@ -130,6 +130,27 @@ def api_career_links(org_id: int, codes: str = "", db: Session = Depends(get_db_
     return {"links": career_service.links(db, user, org_id, wanted)}
 
 
+class HomeBase(BaseModel):
+    label: str = Field(default="", max_length=120)
+    reach: str = "state"
+    online: bool = True
+
+
+@router.get("/home")
+def api_home_base(q: str | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The learner's home base for Explore: the portfolio's location, where we place it, how far they'd go and
+    whether online is OK. With `q`, where we'd place that text instead (a preview while typing)."""
+    return career_service.home_settings(db, _signed_in(user).id, q[:120] if q is not None else None)
+
+
+@router.put("/home")
+def api_save_home_base(body: HomeBase, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Set the portfolio's location and the home base settings under it."""
+    if body.reach not in career_service.REACHES:
+        raise HTTPException(status_code=400, detail="Reach is close, region, state or anywhere.")
+    return career_service.save_home(db, _signed_in(user), body.label, body.reach, body.online)
+
+
 @router.get("/careers/{code}/profile")
 def api_career_profile(code: str, org_id: int | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """A career's page: what it is, what people do, pay in Oregon and where the learner's phases are, training,

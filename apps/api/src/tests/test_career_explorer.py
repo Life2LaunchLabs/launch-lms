@@ -26,10 +26,10 @@ SKILLS = {"27-1024.00": ["2.B.3.b", "2.A.1.b", "1.D.3.b"], "15-1252.00": ["2.B.3
 
 def _catalog(session) -> None:
     bind = session.get_bind()
-    from src.db.portfolio import Portfolio
+    from src.db.portfolio import Portfolio, PortfolioSection
     from src.db.portfolio_records import PortfolioResult
 
-    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock, ProgramEntry, Portfolio, PortfolioResult):
+    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock, ProgramEntry, Portfolio, PortfolioSection, PortfolioResult):
         model.__table__.create(bind, checkfirst=True)
     source = EstimateSource(key="onet-31-0", title="O*NET 31.0", license="CC BY 4.0")
     session.add(source)
@@ -178,7 +178,7 @@ def test_career_page_answers_pay_and_jobs_near_home_with_training_and_related(re
 
     page = careers.profile(session, _learner(alice), "27-1024.00", org_id=1)
     # Home base comes from the portfolio; the nearest place with pay is Douglas County, from OED 2026.
-    assert page["home"] == {"key": "city:OR:roseburg", "label": "Roseburg, OR", "from": "portfolio"}
+    assert page["home"] == {"key": "city:OR:roseburg", "label": "Roseburg, OR", "from": "portfolio", "reach": "state", "online": True}
     wages = page["wages"]
     assert wages["here"] == "region:OR:douglas"
     douglas = next(row for row in wages["places"] if row["place"] == "region:OR:douglas")
@@ -253,3 +253,15 @@ def test_career_paths_list_programs_near_home_and_open_schools_as_resources(reso
     # Utah's program isn't online, so only the Oregon school near home is listed; it opens as the school resource.
     assert [(p["school"], p["near"], p["resource_uuid"]) for p in paths["programs"]] == [("Lane Community College", "In your town", lane.resource_uuid)]
     assert paths["families"] == [{"cip": "50.04", "title": "Design and Applied Arts", "weight": 4}]
+
+
+def test_home_base_sheet_saves_the_location_with_how_far_and_online(resources_mcp):  # noqa: F811
+    session, _, alice, _, _ = _loaded(resources_mcp)
+    learner = _learner(alice)
+    assert careers.home_settings(session, alice.id) == {"label": "", "place": None, "area": "", "reach": "state", "online": True}
+    # A preview while typing places the text without saving it.
+    assert careers.home_settings(session, alice.id, "Roseburg, OR")["area"] == "Douglas County · Southwestern Oregon"
+    saved = careers.save_home(session, learner, " Roseburg, OR ", "region", False)
+    assert saved == {"label": "Roseburg, OR", "place": {"key": "city:OR:roseburg", "label": "Roseburg, OR"}, "area": "Douglas County · Southwestern Oregon",
+                     "reach": "region", "online": False}
+    assert careers.home_base(session, alice.id) == {"key": "city:OR:roseburg", "label": "Roseburg, OR", "from": "portfolio", "reach": "region", "online": False}

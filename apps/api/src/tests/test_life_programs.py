@@ -97,3 +97,14 @@ def test_raw_scorecard_zip_with_both_files_still_loads_schools():
         zf.writestr("Most-Recent-Cohorts-Field-of-Study.csv", PROGRAMS)
         zf.writestr("Most-Recent-Cohorts-Institution.csv", SCHOOLS)
     assert importers.import_file(db, out.getvalue(), "College_Scorecard_Raw_Data_10032025.zip")["kind"] == "scorecard"
+
+
+def test_paths_follow_how_far_the_learner_would_go_and_whether_online_is_ok():
+    db = _loaded()
+    for src in db.exec(select(EstimateSource)).all():
+        importers.review_source(db, src.key, 1)
+    schools = lambda **kw: [p["school"] for p in programs.paths(db, "29-1141.00", "city:OR:roseburg", **kw)["programs"]]  # noqa: E731
+    assert schools(reach=1) == ["Umpqua Community College", "Western Governors University"]
+    assert schools(reach=2, online=False) == ["Umpqua Community College", "Southwestern Oregon Community College"]
+    # Anywhere lists schools in other states too, after Oregon's.
+    assert schools(reach=4, online=False) == ["Umpqua Community College", "Southwestern Oregon Community College", "Lane Community College", "University of Utah"]

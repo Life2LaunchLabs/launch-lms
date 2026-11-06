@@ -72,7 +72,10 @@ export interface CareerPaths {
   source?: string
   credit: string
 }
-export interface HomeBase { key: string; label: string; from: 'portfolio' | 'plan' }
+export type HomeReach = 'close' | 'region' | 'state' | 'anywhere'
+export interface HomeBase { key: string; label: string; from: 'portfolio' | 'plan'; reach: HomeReach; online: boolean }
+/** The home base sheet: the portfolio's location as typed, where we place it, and how far the learner would go. */
+export interface HomeSettings { label: string; place: { key: string; label: string } | null; area: string; reach: HomeReach; online: boolean }
 export interface CareerPay { yearly: number }
 export interface AreaPay { area: string; label: string; median: number; mine: boolean; my_place: string | null }
 export interface MyPlace { key: string; label: string; area: string | null }
@@ -122,6 +125,8 @@ export const careersApi = {
   deck: (orgId: number, token: string, size = 10) => request<CareerDeck>(lifeUrl(`/careers/deck?org_id=${orgId}&size=${size}`), token),
   links: (orgId: number, codes: string[], token: string) =>
     request<{ links: Record<string, string> }>(lifeUrl(`/careers/links?org_id=${orgId}&codes=${encodeURIComponent(codes.join(','))}`), token),
+  home: (token: string, text?: string) => request<HomeSettings>(lifeUrl(`/home${text != null ? `?q=${encodeURIComponent(text)}` : ''}`), token),
+  saveHome: (body: { label: string; reach: HomeReach; online: boolean }, token: string) => request<HomeSettings>(lifeUrl('/home'), token, 'PUT', body),
   skip: (code: string, token: string) => request(lifeUrl(`/careers/${encodeURIComponent(code)}/skip`), token, 'POST'),
   unskip: (code: string, token: string) => request(lifeUrl(`/careers/${encodeURIComponent(code)}/skip`), token, 'DELETE'),
 }

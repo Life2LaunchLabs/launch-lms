@@ -46,6 +46,8 @@ class Portfolio(SQLModel, table=True):
     headline: str = ""
     short_bio: str = Field(default="", sa_column=Column(Text, nullable=False))
     location_label: str = ""
+    # Home base settings for Explore, under the location: {"reach": "close" | "region" | "state" | "anywhere", "online": bool}.
+    location_settings: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     avatar_asset_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("mediaasset.id", ondelete="SET NULL"), nullable=True))
     cover_asset_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("mediaasset.id", ondelete="SET NULL"), nullable=True))
     visibility: PortfolioVisibility = Field(default=PortfolioVisibility.PRIVATE, sa_column=Column(String, nullable=False))

@@ -213,9 +213,10 @@ def _nearness(home: str | None, school_city: str, school_state: str) -> tuple[in
     return 4, "Farther away"
 
 
-def paths(db: Session, code: str, home: str | None = None, *, limit: int = 40) -> dict:
-    """The programs that train for a career, and where to take them: schools in Oregon (or the learner's own state)
-    and online programs, nearest first, each with its graduates' earnings, debt and in-state share, and tuition."""
+def paths(db: Session, code: str, home: str | None = None, *, reach: int = 3, online: bool = True, limit: int = 40) -> dict:
+    """The programs that train for a career, and where to take them: schools as far as the learner would go (`reach`,
+    the farthest nearness rank: 1 county, 2 region, 3 state, 4 anywhere) and, if `online`, fully online programs,
+    nearest first, each with its graduates' earnings, debt and in-state share, and tuition."""
     from src.db.life_plans import SchoolEntry
     from src.services.life_plans.public_data import live_schools
 
@@ -235,7 +236,7 @@ def paths(db: Session, code: str, home: str | None = None, *, limit: int = 40) -
     ladder = places.ladder(home) if home else []
     home_state = next((key.split(":")[1] for key in ladder if key.startswith("state:")), None) or "OR"
     schools = {s.unitid: s for s in db.exec(live_schools().where(col(SchoolEntry.unitid).in_({row.unitid for row in rows}))).all()}
-    kept = [row for row in rows if row.unitid in schools and (schools[row.unitid].state in ("OR", home_state) or row.online)]
+    kept = [row for row in rows if row.unitid in schools and (reach >= 4 or schools[row.unitid].state in ("OR", home_state) or (online and row.online))]
     tuition = {}
     if kept:
         for fact in db.exec(select(EstimateFact).where(EstimateFact.metric == "tuition", EstimateFact.status == REVIEWED,
@@ -244,7 +245,11 @@ def paths(db: Session, code: str, home: str | None = None, *, limit: int = 40) -
     programs = []
     for row in kept:
         school = schools[row.unitid]
-        rank, near = _nearness(home, school.city, school.state) if not (row.online and school.state not in ("OR", home_state)) else (5, "Online")
+        rank, near = _nearness(home, school.city, school.state) if not (online and row.online and school.state not in ("OR", home_state)) else (5, "Online")
+        if rank <= 4 and rank > reach and not (online and row.online):
+            continue
+        if row.online and not online:
+            continue
         programs.append({
             "unitid": row.unitid, "school": school.name, "city": school.city, "state": school.state, "url": school.url, "control": school.control,
             "cip": row.cip, "title": row.title, "credential": row.credential, "credential_label": CREDENTIALS.get(row.credential, ""), "years": YEARS.get(row.credential),
