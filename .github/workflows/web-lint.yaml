@@ -1,10 +1,6 @@
 name: Web Lint
+# Pull requests only: the merge to dev is the code the pull request already linted.
 on:
-  push:
-    branches:
-      - dev
-    paths:
-      - "apps/web/**"
   pull_request:
     paths:
       - "apps/web/**"

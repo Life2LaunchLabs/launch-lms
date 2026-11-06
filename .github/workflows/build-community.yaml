@@ -19,14 +19,51 @@ jobs:
       - uses: actions/checkout@v6
       - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
       - run: bash -n scripts/ci/smoke-image.sh
+  # On a push from a merged pull request, the tests already passed on exactly this code: skip them.
+  # The image is still built, smoke-tested and published for this commit below.
+  checked:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/ci/pr-checked.py find build-community.yaml | tee -a "$GITHUB_OUTPUT"
   api-tests:
+    needs: checked
+    if: needs.checked.outputs.run_id == ''
     uses: ./.github/workflows/api-tests.yaml
   api-lint:
+    needs: checked
+    if: needs.checked.outputs.run_id == ''
     uses: ./.github/workflows/api-lint.yaml
   migrations:
+    needs: checked
+    if: needs.checked.outputs.run_id == ''
     uses: ./.github/workflows/api-migrations.yaml
   browser-ui:
+    needs: checked
+    if: needs.checked.outputs.run_id == ''
     uses: ./.github/workflows/browser-ui.yaml
+  checked-tree:
+    name: Record checked code
+    needs: [build, contract, api-tests, api-lint, migrations, browser-ui]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 scripts/ci/pr-checked.py record checked.json && cat checked.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: checked-tree
+          path: checked.json
+          retention-days: 30
   existing:
     runs-on: ubuntu-latest
     permissions:
@@ -115,8 +152,16 @@ jobs:
           retention-days: 1
   candidate:
     name: Publish verified candidate
-    needs: [existing, build, contract, api-tests, api-lint, migrations, browser-ui]
-    if: always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main') && needs.existing.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && needs.api-tests.result == 'success' && needs.api-lint.result == 'success' && needs.migrations.result == 'success' && needs.browser-ui.result == 'success' && needs.contract.result == 'success'
+    needs: [existing, build, contract, checked, api-tests, api-lint, migrations, browser-ui]
+    # Each test job passed here, or was skipped because its pull request passed it on the same code.
+    if: >-
+      always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+      && needs.existing.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+      && needs.contract.result == 'success' && needs.checked.result == 'success'
+      && (needs.api-tests.result == 'success' || (needs.api-tests.result == 'skipped' && needs.checked.outputs.run_id != ''))
+      && (needs.api-lint.result == 'success' || (needs.api-lint.result == 'skipped' && needs.checked.outputs.run_id != ''))
+      && (needs.migrations.result == 'success' || (needs.migrations.result == 'skipped' && needs.checked.outputs.run_id != ''))
+      && (needs.browser-ui.result == 'success' || (needs.browser-ui.result == 'skipped' && needs.checked.outputs.run_id != ''))
     runs-on: ubuntu-latest
     permissions:
       contents: read

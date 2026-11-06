@@ -23,7 +23,11 @@ changes before enabling deployment automation.
    `dev`. CI builds both amd64 and arm64, checks migrations and runtime readiness,
    and runs API tests/lint. PR builds never log into GHCR or deploy.
 3. Review and merge the PR into `dev`. The **Build Community Images** workflow
-   checks the actual merged commit. After all required jobs pass, it publishes
+   builds and smoke-tests an image for the actual merged commit. Tests are not run
+   twice: when the commit came from a merged PR whose passed run recorded the same
+   git tree (`scripts/ci/pr-checked.py`, artifact `checked-tree`), the test jobs
+   and **Quality Gate** are skipped as already passed; any other push runs them
+   all. The image itself is never reused across commits. After all jobs pass, it publishes
    the multi-platform digest, saves the `candidate` artifact, and requests an
    unstable deployment (when `UNSTABLE_DEPLOY_ENABLED=true`).
 4. Watch **Deploy environment** in the infra repo and select its `unstable` run.
@@ -38,8 +42,9 @@ changes before enabling deployment automation.
 7. Open a PR from `dev` to `main`. Keep `main` releasable. After merging, wait for
    **Build Community Images** on the resulting `main` commit to succeed. If the
    source SHA already has retained successful candidate evidence, the image is
-   reused. A merge/squash that creates a different SHA gets one new build/check.
-   Source identity is never inferred from similar file trees.
+   reused. A merge/squash that creates a different SHA gets one new build and
+   smoke check; its tests are skipped only if the dev → main PR passed them on the
+   same tree. Image identity is never inferred from similar file trees.
 8. Tag the checked main commit:
    ```bash
    git switch main
