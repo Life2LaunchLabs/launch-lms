@@ -110,7 +110,8 @@ export type InterestQuiz = {
   types: Array<{ key: string; label: string }>
   max: number; credit: string; links: { tool: string; license: string }
 }
-export type QuizTaken = { result: any; scores: Record<string, number>; code: string; careers: QuizCareer[] }
+/** The learner's one interest result: `way` is how they took it last (the quiz or the picture sort), `max` its top score. */
+export type QuizTaken = { way?: 'interest_quiz' | 'picture_sort'; max?: number; result: any; scores: Record<string, number>; code: string; careers: QuizCareer[] }
 export const getInterestQuiz = async (token: string): Promise<{ quiz: InterestQuiz; taken: QuizTaken | null }> => {
   const response = await fetch(`${getAPIUrl()}portfolio/me/interest-quiz`, RequestBodyWithAuthHeader('GET', null, null, token))
   return errorHandling(response)

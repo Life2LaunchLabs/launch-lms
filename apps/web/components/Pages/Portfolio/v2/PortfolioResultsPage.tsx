@@ -11,7 +11,7 @@ import { getMyPortfolio } from '@services/portfolio/portfolio'
 import { results as resultsApi } from '@services/portfolio/records'
 import { DetailHeader, RowControls } from './PortfolioDetail'
 import { EmptyAdd } from './parts'
-import { INTEREST_QUIZ, PriceTag, RESULT_KINDS, ResultDialog, TakeIt } from './ResultDialog'
+import { INTEREST_QUIZ, PICTURE_SORT, PriceTag, RESULT_KINDS, ResultDialog, TakeIt } from './ResultDialog'
 import { ResultPicture } from './ResultView'
 import { RESULT_TEMPLATES, isFree, templateOf } from './resultTemplates'
 import type { PortfolioResult, Shell } from '../portfolioTypes'
@@ -20,7 +20,7 @@ import type { PortfolioResult, Shell } from '../portfolioTypes'
 // feature it on the front page and the eye to hide it. Below, the tests you haven't added, each with a big
 // way to take it (free or paid, said plainly) and a way to copy in a result you already have.
 
-const SOURCES: Record<string, string> = { [INTEREST_QUIZ]: 'From the interest quiz', manual: 'Added by you', plan: 'From a plan', import: 'Imported', cis: 'From Oregon CIS', linkedin: 'From LinkedIn', resume: 'From your résumé' }
+const SOURCES: Record<string, string> = { [INTEREST_QUIZ]: 'From the interest quiz', [PICTURE_SORT]: 'From the picture sort', manual: 'Added by you', plan: 'From a plan', import: 'Imported', cis: 'From Oregon CIS', linkedin: 'From LinkedIn', resume: 'From your résumé' }
 // An imported skill is one skill with a name; its summary is a description. A typed line lists several in its summary.
 const skillChips = (item: PortfolioResult) => ['cis', 'linkedin', 'resume'].includes(item.source) ? [item.name] : item.summary.split(/[,;·]/)
 const month = (value?: string | null) => value ? new Date(`${value.slice(0, 7)}-01T12:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''
@@ -72,7 +72,7 @@ export function PortfolioResultsPage({ initialShell, orgslug }: { initialShell: 
       {items.length ? <ul className="grid gap-4 sm:grid-cols-2" aria-label="Your results">{items.map((item) => <ResultCard key={item.result_uuid} result={item}
         onOpen={() => setEditor({ result: item })} onFeature={() => void change(item, { featured: !item.featured })}
         onHide={() => void change(item, { visibility: item.visibility === 'private' ? 'public' : 'private' })} />)}</ul>
-        : <EmptyAdd title="Take the interest quiz" hint="30 quick questions about work you might enjoy, then careers that fit. Free, about 5 minutes." href={quizHref} />}
+        : <EmptyAdd title="Take the interest quiz" hint="Answer 30 quick questions or sort pictures of work you might enjoy, then see careers that fit. Free, about 5 minutes." href={quizHref} />}
 
       {skills.length ? <section className="mt-8 grid gap-3" aria-label="Skills">
         <h2 className="text-lg font-extrabold">Skills</h2>

@@ -51,7 +51,8 @@ export function PictureSortPage({ orgslug }: { orgslug: string }) {
       const keys = new Set(found.sort.cards.map((card) => card.key))
       const draft = Object.fromEntries(Object.entries(readDraft()).filter(([key, value]) => keys.has(key) && [0, 1, 2].includes(value)))
       setAnswers(draft)
-      setMode(found.taken && !Object.keys(draft).length ? 'done' : 'intro')
+      // ?start=1 comes from the interest quiz's "Look at pictures": go to the start, not the saved result.
+      setMode(found.taken && !Object.keys(draft).length && !new URLSearchParams(window.location.search).has('start') ? 'done' : 'intro')
     }).catch((error) => { toast.error(error?.message || 'Could not load the picture sort'); setMode('intro') })
   }, [token])
 
@@ -103,10 +104,10 @@ export function PictureSortPage({ orgslug }: { orgslug: string }) {
 
   return <main className="min-h-screen bg-background pb-24 text-foreground" data-portfolio-v2="picture-sort">
     <div className="mx-auto max-w-[760px] px-4 pt-4 sm:px-6 sm:pt-6">
-      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Images} title="Picture sort" />
+      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Images} title="Your interests" />
       {mode === 'loading' || !sort ? <div className="h-64 animate-pulse rounded-3xl bg-muted" />
-        : mode === 'intro' ? <Intro count={cards.length} resume={done} onStart={start} quizHref={getUriWithOrg(orgslug, '/portfolio/interests')} />
-        : mode === 'done' && taken ? <Results quiz={sort} taken={taken} orgslug={orgslug} onRetake={() => start(true)} />
+        : mode === 'intro' ? <Intro count={cards.length} resume={done} onStart={start} quizHref={getUriWithOrg(orgslug, '/portfolio/interests?start=1')} />
+        : mode === 'done' && taken ? <Results quiz={sort} taken={taken} orgslug={orgslug} onRetake={() => start(true)} other={{ label: 'Answer questions instead', href: getUriWithOrg(orgslug, '/portfolio/interests?start=1') }} />
         : <Sorting sort={sort} card={cards[Math.max(0, at)]} done={done} saving={mode === 'saving'} onAnswer={answer} onBack={back} />}
       <p className="mt-8 px-1 text-[11.5px] font-semibold leading-relaxed text-muted-foreground">
         The picture sort and its words are Life2Launch’s own. Photos are from Wikimedia Commons and US government sources, credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.
@@ -127,7 +128,7 @@ function Intro({ count, resume, onStart, quizHref }: { count: number; resume: nu
       {resume ? <><Button type="button" variant="brand" size="lg" onClick={() => onStart(false)}>Keep going ({resume} of {count})</Button><Button type="button" variant="surface" size="lg" onClick={() => onStart(true)}>Start over</Button></>
         : <Button type="button" variant="brand" size="lg" onClick={() => onStart(true)}>Start</Button>}
     </div>
-    <p className="mt-5 text-sm font-semibold text-muted-foreground">Rather answer questions? <Link href={quizHref} className="font-extrabold text-[var(--org-primary-color)] underline">Take the interest quiz</Link></p>
+    <p className="mt-5 text-sm font-semibold text-muted-foreground">Rather read and answer questions? <Link href={quizHref} className="font-extrabold text-[var(--org-primary-color)] underline">Answer questions instead</Link></p>
   </section>
 }
 
