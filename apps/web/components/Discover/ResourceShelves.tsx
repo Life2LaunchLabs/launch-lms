@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
@@ -69,7 +70,7 @@ export function ResourceTile({ resource, fill = false }: { resource: Resource; o
         <ResourceCover resource={resource} />
         {resource.is_saved ? <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white" aria-label="Saved"><Bookmark size={13} className="fill-current" /></span> : null}
       </span>
-      <span className="line-clamp-2 min-h-[2.5em] px-0.5 text-[15.5px] font-extrabold leading-tight">{resource.title}</span>
+      <span className="line-clamp-2 min-h-[2.5em] px-0.5 text-[15.5px] font-extrabold leading-tight"><Tx text={resource.title} /></span>
       <span className="-mt-1.5 flex items-center gap-2 truncate px-0.5 text-xs font-semibold text-muted-foreground">
         <span className="truncate">{where}</span>
         {time ? <span className="shrink-0">· {time}</span> : null}
@@ -109,8 +110,8 @@ export default function ResourceShelves({ orgslug }: { orgslug: string }) {
       const featured = [...items].sort((a, b) => Number(b.is_featured) - Number(a.is_featured))
       return <section key={channel.channel_uuid} aria-label={channel.name} className="flex flex-col gap-3.5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <SectionTitle>{channel.name}</SectionTitle>
-          {channel.description ? <p className="m-0 min-w-0 flex-1 truncate text-sm text-muted-foreground">{channel.description}</p> : null}
+          <SectionTitle><Tx text={channel.name} /></SectionTitle>
+          {channel.description ? <p className="m-0 min-w-0 flex-1 truncate text-sm text-muted-foreground"><Tx text={channel.description} /></p> : null}
         </div>
         <Shelf label={channel.name}>{featured.slice(0, 12).map((resource) => <ResourceTile key={resource.resource_uuid} resource={resource} orgslug={orgslug} />)}</Shelf>
       </section>

@@ -51,7 +51,8 @@ import NavCount from './NavCount'
 import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
-import { AVAILABLE_LANGUAGES } from '@/lib/languages'
+import { MENU_LANGUAGES } from '@/lib/languages'
+import { useLanguage } from '@components/Utils/useLanguage'
 import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
 import { OrgLogo } from '@components/Objects/OrgLogo'
 import { cn } from '@/lib/utils'
@@ -178,7 +179,8 @@ function DashLeftMenu() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const features = useFeatures()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const { language: currentLanguage, setLanguage } = useLanguage()
   const pathname = usePathname() || ''
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -329,17 +331,17 @@ function DashLeftMenu() {
                 <span>{t('common.language')}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="max-h-96 w-64 overflow-y-auto border-white/10 bg-[#1a1a1b] p-1 text-white shadow-xl shadow-black/25 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {AVAILABLE_LANGUAGES.map((language) => (
+                {MENU_LANGUAGES.map((language) => (
                   <DropdownMenuItem
                     key={language.code}
-                    onClick={() => i18n.changeLanguage(language.code)}
+                    onClick={() => setLanguage(language.code)}
                     className="flex items-center justify-between rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
                   >
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate text-sm font-medium">{language.nativeName}</span>
                       <span className="truncate text-xs text-white/40">{t(language.translationKey)}</span>
                     </div>
-                    {i18n.language === language.code && <Check size={16} weight="bold" className="text-green-500" />}
+                    {currentLanguage === language.code && <Check size={16} weight="bold" className="text-green-500" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>

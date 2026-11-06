@@ -1,5 +1,6 @@
 'use client'
 
+import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
@@ -77,11 +78,11 @@ export function GoalHeaderCard({ goal, done, total, actions, pending = false }: 
       <GoalMark badge={goal.badge} icon={goal.icon} layoutId={goalMarkId(goal.goal_uuid)} />
       <Settle className="min-w-0 flex-1">
         {source ? <p className="mb-1 text-xs font-extrabold uppercase tracking-wider opacity-80">{source}</p> : null}
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.organization ? <Tx text={goal.title} /> : goal.title}</h1>
       </Settle>
     </div>
     <Settle className="mt-4 flex flex-col gap-4">
-      {goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.description}</p> : null}
+      {goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.organization ? <Tx text={goal.description} /> : goal.description}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
         <GoalProgress percent={percent} label="Goal progress" />
         <span className="text-xs font-bold">{done} of {total} done</span>
@@ -115,7 +116,7 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
     <GoalMark badge={header.badge} icon={header.icon} size="sm" layoutId={goalMarkId(goal.goal_uuid)} />
     <Settle className="flex min-w-0 flex-1 flex-col gap-1">
       {source ? <span className="truncate text-[11px] font-extrabold uppercase tracking-wider opacity-80">{source}</span> : null}
-      <span className="truncate text-sm font-extrabold leading-tight">{goal.title}</span>
+      <span className="truncate text-sm font-extrabold leading-tight">{goal.organization ? <Tx text={goal.title} /> : goal.title}</span>
       {goal.status === 'draft' ? <span className="text-[11px] font-bold opacity-90">Finish setting up</span>
         : <span className="flex items-center gap-2"><GoalProgress thin percent={percent} label={`${goal.title} progress`} /><span className="text-[11px] font-bold tabular-nums opacity-90">{percent}%</span></span>}
     </Settle>

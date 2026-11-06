@@ -303,7 +303,27 @@
     "invite_required": "Invite Required",
     "invite_required_desc": "An invite code is required to join {{org}}",
     "invite_code": "Invite Code",
-    "validate_invite": "Validate Invite"
+    "validate_invite": "Validate Invite",
+    "add_first_last": "Add your first and last name.",
+    "signup_failed": "Unable to start signup",
+    "continue_google": "Continue with Google",
+    "enter_email": "Enter email address",
+    "email_address": "Email address",
+    "create_org_first": "Create your account first. Next you’ll name your organization.",
+    "or_with_email": "or with email",
+    "or": "or",
+    "create_free_account": "Create your free account",
+    "continue": "Continue",
+    "sign_in": "Sign in",
+    "agree_prefix": "By continuing, you agree to Launch LMS’s",
+    "terms_of_service": "Terms of Service",
+    "agree_and": "and",
+    "privacy_policy": "Privacy Policy",
+    "agree_suffix": ".",
+    "name_you_go_by_optional": "Name you go by (optional)",
+    "name_you_go_by": "Name you go by",
+    "age_required": "Launch LMS is for people 15 and older. Confirm your age to continue.",
+    "age_confirm": "I’m 15 or older"
   },
   "validation": {
     "required": "Required",
@@ -4076,5 +4096,245 @@
       "title": "Trending",
       "empty": "No recent activity yet"
     }
+  },
+  "nav": {
+    "goals": "Goals",
+    "discover": "Discover",
+    "connect": "Connect",
+    "portfolio": "Portfolio",
+    "coach": "Coach",
+    "coach_new_reply": "Coach, new reply",
+    "unread_messages": "{{label}}, unread messages",
+    "mobile_navigation": "Mobile navigation",
+    "top_navigation": "Top navigation",
+    "open_sidebar": "Open sidebar",
+    "collapse_sidebar": "Collapse sidebar",
+    "send_feedback": "Send feedback",
+    "feedback": "Feedback",
+    "settings": "Settings"
+  },
+  "settings": {
+    "cancel": "Cancel",
+    "change": "Change",
+    "sign_out": "Sign out",
+    "password_failed": "Failed to update password",
+    "password_failed_retry": "Failed to update password. Please try again.",
+    "memory": {
+      "load_failed": "Memory settings could not be loaded.",
+      "save_failed": "Memory settings could not be saved.",
+      "clear_failed": "Coach memories could not be cleared.",
+      "title": "Coach memory",
+      "description": "Let Coach carry useful goals, preferences, constraints, and background into future conversations in this organization.",
+      "enable": "Enable Coach memory",
+      "off": "Memory is off. Your saved memories are retained, but Coach will not use or update them.",
+      "what": "What Coach remembers",
+      "edit_any": "You can edit or delete any memory at any time.",
+      "clear_all": "Clear all",
+      "clear_title": "Clear all Coach memories?",
+      "clear_description": "This removes every saved memory for this organization. Conversation history is not deleted.",
+      "search": "Search memories",
+      "loading": "Loading memories…",
+      "no_match": "No memories match your search.",
+      "none": "Coach has not saved any memories yet."
+    },
+    "data": {
+      "preparing_toast": "Getting your data ready…",
+      "downloading": "Your data is downloading.",
+      "failed": "Your data could not be downloaded. Try again in a minute.",
+      "title": "Your data",
+      "description": "Download a copy of everything you've added: your profile, portfolio, plans, badges, answers, messages, Coach chats, saved resources and the files you uploaded. It comes as a zip you can keep or take with you.",
+      "school_records": "Your school or program keeps its own records and can export those for you.",
+      "preparing": "Preparing…",
+      "download": "Download my data"
+    },
+    "general": {
+      "invalid_email": "Invalid email",
+      "email_required": "Email is required",
+      "username_required": "Username is required",
+      "first_name_required": "First name is required",
+      "last_name_required": "Last name is required",
+      "bio_too_long": "Bio must be 400 characters or less",
+      "load_failed": "Failed to load user data",
+      "avatar_failed": "Failed to update avatar",
+      "update_failed": "Failed to update profile",
+      "image_title": "Update your profile image",
+      "image_description": "Upload an image, paste a media link, or choose from your library."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Choose how the app looks to you.",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "note": "System follows your device setting. Your choice is saved on this browser."
+    },
+    "language": {
+      "title": "Language",
+      "description": "The language the app uses for its menus, buttons and messages. It is saved on your account, so it follows you to any device.",
+      "saved": "Language saved",
+      "more_soon": "More languages are coming. Text written by your school or program may still be in English for now.",
+      "auto_title": "Translate text from schools and programs",
+      "auto_description": "Plans, resources and careers written in English are translated for you automatically. Turn it off to see the original text."
+    }
+  },
+  "phases": {
+    "living": {
+      "family": "With family",
+      "own": "My own place",
+      "roommates": "With roommates",
+      "partner": "With a partner",
+      "dorm": "In a dorm",
+      "other": "Something else"
+    },
+    "kinds": {
+      "learning": "Learning",
+      "learning_hint": "School, college, training",
+      "working": "Working",
+      "working_hint": "A job, an apprenticeship",
+      "looking": "Looking for work",
+      "looking_hint": "Between jobs",
+      "caring": "Caring for family",
+      "caring_hint": "Kids, parents",
+      "gap": "Gap or travel",
+      "gap_hint": "Time off, exploring",
+      "other": "Something else",
+      "other_hint": "Recovering, volunteering…"
+    },
+    "levels": {
+      "middle": "Middle school",
+      "middle_short": "Middle school",
+      "high": "High school",
+      "high_short": "High school",
+      "ged": "GED or adult classes",
+      "ged_short": "GED",
+      "trade": "Trade school or certificate",
+      "trade_short": "Trade school",
+      "cc": "Community college",
+      "cc_short": "Community college",
+      "uni": "College or university",
+      "uni_short": "College",
+      "grad": "Graduate school",
+      "grad_short": "Graduate school"
+    },
+    "school": "School",
+    "schools_in_mind": "{{level}} · {{count}} in mind",
+    "apprentice": "{{job}} apprentice",
+    "job_at": "{{job}} at {{employer}}",
+    "this_phase": "This phase",
+    "lines": {
+      "pay_at": "Pay at {{employer}}",
+      "pay_as": "Pay as {{job}}",
+      "a_worker": "a worker",
+      "family_home": "Living with family",
+      "dorm": "Dorm",
+      "rent": "Rent"
+    },
+    "check": {
+      "place": "Where",
+      "living": "How you live",
+      "doing": "What you’re doing",
+      "starts": "When it starts",
+      "budget": "A budget",
+      "goals": "A goal"
+    },
+    "month": "Month",
+    "year": "Year",
+    "back": "Back",
+    "search_colleges": "Search colleges and programs",
+    "type_school": "Type your school’s name",
+    "use_typed": "Use “{{text}}”",
+    "not_sure_where": "Not sure where yet",
+    "skip_school": "Skip the school name",
+    "job": "Job",
+    "job_placeholder": "A job: barista, nurse, electrician…",
+    "onet_note": "Listed jobs come from O*NET, so pay and training facts can follow.",
+    "career_where": "{{career}}: where?",
+    "employer": "Employer",
+    "employer_placeholder": "Employer name (optional)",
+    "at_employer": "At {{employer}}",
+    "skip_employer": "Skip the employer",
+    "as_apprentice": "As an apprentice"
+  },
+  "onboarding": {
+    "ideas": {
+      "middle": {
+        "ready_hs": "Get ready for high school",
+        "club": "Try a new club or sport",
+        "good_at": "Find out what I’m good at"
+      },
+      "high": {
+        "graduate": "Graduate on time",
+        "license": "Get my driver’s license",
+        "gpa": "Raise my GPA",
+        "after_hs": "Figure out what’s after high school"
+      },
+      "ged": {
+        "pass_ged": "Pass my GED tests",
+        "schedule": "Make a study schedule",
+        "after_ged": "Find out what’s after my GED"
+      },
+      "college": {
+        "first_year": "Finish my first year",
+        "study_group": "Find a study group",
+        "major": "Pick a major",
+        "scholarships": "Apply for scholarships"
+      },
+      "working": {
+        "first_90": "Get through my first 90 days",
+        "save_1000": "Save my first $1,000",
+        "new_skill": "Learn a new skill at work",
+        "raise": "Ask for a raise"
+      },
+      "looking": {
+        "land_job": "Land a job",
+        "resume": "Update my résumé",
+        "interviews": "Practice interviews"
+      },
+      "other": {
+        "routine": "Build a routine",
+        "save_up": "Save up",
+        "whats_next": "Figure out what’s next"
+      }
+    },
+    "now": "Now",
+    "goal_add_failed": "Couldn’t add “{{title}}”. You can add it from your phase.",
+    "photo_failed": "That photo couldn’t be uploaded. Try a smaller image.",
+    "where_hi": "Hi {{name}}! Where do you live right now?",
+    "where": "Where do you live right now?",
+    "where_sub": "A town or a county is plenty.",
+    "living": "Who do you live with?",
+    "living_sub": "It helps with your budget. You can change it any time.",
+    "doing": "What are you doing these days?",
+    "doing_sub": "School, a job or both. Add as many as you like.",
+    "since": "Since when?",
+    "since_sub": "Roughly is fine. A phase lasts until the next one starts.",
+    "card": "Here’s your first phase",
+    "card_sub": "Change its name, or use your own photo.",
+    "goal": "What do you want to get done in this phase?",
+    "goal_sub": "Pick a few to start. Each becomes a goal you can break into steps.",
+    "previous": "Previous question",
+    "step_of": "Step {{step}} of {{total}}",
+    "remove": "Remove {{name}}",
+    "add_else": "Add something else (a job, another school…)",
+    "phase_name": "Phase name",
+    "since_month": "since {{month}}",
+    "another_photo": "Another photo",
+    "own_photo": "Use my own photo",
+    "use_ours": "Use ours",
+    "write_own": "Or write your own",
+    "own_goal": "Your own goal",
+    "org_plans": "Plans from {{org}} land in this phase too, next to your own goals.",
+    "skip_for_now": "Skip for now",
+    "start_plan": "Start my plan",
+    "start_without": "Start without goals",
+    "next": "Next",
+    "place_placeholder": "Eugene, Bend, Coos County…",
+    "place_search": "Search towns and counties"
+  },
+  "translate": {
+    "auto": "Translated automatically",
+    "original": "Original text",
+    "show_original": "Show original",
+    "show_translated": "Show translation"
   }
 }

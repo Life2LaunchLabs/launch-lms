@@ -4,6 +4,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import en from '../locales/en.json';
+import { READY_LANGUAGES } from './languages';
 
 const LOCALE_LOADERS: Record<string, () => Promise<{ default: any }>> = {
   fr: () => import('../locales/fr.json'),
@@ -31,7 +32,9 @@ const resources = {
   en: { common: en },
 };
 
-async function loadLocale(lng: string) {
+export async function loadLocale(code: string) {
+  const lng = (code || '').split('-')[0]
+  if (typeof document !== 'undefined' && lng) document.documentElement.lang = lng
   if (lng === 'en' || !LOCALE_LOADERS[lng]) return;
   if (i18n.hasResourceBundle(lng, 'common')) return;
 
@@ -49,19 +52,26 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
+    // Only finished languages are used; "es-MX" resolves to "es", and anything else to English.
+    supportedLngs: [...READY_LANGUAGES],
+    nonExplicitSupportedLngs: true,
+    load: 'languageOnly',
     ns: ['common'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false, // react already safes from xss
     },
     detection: {
-      order: ['localStorage', 'cookie', 'querystring', 'navigator', 'path', 'subdomain'],
+      order: ['querystring', 'localStorage', 'cookie', 'navigator'],
+      lookupQuerystring: 'lang',
       caches: ['localStorage', 'cookie'],
       lookupLocalStorage: 'i18nextLng',
       lookupCookie: 'i18next',
     },
     react: {
       useSuspense: false,
+      // Re-render when a lazily loaded language file arrives, not only when the language changes.
+      bindI18nStore: 'added',
     }
   });
 

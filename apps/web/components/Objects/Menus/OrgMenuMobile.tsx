@@ -5,19 +5,21 @@ import { getUriWithOrg } from '@services/config/config'
 import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
 import type { OrgMenuNavItem } from './OrgMenuLinks'
+import { useTranslation } from 'react-i18next'
 
 export const NAV_ACTIVE_CLASS = 'bg-[color-mix(in_srgb,var(--org-primary-color)_16%,transparent)] text-foreground ring-2 ring-[var(--org-primary-color)]'
 
 /** A primary destination, or Coach toggle, in the phone bar or the desktop sidebar. */
 export function NavItemControl({ item, orgslug, className, children, dot = false }: { item: OrgMenuNavItem; orgslug: string; className: string; children: React.ReactNode; dot?: boolean }) {
   const hub = useHub()
+  const { t } = useTranslation()
   if (item.action === 'hub') {
-    return <button type="button" onClick={() => hub?.toggle()} aria-label={hub?.unread ? 'Coach, new reply' : 'Coach'} aria-pressed={item.active} className={cn('relative', className)}>
+    return <button type="button" onClick={() => hub?.toggle()} aria-label={hub?.unread ? t('nav.coach_new_reply') : t('nav.coach')} aria-pressed={item.active} className={cn('relative', className)}>
       {children}
       {hub?.unread && !item.active ? <span className="absolute right-2.5 top-2 h-2.5 w-2.5 rounded-full bg-[#7cc4ff] ring-2 ring-shell" aria-hidden="true" /> : null}
     </button>
   }
-  return <Link href={getUriWithOrg(orgslug, item.href || '/')} aria-label={dot ? `${item.label}, unread messages` : item.label} aria-current={item.active ? 'page' : undefined} className={cn('relative', className)}>
+  return <Link href={getUriWithOrg(orgslug, item.href || '/')} aria-label={dot ? t('nav.unread_messages', { label: item.label }) : item.label} aria-current={item.active ? 'page' : undefined} className={cn('relative', className)}>
     {children}
     {dot ? <span className="absolute right-2.5 top-2 h-2.5 w-2.5 rounded-full bg-[#7cc4ff] ring-2 ring-shell" aria-hidden="true" /> : null}
   </Link>
@@ -29,8 +31,9 @@ export function NavItemControl({ item, orgslug, className, children, dot = false
  * messages and invitations are in Connect, which carries the dot.
  */
 export default function OrgMenuMobile({ items, orgslug, hidden }: { items: OrgMenuNavItem[]; orgslug: string; hidden: boolean }) {
+  const { t } = useTranslation()
   return <nav
-    aria-label="Mobile navigation"
+    aria-label={t('nav.mobile_navigation')}
     className={cn('fixed inset-x-0 bottom-0 z-[var(--z-nav)] flex justify-center bg-shell px-2 transition-[opacity,transform] duration-300 ease-out md:hidden', hidden ? 'pointer-events-none translate-y-full opacity-0' : 'translate-y-0 opacity-100')}
     style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
   >

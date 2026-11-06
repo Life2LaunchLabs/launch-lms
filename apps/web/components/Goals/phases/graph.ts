@@ -1,4 +1,5 @@
 import type { Activity, LifeDoc, Phase } from '@services/life/life'
+import { trLocale } from '@/lib/tr'
 
 /*
  * A plan is a map of phases. Each phase starts on a month and lasts until the next one after it
@@ -17,9 +18,11 @@ export type When = 'done' | 'now' | 'next' | 'later'
 export const mi = (value: string) => { const [y, m] = value.split('-').map(Number); return y * 12 + m - 1 }
 export const ym = (index: number) => `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
 export const thisMonthIndex = (today = new Date()) => today.getFullYear() * 12 + today.getMonth()
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+/** A month's name in the current language: "Sep", "sept". */
+export const monthName = (month: number, width: 'short' | 'long' = 'short') =>
+  new Intl.DateTimeFormat(trLocale(), { month: width, timeZone: 'UTC' }).format(new Date(Date.UTC(2000, ((month % 12) + 12) % 12, 15))).replace(/\.$/, '')
 /** "Sep 2027" from "2027-09" or a month index. */
-export const monthText = (value: string | number) => { const i = typeof value === 'number' ? value : mi(value); return `${MONTHS[((i % 12) + 12) % 12]} ${Math.floor(i / 12)}` }
+export const monthText = (value: string | number) => { const i = typeof value === 'number' ? value : mi(value); return `${monthName(i)} ${Math.floor(i / 12)}` }
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 let n = 0
