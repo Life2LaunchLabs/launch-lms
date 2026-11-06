@@ -41,6 +41,13 @@ Census outcomes. Changes to it go through code review rather than approval in th
 - `hud_fmr`: HUD Fair Market Rents county file (csv or xlsx with `fmr_0`..`fmr_4`). Oregon counties.
 - `bls_oews`: BLS OEWS all-data file. Keeps US, state and Oregon metro and nonmetro areas, detailed
   occupations; hourly percentiles, or annual where hourly isn't published.
+- `oed_projections` and `oed_wages` (`services/life_plans/oregon.py`): the Oregon Employment Department's
+  occupational projections workbook and its Occupational Wage Information workbook, read from their All Areas
+  sheets. Projections load `employment`, `employment_projected`, `growth` and `openings` (a year, with typical and
+  competitive entry education in the note); wages load `wage` with percentiles, aged by OED to the file's year.
+  Both cover the state and OED's areas, a new `region` level on the place ladder (`places.OR_REGIONS`, counties
+  as each projections file names them), tried smallest first between the county and the BLS area: Roseburg
+  climbs Douglas County, then Southwestern Oregon.
 
 Oregon places (`services/life_plans/places.py`) map about 50 towns to their counties and every
 county to its BLS area (BLS county crosswalk, May 2024).
