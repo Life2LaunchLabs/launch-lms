@@ -23,6 +23,7 @@ import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import AuthBrandingTab from './AuthBrandingTab'
 import LogoDisplaySettings from './LogoDisplaySettings'
+import DarkFaviconSettings from './DarkFaviconSettings'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg'])
@@ -642,6 +643,8 @@ export default function OrgEditBranding() {
                     </div>
                   </div>
                 </div>
+
+                <DarkFaviconSettings org={org} accessToken={access_token} />
               </div>
         </TabsContent>
 
