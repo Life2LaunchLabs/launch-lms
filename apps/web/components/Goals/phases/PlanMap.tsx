@@ -14,6 +14,7 @@ import PhaseSheet from './PhaseSheet'
 import MoveBar, { type Moving } from './MoveBar'
 import { PhaseCard, RankSheet, Target, Tray, type Env } from './MapParts'
 import { PendingCard } from './PendingCard'
+import { pagePinned, scrollSpeed } from './dragPage'
 import { kindFor, seedLines, suggestTitle } from './setup'
 import {
   byId, carryOver, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type Carried, type RouteStep,
@@ -49,25 +50,6 @@ function freshStart(d: LifeDoc, at: string, inline: boolean): number {
  * surface swaps everything in it. The + button hands you a new phase to drag into the map: between
  * two phases, onto one (an option beside it) or onto a split's options. Press and hold a phase to move it.
  */
-const holdStill = (e: TouchEvent) => { if (e.cancelable) e.preventDefault() }
-/**
- * While a piece is dragged the page only scrolls when the drag scrolls it: the browser doesn't re-anchor
- * the scroll as gaps light up, and a finger over any element doesn't pan the page.
- */
-function pagePinned(on: boolean) {
-  document.documentElement.style.overflowAnchor = on ? 'none' : ''
-  if (on) window.addEventListener('touchmove', holdStill, { passive: false })
-  else window.removeEventListener('touchmove', holdStill)
-}
-
-/** How fast the page scrolls (px a frame) for a dragged piece at y: none unless it was carried toward that edge. */
-function scrollSpeed({ y, y0 }: { y: number; y0: number }) {
-  const zone = Math.min(110, window.innerHeight * 0.16), top = zone - y, bottom = y - (window.innerHeight - zone)
-  if (top > 0 && y < y0 - 12) return -Math.max(2, Math.round(top / zone * 12))
-  if (bottom > 0 && y > y0 + 12) return Math.max(2, Math.round(bottom / zone * 12))
-  return 0
-}
-
 export default function PlanMap({ doc: raw, orgslug, token, photos, change, focus, title }: { doc: LifeDoc; orgslug: string; token?: string; photos?: Record<string, PlacePhoto>; change: Change; focus?: string | null; title?: React.ReactNode }) {
   const router = useRouter()
   const params = useSearchParams()
