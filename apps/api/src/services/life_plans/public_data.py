@@ -35,6 +35,7 @@ ONET_URL = "https://www.onetcenter.org/database.html"
 SCORECARD_URL = "https://collegescorecard.ed.gov/data/"
 MAX_ALT_TITLES = 25
 MAX_TASKS = 5
+MAX_RELATED = 10
 
 
 class CatalogProblem(ValueError):
@@ -112,6 +113,8 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         alts = _tsv(zf, "Job Titles.txt", "Alternate Titles.txt", required=False)
         task_rows = _tsv(zf, "Task Statements.txt", required=False)
         ratings = _tsv(zf, "Task Ratings.txt", required=False)
+        schooling = _tsv(zf, "Education, Training, and Experience.txt", "Education.txt", required=False)
+        related_rows = _tsv(zf, "Related Occupations.txt", required=False)
     code_col = "o*net-soc code"
     if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
         raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
@@ -162,12 +165,32 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         ranked_tasks.setdefault(r.get(code_col, ""), []).append((core, -importance.get((r.get(code_col, ""), r.get("task id", "")), 0), text))
     tasks = {code: [text for _, _, text in sorted(rows)[:MAX_TASKS]] for code, rows in ranked_tasks.items()}
 
+    # What people in the job say it takes: O*NET's "Required Level of Education" survey, the share of workers
+    # at each of 12 levels. Levels nobody picked are left out.
+    education: dict[str, list[dict]] = {}
+    for r in schooling:
+        if r.get("scale id", "").upper() != "RL":
+            continue
+        try:
+            level, pct = int(float(r.get("category", ""))), round(float(r.get("data value", "")), 1)
+        except ValueError:
+            continue
+        if pct > 0:
+            education.setdefault(r.get(code_col, ""), []).append({"level": level, "pct": pct})
+    # Careers O*NET itself says are related, closest first.
+    related: dict[str, list[str]] = {}
+    for r in sorted(related_rows, key=lambda row: int(row.get("index") or 0) if (row.get("index") or "").isdigit() else 999):
+        other = r.get("related o*net-soc code", "")
+        bucket = related.setdefault(r.get(code_col, ""), [])
+        if other and other not in bucket and len(bucket) < MAX_RELATED:
+            bucket.append(other)
+
     src = _upsert_source(
         db,
         key=f"onet-{version.replace('.', '-')}",
         publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
         title=f"O*NET {version} Database",
-        dataset="Occupation Data, Career Interest Types, Job Zones, job titles and task statements",
+        dataset="Occupation Data, Career Interest Types, Job Zones, job titles, task statements, required level of education and related occupations",
         url=url,
         released=f"O*NET {version}",
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
@@ -182,7 +205,8 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         code = r[code_col]
         if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
             continue
-        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []), source_id=src.id, status="draft", creation_date=now))
+        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []),
+                               education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), source_id=src.id, status="draft", creation_date=now))
         n += 1
     if not n:
         raise CatalogProblem("No occupations found in Occupation Data.txt.")
@@ -349,7 +373,7 @@ def live_schools():
 def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
     out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
     if full:
-        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or []}
+        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or [], "education": c.education or [], "related": c.related or []}
     return out
 
 

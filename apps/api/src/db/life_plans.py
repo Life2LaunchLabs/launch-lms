@@ -96,6 +96,11 @@ class CareerEntry(SQLModel, table=True):
     alt_titles: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     # What people in the job do most: O*NET's core task statements, most important first.
     tasks: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # What people in the job say it takes: [{"level": 6, "pct": 55.9}], O*NET's required level of education
+    # (1 less than high school ... 12 post-doctoral), the share of workers at each level.
+    education: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # O*NET's related occupations, closest first, by O*NET-SOC code.
+    related: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
     status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
     creation_date: str = ""

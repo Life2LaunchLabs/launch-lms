@@ -8,7 +8,31 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
   return errorHandling(response)
 }
 
-export interface FullCareer extends Career { description: string; alt_titles: string[]; tasks: string[] }
+/** What people in the job say it takes: O*NET's required level of education, the share of workers at each level (1 to 12). */
+export interface EducationShare { level: number; pct: number }
+export interface FullCareer extends Career { description: string; alt_titles: string[]; tasks: string[]; education?: EducationShare[]; related?: string[] }
+
+type Percentiles = Partial<Record<'p10' | 'p25' | 'p50' | 'p75' | 'p90', number>>
+/** Pay in one place: region (an Oregon Employment Department area), area (a BLS wage area), state or us. */
+export interface PlaceWage { place: string; label: string; level: string; hourly: Percentiles; yearly: Percentiles; year: number | null; source: string; publisher: string }
+export interface CareerWages {
+  places: PlaceWage[]
+  /** The place nearest the learner's home base that has pay, else Oregon. */
+  here: string | null
+  /** Typical pay a year, oldest first, for Oregon ("state:OR") and the US ("us"). */
+  history: Record<string, Array<{ year: number; hourly: number | null; yearly: number | null }>>
+}
+export interface PlaceOutlook { place: string; label: string; jobs: number | null; jobs_later: number | null; growth: number | null; openings: number | null }
+export interface CareerOutlook {
+  places: PlaceOutlook[]
+  /** The Oregon region nearest the learner's home base, if Oregon publishes one. */
+  here: string | null
+  start: number | null
+  end: number | null
+  entry: { typical: string; competitive: string | null } | null
+  source: string
+}
+export interface HomeBase { key: string; label: string; from: 'portfolio' | 'plan' }
 export interface CareerPay { yearly: number }
 export interface AreaPay { area: string; label: string; median: number; mine: boolean; my_place: string | null }
 export interface MyPlace { key: string; label: string; area: string | null }
@@ -26,6 +50,10 @@ export interface CareerProfile {
     source: string
   }
   my_places: MyPlace[]
+  /** Where the learner lives: the portfolio's location, else the first place on their plan. */
+  home: HomeBase | null
+  wages: CareerWages
+  outlook: CareerOutlook | null
   resource_uuid: string | null
   similar: Array<Omit<Career, 'match'> & { pay: CareerPay | null; resource_uuid: string | null }>
   link: string
@@ -54,6 +82,8 @@ export const careersApi = {
   unskip: (code: string, token: string) => request(lifeUrl(`/careers/${encodeURIComponent(code)}/skip`), token, 'DELETE'),
 }
 
+/** "$26.50" */
+export const hourlyMoney = (value: number) => `$${value.toFixed(2)}`
 /** "$62k" */
 export const shortMoney = (value: number) => `$${Math.round(value / 1000)}k`
 /** "$62,000" */
