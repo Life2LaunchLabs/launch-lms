@@ -189,7 +189,7 @@ function PhotoCard({ card, disabled, onAnswer }: { card: PictureCard; disabled: 
   return <article ref={el} {...handlers} style={dx ? { transform: `translateX(${dx}px) rotate(${dx / 22}deg)` } : undefined}
     className={cn('relative touch-pan-y select-none overflow-hidden rounded-[28px] border-2 border-border bg-card shadow-[0_5px_0_hsl(var(--border))] motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95', !disabled && 'cursor-grab active:cursor-grabbing')}>
     <div className="relative h-[min(46vh,440px)] min-h-[220px] w-full" style={{ backgroundColor: TYPE_COLORS[card.type] || '#8B5CF6' }}>
-      {broken ? <div className="absolute inset-0 grid place-items-center text-white/90"><Images className="h-16 w-16" aria-hidden="true" /></div>
+      {broken || !card.photo ? <div className="absolute inset-0 grid place-items-center text-white/90"><Images className="h-16 w-16" aria-hidden="true" /></div>
         : <img ref={(img) => { if (img?.complete && !img.naturalWidth) setBroken(true) }} src={card.photo} alt={card.alt || card.text} draggable={false} onError={() => setBroken(true)} className="absolute inset-0 h-full w-full object-cover" />}
       <span aria-hidden="true" className="absolute left-4 top-4 -rotate-12 rounded-xl border-4 border-emerald-400 bg-black/30 px-3 py-1 text-2xl font-black text-emerald-300" style={{ opacity: yes }}>YES</span>
       <span aria-hidden="true" className="absolute right-4 top-4 rotate-12 rounded-xl border-4 border-orange-400 bg-black/30 px-3 py-1 text-2xl font-black text-orange-300" style={{ opacity: no }}>NO</span>

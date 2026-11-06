@@ -25,7 +25,7 @@ REFERENCE = "l2l-picture-sort"
 NAME = "Picture sort (RIASEC)"
 ANSWERS = ["No", "Not sure", "Yes"]
 MAX = 2 * sum(1 for card in CARDS if card["type"] == "R")
-PHOTO_PATH = "/picture-sort/"
+PHOTO_PATH = "/images/picture-sort/"
 
 
 def deck() -> dict:
@@ -34,7 +34,7 @@ def deck() -> dict:
     rounds = max(len(cards) for cards in by_type.values())
     ordered = [by_type[key][n] for n in range(rounds) for key in interest_quiz.TYPES if n < len(by_type[key])]
     return {
-        "cards": [{"key": card["key"], "type": card["type"], "text": card["text"], "photo": f"{PHOTO_PATH}{card['key']}.jpg", "alt": card["alt"], "credit": card["credit"]} for card in ordered],
+        "cards": [{"key": card["key"], "type": card["type"], "text": card["text"], "photo": f"{PHOTO_PATH}{card['key']}.jpg" if card["credit"] else None, "alt": card["alt"], "credit": card["credit"]} for card in ordered],
         "answers": [{"value": value, "label": label} for value, label in enumerate(ANSWERS)],
         "types": [{"key": key, "label": label} for key, label in interest_quiz.TYPES.items()],
         "max": MAX,

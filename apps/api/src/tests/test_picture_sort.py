@@ -20,7 +20,7 @@ def test_six_cards_a_type_mixed_so_no_type_comes_in_a_run():
     cards = sort.deck()["cards"]
     assert len(cards) == 36 and all(sum(1 for card in cards if card["type"] == key) == 6 for key in "RIASEC")
     assert all(a["type"] != b["type"] for a, b in zip(cards, cards[1:]))
-    assert all(card["photo"].startswith("/picture-sort/") for card in cards) and sort.deck()["max"] == 12
+    assert all(card["photo"].startswith("/images/picture-sort/") for card in cards if card["credit"]) and sort.deck()["max"] == 12
 
 
 def test_every_card_needs_an_answer_from_0_to_2():
