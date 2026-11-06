@@ -3,13 +3,13 @@
 import React, { type Dispatch } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Check, ChevronDown, GitBranch, Loader2, MapPin } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, GitBranch, Globe, Loader2, MapPin } from 'lucide-react'
 import { SpeakButton } from '@components/Accessibility/ReadAloud'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { routesFor } from '@components/Goals/phases/graph'
 import { getUriWithOrg } from '@services/config/config'
 import {
-  careersApi, fullMoney, hourlyMoney, type CareerOutlook, type CareerProfile as Profile, type CareerWages, type EducationShare, type PlaceWage,
+  careersApi, fullMoney, hourlyMoney, type CareerOutlook, type CareerPaths, type CareerProgram, type CareerProfile as Profile, type CareerWages, type EducationShare, type PlaceWage,
 } from '@services/life/careers'
 import { cn } from '@/lib/utils'
 import { CAREER_TYPES, TRAINING, matchLabel } from './CareerTile'
@@ -206,6 +206,72 @@ function Schooling({ education, color }: { education: EducationShare[]; color: s
   </div>
 }
 
+type PathSort = 'near' | 'short' | 'cost' | 'online'
+const PATH_SORTS: Array<[PathSort, string]> = [['near', 'Near you'], ['short', 'Shortest'], ['cost', 'Lowest cost'], ['online', 'Online']]
+const STATE_NAMES: Record<string, string> = { OR: 'Oregon', WA: 'Washington', CA: 'California', ID: 'Idaho' }
+/** Tuition for the whole program, where the Scorecard has a yearly figure. */
+const totalCost = (program: CareerProgram) => program.tuition != null && program.years ? program.tuition * program.years : null
+
+function ProgramCard({ program, onOpen }: { program: CareerProgram; onOpen: Dispatch<string> }) {
+  const earnings = program.earnings_5yr ?? program.earnings_1yr
+  const where = STATE_NAMES[program.state] || program.state
+  const facts = [
+    earnings != null ? { value: fullMoney(earnings), label: program.earnings_5yr != null ? 'a year, 5 years after' : 'a year, 1 year after' } : null,
+    program.tuition != null ? { value: fullMoney(program.tuition), label: 'tuition a year' } : null,
+    program.debt != null ? { value: fullMoney(program.debt), label: 'typical loans' } : null,
+    program.in_state != null && !program.online ? { value: `${Math.round(program.in_state * 100)}%`, label: `work in ${where}` } : null,
+  ].filter(Boolean) as Array<{ value: string; label: string }>
+  const body = <>
+    <span className="flex items-start justify-between gap-2">
+      <span className="flex min-w-0 flex-col">
+        <span className="text-[15px] font-extrabold leading-snug">{program.school}</span>
+        <span className="text-[12.5px] font-bold text-muted-foreground">{[program.credential_label, program.years ? `about ${program.years} year${program.years === 1 ? '' : 's'}` : '', program.online ? 'online' : `${program.city}, ${program.state}`].filter(Boolean).join(' · ')}</span>
+      </span>
+      <span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-extrabold', program.near_rank <= 2 ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-muted text-muted-foreground')}>
+        {program.near_rank === 5 ? <Globe size={12} aria-hidden="true" /> : program.near_rank <= 2 ? <MapPin size={12} aria-hidden="true" /> : null}{program.near}
+      </span>
+    </span>
+    {facts.length ? <span className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4">
+      {facts.map((fact) => <span key={fact.label} className="flex flex-col"><span className="text-[14px] font-extrabold tabular-nums">{fact.value}</span><span className="text-[11.5px] font-bold leading-tight text-muted-foreground">{fact.label}</span></span>)}
+    </span> : <span className="text-[12.5px] text-muted-foreground">Too few graduates for the Scorecard to share earnings.</span>}
+  </>
+  const shell = 'flex w-full flex-col gap-2 rounded-2xl bg-muted/60 px-3 py-2.5 text-left'
+  return program.resource_uuid
+    ? <button type="button" onClick={() => onOpen(program.resource_uuid!)} className={cn(shell, 'relative pr-8 hover:bg-muted')} aria-label={`${program.school}, ${program.credential_label}`}>
+      {body}<ChevronRight size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+    </button>
+    : <div className={shell}>{body}</div>
+}
+
+/** Schools that train for the career: Oregon's (or the learner's own state's) and fully online ones, nearest first. */
+function Paths({ paths, onOpen, color }: { paths: CareerPaths; onOpen: Dispatch<string>; color: string }) {
+  const [sort, setSort] = React.useState<PathSort>('near')
+  const [all, setAll] = React.useState(false)
+  const programs = paths.programs
+  if (!paths.has_data) return null
+  if (!programs.length) return <p className="m-0 text-[13.5px] text-muted-foreground">No schools nearby list a program for this yet.</p>
+  const list = sort === 'online' ? programs.filter((p) => p.online)
+    : sort === 'short' ? [...programs].sort((a, b) => (a.years ?? 99) - (b.years ?? 99) || a.near_rank - b.near_rank)
+    : sort === 'cost' ? [...programs].sort((a, b) => (totalCost(a) ?? Infinity) - (totalCost(b) ?? Infinity) || a.near_rank - b.near_rank)
+    : programs
+  const shown = all ? list : list.slice(0, 4)
+  const schools = new Set(programs.filter((p) => !p.online || p.near_rank < 5).map((p) => p.unitid)).size
+  return <div className="flex flex-col gap-2">
+    <span className="text-[13.5px] font-bold">{schools} school{schools === 1 ? '' : 's'} near you train for this{programs.some((p) => p.near_rank === 5) ? ', plus online programs' : ''}.</span>
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Sort programs">
+      {PATH_SORTS.map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
+        className={cn('min-h-9 shrink-0 rounded-full border-2 px-3 text-[13px] font-extrabold', sort === key ? 'text-white' : 'border-border bg-card text-foreground')}
+        style={sort === key ? { backgroundColor: color, borderColor: color } : undefined}>{label}</button>)}
+    </div>
+    {shown.length ? <div className="flex flex-col gap-2">{shown.map((program) => <ProgramCard key={`${program.unitid}-${program.cip}-${program.credential}`} program={program} onOpen={onOpen} />)}</div>
+      : <p className="m-0 text-[13.5px] text-muted-foreground">None of these programs are fully online.</p>}
+    {list.length > 4 ? <button type="button" onClick={() => setAll(!all)} className="flex min-h-11 items-center gap-1 self-start text-[14px] font-extrabold text-[var(--org-primary-color)] hover:underline">
+      {all ? 'Show fewer' : `Show all ${list.length}`}<ChevronDown size={16} className={cn('transition-transform', all && 'rotate-180')} aria-hidden="true" />
+    </button> : null}
+    <p className="m-0 text-[12px] text-muted-foreground">Earnings and loans are for graduates of each program; small programs aren’t shown. {sort === 'cost' ? 'Lowest cost uses in-state tuition for the whole program. ' : ''}{paths.source}.</p>
+  </div>
+}
+
 /** A career's page inside its resource sheet; `onAddToPlans` puts one of its routes on the learner's plan map. */
 export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { code: string; token: string; onOpen: Dispatch<string>; onAddToPlans?: Dispatch<Profile> }) {
   const org = useOrg() as any
@@ -235,6 +301,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
     here ? `Pay: ${credit(here)}.` : '',
     wages.history['state:OR']?.length >= 3 ? 'Pay over time: BLS Occupational Employment and Wage Statistics.' : '',
     outlook ? `Jobs and openings: ${outlook.source}.` : '',
+    data.paths?.programs.length ? `Programs: ${data.paths.source}, linked to careers through the ${data.paths.credit}.` : '',
     career.job_zone ? `Training: O*NET job zone ${career.job_zone} (${TRAINING[career.job_zone]})${career.education?.length ? ' and O*NET’s survey of the education workers say the job needs' : ''}.` : '',
   ].filter(Boolean)
 
@@ -296,6 +363,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
           {route.why ? <span className="text-[12.5px] font-semibold text-muted-foreground">{route.why}</span> : null}
         </li>)}
       </ol>
+      {data.paths ? <Paths paths={data.paths} onOpen={onOpen} color={color} /> : null}
       {onAddToPlans ? <button type="button" onClick={() => onAddToPlans(data)} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-extrabold text-white shadow-[0_4px_0_rgba(0,0,0,0.25)] active:translate-y-[3px] active:shadow-[0_1px_0_rgba(0,0,0,0.25)]" style={{ backgroundColor: color }}>
         <GitBranch size={16} aria-hidden="true" />Add to my plan ideas
       </button> : null}

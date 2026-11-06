@@ -32,6 +32,46 @@ export interface CareerOutlook {
   entry: { typical: string; competitive: string | null } | null
   source: string
 }
+/** A program at a school that trains for the career, from the College Scorecard's field-of-study file. */
+export interface CareerProgram {
+  unitid: string
+  school: string
+  city: string
+  state: string
+  control: string
+  cip: string
+  title: string
+  /** The Scorecard's credential level: 1 certificate, 2 associate, 3 bachelor's, 5 master's, 6 doctorate, 7 professional. */
+  credential: number
+  credential_label: string
+  /** Roughly how many years it takes full time. */
+  years: number | null
+  graduates: number | null
+  /** Median earnings of graduates working, one and five years after finishing. */
+  earnings_1yr: number | null
+  earnings_5yr: number | null
+  /** The share of working graduates employed in the school's state (0 to 1). */
+  in_state: number | null
+  /** Median federal loan debt at graduation. */
+  debt: number | null
+  /** Fully online. */
+  online: boolean
+  /** In-state tuition and fees a year. */
+  tuition: number | null
+  /** 0 your town, 1 your county, 2 your region, 3 your state, 4 farther, 5 online from out of state. */
+  near_rank: number
+  near: string
+  /** The school's resource in Discover, where the organization has one. */
+  resource_uuid?: string | null
+}
+export interface CareerPaths {
+  families: Array<{ cip: string; title: string; weight: number }>
+  programs: CareerProgram[]
+  counts?: Record<string, number>
+  has_data: boolean
+  source?: string
+  credit: string
+}
 export interface HomeBase { key: string; label: string; from: 'portfolio' | 'plan' }
 export interface CareerPay { yearly: number }
 export interface AreaPay { area: string; label: string; median: number; mine: boolean; my_place: string | null }
@@ -54,6 +94,8 @@ export interface CareerProfile {
   home: HomeBase | null
   wages: CareerWages
   outlook: CareerOutlook | null
+  /** Programs near the learner that train for the career. */
+  paths?: CareerPaths
   resource_uuid: string | null
   similar: Array<Omit<Career, 'match'> & { pay: CareerPay | null; resource_uuid: string | null }>
   link: string

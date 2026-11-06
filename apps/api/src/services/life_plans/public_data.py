@@ -329,7 +329,12 @@ def _upsert_source(db: Session, **fields) -> EstimateSource:
 
 
 def review_entries(db: Session, source_id: int, status: str) -> int:
-    n = 0
+    from sqlalchemy import update
+
+    from src.db.life_plans import ProgramEntry
+
+    # Programs run to hundreds of thousands of rows, so they change in one statement.
+    n = db.exec(update(ProgramEntry).where(ProgramEntry.source_id == source_id).values(status=status)).rowcount or 0
     for model in (CareerEntry, SchoolEntry):
         for row in db.exec(select(model).where(model.source_id == source_id)).all():
             row.status = status
@@ -339,8 +344,10 @@ def review_entries(db: Session, source_id: int, status: str) -> int:
 
 
 def entry_counts(db: Session, source_id: int) -> dict[str, int]:
+    from src.db.life_plans import ProgramEntry
+
     out: dict[str, int] = {}
-    for model in (CareerEntry, SchoolEntry):
+    for model in (CareerEntry, SchoolEntry, ProgramEntry):
         rows = db.exec(select(model.status).where(model.source_id == source_id)).all()
         for status in rows:
             out[status] = out.get(status, 0) + 1

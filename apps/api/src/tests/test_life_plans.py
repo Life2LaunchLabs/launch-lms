@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, ProgramEntry, SchoolEntry
 from src.db.users import PublicUser, User
 from src.services.life_plans import estimates, importers, places
 from src.services.life_plans import plans as plan_service
@@ -31,7 +31,7 @@ OEWS_CSV = b"""AREA,AREA_TITLE,AREA_TYPE,PRIM_STATE,OCC_CODE,OCC_TITLE,O_GROUP,H
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     db = Session(engine)
     db.add(User(id=1, user_uuid="user_1", username="u1", email="u1@example.com", first_name="U", last_name="1"))
     db.commit()
@@ -310,7 +310,7 @@ def test_admin_import_answers_small_files_and_runs_big_ones_as_jobs(monkeypatch)
     from src.security.superadmin import require_superadmin
 
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=__import__("sqlalchemy.pool", fromlist=["StaticPool"]).StaticPool)
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     monkeypatch.setattr(life_router, "engine", engine)
     app = FastAPI()
     app.include_router(life_router.router, prefix="/life")

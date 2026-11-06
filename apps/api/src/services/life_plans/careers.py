@@ -23,6 +23,7 @@ from src.db.portfolio_records import PortfolioResult
 from src.db.resources import Resource, UserSavedResource
 from src.db.users import PublicUser
 from src.services.life_plans import places as place_service
+from src.services.life_plans import programs as program_service
 from src.services.life_plans.estimates import REVIEWED, dims_key
 from src.services.life_plans.public_data import RIASEC, _career_view, _correlation, get_career, live_careers
 
@@ -275,6 +276,25 @@ def career_resources(db: Session, user, org_id: int) -> dict[str, Resource]:
     return out
 
 
+def school_links(db: Session, user, org_id: int) -> dict[str, str]:
+    """The school resources this organization's people may open (resource_uuid), by website, lower-cased and without a trailing slash."""
+    from src.services.resources import _org_resource_ids
+
+    ids = _org_resource_ids(org_id, db, user)
+    if not ids:
+        return {}
+    rows = db.exec(select(Resource).where(Resource.resource_type == "school", col(Resource.id).in_(ids)).order_by(Resource.id)).all()
+    out: dict[str, str] = {}
+    for resource in rows:
+        out.setdefault(_site(resource.external_url), resource.resource_uuid)
+    return out
+
+
+def _site(url: str | None) -> str:
+    url = (url or "").strip().lower().rstrip("/")
+    return url.split("://", 1)[1] if "://" in url else url
+
+
 def links(db: Session, user, org_id: int, codes: list[str]) -> dict[str, str]:
     """For each code, the career resource to open (its resource_uuid), where the organization has one."""
     found = career_resources(db, user, org_id)
@@ -314,11 +334,21 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
         "home": home,
         "wages": wages(db, career["soc"], home["key"] if home else None),
         "outlook": outlook(db, career["soc"], home["key"] if home else None),
+        "paths": _paths(db, user, code, home, org_id),
         "resource_uuid": resources[code].resource_uuid if code in resources else None,
         "similar": [{**_career_view(c), "pay": {"yearly": similar_pay[c.soc]} if c.soc in similar_pay else None,
                      "resource_uuid": resources[c.code].resource_uuid if c.code in resources else None} for _, c in similar],
         "link": onet_link(code),
     }
+
+
+def _paths(db: Session, user, code: str, home: dict | None, org_id: int | None) -> dict:
+    """Programs that train for the career, each school opening as the organization's school resource where it has one."""
+    out = program_service.paths(db, code, home["key"] if home else None)
+    sites = school_links(db, user, org_id) if org_id and out["programs"] else {}
+    for program in out["programs"]:
+        program["resource_uuid"] = sites.get(_site(program.pop("url", "")))
+    return out
 
 
 # ---------------------------------------------------------------- Career swipe

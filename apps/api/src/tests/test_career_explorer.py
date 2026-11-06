@@ -2,7 +2,7 @@
 
 from sqlmodel import select
 
-from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, EstimateSource, LifePlan
+from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, EstimateSource, LifePlan, ProgramEntry
 from src.db.resources import Resource, ResourceNoteBlock, UserSavedResource, UserSavedResourceUpdate
 from src.db.users import PublicUser
 from src.services.epp import report
@@ -22,7 +22,7 @@ CATALOG = (
 
 def _catalog(session) -> None:
     bind = session.get_bind()
-    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock):
+    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock, ProgramEntry):
         model.__table__.create(bind, checkfirst=True)
     source = EstimateSource(key="onet-31-0", title="O*NET 31.0", license="CC BY 4.0")
     session.add(source)
@@ -197,3 +197,33 @@ def test_home_base_reads_typed_places():
     assert careers.resolve_place("roseburg")["key"] == "city:OR:roseburg"
     assert careers.resolve_place("Boise, ID") == {"key": "state:ID", "label": "Idaho"}
     assert careers.resolve_place("") is None and careers.resolve_place("Somewhere") is None
+
+
+def test_career_paths_list_programs_near_home_and_open_schools_as_resources(resources_mcp, monkeypatch):  # noqa: F811
+    from src.db.life_plans import SchoolEntry
+    from src.db.portfolio import Portfolio
+
+    session, call, alice, _, _ = _loaded(resources_mcp)
+    monkeypatch.setattr(careers, "quiz_scores", lambda db, user_id: None)
+    bind = session.get_bind()
+    for model in (Portfolio, SchoolEntry):
+        model.__table__.create(bind, checkfirst=True)
+    source = EstimateSource(key="college-scorecard-institutions-2025-10-03", title="College Scorecard")
+    programs = EstimateSource(key="scorecard-programs-2026-10-15", publisher="U.S. Department of Education", title="College Scorecard, most recent field of study data")
+    session.add_all([source, programs])
+    session.commit()
+    session.add(SchoolEntry(unitid="208646", name="Lane Community College", city="Eugene", state="OR", url="www.lanecc.edu/", control="Public", source_id=source.id, status="reviewed"))
+    session.add(SchoolEntry(unitid="230764", name="University of Utah", city="Salt Lake City", state="UT", url="www.utah.edu", control="Public", source_id=source.id, status="reviewed"))
+    for unitid, credential in (("208646", 2), ("230764", 3)):
+        session.add(ProgramEntry(unitid=unitid, school="", cip="50.04", title="Design and Applied Arts", credential=credential, graduates=20,
+                                 earnings_5yr=40000, source_id=programs.id, status="reviewed"))
+    session.add(Portfolio(portfolio_uuid="portfolio_1", user_id=alice.id, location_label="Eugene, OR"))
+    session.commit()
+    channel = call("save_resource_channel", {"name": "Schools"})["structuredContent"]
+    assert not call("add_school_resources", {"channel_uuid": channel["channel_uuid"]}).get("isError")
+    lane = session.exec(select(Resource).where(Resource.title == "Lane Community College")).one()
+
+    paths = careers.profile(session, _learner(alice), "27-1024.00", org_id=1)["paths"]
+    # Utah's program isn't online, so only the Oregon school near home is listed; it opens as the school resource.
+    assert [(p["school"], p["near"], p["resource_uuid"]) for p in paths["programs"]] == [("Lane Community College", "In your town", lane.resource_uuid)]
+    assert paths["families"] == [{"cip": "50.04", "title": "Design and Applied Arts", "weight": 4}]

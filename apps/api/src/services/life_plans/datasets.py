@@ -22,7 +22,7 @@ from pathlib import Path
 from sqlalchemy import func, or_
 from sqlmodel import Session, col, select
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, ProgramEntry, SchoolEntry
 from src.services.life_plans import places
 
 # The datasets we expect, in the order admins see them. `prefix` picks out a dataset's
@@ -84,6 +84,17 @@ DATASETS: list[dict] = [
         "file": "The text database zip, like db_31_0_text.zip",
     },
     {
+        "kind": "scorecard_programs",
+        "prefix": "scorecard-programs",
+        "title": "College Scorecard programs",
+        "publisher": "U.S. Department of Education",
+        "description": "Each school's programs by family (4-digit CIP) and credential, with graduates, earnings one and five years after, debt, and how many graduates work in the state.",
+        "used_for": "Programs near the learner on a career's How do I get there, linked to careers through O*NET's CIP to O*NET-SOC crosswalk.",
+        "license": "Public domain (U.S. government work).",
+        "url": "https://collegescorecard.ed.gov/data/",
+        "file": "Most-Recent-Cohorts-Field-of-Study.csv, or the zip that holds it",
+    },
+    {
         "kind": "scorecard",
         "prefix": "college-scorecard-",
         "title": "College Scorecard",
@@ -96,7 +107,7 @@ DATASETS: list[dict] = [
     },
 ]
 
-TABLE_TITLES = {"facts": "Estimate facts", "careers": "Careers", "schools": "Schools"}
+TABLE_TITLES = {"facts": "Estimate facts", "careers": "Careers", "schools": "Schools", "programs": "Programs"}
 STATUSES = ["reviewed", "draft", "retired"]
 MAX_PAGE = 200
 
@@ -120,7 +131,7 @@ def _counts(db: Session, model, source_id: int) -> dict[str, int]:
 def _release(db: Session, src: EstimateSource) -> dict:
     tables = []
     by_status: dict[str, int] = {}
-    for name, model in (("facts", EstimateFact), ("careers", CareerEntry), ("schools", SchoolEntry)):
+    for name, model in (("facts", EstimateFact), ("careers", CareerEntry), ("schools", SchoolEntry), ("programs", ProgramEntry)):
         counts = _counts(db, model, src.id)
         if not counts:
             continue
@@ -298,6 +309,22 @@ SCHOOL_COLUMNS = [
 ]
 
 
+PROGRAM_COLUMNS = [
+    Column("unitid", "Unit ID", lambda p: p.unitid),
+    Column("school", "School", lambda p: p.school),
+    Column("cip", "CIP", lambda p: p.cip),
+    Column("title", "Program", lambda p: p.title),
+    Column("credential", "Credential", lambda p: p.credential, True),
+    Column("graduates", "Graduates", lambda p: p.graduates, True),
+    Column("earnings_1yr", "Earnings, 1 year", lambda p: p.earnings_1yr, True),
+    Column("earnings_5yr", "Earnings, 5 years", lambda p: p.earnings_5yr, True),
+    Column("in_state", "Working in state", lambda p: p.in_state, True),
+    Column("debt", "Debt", lambda p: p.debt, True),
+    Column("online", "Online", lambda p: "yes" if p.online else ""),
+    Column("status", "Status", lambda p: p.status),
+]
+
+
 def _distinct(db: Session, column, source_column, source_id: int) -> list:
     return sorted(v for v in db.exec(select(column).where(source_column == source_id).distinct()).all() if v not in (None, ""))
 
@@ -330,6 +357,11 @@ TABLES: dict[str, Table] = {
         SchoolEntry, SCHOOL_COLUMNS, [SchoolEntry.name, SchoolEntry.city, SchoolEntry.unitid],
         {"state": lambda v: SchoolEntry.state == v, "control": lambda v: SchoolEntry.control == v, "status": lambda v: SchoolEntry.status == v},
         lambda db, sid: {"state": _distinct(db, SchoolEntry.state, SchoolEntry.source_id, sid), "control": _distinct(db, SchoolEntry.control, SchoolEntry.source_id, sid), "status": _distinct(db, SchoolEntry.status, SchoolEntry.source_id, sid)},
+    ),
+    "programs": Table(
+        ProgramEntry, PROGRAM_COLUMNS, [ProgramEntry.school, ProgramEntry.title, ProgramEntry.cip, ProgramEntry.unitid],
+        {"credential": lambda v: ProgramEntry.credential == int(v), "status": lambda v: ProgramEntry.status == v},
+        lambda db, sid: {"credential": _distinct(db, ProgramEntry.credential, ProgramEntry.source_id, sid), "status": _distinct(db, ProgramEntry.status, ProgramEntry.source_id, sid)},
     ),
 }
 
