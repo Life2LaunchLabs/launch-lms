@@ -1,12 +1,7 @@
-'use client'
-import React from 'react'
-import PlatformShell from '@components/Admin/Platform/PlatformShell'
-import EstimateSources from '@components/Admin/Platform/EstimateSources'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/routing/paths'
 
+// Estimates was renamed Datasets: the files behind estimates, careers and schools.
 export default function PlatformEstimatesPage() {
-  return (
-    <PlatformShell title="Estimates" activeSection="estimates">
-      <EstimateSources />
-    </PlatformShell>
-  )
+  redirect(routePaths.owner.platform.datasets())
 }
