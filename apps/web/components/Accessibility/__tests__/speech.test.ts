@@ -12,7 +12,7 @@ test('long text is read a sentence at a time, and each piece knows where it star
 test('a run-on sentence is broken at a space before Chrome would cut it off', () => {
   const text = Array.from({ length: 80 }, (_, index) => `word${index}`).join(' ')
   const chunks = chunkText(text)
-  expect(chunks.length).toBeGreaterThan(1)
+  expect(chunks.length > 1).toBe(true)
   expect(chunks.every((chunk) => chunk.text.length <= 220)).toBe(true)
   expect(chunks.map((chunk) => chunk.text).join('')).toBe(text)
 })

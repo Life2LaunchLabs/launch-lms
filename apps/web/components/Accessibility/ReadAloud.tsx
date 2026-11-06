@@ -148,3 +148,27 @@ export function ReadToMeToggle({ className }: { className?: string }) {
     <Volume2 size={17} aria-hidden="true" />Read to me
   </button>
 }
+
+/** The words in rich text (Tiptap JSON), one block per line, for reading aloud. */
+export function richTextWords(node: any): string {
+  if (!node) return ''
+  if (Array.isArray(node)) return node.map(richTextWords).filter(Boolean).join('\n')
+  if (typeof node.text === 'string') return node.text
+  return Array.isArray(node.content) ? node.content.map(richTextWords).join(node.type === 'doc' || node.type?.endsWith('List') ? '\n' : '') : ''
+}
+
+/** Rich text with its speaker button beside it. */
+export function SpokenRichText({ nodes, children }: { nodes: any; children: React.ReactNode }) {
+  const spoken = richTextWords(nodes)
+  return <div className="flex items-start gap-2"><div className="min-w-0 flex-1">{children}</div>
+    {spoken.trim().length > 3 ? <SpeakButton text={spoken} size="sm" className="mt-1" /> : null}</div>
+}
+
+/** Beside an answer box's label: hear the label, and talk instead of typing when the answer is words. */
+// eslint-disable-next-line no-unused-vars
+export function AnswerVoiceTools({ label, value, typed, onChange }: { label: string; value: string; typed: boolean; onChange: (next: string) => void }) {
+  return <>
+    {label ? <SpeakButton text={label} size="sm" /> : null}
+    {typed ? <MicButton value={value} onChange={onChange} size="sm" /> : null}
+  </>
+}
