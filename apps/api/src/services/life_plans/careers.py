@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 
 from sqlmodel import Session, col, select
 
-from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, LifePlan
+from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, EstimateSource, LifePlan
 from src.db.portfolio import Portfolio
 from src.db.portfolio_records import PortfolioResult
 from src.db.resources import Resource, UserSavedResource
@@ -89,11 +89,26 @@ def _yearly(fact: EstimateFact, value: float | None) -> int | None:
     return int(round(value * HOURS_A_YEAR if fact.period == "hr" else value, -2))
 
 
+def _newest(facts) -> dict[str, EstimateFact]:
+    """One wage per place: the newest year when two datasets cover it (BLS May 2025 and OED 2026 both cover Oregon)."""
+    out: dict[str, EstimateFact] = {}
+    for fact in sorted(facts, key=lambda item: (item.dollar_year or 0, item.id or 0)):
+        out[fact.place] = fact
+    return out
+
+
+def _pay_source(db: Session, fact: EstimateFact | None) -> str:
+    source = db.get(EstimateSource, fact.source_id) if fact else None
+    if source and source.publisher and "bureau of labor" not in source.publisher.lower():
+        return ", ".join(part for part in (source.publisher, source.title) if part)
+    return f"BLS Occupational Employment and Wage Statistics, May {fact.dollar_year}" if fact and fact.dollar_year else "BLS Occupational Employment and Wage Statistics"
+
+
 def pay(db: Session, soc: str) -> dict:
-    """BLS pay for a job: Oregon (or the U.S. when Oregon has none) with its middle half, and each Oregon wage area."""
+    """Pay for a job: Oregon (or the U.S. when Oregon has none) with its middle half, and each Oregon wage area."""
     facts = db.exec(select(EstimateFact).where(EstimateFact.metric == "wage", EstimateFact.status == REVIEWED,
                                                EstimateFact.dims_key == dims_key({"soc": soc}))).all()
-    by_place = {fact.place: fact for fact in facts}
+    by_place = _newest(facts)
     main = by_place.get("state:OR") or by_place.get("us")
     overall = None
     if main and main.value is not None:
@@ -101,8 +116,8 @@ def pay(db: Session, soc: str) -> dict:
         overall = {"place": "Oregon" if main.place == "state:OR" else "the U.S.", "median": _yearly(main, main.value),
                    "p25": _yearly(main, pct.get("p25")), "p75": _yearly(main, pct.get("p75")), "year": main.dollar_year}
     areas = sorted(({"area": fact.place, "label": place_service.label(fact.place), "median": _yearly(fact, fact.value)}
-                    for fact in facts if fact.place.startswith("area:") and fact.value is not None), key=lambda row: -row["median"])
-    return {"overall": overall, "areas": areas, "source": f"BLS Occupational Employment and Wage Statistics, May {main.dollar_year}" if main and main.dollar_year else "BLS Occupational Employment and Wage Statistics"}
+                    for fact in by_place.values() if fact.place.startswith("area:") and fact.value is not None), key=lambda row: -row["median"])
+    return {"overall": overall, "areas": areas, "source": _pay_source(db, main)}
 
 
 def median_pay(db: Session, socs: list[str]) -> dict[str, int]:
@@ -113,6 +128,7 @@ def median_pay(db: Session, socs: list[str]) -> dict[str, int]:
     rows = db.exec(select(EstimateFact).where(EstimateFact.metric == "wage", EstimateFact.status == REVIEWED, col(EstimateFact.place).in_(["state:OR", "us"]),
                                               col(EstimateFact.dims_key).in_(list(keys)))).all()
     out: dict[str, int] = {}
+    rows = sorted(rows, key=lambda item: (-(item.dollar_year or 0), -(item.id or 0)))
     for place in ("state:OR", "us"):
         for fact in rows:
             soc = keys[fact.dims_key]
