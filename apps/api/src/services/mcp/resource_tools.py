@@ -408,7 +408,7 @@ RESOURCE_TOOLS = [
             "provider_url": {"type": "string"},
             "cover_image_url": {"type": "string", "description": "An image address, e.g. a url from upload_media or add_stock_media."},
             "estimated_time": {"type": "integer", "description": "Minutes it takes."},
-            "is_featured": {"type": "boolean", "description": "Featured resources lead their channel in Discover."},
+            "is_featured": {"type": "boolean", "description": "Starred: staff mark a resource as a priority; starred resources come first in Discover, channels, lists and exports."},
             "access_mode": {"type": "string", "enum": ["free", "paid", "restricted"], "description": "free (default), paid, or restricted (needs an account elsewhere)."},
             "tags": {"type": "array", "items": {"type": "string"}},
             "channel_uuids": {"type": "array", "items": {"type": "string"}},

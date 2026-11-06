@@ -150,7 +150,7 @@ async def org_workspace(request: Request, org_id: int, current_user: PublicUser,
     base._require_staff(current_user, org_id, db_session)
     channels = base._org_channels(org_id, db_session)
     resource_ids = base._org_resource_ids(org_id, db_session, current_user, include_private=True)
-    resources = db_session.exec(select(Resource).where(Resource.id.in_(resource_ids)).order_by(Resource.creation_date.desc())).all() if resource_ids else []
+    resources = db_session.exec(select(Resource).where(Resource.id.in_(resource_ids)).order_by(Resource.is_featured.desc(), Resource.creation_date.desc())).all() if resource_ids else []
     return {
         "channels": _channel_cards(channels, org_id, db_session),
         "resources": _resource_rows(list(resources), org_id, db_session),

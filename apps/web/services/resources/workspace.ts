@@ -59,6 +59,8 @@ export type ResourceRow = Owner & {
   cover_image_url: string | null
   thumbnail_image: string | null
   estimated_time: number | null
+  /** Starred by its org's staff: a priority, so it comes first in lists, channels, Discover and exports. */
+  is_featured: boolean
   creation_date: string
   tags: ResourceTag[]
   channels: Array<{ channel_uuid: string; name: string; color: string | null; org_id: number }>
@@ -122,6 +124,7 @@ export type ResourceInput = {
   provider_name?: string | null
   cover_image_url?: string | null
   estimated_time?: number | null
+  is_featured?: boolean
 }
 
 export const AUDIENCE_LABELS: Record<ChannelAudience, string> = { org: 'Everyone', groups: 'Chosen groups', staff: 'Staff only' }

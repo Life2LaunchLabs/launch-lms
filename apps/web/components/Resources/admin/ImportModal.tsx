@@ -3,12 +3,12 @@
 import React from 'react'
 import { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { AlertCircle, Check, Download, FileSpreadsheet, Info, Loader2, Upload } from 'lucide-react'
+import { AlertCircle, Check, Download, FileSpreadsheet, Info, Loader2, RefreshCw, Upload } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Input } from '@components/ui/input'
 import { plural } from '@components/Plans/plan/planVersions'
 import { primaryActionClass } from '@components/Plans/shared/actions'
-import { IMPORT_FIELDS, TEMPLATE_CSV, importApi, mapRows, type ImportDestination, type ImportField, type ImportResult, type SheetRead } from '@services/resources/importer'
+import { CHANGE_LABELS, IMPORT_FIELDS, TEMPLATE_CSV, importApi, mapRows, type ImportDestination, type ImportField, type ImportResult, type SheetRead } from '@services/resources/importer'
 import { isResourcesKey, typeLabel } from '@services/resources/workspace'
 import { cn } from '@/lib/utils'
 import { useResourcesContext } from './pieces'
@@ -59,7 +59,7 @@ function ChooseFile({ reading, onFile }: { reading: boolean; onFile: React.Dispa
       className={cn('flex flex-col items-center gap-2.5 rounded-[20px] border-2 border-dashed px-5 py-8 text-center', over ? 'border-foreground bg-muted' : 'border-border bg-muted/40')}>
       <span className="grid h-[52px] w-[52px] place-items-center rounded-2xl bg-[#1E7A46] text-white"><FileSpreadsheet size={26} aria-hidden="true" /></span>
       <b className="text-base">Drop a .csv or .xlsx file here</b>
-      <span className="max-w-[440px] text-[13.5px] leading-normal text-muted-foreground">A <b>link</b> column is all you need. Title, description, type, provider, minutes, channel and tags are optional, and pictures fill in from each link.</span>
+      <span className="max-w-[440px] text-[13.5px] leading-normal text-muted-foreground">A <b>link</b> column is all you need. Title, description, type, provider, minutes, channel, tags and starred are optional, and pictures fill in from each link. Bringing back an export? Rows that match yours can update them.</span>
       <div className="mt-1 flex flex-wrap justify-center gap-2">
         <button type="button" disabled={reading} onClick={() => input.current?.click()} className={primaryActionClass}>{reading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Upload size={16} aria-hidden="true" />}Choose a file</button>
         <button type="button" onClick={template} className={ghostClass}><Download size={16} aria-hidden="true" />Download the template</button>
@@ -102,6 +102,7 @@ function Review({ sheet, fields, channel, onBack, close, orgId, token }: { sheet
   const [where, setWhere] = React.useState<ImportDestination>(() => channel ? { destination: 'one', channel_uuid: channel.channel_uuid }
     : channelColumn ? { destination: 'column' } : { destination: 'one', channel_name: sheet.file_name.replace(/\.[^.]+$/, '') })
   const [check, setCheck] = React.useState<ImportResult | null>(null)
+  const [updateExisting, setUpdateExisting] = React.useState(true)
   const [busy, setBusy] = React.useState(false)
   React.useEffect(() => {
     if (where.destination === 'one' && !where.channel_uuid && !where.channel_name?.trim()) return
@@ -115,9 +116,11 @@ function Review({ sheet, fields, channel, onBack, close, orgId, token }: { sheet
   const run = async () => {
     setBusy(true)
     try {
-      const result = await importApi.run(orgId, rows, where, false, token)
+      const result = await importApi.run(orgId, rows, where, false, token, updateExisting)
       await mutate(isResourcesKey)
-      toast.success(`Imported ${plural(result.created, 'resource')}${where.destination === 'column' && result.channel_count > 1 ? ` into ${plural(result.channel_count, 'channel')}` : ''}. Pictures are filling in.`)
+      const parts = [result.created ? `Imported ${plural(result.created, 'resource')}${where.destination === 'column' && result.channel_count > 1 ? ` into ${plural(result.channel_count, 'channel')}` : ''}` : null,
+        result.updated ? `${result.created ? 'updated' : 'Updated'} ${plural(result.updated, 'resource')}` : null].filter(Boolean)
+      toast.success(`${parts.join(' and ')}.${result.created ? ' Pictures are filling in.' : ''}`)
       close()
     } catch (failure: any) { toast.error(failure?.message || 'Could not import them.') } finally { setBusy(false) }
   }
@@ -129,16 +132,33 @@ function Review({ sheet, fields, channel, onBack, close, orgId, token }: { sheet
     detail: where.destination === 'one' ? <Input aria-label="Channel name" value={where.channel_name || ''} onChange={(event) => setWhere({ destination: 'one', channel_name: event.target.value })} onClick={(event) => event.stopPropagation()} className="mt-1.5 h-9 bg-card" /> : 'Named after your file; you can change it.' })
   options.push({ key: 'none', value: { destination: 'none' }, title: 'Don’t put them in a channel', detail: 'They go in Your resources, where only your staff see them until you add them to a channel.' })
   const chosen = (value: ImportDestination) => value.destination === where.destination && (value.destination !== 'one' || Boolean(value.channel_uuid) === Boolean(where.channel_uuid))
-  const status = (row: ImportResult['rows'][number]) => row.status === 'ready' ? <span className="inline-flex items-center gap-1 rounded-full bg-[#e6f3f1] px-2 py-px text-[11.5px] font-bold text-[#0B5F58]"><Check size={11} aria-hidden="true" />Ready</span>
+  const updating = Boolean(check?.updates) && updateExisting
+  const status = (row: ImportResult['rows'][number]) => row.status === 'update'
+    ? <span className={cn('inline-flex max-w-[220px] items-center gap-1 truncate rounded-full px-2 py-px text-[11.5px] font-bold', updateExisting ? 'bg-blue-100 text-blue-900' : 'bg-muted text-muted-foreground')}
+      title={(row.changes || []).map((change) => CHANGE_LABELS[change]).join(', ')}><RefreshCw size={11} aria-hidden="true" />{updateExisting ? 'Updates' : 'Would update'} {(row.changes || []).map((change) => CHANGE_LABELS[change]).join(', ')}</span>
+    : row.status === 'ready' ? <span className="inline-flex items-center gap-1 rounded-full bg-[#e6f3f1] px-2 py-px text-[11.5px] font-bold text-[#0B5F58]"><Check size={11} aria-hidden="true" />Ready</span>
     : row.status === 'invalid' ? <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-px text-[11.5px] font-bold text-red-800"><AlertCircle size={11} aria-hidden="true" />{row.error}</span>
-      : <span className="rounded-full bg-amber-100 px-2 py-px text-[11.5px] font-bold text-amber-900">{row.status === 'repeat' ? 'Twice in the file' : 'Already added'}</span>
+      : <span className="rounded-full bg-amber-100 px-2 py-px text-[11.5px] font-bold text-amber-900">{row.status === 'repeat' ? 'Twice in the file' : 'Already added, no changes'}</span>
   const shown = check ? [...check.rows.filter((row) => row.status !== 'ready'), ...check.rows.filter((row) => row.status === 'ready')].slice(0, SHOWN_ROWS) : []
   return <div className="space-y-4">
     {!check ? <div className="grid place-items-center py-10"><Loader2 className="animate-spin text-muted-foreground" aria-label="Checking the rows" /></div> : <>
-      <div className="grid gap-2.5 sm:grid-cols-3">
-        {([[check.ready, 'ready to import', 'bg-[#e6f3f1] text-[#0B5F58]'], [check.duplicates, 'already in your resources, skipped', 'bg-amber-50 text-amber-900'], [check.invalid, 'without a usable link, skipped', 'bg-red-50 text-red-900']] as const).map(([count, label, tone]) =>
+      <div className={cn('grid grid-cols-2 gap-2.5', check.updates ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
+        {([[check.ready, 'new, ready to import', 'bg-[#e6f3f1] text-[#0B5F58]'], ...(check.updates ? [[check.updates, 'change resources you have', 'bg-blue-50 text-blue-900'] as const] : []),
+          [check.duplicates, 'already in your resources, no changes', 'bg-amber-50 text-amber-900'], [check.invalid, 'without a usable link, skipped', 'bg-red-50 text-red-900']] as const).map(([count, label, tone]) =>
           <div key={label} className={cn('rounded-2xl px-4 py-3', tone)}><b className="block text-[22px] leading-tight">{count}</b><span className="text-[13px]">{label}</span></div>)}
       </div>
+      {check.updates ? <fieldset className="space-y-2">
+        <legend className="mb-2 text-[13px] font-bold">{plural(check.updates, 'row')} {check.updates === 1 ? 'matches' : 'match'} resources you have (by Resource ID, else link)</legend>
+        {([[true, `Update ${plural(check.updates, 'resource')}`, 'Their wording, type, star, link and tags change to what the file says, and they’re added to any new channels. Blank cells keep what’s there; nothing is taken out of a channel.'],
+          [false, 'Leave them as they are', 'Only new rows are imported.']] as const).map(([value, title, detail]) => {
+          const on = updateExisting === value
+          return <button key={title} type="button" role="radio" aria-checked={on} onClick={() => setUpdateExisting(value)}
+            className={cn('flex w-full gap-3 rounded-2xl border px-4 py-3 text-left', on ? 'border-foreground bg-muted/50' : 'border-border hover:bg-muted/30')}>
+            <span className={cn('mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2', on ? 'border-foreground' : 'border-border')}>{on ? <span className="h-2 w-2 rounded-full bg-foreground" /> : null}</span>
+            <span className="min-w-0 flex-1"><b className="block text-sm">{title}</b><span className="block text-[13px] text-muted-foreground">{detail}</span></span>
+          </button>
+        })}
+      </fieldset> : null}
       <div className="max-h-[32vh] overflow-auto rounded-2xl border border-border">
         <table className="w-full text-left text-[13.5px]">
           <thead className="sticky top-0 bg-muted text-[11.5px] font-bold uppercase tracking-[.05em] text-muted-foreground"><tr><th className="px-3 py-2">Title</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Channel</th><th className="px-3 py-2"><span className="sr-only">Status</span></th></tr></thead>
@@ -153,7 +173,7 @@ function Review({ sheet, fields, channel, onBack, close, orgId, token }: { sheet
       </div>
     </>}
     <fieldset className="space-y-2">
-      <legend className="mb-2 text-[13px] font-bold">Where they go</legend>
+      <legend className="mb-2 text-[13px] font-bold">Where {updating ? 'new ones go (updated ones are added there too)' : 'they go'}</legend>
       {options.map((option) => <div key={option.key} role="radio" aria-checked={chosen(option.value)} tabIndex={0} onClick={() => { if (!chosen(option.value)) setWhere(option.value) }}
         onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) { event.preventDefault(); setWhere(option.value) } }}
         className={cn('flex cursor-pointer gap-3 rounded-2xl border px-4 py-3', chosen(option.value) ? 'border-foreground bg-muted/50' : 'border-border hover:bg-muted/30')}>
@@ -165,9 +185,15 @@ function Review({ sheet, fields, channel, onBack, close, orgId, token }: { sheet
       <button type="button" onClick={onBack} className={ghostClass}>Back</button>
       <span className="flex-1" />
       <small className="text-xs text-muted-foreground">Pictures and missing titles fill in after import.</small>
-      <button type="button" disabled={busy || !check?.ready || (where.destination === 'one' && !where.channel_uuid && !where.channel_name?.trim())} onClick={() => void run()} className={primaryActionClass}>
-        {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}Import {check ? plural(check.ready, 'resource') : ''}
+      <button type="button" disabled={busy || !(check?.ready || updating) || (where.destination === 'one' && !where.channel_uuid && !where.channel_name?.trim())} onClick={() => void run()} className={primaryActionClass}>
+        {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}{importLabel(check, updating)}
       </button>
     </div>
   </div>
+}
+
+function importLabel(check: ImportResult | null, updating: boolean) {
+  if (!check) return 'Import'
+  if (!updating) return `Import ${plural(check.ready, 'resource')}`
+  return check.ready ? `Import ${check.ready}, update ${check.updates}` : `Update ${plural(check.updates, 'resource')}`
 }
