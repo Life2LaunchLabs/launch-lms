@@ -5,13 +5,15 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, GitBranch, Loader2 } from 'lucide-react'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
+import { holdRoute } from '@components/Goals/phases/PlanMap'
 import { addRoute, current, monthText, normalize, routesFor, type CareerLike } from '@components/Goals/phases/graph'
 import { getUriWithOrg } from '@services/config/config'
 import { cn } from '@/lib/utils'
 
 /**
- * Put a career on the learner's plan map: after which phase, and which way to get there. The route's steps go on
- * the map as dashed ideas (quick to add, quick to drop), the last one doing this career.
+ * Put a career on the learner's plan map: pick which way to get there, then place it on the map (it opens holding
+ * the route, and you tap or drag where it goes). Coming from a phase's "Start from a career", it goes right after
+ * that phase. The steps go on the map as dashed ideas (quick to add, quick to drop), the last one doing this career.
  */
 export default function AddToPlans({ career, token, orgslug, after: wanted, onClose }: { career: CareerLike; token: string; orgslug: string; after?: string | null; onClose: () => void }) {
   const router = useRouter()
@@ -30,6 +32,11 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
   }, [onClose])
 
   const add = async () => {
+    if (!wanted) {
+      holdRoute(`Where should ${career.title} go?`, routes[route].steps)
+      router.push(getUriWithOrg(orgslug, '/plans?map&hold=1'))
+      return
+    }
     if (!chosen) return
     let ids: string[] = []
     const saved = await change((next) => {
@@ -50,7 +57,7 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
           <Link href={getUriWithOrg(orgslug, '/plans')} className="self-start rounded-2xl bg-[var(--org-primary-color)] px-5 py-3 text-sm font-extrabold text-[var(--org-on-primary-color)] no-underline">Start my plan</Link>
         </div>
         : <>
-          <div className="flex flex-col gap-2">
+          {wanted ? <div className="flex flex-col gap-2">
             <span className="text-[14px] font-extrabold">After which phase?</span>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="After which phase">
               {plan.phases.map((phase) => <button key={phase.id} type="button" role="radio" aria-checked={phase.id === chosen} onClick={() => setAfter(phase.id)}
@@ -58,14 +65,14 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
                 {phase.title}{phase.starts ? <small className="text-[11px] font-bold text-muted-foreground">{monthText(phase.starts)}</small> : null}
               </button>)}
             </div>
-          </div>
+          </div> : null}
           <div className="flex flex-col gap-2" role="radiogroup" aria-label="How to get there">
             <span className="text-[14px] font-extrabold">How to get there</span>
             {routes.map((option, index) => <button key={index} type="button" role="radio" aria-checked={route === index} onClick={() => setRoute(index)}
               className={cn('flex flex-col gap-1.5 rounded-2xl border-2 p-3 text-left', route === index ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_8%,transparent)]' : 'border-border bg-card')}>
               <b className="text-[13.5px]">{option.common ? 'Most common' : 'Another way'}</b>
               <span className="flex flex-wrap items-center gap-1.5">
-                {from ? <span className="rounded-xl border-2 border-border px-2 py-1 text-[12.5px] font-extrabold text-muted-foreground">{from.title}</span> : null}
+                {from && wanted ? <span className="rounded-xl border-2 border-border px-2 py-1 text-[12.5px] font-extrabold text-muted-foreground">{from.title}</span> : null}
                 {option.steps.map((step, stepIndex) => <React.Fragment key={stepIndex}>
                   <ArrowRight size={14} className="text-muted-foreground" aria-hidden="true" />
                   <span className="rounded-xl border-2 border-dashed border-foreground px-2 py-1 text-[12.5px] font-extrabold">{step.title}{step.years && stepIndex < option.steps.length - 1 ? <small className="ml-1 font-bold text-muted-foreground">{step.years} yr</small> : null}</span>
@@ -79,7 +86,7 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
             <button type="button" onClick={onClose} className="h-12 flex-1 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted">Cancel</button>
             <button type="button" onClick={() => void add()} disabled={busy || !chosen}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--org-primary-color)] text-sm font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)] disabled:opacity-50">
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <GitBranch size={16} />}Add as ideas
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <GitBranch size={16} />}{wanted ? 'Add as ideas' : 'Place on my map'}
             </button>
           </div>
         </>}

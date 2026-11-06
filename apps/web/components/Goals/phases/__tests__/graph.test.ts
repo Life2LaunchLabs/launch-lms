@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LifeDoc } from '@services/life/life'
-import { addAfter, addBefore, addBetween, addRoute, canJoin, current, endsOf, join, kids, mergeRoute, normalize, remove, routeDoc, routeName, routes, routesFor, split, whenOf } from '../graph'
+import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -96,5 +96,54 @@ describe('a plan as a map', () => {
     expect(added.map((p) => [p.title, p.starts, p.idea])).toEqual([['Certificate program', '2027-07', true], ['Emergency Medical Technician', '2028-07', true]])
     expect(added[1].activities?.[0]).toEqual({ kind: 'working', career: '29-2042.00', career_title: 'Emergency Medical Technicians' })
     expect(added[1].after).toEqual([added[0].id])
+  })
+
+  test('splits: where options rejoin, and adding an option or a phase they all lead to', () => {
+    const doc = map()
+    expect(rejoinOf(doc, kids(doc, 'hs'))).toBe(undefined)
+    expect(rejoinOf(doc, kids(doc, 'hs').filter((p) => p.id !== 'col'))?.id).toBe('el')
+    // Beside Electrician, which two ways lead into: a split keyed by that group.
+    const el = doc.phases.find((p) => p.id === 'el')!
+    expect(splitOf(el)).toBe(groupKey(['tr', 'ap']))
+    const o = addOption(doc, splitOf(el)!, { title: 'Lineworker' })
+    expect(optionsOf(o.doc, groupKey(['ap', 'tr'])).map((p) => p.title)).toEqual(['Electrician', 'Lineworker'])
+    expect(o.doc.phases.find((p) => p.id === o.id)!.starts).toBe('2030-07')
+    const r = addRejoin(doc, 'hs', { title: 'Move out' })
+    expect(r.doc.phases.find((p) => p.id === r.id)!.after!.sort()).toEqual(['col', 'el'])
+    expect(rejoinOf(r.doc, kids(r.doc, 'hs'))?.id).toBe(r.id)
+  })
+
+  test('moving: a piece stops where it meets other ways, and goes back in line or as an option', () => {
+    const doc = map()
+    // Trade school's option holds just itself: Electrician is shared with the apprenticeship.
+    expect(pieceOf(doc, 'tr')).toEqual(['tr'])
+    const withEnd = addAfter(doc, 'col', { title: 'Nurse' }).doc
+    expect(pieceOf(withEnd, 'col').length).toBe(2)
+    expect(heldShape(withEnd, pieceOf(withEnd, 'col')).linear).toBe(true)
+    // Move College (and Nurse) in line after the apprenticeship, before Electrician.
+    const ids = pieceOf(withEnd, 'col')
+    const moved = place(lift(withEnd, 'col'), ids, 'ap', true)
+    const col = moved.phases.find((p) => p.id === 'col')!, nurse = moved.phases.find((p) => p.id === ids[1])!
+    expect(col.after).toEqual(['ap'])
+    expect(moved.phases.find((p) => p.id === 'el')!.after).toEqual(['tr', nurse.id])
+    expect(kids(moved, 'hs').map((p) => p.id).sort()).toEqual(['ap', 'tr'])
+    // Dates stay in order.
+    expect(col.starts! > moved.phases.find((p) => p.id === 'ap')!.starts!).toBe(true)
+    expect(moved.phases.find((p) => p.id === 'el')!.starts! > nurse.starts!).toBe(true)
+    // Just this one: what followed it now follows what came before.
+    const alone = lift(withEnd, 'col', true)
+    expect(alone.phases.find((p) => p.id === ids[1])!.after).toEqual(['hs'])
+    // As another option after the apprenticeship.
+    const opt = place(lift(doc, 'tr'), ['tr'], 'ap', false)
+    expect(kids(opt, 'ap').map((p) => p.id).sort()).toEqual(['el', 'tr'])
+  })
+
+  test('a career route waits off the map until you place it', () => {
+    const steps = routesFor({ code: '29-2042.00', title: 'Emergency Medical Technicians', job_zone: 3 })[0].steps
+    const loose = loosePiece(map(), steps, 2028 * 12)
+    expect(loose.doc.phases.find((p) => p.id === loose.ids[0])!.after).toEqual([])
+    const placed = place(loose.doc, loose.ids, 'hs', false)
+    expect(kids(placed, 'hs').length).toBe(4)
+    expect(placed.phases.find((p) => p.id === loose.ids[1])!.after).toEqual([loose.ids[0]])
   })
 })

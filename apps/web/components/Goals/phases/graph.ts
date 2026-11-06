@@ -240,6 +240,121 @@ export function remove(doc: LifeDoc, id: string): LifeDoc {
   return normalize(next)
 }
 
+/* ---------- splits, rejoining and moving ---------- */
+
+/**
+ * A split is the options after one phase, keyed by that phase's id. Options can also all follow the
+ * same group of phases (a phase added beside one that several ways lead into): that split is keyed
+ * by the group, "g:" plus the sorted ids.
+ */
+export const groupKey = (after: string[]) => `g:${[...after].sort().join(',')}`
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
+export function optionsOf(doc: LifeDoc, key: string): Phase[] {
+  if (!key.startsWith('g:')) return kids(doc, key)
+  const group = key.slice(2).split(',')
+  return doc.phases.filter((p) => sameSet(p.after || [], group)).sort((a, b) => starts(a) - starts(b) || Number(!!a.idea) - Number(!!b.idea))
+}
+/** The split a phase is an option in (to add another option beside it), or null for a first phase. */
+export const splitOf = (p: Phase) => !p.after?.length ? null : p.after.length === 1 ? p.after[0] : groupKey(p.after)
+
+/** Everything after a phase, every way. */
+export function below(doc: LifeDoc, id: string, seen = new Set<string>()): Set<string> {
+  for (const k of kids(doc, id)) if (!seen.has(k.id)) { seen.add(k.id); below(doc, k.id, seen) }
+  return seen
+}
+/** Where a split's options all come back together: the first phase every one of them leads to. */
+export function rejoinOf(doc: LifeDoc, options: Phase[]): Phase | undefined {
+  if (options.length < 2) return undefined
+  const sets = options.map((q) => new Set([q.id, ...below(doc, q.id)]))
+  const common = doc.phases.filter((p) => sets.every((s) => s.has(p.id)))
+  return common.find((p) => !common.some((q) => q !== p && below(doc, q.id).has(p.id)))
+}
+
+/** Another option in a split: beside the other options, as a dashed idea. */
+export function addOption(doc: LifeDoc, key: string, x: NewPhase): { doc: LifeDoc; id: string } {
+  const next = clone(doc)
+  const after = key.startsWith('g:') ? key.slice(2).split(',') : [key]
+  const sib = optionsOf(next, key)[0], base = byId(next, after[0])
+  const at = sib ? starts(sib) : base ? Math.max(thisMonthIndex() + 1, starts(base) + 12) : thisMonthIndex() + 1
+  const p = make(base, x, after, at)
+  next.phases.push(p)
+  return { doc: normalize(next), id: p.id }
+}
+/** A phase every option of a split leads to, after the end of each. */
+export function addRejoin(doc: LifeDoc, key: string, x: NewPhase): { doc: LifeDoc; id: string } {
+  const next = clone(doc)
+  const all = new Set(optionsOf(next, key).flatMap((q) => [q.id, ...below(next, q.id)]))
+  const ends = [...all].map((id) => byId(next, id)!).filter((p) => !kids(next, p.id).length)
+  if (!ends.length) return { doc, id: '' }
+  const p = make(ends[0], x, ends.map((e) => e.id), Math.max(...ends.map((e) => starts(e) + Math.max(1, e.months || 12))))
+  next.phases.push(p)
+  return { doc: normalize(next), id: p.id }
+}
+
+/**
+ * What you pick up when you move a phase: it and everything after it in its option, stopping where
+ * that meets other ways (those phases stay where they are). `only` takes the phase alone.
+ */
+export function pieceOf(doc: LifeDoc, id: string, only = false): string[] {
+  const set = new Set([id])
+  if (!only) for (let grew = true; grew;) {
+    grew = false
+    for (const p of doc.phases) if (!set.has(p.id) && p.after?.length && p.after.every((a) => set.has(a))) { set.add(p.id); grew = true }
+  }
+  return [id, ...doc.phases.filter((p) => p.id !== id && set.has(p.id)).map((p) => p.id)]
+}
+export interface Held { ids: string[]; tail: string | null; linear: boolean }
+/** The shape of a piece: where it ends, and whether it is one line (only a line can go in between two phases). */
+export function heldShape(doc: LifeDoc, ids: string[]): Held {
+  const set = new Set(ids)
+  const inside = (id: string) => doc.phases.filter((p) => set.has(p.id) && p.after?.includes(id))
+  const tails = ids.filter((id) => !inside(id).length)
+  return { ids, tail: tails.length === 1 ? tails[0] : null, linear: tails.length === 1 && ids.every((id) => inside(id).length <= 1) }
+}
+/** Take a piece off the map. What followed a phase moved alone now follows what came before it. */
+export function lift(doc: LifeDoc, id: string, only = false): LifeDoc {
+  const next = clone(doc), head = byId(next, id)
+  if (!head) return next
+  const ids = new Set(pieceOf(next, id, only))
+  if (only) for (const k of next.phases) if (k.after?.includes(id)) k.after = [...new Set(k.after.flatMap((a) => (a === id ? head.after || [] : [a])))]
+  for (const p of next.phases) if (!ids.has(p.id)) p.after = (p.after || []).filter((a) => !ids.has(a))
+  head.after = []
+  return next
+}
+/**
+ * Put a lifted piece back on the map after `at`: as another option there, or in line (between `at`
+ * and what follows it). Dates stay in order: if the piece would start before `at`, it and everything
+ * after it move later, and so does what follows it in line.
+ */
+export function place(lifted: LifeDoc, ids: string[], at: string, inline: boolean): LifeDoc {
+  const next = clone(lifted), head = byId(next, ids[0]), from = byId(next, at)
+  if (!head || !from) return lifted
+  const shape = heldShape(next, ids)
+  const shiftAll = (list: Phase[], by: number) => list.forEach((p) => { p.starts = ym(starts(p) + by) })
+  const gap = starts(from) + 1 - starts(head)
+  if (gap > 0) shiftAll(ids.map((id) => byId(next, id)!), Math.max(gap, 12))
+  if (inline && shape.linear && shape.tail) {
+    const tail = byId(next, shape.tail)!
+    for (const b of kids(next, at)) {
+      const late = starts(tail) + 1 - starts(b)
+      if (late > 0) shiftAll([b, ...[...below(next, b.id)].map((x) => byId(next, x)!)].filter((p) => !ids.includes(p.id)), Math.max(late, 12))
+      b.after = (b.after || []).map((x) => (x === at ? shape.tail! : x))
+    }
+  }
+  head.after = [at]
+  return normalize(next)
+}
+/** A new piece (say, a career's route) that isn't on the map yet: its steps one after another, ready to place. */
+export function loosePiece(doc: LifeDoc, steps: RouteStep[], start = thisMonthIndex() + 12): { doc: LifeDoc; ids: string[] } {
+  const next = clone(doc), ids: string[] = []
+  let at = start, prev: string | null = null
+  for (const s of steps) {
+    const p = make(undefined, { title: s.title, activities: s.activities, living: s.living, months: Math.round((s.years || 3) * 12) }, prev ? [prev] : [], at)
+    next.phases.push(p); ids.push(p.id); prev = p.id; at += Math.round((s.years || 3) * 12)
+  }
+  return { doc: normalize(next), ids }
+}
+
 /* ---------- careers: the usual ways in, added as ideas ---------- */
 
 export interface CareerLike { code: string; title: string; job_zone?: number | null }
