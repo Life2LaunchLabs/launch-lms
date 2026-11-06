@@ -71,6 +71,7 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 | `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses | a choice is saved |
 | `routine` | `cadence` (`daily`, `weekly` or `monthly`), `days` (weekly: 0 Sunday to 6 Saturday; monthly: 1 to 31), `action`: `{kind: list|number|check, target, label, unit, series}` | logs the action each time it comes round; a chart of past times | the learner ends it, or its close date or its stage's end comes first |
 | `explore` | `question`, optional `suggestions`: `[{resource_uuid, title}]` (library resources to start from), `ratings` (rate each find 1 to 5) | collects resources, links, files and notes on a board, pins the ones that matter, then writes their outcome | the outcome is saved |
+| `resources` | `resources`: `[{resource_uuid, title}]` (1 to 8 library resources to check out), optional `required` (how many must be opened; 0 or left out means all) | opens each resource from the step and can leave a note on it; staff see what was opened, when, and the notes | a learner step finishes on its own once enough are opened; with `completed_by: "staff"` staff mark it done |
 
 Every step also has the learner's own note, added while it's open or after it's done; don't
 add a config field asking for a reflection or a reason.

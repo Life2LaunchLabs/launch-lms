@@ -1,7 +1,7 @@
 // The goal model as the API returns it. Mirrors apps/api/src/services/goals.
 import type { BadgeSummary, TemplateBadge } from '@services/badges/badges'
 
-export type StepTypeKey = 'task' | 'upload' | 'write' | 'activity' | 'event' | 'badge' | 'portfolio' | 'decision' | 'routine' | 'explore'
+export type StepTypeKey = 'task' | 'upload' | 'write' | 'activity' | 'event' | 'badge' | 'portfolio' | 'decision' | 'routine' | 'explore' | 'resources'
 export type StepStatus = 'not_started' | 'in_progress' | 'submitted' | 'changes_requested' | 'completed' | 'excused'
 export type NodeState = 'locked' | 'open' | 'started' | 'waiting' | 'retry' | 'done'
 export type StepCompleter = 'learner' | 'staff'
@@ -31,6 +31,10 @@ export interface PortfolioConfig { check: 'welcome' | 'timeline' | 'project' | '
 export interface DecisionOption { key: string; label: string }
 export interface DecisionConfig { question?: string; options: DecisionOption[]; multiple?: boolean; allow_other?: boolean }
 export interface ExploreConfig { question?: string; suggestions?: Array<{ resource_uuid: string; title?: string }>; ratings?: boolean }
+/** Resources to check out: `required` of them opened finishes a learner step (0 or none: all). */
+export interface ResourcesConfig { resources: Array<{ resource_uuid: string; title?: string }>; required?: number }
+/** A Resources step's resource as its card shows it (from the step's `reference`). */
+export interface StepResourceCard { resource_uuid: string; title: string; url: string; description?: string; resource_type?: string; provider_name?: string; cover_image_url?: string; estimated_time?: number | null; missing?: boolean }
 export type RoutineCadence = 'daily' | 'weekly' | 'monthly'
 export type RoutineActionKind = 'list' | 'number' | 'check'
 /** What each time asks for: `target` named items, one number per series, or just doing it. */
@@ -50,6 +54,7 @@ export interface StepConfigs {
   decision: DecisionConfig
   routine: RoutineConfig
   explore: ExploreConfig
+  resources: ResourcesConfig
 }
 
 export type StepResult =
@@ -59,6 +64,7 @@ export type StepResult =
   | { kind: 'rsvp'; rsvp: 'yes' | 'no' | 'maybe' }
   | { kind: 'choice'; choices: string[]; reason: string }
   | { kind: 'explore'; answer: string; count: number; thumbs: Array<{ kind: string; title: string; url: string; image: string }> }
+  | { kind: 'resources'; opened: number; total: number; needed: number; notes: number }
   | { kind: 'routine'; current: string; done: number; wanted: number; streak: number; total: number; periods: RoutinePeriod[] }
 
 export interface StepEntry {
@@ -122,7 +128,7 @@ export interface Step<T extends StepTypeKey = StepTypeKey> {
   completion_method: CompletionMethod | null
   entries: StepEntry[]
   /** What an activity, badge or portfolio step points at, for its card. */
-  reference?: { title?: string; thumbnail_image?: string | null; template_uuid?: string; badge?: BadgeSummary | null; activity_uuid?: string; page_count?: number } | null
+  reference?: { title?: string; thumbnail_image?: string | null; template_uuid?: string; badge?: BadgeSummary | null; activity_uuid?: string; page_count?: number; resources?: StepResourceCard[] } | null
   // Staff only.
   reviewer_guidance?: string
   staff_notes?: FeedbackItem[]
