@@ -12,9 +12,11 @@ import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PlanCompare from './PlanCompare'
 import PhaseSheet from './PhaseSheet'
 import MoveBar, { type Moving } from './MoveBar'
-import { PendingCard, PhaseCard, RankSheet, Target, Tray, type Env } from './MapParts'
+import { PhaseCard, RankSheet, Target, Tray, type Env } from './MapParts'
+import { PendingCard } from './PendingCard'
+import { kindFor, seedLines, suggestTitle } from './setup'
 import {
-  byId, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep,
+  byId, carryOver, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type Carried, type RouteStep,
 } from './graph'
 
 type Change = (fn: (next: LifeDoc) => void) => Promise<LifeDoc | null>
@@ -77,7 +79,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   const [sheet, setSheet] = React.useState<{ id: string; renaming?: string; confirmRm?: boolean } | null>(null)
   const [moving, setMoving] = React.useState<Moving | null>(null)
   // A new phase, or a career's route, put on the map but not kept yet. A route shows as one card.
-  const [pending, setPending] = React.useState<{ doc: LifeDoc; id: string; name: string; ids?: string[] } | null>(null)
+  // `carried` is where you live and how, as carried over from the phase before it (see carryOver).
+  const [pending, setPending] = React.useState<{ doc: LifeDoc; id: string; name: string; ids?: string[]; carried?: Carried } | null>(null)
   // A career's route waiting beside the + button to be dragged onto the map.
   const [route, setRoute] = React.useState<{ title: string; loose: { doc: LifeDoc; ids: string[] } } | null>(null)
   const [comparing, setComparing] = React.useState<string[] | null>(null)
@@ -160,8 +163,11 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // line before a split, the split now hangs off the piece: it keeps showing the option it showed.
     showWay(placed, ids[0], inline ? { from: at, to: heldShape(placed, ids).tail || ids[ids.length - 1] } : undefined)
     requestAnimationFrame(() => document.querySelector(`[data-card="${ids[0]}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
-    if (moving.route) { setRoute(null); setPending({ doc: placed, id: ids[0], name: moving.label || '', ids }) }
-    else if (moving.fresh) setPending({ doc: placed, id: ids[0], name: pending?.id === ids[0] ? pending.name : '' })
+    // Something new starts out living where and how the phase before it does.
+    const before = pending?.id === ids[0] ? pending : null
+    const c = moving.route || moving.fresh ? carryOver(placed, ids, at, before?.carried) : null
+    if (moving.route) { setRoute(null); setPending({ doc: c!.doc, id: ids[0], name: moving.label || '', ids, carried: c!.carried }) }
+    else if (moving.fresh) setPending({ doc: c!.doc, id: ids[0], name: before ? before.name : '', carried: c!.carried })
     else await change((next) => { Object.assign(next, placed) })
   }
   /** A new phase straight into a split, from its menu: it waits there for a name. */
@@ -169,13 +175,27 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const loose = loosePiece(doc, [{ title: 'New phase', years: 1 }]), id = loose.ids[0], lifted = structuredClone(loose.doc)
     byId(lifted, id)!.starts = ym(freshStart(lifted, key, false))
     setSheet(null); setMoving(null)
-    setPending({ doc: place(lifted, [id], key, false), id, name: '' })
+    const c = carryOver(place(lifted, [id], key, false), [id], key)
+    setPending({ doc: c.doc, id, name: '', carried: c.carried })
     setShown(key, id)
   }
+  /** Change the waiting phase (every phase of a waiting route) before it's kept. */
+  const editPending = (fn: (p: Phase) => void) => setPending((pd) => {
+    if (!pd) return pd
+    const d = structuredClone(pd.doc)
+    for (const id of pd.ids || [pd.id]) { const p = byId(d, id); if (p) fn(p) }
+    return { ...pd, doc: d }
+  })
   const keepPending = async () => {
     if (!pending) return
     const kept = structuredClone(pending.doc)
-    if (!pending.ids) byId(kept, pending.id)!.title = pending.name.trim() || 'New phase'
+    for (const id of pending.ids || [pending.id]) {
+      const p = byId(kept, id)
+      if (!p) continue
+      // Named for what it is when no name was typed; its budget starts from what was picked.
+      if (!pending.ids) { if (p.activities?.length) p.kind = kindFor(p.activities); p.title = pending.name.trim() || (p.activities?.length || p.living || p.place_label ? suggestTitle(p) : 'New phase') }
+      p.lines = seedLines(p)
+    }
     setPending(null)
     await change((next) => { Object.assign(next, kept) })
   }
@@ -377,7 +397,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     return <div key={key} className="h-3" />
   }
   const card = (p: Phase) => {
-    if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
+    if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
       onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
     const wh = whenOf(base, p), lp = moving ? byId(without, p.id) : undefined
     // Even the phase right after the one moving can take it as an option: worked out as if it were gone.
