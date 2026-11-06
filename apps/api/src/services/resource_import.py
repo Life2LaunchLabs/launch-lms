@@ -16,7 +16,7 @@ from src.services import resources as base
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_ROWS = 2000
-FIELDS = ("link", "title", "description", "type", "provider", "minutes", "channel", "tags")
+FIELDS = ("link", "title", "description", "type", "provider", "minutes", "channel", "tags", "starred", "id")
 
 # Header words that suggest a field, most specific first; a header matches the first field any word appears in.
 HEADER_HINTS: list[tuple[str, tuple[str, ...]]] = [
@@ -27,6 +27,9 @@ HEADER_HINTS: list[tuple[str, tuple[str, ...]]] = [
     ("provider", ("provider", "source", "publisher", "author", "site")),
     ("channel", ("channel", "category", "pathway", "collection", "folder", "group", "section")),
     ("tags", ("tags", "tag", "keywords", "topics", "labels")),
+    ("starred", ("starred", "star", "featured", "priority")),
+    # An export's Resource ID column, so an edited export updates the resources it came from.
+    ("id", ("resource id", "resource uuid")),
     ("title", ("title", "name", "resource", "heading")),
 ]
 TYPE_WORDS = {item.value: item.value for item in ResourceTypeEnum} | {
@@ -35,6 +38,7 @@ TYPE_WORDS = {item.value: item.value for item in ResourceTypeEnum} | {
     "youtube": "video", "app": "tool", "lesson": "course", "school": "school", "schools": "school", "college": "school", "university": "school", "worksheet": "guide",
 }
 LIST_SPLIT = re.compile(r"\s*[|;]\s*")
+YES_WORDS = {"yes", "y", "true", "1", "x", "★", "*", "star", "starred"}
 
 
 def _clean(value) -> str:
@@ -120,6 +124,8 @@ class ImportRequest(BaseModel):
     channel_uuid: str | None = None
     channel_name: str | None = None
     dry_run: bool = True
+    # Rows that match a resource the org has (by Resource ID, else link) change it to what the sheet says.
+    update_existing: bool = False
 
 
 def _link_of(value: str) -> str | None:
@@ -149,9 +155,60 @@ def _type_of(value: str) -> str:
     return TYPE_WORDS.get(word) or next((TYPE_WORDS[key] for key in TYPE_WORDS if key in word.split()), "other")
 
 
-def _plan_rows(org_id: int, rows: list[dict[str, str]], db_session: Session) -> list[dict]:
-    existing = {url.rstrip("/") for url in db_session.exec(select(Resource.external_url).where(Resource.org_id == org_id)).all()}
+def _starred(value: str) -> bool:
+    return (value or "").strip().lower() in YES_WORDS
+
+
+def _changes(resource: Resource, row: dict[str, str], link: str | None, tags: set[str], channels: set[str], wanted_channels: list[str]) -> dict:
+    """What a row would change on a resource the org has. A blank cell keeps what's there; the star column always counts."""
+    found: dict = {}
+    title = row.get("title", "").strip()[:300]
+    if title and title != (resource.title or ""):
+        found["title"] = title
+    description = row.get("description", "").strip()
+    if description and description != (resource.description or "").strip():
+        found["description"] = description
+    if row.get("type", "").strip():
+        kind = _type_of(row["type"])
+        if kind != str(getattr(resource.resource_type, "value", resource.resource_type)):
+            found["type"] = kind
+    provider = row.get("provider", "").strip()[:200]
+    if provider and provider != (resource.provider_name or ""):
+        found["provider"] = provider
+    if row.get("minutes", "").strip():
+        minutes = _minutes(row["minutes"])
+        if minutes != resource.estimated_time:
+            found["minutes"] = minutes
+    if "starred" in row and _starred(row["starred"]) != bool(resource.is_featured):
+        found["starred"] = _starred(row["starred"])
+    if link and link.rstrip("/") != (resource.external_url or "").rstrip("/"):
+        found["link"] = link
+    names = [name[:60] for name in LIST_SPLIT.split(row.get("tags", "").strip()) if name]
+    if names and {name.lower() for name in names} != tags:
+        found["tags"] = names
+    missing = [name for name in dict.fromkeys(wanted_channels) if name.lower() not in channels]
+    if missing:
+        found["channels"] = missing
+    return found
+
+
+def _plan_rows(org_id: int, rows: list[dict[str, str]], db_session: Session, one_channel: str | None = None, destination: str = "column") -> list[dict]:
+    """Each row as new (ready), a change to a resource the org has (update), the same as one it has (duplicate), twice in the file (repeat) or unusable."""
+    owned = list(db_session.exec(select(Resource).where(Resource.org_id == org_id)).all())
+    by_uuid = {item.resource_uuid: item for item in owned}
+    by_link: dict[str, Resource] = {}
+    for item in owned:
+        by_link.setdefault((item.external_url or "").rstrip("/"), item)
+    ids = [int(item.id) for item in owned]  # type: ignore[arg-type]
+    tag_names: dict[int, set[str]] = {}
+    channel_names: dict[int, set[str]] = {}
+    if ids:
+        for resource_id, name in db_session.exec(select(ResourceTagLink.resource_id, ResourceTag.name).join(ResourceTag, ResourceTag.id == ResourceTagLink.tag_id).where(ResourceTagLink.resource_id.in_(ids))).all():  # type: ignore[attr-defined]
+            tag_names.setdefault(int(resource_id), set()).add(name.lower())
+        for resource_id, name in db_session.exec(select(ResourceChannelResource.resource_id, ResourceChannel.name).join(ResourceChannel, ResourceChannel.id == ResourceChannelResource.channel_id).where(ResourceChannelResource.resource_id.in_(ids))).all():  # type: ignore[attr-defined]
+            channel_names.setdefault(int(resource_id), set()).add(name.lower())
     seen: set[str] = set()
+    matched: set[int] = set()
     planned = []
     for index, row in enumerate(rows):
         link = _link_of(row.get("link", ""))
@@ -162,12 +219,24 @@ def _plan_rows(org_id: int, rows: list[dict[str, str]], db_session: Session) -> 
             "title": title[:300] or (urlparse(link).netloc.removeprefix("www.") if link else ""),
             "type": _type_of(row.get("type", "")),
             "channels": [name[:120] for name in LIST_SPLIT.split(row.get("channel", "").strip()) if name],
+            "starred": _starred(row.get("starred", "")),
             "status": "ready",
         }
-        if not link:
+        existing = by_uuid.get(row.get("id", "").strip()) or (by_link.get(link.rstrip("/")) if link else None)
+        if existing:
+            item["title"], item["link"] = item["title"] if title else existing.title, link or existing.external_url
+            key = int(existing.id)  # type: ignore[arg-type]
+            if key in matched:
+                item["status"] = "repeat"
+            else:
+                matched.add(key)
+                wanted = [one_channel] if destination == "one" and one_channel else item["channels"] if destination == "column" else []
+                found = _changes(existing, row, link, tag_names.get(key, set()), channel_names.get(key, set()), wanted)
+                item["status"] = "update" if found else "duplicate"
+                item["changes"] = list(found)
+                item["_changes"], item["_resource"] = found, existing
+        elif not link:
             item["status"], item["error"] = "invalid", "No link" if not item["link"] else "Not a web link"
-        elif link.rstrip("/") in existing:
-            item["status"] = "duplicate"
         elif link.rstrip("/") in seen:
             item["status"] = "repeat"
         else:
@@ -194,7 +263,8 @@ def _org_tags(org_id: int, names: set[str], db_session: Session) -> dict[str, Re
 
 
 async def import_rows(request: Request, org_id: int, data: ImportRequest, current_user: PublicUser, db_session: Session) -> dict:
-    """Check the rows (dry_run) or create the ready ones and put them in their channels. Links already in the org are skipped."""
+    """Check the rows (dry_run) or create the ready ones and put them in their channels. Rows matching a resource the org has
+    (by Resource ID, else link) update it when ``update_existing`` is on, and are skipped otherwise."""
     base._get_org_or_404(org_id, db_session)
     base._require_staff(current_user, org_id, db_session)
     if data.destination not in ("column", "one", "none"):
@@ -206,10 +276,12 @@ async def import_rows(request: Request, org_id: int, data: ImportRequest, curren
             raise HTTPException(status_code=400, detail="That channel isn't your organization's")
     elif data.destination == "one" and not (data.channel_name or "").strip():
         raise HTTPException(status_code=422, detail="Name the channel they go in")
-    planned = _plan_rows(org_id, data.rows, db_session)
+    one_name = target.name if target else (data.channel_name or "").strip() or None
+    planned = _plan_rows(org_id, data.rows, db_session, one_name, data.destination)
     ready = [item for item in planned if item["status"] == "ready"]
+    updates = [item for item in planned if item["status"] == "update"]
     channel_names: dict[str, str] = {}  # each name as first written, by its lowercase
-    for name in (name for item in ready for name in item["channels"]) if data.destination == "column" else ():
+    for name in (name for item in [*ready, *(updates if data.update_existing else [])] for name in item["channels"]) if data.destination == "column" else ():
         channel_names.setdefault(name.lower(), name)
     channel_names = list(channel_names.values())
     new_channels = sorted(name for name in channel_names if not _org_channel(org_id, name, db_session))
@@ -218,13 +290,14 @@ async def import_rows(request: Request, org_id: int, data: ImportRequest, curren
     summary = {
         "rows": [{key: value for key, value in item.items() if not key.startswith("_")} for item in planned],
         "ready": len(ready),
+        "updates": len(updates),
         "duplicates": sum(item["status"] in ("duplicate", "repeat") for item in planned),
         "invalid": sum(item["status"] == "invalid" for item in planned),
         "new_channels": new_channels,
         "channel_count": len(channel_names) if data.destination == "column" else int(data.destination == "one"),
     }
     if data.dry_run:
-        return {**summary, "created": 0}
+        return {**summary, "created": 0, "updated": 0}
 
     channels: dict[str, ResourceChannel] = {}
 
@@ -248,7 +321,8 @@ async def import_rows(request: Request, org_id: int, data: ImportRequest, curren
         db_session.add(ResourceChannelResource(channel_id=channel.id, resource_id=resource.id, sort_order=next_order[channel.id], creation_date=base._now(), update_date=base._now()))
         next_order[channel.id] += 1
 
-    tags = _org_tags(org_id, {name[:60] for item in ready for name in LIST_SPLIT.split(item["_row"].get("tags", "").strip()) if name}, db_session)
+    applied = updates if data.update_existing else []
+    tags = _org_tags(org_id, {name[:60] for item in [*ready, *applied] for name in LIST_SPLIT.split(item["_row"].get("tags", "").strip()) if name}, db_session)
     one = target or (channel_named(data.channel_name.strip()) if data.destination == "one" else None)
     created: list[tuple[int, bool, bool]] = []
     for item in ready:
@@ -264,6 +338,7 @@ async def import_rows(request: Request, org_id: int, data: ImportRequest, curren
             provider_name=row.get("provider", "").strip()[:200] or urlparse(item["link"]).netloc.removeprefix("www.") or None,
             external_url=item["link"],
             estimated_time=_minutes(row.get("minutes", "")),
+            is_featured=item["starred"],
             creation_date=base._now(),
             update_date=base._now(),
         )
@@ -274,8 +349,25 @@ async def import_rows(request: Request, org_id: int, data: ImportRequest, curren
         for channel in [one] if one else [channel_named(name) for name in dict.fromkeys(item["channels"])]:
             link(channel, resource)
         created.append((resource.id, not item["_titled"], description is None))
+    fields = {"title": "title", "description": "description", "type": "resource_type", "provider": "provider_name", "minutes": "estimated_time",
+              "starred": "is_featured", "link": "external_url"}
+    for item in applied:
+        resource, found = item["_resource"], item["_changes"]
+        for key, column in fields.items():
+            if key in found:
+                setattr(resource, column, found[key])
+        if "tags" in found:
+            for row in db_session.exec(select(ResourceTagLink).where(ResourceTagLink.resource_id == resource.id)).all():
+                db_session.delete(row)
+            for name in {name.lower() for name in found["tags"]}:
+                db_session.add(ResourceTagLink(resource_id=resource.id, tag_id=tags[name].id))
+        # Channels are only ever added: a sheet can't take a resource out of one.
+        for name in found.get("channels", []):
+            link(one if one and data.destination == "one" else channel_named(name), resource)
+        resource.update_date = base._now()
+        db_session.add(resource)
     db_session.commit()
-    return {**summary, "created": len(created), "_fill_in": created}
+    return {**summary, "created": len(created), "updated": len(applied), "_fill_in": created}
 
 
 def fill_in_imported(org_id: int, created: list[tuple[int, bool, bool]]) -> None:

@@ -71,5 +71,7 @@ export const goalsApi = {
   addEntry: (goalUuid: string, stepUuid: string, data: EntryInput, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/entries'), token, 'POST', data),
   updateEntry: (goalUuid: string, stepUuid: string, entryUuid: string, data: { title?: string; note?: string; done?: boolean; data?: Record<string, unknown> }, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'PATCH', data),
   deleteEntry: (goalUuid: string, stepUuid: string, entryUuid: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'DELETE'),
+  /** A Resources step: the learner opened one of its resources, or saved their note on it. */
+  visitResource: (goalUuid: string, stepUuid: string, resourceUuid: string, data: { opened?: boolean; note?: string }, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/resources/${q(resourceUuid)}`), token, 'POST', data),
   startActivity: (goalUuid: string, stepUuid: string, token?: string) => request(step(goalUuid, stepUuid, '/activity'), token, 'POST'),
 }

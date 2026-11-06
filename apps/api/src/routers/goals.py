@@ -20,6 +20,7 @@ from src.db.goals import (
     StepUpdate,
 )
 from src.db.users import PublicUser
+from src.services.goals.types.resources import StepResourceVisit
 from src.security.auth import get_current_user
 from src.services.goals import entries, goals as service, schedule, structure
 
@@ -137,6 +138,12 @@ def api_update_entry(goal_uuid: str, step_uuid: str, entry_uuid: str, payload: S
 @router.delete("/{goal_uuid}/steps/{step_uuid}/entries/{entry_uuid}")
 def api_delete_entry(goal_uuid: str, step_uuid: str, entry_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return entries.delete_entry(db, user, goal_uuid, step_uuid, entry_uuid)
+
+
+@router.post("/{goal_uuid}/steps/{step_uuid}/resources/{resource_uuid}")
+def api_visit_resource(goal_uuid: str, step_uuid: str, resource_uuid: str, payload: StepResourceVisit, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """A Resources step: the learner opened one of its resources (``opened``) or saved their note on it."""
+    return entries.visit_resource(db, user, goal_uuid, step_uuid, resource_uuid, payload)
 
 
 @router.get("/{goal_uuid}/steps/{step_uuid}/activity")

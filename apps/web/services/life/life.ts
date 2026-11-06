@@ -163,4 +163,32 @@ export const lifeAdminApi = {
   /** A big file keeps loading after the upload answers; ask how it is going. */
   importStatus: (job: string, token?: string) => request<EstimateImportResult>(lifeUrl(`/admin/import/${encodeURIComponent(job)}`), token),
   review: (sourceKey: string, status: 'reviewed' | 'draft' | 'retired', token?: string) => request<{ facts: number }>(lifeUrl(`/admin/sources/${encodeURIComponent(sourceKey)}/review`), token, 'POST', { status }),
+  /** The datasets we expect, each with its loaded releases, newest first. */
+  datasets: (token?: string) => request<{ datasets: Dataset[] }>(lifeUrl('/admin/datasets'), token),
+  /** One page of a release's table, searched and filtered. */
+  datasetRows: (sourceKey: string, params: DatasetQuery, token?: string) => request<DatasetPage>(lifeUrl(`/admin/datasets/${encodeURIComponent(sourceKey)}/rows?${datasetQueryString(params)}`), token),
+  /** The same rows, every page, as a CSV file the browser downloads. */
+  exportDataset: async (sourceKey: string, params: Omit<DatasetQuery, 'page' | 'per_page'>, token?: string) => {
+    const response = await fetch(lifeUrl(`/admin/datasets/${encodeURIComponent(sourceKey)}/export?${datasetQueryString(params)}`), { headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: 'include' })
+    if (!response.ok) throw new Error('The export could not be made')
+    const name = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') || '')?.[1] || `${sourceKey}.csv`
+    return { blob: await response.blob(), name }
+  },
+}
+
+/** A release's table: estimate facts, O*NET careers or Scorecard schools. */
+export type DatasetTableName = 'facts' | 'careers' | 'schools'
+export interface DatasetRelease { key: string; label: string; title: string; publisher: string; dataset: string; url: string; released: string; retrieved: string; license: string; notes: string; tables: Array<{ name: DatasetTableName; title: string; rows: number }>; by_status: Record<string, number> }
+export interface Dataset { kind: string; title: string; publisher: string; description: string; used_for: string; license: string; url: string; file: string; origin: 'external' | 'composite'; importable: boolean; releases: DatasetRelease[] }
+export interface DatasetQuery { table: DatasetTableName; q?: string; page?: number; per_page?: number; filters?: Record<string, string> }
+export interface DatasetPage { source: string; table: DatasetTableName; columns: Array<{ key: string; label: string; numeric: boolean }>; rows: Array<Record<string, string | number | null>>; total: number; page: number; per_page: number; filters: Record<string, Array<string | number>> }
+
+function datasetQueryString({ table, q, page, per_page, filters }: Partial<DatasetQuery>) {
+  const params = new URLSearchParams()
+  if (table) params.set('table', table)
+  if (q) params.set('q', q)
+  if (page) params.set('page', String(page))
+  if (per_page) params.set('per_page', String(per_page))
+  for (const [key, value] of Object.entries(filters || {})) if (value) params.set(key, value)
+  return params.toString()
 }
