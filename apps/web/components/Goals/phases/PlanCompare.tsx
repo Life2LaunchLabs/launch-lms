@@ -11,12 +11,12 @@ import useLifeNumbers from '@components/LifePlan/useLifeNumbers'
 import { money, project } from '@components/LifePlan/model'
 import { isReal, mi, monthText, routeDoc, routeName, routes, thisMonthIndex } from './graph'
 
-/** Every way through the map at one moment, side by side: where you'd be and what the money looks like. */
-export default function PlanCompare({ doc, orgslug, token, onBack }: { doc: LifeDoc; orgslug: string; token?: string; onBack: () => void }) {
+/** The ways through a split's options at one moment, side by side: where you'd be and what the money looks like. */
+export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc: LifeDoc; orgslug: string; token?: string; only?: string[]; onBack: () => void }) {
   const { valueOf } = useLifeNumbers(doc, token)
   const [at, setAt] = React.useState(() => thisMonthIndex() + 60)
   const all = routes(doc)
-  const cols = all.map((r) => {
+  const cols = all.filter((r) => !only || r.some((p) => only.includes(p.id))).map((r) => {
     let ph: Phase | null = null
     for (const p of r) if (mi(p.starts!) <= at) ph = p
     if (!ph) return null

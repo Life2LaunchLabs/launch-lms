@@ -106,6 +106,8 @@ class Phase(Doc):
     living: str | None = Field(default=None, max_length=20)
     # Places still being weighed (place keys); `place` is the one picked.
     places: list[str] = Field(default_factory=list, max_length=12)
+    # Where it sits among the options after the same phase: 0 is the learner's first choice.
+    rank: int | None = Field(default=None, ge=0, le=100)
     # Real balances to start the phase from, by saving or debt id; without them it starts where the last one ended.
     starting: Starting | None = None
 

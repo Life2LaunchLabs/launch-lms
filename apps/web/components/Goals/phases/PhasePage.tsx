@@ -34,6 +34,8 @@ import { ActivityPicker, LivingPicker, MonthPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import PhaseInsights, { useCareers } from './PhaseInsights'
 import useLifePlan from './useLifePlan'
+import Invitations from '@components/Goals/home/Invitations'
+import SharedWithYou from '@components/LifePlan/SharedWithYou'
 
 const EMPTY: GoalSummary[] = []
 const lower = (title: string) => title.charAt(0).toLowerCase() + title.slice(1)
@@ -162,6 +164,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
           <span className="flex-1">{it.title}</span>{it.done ? null : <span className="text-sm text-[var(--org-primary-color)]">Set</span>}
         </button></li>)}</ul> : null}
 
+      {/* What others hand you lands in the phase you're in. */}
+      {whenOf(doc, phase) === 'now' ? <div className="mt-4 flex flex-col gap-3"><SharedWithYou token={token} /><Invitations token={token} /></div> : null}
       <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1fr)_300px] md:items-start lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8">
         <section aria-labelledby="phase-goals" className="flex min-w-0 flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
