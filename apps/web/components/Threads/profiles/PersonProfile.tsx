@@ -9,6 +9,7 @@ import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
 import LearnerBadges from '@components/Badges/award/LearnerBadges'
 import LearnerTeam from '@components/Admin/People/LearnerTeam'
+import LearnerAccessibility from '@components/Admin/People/LearnerAccessibility'
 import PersonManage from '@components/Admin/People/PersonManage'
 import { RoleTag } from '@components/Admin/People/RoleTag'
 import { usePeopleContext, useProfile } from '@components/Admin/People/usePeople'
@@ -208,6 +209,7 @@ function Access({ orgslug, orgId, token, profile, refresh }: { orgslug: string; 
     {canManage ? <PersonManage orgslug={orgslug} profile={profile} refresh={refresh} /> : <About profile={profile} />}
     {profile.helpers.length ? <Helpers profile={profile} refresh={refresh} /> : null}
     {learner ? <LearnerTeam orgId={orgId} userId={profile.user.id} token={token} /> : null}
+    {learner && manage.status ? <LearnerAccessibility orgId={orgId} userId={profile.user.id} name={profile.user.name || 'this learner'} token={token} /> : null}
   </>
 }
 

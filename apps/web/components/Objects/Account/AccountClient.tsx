@@ -8,11 +8,12 @@ import AccountLearnerName from '@components/Objects/Account/subpages/AccountLear
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountMemory from '@components/Objects/Account/subpages/AccountMemory'
 import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
+import AccountAccessibility from '@components/Objects/Account/subpages/AccountAccessibility'
 import AccountData from '@components/Objects/Account/subpages/AccountData'
 import { signOut } from '@components/Contexts/AuthContext'
 
 /** Where each old account tab now sits on the one Settings page. */
-const SECTIONS: Record<string, string> = { preferences: 'appearance', memory: 'memory', data: 'data' }
+const SECTIONS: Record<string, string> = { preferences: 'appearance', accessibility: 'accessibility', memory: 'memory', data: 'data' }
 
 const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
   // Old links to a tab land on its section.
@@ -25,6 +26,7 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
     <AccountPageShell>
       <div className="space-y-6">
         <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountLearnerName /><AccountSecurity /></section>
+        <section id="accessibility" className="scroll-mt-6"><AccountAccessibility /></section>
         <section id="appearance" className="scroll-mt-6"><AccountPreferences /></section>
         <section id="memory" className="scroll-mt-6"><AccountMemory /></section>
         <section id="data" className="scroll-mt-6"><AccountData /></section>

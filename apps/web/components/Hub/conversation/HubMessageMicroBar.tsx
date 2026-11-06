@@ -11,6 +11,8 @@ import type { HubMemory, HubPageReceipt } from '@services/hub/advisor'
 import { hubTimestampDate } from '@services/hub/timestamp'
 import HubMemoryItems from './HubMemoryItems'
 import HubReportDialog from './HubReportDialog'
+import { SpeakButton } from '@components/Accessibility/ReadAloud'
+import { plainForSpeech } from '@components/Accessibility/speech'
 
 type Props = {
   role: 'user' | 'assistant'
@@ -51,7 +53,10 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
   }
 
   return (
-    <div className={`flex h-7 items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    // The speaker on Coach's replies always shows; the rest appear on hover or focus.
+    <div className={`flex h-7 items-center gap-0.5 ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      {role === 'assistant' ? <SpeakButton text={plainForSpeech(content)} size="sm" label="Read Coach’s answer aloud" className="!size-7 bg-transparent text-muted-foreground" /> : null}
+      <div className="flex min-w-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
       <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => void copy()} aria-label="Copy message" title="Copy message">
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
@@ -80,6 +85,7 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
         {sourceTitle && createdAt ? <span aria-hidden="true">·</span> : null}
         {createdAt ? <time dateTime={createdAt}>{hubTimestampDate(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time> : null}
       </span>}
+      </div>
     </div>
   )
 }

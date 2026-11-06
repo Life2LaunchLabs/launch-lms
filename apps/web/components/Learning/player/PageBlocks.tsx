@@ -4,6 +4,7 @@ import React from 'react'
 import { animate, AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { resolveDisplayBinding } from '@components/Learning/schema'
+import { SpeakButton } from '@components/Accessibility/ReadAloud'
 
 /**
  * The blocks version 3 pages add: the page's heading, one big number, and a deck of cards.
@@ -36,6 +37,7 @@ function Heading({ block }: { block: any }) {
           transition={{ duration: 0.5, delay: index * 0.045, ease: [0.22, 1, 0.36, 1] }}>{word}{index < words.length - 1 ? ' ' : ''}</motion.span>)}
       </span>
     </>}
+    <SpeakButton text={text} size="sm" label="Read the heading aloud" className="ml-2 align-middle" />
   </h2>
 }
 
@@ -96,7 +98,10 @@ function CardDeck({ block }: { block: any }) {
           drag={reduce ? false : 'x'} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.4}
           onDragEnd={(_, info) => { if (info.offset.x < -60) go(index + 1); else if (info.offset.x > 60) go(index - 1) }}>
           {card.image ? <img src={card.image} alt="" className="h-36 w-full rounded-2xl object-cover" draggable={false} /> : null}
-          {card.title ? <h3 className="text-2xl font-extrabold tracking-tight">{card.title}</h3> : null}
+          <div className="flex items-start gap-2">
+            {card.title ? <h3 className="min-w-0 flex-1 text-2xl font-extrabold tracking-tight">{card.title}</h3> : <span className="flex-1" />}
+            <SpeakButton text={[card.title, card.body].filter(Boolean).join('. ')} size="sm" label="Read this card aloud" />
+          </div>
           {card.body ? <p className="whitespace-pre-line text-base leading-relaxed text-muted-foreground">{card.body}</p> : null}
         </motion.article>
       </AnimatePresence>

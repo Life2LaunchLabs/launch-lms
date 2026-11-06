@@ -2,12 +2,15 @@
 /* eslint-disable no-unused-vars -- parameter names in function types */
 
 import React from 'react'
-import { ArrowLeft, BookOpen, Briefcase, Heart, Plane, Search, Sparkles, UserSearch } from 'lucide-react'
+import { ArrowLeft, BookOpen, Briefcase, Building2, Heart, Home, HousePlus, Plane, Search, Sparkles, UserSearch, Users } from 'lucide-react'
+import { MicButton } from '@components/Accessibility/ReadAloud'
 import { cn } from '@/lib/utils'
 import { lifeApi, type Activity, type Career, type School } from '@services/life/life'
 import { KINDS, LEVELS, LIVING } from './setup'
 
 const KIND_ICONS: Record<Activity['kind'], React.ElementType> = { learning: BookOpen, working: Briefcase, looking: UserSearch, caring: Heart, gap: Plane, other: Sparkles }
+// A picture for every way of living, so a learner can choose by looking.
+const LIVING_ICONS: Record<string, React.ElementType> = { family: Home, own: HousePlus, roommates: Users, partner: Heart, dorm: Building2, other: Sparkles }
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 export const tile = 'flex items-center gap-3 rounded-2xl bg-card p-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]'
 export const chip = (on: boolean) => cn('rounded-full px-3.5 py-2 text-sm font-extrabold', on ? 'bg-foreground text-background' : 'bg-muted hover:bg-raised')
@@ -25,7 +28,13 @@ export function MonthPicker({ value, onChange, from = 2000, to = new Date().getF
 }
 
 export function LivingPicker({ value, onPick }: { value?: string | null; onPick: (key: string) => void }) {
-  return <div className="flex flex-wrap gap-2">{LIVING.map(([key, title]) => <button key={key} type="button" aria-pressed={value === key} onClick={() => onPick(key)} className={chip(value === key)}>{title}</button>)}</div>
+  return <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{LIVING.map(([key, title]) => {
+    const Icon = LIVING_ICONS[key] || Sparkles
+    return <button key={key} type="button" aria-pressed={value === key} onClick={() => onPick(key)}
+      className={cn(tile, 'flex-col justify-center py-4 text-center', value === key && 'shadow-[0_0_0_3px_var(--org-primary-color)]')}>
+      <span className="grid size-12 place-items-center rounded-2xl bg-muted"><Icon size={24} aria-hidden="true" /></span>{title}
+    </button>
+  })}</div>
 }
 
 function useSearch<T>(q: string, run: (q: string) => Promise<T[]>, enabled = true) {
@@ -46,6 +55,7 @@ function SearchBox({ value, onChange, placeholder, label }: { value: string; onC
     <Search size={18} className="text-muted-foreground" aria-hidden="true" />
     { }
     <input autoFocus aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-full w-full bg-transparent text-base font-bold outline-none" />
+    <MicButton value="" onChange={(said) => onChange(said.replace(/[.!?]+$/, ''))} size="sm" label={`Say the ${label.toLowerCase()}`} />
   </label>
 }
 
