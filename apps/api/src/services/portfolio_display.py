@@ -1,7 +1,8 @@
 """How the portfolio front page is laid out: the highlights band, the section stack (order, widths, heights
 per look, the learner's own section names, featured items), and the learner's look (their theme for the whole app, which visitors see their portfolio in).
 
-All live in ``Portfolio.theme_settings`` and visitors see them."""
+All live in ``Portfolio.theme_settings`` and visitors see them. The same blob also keeps two things visitors never
+see: which quest unlocks the learner has seen, and the email and phone for their résumé."""
 
 import re
 
@@ -10,7 +11,7 @@ from sqlmodel import Session, select
 
 from src.db.media import MediaAsset
 from src.db.portfolio import Portfolio
-from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSeen
+from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSeen, ResumeContactUpdate
 from src.db.users import PublicUser
 from src.services import portfolio as portfolio_service
 
@@ -30,6 +31,8 @@ LAYOUT_CHOICES = {
 # No mode until they pick one either: the page then follows the visitor's device.
 DEFAULT_LAYOUT = {"header": "left", "sections": "grid", "look": None, "mode": None, "banner": "look"}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PHONE = re.compile(r"^[0-9+()./\- x]{7,40}$")
 
 # The front page's sections. About and experience can't be taken out.
 SECTIONS = {"highlights", "feature", "about", "experience", "projects", "credentials", "results", "headed", "people"}
@@ -194,3 +197,26 @@ def mark_seen(payload: ProgressSeen, current_user: PublicUser, db_session: Sessi
     seen = sorted(set(seen_quests(portfolio)) | set(range(1, payload.quest + 1)))
     _store(portfolio, db_session, progress={"seen": seen})
     return {"seen": seen}
+
+
+def resume_unlocked(portfolio: Portfolio, has_resume_versions: bool) -> bool:
+    """Whether visitors get the résumé: once the learner reached the résumé unlock, or already saved a résumé
+    (as the page works it out in progress.ts)."""
+    return 2 in seen_quests(portfolio) or has_resume_versions
+
+
+def resume_contact(portfolio: Portfolio) -> dict:
+    stored = (portfolio.theme_settings or {}).get("resume_contact") or {}
+    return {"email": str(stored.get("email") or ""), "phone": str(stored.get("phone") or "")}
+
+
+def update_resume_contact(payload: ResumeContactUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    """The email and phone printed on the learner's résumé. Either can be left empty."""
+    email, phone = payload.email.strip(), payload.phone.strip()
+    if email and not EMAIL.match(email):
+        raise HTTPException(status_code=422, detail="That email doesn't look right")
+    if phone and (not PHONE.match(phone) or sum(char.isdigit() for char in phone) < 7):
+        raise HTTPException(status_code=422, detail="That phone number doesn't look right")
+    portfolio = portfolio_service.get_or_create_portfolio(current_user, db_session)
+    _store(portfolio, db_session, resume_contact={"email": email, "phone": phone})
+    return resume_contact(portfolio)

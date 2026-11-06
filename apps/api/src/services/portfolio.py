@@ -1323,7 +1323,7 @@ def get_public_project(org_id: int, username: str, slug: str, db_session: Sessio
     shell = get_public_shell(org_id, username, db_session)
     for project in shell["projects"]:
         if project["slug"] == slug:
-            return {"portfolio": shell["portfolio"], "project": project, "layout": shell.get("layout")}
+            return {"portfolio": shell["portfolio"], "project": project, "layout": shell.get("layout"), "identity": shell.get("identity")}
     raise HTTPException(status_code=404, detail="Project item not found")
 
 
@@ -1333,7 +1333,7 @@ def get_public_timeline(
     shell = get_public_shell(org_id, username, db_session)
     for entry in shell["timeline"]:
         if entry["slug"] == slug:
-            return {"portfolio": shell["portfolio"], "timeline": entry}
+            return {"portfolio": shell["portfolio"], "timeline": entry, "layout": shell.get("layout"), "identity": shell.get("identity")}
     raise HTTPException(status_code=404, detail="Timeline experience not found")
 
 

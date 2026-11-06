@@ -28,7 +28,7 @@ export async function getPublicPortfolioProject(orgId: number, username: string,
     const shell = await getPublicPortfolio(orgId, username, token)
     const project = shell.projects?.find((item: any) => item.slug === slug)
     if (!project) throw new Error('Project item not found')
-    return { portfolio: shell.portfolio, project, layout: shell.layout }
+    return { portfolio: shell.portfolio, project, layout: shell.layout, identity: shell.identity }
   }
   const response = await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}/projects/${encodeURIComponent(slug)}`, { cache: 'no-store' })
   return errorHandling(response)
@@ -39,7 +39,7 @@ export async function getPublicPortfolioTimeline(orgId: number, username: string
     const shell = await getPublicPortfolio(orgId, username, token)
     const timeline = shell.timeline?.find((item: any) => item.slug === slug)
     if (!timeline) throw new Error('Timeline experience not found')
-    return { portfolio: shell.portfolio, timeline }
+    return { portfolio: shell.portfolio, timeline, layout: shell.layout, identity: shell.identity }
   }
   const response = await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}/timeline/${encodeURIComponent(slug)}`, { cache: 'no-store' })
   return normalizeTimelineProjects(await errorHandling(response))

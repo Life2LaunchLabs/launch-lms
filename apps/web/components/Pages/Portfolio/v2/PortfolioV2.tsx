@@ -138,7 +138,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     if (path) return page(path)
     setMark(item.label)
     const go: Record<string, () => void> = {
-      name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
+      name: () => setProfileOpen(true), contact: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       proven: () => page(routePaths.org.discover()), look: () => setLookOpen(true),
       like: () => document.querySelector('[aria-label="What I’m like"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
@@ -283,7 +283,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     marks={<>{shell.mastered ? <MasteryBadge /> : null}{editing ? <span data-pf-chip className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}</>}
     corner={editing && !side ? cornerFor : undefined}
     actions={editing ? ownerActions : !owner ? <>
-      <Button asChild variant="brand" className="h-10"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>
+      {/* The résumé is the learner's to unlock first; until then visitors don't get one. */}
+      {shell.resume_unlocked ? <Button asChild variant="brand" className="h-10"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button> : null}
       {username ? <PortfolioVisitorBar orgslug={orgslug} username={username} token={token} shell={shell} /> : null}
     </> : null} />
 
