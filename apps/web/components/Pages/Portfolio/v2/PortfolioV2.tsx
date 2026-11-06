@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { type CSSProperties, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, type Dispatch, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Download, Eye, FileText, Globe2, Lock, Palette, SlidersHorizontal, Trophy, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -13,12 +13,12 @@ import { signOut } from '@components/Contexts/AuthContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { Button } from '@components/ui/button'
 import { useAsk } from '@components/ui/ask-dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { getMyPortfolio, publishMyPortfolio, unpublishMyPortfolio } from '@services/portfolio/portfolio'
-import { markProgressSeen, updateMyLayout, type LayoutChange } from '@services/portfolio/records'
+import { markProgressSeen, updateConnectRequests, updateMyLayout, type LayoutChange } from '@services/portfolio/records'
 import { normalizeMediaUrl } from '@services/media/media'
 import { PortfolioShareButton } from '../PortfolioShareDialog'
 import { PortfolioVisitorBar } from '../PortfolioVisitorBar'
@@ -51,12 +51,16 @@ function Avatar({ url, name, size = 'h-[92px] w-[92px] text-[32px]' }: { url?: s
 }
 
 /** The owner's corner: Settings, which holds the look. A quest step for the look marks both the button and the item. */
-function SettingsMenu({ orgslug, onLook, onUnpublish, className, spot }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; className: string; spot?: string }) {
+function SettingsMenu({ orgslug, onLook, onUnpublish, connect, onConnect, className, spot }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; connect: boolean; onConnect: Dispatch<boolean>; className: string; spot?: string }) {
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><button type="button" aria-label="Settings" className={`${className} ${spot ? 'ring-4 ring-[#ffc21a]' : ''}`}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">Settings</span></button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60 rounded-2xl p-2">
       <DropdownMenuItem onSelect={onLook} className={`rounded-xl px-3 py-2 ${spot ? 'bg-[#ffc21a]/20' : ''}`}><Palette className="h-4 w-4" /><span className="flex-1">Look and layout</span>{spot ? <QuestMark className="h-[18px] w-[18px]" /> : null}</DropdownMenuItem>
       <DropdownMenuSeparator />
+      {/* Off until the learner turns it on: visitors with an account can then send a request with a note. */}
+      <DropdownMenuCheckboxItem checked={connect} onCheckedChange={(on) => onConnect(on === true)} onSelect={(event) => event.preventDefault()} className="rounded-xl py-2">
+        <span className="flex flex-col"><span>Let people ask to connect</span><small className="text-xs text-muted-foreground">Visitors with an account can send you a request</small></span>
+      </DropdownMenuCheckboxItem>
       {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">Make my portfolio private</DropdownMenuItem> : null}
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>My documents</Link></DropdownMenuItem>
       <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())}>Account settings</Link></DropdownMenuItem>
@@ -178,6 +182,18 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     catch (error: any) { toast.error(error?.message || 'Could not make your portfolio public') } finally { setBusy(false) }
   }
 
+  async function setConnect(on: boolean) {
+    if (!token) return
+    setShell((current) => ({ ...current, connect_requests: on }))
+    try {
+      await updateConnectRequests(on, token)
+      toast.success(on ? 'People can ask to connect' : 'Requests to connect are off')
+    } catch (error: any) {
+      setShell((current) => ({ ...current, connect_requests: !on }))
+      toast.error(error?.message || 'That didn’t save')
+    }
+  }
+
   async function unpublish() {
     if (!token || !(await ask.confirm({ title: 'Make your portfolio private?', body: 'Only you and the people you added will see it. You can make it public again later.', action: 'Make private' }))) return
     setBusy(true)
@@ -267,7 +283,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
 
   // Professional puts the header in a column beside everything else.
   const side = lookId === 'professional'
-  const cornerFor = (onBanner: boolean) => <SettingsMenu orgslug={orgslug} className={cornerClass(onBanner)} spot={spots.settings} onLook={() => setLookOpen(true)} onUnpublish={published ? unpublish : undefined} />
+  const cornerFor = (onBanner: boolean) => <SettingsMenu orgslug={orgslug} className={cornerClass(onBanner)} spot={spots.settings} onLook={() => setLookOpen(true)} onUnpublish={published ? unpublish : undefined} connect={Boolean(shell.connect_requests)} onConnect={setConnect} />
   const quest = stage && questOpen ? <QuestBanner stage={stage} list={questList} onList={() => setQuestList(!questList)} busy={busy}
     onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
     onUnlock={(next) => seeUnlock(next, next.n === 1 ? publish : next.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null

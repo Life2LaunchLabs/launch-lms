@@ -27,7 +27,7 @@ export type ResumeVersion = { version_uuid: string; name: string; layout: string
 export type PortfolioDocument = { document_uuid: string; kind: string; title: string; source: string; visibility: string; url: string; filename?: string; creation_date: string }
 /** What the portfolio records add to the shell. Visitors never get contacts, résumé versions or documents. */
 export type LifePhase = { id: string; title: string; kind: string; place: string; starts: string; ends: string; months: number }
-export type PortfolioRecords = { identity?: Identity | null; progress?: { seen: number[] }; mastered?: boolean; headed?: { now: LifePhase | null; next: LifePhase[] }; highlights?: Highlight[]; layout?: PortfolioLayout; credentials?: Credential[]; quotes?: Quote[]; results?: PortfolioResult[]; contacts?: Contact[]; resume_contact?: { email: string; phone: string }; resume_unlocked?: boolean; resume_versions?: ResumeVersion[]; documents?: PortfolioDocument[] }
+export type PortfolioRecords = { identity?: Identity | null; progress?: { seen: number[] }; mastered?: boolean; headed?: { now: LifePhase | null; next: LifePhase[] }; highlights?: Highlight[]; layout?: PortfolioLayout; credentials?: Credential[]; quotes?: Quote[]; results?: PortfolioResult[]; contacts?: Contact[]; resume_contact?: { email: string; phone: string }; resume_unlocked?: boolean; connect_requests?: boolean; resume_versions?: ResumeVersion[]; documents?: PortfolioDocument[] }
 
 /** Replaces the shell after a save. */
 // eslint-disable-next-line no-unused-vars

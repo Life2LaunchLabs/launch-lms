@@ -307,6 +307,10 @@ class LayoutUpdate(BaseModel):
     feature_autoplay: bool | None = None
 
 
+class ConnectRequestsUpdate(BaseModel):
+    on: bool
+
+
 class ResumeContactUpdate(BaseModel):
     """How an employer reaches the learner, printed on their résumé only: never on the portfolio, never to visitors."""
 
