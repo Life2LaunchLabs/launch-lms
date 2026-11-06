@@ -22,12 +22,16 @@ changes before enabling deployment automation.
 2. Implement and test locally. Push the feature branch and open a PR targeting
    `dev`. CI builds both amd64 and arm64, checks migrations and runtime readiness,
    and runs API tests/lint. PR builds never log into GHCR or deploy.
-3. Review and merge the PR into `dev`. The **Build Community Images** workflow
-   builds and smoke-tests an image for the actual merged commit. Tests are not run
-   twice: when the commit came from a merged PR whose passed run recorded the same
-   git tree (`scripts/ci/pr-checked.py`, artifact `checked-tree`), the test jobs
-   and **Quality Gate** are skipped as already passed; any other push runs them
-   all. The image itself is never reused across commits. After all jobs pass, it publishes
+3. Review and merge the PR into `dev`. Nothing is built or checked twice: a PR
+   run that passes publishes its smoke-tested image (tag `checked-<git tree>`, PRs
+   from this repository only) and records the tree it checked (artifact
+   `checked-tree`, `scripts/ci/pr-checked.py`). When the merged commit came from
+   that PR with the same tree, **Build Community Images** skips the build and the
+   tests and publishes that image as `sha-<merged commit>` and `dev`, and
+   **Quality Gate** skips its checks. The candidate then carries
+   `build_commit_sha` (the PR commit the image was built from); the infra deploy
+   checks the image against it and passes the release commit to the app. Any
+   other push builds and checks everything. After all jobs pass, it publishes
    the multi-platform digest, saves the `candidate` artifact, and requests an
    unstable deployment (when `UNSTABLE_DEPLOY_ENABLED=true`).
 4. Watch **Deploy environment** in the infra repo and select its `unstable` run.
@@ -42,9 +46,9 @@ changes before enabling deployment automation.
 7. Open a PR from `dev` to `main`. Keep `main` releasable. After merging, wait for
    **Build Community Images** on the resulting `main` commit to succeed. If the
    source SHA already has retained successful candidate evidence, the image is
-   reused. A merge/squash that creates a different SHA gets one new build and
-   smoke check; its tests are skipped only if the dev → main PR passed them on the
-   same tree. Image identity is never inferred from similar file trees.
+   reused. A merge that creates a different SHA reuses the dev → main PR's
+   checked image when the tree is identical; otherwise it gets one new build and
+   check. An image is only ever reused for exactly the code it was checked on.
 8. Tag the checked main commit:
    ```bash
    git switch main

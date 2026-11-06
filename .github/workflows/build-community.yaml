@@ -19,8 +19,8 @@ jobs:
       - uses: actions/checkout@v6
       - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
       - run: bash -n scripts/ci/smoke-image.sh
-  # On a push from a merged pull request, the tests already passed on exactly this code: skip them.
-  # The image is still built, smoke-tested and published for this commit below.
+  # On a push from a merged pull request, its run already built, smoke-tested and checked exactly this
+  # code: skip the tests, and publish its image as this commit instead of building another.
   checked:
     runs-on: ubuntu-latest
     permissions:
@@ -29,6 +29,8 @@ jobs:
       pull-requests: read
     outputs:
       run_id: ${{ steps.find.outputs.run_id }}
+      image_digest: ${{ steps.find.outputs.image_digest }}
+      build_commit: ${{ steps.find.outputs.build_commit }}
     steps:
       - uses: actions/checkout@v6
       - id: find
@@ -51,13 +53,42 @@ jobs:
     needs: checked
     if: needs.checked.outputs.run_id == ''
     uses: ./.github/workflows/browser-ui.yaml
+  # A pull request that passed everything: publish its tested image (branches of this repository only;
+  # fork and Dependabot runs cannot write packages, so they only record the code they checked)
+  # and record the code it checked, so the merge can deploy this exact image.
   checked-tree:
-    name: Record checked code
+    name: Record checked code and image
     needs: [build, contract, api-tests, api-lint, migrations, browser-ui]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v4
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+      - uses: docker/login-action@v4
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the checked image (not a release; no branch tag)
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        run: |
+          amd64=$(cat digests/amd64)
+          arm64=$(cat digests/arm64)
+          [[ "$amd64" =~ ^sha256:[a-f0-9]{64}$ && "$arm64" =~ ^sha256:[a-f0-9]{64}$ ]]
+          tag="$REPOSITORY:checked-$(git rev-parse 'HEAD^{tree}')"
+          docker buildx imagetools create -t "$tag" "$REPOSITORY@$amd64" "$REPOSITORY@$arm64"
+          echo "IMAGE_DIGEST=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')" >> "$GITHUB_ENV"
       - run: python3 scripts/ci/pr-checked.py record checked.json && cat checked.json
       - uses: actions/upload-artifact@v7
         with:
@@ -85,8 +116,8 @@ jobs:
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
   build:
-    needs: existing
-    if: needs.existing.outputs.run_id == ''
+    needs: [existing, checked]
+    if: needs.existing.outputs.run_id == '' && needs.checked.outputs.image_digest == ''
     name: Build and smoke (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -131,13 +162,13 @@ jobs:
       - name: Let the cache read the embedding model
         run: sudo chown -R "$USER" "$HOME/ollama-models"
       - uses: docker/login-action@v4
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push the tested image (no build)
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           IMAGE: ${{ env.REPOSITORY }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
         run: |
@@ -145,14 +176,14 @@ jobs:
           mkdir -p digests
           docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}' > "digests/${{ matrix.arch }}"
       - uses: actions/upload-artifact@v7
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         with:
           name: digest-${{ matrix.arch }}
           path: digests/*
           retention-days: 1
   candidate:
     name: Publish verified candidate
-    needs: [existing, build, contract, checked, api-tests, api-lint, migrations, browser-ui]
+    needs: [existing, checked, build, contract, api-tests, api-lint, migrations, browser-ui]
     # Each test job passed here, or was skipped because its pull request passed it on the same code.
     if: >-
       always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
@@ -171,7 +202,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
       - uses: actions/download-artifact@v8
-        if: needs.existing.outputs.run_id == ''
+        if: needs.existing.outputs.run_id == '' && needs.checked.outputs.image_digest == ''
         with:
           pattern: digest-*
           path: digests
@@ -185,12 +216,24 @@ jobs:
         env:
           SOURCE_BRANCH: ${{ github.ref_name }}
           EXISTING_RUN: ${{ needs.existing.outputs.run_id }}
+          CHECKED_RUN: ${{ needs.checked.outputs.run_id }}
+          CHECKED_DIGEST: ${{ needs.checked.outputs.image_digest }}
+          CHECKED_COMMIT: ${{ needs.checked.outputs.build_commit }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "$EXISTING_RUN" ]; then
             gh run download "$EXISTING_RUN" --name candidate --dir existing
             IMAGE_DIGEST=$(python3 scripts/ci/release-contract.py reuse existing/candidate.json)
+            BUILD_COMMIT_SHA=$(python3 -c 'import json; print(json.load(open("existing/candidate.json")).get("build_commit_sha", ""))')
             docker buildx imagetools create -t "$REPOSITORY:$SOURCE_BRANCH" "$REPOSITORY@$IMAGE_DIGEST"
+          elif [ -n "$CHECKED_DIGEST" ]; then
+            # The pull request's run built, smoke-tested and checked this exact code into this image.
+            [[ "$CHECKED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ && "$CHECKED_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+            echo "Publishing the image from pull request run $CHECKED_RUN (built from $CHECKED_COMMIT)."
+            IMAGE_DIGEST="$CHECKED_DIGEST"
+            BUILD_COMMIT_SHA="$CHECKED_COMMIT"
+            docker buildx imagetools create -t "$REPOSITORY:sha-$GITHUB_SHA" -t "$REPOSITORY:$SOURCE_BRANCH" "$REPOSITORY@$IMAGE_DIGEST"
+            test "$(docker buildx imagetools inspect "$REPOSITORY:sha-$GITHUB_SHA" --format '{{.Manifest.Digest}}')" = "$IMAGE_DIGEST"
           else
             amd64=$(cat digests/amd64)
             arm64=$(cat digests/arm64)
@@ -198,7 +241,7 @@ jobs:
             docker buildx imagetools create -t "$REPOSITORY:sha-$GITHUB_SHA" -t "$REPOSITORY:$SOURCE_BRANCH" "$REPOSITORY@$amd64" "$REPOSITORY@$arm64"
             IMAGE_DIGEST=$(docker buildx imagetools inspect "$REPOSITORY:sha-$GITHUB_SHA" --format '{{.Manifest.Digest}}')
           fi
-          export IMAGE_DIGEST
+          export IMAGE_DIGEST BUILD_COMMIT_SHA
           python3 scripts/ci/release-contract.py candidate candidate.json
       - uses: actions/upload-artifact@v7
         with:

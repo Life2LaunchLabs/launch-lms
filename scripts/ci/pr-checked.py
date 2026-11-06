@@ -1,21 +1,26 @@
-"""Let a push to dev or main skip tests its pull request already passed on exactly the same code.
+"""Let a push to dev or main reuse what its pull request already built and checked on the same code.
 
-Tests depend only on the code (the git tree), not on the commit wrapped around it. A pull request
-run that passed records the tree it checked; a push whose commit came from that merged pull request
-and has the same tree reuses that result instead of running the tests again. Images are not reused
-this way: every push still builds, smoke-tests and publishes its own image for its own commit.
+What CI checks depends only on the code (the git tree), not on the commit wrapped around it. A pull
+request run that passed records the tree it checked and, for a branch of this repository, the image
+it built and smoke-tested. A push whose commit came from that merged pull request with the same tree
+skips the tests and, when there is an image, publishes that image as the pushed commit instead of
+building another. The image keeps the commit it was built from (`build_commit_sha`); the release
+records both, and the deploy checks the image against the commit it was built from.
 
-  record PATH          write the checked tree of this run (pull request runs, after every check)
-  find WORKFLOW        print `run_id=<id>` of the passed pull request run, or `run_id=` (push runs)
+  record PATH     write this run's checked tree and image (pull request runs, after every check)
+  find WORKFLOW   print `run_id=`, `image_digest=` and `build_commit=` lines (empty when nothing fits)
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 ARTIFACT = 'checked-tree'
+SHA = re.compile(r'[0-9a-f]{40}')
+DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
 
 
 def git_tree():
@@ -31,7 +36,15 @@ def merged_pull(pulls, sha, repo):
 
 
 def same_code(record, tree):
-    return isinstance(record, dict) and len(tree) == 40 and record.get('tree') == tree
+    return isinstance(record, dict) and bool(SHA.fullmatch(tree)) and record.get('tree') == tree
+
+
+def reusable_image(record):
+    """The checked image and the commit it was built from, when the record has a well-formed one."""
+    digest, commit = record.get('image_digest', ''), record.get('sha', '')
+    if isinstance(digest, str) and DIGEST.fullmatch(digest) and isinstance(commit, str) and SHA.fullmatch(commit):
+        return digest, commit
+    return '', ''
 
 
 def gh(*args):
@@ -39,12 +52,14 @@ def gh(*args):
 
 
 def find(workflow):
+    """(run id, image digest, build commit) of the pull request run that checked this code, or empties."""
+    none = ('', '', '')
     if os.environ.get('GITHUB_EVENT_NAME') == 'pull_request':
-        return ''
+        return none
     repo, sha, tree = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA'], git_tree()
     pull = merged_pull(json.loads(gh('api', f'repos/{repo}/commits/{sha}/pulls')), sha, repo)
     if not pull:
-        return ''
+        return none
     runs = json.loads(gh('api', f"repos/{repo}/actions/workflows/{workflow}/runs?event=pull_request&head_sha={pull['head']['sha']}&status=success&per_page=20"))
     for run in runs.get('workflow_runs', []):
         with tempfile.TemporaryDirectory() as folder:
@@ -55,21 +70,25 @@ def find(workflow):
                 continue
         if same_code(record, tree):
             print(f"Pull request #{pull['number']} run {run['id']} passed on this exact code (tree {tree}).", file=sys.stderr)
-            return str(run['id'])
-    return ''
+            return (str(run['id']), *reusable_image(record))
+    return none
 
 
 def main():
     mode, arg = sys.argv[1:3]
     if mode == 'record':
-        Path(arg).write_text(json.dumps({'tree': git_tree(), 'sha': os.environ.get('GITHUB_SHA', ''), 'run_id': os.environ.get('GITHUB_RUN_ID', '')}, indent=2) + '\n')
+        record = {'tree': git_tree(), 'sha': os.environ.get('GITHUB_SHA', ''), 'run_id': os.environ.get('GITHUB_RUN_ID', '')}
+        if os.environ.get('IMAGE_DIGEST'):
+            record['image_digest'] = os.environ['IMAGE_DIGEST']
+        Path(arg).write_text(json.dumps(record, indent=2) + '\n')
     elif mode == 'find':
         try:
-            print(f'run_id={find(arg)}')
+            run_id, digest, commit = find(arg)
         except (subprocess.CalledProcessError, KeyError, ValueError) as error:
-            # When in doubt, run everything.
+            # When in doubt, build and check everything.
             print(f'Could not look up the pull request run: {error}', file=sys.stderr)
-            print('run_id=')
+            run_id = digest = commit = ''
+        print(f'run_id={run_id}\nimage_digest={digest}\nbuild_commit={commit}')
     else:
         raise ValueError('Unknown operation')
 

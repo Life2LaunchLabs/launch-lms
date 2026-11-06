@@ -28,6 +28,13 @@ class PullRequestCheckTests(unittest.TestCase):
         self.assertFalse(checked.same_code({}, ''))
         self.assertFalse(checked.same_code(None, 'd' * 40))
 
+    def test_an_image_is_reused_only_with_its_exact_digest_and_build_commit(self):
+        digest = 'sha256:' + 'f' * 64
+        self.assertEqual((digest, 'a' * 40), checked.reusable_image({'image_digest': digest, 'sha': 'a' * 40}))
+        self.assertEqual(('', ''), checked.reusable_image({'sha': 'a' * 40}))
+        self.assertEqual(('', ''), checked.reusable_image({'image_digest': 'latest', 'sha': 'a' * 40}))
+        self.assertEqual(('', ''), checked.reusable_image({'image_digest': digest, 'sha': 'short'}))
+
 
 if __name__ == '__main__':
     unittest.main()
