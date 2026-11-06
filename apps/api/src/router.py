@@ -52,6 +52,7 @@ from src.routers import (
 )
 from src.routers import life_plans as life_plans_router_module
 from src.routers import data_export as data_export_router_module
+from src.routers import user_language as user_language_router_module
 from src.routers import learning as learning_router_module
 from src.routers import badges as badges_router_module
 from src.routers import learning_documents as learning_documents_router_module
@@ -97,6 +98,7 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(data_export_router_module.router, prefix="/users", tags=["users"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(user_language_router_module.router, prefix="/users", tags=["users"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     usergroups.router,
     prefix="/usergroups",

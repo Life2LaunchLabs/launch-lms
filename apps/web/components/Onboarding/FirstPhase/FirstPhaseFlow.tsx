@@ -19,23 +19,26 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi } from '@services/goals/goals'
 import { lifeApi, lifeUrl, type Activity, type PlaceOption, type Phase } from '@services/life/life'
 import { uploadMediaAsset } from '@services/media/library'
+import { tr } from '@/lib/tr'
+import { useTranslation } from 'react-i18next'
 
 type Draft = { place: PlaceOption | null; living: string | null; activities: Activity[]; starts: string; title: string; titleTouched: boolean; cover: string | null }
 
 /** Goal ideas for a first phase, by what it's about. */
-const IDEAS: Record<string, string[]> = {
-  middle: ['Get ready for high school', 'Try a new club or sport', 'Find out what I’m good at'],
-  high: ['Graduate on time', 'Get my driver’s license', 'Raise my GPA', 'Figure out what’s after high school'],
-  ged: ['Pass my GED tests', 'Make a study schedule', 'Find out what’s after my GED'],
-  college: ['Finish my first year', 'Find a study group', 'Pick a major', 'Apply for scholarships'],
-  working: ['Get through my first 90 days', 'Save my first $1,000', 'Learn a new skill at work', 'Ask for a raise'],
-  looking: ['Land a job', 'Update my résumé', 'Practice interviews'],
-  other: ['Build a routine', 'Save up', 'Figure out what’s next'],
+const IDEAS: Record<string, [string, string][]> = {
+  middle: [['ready_hs', 'Get ready for high school'], ['club', 'Try a new club or sport'], ['good_at', 'Find out what I’m good at']],
+  high: [['graduate', 'Graduate on time'], ['license', 'Get my driver’s license'], ['gpa', 'Raise my GPA'], ['after_hs', 'Figure out what’s after high school']],
+  ged: [['pass_ged', 'Pass my GED tests'], ['schedule', 'Make a study schedule'], ['after_ged', 'Find out what’s after my GED']],
+  college: [['first_year', 'Finish my first year'], ['study_group', 'Find a study group'], ['major', 'Pick a major'], ['scholarships', 'Apply for scholarships']],
+  working: [['first_90', 'Get through my first 90 days'], ['save_1000', 'Save my first $1,000'], ['new_skill', 'Learn a new skill at work'], ['raise', 'Ask for a raise']],
+  looking: [['land_job', 'Land a job'], ['resume', 'Update my résumé'], ['interviews', 'Practice interviews']],
+  other: [['routine', 'Build a routine'], ['save_up', 'Save up'], ['whats_next', 'Figure out what’s next']],
 }
 const ideasFor = (acts: Activity[]) => {
   const a = acts[0]
   const key = !a ? 'other' : a.kind === 'learning' ? (['middle', 'high', 'ged'].includes(a.level || '') ? a.level! : 'college') : a.kind === 'working' || a.kind === 'looking' ? a.kind : 'other'
-  return IDEAS[key] || IDEAS.other
+  const group = IDEAS[key] ? key : 'other'
+  return IDEAS[group].map(([id, en]) => tr(`onboarding.ideas.${group}.${id}`, en))
 }
 
 /**
@@ -47,6 +50,7 @@ const ideasFor = (acts: Activity[]) => {
 export default function FirstPhaseFlow() {
   const router = useRouter()
   const params = useSearchParams()
+  const { t } = useTranslation()
   const org = useOrg() as any
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
@@ -83,18 +87,18 @@ export default function FirstPhaseFlow() {
     if (busy) return
     setBusy(true)
     const id = phaseId()
-    const phase: Phase = { ...preview, id, title: title.trim() || 'Now', starts: d.starts, after: [], idea: false, activities: d.activities, living: d.living, places: [], goals: [] }
+    const phase: Phase = { ...preview, id, title: title.trim() || t('onboarding.now'), starts: d.starts, after: [], idea: false, activities: d.activities, living: d.living, places: [], goals: [] }
     phase.lines = seedLines(phase)
     const saved = await change((plan) => {
       Object.assign(plan, normalize({ ...plan, start: d.starts, phases: [...(plan.phases || []), phase] }))
     })
     if (!saved) { setBusy(false); return }
     const titles = skipGoals ? [] : [...goals, ...(own.trim() ? [own.trim()] : [])]
-    for (const t of titles) {
+    for (const goalTitle of titles) {
       try {
-        const g = await goalsApi.create({ title: t }, token)
+        const g = await goalsApi.create({ title: goalTitle }, token)
         await lifeApi.placeGoal(g.goal_uuid, id, token).catch(() => undefined)
-      } catch { toast.error(`Couldn’t add “${t}”. You can add it from your phase.`) }
+      } catch { toast.error(t('onboarding.goal_add_failed', { title: goalTitle })) }
     }
     if (titles.length) await refresh(lifeUrl('/plan'))
     router.replace(home(id))
@@ -104,23 +108,23 @@ export default function FirstPhaseFlow() {
     if (!token || userId === undefined) return
     setUploading(true)
     try { const asset = await uploadMediaAsset({ type: 'user', id: Number(userId) }, 'image', file, token, file.name); setD({ ...d, cover: asset.url }) }
-    catch { toast.error('That photo couldn’t be uploaded. Try a smaller image.') } finally { setUploading(false) }
+    catch { toast.error(t('onboarding.photo_failed')) } finally { setUploading(false) }
   }
 
   const question = {
-    where: { q: `${firstName ? `Hi ${firstName}! ` : ''}Where do you live right now?`, sub: 'A town or a county is plenty.' },
-    living: { q: 'Who do you live with?', sub: 'It helps with your budget. You can change it any time.' },
-    doing: { q: 'What are you doing these days?', sub: 'School, a job or both. Add as many as you like.' },
-    since: { q: 'Since when?', sub: 'Roughly is fine. A phase lasts until the next one starts.' },
-    card: { q: 'Here’s your first phase', sub: 'Change its name, or use your own photo.' },
-    goal: { q: 'What do you want to get done in this phase?', sub: 'Pick a few to start. Each becomes a goal you can break into steps.' },
+    where: { q: firstName ? t('onboarding.where_hi', { name: firstName }) : t('onboarding.where'), sub: t('onboarding.where_sub') },
+    living: { q: t('onboarding.living'), sub: t('onboarding.living_sub') },
+    doing: { q: t('onboarding.doing'), sub: t('onboarding.doing_sub') },
+    since: { q: t('onboarding.since'), sub: t('onboarding.since_sub') },
+    card: { q: t('onboarding.card'), sub: t('onboarding.card_sub') },
+    goal: { q: t('onboarding.goal'), sub: t('onboarding.goal_sub') },
   }[s]
 
   return <div className="min-h-screen bg-background">
     <div className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col gap-6 px-4 py-6 sm:py-10">
       <div className="flex items-center gap-3">
-        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} aria-label="Previous question" className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-0"><ArrowLeft size={18} aria-hidden="true" /></button>
-        <div className="flex flex-1 gap-1.5" aria-label={`Step ${step + 1} of ${steps.length}`}>{steps.map((x, i) => <span key={x} className={cn('h-2 flex-1 rounded-full', i <= step ? 'bg-[var(--org-primary-color)]' : 'bg-muted')} />)}</div>
+        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} aria-label={t('onboarding.previous')} className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-0"><ArrowLeft size={18} aria-hidden="true" /></button>
+        <div className="flex flex-1 gap-1.5" aria-label={t('onboarding.step_of', { step: step + 1, total: steps.length })}>{steps.map((x, i) => <span key={x} className={cn('h-2 flex-1 rounded-full', i <= step ? 'bg-[var(--org-primary-color)]' : 'bg-muted')} />)}</div>
       </div>
       <div><h1 className="text-[clamp(26px,6vw,34px)] font-extrabold leading-tight tracking-tight">{question.q}</h1><p className="mt-1 text-muted-foreground">{question.sub}</p></div>
 
@@ -129,11 +133,11 @@ export default function FirstPhaseFlow() {
       {s === 'doing' ? <div className="grid gap-3">
         {d.activities.length ? <ul className="grid gap-2">{d.activities.map((a, i) => <li key={i} className="flex items-center gap-3 rounded-2xl bg-card p-3 font-bold shadow-[0_0_0_2px_var(--org-primary-color)]">
           <span className="flex-1">{activityText(a)}</span>
-          <button type="button" aria-label={`Remove ${activityText(a)}`} onClick={() => setD({ ...d, activities: d.activities.filter((_, j) => j !== i) })} className="grid size-8 place-items-center rounded-full hover:bg-muted"><X size={16} aria-hidden="true" /></button>
+          <button type="button" aria-label={t('onboarding.remove', { name: activityText(a) })} onClick={() => setD({ ...d, activities: d.activities.filter((_, j) => j !== i) })} className="grid size-8 place-items-center rounded-full hover:bg-muted"><X size={16} aria-hidden="true" /></button>
         </li>)}</ul> : null}
         {addingAct || !d.activities.length
           ? <ActivityPicker key={d.activities.length} token={token} onPick={(a) => { setD({ ...d, activities: [...d.activities, a] }); setAddingAct(false) }} />
-          : <button type="button" onClick={() => setAddingAct(true)} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[var(--org-primary-color)]"><Plus size={15} aria-hidden="true" />Add something else (a job, another school…)</button>}
+          : <button type="button" onClick={() => setAddingAct(true)} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[var(--org-primary-color)]"><Plus size={15} aria-hidden="true" />{t('onboarding.add_else')}</button>}
       </div> : null}
       {s === 'since' ? <MonthPicker value={d.starts} onChange={(starts) => setD({ ...d, starts })} to={new Date().getFullYear() + 1} /> : null}
       {s === 'card' ? <div className="grid gap-3">
@@ -142,32 +146,32 @@ export default function FirstPhaseFlow() {
           <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgb(8_20_30/0.65))]" aria-hidden="true" />
           <div className="absolute inset-x-5 bottom-5 grid gap-1.5">
             <span className="text-sm font-extrabold opacity-95">{d.activities.map(activityText).join(' + ')}</span>
-            <input aria-label="Phase name" value={title} onChange={(e) => setD({ ...d, title: e.target.value, titleTouched: true })} className="w-full rounded-xl bg-black/25 px-2.5 py-0.5 text-[clamp(28px,7vw,42px)] font-extrabold text-white outline outline-2 outline-white/60 focus:outline-white" />
-            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold"><MapPin size={13} aria-hidden="true" />{d.place?.label} · since {monthText(d.starts)}</span>
+            <input aria-label={t('onboarding.phase_name')} value={title} onChange={(e) => setD({ ...d, title: e.target.value, titleTouched: true })} className="w-full rounded-xl bg-black/25 px-2.5 py-0.5 text-[clamp(28px,7vw,42px)] font-extrabold text-white outline outline-2 outline-white/60 focus:outline-white" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold"><MapPin size={13} aria-hidden="true" />{d.place?.label} · {t('onboarding.since_month', { month: monthText(d.starts) })}</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {d.titleTouched ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, titleTouched: false, title: '' })}>Use “{suggestTitle({ activities: d.activities, living: d.living, place_label: d.place?.label || '' })}”</button> : null}
-          <button type="button" className={chip(false)} onClick={() => fileInput.current?.click()} disabled={uploading}><Upload size={14} className="mr-1 inline" aria-hidden="true" />{d.cover ? 'Another photo' : 'Use my own photo'}</button>
-          {d.cover ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, cover: null })}>Use ours</button> : null}
+          {d.titleTouched ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, titleTouched: false, title: '' })}>{t('phases.use_typed', { text: suggestTitle({ activities: d.activities, living: d.living, place_label: d.place?.label || '' }) })}</button> : null}
+          <button type="button" className={chip(false)} onClick={() => fileInput.current?.click()} disabled={uploading}><Upload size={14} className="mr-1 inline" aria-hidden="true" />{d.cover ? t('onboarding.another_photo') : t('onboarding.own_photo')}</button>
+          {d.cover ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, cover: null })}>{t('onboarding.use_ours')}</button> : null}
         </div>
         <input ref={fileInput} type="file" accept="image/*" className="hidden" aria-hidden="true" tabIndex={-1} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f) }} />
       </div> : null}
       {s === 'goal' ? <div className="grid gap-3">
-        <div className="flex flex-wrap gap-2">{ideasFor(d.activities).map((t) => {
-          const on = goals.includes(t)
-          return <button key={t} type="button" aria-pressed={on} onClick={() => setGoals(on ? goals.filter((x) => x !== t) : [...goals, t])} className={cn(chip(on), 'inline-flex items-center gap-1.5')}>{on ? <Target size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}{t}</button>
+        <div className="flex flex-wrap gap-2">{ideasFor(d.activities).map((idea) => {
+          const on = goals.includes(idea)
+          return <button key={idea} type="button" aria-pressed={on} onClick={() => setGoals(on ? goals.filter((x) => x !== idea) : [...goals, idea])} className={cn(chip(on), 'inline-flex items-center gap-1.5')}>{on ? <Target size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}{idea}</button>
         })}</div>
         <label className="flex h-12 items-center gap-2 rounded-2xl bg-muted px-3"><Target size={18} className="text-muted-foreground" aria-hidden="true" />
-          <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Or write your own" aria-label="Your own goal" className="h-full w-full bg-transparent text-base font-bold outline-none" /></label>
-        {org?.name ? <p className="text-sm text-muted-foreground">Plans from {org.name} land in this phase too, next to your own goals.</p> : null}
+          <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder={t('onboarding.write_own')} aria-label={t('onboarding.own_goal')} className="h-full w-full bg-transparent text-base font-bold outline-none" /></label>
+        {org?.name ? <p className="text-sm text-muted-foreground">{t('onboarding.org_plans', { org: org.name })}</p> : null}
       </div> : null}
 
       <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-        {s === 'goal' ? <button type="button" onClick={() => void finish(true)} disabled={busy} className="text-sm font-bold text-muted-foreground">Skip for now</button> : <span />}
+        {s === 'goal' ? <button type="button" onClick={() => void finish(true)} disabled={busy} className="text-sm font-bold text-muted-foreground">{t('onboarding.skip_for_now')}</button> : <span />}
         {s === 'where' || s === 'living' ? null
-          : s === 'goal' ? <Button variant="brand" size="lg" disabled={busy} onClick={() => void finish()}>{busy ? <Loader2 className="animate-spin" /> : null}{goals.length || own.trim() ? 'Start my plan' : 'Start without goals'}</Button>
-            : <Button variant="brand" size="lg" disabled={!canNext} onClick={() => { setStep(step + 1); setAddingAct(false) }}>Next<ArrowRight size={16} aria-hidden="true" /></Button>}
+          : s === 'goal' ? <Button variant="brand" size="lg" disabled={busy} onClick={() => void finish()}>{busy ? <Loader2 className="animate-spin" /> : null}{goals.length || own.trim() ? t('onboarding.start_plan') : t('onboarding.start_without')}</Button>
+            : <Button variant="brand" size="lg" disabled={!canNext} onClick={() => { setStep(step + 1); setAddingAct(false) }}>{t('onboarding.next')}<ArrowRight size={16} aria-hidden="true" /></Button>}
       </div>
     </div>
   </div>
@@ -176,15 +180,16 @@ export default function FirstPhaseFlow() {
 /** A big search for towns and counties, for the first question. */
 function PlaceSearch({ token, value, onPick }: { token?: string; value: PlaceOption | null; onPick: (p: PlaceOption) => void }) {
   const [q, setQ] = React.useState('')
+  const { t } = useTranslation()
   const [rows, setRows] = React.useState<PlaceOption[]>([])
   React.useEffect(() => {
     let live = true
-    const t = setTimeout(() => { lifeApi.places(q, token).then((r) => { if (live) setRows(r.places.slice(0, 8)) }).catch(() => undefined) }, 150)
-    return () => { live = false; clearTimeout(t) }
+    const timer = setTimeout(() => { lifeApi.places(q, token).then((r) => { if (live) setRows(r.places.slice(0, 8)) }).catch(() => undefined) }, 150)
+    return () => { live = false; clearTimeout(timer) }
   }, [q, token])
   return <div className="grid gap-2">
     <label className="flex h-14 items-center gap-2 rounded-2xl bg-muted px-4"><Search size={20} className="text-muted-foreground" aria-hidden="true" />
-      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Eugene, Bend, Coos County…" aria-label="Search towns and counties" className="h-full w-full bg-transparent text-lg font-bold outline-none" /></label>
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('onboarding.place_placeholder')} aria-label={t('onboarding.place_search')} className="h-full w-full bg-transparent text-lg font-bold outline-none" /></label>
     <ul className="grid gap-1.5">{rows.map((r) => <li key={r.key}><button type="button" onClick={() => onPick(r)} aria-pressed={value?.key === r.key}
       className={cn('flex w-full items-baseline justify-between gap-3 rounded-2xl bg-card px-4 py-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]', value?.key === r.key && 'shadow-[0_0_0_2px_var(--org-primary-color)]')}>
       <span>{r.label}</span><small className="text-xs font-semibold text-muted-foreground">{r.detail}</small></button></li>)}</ul>

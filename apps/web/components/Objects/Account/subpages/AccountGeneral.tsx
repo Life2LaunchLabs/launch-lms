@@ -24,6 +24,7 @@ import { toast } from 'react-hot-toast'
 import { signOut } from '@components/Contexts/AuthContext'
 import { getUriWithoutOrg } from '@services/config/config';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { MediaAsset, applyMediaAssetToUserAvatar } from '@services/media/library'
 
@@ -35,12 +36,12 @@ interface FormValues {
   bio: string;
 }
 
-const validationSchema = Yup.object().shape({
-  email: Yup.string().email('Invalid email').required('Email is required'),
-  username: Yup.string().required('Username is required'),
-  first_name: Yup.string().required('First name is required'),
-  last_name: Yup.string().required('Last name is required'),
-  bio: Yup.string().max(400, 'Bio must be 400 characters or less'),
+const validationSchema = (t: TFunction) => Yup.object().shape({
+  email: Yup.string().email(t('settings.general.invalid_email')).required(t('settings.general.email_required')),
+  username: Yup.string().required(t('settings.general.username_required')),
+  first_name: Yup.string().required(t('settings.general.first_name_required')),
+  last_name: Yup.string().required(t('settings.general.last_name_required')),
+  bio: Yup.string().max(400, t('settings.general.bio_too_long')),
 });
 
 const UserEditForm = ({
@@ -238,13 +239,13 @@ function AccountGeneral() {
           setUserData(data);
         } catch (error) {
           console.error('Error fetching user data:', error);
-          setError('Failed to load user data');
+          setError(t('settings.general.load_failed'));
         }
       }
     };
 
     fetchUserData();
-  }, [session?.data?.user?.id, access_token]);
+  }, [session?.data?.user?.id, access_token, t]);
 
   const handleMediaAssetSave = async (asset: MediaAsset) => {
     if (!access_token) return
@@ -255,7 +256,7 @@ function AccountGeneral() {
       await session.update(true)
       setSuccess(t('user.settings.general.avatar_updated'))
     } catch (err: any) {
-      setError(err?.message || 'Failed to update avatar')
+      setError(err?.message || t('settings.general.avatar_failed'))
       throw err
     } finally {
       setIsLoading(false)
@@ -299,7 +300,7 @@ function AccountGeneral() {
           email: userData.email,
           bio: userData.bio || '',
         }}
-        validationSchema={validationSchema}
+        validationSchema={validationSchema(t)}
         onSubmit={(values, { setSubmitting }) => {
           const isEmailChanged = values.email !== userData.email
           const loadingToast = toast.loading(t('user.settings.general.saving'))
@@ -317,7 +318,7 @@ function AccountGeneral() {
                 getUser(userData.id, access_token).then(setUserData);
               })
               .catch(() => {
-                toast.error('Failed to update profile', { id: loadingToast })
+                toast.error(t('settings.general.update_failed'), { id: loadingToast })
               })
           }, 400)
         }}
@@ -337,8 +338,8 @@ function AccountGeneral() {
       <MediaPickerDialog
         open={isMediaPickerOpen}
         onOpenChange={setIsMediaPickerOpen}
-        title="Update your profile image"
-        description="Upload an image, paste a media link, or choose from your library."
+        title={t('settings.general.image_title')}
+        description={t('settings.general.image_description')}
         owner={{ type: 'user', id: Number(session?.data?.user?.id || 0) }}
         mediaType="image"
         accessToken={access_token}

@@ -1,9 +1,9 @@
 'use client'
 
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { Languages, ChevronDown, Check } from 'lucide-react'
-import { AVAILABLE_LANGUAGES } from '@/lib/languages'
+import { MENU_LANGUAGES } from '@/lib/languages'
+import { useLanguage } from '@components/Utils/useLanguage'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,14 +13,10 @@ import {
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 
 const LanguageSwitcher = ({ primaryColor = '' }: { primaryColor?: string }) => {
-  const { i18n, t } = useTranslation()
+  const { language: currentLanguage, setLanguage } = useLanguage()
   const colors = getMenuColorClasses(primaryColor)
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng)
-  }
-
-  const currentLangCode = i18n.language.split('-')[0].toUpperCase()
+  const currentLangCode = currentLanguage.toUpperCase()
 
   return (
     <DropdownMenu>
@@ -36,17 +32,17 @@ const LanguageSwitcher = ({ primaryColor = '' }: { primaryColor?: string }) => {
         className="min-w-[180px] z-dropdown"
         align="end"
       >
-        {AVAILABLE_LANGUAGES.map((language) => (
+        {MENU_LANGUAGES.map((language) => (
           <DropdownMenuItem
             key={language.code}
             className="flex items-center justify-between cursor-pointer"
-            onClick={() => changeLanguage(language.code)}
+            onClick={() => setLanguage(language.code)}
           >
             <span className="flex items-center space-x-2">
               <span className="text-xs font-mono text-muted-foreground w-5">{language.code.toUpperCase()}</span>
               <span>{language.nativeName}</span>
             </span>
-            {i18n.language === language.code && <Check size={14} className="text-foreground" />}
+            {currentLanguage === language.code && <Check size={14} className="text-foreground" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

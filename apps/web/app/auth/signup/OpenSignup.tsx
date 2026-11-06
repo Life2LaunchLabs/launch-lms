@@ -143,7 +143,7 @@ function OpenSignUpComponent({
     if (!email) return setEmailError(t('validation.required'))
     if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) return setEmailError(t('validation.invalid_email'))
     const names = { first_name: formik.values.first_name.trim(), last_name: formik.values.last_name.trim(), preferred_name: formik.values.preferred_name.trim() }
-    if (!createOrgMode && (!names.first_name || !names.last_name)) return setEmailError('Add your first and last name.')
+    if (!createOrgMode && (!names.first_name || !names.last_name)) return setEmailError(t('auth.add_first_last'))
 
     const passwordValidation = validatePasswordStrength(formik.values.password)
     if (!formik.values.password || !passwordValidation.isValid) {
@@ -169,7 +169,7 @@ function OpenSignUpComponent({
         })
         const data = await res.json().catch(() => null)
         if (!res.ok) {
-          setEmailError(data?.detail || 'Unable to start signup')
+          setEmailError(data?.detail || t('auth.signup_failed'))
           setIsSubmitting(false)
           return
         }
@@ -212,7 +212,7 @@ function OpenSignUpComponent({
         <div className="w-full max-w-[426px] text-center">
           {header}
           <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950">
-            Create your free account
+            {t('auth.create_free_account')}
           </h1>
 
           {error && (
@@ -226,9 +226,9 @@ function OpenSignUpComponent({
             <AgeConfirm {...age.field} />
             {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
-              {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+              {isGoogleLoading ? t('common.loading') : t('auth.continue_google')}
             </Button>
-            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
+            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>{t('auth.or')}</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
             <form onSubmit={handleEmailContinue} className="space-y-4">
               <input
@@ -240,7 +240,7 @@ function OpenSignUpComponent({
                 onBlur={formik.handleBlur}
                 value={formik.values.email}
                 type="email"
-                placeholder="Enter email address"
+                placeholder={t('auth.enter_email')}
                 autoComplete="email"
                 className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
                 required
@@ -272,21 +272,21 @@ function OpenSignUpComponent({
                 size="cta"
                 className="w-full bg-gray-950 text-[16px] font-semibold text-white shadow-none hover:bg-gray-800"
               >
-                {isSubmitting ? t('common.loading') : 'Continue'}
+                {isSubmitting ? t('common.loading') : t('auth.continue')}
               </Button>
             </form>
           </div>
 
           <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
-            By continuing, you agree to Launch LMS&apos;s{' '}
+            {t('auth.agree_prefix')}{' '}
             <span className="underline underline-offset-2">
-              Terms of Service
+              {t('auth.terms_of_service')}
             </span>{' '}
-            and{' '}
+            {t('auth.agree_and')}{' '}
             <span className="underline underline-offset-2">
-              Privacy Policy
+              {t('auth.privacy_policy')}
             </span>
-            .
+            {t('auth.agree_suffix')}
           </p>
 
           <p className="mt-14 text-[15px] text-gray-600">
@@ -314,7 +314,7 @@ function OpenSignUpComponent({
             className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
           >
             <ArrowLeft size={16} />
-            Back
+            {t('phases.back')}
           </button>
         )}
         <h1 className="text-2xl font-bold text-gray-900">
@@ -322,7 +322,7 @@ function OpenSignUpComponent({
         </h1>
         {!embedded && (
           <p className="mt-1 text-gray-500">
-            {createOrgMode ? 'Create your account first. Next you’ll name your organization.' : t('auth.fill_in_details')}
+            {createOrgMode ? t('auth.create_org_first') : t('auth.fill_in_details')}
           </p>
         )}
       </div>
@@ -339,9 +339,9 @@ function OpenSignUpComponent({
           <AgeConfirm {...age.field} />
           {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
             <SiGoogle size={20} color="#4285F4" />
-            {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+            {isGoogleLoading ? t('common.loading') : t('auth.continue_google')}
           </Button>
-          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or with email</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
+          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>{t('auth.or_with_email')}</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
         </div>
       ) : null}
 

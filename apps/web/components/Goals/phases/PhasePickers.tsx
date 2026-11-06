@@ -6,9 +6,10 @@ import { ArrowLeft, BookOpen, Briefcase, Heart, Plane, Search, Sparkles, UserSea
 import { cn } from '@/lib/utils'
 import { lifeApi, type Activity, type Career, type School } from '@services/life/life'
 import { KINDS, LEVELS, LIVING } from './setup'
+import { monthName } from './graph'
+import { useTranslation } from 'react-i18next'
 
 const KIND_ICONS: Record<Activity['kind'], React.ElementType> = { learning: BookOpen, working: Briefcase, looking: UserSearch, caring: Heart, gap: Plane, other: Sparkles }
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 export const tile = 'flex items-center gap-3 rounded-2xl bg-card p-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]'
 export const chip = (on: boolean) => cn('rounded-full px-3.5 py-2 text-sm font-extrabold', on ? 'bg-foreground text-background' : 'bg-muted hover:bg-raised')
 
@@ -18,13 +19,15 @@ export function MonthPicker({ value, onChange, from = 2000, to = new Date().getF
   const set = (yy: number, mm: number) => onChange(`${yy}-${String(mm).padStart(2, '0')}`)
   const years = Array.from({ length: to - from + 1 }, (_, i) => to - i)
   const cls = 'h-12 rounded-2xl bg-muted px-3 text-base font-bold'
+  const { t } = useTranslation()
   return <div className="grid grid-cols-2 gap-2">
-    <label className="grid gap-1 text-sm font-bold">Month<select className={cls} value={m} onChange={(e) => set(y, Number(e.target.value))}>{MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}</select></label>
-    <label className="grid gap-1 text-sm font-bold">Year<select className={cls} value={y} onChange={(e) => set(Number(e.target.value), m)}>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
+    <label className="grid gap-1 text-sm font-bold">{t('phases.month')}<select className={cls} value={m} onChange={(e) => set(y, Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>{monthName(i, 'long')}</option>)}</select></label>
+    <label className="grid gap-1 text-sm font-bold">{t('phases.year')}<select className={cls} value={y} onChange={(e) => set(Number(e.target.value), m)}>{years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}</select></label>
   </div>
 }
 
 export function LivingPicker({ value, onPick }: { value?: string | null; onPick: (key: string) => void }) {
+  useTranslation()
   return <div className="flex flex-wrap gap-2">{LIVING.map(([key, title]) => <button key={key} type="button" aria-pressed={value === key} onClick={() => onPick(key)} className={chip(value === key)}>{title}</button>)}</div>
 }
 
@@ -59,11 +62,12 @@ export function ActivityPicker({ token, state, onPick }: { token?: string; state
   const [level, setLevel] = React.useState<string | null>(null)
   const [career, setCareer] = React.useState<Career | null>(null)
   const [q, setQ] = React.useState('')
+  const { t } = useTranslation()
   const college = LEVELS.find((l) => l.key === level)?.college
   const schools = useSearch<School>(q, (s) => lifeApi.schools(s, state || 'OR', token).then((r) => r.schools.slice(0, 8)), kind === 'learning' && Boolean(college))
   const careers = useSearch<Career>(q, (s) => lifeApi.careers(s, token).then((r) => r.careers.slice(0, 8)), kind === 'working' && !career)
   const back = () => { setQ(''); if (career) setCareer(null); else if (level) setLevel(null); else setKind(null) }
-  const backBtn = <button type="button" onClick={back} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={15} aria-hidden="true" />Back</button>
+  const backBtn = <button type="button" onClick={back} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={15} aria-hidden="true" />{t('phases.back')}</button>
 
   if (!kind) return <div className="grid gap-2 sm:grid-cols-2">{KINDS.map((k) => {
     const Icon = KIND_ICONS[k.key]
@@ -80,29 +84,29 @@ export function ActivityPicker({ token, state, onPick }: { token?: string; state
   if (kind === 'learning') {
     const typed = q.trim()
     return <div className="grid gap-2">{backBtn}
-      <SearchBox value={q} onChange={setQ} label="School" placeholder={college ? 'Search colleges and programs' : 'Type your school’s name'} />
+      <SearchBox value={q} onChange={setQ} label={t('phases.school')} placeholder={college ? t('phases.search_colleges') : t('phases.type_school')} />
       <ul className="grid gap-1.5">
         {college ? schools.map((s) => <li key={s.unitid}><button type="button" className={cn(tile, 'w-full')} onClick={() => onPick({ kind: 'learning', level, school: s.name, school_id: s.unitid })}><span className="grid"><span>{s.name}</span><small className="text-xs font-semibold text-muted-foreground">{s.city}, {s.state}</small></span></button></li>) : null}
-        {typed ? <li><button type="button" className={cn(tile, 'w-full')} onClick={() => onPick({ kind: 'learning', level, school: typed })}>Use “{typed}”</button></li> : null}
-        <li><button type="button" className="px-1 py-2 text-sm font-bold text-[var(--org-primary-color)]" onClick={() => onPick({ kind: 'learning', level })}>{college ? 'Not sure where yet' : 'Skip the school name'}</button></li>
+        {typed ? <li><button type="button" className={cn(tile, 'w-full')} onClick={() => onPick({ kind: 'learning', level, school: typed })}>{t('phases.use_typed', { text: typed })}</button></li> : null}
+        <li><button type="button" className="px-1 py-2 text-sm font-bold text-[var(--org-primary-color)]" onClick={() => onPick({ kind: 'learning', level })}>{college ? t('phases.not_sure_where') : t('phases.skip_school')}</button></li>
       </ul>
     </div>
   }
 
   if (kind === 'working' && !career) return <div className="grid gap-2">{backBtn}
-    <SearchBox value={q} onChange={setQ} label="Job" placeholder="A job: barista, nurse, electrician…" />
-    <ul className="grid gap-1.5">{careers.map((c) => <li key={c.code}><button type="button" className={cn(tile, 'w-full')} onClick={() => { setCareer(c); setQ('') }}><span className="grid"><span>{c.title}</span>{c.alt_titles?.length ? <small className="text-xs font-semibold text-muted-foreground">{c.alt_titles.slice(0, 3).join(', ')}</small> : null}</span></button></li>)}{q.trim() ? <li><button type="button" className={cn(tile, 'w-full')} onClick={() => onPick({ kind: 'working', career_title: q.trim() })}>Use “{q.trim()}”</button></li> : null}</ul>
-    <p className="text-xs text-muted-foreground">Listed jobs come from O*NET, so pay and training facts can follow.</p>
+    <SearchBox value={q} onChange={setQ} label={t('phases.job')} placeholder={t('phases.job_placeholder')} />
+    <ul className="grid gap-1.5">{careers.map((c) => <li key={c.code}><button type="button" className={cn(tile, 'w-full')} onClick={() => { setCareer(c); setQ('') }}><span className="grid"><span>{c.title}</span>{c.alt_titles?.length ? <small className="text-xs font-semibold text-muted-foreground">{c.alt_titles.slice(0, 3).join(', ')}</small> : null}</span></button></li>)}{q.trim() ? <li><button type="button" className={cn(tile, 'w-full')} onClick={() => onPick({ kind: 'working', career_title: q.trim() })}>{t('phases.use_typed', { text: q.trim() })}</button></li> : null}</ul>
+    <p className="text-xs text-muted-foreground">{t('phases.onet_note')}</p>
   </div>
 
   if (kind === 'working' && career) {
     const typed = q.trim()
     return <div className="grid gap-2">{backBtn}
-      <p className="font-extrabold">{career.title}: where?</p>
-      <SearchBox value={q} onChange={setQ} label="Employer" placeholder="Employer name (optional)" />
+      <p className="font-extrabold">{t('phases.career_where', { career: career.title })}</p>
+      <SearchBox value={q} onChange={setQ} label={t('phases.employer')} placeholder={t('phases.employer_placeholder')} />
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={chip(false)} onClick={() => onPick({ kind: 'working', career: career.code, career_title: career.title, employer: typed || null })}>{typed ? `At ${typed}` : 'Skip the employer'}</button>
-        {/^(47|49|51)/.test(career.code) ? <button type="button" className={chip(false)} onClick={() => onPick({ kind: 'working', career: career.code, career_title: career.title, employer: typed || null, apprentice: true })}>As an apprentice</button> : null}
+        <button type="button" className={chip(false)} onClick={() => onPick({ kind: 'working', career: career.code, career_title: career.title, employer: typed || null })}>{typed ? t('phases.at_employer', { employer: typed }) : t('phases.skip_employer')}</button>
+        {/^(47|49|51)/.test(career.code) ? <button type="button" className={chip(false)} onClick={() => onPick({ kind: 'working', career: career.code, career_title: career.title, employer: typed || null, apprentice: true })}>{t('phases.as_apprentice')}</button> : null}
       </div>
     </div>
   }
