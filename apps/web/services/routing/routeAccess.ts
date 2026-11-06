@@ -16,7 +16,8 @@ const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
 // A badge award (its short link, and the older /badges/<uuid> that redirects to it), the plan page that is its badge's criteria,
 // and an Insights capture's read-only link: all shared outside the app.
 const PUBLIC_SHARED_PATH_RE = /^\/(?:b\/[^/]+|badges\/[^/]+|discover\/(?:plans|collections)\/[^/]+|insights\/shared\/[^/]+)$/
-const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/work(?:\/[^/]+)?)?$/
+// A shared portfolio and every page it links to: its experiences, projects, badges and résumé.
+const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/(?:work|timeline|projects)(?:\/[^/]+)?|\/(?:badges|resume|achievements))?$/
 const SPECIAL_PREFIXES = ['/payments/stripe/connect/oauth', '/health']
 const SPECIAL_EXACT_PATHS = new Set(['/sitemap.xml', '/robots.txt', '/redirect_from_auth'])
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
-import { AlertTriangle, Check, Download, FileText, Plus, X } from 'lucide-react'
+import { AlertTriangle, Check, Download, FileText, Phone, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -11,7 +11,10 @@ import { useAsk } from '@components/ui/ask-dialog'
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@components/ui/select'
 import { getUriWithOrg } from '@services/config/config'
 import { getMyPortfolio } from '@services/portfolio/portfolio'
-import { resumeVersions } from '@services/portfolio/records'
+import { resumeVersions, updateResumeContact } from '@services/portfolio/records'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
+import { Input } from '@components/ui/input'
+import { Label } from '@components/ui/label'
 import { DetailHeader } from './PortfolioDetail'
 import { RESUME_ACCENTS, RESUME_LAYOUTS, buildResume, sectionTitle, type ResumeItem } from './resumeModel'
 import type { ResumeVersion, Shell } from '../portfolioTypes'
@@ -36,7 +39,7 @@ function rememberVersion(uuid: string) {
 // eslint-disable-next-line no-unused-vars
 type KeyAction = (key: string) => void
 
-function Paper({ shell, version, editing, onRemove, onRestore, pageRef }: { shell: Shell; version: Omit<ResumeVersion, 'version_uuid' | 'name'>; editing: boolean; onRemove: KeyAction; onRestore: KeyAction; pageRef: React.RefObject<HTMLElement | null> }) {
+function Paper({ shell, version, editing, onRemove, onRestore, pageRef, onContact }: { shell: Shell; version: Omit<ResumeVersion, 'version_uuid' | 'name'>; editing: boolean; onRemove: KeyAction; onRestore: KeyAction; pageRef: React.RefObject<HTMLElement | null>; onContact?: () => void }) {
   const { sections, removedSections } = useMemo(() => buildResume(shell, version.excluded), [shell, version.excluded])
   const accent = RESUME_ACCENTS[version.accent] || RESUME_ACCENTS.blue
   const compact = version.layout === 'compact'
@@ -44,7 +47,9 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef }: { shel
   // The shown name falls back to the username, which isn't a name to head a résumé with.
   const identity = shell.identity
   const name = (identity && (identity.preferred_name || identity.first_name) ? identity.shown_name : shell.portfolio.display_name) || (editing ? 'Your name' : '')
-  const contact = [shell.portfolio.location_label, editing ? shell.portfolio.email : '', ...(shell.portfolio.socials || []).filter((social: any) => social.type === 'website' || social.type === 'linkedin').map((social: any) => String(social.url).replace(/^https?:\/\/(www\.)?/, ''))].filter(Boolean)
+  // The résumé's own email and phone (set in the profile) only reach the owner's copy and the PDF they print.
+  const own = shell.resume_contact
+  const contact = [shell.portfolio.location_label, own?.email || '', own?.phone || '', ...(shell.portfolio.socials || []).filter((social: any) => social.type === 'website' || social.type === 'linkedin').map((social: any) => String(social.url).replace(/^https?:\/\/(www\.)?/, ''))].filter(Boolean)
   const remove = (key: string, what: string) => editing ? <button type="button" onClick={() => onRemove(key)} aria-label={`Take ${what} off this version`} title="Take off this version" className="absolute -right-7 top-0 grid h-6 w-6 place-items-center rounded-full bg-[#f1f3f5] text-[#5b6770] opacity-0 transition hover:bg-[#e3e7ea] focus-visible:opacity-100 group-hover/r:opacity-100 print:hidden [@media(hover:none)]:opacity-100"><X className="h-3.5 w-3.5" /></button> : null
   const restore = (items: Array<{ key: string; label: string }>) => editing && items.length ? <div className="mt-2 flex flex-wrap gap-1.5 print:hidden">{items.map((item) => <button key={item.key} type="button" onClick={() => onRestore(item.key)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#c7cfd4] px-2.5 py-0.5 text-[12px] font-semibold text-[#5b6770] hover:border-[#5b6770]"><Plus className="h-3 w-3" />{item.label}</button>)}</div> : null
   const row = (item: ResumeItem) => <div key={item.key} className="group/r relative">
@@ -56,6 +61,7 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef }: { shel
     <header className={modern ? '-mx-14 -mt-12 mb-4 px-14 pb-6 pt-10 text-white' : 'mb-2'} style={modern ? { background: accent } : undefined}>
       <h2 className="text-[30px] font-extrabold leading-tight">{name}</h2>
       {contact.length ? <p className={modern ? 'text-white/85' : 'text-[#5b6770]'}>{contact.join(' · ')}</p> : null}
+      {editing && onContact && !own?.email && !own?.phone ? <button type="button" onClick={onContact} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-dashed border-[#c7cfd4] px-2.5 py-0.5 text-[12px] font-semibold text-[#5b6770] hover:border-[#5b6770] print:hidden"><Plus className="h-3 w-3" />Email or phone</button> : null}
     </header>
     {sections.map((section) => <section key={section.key} className="group/s relative">
       <h3 className={`${compact ? 'mb-1.5 mt-4' : 'mb-2.5 mt-6'} relative border-b border-[#e3e7ea] pb-1 text-[11px] font-bold uppercase tracking-[0.14em]`} style={{ color: accent }}>
@@ -69,10 +75,36 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef }: { shel
   </article>
 }
 
+/** The résumé's email and phone. They print on the résumé only; the portfolio never shows them. */
+function ResumeContactDialog({ open, onOpenChange, shell, token, onSaved }: { open: boolean; onOpenChange: (open: boolean) => void; shell: Shell; token?: string; onSaved: (contact: { email: string; phone: string }) => void }) { // eslint-disable-line no-unused-vars
+  const [busy, setBusy] = useState(false)
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!token) return
+    const form = new FormData(event.currentTarget)
+    setBusy(true)
+    try {
+      onSaved(await updateResumeContact({ email: String(form.get('email') || '').trim(), phone: String(form.get('phone') || '').trim() }, token))
+      onOpenChange(false)
+    } catch (error: any) { toast.error(error?.message || 'Could not save that') } finally { setBusy(false) }
+  }
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-md">
+      <DialogHeader><DialogTitle>How employers reach you</DialogTitle><DialogDescription>Printed on your résumé only. Your portfolio never shows them.</DialogDescription></DialogHeader>
+      <form id="resume-contact" onSubmit={save} className="grid gap-3">
+        <div className="grid gap-1.5"><Label htmlFor="rc-email">Email</Label><Input id="rc-email" name="email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || 'you@example.com'} autoComplete="email" autoFocus /></div>
+        <div className="grid gap-1.5"><Label htmlFor="rc-phone">Phone</Label><Input id="rc-phone" name="phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
+      </form>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="submit" form="resume-contact" variant="brand" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
+}
+
 export function ResumeBuilder({ initialShell, orgslug, username, owner = false }: { initialShell: Shell; orgslug: string; username?: string; owner?: boolean }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const [shell, setShell] = useState(initialShell)
+  const [contactOpen, setContactOpen] = useState(false)
   const versions = shell.resume_versions || []
   const ask = useAsk()
   const [selected, setSelectedState] = useState(versions[0]?.version_uuid || '')
@@ -153,6 +185,7 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
       <DetailHeader href={getUriWithOrg(orgslug, owner ? '/portfolio' : `/user/${username}`)} owner={owner} color="sky" icon={FileText} title="Résumé">{download}</DetailHeader>
       {owner ? <>
         {ask.dialog}
+        <ResumeContactDialog open={contactOpen} onOpenChange={setContactOpen} shell={shell} token={token} onSaved={(resume_contact) => setShell((value) => ({ ...value, resume_contact }))} />
         <div className="sticky top-2 z-10 mb-2 flex flex-wrap items-center gap-2.5 rounded-3xl border-2 border-border bg-card p-2.5">
           <Select value={selected || 'draft'} onValueChange={choose}>
             <SelectTrigger className="h-10 w-auto min-w-[11rem] rounded-2xl font-bold" aria-label="Résumé version"><FileText className="mr-1 h-4 w-4" /><SelectValue /></SelectTrigger>
@@ -160,6 +193,7 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
           </Select>
           <div role="group" aria-label="Layout" className="flex rounded-2xl bg-muted p-1">{RESUME_LAYOUTS.map(([key, label]) => <button key={key} type="button" aria-pressed={draft.layout === key} onClick={() => save({ ...draft, layout: key })} className={`rounded-xl px-3 py-1.5 text-sm font-bold ${draft.layout === key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</div>
           <div role="group" aria-label="Accent color" className="flex gap-1.5">{Object.entries(RESUME_ACCENTS).map(([key, color]) => <button key={key} type="button" aria-pressed={draft.accent === key} aria-label={key} onClick={() => save({ ...draft, accent: key })} className={`h-7 w-7 rounded-full border border-border ring-offset-2 ring-offset-card ${draft.accent === key ? 'ring-2 ring-foreground' : ''}`} style={{ background: color }} />)}</div>
+          <Button type="button" variant="surface" className="h-10" onClick={() => setContactOpen(true)}><Phone className="h-4 w-4" />Contact</Button>
           <span role="status" className={`ml-auto inline-flex items-center gap-1.5 text-sm font-bold ${over ? 'text-[#B86E12]' : 'text-[#0B7D73]'}`}>{over ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}{over ? 'Runs past one page' : 'Fits on one page'}</span>
         </div>
         <p className="mb-4 px-2 text-sm text-muted-foreground">Take anything off this version with its ×, and add it back from the dashed chips. The facts come from your portfolio, so change them there.</p>
@@ -168,7 +202,7 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
     <div className="mx-auto max-w-[960px] px-4 sm:px-6">
       <div ref={holdRef} className="relative w-full" style={{ height: Math.max(height, PAGE_HEIGHT) * scale + 24 }}>
         <div className="absolute left-1/2 top-0 origin-top overflow-visible rounded-md shadow-[0_1px_2px_rgb(0_0_0/.08),0_14px_36px_rgb(14_26_33/.16)]" style={{ width: PAGE_WIDTH, transform: `translateX(-50%) scale(${scale})` }}>
-          <Paper shell={shell} version={draft} editing={owner} onRemove={(key) => toggle(key, false)} onRestore={(key) => toggle(key, true)} pageRef={pageRef} />
+          <Paper shell={shell} version={draft} editing={owner} onRemove={(key) => toggle(key, false)} onRestore={(key) => toggle(key, true)} pageRef={pageRef} onContact={() => setContactOpen(true)} />
           {/* Where a letter page ends, so spill is easy to see. */}
           {over ? <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-[#B86E12] print:hidden" style={{ top: PAGE_HEIGHT }} /> : null}
         </div>

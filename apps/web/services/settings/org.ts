@@ -132,6 +132,19 @@ export async function updateOrgDarkLogoConfig(
   return res
 }
 
+export async function updateOrgDarkFaviconConfig(
+  org_id: string,
+  dark_favicon: { separate_dark_favicon: boolean; dark_favicon_image: string },
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/dark_favicon`,
+    RequestBodyWithAuthHeader('PUT', dark_favicon, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export interface AuthBrandingConfig {
   welcome_message: string
   background_type: 'gradient' | 'custom' | 'unsplash'

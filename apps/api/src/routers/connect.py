@@ -9,7 +9,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen, ReactionToggle
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, cohort, linking, people, portfolio_talk, profile, reactions, workspace
+from src.services.connect import chats, cohort, linking, people, portfolio_talk, profile, reactions, requests, workspace
 from src.services.connect.portfolio_talk import PortfolioChatOpen
 
 router = APIRouter()
@@ -54,6 +54,18 @@ async def portfolio_chats(portfolio_uuid: str, item_uuid: str | None = None, cur
 async def open_portfolio_chat(payload: PortfolioChatOpen, current_user: PublicUser = USER, db_session: Session = DB):
     """The chat to talk about a portfolio, or one experience or project in it."""
     return portfolio_talk.open_chat(db_session, current_user, payload)
+
+
+@router.get("/portfolios/{portfolio_uuid}/request")
+async def connect_request_state(portfolio_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
+    """What the Connect button on someone's shared portfolio does for you: ask, wait, or open your chat."""
+    return requests.request_state(db_session, current_user, portfolio_uuid)
+
+
+@router.post("/portfolios/{portfolio_uuid}/request")
+async def ask_to_connect(portfolio_uuid: str, payload: requests.ConnectRequestCreate, current_user: PublicUser = USER, db_session: Session = DB):
+    """Ask the owner of a shared portfolio to connect, with a short note. They accept or decline it in Connect."""
+    return requests.ask(db_session, current_user, portfolio_uuid, payload)
 
 
 def _group_plan(org_id: int, assignment_uuid: str, db_session: Session = DB) -> None:

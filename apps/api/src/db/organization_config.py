@@ -29,6 +29,18 @@ class GeneralCustomization(BaseModel):
     # Off, the one logo shows in both themes; on, dark_logo_image replaces it in dark mode.
     separate_dark_logo: bool = False
     dark_logo_image: str = ""
+    # Off, the one favicon shows in both themes; on, dark_favicon_image replaces it when the browser is dark.
+    separate_dark_favicon: bool = False
+    dark_favicon_image: str = ""
+
+
+def _stored_image(value: str, field: str) -> str:
+    # A media library URL, a site path or a stored file name; nothing that could run as a link.
+    value = value.strip()
+    safe = value.startswith(("https://", "http://")) or (":" not in value and not value.startswith("//"))
+    if value and not safe:
+        raise ValueError(f"{field} must be a media URL or file name")
+    return value
 
 
 class DarkLogoConfig(BaseModel):
@@ -37,13 +49,18 @@ class DarkLogoConfig(BaseModel):
 
     @field_validator("dark_logo_image")
     @classmethod
-    def _stored_image(cls, value: str) -> str:
-        # A media library URL, a site path or a stored file name; nothing that could run as a link.
-        value = value.strip()
-        safe = value.startswith(("https://", "http://")) or (":" not in value and not value.startswith("//"))
-        if value and not safe:
-            raise ValueError("dark_logo_image must be a media URL or file name")
-        return value
+    def _image(cls, value: str) -> str:
+        return _stored_image(value, "dark_logo_image")
+
+
+class DarkFaviconConfig(BaseModel):
+    separate_dark_favicon: bool = False
+    dark_favicon_image: str = Field(default="", max_length=2048)
+
+    @field_validator("dark_favicon_image")
+    @classmethod
+    def _image(cls, value: str) -> str:
+        return _stored_image(value, "dark_favicon_image")
 
 
 class SeoOrgConfig(BaseModel):

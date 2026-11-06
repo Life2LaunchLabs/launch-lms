@@ -66,7 +66,7 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
     {href ? arrow : null}
     {editing ? ctx?.controls : null}
   </div>
-  return <section aria-label={label || title} data-tile data-spot={spot ? "" : undefined} data-wide={wide || undefined} className={`@container group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition ${href ? 'hover:-translate-y-0.5' : ''} ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
+  return <section aria-label={label || title} data-tile data-spot={spot ? "" : undefined} data-wide={wide || undefined} className={`@container group relative flex min-w-0 flex-col gap-3.5 rounded-3xl border-2 bg-card p-[18px] shadow-[0_4px_0_hsl(var(--border))] transition ${spot ? SPOT_RING : 'border-border'}`} style={{ ['--tile' as string]: face }}>
     {/* The whole tile opens the section's page; the title is the same link for keyboards and screen readers. */}
     {href ? <Link href={href} aria-hidden="true" tabIndex={-1} data-tile-link className="absolute inset-0 rounded-3xl" /> : null}
     {spot ? <SpotTip label={spot} /> : null}
