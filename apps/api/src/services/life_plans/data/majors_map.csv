@@ -1,0 +1,214 @@
+fod_code,fod_title,cip4,cip_title,role,reviewed
+1100,General Agriculture,01.00,"Agriculture, General",primary,draft accepted
+1101,Agriculture Production And Management,01.03,Agricultural Production Operations,primary,draft accepted
+1102,Agricultural Economics,01.01,Agricultural Business and Management,primary,draft accepted
+1103,Animal Sciences,01.09,Animal Sciences,primary,hand
+1104,Food Science,01.10,Food Science and Technology,primary,draft accepted
+1105,Plant Science And Agronomy,01.11,Plant Sciences,primary,draft accepted
+1106,Soil Science,01.12,Soil Sciences,primary,draft accepted
+1107,Veterinary Medicine,51.24,Veterinary Medicine,primary,hand
+1107,Veterinary Medicine,01.80,Veterinary Medicine,also,hand
+1199,Miscellaneous Agriculture,01.99,"Agricultural/Animal/Plant/Veterinary Science and Related Fields, Other",primary,hand
+1301,Environmental Science,03.01,Natural Resources Conservation and Research,primary,hand
+1301,Environmental Science,30.44,Geography and Environmental Studies,also,hand
+1302,Forestry,03.05,Forestry,primary,draft accepted
+1303,Natural Resources Management,03.02,Environmental/Natural Resources Management and Policy,primary,draft accepted
+1401,Architecture,04.02,Architecture,primary,hand
+1401,Architecture,04.06,Landscape Architecture,also,hand
+1501,Area Ethnic And Civilization Studies,05.01,Area Studies,primary,hand
+1501,Area Ethnic And Civilization Studies,05.02,"Ethnic, Cultural Minority, Gender, and Group Studies",also,hand
+1901,Communications,09.01,Communication and Media Studies,primary,hand
+1902,Journalism,09.04,Journalism,primary,draft accepted
+1903,Mass Media,09.01,Communication and Media Studies,primary,hand
+1903,Mass Media,09.07,"Radio, Television, and Digital Communication",also,hand
+1904,Advertising And Public Relations,09.09,"Public Relations, Advertising, and Applied Communication",primary,draft accepted
+2001,Communication Technologies,10.02,Audiovisual Communications Technologies/Technicians,primary,hand
+2001,Communication Technologies,10.03,Graphic Communications,also,hand
+2100,Computer And Information Systems,11.01,"Computer and Information Sciences, General",primary,hand
+2101,Computer Programming And Data Processing,11.02,Computer Programming,primary,hand
+2101,Computer Programming And Data Processing,11.03,Data Processing,also,hand
+2102,Computer Science,11.07,Computer Science,primary,draft accepted
+2105,Information Sciences,11.04,Information Science/Studies,primary,hand
+2106,Computer Administration Management And Security,11.10,Computer/Information Technology Administration and Management,primary,hand
+2107,Computer Networking And Telecommunications,11.09,Computer Systems Networking and Telecommunications,primary,draft accepted
+2201,Cosmetology Services And Culinary Arts,12.05,Culinary Arts and Related Services,primary,hand
+2201,Cosmetology Services And Culinary Arts,12.04,Cosmetology and Related Personal Grooming Services,also,hand
+2300,General Education,13.01,"Education, General",primary,hand
+2301,Educational Administration And Supervision,13.04,Educational Administration and Supervision,primary,draft accepted
+2303,School Student Counseling,13.11,Student Counseling and Personnel Services,primary,draft accepted
+2304,Elementary Education,13.12,"Teacher Education and Professional Development, Specific Levels and Methods",primary,draft accepted
+2305,Mathematics Teacher Education,13.13,"Teacher Education and Professional Development, Specific Subject Areas",primary,draft accepted
+2306,Physical And Health Education Teaching,13.13,"Teacher Education and Professional Development, Specific Subject Areas",primary,hand
+2306,Physical And Health Education Teaching,31.05,"Sports, Kinesiology, and Physical Education/Fitness",also,hand
+2307,Early Childhood Education,13.12,"Teacher Education and Professional Development, Specific Levels and Methods",primary,hand
+2307,Early Childhood Education,19.07,"Human Development, Family Studies, and Related Services",also,hand
+2308,Science And Computer Teacher Education,13.13,"Teacher Education and Professional Development, Specific Subject Areas",primary,draft accepted
+2309,Secondary Teacher Education,13.12,"Teacher Education and Professional Development, Specific Levels and Methods",primary,draft accepted
+2310,Special Needs Education,13.10,Special Education and Teaching,primary,draft accepted
+2311,Social Science Or History Teacher Education,13.13,"Teacher Education and Professional Development, Specific Subject Areas",primary,draft accepted
+2312,Teacher Education: Multiple Levels,13.12,"Teacher Education and Professional Development, Specific Levels and Methods",primary,draft accepted
+2313,Language And Drama Education,13.13,"Teacher Education and Professional Development, Specific Subject Areas",primary,draft accepted
+2314,Art And Music Education,13.13,"Teacher Education and Professional Development, Specific Subject Areas",primary,draft accepted
+2399,Miscellaneous Education,13.99,"Education, Other",primary,hand
+2400,General Engineering,14.01,"Engineering, General",primary,hand
+2401,Aerospace Engineering,14.02,"Aerospace, Aeronautical, and Astronautical/Space Engineering",primary,draft accepted
+2402,Biological Engineering,14.45,Biological/Biosystems Engineering,primary,draft accepted
+2403,Architectural Engineering,14.04,Architectural Engineering,primary,hand
+2404,Biomedical Engineering,14.05,Biomedical/Medical Engineering,primary,draft accepted
+2405,Chemical Engineering,14.07,Chemical Engineering,primary,draft accepted
+2406,Civil Engineering,14.08,Civil Engineering,primary,draft accepted
+2407,Computer Engineering,14.09,Computer Engineering,primary,draft accepted
+2408,Electrical Engineering,14.10,"Electrical, Electronics, and Communications Engineering",primary,draft accepted
+2409,Engineering Mechanics Physics And Science,14.12,Engineering Physics,primary,draft accepted
+2410,Environmental Engineering,14.14,Environmental/Environmental Health Engineering,primary,draft accepted
+2411,Geological And Geophysical Engineering,14.39,Geological/Geophysical Engineering,primary,draft accepted
+2412,Industrial And Manufacturing Engineering,14.35,Industrial Engineering,primary,hand
+2412,Industrial And Manufacturing Engineering,14.36,Manufacturing Engineering,also,hand
+2413,Materials Engineering And Materials Science,14.18,Materials Engineering,primary,draft accepted
+2414,Mechanical Engineering,14.19,Mechanical Engineering,primary,draft accepted
+2415,Metallurgical Engineering,14.20,Metallurgical Engineering,primary,draft accepted
+2416,Mining And Mineral Engineering,14.21,Mining and Mineral Engineering,primary,draft accepted
+2417,Naval Architecture And Marine Engineering,14.22,Naval Architecture and Marine Engineering,primary,draft accepted
+2418,Nuclear Engineering,14.23,Nuclear Engineering,primary,draft accepted
+2419,Petroleum Engineering,14.25,Petroleum Engineering,primary,draft accepted
+2499,Miscellaneous Engineering,14.99,"Engineering, Other",primary,hand
+2500,Engineering Technologies,15.00,"Engineering Technologies/Technicians, General",primary,hand
+2501,Engineering And Industrial Management,15.15,Engineering-Related Fields,primary,hand
+2502,Electrical Engineering Technology,15.03,Electrical/Electronic Engineering Technologies/Technicians,primary,draft accepted
+2503,Industrial Production Technologies,15.06,Industrial Production Technologies/Technicians,primary,draft accepted
+2504,Mechanical Engineering Related Technologies,15.08,Mechanical Engineering Related Technologies/Technicians,primary,draft accepted
+2599,Miscellaneous Engineering Technologies,15.99,"Engineering/Engineering-Related Technologies/Technicians, Other",primary,hand
+2601,Linguistics And Comparative Language And Literature,16.01,"Linguistic, Comparative, and Related Language Studies and Services",primary,draft accepted
+2602,French German Latin And Other Common Foreign Language Studies,16.09,"Romance Languages, Literatures, and Linguistics",primary,hand
+2602,French German Latin And Other Common Foreign Language Studies,16.05,"Germanic Languages, Literatures, and Linguistics",also,hand
+2602,French German Latin And Other Common Foreign Language Studies,16.12,"Classics and Classical Languages, Literatures, and Linguistics",also,hand
+2603,Other Foreign Languages,16.99,"Foreign Languages, Literatures, and Linguistics, Other",primary,hand
+2901,Family And Consumer Sciences,19.01,"Family and Consumer Sciences/Human Sciences, General",primary,hand
+3202,Pre-Law And Legal Studies,22.00,Non-Professional Legal Studies,primary,hand
+3202,Pre-Law And Legal Studies,22.03,Legal Support Services,also,hand
+3301,English Language And Literature,23.01,"English Language and Literature, General",primary,draft accepted
+3302,Composition And Rhetoric,23.13,Rhetoric and Composition/Writing Studies,primary,draft accepted
+3401,Liberal Arts,24.01,"Liberal Arts and Sciences, General Studies and Humanities",primary,draft accepted
+3402,Humanities,24.01,"Liberal Arts and Sciences, General Studies and Humanities",primary,hand
+3501,Library Science,25.01,Library Science and Administration,primary,draft accepted
+3600,Biology,26.01,"Biology, General",primary,hand
+3601,Biochemical Sciences,26.02,"Biochemistry, Biophysics and Molecular Biology",primary,hand
+3602,Botany,26.03,Botany/Plant Biology,primary,draft accepted
+3603,Molecular Biology,26.02,"Biochemistry, Biophysics and Molecular Biology",primary,hand
+3603,Molecular Biology,26.04,Cell/Cellular Biology and Anatomical Sciences,also,hand
+3604,Ecology,26.13,"Ecology, Evolution, Systematics, and Population Biology",primary,draft accepted
+3605,Genetics,26.08,Genetics,primary,draft accepted
+3606,Microbiology,26.05,Microbiological Sciences and Immunology,primary,draft accepted
+3607,Pharmacology,26.10,Pharmacology and Toxicology,primary,draft accepted
+3608,Physiology,26.09,"Physiology, Pathology and Related Sciences",primary,draft accepted
+3609,Zoology,26.07,Zoology/Animal Biology,primary,draft accepted
+3611,Neuroscience,26.15,Neurobiology and Neurosciences,primary,hand
+3699,Miscellaneous Biology,26.99,"Biological and Biomedical Sciences, Other",primary,hand
+3700,Mathematics,27.01,Mathematics,primary,hand
+3701,Applied Mathematics,27.03,Applied Mathematics,primary,draft accepted
+3702,Statistics And Decision Science,27.05,Statistics,primary,hand
+3702,Statistics And Decision Science,27.06,Applied Statistics,also,hand
+3801,Military Technologies,29.04,Military Systems and Maintenance Technology,primary,draft accepted
+4000,Multi/Interdisciplinary Studies,30.00,"Multi-/Interdisciplinary Studies, General",primary,hand
+4000,Multi/Interdisciplinary Studies,30.99,"Multi/Interdisciplinary Studies, Other",also,hand
+4001,Intercultural And International Studies,30.20,International/Globalization Studies,primary,hand
+4002,Nutrition Sciences,30.19,Nutrition Sciences,primary,hand
+4002,Nutrition Sciences,19.05,"Foods, Nutrition, and Related Services",also,hand
+4005,Mathematics And Computer Science,30.08,Mathematics and Computer Science,primary,draft accepted
+4006,Cognitive Science And Biopsychology,30.10,Biopsychology,primary,hand
+4006,Cognitive Science And Biopsychology,30.25,Cognitive Science,also,hand
+4007,Interdisciplinary Social Sciences,30.17,Behavioral Sciences,primary,hand
+4007,Interdisciplinary Social Sciences,45.01,"Social Sciences, General",also,hand
+4009,Data Science and Data Analytics,30.70,Data Science,primary,hand
+4009,Data Science and Data Analytics,30.71,Data Analytics,also,hand
+4101,Physical Fitness Parks Recreation And Leisure,31.05,"Sports, Kinesiology, and Physical Education/Fitness",primary,hand
+4101,Physical Fitness Parks Recreation And Leisure,31.03,"Parks, Recreation, and Leisure Facilities Management",also,hand
+4801,Philosophy And Religious Studies,38.01,Philosophy,primary,hand
+4801,Philosophy And Religious Studies,38.02,Religion/Religious Studies,also,hand
+4901,Theology And Religious Vocations,39.06,Theological and Ministerial Studies,primary,hand
+4901,Theology And Religious Vocations,39.99,"Theology and Religious Vocations, Other",also,hand
+5000,Physical Sciences,40.01,"Physical Sciences, General",primary,hand
+5001,Astronomy And Astrophysics,40.02,Astronomy and Astrophysics,primary,draft accepted
+5002,Atmospheric Sciences And Meteorology,40.04,Atmospheric Sciences and Meteorology,primary,draft accepted
+5003,Chemistry,40.05,Chemistry,primary,draft accepted
+5004,Geology And Earth Science,40.06,Geological and Earth Sciences/Geosciences,primary,draft accepted
+5005,Geosciences,40.06,Geological and Earth Sciences/Geosciences,primary,hand
+5006,Oceanography,40.06,Geological and Earth Sciences/Geosciences,primary,draft accepted
+5007,Physics,40.08,Physics,primary,hand
+5008,Materials Science,40.10,Materials Sciences,primary,hand
+5098,Multi-Disciplinary Or General Science,30.01,Biological and Physical Sciences,primary,hand
+5098,Multi-Disciplinary Or General Science,40.01,"Physical Sciences, General",also,hand
+5102,"Nuclear, Industrial Radiology, And Biological Technologies",41.02,Nuclear and Industrial Radiologic Technologies/Technicians,primary,hand
+5102,"Nuclear, Industrial Radiology, And Biological Technologies",41.01,Biology/Biotechnology Technologies/Technicians,also,hand
+5200,Psychology,42.01,"Psychology, General",primary,hand
+5201,Educational Psychology,42.28,"Clinical, Counseling and Applied Psychology",primary,draft accepted
+5202,Clinical Psychology,42.28,"Clinical, Counseling and Applied Psychology",primary,draft accepted
+5203,Counseling Psychology,42.28,"Clinical, Counseling and Applied Psychology",primary,draft accepted
+5205,Industrial And Organizational Psychology,42.28,"Clinical, Counseling and Applied Psychology",primary,draft accepted
+5206,Social Psychology,42.27,Research and Experimental Psychology,primary,draft accepted
+5299,Miscellaneous Psychology,42.99,"Psychology, Other",primary,hand
+5301,Criminal Justice And Fire Protection,43.01,Criminal Justice and Corrections,primary,hand
+5301,Criminal Justice And Fire Protection,43.02,Fire Protection,also,hand
+5401,Public Administration,44.04,Public Administration,primary,draft accepted
+5402,Public Policy,44.05,Public Policy Analysis,primary,draft accepted
+5403,Human Services And Community Organization,44.02,Community Organization and Advocacy,primary,hand
+5403,Human Services And Community Organization,44.00,"Human Services, General",also,hand
+5404,Social Work,44.07,Social Work,primary,draft accepted
+5500,General Social Sciences,45.01,"Social Sciences, General",primary,hand
+5501,Economics,45.06,Economics,primary,hand
+5501,Economics,52.06,Business/Managerial Economics,also,hand
+5502,Anthropology And Archeology,45.02,Anthropology,primary,hand
+5502,Anthropology And Archeology,45.03,Archeology,also,hand
+5503,Criminology,45.04,Criminology,primary,draft accepted
+5504,Geography,45.07,Geography and Cartography,primary,draft accepted
+5505,International Relations,45.09,International Relations and National Security Studies,primary,draft accepted
+5506,Political Science And Government,45.10,Political Science and Government,primary,draft accepted
+5507,Sociology,45.11,Sociology,primary,draft accepted
+5599,Miscellaneous Social Sciences,45.99,"Social Sciences, Other",primary,hand
+5601,Construction Services,52.20,Construction Management,primary,hand
+5601,Construction Services,46.04,"Building/Construction Finishing, Management, and Inspection",also,hand
+5701,"Electrical, Mechanical, And Precision Technologies And Production",47.01,Electrical/Electronics Maintenance and Repair Technologies/Technicians,primary,hand
+5701,"Electrical, Mechanical, And Precision Technologies And Production",46.03,Electrical and Power Transmission Installers,also,hand
+5701,"Electrical, Mechanical, And Precision Technologies And Production",47.06,Vehicle Maintenance and Repair Technologies/Technicians,also,hand
+5701,"Electrical, Mechanical, And Precision Technologies And Production",48.05,Precision Metal Working,also,hand
+5901,Transportation Sciences And Technologies,49.01,Air Transportation,primary,hand
+5901,Transportation Sciences And Technologies,49.02,Ground Transportation,also,hand
+5901,Transportation Sciences And Technologies,49.03,Marine Transportation,also,hand
+6000,Fine Arts,50.07,Fine and Studio Arts,primary,draft accepted
+6001,Drama And Theater Arts,50.05,Drama/Theatre Arts and Stagecraft,primary,draft accepted
+6002,Music,50.09,Music,primary,draft accepted
+6003,Visual And Performing Arts,50.01,"Visual and Performing Arts, General",primary,draft accepted
+6004,Commercial Art And Graphic Design,50.04,Design and Applied Arts,primary,draft accepted
+6005,Film Video And Photographic Arts,50.06,Film/Video and Photographic Arts,primary,draft accepted
+6006,Art History And Criticism,50.07,Fine and Studio Arts,primary,hand
+6007,Studio Arts,50.07,Fine and Studio Arts,primary,draft accepted
+6099,Miscellaneous Fine Arts,50.99,"Visual and Performing Arts, Other",primary,hand
+6100,General Medical And Health Services,51.00,"Health Services/Allied Health/Health Sciences, General",primary,hand
+6102,Communication Disorders Sciences And Services,51.02,Communication Disorders Sciences and Services,primary,draft accepted
+6103,Health And Medical Administrative Services,51.07,Health and Medical Administrative Services,primary,draft accepted
+6104,Medical Assisting Services,51.08,Allied Health and Medical Assisting Services,primary,draft accepted
+6105,Medical Technologies Technicians,51.09,"Allied Health Diagnostic, Intervention, and Treatment Professions",primary,hand
+6105,Medical Technologies Technicians,51.10,Clinical/Medical Laboratory Science/Research and Allied Professions,also,hand
+6106,Health And Medical Preparatory Programs,51.11,Health/Medical Preparatory Programs,primary,draft accepted
+6107,Nursing,51.38,"Registered Nursing, Nursing Administration, Nursing Research and Clinical Nursing",primary,draft accepted
+6108,Pharmacy Pharmaceutical Sciences And Administration,51.20,"Pharmacy, Pharmaceutical Sciences, and Administration",primary,draft accepted
+6109,Treatment Therapy Professions,51.23,Rehabilitation and Therapeutic Professions,primary,hand
+6109,Treatment Therapy Professions,51.09,"Allied Health Diagnostic, Intervention, and Treatment Professions",also,hand
+6110,Community And Public Health,51.22,Public Health,primary,draft accepted
+6199,Miscellaneous Health Medical Professions,51.99,"Health Professions and Related Clinical Sciences, Other",primary,hand
+6200,General Business,52.01,"Business/Commerce, General",primary,hand
+6201,Accounting,52.03,Accounting and Related Services,primary,draft accepted
+6202,Actuarial Science,52.13,Management Sciences and Quantitative Methods,primary,hand
+6203,Business Management And Administration,52.02,"Business Administration, Management and Operations",primary,draft accepted
+6204,Operations Logistics And E-Commerce,52.02,"Business Administration, Management and Operations",primary,draft accepted
+6205,Business Economics,52.06,Business/Managerial Economics,primary,draft accepted
+6206,Marketing And Marketing Research,52.14,Marketing,primary,hand
+6206,Marketing And Marketing Research,52.19,"Specialized Sales, Merchandising and  Marketing Operations",also,hand
+6207,Finance,52.08,Finance and Financial Management Services,primary,draft accepted
+6209,Human Resources And Personnel Management,52.10,Human Resources Management and Services,primary,draft accepted
+6210,International Business,52.11,International Business,primary,draft accepted
+6211,Hospitality Management,52.09,Hospitality Administration/Management,primary,draft accepted
+6212,Management Information Systems And Statistics,52.12,Management Information Systems and Services,primary,draft accepted
+6299,Miscellaneous Business and Medical Administration,52.99,"Business, Management, Marketing, and Related Support Services, Other",primary,hand
+6402,History,54.01,History,primary,draft accepted
+6403,United States History,54.01,History,primary,draft accepted

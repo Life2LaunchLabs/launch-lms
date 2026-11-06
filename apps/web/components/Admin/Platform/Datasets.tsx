@@ -65,6 +65,7 @@ function DatasetCard({ dataset, href }: { dataset: Dataset; href: string }) {
   return <Link href={href} className="group bg-white border border-gray-100 rounded-xl nice-shadow p-5 flex flex-col gap-3 hover:border-gray-300 transition-colors">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0"><h2 className="font-semibold text-gray-900">{dataset.title}</h2><p className="text-xs text-gray-500">{dataset.publisher}</p></div>
+      {dataset.origin === 'composite' ? <StatusBadge tone="blue">Built by us</StatusBadge> : null}
       <CaretRight size={16} className="mt-1 shrink-0 text-gray-400 group-hover:text-gray-700" aria-hidden="true" />
     </div>
     <p className="text-sm text-gray-600">{dataset.used_for || dataset.description}</p>
@@ -72,7 +73,7 @@ function DatasetCard({ dataset, href }: { dataset: Dataset; href: string }) {
       <span className="font-semibold text-gray-800">{latest.label}</span>
       <span>{rows.toLocaleString()} rows</span>
       {dataset.releases.length > 1 ? <span>{dataset.releases.length} releases</span> : null}
-      <StatusCounts byStatus={latest.by_status} />
+      {dataset.origin === 'composite' ? null : <StatusCounts byStatus={latest.by_status} />}
     </div> : <p className="text-xs font-semibold text-amber-700">Not loaded yet. Import its file below.</p>}
   </Link>
 }
@@ -86,7 +87,7 @@ export default function Datasets() {
   const datasets = data?.datasets || []
   const href = (kind: string) => org?.slug ? getUriWithOrg(org.slug, routePaths.owner.platform.dataset(kind)) : routePaths.owner.platform.dataset(kind)
   return <div className="flex flex-col gap-6">
-    <p className="max-w-3xl text-sm text-gray-600">The published files behind life plan estimates, careers and schools. Open one to browse its rows by year, see where it comes from and how we use it, and export it. Learners only see a release once you approve it.</p>
+    <p className="max-w-3xl text-sm text-gray-600">The published files behind life plan estimates, careers and schools, and the tables we build from them. Open one to browse its rows by year, see where it comes from and how we use it, and export it. Learners only see a release once you approve it.</p>
     {isLoading ? <LoadingRows /> : error ? <p className="p-5 text-sm text-red-700" role="alert">The datasets could not load.</p>
       : !datasets.length ? <EmptyState icon={<Database size={32} />} message="No datasets yet." />
       : <div className="grid gap-4 md:grid-cols-2">{datasets.map((dataset) => <DatasetCard key={dataset.kind} dataset={dataset} href={href(dataset.kind)} />)}</div>}
