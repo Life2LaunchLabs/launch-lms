@@ -93,7 +93,7 @@ export interface Estimate {
   dollar_year: number | null
   place: string
   place_label: string
-  level: 'city' | 'county' | 'area' | 'state' | 'us'
+  level: 'city' | 'county' | 'region' | 'area' | 'state' | 'us'
   fallback: boolean
   asked_place_label: string | null
   dims: Record<string, any>

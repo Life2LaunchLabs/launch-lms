@@ -34,7 +34,7 @@ def db():
 
 def test_catalog_lists_every_expected_dataset_with_releases_newest_first(db):
     found = {d["kind"]: d for d in datasets.catalog(db)}
-    assert list(found) == ["hud_fmr", "bls_oews", "onet", "scorecard"]
+    assert list(found) == ["hud_fmr", "bls_oews", "oed_projections", "oed_wages", "onet", "scorecard"]
     hud = found["hud_fmr"]
     assert [r["key"] for r in hud["releases"]] == ["hud-fmr-fy2027-or", "hud-fmr-fy2026-or"]
     assert hud["releases"][0]["tables"] == [{"name": "facts", "title": "Estimate facts", "rows": 10}]

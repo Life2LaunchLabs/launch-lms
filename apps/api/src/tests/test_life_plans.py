@@ -55,8 +55,8 @@ def _loaded(db: Session, review: bool = True) -> None:
 
 
 def test_place_ladder_climbs_from_town_to_the_us():
-    assert places.ladder("city:OR:eugene") == ["city:OR:eugene", "county:OR:lane", "area:0021660", "state:OR", "us"]
-    assert places.ladder("county:OR:lincoln") == ["county:OR:lincoln", "area:4100006", "state:OR", "us"]
+    assert places.ladder("city:OR:eugene") == ["city:OR:eugene", "county:OR:lane", "region:OR:lane", "area:0021660", "state:OR", "us"]
+    assert places.ladder("county:OR:lincoln") == ["county:OR:lincoln", "region:OR:northwest", "area:4100006", "state:OR", "us"]
     assert places.ladder("state:NV") == ["state:NV", "us"]
     assert places.ladder(None) == ["us"]
     assert places.label("city:OR:eugene") == "Eugene, OR" and places.label("state:NV") == "Nevada"

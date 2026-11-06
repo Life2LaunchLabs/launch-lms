@@ -47,6 +47,28 @@ DATASETS: list[dict] = [
         "file": "The all-data zip, like oesm25all.zip",
     },
     {
+        "kind": "oed_projections",
+        "prefix": "oed-projections-",
+        "title": "Oregon job projections",
+        "publisher": "Oregon Employment Department",
+        "description": "Jobs now and in ten years, the change, and average openings a year by occupation, for Oregon and its regions. Also typical and competitive entry education.",
+        "used_for": "Openings and growth on career pages, near the learner where Oregon publishes them.",
+        "license": "Public information from the State of Oregon. Cite the Oregon Employment Department.",
+        "url": "https://www.qualityinfo.org/projections",
+        "file": "Oregon Occupational Employment Projections 2024-2034.xlsx (its All Areas sheet holds every region)",
+    },
+    {
+        "kind": "oed_wages",
+        "prefix": "oed-wages-",
+        "title": "Oregon wages by area",
+        "publisher": "Oregon Employment Department",
+        "description": "Pay by occupation at the 10th to 90th percentiles for Oregon and 18 of its areas, aged to the current year. OED's extension of the BLS survey; not an official BLS series.",
+        "used_for": "Pay on career pages and the Job line in budgets, for the learner's own area where it's published.",
+        "license": "Public information from the State of Oregon. Cite the Oregon Employment Department.",
+        "url": "https://www.qualityinfo.org/data",
+        "file": "Oregon Occupational Wage Information.xlsx",
+    },
+    {
         "kind": "onet",
         "prefix": "onet-",
         "title": "O*NET database",
@@ -218,7 +240,7 @@ def _fact_options(db: Session, source_id: int) -> dict:
     keys = _distinct(db, EstimateFact.place, EstimateFact.source_id, source_id)
     return {
         "metric": _distinct(db, EstimateFact.metric, EstimateFact.source_id, source_id),
-        "level": sorted({places.level_of(k) for k in keys}, key=lambda v: ["city", "county", "area", "state", "us"].index(v) if v in ("city", "county", "area", "state", "us") else 9),
+        "level": sorted({places.level_of(k) for k in keys}, key=lambda v: places.LEVEL_ORDER.index(v) if v in places.LEVEL_ORDER else 9),
         "status": _distinct(db, EstimateFact.status, EstimateFact.source_id, source_id),
     }
 
