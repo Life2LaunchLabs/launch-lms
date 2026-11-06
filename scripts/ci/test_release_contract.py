@@ -31,6 +31,12 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             contract.promote({**self.candidate(), 'source_branch':'dev'}, 'v1.2.3', 'b'*40)
 
+    def test_a_reused_image_keeps_the_commit_it_was_built_from(self):
+        release = contract.promote({**self.candidate(), 'build_commit_sha': 'c'*40}, 'v1.2.3', 'b'*40)
+        self.assertEqual('c'*40, release['build_commit_sha'])
+        with self.assertRaises(ValueError):
+            contract.validate({**self.candidate(), 'build_commit_sha': 'short'})
+
     def test_prereleases_cannot_become_production(self):
         for tag in ['v1.2.3-rc.1','vlatest','v01.2.3','v1.2','v1.2.3; touch bad']:
             with self.subTest(tag=tag), self.assertRaises(ValueError):
