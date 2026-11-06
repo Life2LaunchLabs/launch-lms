@@ -43,6 +43,25 @@ function freshStart(d: LifeDoc, at: string, inline: boolean): number {
  * surface swaps everything in it. The + button hands you a new phase to drag into the map: between
  * two phases, onto one (an option beside it) or onto a split's options. Press and hold a phase to move it.
  */
+const holdStill = (e: TouchEvent) => { if (e.cancelable) e.preventDefault() }
+/**
+ * While a piece is dragged the page only scrolls when the drag scrolls it: the browser doesn't re-anchor
+ * the scroll as gaps light up, and a finger over any element doesn't pan the page.
+ */
+function pagePinned(on: boolean) {
+  document.documentElement.style.overflowAnchor = on ? 'none' : ''
+  if (on) window.addEventListener('touchmove', holdStill, { passive: false })
+  else window.removeEventListener('touchmove', holdStill)
+}
+
+/** How fast the page scrolls (px a frame) for a dragged piece at y: none unless it was carried toward that edge. */
+function scrollSpeed({ y, y0 }: { y: number; y0: number }) {
+  const zone = Math.min(110, window.innerHeight * 0.16), top = zone - y, bottom = y - (window.innerHeight - zone)
+  if (top > 0 && y < y0 - 12) return -Math.max(2, Math.round(top / zone * 12))
+  if (bottom > 0 && y > y0 + 12) return Math.max(2, Math.round(bottom / zone * 12))
+  return 0
+}
+
 export default function PlanMap({ doc: raw, orgslug, token, photos, change, focus, title }: { doc: LifeDoc; orgslug: string; token?: string; photos?: Record<string, PlacePhoto>; change: Change; focus?: string | null; title?: React.ReactNode }) {
   const router = useRouter()
   const params = useSearchParams()
@@ -147,11 +166,13 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
 
   // While dragging: over the middle of a phase means an option beside it, over a split's options row an
   // option in that split (hold over one to show it, and go deeper), anywhere else the nearest gap.
-  const lifting = React.useRef<{ ghost: HTMLElement; spot: Spot | null; drill?: { id: string; timer: ReturnType<typeof setTimeout> }; page?: { k: string; timer: ReturnType<typeof setInterval> } } | null>(null)
+  const lifting = React.useRef<{ ghost: HTMLElement; x0: number; y0: number; x: number; y: number; scroll?: number; spot: Spot | null; drill?: { id: string; timer: ReturnType<typeof setTimeout> }; page?: { k: string; timer: ReturnType<typeof setInterval> } } | null>(null)
+  const moveRef = React.useRef<(x: number, y: number) => void>(() => {})
   const ghostMove = React.useCallback((x: number, y: number) => {
     const l = lifting.current
     if (!l) return
     l.ghost.style.left = `${x}px`; l.ghost.style.top = `${y}px`
+    l.x = x; l.y = y
     const el = document.elementFromPoint(x, y) as HTMLElement | null
     const row = el?.closest<HTMLElement>('[data-band-key]'), chip = el?.closest<HTMLElement>('[data-chip]'), card = el?.closest<HTMLElement>('[data-opt]')
     let spot: Spot | null = null
@@ -162,9 +183,11 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       const key = row!.dataset.bandKey!, id = chip.dataset.chip!
       l.drill = { id, timer: setTimeout(() => setShown(key, id), 450) }
     } else if (!chip && l.drill) { clearTimeout(l.drill.timer); l.drill = undefined }
-    // Held near the left or right edge of a split, it flips to the option that way, again every moment it stays.
+    // Carried out to the left or right edge of a split, it flips to the option that way, again every moment
+    // it stays. Only when moved there: a thumb that picked the card up near the edge doesn't flip anything.
     const tray = el?.closest<HTMLElement>('[data-tray]')
-    const tr = tray?.getBoundingClientRect(), side = tr ? (x < tr.left + 36 ? -1 : x > tr.right - 36 ? 1 : 0) : 0
+    const tr = tray?.getBoundingClientRect()
+    const side = tr ? (x < tr.left + 32 && x < l.x0 - 32 ? -1 : x > tr.right - 32 && x > l.x0 + 32 ? 1 : 0) : 0
     const pk = side && tray ? `${tray.dataset.tray}${side}` : ''
     if (pk !== (l.page?.k || '')) {
       if (l.page) clearInterval(l.page.timer)
@@ -179,29 +202,35 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       if (s) { const mode = s.dataset.modes!; spot = { at: s.dataset.slot!, inline: mode === 'in', slot: true, el: s, text: mode === 'in' ? `Right after ${s.dataset.title}` : `After ${s.dataset.title}` } }
     }
     if (spot?.el !== l.spot?.el) {
-      wrap.current?.querySelectorAll('[data-ph]').forEach((b) => b.remove())
+      // Only marks: nothing is inserted, so the layout (and what's under the finger) stays put.
       wrap.current?.querySelectorAll<HTMLElement>('[data-hot]').forEach((b) => { delete b.dataset.hot })
-      if (spot?.slot) {
-        const box = document.createElement('div')
-        box.dataset.ph = '1'
-        box.className = 'pointer-events-none my-2 h-[150px] w-full rounded-[22px] border-[3px] border-dashed border-muted-foreground bg-card'
-        spot.el.append(box)
-      } else if (spot) spot.el.dataset.hot = '1'
+      if (spot) spot.el.dataset.hot = '1'
       l.spot = spot
       l.ghost.textContent = spot?.text || 'Drop it on the map'
     }
-    // Near the top or bottom the page scrolls, faster the closer you get.
-    const top = 70 - y, bottom = y - (window.innerHeight - 110)
-    if (top > 0) window.scrollBy(0, -Math.ceil(top / 5)); else if (bottom > 0) window.scrollBy(0, Math.ceil(bottom / 5))
+    // Carried up to the top or down to the bottom, the page scrolls smoothly for as long as the finger stays
+    // there, faster the closer it gets. A card picked up near an edge doesn't scroll until it moves that way.
+    if (!l.scroll && scrollSpeed(l) && lifting.current === l) {
+      const step = () => {
+        const v = lifting.current === l ? scrollSpeed(l) : 0
+        if (!v) { l.scroll = undefined; return }
+        window.scrollBy(0, v)
+        moveRef.current(l.x, l.y)
+        l.scroll = requestAnimationFrame(step)
+      }
+      l.scroll = requestAnimationFrame(step)
+    }
   }, [setShown])
+  React.useEffect(() => { moveRef.current = ghostMove }, [ghostMove])
   const ghostEnd = React.useCallback(() => {
     const l = lifting.current
     lifting.current = null
     if (!l) return
     if (l.drill) clearTimeout(l.drill.timer)
     if (l.page) clearInterval(l.page.timer)
+    if (l.scroll) cancelAnimationFrame(l.scroll)
     l.ghost.remove()
-    wrap.current?.querySelectorAll('[data-ph]').forEach((b) => b.remove())
+    pagePinned(false)
     wrap.current?.querySelectorAll<HTMLElement>('[data-hot]').forEach((b) => { delete b.dataset.hot })
     const stop = (e: MouseEvent) => { e.stopPropagation(); e.preventDefault() }
     window.addEventListener('click', stop, { capture: true, once: true })
@@ -215,7 +244,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     ghost.className = 'pointer-events-none fixed z-[80] max-w-[80vw] -translate-x-1/2 -translate-y-[130%] -rotate-2 truncate rounded-2xl bg-foreground px-4 py-3 text-base font-extrabold text-background shadow-2xl'
     ghost.textContent = text
     document.body.append(ghost)
-    lifting.current = { ghost, spot: null }
+    pagePinned(true)
+    lifting.current = { ghost, x0: x, y0: y, x, y, spot: null }
     ghostMove(x, y)
     navigator.vibrate?.(12)
   }
@@ -283,8 +313,13 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const spot = at || a?.id
     if (moving && spot && !(a && held.has(a.id)) && !(b && held.has(b.id)) && !(a && whenOf(base, a) === 'done')) {
       const name = title || a!.title, mode = b ? 'in' : 'after'
+      // While dragging, a gap keeps exactly its size (the map never moves under your finger); the one
+      // you're over lights up.
+      if (moving.dragging) return <div key={key} data-slot={spot} data-modes={mode} data-title={name} className="group flex h-3 items-center">
+        <span className="h-1 w-full rounded-full transition-[background-color,transform] group-data-[hot]:scale-y-[2.5] group-data-[hot]:bg-foreground" />
+      </div>
       return <div key={key} data-slot={spot} data-modes={mode} data-title={name} className="flex flex-wrap justify-center gap-1.5 py-2">
-        {moving.dragging ? <span className="h-1" /> : <>
+        {<>
           <Target onClick={() => void drop(spot, mode === 'in')}>{mode === 'in' ? 'Here, in line' : `Here, after ${name}`}</Target>
           {a && b ? <Target alt onClick={() => void drop(spot, false)}><GitBranch size={13} aria-hidden="true" />New option after {a.title}</Target> : null}
         </>}
