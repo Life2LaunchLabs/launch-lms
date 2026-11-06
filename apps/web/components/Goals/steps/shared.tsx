@@ -83,6 +83,7 @@ export function StepIntro({ step }: { step: Step }) {
   const spoken = [step.title, prompt, step.description || ''].map((part) => part.trim()).filter(Boolean).map((part) => /[.!?:]$/.test(part) ? part : `${part}.`).join(' ')
   const speechId = useSpeechId('step')
   useAutoRead(speechId, spoken)
+  if (!step.description && !materials.length) return <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" className="self-end" />
   return <div className="flex flex-col gap-2">
     <div className="flex items-start gap-2">
       {step.description ? <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm leading-6 text-foreground/80">{step.description}</p> : <span className="flex-1" />}
