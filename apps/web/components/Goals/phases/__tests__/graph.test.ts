@@ -162,7 +162,7 @@ describe('a plan as a map', () => {
     const loose = loosePiece(map(), steps, 2028 * 12)
     const placed = place(loose.doc, loose.ids, 'hs', true)
     const after = kids(placed, loose.ids[loose.ids.length - 1]).map((x) => x.id)
-    expect(after.length).toBeGreaterThan(0)
+    expect(after.length > 0).toBe(true)
     const off = liftLine(placed, loose.ids)
     expect(off.phases.find((p) => p.id === loose.ids[0])!.after).toEqual([])
     for (const id of after) expect(off.phases.find((p) => p.id === id)!.after).toContain('hs')
