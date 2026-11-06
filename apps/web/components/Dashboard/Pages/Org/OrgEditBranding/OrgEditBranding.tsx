@@ -22,7 +22,7 @@ import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import AuthBrandingTab from './AuthBrandingTab'
-import LogoDisplaySettings from './LogoDisplaySettings'
+import LogoDisplaySettings, { DarkFaviconSettings } from './LogoDisplaySettings'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg'])
@@ -608,13 +608,7 @@ export default function OrgEditBranding() {
                     </div>
 
                     <div className="flex flex-col items-center space-y-4">
-                      <input
-                        type="file"
-                        id="faviconInput"
-                        accept={SUPPORTED_FILES}
-                        className="hidden"
-                        onChange={handleFaviconChange}
-                      />
+                      <input type="file" id="faviconInput" accept={SUPPORTED_FILES} className="hidden" onChange={handleFaviconChange} />
                       <button
                         type="button"
                         disabled={isFaviconUploading}
@@ -642,6 +636,7 @@ export default function OrgEditBranding() {
                     </div>
                   </div>
                 </div>
+                <DarkFaviconSettings org={org} accessToken={access_token} />
               </div>
         </TabsContent>
 

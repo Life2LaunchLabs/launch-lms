@@ -3,6 +3,7 @@
 import { type ReactNode, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { LookId, SectionType } from '@services/portfolio/records'
 import { type Row, type Slot, copyRows, lift, place, rangeOf, resizeGap } from './model'
+import { SIZING, type Level, applyLevel, capOf, cardLevels, levelFor, naturalHeight, snap } from './fit'
 
 // The section stack, laid out and edited in place. Every section sits in one CSS grid of six columns, placed
 // by row and column, so moving one never remounts it. The owner can always arrange it (each change saves):
@@ -24,7 +25,7 @@ type Drag =
   | { kind: 'pending'; type: SectionType; x: number; y: number }
   | { kind: 'move'; type: SectionType; item: Row[number]; rows: Row[]; home: Slot; slot: Slot; ghost: HTMLElement; ox: number; oy: number; h: number }
   | { kind: 'gap'; base: Row[]; r: number; g: number; left: number; width: number; rows: Row[] }
-  | { kind: 'height'; types: SectionType[]; lo: number; hi: number; y: number; h0: number; h: number }
+  | { kind: 'height'; types: SectionType[]; lo: number; hi: number; y: number; h0: number; h: number; levels: Level[] }
 
 const PHONE = 640
 const sameSlot = (a?: Slot, b?: Slot) => JSON.stringify(a) === JSON.stringify(b)
@@ -96,9 +97,22 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
     const el = box.current
     if (!el) return
     el.querySelectorAll<HTMLElement>('[data-sec]').forEach((sec) => {
+      const type = sec.dataset.sec as SectionType
       const items = Array.from(sec.querySelectorAll<HTMLElement>('[data-item]'))
       items.forEach((item) => item.removeAttribute('data-fit-hidden'))
-      if (!sec.hasAttribute('data-fixed')) return
+      const sizing = SIZING[type], h = heights[type]
+      if (sizing === 'cards') applyLevel(sec)
+      if (!sec.hasAttribute('data-fixed') || !h) return
+      sec.style.height = `${h}px`
+      // Alone in its row, a section takes its own tidy height; beside a taller one it keeps space below.
+      const alone = phone || (shown[Number(sec.dataset.r)]?.length || 1) === 1
+      if (sizing === 'cards') {
+        const level = levelFor(cardLevels(sec), h)
+        applyLevel(sec, level)
+        if (alone && level) sec.style.height = `${level.h}px`
+        return
+      }
+      if (sizing === 'content' && alone) { const full = naturalHeight(sec); if (full < h) sec.style.height = `${full}px` }
       const area = (sec.querySelector('[data-fit-box]') as HTMLElement | null) || sec
       const bottom = area.getBoundingClientRect().bottom + 1
       items.map((item) => [item, item.getBoundingClientRect().bottom > bottom] as const).forEach(([item, out], k) => { if (out && k > 0) item.setAttribute('data-fit-hidden', '') })
@@ -202,7 +216,10 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
         const next = resizeGap(d.base, d.r, d.g, f)
         if (JSON.stringify(next) !== JSON.stringify(d.rows)) { d.rows = next; setView({ rows: next }) }
       } else if (d.kind === 'height') {
-        d.h = Math.round(Math.max(d.lo, Math.min(d.hi, d.h0 + event.clientY - d.y)))
+        const h = Math.max(d.lo, Math.min(d.hi, d.h0 + event.clientY - d.y))
+        // Card sections snap to their tidy layouts; above the tallest (a taller neighbour), it's free.
+        const top = d.levels[d.levels.length - 1]?.h || 0
+        d.h = Math.round(d.levels.length && h <= top + 20 ? snap(d.levels, h) : h)
         setLive({ types: d.types, h: d.h })
       }
     }
@@ -237,7 +254,11 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
       const types = phone ? [type] : rows[r].map((item) => item.type)
       const [lo, hi] = rangeOf(look)
       const h0 = sec.getBoundingClientRect().height
-      drag.current = { kind: 'height', types, lo, hi, y: event.clientY, h0, h: Math.round(h0) }
+      // No taller than the fullest member of the row can use.
+      const members = types.map((one) => box.current!.querySelector<HTMLElement>(`[data-sec="${one}"]`)).filter((node): node is HTMLElement => Boolean(node))
+      const cap = Math.max(lo, ...members.map((node) => capOf(node, SIZING[node.dataset.sec as SectionType], hi)))
+      const levels = SIZING[type] === 'cards' ? cardLevels(sec).filter((level) => level.h >= lo && level.h <= cap) : []
+      drag.current = { kind: 'height', types, lo, hi: cap, y: event.clientY, h0, h: Math.round(h0), levels }
     } else if (sec && target.closest('[data-grip]')) drag.current = { kind: 'pending', type: sec.dataset.sec as SectionType, x: event.clientX, y: event.clientY }
     else return
     event.preventDefault()

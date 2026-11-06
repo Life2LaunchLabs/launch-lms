@@ -24,7 +24,7 @@ export const LOOK_NAMES: Record<LookId, Record<SectionType, string>> = {
   gallery: { highlights: 'Numbers', feature: 'Now showing', about: 'Info', experience: 'CV', projects: 'Work', credentials: 'Certified', results: 'Character', headed: 'Next', people: 'Said about me' },
   professional: { highlights: 'At a glance', feature: 'Featured', about: 'About', experience: 'Experience', projects: 'Projects', credentials: 'Licenses and certifications', results: 'Strengths', headed: 'Goals', people: 'Recommendations' },
   arcade: { highlights: 'Stats', feature: 'Featured', about: 'Bio', experience: 'History', projects: 'Showcase', credentials: 'Achievements', results: 'Class', headed: 'Next quest', people: 'Squad says' },
-  volt: { highlights: 'By the numbers', feature: 'Featured', about: 'About', experience: 'Journey', projects: 'Latest work', credentials: 'Badges', results: 'My type', headed: 'Next up', people: 'Shoutouts' },
+  volt: { highlights: 'By the numbers', feature: 'Featured', about: 'About', experience: 'Journey', projects: 'Latest work', credentials: 'Badges', results: 'How I work', headed: 'Next up', people: 'Shoutouts' },
 }
 
 /**

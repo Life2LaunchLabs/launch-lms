@@ -20,17 +20,26 @@ export async function generateMetadata({
       revalidate: 86400,
       tags: ['organizations'],
     })
-    const faviconImage = org?.config?.config?.customization?.general?.favicon_image || org?.config?.config?.general?.favicon_image
-    if (faviconImage) {
+    const general = org?.config?.config?.customization?.general
+    const faviconImage = general?.favicon_image || org?.config?.config?.general?.favicon_image
+    const icon = faviconImage
+      ? getOrgFaviconMediaDirectory(org.org_uuid, faviconImage)
+      : org?.logo_image ? getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) : null
+    // An optional dark-mode favicon: the browser picks it when it is in dark mode.
+    const darkIcon = general?.separate_dark_favicon && general?.dark_favicon_image
+      ? getOrgFaviconMediaDirectory(org.org_uuid, general.dark_favicon_image)
+      : null
+    if (icon && darkIcon) {
       return {
-        icons: { icon: getOrgFaviconMediaDirectory(org.org_uuid, faviconImage) },
+        icons: {
+          icon: [
+            { url: icon, media: '(prefers-color-scheme: light)' },
+            { url: darkIcon, media: '(prefers-color-scheme: dark)' },
+          ],
+        },
       }
     }
-    if (org?.logo_image) {
-      return {
-        icons: { icon: getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) },
-      }
-    }
+    if (icon || darkIcon) return { icons: { icon: (icon || darkIcon)! } }
   } catch {
     return {}
   }
