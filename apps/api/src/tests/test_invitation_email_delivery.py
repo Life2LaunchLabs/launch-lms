@@ -171,3 +171,21 @@ async def test_invitation_email_is_sent_with_no_transaction_open(session: Sessio
 def test_a_resend_timeout_reads_as_unreachable():
     failure = email_utils._resend_failure(resend.exceptions.ResendError(code=500, error_type="application_error", message="Request failed: Read timed out.", suggested_action=""))
     assert failure.retryable and "Couldn't reach" in failure.reason
+
+
+@pytest.mark.asyncio
+async def test_a_failed_audit_log_write_doesnt_fail_the_invite(session: Session, monkeypatch, allow):  # noqa: F811
+    # Databases built by migrations had an audit log table the model couldn't write to.
+    _seed(session)
+    from src.db.audit_logs import AuditLog
+
+    def broken(*_args, **_kwargs):
+        raise RuntimeError("column auditlog.request_metadata does not exist")
+
+    monkeypatch.setattr(AuditLog, "__init__", broken)
+    monkeypatch.setattr(org_invites_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
+    result = await org_users_service.invite_batch_users(
+        _request(), 1, InviteUsersRequest(emails=["logged@example.com"], role_id=4), session, _owner(),
+    )
+    assert result.created == 1
+    assert session.exec(select(OrganizationInvitation)).one().delivery_status == "delivered"
