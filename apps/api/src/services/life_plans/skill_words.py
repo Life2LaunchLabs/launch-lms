@@ -10,6 +10,44 @@ from __future__ import annotations
 
 from sqlmodel import Session, select
 
+# A skill counts as one the job uses at this importance (O*NET's IM scale, 1 to 5) or more.
+SKILL_IMPORTANCE = 3.5
+# A work style counts at this impact (O*NET's WI scale, -3 to 3) or more, as well as when it's among the job's most distinctive.
+STYLE_IMPACT = 2.5
+
+
+def career_skills(skill_rows: list[dict[str, str]], style_rows: list[dict[str, str]], code_col: str) -> dict[str, list[str]]:
+    """Each career's skills (importance SKILL_IMPORTANCE or more) and its key work styles, by element id. Work styles
+    from release 31.0 carry an impact (WI) and a distinctiveness rank (DR, 1 to 10 for the job's top styles): a style
+    counts when either is high. Older releases rate styles by importance like skills."""
+    ranked: dict[str, list[tuple[int, float, str]]] = {}
+
+    def add(code: str, element: str, kind: int, value: float) -> None:
+        bucket = ranked.setdefault(code, [])
+        if element and not any(item[2] == element for item in bucket):
+            bucket.append((kind, -value, element))
+
+    for r in skill_rows:
+        if r.get("scale id", "").upper() != "IM" or r.get("recommend suppress", "").upper() == "Y":
+            continue
+        try:
+            value = float(r.get("data value", ""))
+        except ValueError:
+            continue
+        if value >= SKILL_IMPORTANCE:
+            add(r.get(code_col, ""), r.get("element id", ""), 0, value)
+    for r in style_rows:
+        scale = r.get("scale id", "").upper()
+        try:
+            value = float(r.get("data value", ""))
+        except ValueError:
+            continue
+        if (scale == "DR" and value > 0) or (scale == "WI" and value >= STYLE_IMPACT) or (scale == "IM" and value >= SKILL_IMPORTANCE):
+            # Ranked together: a distinctiveness rank (1 to 10), impact (up to 3) and older importance (up to 5) on one scale.
+            add(r.get(code_col, ""), r.get("element id", ""), 1, value if scale == "DR" else value * 10 / 3 if scale == "WI" else value * 2)
+    return {code: [element for _, _, element in sorted(rows)] for code, rows in ranked.items()}
+
+
 # Chip id -> O*NET element ids.
 CHIPS: dict[str, tuple[str, ...]] = {
     # Thinking

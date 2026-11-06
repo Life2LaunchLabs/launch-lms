@@ -28,6 +28,7 @@ from sqlmodel import Session, col, delete, select
 
 from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
 from src.services.life_plans.estimates import REVIEWED, dims_key
+from src.services.life_plans.skill_words import career_skills
 
 RIASEC = "RIASEC"
 INTEREST_NAMES = {"realistic": "R", "investigative": "I", "artistic": "A", "social": "S", "enterprising": "E", "conventional": "C"}
@@ -36,10 +37,6 @@ SCORECARD_URL = "https://collegescorecard.ed.gov/data/"
 MAX_ALT_TITLES = 25
 MAX_TASKS = 5
 MAX_RELATED = 10
-# A skill counts as one the job uses at this importance (O*NET's IM scale, 1 to 5) or more.
-SKILL_IMPORTANCE = 3.5
-# A work style counts at this impact (O*NET's WI scale, -3 to 3) or more, as well as when it's among the job's most distinctive.
-STYLE_IMPACT = 2.5
 
 
 class CatalogProblem(ValueError):
@@ -100,38 +97,6 @@ def _tsv(zf: zipfile.ZipFile, *names: str, required: bool = True) -> list[dict[s
         return []
     text = zf.read(found).decode("utf-8-sig", errors="replace")
     return [{(k or "").strip().lower(): (v or "").strip() for k, v in row.items()} for row in csv.DictReader(io.StringIO(text), delimiter="\t")]
-
-
-def _career_skills(skill_rows: list[dict[str, str]], style_rows: list[dict[str, str]], code_col: str) -> dict[str, list[str]]:
-    """Each career's skills (importance SKILL_IMPORTANCE or more) and its key work styles, by element id. Work styles
-    from release 31.0 carry an impact (WI) and a distinctiveness rank (DR, 1 to 10 for the job's top styles): a style
-    counts when either is high. Older releases rate styles by importance like skills."""
-    ranked: dict[str, list[tuple[int, float, str]]] = {}
-
-    def add(code: str, element: str, kind: int, value: float) -> None:
-        bucket = ranked.setdefault(code, [])
-        if element and not any(item[2] == element for item in bucket):
-            bucket.append((kind, -value, element))
-
-    for r in skill_rows:
-        if r.get("scale id", "").upper() != "IM" or r.get("recommend suppress", "").upper() == "Y":
-            continue
-        try:
-            value = float(r.get("data value", ""))
-        except ValueError:
-            continue
-        if value >= SKILL_IMPORTANCE:
-            add(r.get(code_col, ""), r.get("element id", ""), 0, value)
-    for r in style_rows:
-        scale = r.get("scale id", "").upper()
-        try:
-            value = float(r.get("data value", ""))
-        except ValueError:
-            continue
-        if (scale == "DR" and value > 0) or (scale == "WI" and value >= STYLE_IMPACT) or (scale == "IM" and value >= SKILL_IMPORTANCE):
-            # Ranked together: a distinctiveness rank (1 to 10), impact (up to 3) and older importance (up to 5) on one scale.
-            add(r.get(code_col, ""), r.get("element id", ""), 1, value if scale == "DR" else value * 10 / 3 if scale == "WI" else value * 2)
-    return {code: [element for _, _, element in sorted(rows)] for code, rows in ranked.items()}
 
 
 def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL) -> dict:
@@ -224,7 +189,7 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         if other and other not in bucket and len(bucket) < MAX_RELATED:
             bucket.append(other)
 
-    skills = _career_skills(skill_rows, style_rows, code_col)
+    skills = career_skills(skill_rows, style_rows, code_col)
 
     src = _upsert_source(
         db,
