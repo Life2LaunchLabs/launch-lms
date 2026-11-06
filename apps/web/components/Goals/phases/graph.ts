@@ -282,6 +282,12 @@ export function addOption(doc: LifeDoc, key: string, x: NewPhase): { doc: LifeDo
   next.phases.push(p)
   return { doc: normalize(next), id: p.id }
 }
+/** Where to hang a phase that comes after every option of a split: the end of each (one id, or a group key). */
+export function endsKey(doc: LifeDoc, key: string): string | null {
+  const all = new Set(optionsOf(doc, key).flatMap((q) => [q.id, ...below(doc, q.id)]))
+  const ends = [...all].filter((id) => !kids(doc, id).length)
+  return !ends.length ? null : ends.length === 1 ? ends[0] : groupKey(ends)
+}
 /** A phase every option of a split leads to, after the end of each. */
 export function addRejoin(doc: LifeDoc, key: string, x: NewPhase): { doc: LifeDoc; id: string } {
   const next = clone(doc)
@@ -320,6 +326,16 @@ export function lift(doc: LifeDoc, id: string, only = false): LifeDoc {
   const ids = new Set(pieceOf(next, id, only))
   if (only) for (const k of next.phases) if (k.after?.includes(id)) k.after = [...new Set(k.after.flatMap((a) => (a === id ? head.after || [] : [a])))]
   for (const p of next.phases) if (!ids.has(p.id)) p.after = (p.after || []).filter((a) => !ids.has(a))
+  head.after = []
+  return next
+}
+/** Take one line of phases (first to last) off the map; what followed the last now follows what came before the first. */
+export function liftLine(doc: LifeDoc, ids: string[]): LifeDoc {
+  const next = clone(doc), set = new Set(ids), head = byId(next, ids[0]), tail = ids[ids.length - 1]
+  if (!head) return next
+  const before = head.after || []
+  for (const k of next.phases) if (!set.has(k.id) && k.after?.includes(tail)) k.after = [...new Set(k.after.flatMap((a) => (a === tail ? before : [a])))]
+  for (const p of next.phases) if (!set.has(p.id)) p.after = (p.after || []).filter((a) => !set.has(a))
   head.after = []
   return next
 }

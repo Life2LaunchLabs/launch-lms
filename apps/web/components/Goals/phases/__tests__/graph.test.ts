@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LifeDoc } from '@services/life/life'
-import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -155,5 +155,17 @@ describe('a plan as a map', () => {
     const placed = place(loose.doc, loose.ids, 'hs', false)
     expect(kids(placed, 'hs').length).toBe(4)
     expect(placed.phases.find((p) => p.id === loose.ids[1])!.after).toEqual([loose.ids[0]])
+  })
+
+  test('a route placed in line lifts back off as one line, closing the gap', () => {
+    const steps = routesFor({ code: '29-2042.00', title: 'Emergency Medical Technicians', job_zone: 3 })[0].steps
+    const loose = loosePiece(map(), steps, 2028 * 12)
+    const placed = place(loose.doc, loose.ids, 'hs', true)
+    const after = kids(placed, loose.ids[loose.ids.length - 1]).map((x) => x.id)
+    expect(after.length).toBeGreaterThan(0)
+    const off = liftLine(placed, loose.ids)
+    expect(off.phases.find((p) => p.id === loose.ids[0])!.after).toEqual([])
+    for (const id of after) expect(off.phases.find((p) => p.id === id)!.after).toContain('hs')
+    expect(off.phases.find((p) => p.id === loose.ids[1])!.after).toEqual([loose.ids[0]])
   })
 })

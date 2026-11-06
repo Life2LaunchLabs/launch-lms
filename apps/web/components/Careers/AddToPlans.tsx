@@ -33,7 +33,7 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
 
   const add = async () => {
     if (!wanted) {
-      holdRoute(`Where should ${career.title} go?`, routes[route].steps)
+      holdRoute(career.title, routes[route].steps)
       router.push(getUriWithOrg(orgslug, '/plans?map&hold=1'))
       return
     }
