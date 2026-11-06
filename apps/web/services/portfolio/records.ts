@@ -119,7 +119,7 @@ export const takeInterestQuiz = (answers: number[], token: string): Promise<Quiz
 
 // The picture sort: our own 36 photo cards (six per interest type) answered no, not sure or yes. Saved and
 // matched to careers like the quiz.
-export type PictureCard = { key: string; type: string; text: string; photo: string; alt: string; credit: { author: string; license: string; url: string } | null }
+export type PictureCard = { key: string; type: string; text: string; photo: string | null; alt: string; credit: { author: string; license: string; url: string } | null }
 export type PictureSort = { cards: PictureCard[]; answers: Array<{ value: number; label: string }>; types: Array<{ key: string; label: string }>; max: number }
 export const getPictureSort = async (token: string): Promise<{ sort: PictureSort; taken: QuizTaken | null }> => {
   const response = await fetch(`${getAPIUrl()}portfolio/me/picture-sort`, RequestBodyWithAuthHeader('GET', null, null, token))
