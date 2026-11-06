@@ -30,6 +30,14 @@ release's tables (facts, careers, schools) to search, filter, page through and e
 `GET /admin/datasets`, `GET /admin/datasets/{key}/rows`, `GET /admin/datasets/{key}/export`. Rows are never
 edited there; a release is approved, sent back to draft or retired as a whole.
 
+Composite datasets, the tables we build ourselves, are listed there too, marked "Built by us". The first is the
+**majors map** (`services/life_plans/data/majors_map.csv`): each of the Census's 174 college majors (ACS PUMS
+`FOD1P`) linked to the CIP 2020 four-digit program families it covers, with one `primary` program each and
+sometimes others marked `also`. Neither Census nor NCES publishes this crosswalk. We drafted it from name
+matching and the overlap between the jobs graduates hold and the jobs each program trains for, then checked it
+by hand (the `reviewed` column says which rows were corrected). It is what lets one merged majors list carry
+Census outcomes. Changes to it go through code review rather than approval in the app.
+
 - `hud_fmr`: HUD Fair Market Rents county file (csv or xlsx with `fmr_0`..`fmr_4`). Oregon counties.
 - `bls_oews`: BLS OEWS all-data file. Keeps US, state and Oregon metro and nonmetro areas, detailed
   occupations; hourly percentiles, or annual where hourly isn't published.
