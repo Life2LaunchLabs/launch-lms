@@ -2,6 +2,7 @@ import csv
 import io
 from datetime import datetime, timezone
 from typing import Any
+import logging
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
@@ -10,6 +11,8 @@ from src.db.audit_logs import AuditLog
 from src.db.users import User
 from src.security.org_auth import is_org_admin
 from src.security.superadmin import is_user_superadmin
+
+logger = logging.getLogger(__name__)
 
 
 def record_audit_log(
@@ -25,20 +28,27 @@ def record_audit_log(
     ip_address: str | None = None,
     request_metadata: dict[str, Any] | None = None,
 ) -> None:
-    log = AuditLog(
-        org_id=org_id,
-        user_id=user_id,
-        username=username,
-        name=name,
-        action=action,
-        resource=resource,
-        status_code=status_code,
-        ip_address=ip_address,
-        request_metadata=request_metadata or {},
-        created_at=datetime.now(timezone.utc).isoformat(),
-    )
-    db_session.add(log)
+    # Audit logs are best-effort, as in core/audit_middleware.py: a failed write never turns the
+    # action it records, already done, into an error. The caller's own changes are saved first.
     db_session.commit()
+    try:
+        log = AuditLog(
+            org_id=org_id,
+            user_id=user_id,
+            username=username,
+            name=name,
+            action=action,
+            resource=resource,
+            status_code=status_code,
+            ip_address=ip_address,
+            request_metadata=request_metadata or {},
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+        db_session.add(log)
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+        logger.exception("Couldn't write the audit log for %s", action)
 
 
 def _require_audit_access(user_id: int, org_id: int, db_session: Session) -> None:
