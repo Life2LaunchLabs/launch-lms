@@ -694,7 +694,8 @@ async def list_resources(
                 if _resource_in_accessible_channel(resource, db_session, current_user)
             } if saved_ids else set()
     resources = db_session.exec(
-        statement.where(Resource.id.in_(scope)).order_by(Resource.creation_date.desc())
+        # Starred resources come first, then the newest.
+        statement.where(Resource.id.in_(scope)).order_by(Resource.is_featured.desc(), Resource.creation_date.desc())
     ).all() if scope else []
     if user_channel_uuid:
         if _user_is_anonymous(current_user):
@@ -866,7 +867,8 @@ async def list_channel_resources(request: Request, channel_uuid: str, current_us
         return []
     resources = db_session.exec(select(Resource).where(Resource.id.in_(resource_ids))).all()
     order = {resource_id: idx for idx, resource_id in enumerate(resource_ids)}
-    resources.sort(key=lambda resource: order.get(resource.id, 999999))
+    # Starred resources lead the channel; the rest keep the channel's order.
+    resources.sort(key=lambda resource: (not resource.is_featured, order.get(resource.id, 999999)))
     return [_serialize_resource(resource, db_session, current_user, channel.org_id) for resource in resources]
 
 

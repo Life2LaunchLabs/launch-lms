@@ -2,6 +2,8 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { mutate } from 'swr'
+import toast from 'react-hot-toast'
 import { Bookmark, Building2, Flag, MessageCircle, ShieldCheck, Star, Users } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -11,7 +13,7 @@ import { plural } from '@components/Plans/plan/planVersions'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getResourceChannelThumbnailMediaDirectory } from '@services/media/media'
 import type { ResourceType } from '@services/resources/resources'
-import { AUDIENCE_LABELS, typeLabel, type ChannelAudience, type ChannelCard, type ResourceRow } from '@services/resources/workspace'
+import { AUDIENCE_LABELS, isResourcesKey, resourcesApi, typeLabel, type ChannelAudience, type ChannelCard, type ResourceRow } from '@services/resources/workspace'
 import { cn } from '@/lib/utils'
 
 /** The org, session token and slug every Resources page needs. */
@@ -119,7 +121,8 @@ export function ResourceListRow({ orgslug, resource, showChannels = true, showOw
     </span> : null}
     {resource.needs_look ? <span className="inline-flex items-center gap-1 text-[12.5px] font-bold text-amber-700" title={`${plural(resource.needs_look, 'comment')} to look at`}><Flag size={14} aria-hidden="true" />{resource.needs_look}</span>
       : resource.comment_count ? <span className="hidden items-center gap-1 text-[12.5px] text-muted-foreground sm:inline-flex" title={plural(resource.comment_count, 'comment')}><MessageCircle size={14} aria-hidden="true" />{resource.comment_count}</span> : null}
-    {resource.average_rating ? <span className="hidden items-center gap-0.5 text-[12.5px] text-muted-foreground lg:inline-flex"><Star size={13} className="fill-amber-400 text-amber-400" aria-hidden="true" />{resource.average_rating.toFixed(1)}</span> : null}
+    {resource.average_rating ? <span className="hidden items-center gap-0.5 text-[12.5px] text-muted-foreground lg:inline-flex" title="Average rating"><Star size={13} className="fill-muted-foreground/60 text-muted-foreground/60" aria-hidden="true" />{resource.average_rating.toFixed(1)}</span> : null}
+    {resource.is_shared_from_other_org ? resource.is_featured ? <StarMark /> : null : <StarButton resourceUuid={resource.resource_uuid} starred={resource.is_featured} title={resource.title} compact />}
     {actions}
   </li>
 }
@@ -132,5 +135,32 @@ export function SaveButton({ saved, onClick, label, busy, compact }: { saved: bo
     className={cn('inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition-colors disabled:opacity-50',
       compact ? 'h-8 w-8' : 'h-8 px-3', saved ? 'bg-foreground text-background' : 'border border-border bg-card text-foreground hover:bg-muted')}>
     <Bookmark size={15} className={saved ? 'fill-current' : undefined} aria-hidden="true" />{compact ? null : saved ? 'Saved' : 'Save'}
+  </button>
+}
+
+const starOn = 'fill-amber-400 text-amber-500'
+
+/** Starred by the org that owns it, shown on someone else's resource. */
+function StarMark() {
+  return <span className="grid h-8 w-8 shrink-0 place-items-center" title="Starred by its organization"><Star size={16} className={starOn} aria-label="Starred" /></span>
+}
+
+/** Staff star their own resources: starred ones come first in lists, channels, Discover and exports. */
+export function StarButton({ resourceUuid, starred, title, compact }: { resourceUuid: string; starred: boolean; title?: string; compact?: boolean }) {
+  const { token } = useResourcesContext()
+  const [busy, setBusy] = React.useState(false)
+  const toggle = async () => {
+    setBusy(true)
+    try {
+      await resourcesApi.updateResource(resourceUuid, { is_featured: !starred }, token)
+      await mutate(isResourcesKey)
+    } catch (failure: any) { toast.error(failure?.message || 'Could not change its star.') } finally { setBusy(false) }
+  }
+  const label = `${starred ? 'Unstar' : 'Star'}${title ? ` ${title}` : ''}`
+  return <button type="button" onClick={() => void toggle()} disabled={busy} aria-pressed={starred} aria-label={compact ? label : undefined}
+    title={starred ? 'Starred: comes first. Click to unstar.' : 'Star it so it comes first'}
+    className={cn('inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition-colors disabled:opacity-50',
+      compact ? 'h-8 w-8 hover:bg-muted' : 'h-10 border border-border bg-card px-4 text-sm hover:bg-muted', !starred && compact ? 'text-muted-foreground/70 hover:text-foreground' : null)}>
+    <Star size={compact ? 16 : 15} className={starred ? starOn : undefined} aria-hidden="true" />{compact ? null : starred ? 'Starred' : 'Star'}
   </button>
 }

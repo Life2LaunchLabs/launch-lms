@@ -58,12 +58,15 @@ async def test_dry_run_then_import_into_a_channel_per_column():
             {"link": "https://oes.org/cook", "channel": "health"},
         ]
         check = await importer.import_rows(None, PLAIN, importer.ImportRequest(rows=rows), _user(STAFF), db)
-        assert [row["status"] for row in check["rows"]] == ["duplicate", "ready", "repeat", "invalid", "ready"]
-        assert (check["ready"], check["duplicates"], check["invalid"], check["new_channels"], check["created"]) == (2, 2, 1, ["Health"], 0)
+        # The first row is a resource the org has, with a new title and channel: an update, left alone unless asked.
+        assert [row["status"] for row in check["rows"]] == ["update", "ready", "repeat", "invalid", "ready"]
+        assert check["rows"][0]["changes"] == ["title", "channels"]
+        assert (check["ready"], check["updates"], check["duplicates"], check["invalid"], check["new_channels"], check["created"]) == (2, 1, 1, 1, ["Health"], 0)
         assert db.exec(select(Resource)).all().__len__() == 1
 
         done = await importer.import_rows(None, PLAIN, importer.ImportRequest(rows=rows, dry_run=False), _user(STAFF), db)
-        assert done["created"] == 2 and len(done["_fill_in"]) == 2
+        assert done["created"] == 2 and done["updated"] == 0 and len(done["_fill_in"]) == 2
+        assert db.get(Resource, 10).title == "Resource 10"
         nurse = db.exec(select(Resource).where(Resource.external_url == "https://oes.org/nurse")).one()
         assert (nurse.resource_type, nurse.estimated_time, nurse.provider_name) == ("video", 90, "oes.org")
         cook = db.exec(select(Resource).where(Resource.external_url == "https://oes.org/cook")).one()
@@ -88,3 +91,32 @@ async def test_import_all_into_one_new_channel():
         assert sorted(orders) == [1, 2]
         with pytest.raises(HTTPException):
             await importer.import_rows(None, PLAIN, importer.ImportRequest(rows=rows, destination="one"), _user(STAFF), db)
+
+
+@pytest.mark.asyncio
+async def test_an_edited_export_updates_what_it_came_from():
+    from src.services import resource_export as export
+
+    with _world() as db:
+        _channel(db, 1, PLAIN)
+        _resource(db, 10, PLAIN, 1)
+        _resource(db, 11, PLAIN, 1)
+        header, rows = export.export_rows(PLAIN, _user(STAFF), db)
+        sheet = [dict(zip(header, row)) for row in rows]
+        sheet[0]["Title"], sheet[0]["Starred"], sheet[0]["Link"] = "Resource ten, reworded", "yes", "https://example.com/ten"  # matched by its id
+        sheet[1]["Tags"] = "careers"
+        sheet.append({"Title": "Brand new", "Link": "https://new.example", "Channel": "Channel 1", "Starred": "x"})
+        fields = {name: importer.guess_field(name, set()) for name in header}
+        mapped = [{fields[name]: str(value) for name, value in row.items() if fields.get(name, "skip") != "skip" and (value != "" or fields[name] == "starred")} for row in sheet]
+
+        check = await importer.import_rows(None, PLAIN, importer.ImportRequest(rows=mapped), _user(STAFF), db)
+        assert [(row["status"], row.get("changes")) for row in check["rows"]] == [("update", ["title", "starred", "link"]), ("update", ["tags"]), ("ready", None)]
+        done = await importer.import_rows(None, PLAIN, importer.ImportRequest(rows=mapped, dry_run=False, update_existing=True), _user(STAFF), db)
+        assert (done["created"], done["updated"]) == (1, 2)
+        ten = db.get(Resource, 10)
+        assert (ten.title, ten.is_featured, ten.external_url) == ("Resource ten, reworded", True, "https://example.com/ten")
+        assert db.exec(select(Resource).where(Resource.external_url == "https://new.example")).one().is_featured
+        assert [tag.name for tag in db.exec(select(ResourceTag)).all()] == ["careers"]
+        # Imported again unchanged, every row matches and nothing would change.
+        again = await importer.import_rows(None, PLAIN, importer.ImportRequest(rows=mapped), _user(STAFF), db)
+        assert [row["status"] for row in again["rows"]] == ["duplicate", "duplicate", "duplicate"]
