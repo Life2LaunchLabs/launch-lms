@@ -23,6 +23,7 @@ import re
 import zipfile
 from collections.abc import Iterable, Iterator
 
+from sqlalchemy import and_, func
 from sqlmodel import Session, col, delete, select
 
 from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
@@ -172,10 +173,9 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
         notes="Interest scores are O*NET's occupational interest ratings (1 to 7) for each RIASEC type. Job zones run from 1 (little preparation) to 5 (extensive preparation).",
     )
-    # A release replaces its own earlier load and the older release's careers, which share their codes.
-    codes = [r.get(code_col, "") for r in occupations]
+    # A release replaces only its own earlier load. Older releases keep their careers, so learners see
+    # the reviewed ones until this release is approved (readers take the newest reviewed release).
     db.exec(delete(CareerEntry).where(CareerEntry.source_id == src.id))
-    db.exec(delete(CareerEntry).where(col(CareerEntry.code).in_(codes)))
     now = _now()
     n = 0
     for r in occupations:
@@ -256,8 +256,8 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
     )
     # Keep only the columns used, so a full-width file passed in as rows stays small.
     rows = [{k: r[k] for k in SCORECARD_COLUMNS if k in r} for r in rows]
+    # Only this release's own earlier load is replaced; older releases stay live until this one is approved.
     db.exec(delete(SchoolEntry).where(SchoolEntry.source_id == src.id))
-    db.exec(delete(SchoolEntry).where(col(SchoolEntry.unitid).in_([r.get("unitid", "") for r in rows])))
     db.exec(delete(EstimateFact).where(EstimateFact.source_id == src.id))
     now = _now()
     schools = facts = 0
@@ -326,6 +326,26 @@ def entry_counts(db: Session, source_id: int) -> dict[str, int]:
 # --- reading the catalog -----------------------------------------------------------
 
 
+def _live(model, key):
+    """Reviewed rows, each from the newest reviewed release that has its code. A new release sits beside
+    the older one as drafts until it is approved, so importing never hides what learners see."""
+    newest = (
+        select(key.label("k"), func.max(model.source_id).label("sid"))
+        .where(model.status == REVIEWED)
+        .group_by(key)
+        .subquery()
+    )
+    return select(model).join(newest, and_(key == newest.c.k, model.source_id == newest.c.sid)).where(model.status == REVIEWED)
+
+
+def live_careers():
+    return _live(CareerEntry, CareerEntry.code)
+
+
+def live_schools():
+    return _live(SchoolEntry, SchoolEntry.unitid)
+
+
 def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
     out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
     if full:
@@ -340,7 +360,7 @@ def top_interests(profile: dict) -> str:
 
 
 def search_careers(db: Session, query: str = "", limit: int = 20) -> list[dict]:
-    rows = db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED)).all()
+    rows = db.exec(live_careers()).all()
     q = query.strip().lower()
     if not q:
         return [_career_view(c) for c in sorted(rows, key=lambda c: c.title)[:limit]]
@@ -360,7 +380,7 @@ def search_careers(db: Session, query: str = "", limit: int = 20) -> list[dict]:
 
 
 def get_career(db: Session, code: str) -> dict | None:
-    c = db.exec(select(CareerEntry).where(CareerEntry.code == code, CareerEntry.status == REVIEWED)).first()
+    c = db.exec(live_careers().where(CareerEntry.code == code)).first()
     if not c:
         return None
     src = db.get(EstimateSource, c.source_id)
@@ -386,7 +406,7 @@ def match_careers(db: Session, scores: dict, *, job_zones: list[int] | None = No
     prediction, and the response says how it was worked out."""
     if sum(1 for k in RIASEC if scores.get(k) is not None) < 6:
         raise CatalogProblem("Send a score for each of R, I, A, S, E and C.")
-    rows = db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED)).all()
+    rows = db.exec(live_careers()).all()
     out = []
     for c in rows:
         if job_zones and c.job_zone not in job_zones:
@@ -404,7 +424,7 @@ def _school_view(s: SchoolEntry) -> dict:
 
 
 def search_schools(db: Session, query: str = "", state: str | None = None, limit: int = 20) -> list[dict]:
-    stmt = select(SchoolEntry).where(SchoolEntry.status == REVIEWED)
+    stmt = live_schools()
     if state:
         stmt = stmt.where(SchoolEntry.state == state.upper())
     q = query.strip()
@@ -416,7 +436,7 @@ def search_schools(db: Session, query: str = "", state: str | None = None, limit
 
 
 def get_school(db: Session, unitid: str) -> dict | None:
-    s = db.exec(select(SchoolEntry).where(SchoolEntry.unitid == unitid, SchoolEntry.status == REVIEWED)).first()
+    s = db.exec(live_schools().where(SchoolEntry.unitid == unitid)).first()
     if not s:
         return None
     src = db.get(EstimateSource, s.source_id)

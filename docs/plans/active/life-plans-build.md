@@ -81,9 +81,9 @@ Not built yet. How it works today, and what goes wrong:
 
 - Facts are safe. A new release is a new source, so the older reviewed release keeps answering
   estimates until the new one is approved, and the newest reviewed release wins after that.
-- Careers and schools are not. Importing a new O*NET or Scorecard file deletes the reviewed entries with
-  the same codes and adds them back as drafts, so career pages, Career swipe and school lookups lose them
-  until someone approves the new release.
+- Careers and schools are now safe too (built 2026-11-06, migration `m2r4e6l8s0a1`): entries are unique per
+  release (`code` + `source_id`, `unitid` + `source_id`), importing replaces only that release's own rows, and
+  readers (`public_data.live_careers()` / `live_schools()`) take each code from the newest reviewed release.
 - Career and school resources are copies. `add_career_resources` and `add_school_resources` write the title,
   description and tags into each organization's `Resource` once. They go stale when the data changes, and a
   career O*NET retires or merges leaves a resource pointing at nothing. The career profile itself reads live
@@ -91,9 +91,8 @@ Not built yet. How it works today, and what goes wrong:
 
 Proposal:
 
-1. **Releases, not replacements.** Keep entries per release (`source_id` + code) and read "the newest reviewed
-   release that has this code". Importing never touches live rows; approving a release makes it the one that
-   answers, and retiring the older release is a separate step.
+1. **Releases, not replacements.** Done: see above. Retiring an older release stays a separate step, and a
+   code a newer release drops keeps answering from the older one until that release is retired.
 2. **Resources point at the data.** A career or school resource stores its dataset reference (`onet:29-1141.00`,
    `scorecard:209038`) next to its link. Text built from the data (description, tags, title) is generated
    from the current reviewed entry rather than stored, or regenerated when a release is approved. Staff
