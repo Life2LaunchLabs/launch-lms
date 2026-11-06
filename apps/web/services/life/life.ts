@@ -93,7 +93,7 @@ export interface Estimate {
   dollar_year: number | null
   place: string
   place_label: string
-  level: 'city' | 'county' | 'area' | 'state' | 'us'
+  level: 'city' | 'county' | 'region' | 'area' | 'state' | 'us'
   fallback: boolean
   asked_place_label: string | null
   dims: Record<string, any>
@@ -176,10 +176,10 @@ export const lifeAdminApi = {
   },
 }
 
-/** A release's table: estimate facts, O*NET careers or Scorecard schools. */
-export type DatasetTableName = 'facts' | 'careers' | 'schools'
+/** A release's table: estimate facts, O*NET careers, Scorecard schools, or a table we built (a composite dataset). */
+export type DatasetTableName = 'facts' | 'careers' | 'schools' | 'map'
 export interface DatasetRelease { key: string; label: string; title: string; publisher: string; dataset: string; url: string; released: string; retrieved: string; license: string; notes: string; tables: Array<{ name: DatasetTableName; title: string; rows: number }>; by_status: Record<string, number> }
-export interface Dataset { kind: string; title: string; publisher: string; description: string; used_for: string; license: string; url: string; file: string; origin: 'external' | 'composite'; importable: boolean; releases: DatasetRelease[] }
+export interface Dataset { kind: string; title: string; publisher: string; description: string; used_for: string; license: string; url: string; file: string; origin: 'external' | 'composite'; importable: boolean; inputs?: string[]; releases: DatasetRelease[] }
 export interface DatasetQuery { table: DatasetTableName; q?: string; page?: number; per_page?: number; filters?: Record<string, string> }
 export interface DatasetPage { source: string; table: DatasetTableName; columns: Array<{ key: string; label: string; numeric: boolean }>; rows: Array<Record<string, string | number | null>>; total: number; page: number; per_page: number; filters: Record<string, Array<string | number>> }
 

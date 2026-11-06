@@ -129,14 +129,38 @@ def test_interest_match_ranks_careers_by_the_shape_of_the_profile_on_any_scale()
         public_data.match_careers(db, {"R": 1, "I": 2})
 
 
-def test_a_newer_onet_release_replaces_the_older_careers():
+def test_a_newer_onet_release_sits_beside_the_older_one_until_it_is_approved():
     db = _session()
     importers.import_file(db, *_onet_zip("db_30_0_text.zip"))
-    importers.import_file(db, *_onet_zip("db_31_0_text.zip"))
+    importers.review_source(db, "onet-30-0", 1)
+    importers.import_file(db, *_onet_zip("db_31_0_text.zip", layout="new"))
     rows = db.exec(select(CareerEntry)).all()
-    assert len(rows) == 3
-    keys = {db.get(EstimateSource, r.source_id).key for r in rows}
-    assert keys == {"onet-31-0"}
+    assert len(rows) == 6 and {db.get(EstimateSource, r.source_id).key for r in rows} == {"onet-30-0", "onet-31-0"}
+    # Importing hides nothing: learners keep the reviewed 30.0 careers while 31.0 waits as drafts.
+    dev = public_data.get_career(db, "15-1252.00")
+    assert dev["source"]["title"] == "O*NET 30.0 Database" and dev["tasks"] == []
+    assert len(public_data.search_careers(db, "")) == 3
+    importers.review_source(db, "onet-31-0", 1)
+    dev = public_data.get_career(db, "15-1252.00")
+    assert dev["source"]["title"] == "O*NET 31.0 Database" and dev["tasks"] == ["Fix bugs.", "Write code.", "Go to meetings."]
+    assert len(public_data.search_careers(db, "")) == 3, "each career once, from the newest reviewed release"
+    # Loading the same release again replaces only that release's rows, as drafts.
+    importers.import_file(db, *_onet_zip("db_31_0_text.zip", layout="new"))
+    assert len(db.exec(select(CareerEntry)).all()) == 6
+    assert public_data.get_career(db, "15-1252.00")["source"]["title"] == "O*NET 30.0 Database"
+
+
+def test_a_newer_scorecard_release_keeps_the_reviewed_schools_until_approved():
+    db = _session()
+    importers.import_file(db, SCORECARD, "Most-Recent-Cohorts-Institution_10032025.csv")
+    _review_all(db)
+    before = public_data.search_schools(db, "", limit=50)
+    assert before
+    importers.import_file(db, SCORECARD, "Most-Recent-Cohorts-Institution_11022026.csv")
+    assert len(db.exec(select(SchoolEntry)).all()) == 2 * len(before)
+    assert public_data.search_schools(db, "", limit=50) == before
+    _review_all(db)
+    assert len(public_data.search_schools(db, "", limit=50)) == len(before)
 
 
 def test_onet_zip_without_a_version_in_its_name_is_refused():

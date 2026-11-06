@@ -5,6 +5,9 @@ the College Scorecard). Every file loaded from it is a release, kept as an `Esti
 and a release holds one or more tables: estimate facts, O*NET careers, Scorecard schools.
 Admins browse a release's rows with search and filters and export them as CSV; rows are
 never edited here, only loaded from the publisher's file and approved or retired as a whole.
+
+Composite datasets are tables we build ourselves (the majors map). They are kept as reviewed
+CSV files beside this module, listed after the publishers' datasets, and read the same way.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ import io
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from sqlalchemy import func, or_
 from sqlmodel import Session, col, select
@@ -45,6 +49,28 @@ DATASETS: list[dict] = [
         "license": "Public domain (U.S. government work). Cite BLS.",
         "url": "https://www.bls.gov/oes/tables.htm",
         "file": "The all-data zip, like oesm25all.zip",
+    },
+    {
+        "kind": "oed_projections",
+        "prefix": "oed-projections-",
+        "title": "Oregon job projections",
+        "publisher": "Oregon Employment Department",
+        "description": "Jobs now and in ten years, the change, and average openings a year by occupation, for Oregon and its regions. Also typical and competitive entry education.",
+        "used_for": "Openings and growth on career pages, near the learner where Oregon publishes them.",
+        "license": "Public information from the State of Oregon. Cite the Oregon Employment Department.",
+        "url": "https://www.qualityinfo.org/projections",
+        "file": "Oregon Occupational Employment Projections 2024-2034.xlsx (its All Areas sheet holds every region)",
+    },
+    {
+        "kind": "oed_wages",
+        "prefix": "oed-wages-",
+        "title": "Oregon wages by area",
+        "publisher": "Oregon Employment Department",
+        "description": "Pay by occupation at the 10th to 90th percentiles for Oregon and 18 of its areas, aged to the current year. OED's extension of the BLS survey; not an official BLS series.",
+        "used_for": "Pay on career pages and the Job line in budgets, for the learner's own area where it's published.",
+        "license": "Public information from the State of Oregon. Cite the Oregon Employment Department.",
+        "url": "https://www.qualityinfo.org/data",
+        "file": "Oregon Occupational Wage Information.xlsx",
     },
     {
         "kind": "onet",
@@ -128,7 +154,69 @@ def catalog(db: Session) -> list[dict]:
     other = [_release(db, src) for src in sources if kind_of(src.key) is None]
     if other:
         out.append({"kind": "other", "title": "Other sources", "publisher": "", "description": "Sources loaded before datasets were named.", "used_for": "", "license": "", "url": "", "file": "", "origin": "external", "importable": False, "releases": other})
+    for spec in COMPOSITES:
+        out.append({**{k: v for k, v in spec.items() if k != "releases"}, "origin": "composite", "importable": False,
+                    "releases": [_composite_release(spec, release) for release in spec["releases"]]})
     return out
+
+
+# --- composite datasets: tables we build ourselves, kept as reviewed files beside the code --------
+
+DATA_DIR = Path(__file__).parent / "data"
+
+COMPOSITES: list[dict] = [
+    {
+        "kind": "majors_map",
+        "title": "Majors map",
+        "publisher": "Launch LMS (built by us)",
+        "description": "Links each of the Census's 174 college majors (the ACS field of degree) to the school program families (4-digit CIP codes) it covers. No official crosswalk exists, so we drafted it from matching names and the jobs graduates hold, then checked it by hand. Each Census major has one primary program and sometimes others it also covers.",
+        "used_for": "One merged list of majors: a major page shows school programs, and, through this map, what jobs people with that Census major hold and what they earn.",
+        "license": "Ours. Built from public-domain lists: Census ACS PUMS field of degree and NCES CIP 2020.",
+        "url": "https://nces.ed.gov/ipeds/cipcode/",
+        "file": "Kept in the code, at services/life_plans/data/majors_map.csv; changes go through review",
+        "inputs": ["Census ACS PUMS field of degree (FOD1P), 2020–2024", "NCES Classification of Instructional Programs, 2020"],
+        "releases": [{"key": "majors-map-2026-11", "label": "November 2026", "file": "majors_map.csv", "table": "map", "title": "Majors map"}],
+    },
+]
+
+
+def _composite(key: str) -> tuple[dict, dict] | None:
+    for spec in COMPOSITES:
+        for release in spec["releases"]:
+            if release["key"] == key:
+                return spec, release
+    return None
+
+
+def _composite_rows(release: dict) -> tuple[list[str], list[dict]]:
+    with open(DATA_DIR / release["file"], encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        return list(reader.fieldnames or []), list(reader)
+
+
+def _composite_release(spec: dict, release: dict) -> dict:
+    _, items = _composite_rows(release)
+    return {
+        "key": release["key"], "label": release["label"], "title": f"{spec['title']}, {release['label']}", "publisher": spec["publisher"],
+        "dataset": release["file"], "url": spec["url"], "released": release["label"], "retrieved": "", "license": spec["license"],
+        "notes": "Inputs: " + "; ".join(spec.get("inputs", [])),
+        "tables": [{"name": release["table"], "title": release["title"], "rows": len(items)}],
+        "by_status": {"reviewed": len(items)},
+    }
+
+
+def _composite_page(release: dict, q: str, filters: dict[str, str]) -> tuple[list[dict], list[dict], dict]:
+    """A composite's rows, searched and filtered, with its columns and filter choices."""
+    fields, items = _composite_rows(release)
+    q = (q or "").strip().lower()
+    if q:
+        items = [item for item in items if any(q in str(value).lower() for value in item.values())]
+    options = {"role": sorted({item.get("role", "") for item in items} - {""})} if "role" in fields else {}
+    for name, value in filters.items():
+        if value and name in options:
+            items = [item for item in items if item.get(name) == value]
+    columns = [{"key": field, "label": field.replace("_", " ").capitalize(), "numeric": False} for field in fields]
+    return columns, items, options
 
 
 # --- rows -------------------------------------------------------------------------------
@@ -218,7 +306,7 @@ def _fact_options(db: Session, source_id: int) -> dict:
     keys = _distinct(db, EstimateFact.place, EstimateFact.source_id, source_id)
     return {
         "metric": _distinct(db, EstimateFact.metric, EstimateFact.source_id, source_id),
-        "level": sorted({places.level_of(k) for k in keys}, key=lambda v: ["city", "county", "area", "state", "us"].index(v) if v in ("city", "county", "area", "state", "us") else 9),
+        "level": sorted({places.level_of(k) for k in keys}, key=lambda v: places.LEVEL_ORDER.index(v) if v in places.LEVEL_ORDER else 9),
         "status": _distinct(db, EstimateFact.status, EstimateFact.source_id, source_id),
     }
 
@@ -275,10 +363,17 @@ def _table(name: str) -> Table:
 
 def rows(db: Session, key: str, table_name: str, *, q: str = "", filters: dict[str, str] | None = None, page: int = 1, per_page: int = 50) -> dict:
     """One page of a release's table, with the filter choices its rows allow."""
-    src = _source(db, key)
-    table = _table(table_name)
     per_page = min(max(per_page, 1), MAX_PAGE)
     page = max(page, 1)
+    if composite := _composite(key):
+        _, release = composite
+        if table_name != release["table"]:
+            raise DatasetProblem("No such table.")
+        columns, items, options = _composite_page(release, q, filters or {})
+        return {"source": key, "table": table_name, "columns": columns, "rows": items[(page - 1) * per_page: page * per_page],
+                "total": len(items), "page": page, "per_page": per_page, "filters": options}
+    src = _source(db, key)
+    table = _table(table_name)
     stmt = _query(table, src.id, q, filters or {})
     total = db.exec(select(func.count()).select_from(stmt.subquery())).one()
     found = db.exec(stmt.order_by(col(table.model.id)).offset((page - 1) * per_page).limit(per_page)).all()
@@ -301,6 +396,16 @@ def export_name(key: str, table_name: str) -> str:
 def export_csv(db: Session, key: str, table_name: str, *, q: str = "", filters: dict[str, str] | None = None) -> str:
     """Every row of a release's table that matches, as CSV text. Read whole while the
     session is open; the largest release (a BLS year) is a few megabytes."""
+    if composite := _composite(key):
+        _, release = composite
+        if table_name != release["table"]:
+            raise DatasetProblem("No such table.")
+        columns, items, _ = _composite_page(release, q, filters or {})
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=[c["key"] for c in columns])
+        writer.writeheader()
+        writer.writerows(items)
+        return buffer.getvalue()
     src = _source(db, key)
     table = _table(table_name)
     found = db.exec(_query(table, src.id, q, filters or {}).order_by(col(table.model.id))).all()

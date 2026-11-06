@@ -34,7 +34,8 @@ def db():
 
 def test_catalog_lists_every_expected_dataset_with_releases_newest_first(db):
     found = {d["kind"]: d for d in datasets.catalog(db)}
-    assert list(found) == ["hud_fmr", "bls_oews", "onet", "scorecard"]
+    assert list(found) == ["hud_fmr", "bls_oews", "oed_projections", "oed_wages", "onet", "scorecard", "majors_map"]
+    assert found["majors_map"]["origin"] == "composite" and not found["majors_map"]["importable"]
     hud = found["hud_fmr"]
     assert [r["key"] for r in hud["releases"]] == ["hud-fmr-fy2027-or", "hud-fmr-fy2026-or"]
     assert hud["releases"][0]["tables"] == [{"name": "facts", "title": "Estimate facts", "rows": 10}]
@@ -90,3 +91,21 @@ def test_admin_routes_answer_with_rows_and_csv(db):
         assert export.status_code == 200 and export.headers["content-type"].startswith("text/csv")
         assert 'filename="hud-fmr-fy2026-or-facts.csv"' in export.headers["content-disposition"]
         assert client.get("/life/admin/datasets/nope/rows").status_code == 404
+
+
+def test_majors_map_is_a_composite_dataset_with_one_primary_program_per_census_major(db):
+    release = next(d for d in datasets.catalog(db) if d["kind"] == "majors_map")["releases"][0]
+    assert release["tables"][0]["name"] == "map" and release["tables"][0]["rows"] >= 174
+    everything = list(csv.DictReader(io.StringIO(datasets.export_csv(db, release["key"], "map"))))
+    assert len(everything) == release["tables"][0]["rows"]
+    assert datasets.rows(db, release["key"], "map", per_page=500)["per_page"] == 200
+    primaries = [r for r in everything if r["role"] == "primary"]
+    assert len({r["fod_code"] for r in everything}) == 174
+    assert len(primaries) == 174, "each Census major has exactly one primary program"
+    assert all(r["cip4"] and len(r["cip4"]) == 5 for r in everything)
+    nursing = datasets.rows(db, release["key"], "map", q="nursing", filters={"role": "primary"})
+    assert any(r["fod_code"] == "6107" and r["cip4"] == "51.38" for r in nursing["rows"])
+    text = datasets.export_csv(db, release["key"], "map", q="nursing")
+    assert text.splitlines()[0] == "fod_code,fod_title,cip4,cip_title,role,reviewed" and "51.38" in text
+    with pytest.raises(datasets.DatasetProblem):
+        datasets.rows(db, release["key"], "facts")
