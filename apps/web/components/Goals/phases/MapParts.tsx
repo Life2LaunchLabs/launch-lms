@@ -21,19 +21,16 @@ const CARD = 'relative isolate flex h-[180px] w-full select-none flex-col justif
 const Shade = () => <span className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,transparent_30%,rgb(8_20_30/0.8))]" aria-hidden="true" />
 
 /**
- * A phase's card. Press and hold (touch) or drag it (mouse) to move it; a tap opens its details.
- * `opt` marks it as a place to drop a new option beside it while something is being moved.
+ * Press and hold (touch) or drag (mouse) to pick something up. Touch listeners go on the touched element
+ * itself and stay until the finger lifts, so the drag keeps working while the map redraws, and the page
+ * stops scrolling once it is lifted. A horizontal mouse drag is left to the options tray.
  */
-export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; opt?: string; onOpen: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
-  const wh = whenOf(env.base, p)
-  const movable = env.later(p) && !env.moving
+export function useHoldDrag(enabled: boolean, onLift: (x: number, y: number) => void, onLiftMove: (x: number, y: number) => void, onLiftEnd: () => void) {
   const [holding, setHolding] = React.useState(false)
   const mouse = React.useRef<{ x: number; y: number; live: boolean } | null>(null)
-
-  // Touch: listeners go on the touched element itself and stay there until the finger lifts, so the
-  // drag keeps working while the map redraws, and the page stops scrolling once the card is lifted.
+  const skip = (t: EventTarget) => !!(t as HTMLElement).closest?.('input,textarea,[data-no-drag]')
   const onTouchStart = (e: React.TouchEvent) => {
-    if (!movable || e.touches.length > 1) return
+    if (!enabled || e.touches.length > 1 || skip(e.target)) return
     const target = e.target as HTMLElement, t0 = e.touches[0]
     let live = false, moved = false
     setHolding(true)
@@ -62,10 +59,23 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
   }, [onLift, onLiftMove, onLiftEnd])
+  return {
+    holding, onTouchStart,
+    onPointerDown: (e: React.PointerEvent) => { if (enabled && e.pointerType === 'mouse' && e.button === 0 && !skip(e.target)) mouse.current = { x: e.clientX, y: e.clientY, live: false } },
+    onContextMenu: (e: React.MouseEvent) => { if (enabled) e.preventDefault() },
+  }
+}
+
+/**
+ * A phase's card. Press and hold (touch) or drag it (mouse) to move it; a tap opens its details.
+ * `opt` marks it as a place to drop a new option beside it while something is being moved.
+ */
+export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; opt?: string; onOpen: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
+  const wh = whenOf(env.base, p)
+  const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
   return <button type="button" data-card={p.id} data-opt={opt} data-title={p.title} onClick={onOpen} title={`${p.title} · from ${monthText(p.starts!)}`}
-    onPointerDown={(e) => { if (movable && e.pointerType === 'mouse' && e.button === 0) mouse.current = { x: e.clientX, y: e.clientY, live: false } }}
-    onTouchStart={onTouchStart} onContextMenu={(e) => { if (movable) e.preventDefault() }}
+    {...drag}
     className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
     <PhaseCover phase={p} photos={env.photos} past={wh === 'done'} className={cn('absolute inset-0 -z-20 h-full w-full', p.idea && 'saturate-[.45]')} />
@@ -81,17 +91,23 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
   </button>
 }
 
-/** A new phase just dropped onto the map, not kept yet: name it and tick, or cross it out. */
-export function PendingCard({ p, onKeep, onCancel }: { p: Phase; onKeep: (title: string) => void; onCancel: () => void }) {
-  const [name, setName] = React.useState('')
-  return <form data-card={p.id} onSubmit={(e) => { e.preventDefault(); onKeep(name) }}
-    className="flex h-[180px] flex-col justify-between rounded-[22px] border-[3px] border-dashed border-foreground/60 bg-card p-4">
-    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">New phase · from {monthText(p.starts!)}</span>
-    <input autoFocus aria-label="Name of the new phase" value={name} onChange={(e) => setName(e.target.value)} placeholder="Gap year, trade school, move to Portland…"
-      className="h-12 w-full rounded-2xl bg-muted px-3 text-lg font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />
-    <span className="flex justify-end gap-2">
-      <button type="button" onClick={onCancel} aria-label="Don’t add it" className="grid size-11 place-items-center rounded-full bg-muted text-foreground"><X size={20} aria-hidden="true" /></button>
-      <button type="submit" aria-label="Add it" className="grid size-11 place-items-center rounded-full bg-foreground text-background"><Check size={20} aria-hidden="true" /></button>
+/** A new phase just dropped onto the map, not kept yet: name it and tick, or cross it out. Hold it to move it again. */
+export function PendingCard({ p, env, name, steps, onName, onKeep, onCancel, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; name: string; steps?: string[]; onName: (v: string) => void; onKeep: () => void; onCancel: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
+  const { holding, ...drag } = useHoldDrag(!env.moving, onLift, onLiftMove, onLiftEnd)
+  return <form data-card={p.id} onSubmit={(e) => { e.preventDefault(); onKeep() }} {...drag}
+    className={cn('flex h-[180px] select-none flex-col justify-between rounded-[22px] border-[3px] border-dashed border-foreground/60 bg-card p-4 transition-[transform,opacity] [-webkit-touch-callout:none]', holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
+    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{steps ? `${steps.length === 1 ? '1 phase' : `${steps.length} phases`}` : 'New phase'} · from {monthText(p.starts!)}</span>
+    {steps ? <span className="grid gap-1">
+      <b className="truncate text-2xl font-extrabold leading-tight">{name}</b>
+      <small className="truncate text-sm font-bold text-muted-foreground">{steps.join(' → ')}</small>
+    </span> : <input autoFocus aria-label="Name of the new phase" value={name} onChange={(e) => onName(e.target.value)} placeholder="Gap year, trade school, move to Portland…"
+      className="h-12 w-full rounded-2xl bg-muted px-3 text-lg font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />}
+    <span className="flex items-center justify-between gap-2">
+      <small className="text-xs font-bold text-muted-foreground">Hold to move it</small>
+      <span className="flex gap-2">
+        <button type="button" onClick={onCancel} aria-label="Don’t add it" className="grid size-11 place-items-center rounded-full bg-muted text-foreground"><X size={20} aria-hidden="true" /></button>
+        <button type="submit" aria-label="Add it" className="grid size-11 place-items-center rounded-full bg-foreground text-background"><Check size={20} aria-hidden="true" /></button>
+      </span>
     </span>
   </form>
 }
@@ -100,11 +116,13 @@ export function PendingCard({ p, onKeep, onCancel }: { p: Phase; onKeep: (title:
  * A split's options: one shows, the others are a swipe away. On desktop (`wide`) the options either
  * side peek out from behind the shown one, muted; click one to bring it forward.
  */
-export function Tray({ env, panes, index, onIndex, wide }: { env: Env; panes: { id: string; phase: Phase; node: React.ReactNode }[]; index: number; onIndex: (j: number) => void; wide?: boolean }) {
+export function Tray({ env, trayKey, panes, index, onIndex, wide }: { env: Env; trayKey: string; panes: { id: string; phase: Phase; node: React.ReactNode }[]; index: number; onIndex: (j: number) => void; wide?: boolean }) {
   const [dragging, setDragging] = React.useState(false)
   const tray = React.useRef<HTMLDivElement>(null), track = React.useRef<HTMLDivElement>(null), label = React.useRef<HTMLSpanElement>(null)
   const d = React.useRef<{ x: number; y: number; on: boolean; dx: number; w: number; id: number } | null>(null)
   const n = panes.length, i = Math.min(index, n - 1)
+  // While something is dragged, holding it near either edge flips to the next option (see PlanMap).
+  const marks = { 'data-tray': trayKey, 'data-opts': panes.map((q) => q.id).join(','), 'data-index': i }
   const tf = (at: number, dx = 0) => `translateX(calc(${-at * 100}% + ${dx}px))`
   React.useLayoutEffect(() => { if (track.current && !wide) track.current.style.transform = tf(i) })
 
@@ -117,7 +135,7 @@ export function Tray({ env, panes, index, onIndex, wide }: { env: Env; panes: { 
         <PhaseCover phase={q} photos={env.photos} className="absolute inset-0 -z-20 h-full w-full saturate-[.4]" /><Shade />
       </button>
     }
-    return <div className="relative">
+    return <div className="relative" {...marks}>
       {peek(i - 1, -1)}{peek(i + 1, 1)}
       <div key={panes[i].id} className="relative z-10 animate-in fade-in duration-300">{panes[i].node}</div>
     </div>
@@ -163,7 +181,7 @@ export function Tray({ env, panes, index, onIndex, wide }: { env: Env; panes: { 
     if (track.current) track.current.style.transform = tf(to)
     if (to !== i) onIndex(to)
   }
-  return <div ref={tray} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} className="relative touch-pan-y overflow-hidden">
+  return <div ref={tray} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} className="relative touch-pan-y overflow-hidden" {...marks}>
     <span ref={label} aria-hidden="true" className={cn('pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full bg-foreground px-3 py-1 text-xs font-extrabold text-background transition-opacity', dragging ? 'opacity-100' : 'opacity-0')} />
     <div ref={track} className="flex items-start transition-transform duration-300 ease-out" style={{ transform: tf(i) }}>
       {panes.map((pane, j) => <div key={pane.id} aria-hidden={j !== i || undefined}
