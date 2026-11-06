@@ -17,6 +17,8 @@ from src.db.portfolio_records import (
     QuoteAsk,
     QuoteWrite,
     ResultWrite,
+    ConnectRequestsUpdate,
+    ResumeContactUpdate,
     ResumeVersionWrite,
 )
 from src.db.users import PublicUser
@@ -43,6 +45,19 @@ async def api_update_highlights(payload: HighlightsUpdate, current_user: PublicU
 @router.put("/me/layout")
 async def api_update_layout(payload: LayoutUpdate, current_user: PublicUser = User, db_session: Session = Db):
     return portfolio_display.update_layout(payload, current_user, db_session)
+
+
+@router.put("/me/resume-contact")
+async def api_update_resume_contact(payload: ResumeContactUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    return portfolio_display.update_resume_contact(payload, current_user, db_session)
+
+
+@router.put("/me/connect-requests")
+async def api_update_connect_requests(payload: ConnectRequestsUpdate, current_user: PublicUser = User, db_session: Session = Db):
+    """Let people who see your shared portfolio ask to connect (off until you turn it on)."""
+    from src.services.connect import requests as connect_requests
+
+    return connect_requests.set_taking_requests(db_session, current_user, payload.on)
 
 
 @router.put("/me/progress")

@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { FileSpreadsheet, Plus } from 'lucide-react'
+import { Download, FileSpreadsheet, Plus } from 'lucide-react'
 import { SectionHeader } from '@components/Plans/library/PlanCards'
 import { primaryActionClass } from '@components/Plans/shared/actions'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -11,6 +11,7 @@ import { resourceKeys, resourcesApi, type Workspace } from '@services/resources/
 import { cn } from '@/lib/utils'
 import LibraryTab from './LibraryTab'
 import { Loading, SearchBox, TypeChips, useResourceFilter } from './listing'
+import { ExportModal } from './ExportModal'
 import { ImportModal } from './ImportModal'
 import { NewChannelModal, ResourceModal } from './modals'
 import { ChannelTile, NewChannelTile, ResourceListRow, listClass, useResourcesContext } from './pieces'
@@ -23,6 +24,7 @@ export default function ResourcesHome({ tab }: { tab: Tab }) {
   const { data: workspace } = useSWR(ready ? resourceKeys.workspace(orgId) : null, () => resourcesApi.workspace(orgId, token))
   const [adding, setAdding] = React.useState(false)
   const [importing, setImporting] = React.useState(false)
+  const [exporting, setExporting] = React.useState(false)
   const tabs: Array<{ id: Tab; label: string; href: string; count?: number }> = [
     { id: 'mine', label: 'Your resources', href: routePaths.org.admin.resources.root(), count: workspace?.resources.length },
     { id: 'library', label: 'Library', href: routePaths.org.admin.resources.library() },
@@ -36,6 +38,7 @@ export default function ResourcesHome({ tab }: { tab: Tab }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setImporting(true)} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-muted"><FileSpreadsheet size={16} aria-hidden="true" />Import a spreadsheet</button>
+          <button type="button" onClick={() => setExporting(true)} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-muted"><Download size={16} aria-hidden="true" />Export</button>
           <button type="button" onClick={() => setAdding(true)} className={primaryActionClass}><Plus size={16} aria-hidden="true" />Add resource</button>
         </div>
       </header>
@@ -52,6 +55,7 @@ export default function ResourcesHome({ tab }: { tab: Tab }) {
     </div>
     <ResourceModal open={adding} setOpen={setAdding} channels={workspace?.channels || []} />
     <ImportModal open={importing} setOpen={setImporting} />
+    <ExportModal open={exporting} setOpen={setExporting} channels={workspace?.channels || []} />
   </div>
 }
 

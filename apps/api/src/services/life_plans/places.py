@@ -2,7 +2,7 @@
 
 Oregon is covered down to towns and counties; every other state is covered at the
 state level. Each place resolves to a ladder of place keys, most specific first:
-city, county, wage area, state, US. The resolver walks it and uses the first level
+city, county, the Oregon Employment Department's areas (smallest first), BLS wage area, state, US. The resolver walks it and uses the first level
 that has a reviewed fact.
 
 Oregon counties map to the wage areas BLS uses for its Occupational Employment and
@@ -121,11 +121,51 @@ STATES: dict[str, str] = {
     "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
 }
 
-LEVEL_ORDER = ("city", "county", "area", "state", "us")
+# Oregon Employment Department (OED) areas: its workforce regions and the smaller groups it publishes
+# wages and projections for. Counties are as each 2024-2034 projections file names them; the five
+# areas only the wage file has are named after their counties, except Portland-Metro, which we take
+# as the Oregon side of the Portland metro area. Aliases are the other spellings OED uses for a name.
+OR_REGIONS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "portland-tri-county": ("Portland Tri-County", ("clackamas", "multnomah", "washington")),
+    "portland-metro": ("Portland metro", ("clackamas", "columbia", "multnomah", "washington", "yamhill")),
+    "clackamas": ("Clackamas County", ("clackamas",)),
+    "mid-valley": ("Mid-Valley", ("linn", "marion", "polk", "yamhill")),
+    "linn-benton": ("Linn and Benton counties", ("linn", "benton")),
+    "northwest": ("Northwest Oregon", ("benton", "clatsop", "columbia", "lincoln", "tillamook")),
+    "lane": ("Lane County", ("lane",)),
+    "southwestern": ("Southwestern Oregon", ("coos", "curry", "douglas")),
+    "douglas": ("Douglas County", ("douglas",)),
+    "south-coast": ("the South Coast", ("coos", "curry")),
+    "rogue-valley": ("Rogue Valley", ("jackson", "josephine")),
+    "east-cascades": ("East Cascades", ("crook", "deschutes", "gilliam", "hood-river", "jefferson", "klamath", "lake", "sherman", "wasco", "wheeler")),
+    "central": ("Central Oregon", ("crook", "deschutes", "jefferson")),
+    "columbia-gorge": ("Columbia Gorge", ("gilliam", "hood-river", "sherman", "wasco", "wheeler")),
+    "south-central": ("South Central Oregon", ("klamath", "lake")),
+    "eastern": ("Eastern Oregon", ("baker", "grant", "harney", "malheur", "morrow", "umatilla", "union", "wallowa")),
+    "columbia-basin": ("Columbia Basin", ("morrow", "umatilla")),
+    "eastern-six": ("Eastern Six", ("baker", "grant", "harney", "malheur", "union", "wallowa")),
+}
+OR_REGION_ALIASES = {"northwest-oregon": "northwest", "southwestern-oregon": "southwestern", "central-oregon": "central",
+                     "eastern-oregon": "eastern", "portland-metro": "portland-metro"}
+
+LEVEL_ORDER = ("city", "county", "region", "area", "state", "us")
 
 
 def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def region_key(name: str) -> str | None:
+    """The place key of an OED area named as OED names it ("Mid Valley", "Southwestern Oregon"), or None."""
+    s = slug(name)
+    s = OR_REGION_ALIASES.get(s, s)
+    return f"region:OR:{s}" if s in OR_REGIONS else None
+
+
+def regions_of(county: str) -> list[str]:
+    """The OED areas a county sits in, smallest first, as place keys."""
+    found = [(len(counties), key) for key, (_, counties) in OR_REGIONS.items() if county in counties]
+    return [f"region:OR:{key}" for _, key in sorted(found)]
 
 
 def level_of(key: str) -> str:
@@ -144,6 +184,8 @@ def label(key: str | None) -> str:
         return f"{OR_COUNTIES[parts[2]][0]}, OR"
     if kind == "city" and len(parts) == 3 and parts[1] == "OR" and parts[2] in OR_CITIES:
         return f"{OR_CITIES[parts[2]][0]}, OR"
+    if kind == "region" and len(parts) == 3 and parts[1] == "OR" and parts[2] in OR_REGIONS:
+        return OR_REGIONS[parts[2]][0]
     if kind == "area" and len(parts) == 2:
         names = {code: name for _, code, name in OR_COUNTIES.values()}
         return names.get(parts[1], f"area {parts[1]}")
@@ -162,6 +204,7 @@ def ladder(key: str | None) -> list[str]:
         kind, parts = "county", ["county", "OR", OR_CITIES[parts[2]][1]]
     if kind == "county" and len(parts) == 3 and parts[1] == "OR" and parts[2] in OR_COUNTIES:
         out.append(":".join(parts))
+        out.extend(regions_of(parts[2]))
         out.append(f"area:{OR_COUNTIES[parts[2]][1]}")
         out.append("state:OR")
     elif kind == "state" and len(parts) == 2 and parts[1] in STATES:

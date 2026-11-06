@@ -23,9 +23,31 @@ lines without an estimate ask for the learner's own number. Nothing in the code 
 Superadmins upload official files to `POST /api/v1/life/admin/import` (`kind`, `year`, `url`, `file`),
 then mark the source reviewed with `POST /api/v1/life/admin/sources/{key}/review`.
 
+Platform › Datasets (formerly Estimates; `/admin/platform/estimates` redirects) shows each expected dataset
+(`services/life_plans/datasets.py`: HUD FMRs, BLS OEWS, O*NET, College Scorecard) with what it is, how we use it,
+its license and the file to import. A dataset's page has a tab per loaded release, newest first, and each
+release's tables (facts, careers, schools) to search, filter, page through and export as CSV:
+`GET /admin/datasets`, `GET /admin/datasets/{key}/rows`, `GET /admin/datasets/{key}/export`. Rows are never
+edited there; a release is approved, sent back to draft or retired as a whole.
+
+Composite datasets, the tables we build ourselves, are listed there too, marked "Built by us". The first is the
+**majors map** (`services/life_plans/data/majors_map.csv`): each of the Census's 174 college majors (ACS PUMS
+`FOD1P`) linked to the CIP 2020 four-digit program families it covers, with one `primary` program each and
+sometimes others marked `also`. Neither Census nor NCES publishes this crosswalk. We drafted it from name
+matching and the overlap between the jobs graduates hold and the jobs each program trains for, then checked it
+by hand (the `reviewed` column says which rows were corrected). It is what lets one merged majors list carry
+Census outcomes. Changes to it go through code review rather than approval in the app.
+
 - `hud_fmr`: HUD Fair Market Rents county file (csv or xlsx with `fmr_0`..`fmr_4`). Oregon counties.
 - `bls_oews`: BLS OEWS all-data file. Keeps US, state and Oregon metro and nonmetro areas, detailed
   occupations; hourly percentiles, or annual where hourly isn't published.
+- `oed_projections` and `oed_wages` (`services/life_plans/oregon.py`): the Oregon Employment Department's
+  occupational projections workbook and its Occupational Wage Information workbook, read from their All Areas
+  sheets. Projections load `employment`, `employment_projected`, `growth` and `openings` (a year, with typical and
+  competitive entry education in the note); wages load `wage` with percentiles, aged by OED to the file's year.
+  Both cover the state and OED's areas, a new `region` level on the place ladder (`places.OR_REGIONS`, counties
+  as each projections file names them), tried smallest first between the county and the BLS area: Roseburg
+  climbs Douglas County, then Southwestern Oregon.
 
 Oregon places (`services/life_plans/places.py`) map about 50 towns to their counties and every
 county to its BLS area (BLS county crosswalk, May 2024).
@@ -59,6 +81,40 @@ apprenticeships; needs a registered key), outlook, and the budget's tuition line
 Context bar (phase switcher and stretches), one-phase chart with a full-screen view of all phases,
 the budget table (estimate, source, range, own number, calculator), the add tray, and cards for
 one-time money, debt, savings and things you own. The money arithmetic is in `model.ts`.
+
+## Proposed: keeping resources current when a dataset updates
+
+Not built yet. How it works today, and what goes wrong:
+
+- Facts are safe. A new release is a new source, so the older reviewed release keeps answering
+  estimates until the new one is approved, and the newest reviewed release wins after that.
+- Careers and schools are now safe too (built 2026-11-06, migration `m2r4e6l8s0a1`): entries are unique per
+  release (`code` + `source_id`, `unitid` + `source_id`), importing replaces only that release's own rows, and
+  readers (`public_data.live_careers()` / `live_schools()`) take each code from the newest reviewed release.
+- Career and school resources are copies. `add_career_resources` and `add_school_resources` write the title,
+  description and tags into each organization's `Resource` once. They go stale when the data changes, and a
+  career O*NET retires or merges leaves a resource pointing at nothing. The career profile itself reads live
+  entries and facts, so pay and tasks do update.
+
+Proposal:
+
+1. **Releases, not replacements.** Done: see above. Retiring an older release stays a separate step, and a
+   code a newer release drops keeps answering from the older one until that release is retired.
+2. **Resources point at the data.** A career or school resource stores its dataset reference (`onet:29-1141.00`,
+   `scorecard:209038`) next to its link. Text built from the data (description, tags, title) is generated
+   from the current reviewed entry rather than stored, or regenerated when a release is approved. Staff
+   edits to a resource's own fields win over generated ones.
+3. **Approval runs a sync.** Approving a release updates every organization's resources that reference it,
+   and reports what changed: updated, renamed, and retired or merged codes (O*NET's taxonomy crosswalks map
+   old codes to new). Retired ones leave Discover and are listed for staff. Learners' saved careers and plan
+   steps keep their reference and follow the mapping.
+4. **Channels can follow a dataset.** A channel may carry a rule ("all reviewed Oregon schools", "careers in
+   job zones 1 to 3"), so new entries join it on approval instead of needing the MCP tool again.
+5. **Preview before approve.** The dataset page shows what approval would change (rows added, changed and
+   removed, and how many resources in how many organizations) before the button is pressed.
+6. **Composite datasets rebuild from their inputs.** A composite (an Oregon occupation table joined from
+   O*NET, BLS and state data) lists its inputs. Approving an input marks it stale and rebuilds it as a draft
+   release, which is reviewed like any other.
 
 ## Not yet
 

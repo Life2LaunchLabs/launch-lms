@@ -36,7 +36,7 @@ function AboutTile({ shell, setShell, owner, token, onEditLinks, spots }: TilePr
   // As on the prototype's About page: the bio on top, then where people can find more of you.
   return <Tile section="about" color="amber" icon={User} title="About me" wide spot={spots?.about || spots?.links}>
     <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
-    {socials.length || owner ? <div className="grid gap-2 border-t border-border pt-3.5">
+    {socials.length || owner ? <div className="grid shrink-0 gap-2 border-t border-border pt-3.5">
       <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Find me</span>
       {socials.length ? <ul className="grid gap-1.5 @md:grid-cols-2" aria-label="Links">{socials.map((social) => <li key={social.type}>
         <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
@@ -54,7 +54,7 @@ function ExperienceTile({ spots, spotLinks, shell, owner, orgslug, username }: T
   if (!owner && !entries.length) return null
   const href = (entry: TimelineEntry) => getUriWithOrg(orgslug, owner ? `/portfolio/timeline/${entry.timeline_uuid}` : `/user/${username}/timeline/${entry.slug}`)
   return <Tile section="experience" color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title="Experience" count={entries.length || null} href={getUriWithOrg(orgslug, spotLinks?.experience || (owner ? '/portfolio/timeline' : `/user/${username}/timeline`))} wide>
-    {entries.length ? <div className="grid grid-cols-2 gap-3 @lg:grid-cols-3 @2xl:grid-cols-4">{entries.slice(0, limit).map((entry) => <Link key={entry.timeline_uuid} data-item href={href(entry)} className="group/item grid min-w-0 content-start gap-1">
+    {entries.length ? <div data-card-grid className="grid grid-cols-2 justify-start gap-3 @lg:grid-cols-3 @2xl:grid-cols-4">{entries.slice(0, limit).map((entry) => <Link key={entry.timeline_uuid} data-item href={href(entry)} className="group/item grid min-w-0 content-start gap-1">
       <div data-cover className="relative mb-1 aspect-[4/3] overflow-hidden rounded-xl transition group-hover/item:-translate-y-0.5">
         <KindCover kind="experience" type={entry.entry_type} url={entry.cover_url ? normalizeMediaUrl(entry.cover_url) : ''} />
         {entry.is_current ? <span className="absolute right-2 top-2 rounded-full bg-[#0B7D73] px-2 py-0.5 text-[11px] font-extrabold text-white">Now</span> : null}
@@ -72,7 +72,7 @@ function ProjectsTile({ spots, spotLinks, shell, owner, orgslug, username }: Til
   if (!owner && !projects.length) return null
   const href = (project: Project) => getUriWithOrg(orgslug, owner ? `/portfolio/projects/${project.project_uuid}` : `/user/${username}/projects/${project.slug}`)
   return <Tile section="projects" color="pink" spot={spots?.projects} icon={FolderOpen} title="Projects" count={projects.length || null} href={getUriWithOrg(orgslug, spotLinks?.projects || (owner ? '/portfolio/projects' : `/user/${username}/projects`))}>
-    {projects.length ? <div data-projects className="grid grid-cols-2 gap-2.5 @md:grid-cols-3 @2xl:grid-cols-4">{projects.slice(0, limit).map((project) => <Link key={project.project_uuid} data-item href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
+    {projects.length ? <div data-projects data-card-grid className="grid grid-cols-2 justify-start gap-2.5 @md:grid-cols-3 @2xl:grid-cols-4">{projects.slice(0, limit).map((project) => <Link key={project.project_uuid} data-item href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
       <div data-cover className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} /></div>
       <b className="line-clamp-2 text-[12.5px] font-extrabold leading-tight">{project.title}</b>
     </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={getUriWithOrg(orgslug, spotLinks?.projects || '/portfolio/projects/new')} />}
@@ -131,7 +131,7 @@ function ResultLine({ result }: { result: PortfolioResult }) {
   const same = result.summary === String(result.data?.type ?? '')
   // Skills and values are their chips, under the name.
   if (templateOf(result)?.input === 'chips') return <span className="grid gap-2 px-1 py-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><ResultPicture result={result} compact /></span>
-  if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? 'My type' : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
+  if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? 'Personality type' : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
   // A result with no line of its own (an imported skill, say) shows its kind above its name, not its name twice.
   const bare = !result.summary?.trim() || result.summary.trim().toLowerCase() === result.name.trim().toLowerCase()
   const label = bare ? RESULT_KINDS.find((kind) => kind.value === result.kind)?.label || '' : result.name

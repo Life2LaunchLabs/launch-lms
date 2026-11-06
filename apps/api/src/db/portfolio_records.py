@@ -307,6 +307,17 @@ class LayoutUpdate(BaseModel):
     feature_autoplay: bool | None = None
 
 
+class ConnectRequestsUpdate(BaseModel):
+    on: bool
+
+
+class ResumeContactUpdate(BaseModel):
+    """How an employer reaches the learner, printed on their résumé only: never on the portfolio, never to visitors."""
+
+    email: str = PydanticField(default="", max_length=200)
+    phone: str = PydanticField(default="", max_length=40)
+
+
 class ProgressSeen(BaseModel):
     """A quest whose unlock the learner has seen: 1 sharing, 2 résumé, 3 mastery."""
 

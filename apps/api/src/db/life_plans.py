@@ -84,7 +84,7 @@ class CareerEntry(SQLModel, table=True):
     """
 
     __tablename__ = "careerentry"
-    __table_args__ = (UniqueConstraint("code"),)
+    __table_args__ = (UniqueConstraint("code", "source_id"),)
 
     id: int | None = Field(default=None, primary_key=True)
     code: str = Field(sa_column=Column(String(16), nullable=False, index=True))
@@ -123,7 +123,7 @@ class SchoolEntry(SQLModel, table=True):
     """
 
     __tablename__ = "schoolentry"
-    __table_args__ = (UniqueConstraint("unitid"),)
+    __table_args__ = (UniqueConstraint("unitid", "source_id"),)
 
     id: int | None = Field(default=None, primary_key=True)
     unitid: str = Field(sa_column=Column(String(12), nullable=False, index=True))
