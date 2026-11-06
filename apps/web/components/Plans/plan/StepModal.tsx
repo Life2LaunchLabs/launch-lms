@@ -20,7 +20,7 @@ import StepPreview from './StepPreview'
 /** Which step the dialog is on: a stage to add to (picking a type first), or one step to open. */
 export type StepTarget = { stageKey: string; stepKey?: string } | null
 
-const PICKER_ORDER: StepTypeKey[] = ['task', 'write', 'upload', 'decision', 'event', 'routine', 'explore', 'activity', 'portfolio', 'badge']
+const PICKER_ORDER: StepTypeKey[] = ['task', 'write', 'upload', 'decision', 'event', 'routine', 'explore', 'resources', 'activity', 'portfolio', 'badge']
 
 /** The admin activity editor for a plan's activity step. */
 export const templateActivityHref = (orgslug: string, templateUuid: string, activityUuid: string) =>

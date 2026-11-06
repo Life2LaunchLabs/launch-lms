@@ -32,7 +32,8 @@ function About({ dataset, release }: { dataset: Dataset; release?: DatasetReleas
     ['How we use it', dataset.used_for],
     ['Publisher', dataset.publisher],
     ['License', dataset.license],
-    ['File to import', dataset.file],
+    [dataset.origin === 'composite' ? 'Where it lives' : 'File to import', dataset.file],
+    ['Built from', dataset.inputs?.length ? dataset.inputs.join('; ') : null],
     ['Published at', dataset.url ? <a href={dataset.url} target="_blank" rel="noreferrer" className="text-blue-600 underline">{dataset.url}</a> : null],
   ]
   if (release) rows.push(
@@ -125,7 +126,7 @@ export default function DatasetDetail() {
     {isLoading ? <LoadingRows /> : error ? <p className="text-sm text-red-700" role="alert">The dataset could not load.</p>
       : !dataset ? <p className="text-sm text-gray-600">There's no dataset called {kind}.</p>
       : <>
-        <div><h1 className="text-xl font-semibold text-gray-900">{dataset.title}</h1><p className="text-sm text-gray-500">{dataset.publisher}</p></div>
+        <div><h1 className="text-xl font-semibold text-gray-900">{dataset.title}</h1><p className="text-sm text-gray-500">{dataset.origin === 'composite' ? 'Built by us from other datasets' : dataset.publisher}</p></div>
         <About dataset={dataset} release={release} />
         {!release ? <div className="bg-white border border-gray-100 rounded-xl nice-shadow"><EmptyState icon={<TableIcon size={32} />} message={`Not loaded yet. Import ${dataset.file || 'its file'} on the Datasets page.`} /></div>
           : <>
@@ -134,7 +135,8 @@ export default function DatasetDetail() {
                 <TabsList aria-label="Release">{dataset.releases.map((item) => <TabsTrigger key={item.key} value={item.key}>{item.label}</TabsTrigger>)}</TabsList>
               </Tabs> : <span className="text-sm font-semibold text-gray-800">{release.label}</span>}
               <StatusCounts byStatus={release.by_status} />
-              <div className="ml-auto"><ReviewActions release={release} token={token} onDone={() => void mutate()} /></div>
+              {dataset.origin === 'composite' ? <span className="ml-auto text-xs text-gray-500">Built by us and changed through code review, so there's nothing to approve here.</span>
+                : <div className="ml-auto"><ReviewActions release={release} token={token} onDone={() => void mutate()} /></div>}
             </div>
             {release.tables.length > 1 ? <Tabs value={table} onValueChange={(name) => params.update({ ...clear, release: release.key, table: name })}>
               <TabsList aria-label="Table">{release.tables.map((item) => <TabsTrigger key={item.name} value={item.name}>{item.title} <span className="ml-1.5 text-xs text-gray-400">{item.rows.toLocaleString()}</span></TabsTrigger>)}</TabsList>
