@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Plus, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -50,7 +51,13 @@ export function PortfolioResultsPage({ initialShell, orgslug }: { initialShell: 
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const [shell, setShell] = useState(initialShell)
-  const [editor, setEditor] = useState<{ result?: PortfolioResult; template?: string; kind?: PortfolioResult['kind'] } | null>(null)
+  // ?open=<template> (from Explore's "Pick your skills") opens that test: the learner's own result, else a new one.
+  const opening = useSearchParams()?.get('open')
+  const [editor, setEditor] = useState<{ result?: PortfolioResult; template?: string; kind?: PortfolioResult['kind'] } | null>(() => {
+    if (!opening || !RESULT_TEMPLATES.some((item) => item.id === opening)) return null
+    const own = (initialShell.results || []).find((item) => templateOf(item)?.id === opening)
+    return own ? { result: own } : { template: opening }
+  })
   const quizHref = getUriWithOrg(orgslug, '/portfolio/interests')
   // An older skills line (from before the chips, or an import) keeps its own row of chips below.
   const legacy = (item: PortfolioResult) => item.kind === 'skills' && !templateOf(item)

@@ -2,10 +2,11 @@
 
 import React, { type Dispatch } from 'react'
 import Link from 'next/link'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { ArrowLeftRight, Check, ChevronDown, ChevronRight, GitBranch, Globe, Loader2, MapPin } from 'lucide-react'
 import { SpeakButton } from '@components/Accessibility/ReadAloud'
 import { useOrg } from '@components/Contexts/OrgContext'
+import { PORTFOLIO_STRENGTHS } from '@components/Portfolio/traitOptions'
 import { routesFor } from '@components/Goals/phases/graph'
 import { getUriWithOrg } from '@services/config/config'
 import {
@@ -14,6 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import { CAREER_TYPES, TRAINING, matchLabel } from './CareerTile'
 import CareerCompare, { type CompareChoice } from './CareerCompare'
+import HomeBaseSheet from './HomeBaseSheet'
 
 // A career's page inside its resource sheet, as the questions a learner asks: what would I do, would I like it,
 // what does it pay, can I get a job, what does it take, how do I get there, and what else is like this. Each answer
@@ -164,7 +166,7 @@ const growthWord = (growth: number | null) => growth == null ? '' : growth > 0.0
 const percent = (growth: number) => `${growth > 0 ? '+' : ''}${(growth * 100).toFixed(1)}%`
 const many = (openings: number) => openings >= 100 ? 'Lots of openings' : openings >= 20 ? 'Steady openings' : openings >= 5 ? 'A few openings' : 'Very few openings'
 
-function JobsSection({ outlook, home }: { outlook: CareerOutlook; home: Profile['home'] }) {
+function JobsSection({ outlook, home, onHome }: { outlook: CareerOutlook; home: Profile['home']; onHome: () => void }) {
   const oregon = outlook.places.find((row) => row.place === 'state:OR')
   const near = outlook.here ? outlook.places.find((row) => row.place === outlook.here) : null
   const main = near || oregon
@@ -190,7 +192,7 @@ function JobsSection({ outlook, home }: { outlook: CareerOutlook; home: Profile[
       {main.growth != null ? <Tile value={percent(main.growth)} label={`${main.growth >= 0 ? 'more' : 'fewer'} jobs by ${outlook.end || 'ten years'}`} /> : null}
     </div>
     {newJobs != null && main.openings > Math.max(1, newJobs) * 2 ? <p className="m-0 text-[13px] text-muted-foreground">Most openings come from people retiring or changing jobs, not only new jobs.</p> : null}
-    {!near && !home ? <p className="m-0 text-[13px] text-muted-foreground">Add your town to your portfolio to see openings near you.</p> : null}
+    {!near && !home ? <p className="m-0 text-[13px] text-muted-foreground"><TownButton onClick={onHome} /> to see openings near you.</p> : null}
   </Section>
 }
 
@@ -204,6 +206,20 @@ function Schooling({ education, color }: { education: EducationShare[]; color: s
       {groups.map((group) => <span key={group.label} style={{ width: `${(group.pct / total) * 100}%`, backgroundColor: color, opacity: group.shade }} />)}
     </div>
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] font-bold text-muted-foreground">{groups.map((group) => <span key={group.label} className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color, opacity: group.shade }} />{group.label} {Math.round(group.pct)}%</span>)}</div>
+  </div>
+}
+
+/** Which of the skills the learner picked in their portfolio this job uses, or a nudge to pick some. */
+function SkillsLine({ skills, color, href }: { skills: Profile['skills']; color: string; href: string }) {
+  if (!skills) return null
+  const words = (ids: string[]) => ids.map((id) => PORTFOLIO_STRENGTHS.find((option) => option.id === id)?.text || id)
+  if (!skills.mine?.length) return <p className="m-0 text-[14px] text-muted-foreground">
+    Pick what you’re good at to see which of your skills this job uses.{href ? <> <Link href={href} className="font-extrabold text-foreground underline">Pick your skills</Link></> : null}
+  </p>
+  if (!skills.used.length) return <p className="m-0 text-[14px] text-muted-foreground">It doesn’t lean on the skills you picked{href ? <>, so it would mean learning new ones. <Link href={href} className="font-extrabold text-foreground underline">Change your skills</Link></> : '.'}</p>
+  return <div className="flex flex-col gap-1.5">
+    <span className="text-[14px] font-bold">Uses {skills.used.length === 1 ? 'one' : skills.used.length} of your skills</span>
+    <div className="flex flex-wrap gap-1.5">{words(skills.used).map((word) => <span key={word} className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[12.5px] font-extrabold" style={{ backgroundColor: `${color}22` }}><Check size={13} aria-hidden="true" />{word}</span>)}</div>
   </div>
 }
 
@@ -245,12 +261,24 @@ function ProgramCard({ program, onOpen }: { program: CareerProgram; onOpen: Disp
 }
 
 /** Schools that train for the career: Oregon's (or the learner's own state's) and fully online ones, nearest first. */
-function Paths({ paths, onOpen, color }: { paths: CareerPaths; onOpen: Dispatch<string>; color: string }) {
+const TownButton = ({ onClick }: { onClick: () => void }) => <button type="button" onClick={onClick} className="font-extrabold text-foreground underline">Add your town</button>
+const REACH_WORDS = { close: 'staying close', region: 'your region', state: 'anywhere in Oregon', anywhere: 'anywhere' } as const
+
+/** Where "near you" starts and how far the learner would go, with a button to change it. */
+function HomeLine({ home, onHome }: { home: Profile['home']; onHome: () => void }) {
+  return <button type="button" onClick={onHome} className="flex min-h-9 items-center gap-1.5 self-start rounded-full border-2 border-border bg-card px-3 text-[13px] font-bold">
+    <MapPin size={14} className="shrink-0 text-amber-600" aria-hidden="true" />
+    {home ? <span>{home.label} · {REACH_WORDS[home.reach] || REACH_WORDS.state}{home.online ? ' · online OK' : ''}</span> : <span>Set your home base</span>}
+    <span className="font-extrabold text-[var(--org-primary-color)]">{home ? 'Change' : ''}</span>
+  </button>
+}
+
+function Paths({ paths, onOpen, color, home, onHome }: { paths: CareerPaths; onOpen: Dispatch<string>; color: string; home: Profile['home']; onHome: () => void }) {
   const [sort, setSort] = React.useState<PathSort>('near')
   const [all, setAll] = React.useState(false)
   const programs = paths.programs
   if (!paths.has_data) return null
-  if (!programs.length) return <p className="m-0 text-[13.5px] text-muted-foreground">No schools nearby list a program for this yet.</p>
+  if (!programs.length) return <div className="flex flex-col gap-2"><HomeLine home={home} onHome={onHome} /><p className="m-0 text-[13.5px] text-muted-foreground">No schools that far from home list a program for this yet.</p></div>
   const list = sort === 'online' ? programs.filter((p) => p.online)
     : sort === 'short' ? [...programs].sort((a, b) => (a.years ?? 99) - (b.years ?? 99) || a.near_rank - b.near_rank)
     : sort === 'cost' ? [...programs].sort((a, b) => (totalCost(a) ?? Infinity) - (totalCost(b) ?? Infinity) || a.near_rank - b.near_rank)
@@ -258,9 +286,10 @@ function Paths({ paths, onOpen, color }: { paths: CareerPaths; onOpen: Dispatch<
   const shown = all ? list : list.slice(0, 4)
   const schools = new Set(programs.filter((p) => !p.online || p.near_rank < 5).map((p) => p.unitid)).size
   return <div className="flex flex-col gap-2">
+    <HomeLine home={home} onHome={onHome} />
     <span className="text-[13.5px] font-bold">{schools} school{schools === 1 ? '' : 's'} near you train for this{programs.some((p) => p.near_rank === 5) ? ', plus online programs' : ''}.</span>
     <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Sort programs">
-      {PATH_SORTS.map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
+      {PATH_SORTS.filter(([key]) => key !== 'online' || programs.some((p) => p.online)).map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
         className={cn('min-h-9 shrink-0 rounded-full border-2 px-3 text-[13px] font-extrabold', sort === key ? 'text-white' : 'border-border bg-card text-foreground')}
         style={sort === key ? { backgroundColor: color, borderColor: color } : undefined}>{label}</button>)}
     </div>
@@ -278,6 +307,11 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
   const org = useOrg() as any
   const { data, error } = useSWR(token ? ['career-profile', code, org?.id] : null, () => careersApi.profile(code, org?.id, token))
   const [compare, setCompare] = React.useState<CompareChoice[] | null>(null)
+  const [homeOpen, setHomeOpen] = React.useState(false)
+  const { mutate } = useSWRConfig()
+  // A new home base changes pay, openings and schools on every career page.
+  const homeSaved = () => mutate((key) => Array.isArray(key) && (key[0] === 'career-profile' || key[0] === 'life-home'))
+  const openHome = () => setHomeOpen(true)
   if (error) return null
   if (!data) return <div className="flex h-24 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading career" /></div>
   const { career, scores, wages, outlook, home } = data
@@ -285,7 +319,6 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
   const color = (CAREER_TYPES[top[0]] || CAREER_TYPES.E).color
   const zone = career.job_zone ? ZONE[career.job_zone] : null
   const quizHref = org?.slug ? getUriWithOrg(org.slug, '/portfolio/interests') : ''
-  const portfolioHref = org?.slug ? getUriWithOrg(org.slug, '/portfolio') : ''
   const similar = data.similar.filter((item) => item.resource_uuid)
   const here = wages.places.find((row) => row.place === wages.here)
   const tasks = career.tasks || []
@@ -338,6 +371,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       </div>
     </> : undefined}>
       {!scores ? <p className="m-0 text-[14px] text-muted-foreground">Answer a few questions or sort some pictures to see how this career lines up with you.{quizHref ? <> <Link href={quizHref} className="font-extrabold text-foreground underline">Find your interests</Link></> : null}</p> : null}
+      <SkillsLine skills={data.skills} color={color} href={org?.slug ? getUriWithOrg(org.slug, '/portfolio/results?open=skills-values') : ''} />
     </Section>
 
     {here && payLine ? <Section title="What does it pay?" headline={payLine} speak={payLine} moreLabel="Pay around Oregon and over time" more={<PayMore wages={wages} color={color} />}>
@@ -346,10 +380,10 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
         <span>{here.hourly.p10 != null ? `Lower: ${hourlyMoney(here.hourly.p10)}` : here.hourly.p25 != null ? `Lower: ${hourlyMoney(here.hourly.p25)}` : ''}</span>
         <span>{here.hourly.p90 != null ? `Higher: ${hourlyMoney(here.hourly.p90)}` : here.hourly.p75 != null ? `Higher: ${hourlyMoney(here.hourly.p75)}` : ''}</span>
       </div>
-      {!home ? <p className="m-0 text-[13px] text-muted-foreground">Showing Oregon. {portfolioHref ? <Link href={portfolioHref} className="font-extrabold text-foreground underline">Add your town to your portfolio</Link> : 'Add your town to your portfolio'} to see pay near you.</p> : null}
+      {!home ? <p className="m-0 text-[13px] text-muted-foreground">Showing Oregon. <TownButton onClick={openHome} /> to see pay near you.</p> : null}
     </Section> : null}
 
-    {outlook ? <JobsSection outlook={outlook} home={home} /> : null}
+    {outlook ? <JobsSection outlook={outlook} home={home} onHome={openHome} /> : null}
 
     {zone ? <Section title="What does it take?" headline={takeLine} speak={`${takeLine} ${zone[1]}`}>
       <div className="flex gap-1" aria-hidden="true">{[1, 2, 3, 4, 5].map((step) => <span key={step} className="h-2 flex-1 rounded-full" style={{ backgroundColor: step <= (career.job_zone || 0) ? color : 'hsl(var(--muted))' }} />)}</div>
@@ -365,7 +399,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
           {route.why ? <span className="text-[12.5px] font-semibold text-muted-foreground">{route.why}</span> : null}
         </li>)}
       </ol>
-      {data.paths ? <Paths paths={data.paths} onOpen={onOpen} color={color} /> : null}
+      {data.paths ? <Paths paths={data.paths} onOpen={onOpen} color={color} home={home} onHome={openHome} /> : null}
       {onAddToPlans ? <button type="button" onClick={() => onAddToPlans(data)} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-extrabold text-white shadow-[0_4px_0_rgba(0,0,0,0.25)] active:translate-y-[3px] active:shadow-[0_1px_0_rgba(0,0,0,0.25)]" style={{ backgroundColor: color }}>
         <GitBranch size={16} aria-hidden="true" />Add to my plan ideas
       </button> : null}
@@ -386,6 +420,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
         <ArrowLeftRight size={16} aria-hidden="true" />Compare with another career
       </button>
     </Section>
+    {homeOpen ? <HomeBaseSheet token={token} onClose={() => setHomeOpen(false)} onSaved={homeSaved} /> : null}
     {compare ? <CareerCompare start={compare} token={token} onClose={() => setCompare(null)} suggestions={data.similar.map((item) => ({ code: item.code, title: item.title }))} /> : null}
 
     <details className="group rounded-2xl px-1">

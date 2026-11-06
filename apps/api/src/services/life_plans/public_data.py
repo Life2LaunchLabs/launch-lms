@@ -28,6 +28,7 @@ from sqlmodel import Session, col, delete, select
 
 from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
 from src.services.life_plans.estimates import REVIEWED, dims_key
+from src.services.life_plans.skill_words import career_skills
 
 RIASEC = "RIASEC"
 INTEREST_NAMES = {"realistic": "R", "investigative": "I", "artistic": "A", "social": "S", "enterprising": "E", "conventional": "C"}
@@ -115,6 +116,9 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         ratings = _tsv(zf, "Task Ratings.txt", required=False)
         schooling = _tsv(zf, "Education, Training, and Experience.txt", "Education.txt", required=False)
         related_rows = _tsv(zf, "Related Occupations.txt", required=False)
+        # Release 31.0 split Skills.txt into essential and transferable skills.
+        skill_rows = _tsv(zf, "Skills.txt", required=False) or (_tsv(zf, "Essential Skills.txt", required=False) + _tsv(zf, "Transferable Skills.txt", required=False))
+        style_rows = _tsv(zf, "Work Styles.txt", required=False)
     code_col = "o*net-soc code"
     if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
         raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
@@ -185,12 +189,14 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         if other and other not in bucket and len(bucket) < MAX_RELATED:
             bucket.append(other)
 
+    skills = career_skills(skill_rows, style_rows, code_col)
+
     src = _upsert_source(
         db,
         key=f"onet-{version.replace('.', '-')}",
         publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
         title=f"O*NET {version} Database",
-        dataset="Occupation Data, Career Interest Types, Job Zones, job titles, task statements, required level of education and related occupations",
+        dataset="Occupation Data, Career Interest Types, Job Zones, job titles, task statements, required level of education, related occupations, skills and work styles",
         url=url,
         released=f"O*NET {version}",
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
@@ -206,7 +212,7 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
             continue
         db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []),
-                               education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), source_id=src.id, status="draft", creation_date=now))
+                               education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), skills=skills.get(code, []), source_id=src.id, status="draft", creation_date=now))
         n += 1
     if not n:
         raise CatalogProblem("No occupations found in Occupation Data.txt.")
@@ -380,7 +386,7 @@ def live_schools():
 def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
     out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
     if full:
-        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or [], "education": c.education or [], "related": c.related or []}
+        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or [], "education": c.education or [], "related": c.related or [], "skills": c.skills or []}
     return out
 
 

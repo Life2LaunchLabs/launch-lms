@@ -24,6 +24,7 @@ from src.db.resources import Resource, UserSavedResource
 from src.db.users import PublicUser
 from src.services.life_plans import places as place_service
 from src.services.life_plans import programs as program_service
+from src.services.life_plans import skill_words
 from src.services.life_plans.estimates import REVIEWED, dims_key
 from src.services.life_plans.public_data import RIASEC, _career_view, _correlation, get_career, live_careers
 
@@ -82,17 +83,58 @@ def my_places(db: Session, user_id: int) -> list[dict]:
     return found
 
 
+# How far a learner would go for school or work, as the farthest nearness a program may have (programs.paths ranks
+# 0 same town, 1 county, 2 region, 3 state, 4 farther); "anywhere" also lists schools in other states.
+REACHES = {"close": 1, "region": 2, "state": 3, "anywhere": 4}
+DEFAULT_REACH = "state"
+
+
+def _settings(portfolio: Portfolio | None) -> dict:
+    saved = (portfolio.location_settings if portfolio else None) or {}
+    reach = saved.get("reach") if saved.get("reach") in REACHES else DEFAULT_REACH
+    return {"reach": reach, "online": saved.get("online") is not False}
+
+
 def home_base(db: Session, user_id: int) -> dict | None:
     """Where the learner lives, as a place key: the portfolio's location if we can place it, else the first place on
-    their life plan. Pay and openings near them follow it."""
+    their life plan. Pay and openings near them follow it, and programs follow its reach and online settings."""
     portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
     found = resolve_place(portfolio.location_label if portfolio else "")
     if found:
-        return {**found, "from": "portfolio"}
+        return {**found, "from": "portfolio", **_settings(portfolio)}
     places = my_places(db, user_id)
     if places:
-        return {"key": places[0]["key"], "label": places[0]["label"], "from": "plan"}
+        return {"key": places[0]["key"], "label": places[0]["label"], "from": "plan", **_settings(portfolio)}
     return None
+
+
+def area_of(key: str | None) -> str:
+    """The county and wider Oregon region a place sits in, for "Douglas County · Southwestern Oregon"."""
+    ladder = place_service.ladder(key)
+    county = next((place_service.label(k).removesuffix(", OR") for k in ladder if k.startswith("county:")), "")
+    regions = [place_service.label(k) for k in ladder if k.startswith("region:")]
+    wider = next((name for name in reversed(regions) if name != county), "")
+    return " · ".join(part for part in (county, wider) if part)
+
+
+def home_settings(db: Session, user_id: int, text: str | None = None) -> dict:
+    """The home base sheet: the portfolio's location as typed, where we place it, and its settings. With `text`,
+    where we'd place that instead (a preview while typing)."""
+    portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
+    label = text if text is not None else (portfolio.location_label if portfolio else "")
+    place = resolve_place(label)
+    return {"label": label, "place": place, "area": area_of(place["key"]) if place else "", **_settings(portfolio)}
+
+
+def save_home(db: Session, user: PublicUser, label: str, reach: str, online: bool) -> dict:
+    """Set the portfolio's location and its home base settings."""
+    from src.services.portfolio import _save, get_or_create_portfolio
+
+    portfolio = get_or_create_portfolio(user, db)
+    portfolio.location_label = label.strip()[:120]
+    portfolio.location_settings = {"reach": reach if reach in REACHES else DEFAULT_REACH, "online": bool(online)}
+    _save(portfolio, db)
+    return home_settings(db, user.id)
 
 
 def resolve_place(text: str | None) -> dict | None:
@@ -329,6 +371,7 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
         "career": career,
         "match": round(_correlation(scores, career["interests"]), 3) if scores and len(career["interests"]) == 6 and _correlation(scores, career["interests"]) is not None else None,
         "scores": scores,
+        "skills": _skills(db, user.id, career),
         "pay": {**money, "areas": areas},
         "my_places": places,
         "home": home,
@@ -342,9 +385,16 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
     }
 
 
+def _skills(db: Session, user_id: int, career: dict) -> dict:
+    """The learner's picked skill chips (None before they pick any) and the ones this career uses."""
+    mine = skill_words.my_chips(db, user_id)
+    return {"mine": mine, "used": skill_words.used(mine or [], career.get("skills") or [])}
+
+
 def _paths(db: Session, user, code: str, home: dict | None, org_id: int | None) -> dict:
     """Programs that train for the career, each school opening as the organization's school resource where it has one."""
-    out = program_service.paths(db, code, home["key"] if home else None)
+    out = program_service.paths(db, code, home["key"] if home else None, reach=REACHES[home["reach"]] if home else REACHES[DEFAULT_REACH],
+                                online=home["online"] if home else True)
     sites = school_links(db, user, org_id) if org_id and out["programs"] else {}
     for program in out["programs"]:
         program["resource_uuid"] = sites.get(_site(program.pop("url", "")))

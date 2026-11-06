@@ -101,6 +101,9 @@ class CareerEntry(SQLModel, table=True):
     education: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     # O*NET's related occupations, closest first, by O*NET-SOC code.
     related: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # The skills and work styles the job leans on, by O*NET element id, most important first: skills rated 3.5 or
+    # more on O*NET's importance scale (1 to 5), then the work styles O*NET ranks most distinctive for the job.
+    skills: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
     status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
     creation_date: str = ""

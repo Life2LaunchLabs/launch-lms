@@ -48,6 +48,20 @@ EDUCATION = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tCategory\tData
              "15-1252.00\t2.D.3\tRelated Work Experience\tRW\t2\t40.00\t28\n")
 RELATED = ("O*NET-SOC Code\tRelated O*NET-SOC Code\tRelatedness Tier\tIndex\n"
            "15-1252.00\t27-1024.00\tPrimary-Long\t2\n15-1252.00\t29-2056.00\tPrimary-Short\t1\n")
+SKILLS = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tData Value\tN\tStandard Error\tLower CI Bound\tUpper CI Bound\tRecommend Suppress\tNot Relevant\tDate\tDomain Source\n"
+          "15-1252.00\t2.A.2.a\tCritical Thinking\tIM\t3.75\t8\t0.1\t3\t4\tN\tn/a\t08/2023\tAnalyst\n"
+          "15-1252.00\t2.A.2.a\tCritical Thinking\tLV\t4.50\t8\t0.1\t3\t4\tN\tN\t08/2023\tAnalyst\n"
+          "15-1252.00\t2.A.1.d\tSpeaking\tIM\t3.00\t8\t0.1\t3\t4\tN\tn/a\t08/2023\tAnalyst\n")
+TRANSFERABLE = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tData Value\tN\tStandard Error\tLower CI Bound\tUpper CI Bound\tRecommend Suppress\tNot Relevant\tDate\tDomain Source\n"
+                "15-1252.00\t2.B.3.e\tProgramming\tIM\t4.62\t8\t0.1\t3\t4\tN\tn/a\t08/2023\tAnalyst\n"
+                "15-1252.00\t2.B.3.l\tRepairing\tIM\t3.90\t8\t0.1\t3\t4\tY\tn/a\t08/2023\tAnalyst\n")
+STYLES = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tData Value\tDate\tDomain Source\n"
+          "15-1252.00\t1.D.3.b\tAttention to Detail\tDR\t9.00\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.3.b\tAttention to Detail\tWI\t2.80\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.1.c\tIntellectual Curiosity\tDR\t10.00\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.2.c\tEmpathy\tDR\t0.00\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.3.c\tDependability\tWI\t2.70\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.3.c\tDependability\tDR\t0.00\t12/2025\tAI/Expert\n")
 REPORTED = "O*NET-SOC Code\tReported Job Title\tShown in My Next Move\n15-1252.00\tSoftware Engineer\tN\n15-1252.00\tDeveloper\tY\n15-1252.00\tCoder\tN\n"
 
 
@@ -56,7 +70,8 @@ def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[byte
         files = (("Occupation Data.txt", OCCUPATIONS), ("Interests.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Alternate Titles.txt", ALTS))
     else:
         files = (("Occupation Data.txt", OCCUPATIONS), ("Career Interest Types.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Job Titles.txt", JOB_TITLES), ("Sample of Reported Titles.txt", REPORTED),
-                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS), ("Education, Training, and Experience.txt", EDUCATION), ("Related Occupations.txt", RELATED))
+                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS), ("Education, Training, and Experience.txt", EDUCATION), ("Related Occupations.txt", RELATED),
+                 ("Essential Skills.txt", SKILLS), ("Transferable Skills.txt", TRANSFERABLE), ("Work Styles.txt", STYLES))
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as zf:
         for fname, text in (*files, ("Read Me.txt", "readme")):
@@ -108,6 +123,9 @@ def test_onet_31_layout_loads_career_interest_types_and_job_titles():
     # What workers say it takes (levels nobody picked left out), and O*NET's related careers in its order.
     assert dev.education == [{"level": 5, "pct": 8.3}, {"level": 6, "pct": 71.4}, {"level": 8, "pct": 20.3}]
     assert dev.related == ["29-2056.00", "27-1024.00"]
+    # Skills rated 3.5 or more (a suppressed rating left out), most important first, then the key work styles.
+    # (Dependability isn't distinctive for the job, but its impact is high.)
+    assert dev.skills == ["2.B.3.e", "2.A.2.a", "1.D.1.c", "1.D.3.b", "1.D.3.c"]
 
 
 def test_onet_zip_without_interests_is_refused():

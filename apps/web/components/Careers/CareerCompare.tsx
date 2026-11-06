@@ -34,6 +34,8 @@ const openingsOf = (profile: Profile) => {
   return row?.openings != null ? { ...row, openings: row.openings, end: outlook.end } : null
 }
 const fitOf = (match: number | null) => match == null ? null : match >= 0.7 ? 'Strong fit' : match >= 0.4 ? 'Good fit' : 'Not much like you'
+/** "uses 3 of your skills", when the learner has picked some. */
+const usesLine = (profile: Profile) => profile.skills?.mine?.length ? `uses ${profile.skills.used.length || 'none'} of your skills` : ''
 const apprenticeship = (profile: Profile) => /apprentice/i.test(routesFor(profile.career)[0]?.steps[0]?.title || '')
 // The lowest credential that fits each O*NET job zone (Scorecard levels: 1 certificate, 2 associate, 3 bachelor's, 5 master's).
 const LEAST_CREDENTIAL: Record<number, number> = { 1: 1, 2: 1, 3: 1, 4: 3, 5: 5 }
@@ -243,10 +245,10 @@ export default function CareerCompare({ start, suggestions, token, onClose }: { 
           })} />
         </Block>
 
-        {ready.some((profile) => profile.match != null) ? <Block title="Fit with you">
+        {ready.some((profile) => profile.match != null || profile.skills?.mine?.length) ? <Block title="Fit with you">
           <Columns profiles={ready} cell={cells(ready, (profile) => <>
             <span className="font-extrabold">{fitOf(profile.match) || 'No quiz yet'}</span>
-            <span className="text-[13px] text-muted-foreground">{sidesOf(profile).length ? `Leans ${sidesOf(profile).join(' and ')}` : ''}</span>
+            <span className="text-[13px] text-muted-foreground">{[sidesOf(profile).length ? `Leans ${sidesOf(profile).join(' and ')}` : '', usesLine(profile)].filter(Boolean).join('; ')}</span>
           </>)} />
         </Block> : null}
 
