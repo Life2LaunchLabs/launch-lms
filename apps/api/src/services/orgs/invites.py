@@ -311,11 +311,16 @@ async def deliver_invitation(
     failure: str | None = None
     try:
         setup = staff_setup.describe(db_session, invitation)
+        email, invitation_uuid = invitation.email, invitation.invitation_uuid
+        # The send can take a while (provider retries). Don't hold a transaction open meanwhile:
+        # Postgres closes a request transaction left idle for 60s (core/events/database.py), and
+        # the save below then failed with a 500 though the invitation was already stored.
+        db_session.commit()
         await run_in_threadpool(
             send_direct_invitation_email,
-            org_read, inviter, invitation.email, invitation.invitation_uuid, base_url,
+            org_read, inviter, email, invitation_uuid, base_url,
             setup=setup,
-            idempotency_key=f"{invitation.invitation_uuid}:{attempt}",
+            idempotency_key=f"{invitation_uuid}:{attempt}",
         )
     except EmailDeliveryError as exc:
         failure = exc.reason

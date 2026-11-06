@@ -97,6 +97,9 @@ class EmailDeliveryError(Exception):
 # Resend answers a burst over its per-second limit with 429 rate_limit_exceeded, and has the odd
 # 5xx or dropped connection: those pass on a short wait. Quotas, a bad key or an unverified domain don't.
 _RESEND_RETRY_WAITS = (1.0, 2.5)
+# Seconds per Resend request (the SDK's default is 30): three stalled tries stay well under a minute.
+_RESEND_TIMEOUT = 10
+_resend_client = resend.RequestsClient(timeout=_RESEND_TIMEOUT)
 
 
 def _resend_failure(exc: Exception) -> EmailDeliveryError:
@@ -105,6 +108,9 @@ def _resend_failure(exc: Exception) -> EmailDeliveryError:
         code = str(getattr(exc, "code", "") or "")
         message = str(getattr(exc, "message", "") or exc)
         lowered = message.lower()
+        if lowered.startswith("request failed"):
+            # The SDK's wrapper for a timeout or dropped connection.
+            return EmailDeliveryError("Couldn't reach the email provider. Try again in a minute.", retryable=True)
         if kind in ("daily_quota_exceeded", "monthly_quota_exceeded"):
             period = "daily" if kind.startswith("daily") else "monthly"
             return EmailDeliveryError(f"The app's {period} email limit is used up, so the email wasn't sent. Raise the limit with the email provider (Resend) or try again later.")
@@ -149,6 +155,7 @@ def _send_email_resend(sender: str, to: EmailStr, subject: str, body: str, maili
     if not mailing.resend_api_key:
         raise EmailDeliveryError("Email isn't set up on this server: the email provider's API key is missing.")
     resend.api_key = mailing.resend_api_key
+    resend.default_http_client = _resend_client
     params = {"from": sender, "to": [str(to)], "subject": subject, "html": body}
     options = {"idempotency_key": idempotency_key} if idempotency_key else None
     for attempt in range(len(_RESEND_RETRY_WAITS) + 1):

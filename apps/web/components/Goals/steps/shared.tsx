@@ -1,6 +1,6 @@
 'use client'
 
-import { Tx } from '@components/Utils/useContentTranslation'
+import { Tx, useContentTranslation } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import { Check, Clock3, NotebookPen, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
 import { Button } from '@components/ui/button'
@@ -81,7 +81,9 @@ export function StepIntro({ step }: { step: Step }) {
   const materials = step.materials.filter((item) => item && (item.url || item.title))
   const prompt = String((step.config as any)?.prompt || '')
   // Everything the step says, read by one speaker button (and on arrival for Read to me).
-  const spoken = [step.title, prompt, step.description || ''].map((part) => part.trim()).filter(Boolean).map((part) => /[.!?:]$/.test(part) ? part : `${part}.`).join(' ')
+  // Read what's shown: in another language that's the translated text, not the original.
+  const { tx } = useContentTranslation()
+  const spoken = [tx(step.title), tx(prompt), tx(step.description)].map((part) => part.trim()).filter(Boolean).map((part) => /[.!?:]$/.test(part) ? part : `${part}.`).join(' ')
   const speechId = useSpeechId('step')
   useAutoRead(speechId, spoken)
   if (!step.description && !materials.length) return <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" className="self-end" />

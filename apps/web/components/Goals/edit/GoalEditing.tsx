@@ -70,8 +70,8 @@ export function GoalEditingProvider({ goal, token, color, setColor, children }: 
 /** The kinds a step can be added as here: a learner's own goal never points at an organization's activities or badges. */
 const addableKinds = (goal: Goal): StepTypeKey[] => goal.ownership === 'personal' ? QUICK_KINDS : ['task', 'upload', 'write', 'explore', 'resources', 'decision', 'routine', 'event', 'activity', 'badge']
 
-/** Kinds that point at something chosen (an activity, a badge), so they open in the editor before they're added. */
-const NEEDS_PICK: StepTypeKey[] = ['activity', 'badge']
+/** Kinds that point at something chosen (an activity, a badge, resources), so they open in the editor before they're added. */
+const NEEDS_PICK: StepTypeKey[] = ['activity', 'badge', 'resources']
 
 /** Adding a step that needs something chosen first: nothing is saved until Add step. */
 function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: Goal; token?: string; color: string; stageUuid: string | null; type: StepTypeKey; onClose: () => void }) {

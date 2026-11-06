@@ -149,3 +149,25 @@ def test_resend_gives_up_after_three_tries(monkeypatch):
         email_utils.send_email("a@example.com", "Hi", "<p>Hi</p>")
     assert "had a problem" in failure.value.reason
     assert len(calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_invitation_email_is_sent_with_no_transaction_open(session: Session, monkeypatch, allow):  # noqa: F811
+    # Postgres ends a request transaction left idle for 60s; a slow provider must not hold one open.
+    _seed(session)
+    open_during_send: list[bool] = []
+
+    def send(*_args, **_kwargs):
+        open_during_send.append(session.in_transaction())
+        return True
+
+    monkeypatch.setattr(org_invites_service, "send_direct_invitation_email", send)
+    await org_users_service.invite_batch_users(
+        _request(), 1, InviteUsersRequest(emails=["slow@example.com"], role_id=4), session, _owner(),
+    )
+    assert open_during_send == [False]
+
+
+def test_a_resend_timeout_reads_as_unreachable():
+    failure = email_utils._resend_failure(resend.exceptions.ResendError(code=500, error_type="application_error", message="Request failed: Read timed out.", suggested_action=""))
+    assert failure.retryable and "Couldn't reach" in failure.reason
