@@ -22,8 +22,11 @@ from src.services.life_plans.estimates import REVIEWED, dims_key
 SOURCE = "interest_quiz"
 REFERENCE = "onet-mini-ip"
 TEMPLATE = "riasec"
-NAME = "Interest Profiler (RIASEC)"
+NAME = "Interests (RIASEC)"
 MAX = 20
+# The two ways to find your interest types: this quiz, or the picture sort for learners who read little. Both
+# land on the same six types, so a learner keeps one result: the newest way they took it.
+WAYS = {"interest_quiz": "onet-mini-ip", "picture_sort": "l2l-picture-sort"}
 
 TYPES = {"R": "Realistic", "I": "Investigative", "A": "Artistic", "S": "Social", "E": "Enterprising", "C": "Conventional"}
 
@@ -129,18 +132,42 @@ def careers(db: Session, scores: dict[str, int], limit: int = 60) -> list[dict]:
     return [{**c, "pay": pay.get(c["soc"])} for c in found]
 
 
-def _mine(current_user: PublicUser, db: Session) -> PortfolioResult | None:
+def _rows(portfolio_id: int, db: Session) -> list[PortfolioResult]:
+    """The learner's interest results from the quiz or the picture sort, newest first."""
+    rows = db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio_id, col(PortfolioResult.source).in_(list(WAYS)),
+                                                 col(PortfolioResult.source_reference).in_(list(WAYS.values())))).all()
+    return sorted((row for row in rows if WAYS.get(row.source) == row.source_reference), key=lambda row: row.update_date or row.creation_date or "", reverse=True)
+
+
+def mine(current_user: PublicUser, db: Session) -> PortfolioResult | None:
+    """The learner's one interest result, however they took it."""
     portfolio = portfolio_service.get_or_create_portfolio(current_user, db)
-    return db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, PortfolioResult.source == SOURCE, PortfolioResult.source_reference == REFERENCE)).first()
+    rows = _rows(portfolio.id or 0, db)
+    return rows[0] if rows else None
+
+
+def save(current_user: PublicUser, payload: ResultWrite, source: str, db: Session) -> dict:
+    """Write the learner's interest result from one way of taking it, over the result the other way left, so
+    there is only ever one. A result the learner hid or featured keeps that."""
+    portfolio = portfolio_service.get_or_create_portfolio(current_user, db)
+    rows = _rows(portfolio.id or 0, db)
+    if rows:
+        keep = rows[0]
+        for extra in rows[1:]:
+            db.delete(extra)
+        keep.source, keep.source_reference = source, WAYS[source]
+        db.add(keep)
+        db.flush()
+    return portfolio_results.record_result(current_user, payload, source, WAYS[source], db)
 
 
 def latest(current_user: PublicUser, db: Session) -> dict:
     """The quiz, and the learner's last result with its careers if they've taken it."""
-    row = _mine(current_user, db)
+    row = mine(current_user, db)
     taken = None
     if row:
         scores = {key: int((row.data or {}).get("scores", {}).get(key, 0)) for key in TYPES}
-        taken = {"result": portfolio_results.result_dto(row), "scores": scores, "code": "".join(ranked(scores)[:3]), "careers": careers(db, scores)}
+        taken = {"way": row.source, "max": int((row.data or {}).get("max") or MAX), "result": portfolio_results.result_dto(row), "scores": scores, "code": "".join(ranked(scores)[:3]), "careers": careers(db, scores)}
     return {"quiz": quiz(), "taken": taken}
 
 
@@ -149,5 +176,5 @@ def take(answers: list[int], current_user: PublicUser, db: Session) -> dict:
     top = ranked(scores)
     data = {"template": TEMPLATE, "scores": scores, "max": MAX, "quiz": REFERENCE, "answers": answers}
     payload = ResultWrite(kind="interests", name=NAME, summary=" · ".join(TYPES[key] for key in top[:3]), data=data, taken_on=datetime.now(timezone.utc).strftime("%Y-%m"), visibility="public")
-    result = portfolio_results.record_result(current_user, payload, SOURCE, REFERENCE, db)
-    return {"result": result, "scores": scores, "code": "".join(top[:3]), "careers": careers(db, scores)}
+    result = save(current_user, payload, SOURCE, db)
+    return {"way": SOURCE, "max": MAX, "result": result, "scores": scores, "code": "".join(top[:3]), "careers": careers(db, scores)}

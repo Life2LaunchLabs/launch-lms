@@ -96,6 +96,11 @@ class CareerEntry(SQLModel, table=True):
     alt_titles: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     # What people in the job do most: O*NET's core task statements, most important first.
     tasks: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # What people in the job say it takes: [{"level": 6, "pct": 55.9}], O*NET's required level of education
+    # (1 less than high school ... 12 post-doctoral), the share of workers at each level.
+    education: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # O*NET's related occupations, closest first, by O*NET-SOC code.
+    related: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
     status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
     creation_date: str = ""
@@ -137,6 +142,37 @@ class SchoolEntry(SQLModel, table=True):
     admission_rate: float | None = None
     completion_rate: float | None = None
     median_earnings: float | None = None
+    source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
+    status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
+    creation_date: str = ""
+
+
+class ProgramEntry(SQLModel, table=True):
+    """One program at one school from the College Scorecard's field-of-study file, as published.
+
+    `cip` is the 4-digit program family ("51.38", Registered Nursing) and `credential` the Scorecard's
+    credential level (1 certificate, 2 associate, 3 bachelor's, 4 post-bacc certificate, 5 master's,
+    6 doctoral, 7 first professional, 8 graduate certificate). Earnings are yearly medians for graduates
+    working one and five years after finishing; `in_state` is the share of those graduates working in the
+    school's state five years on. `debt` is the median federal loan debt at graduation. Only reviewed
+    entries are shown.
+    """
+
+    __tablename__ = "programentry"
+    __table_args__ = (UniqueConstraint("unitid", "cip", "credential", "source_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    unitid: str = Field(sa_column=Column(String(12), nullable=False, index=True))
+    school: str = ""
+    cip: str = Field(sa_column=Column(String(8), nullable=False, index=True))
+    title: str = ""
+    credential: int = Field(default=0, sa_column=Column(Integer, nullable=False, index=True))
+    graduates: int | None = None
+    earnings_1yr: float | None = None
+    earnings_5yr: float | None = None
+    in_state: float | None = None
+    debt: float | None = None
+    online: bool = False
     source_id: int = Field(sa_column=Column(Integer, ForeignKey("estimatesource.id", ondelete="CASCADE"), index=True))
     status: str = Field(default="draft", sa_column=Column(String(16), nullable=False, index=True, server_default="draft"))
     creation_date: str = ""

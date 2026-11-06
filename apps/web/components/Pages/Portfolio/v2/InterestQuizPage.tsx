@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Images, ListChecks, RotateCcw, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -67,7 +67,8 @@ export function InterestQuizPage({ orgslug }: { orgslug: string }) {
       setTaken(found.taken)
       const draft = readDraft().slice(0, found.quiz.items.length)
       setAnswers(draft)
-      setMode(found.taken && !draft.length ? 'done' : 'intro')
+      // ?start=1 comes from the picture sort's "Answer questions instead": go to the start, not the saved result.
+      setMode(found.taken && !draft.length && !new URLSearchParams(window.location.search).has('start') ? 'done' : 'intro')
     }).catch((error) => { toast.error(error?.message || 'Could not load the quiz'); setMode('intro') })
   }, [token])
 
@@ -103,10 +104,10 @@ export function InterestQuizPage({ orgslug }: { orgslug: string }) {
 
   return <main className="min-h-screen bg-background pb-24 text-foreground" data-portfolio-v2="interest-quiz">
     <div className="mx-auto max-w-[760px] px-4 pt-4 sm:px-6 sm:pt-6">
-      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Sparkles} title="Interest quiz" />
+      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Sparkles} title="Your interests" />
       {mode === 'loading' || !quiz ? <div className="h-64 animate-pulse rounded-3xl bg-muted" />
-        : mode === 'intro' ? <Intro quiz={quiz} resume={answers.length} onStart={start} sortHref={getUriWithOrg(orgslug, '/portfolio/picture-sort')} />
-        : mode === 'done' && taken ? <Results quiz={quiz} taken={taken} orgslug={orgslug} onRetake={() => start(true)} />
+        : mode === 'intro' ? <Intro quiz={quiz} resume={answers.length} onStart={start} sortHref={getUriWithOrg(orgslug, '/portfolio/picture-sort?start=1')} />
+        : mode === 'done' && taken ? <Results quiz={quiz} taken={taken} orgslug={orgslug} onRetake={() => start(true)} other={{ label: 'Use pictures instead', href: getUriWithOrg(orgslug, '/portfolio/picture-sort?start=1') }} />
         : <Question quiz={quiz} answers={answers} saving={mode === 'saving'} onAnswer={answer} onBack={back} />}
       <Credit quiz={quiz} />
     </div>
@@ -118,11 +119,13 @@ function Intro({ quiz, resume, onStart, sortHref }: { quiz: InterestQuiz; resume
     <div className="mx-auto mb-4 flex w-fit gap-1 text-3xl" aria-hidden>{FACES.map((face) => <span key={face}>{face}</span>)}</div>
     <h2 className="text-[clamp(22px,4vw,28px)] font-extrabold leading-tight">What kind of work would you enjoy?</h2>
     <p className="mx-auto mt-2 max-w-md text-[15px] font-semibold text-muted-foreground">You’ll see {quiz.items.length} activities people do at work. Tap how you’d feel doing each one. There are no right answers, and don’t worry about pay or training yet. It takes about 5 minutes.</p>
-    <div className="mt-6 flex flex-wrap justify-center gap-2">
-      {resume ? <><Button type="button" variant="brand" onClick={() => onStart(false)}>Keep going ({resume} of {quiz.items.length})</Button><Button type="button" variant="surface" onClick={() => onStart(true)}>Start over</Button></>
-        : <Button type="button" variant="brand" onClick={() => onStart(true)}>Start the quiz</Button>}
+    <p className="mx-auto mt-2 max-w-md text-[15px] font-semibold text-muted-foreground">Pick the way you like. Both find the same six interest types.</p>
+    <div className="mx-auto mt-6 grid max-w-md gap-2.5 sm:grid-cols-2">
+      {resume ? <Button type="button" variant="brand" size="lg" className="sm:col-span-2" onClick={() => onStart(false)}>Keep going ({resume} of {quiz.items.length})</Button> : null}
+      <Button type="button" variant={resume ? 'surface' : 'brand'} size="lg" onClick={() => onStart(true)}><ListChecks className="h-4 w-4" aria-hidden="true" />{resume ? 'Start over' : 'Answer questions'}</Button>
+      <Button asChild variant="surface" size="lg"><Link href={sortHref}><Images className="h-4 w-4" aria-hidden="true" />Look at pictures</Link></Button>
     </div>
-    <p className="mt-5 text-sm font-semibold text-muted-foreground">Rather look at pictures? <Link href={sortHref} className="font-extrabold text-[var(--org-primary-color)] underline">Try the picture sort</Link></p>
+    <p className="mt-3 text-[13px] font-semibold text-muted-foreground">Questions: {quiz.items.length} short ones to read, about 5 minutes. Pictures: tap or swipe, and every card can be read aloud.</p>
   </section>
 }
 
@@ -159,7 +162,9 @@ function Question({ quiz, answers, saving, onAnswer, onBack }: { quiz: InterestQ
 }
 
 /** The result: the radar, the top three types and matching careers. The picture sort shows the same. */
-export function Results({ quiz, taken, orgslug, onRetake }: { quiz: Pick<InterestQuiz, 'types' | 'max'>; taken: QuizTaken; orgslug: string; onRetake: () => void }) {
+export function Results({ quiz, taken, orgslug, onRetake, other }: { quiz: Pick<InterestQuiz, 'types' | 'max'>; taken: QuizTaken; orgslug: string; onRetake: () => void; other?: { label: string; href: string } }) {
+  // The result may come from the other way of taking it, which scores on its own scale.
+  const max = taken.max || quiz.max
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('all')
   const label = (key: string) => quiz.types.find((type) => type.key === key)?.label || key
   const top = taken.code.split('')
@@ -170,19 +175,19 @@ export function Results({ quiz, taken, orgslug, onRetake }: { quiz: Pick<Interes
   return <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
     <section className="rounded-3xl border border-border bg-card p-5 sm:p-7">
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
-        <div className="text-foreground"><Radar scores={taken.scores} axes={quiz.types} max={quiz.max} size={210} /></div>
+        <div className="text-foreground"><Radar scores={taken.scores} axes={quiz.types} max={max} size={210} /></div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Your interest code</p>
           <h2 className="text-[40px] font-black leading-none tracking-[0.12em] text-[#6539D8] dark:text-[#b9a2ff]">{taken.code}</h2>
           <ul className="mt-4 grid gap-3">{top.map((key, index) => <li key={key} className="flex gap-3">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-sm font-black text-white" style={{ background: '#8B5CF6', opacity: 1 - index * 0.2 }}>{key}</span>
-            <span className="min-w-0"><b className="block text-[15px] font-extrabold">{label(key)} <span className="font-bold text-muted-foreground">· {taken.scores[key]} of {quiz.max}</span></b><small className="block text-[13.5px] font-semibold text-muted-foreground">{MEANS[key]}</small></span>
+            <span className="min-w-0"><b className="block text-[15px] font-extrabold">{label(key)} <span className="font-bold text-muted-foreground">· {taken.scores[key]} of {max}</span></b><small className="block text-[13.5px] font-semibold text-muted-foreground">{MEANS[key]}</small></span>
           </li>)}</ul>
         </div>
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-3">
         <span className="inline-flex items-center gap-2 text-sm font-bold"><Check className="h-4 w-4 text-emerald-600" />Saved to What I’m like on your portfolio</span>
-        <span className="flex gap-2"><Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}>See my portfolio</Link></Button><Button type="button" variant="ghost" size="sm" onClick={onRetake}><RotateCcw className="h-4 w-4" />Take it again</Button></span>
+        <span className="flex gap-2"><Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}>See my portfolio</Link></Button><Button type="button" variant="ghost" size="sm" onClick={onRetake}><RotateCcw className="h-4 w-4" />Take it again</Button>{other ? <Button asChild variant="ghost" size="sm"><Link href={other.href}>{other.label}</Link></Button> : null}</span>
       </div>
     </section>
 

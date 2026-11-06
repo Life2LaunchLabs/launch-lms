@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ChevronRight, CircleDollarSign, ExternalLink, FileText, Paperclip, Play, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ChevronRight, CircleDollarSign, ExternalLink, FileText, Images, Paperclip, Play, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -32,6 +32,9 @@ import { RESULT_TEMPLATES, SKILLS_VALUES, filled, isFree, summaryFor, templateOf
 
 /** The source of a result the in-app interest quiz wrote; its scores come from the quiz, so they aren't typed over. */
 export const INTEREST_QUIZ = 'interest_quiz'
+/** The picture sort writes the same interest result, by pictures instead of questions. */
+export const PICTURE_SORT = 'picture_sort'
+export const fromInterestCheck = (source?: string | null) => source === INTEREST_QUIZ || source === PICTURE_SORT
 
 export const RESULT_KINDS = [
   { value: 'interests', label: 'Interests', example: 'Artistic · Social · Investigative' },
@@ -56,6 +59,8 @@ export function TakeIt({ template, quizHref }: { template: ResultTemplate; quizH
   const here = template.id === 'riasec' && quizHref
   return <div className="grid gap-2" data-take-it>
     {here ? <Button asChild variant="brand" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref}><span className="inline-flex items-center gap-2"><Play className="h-4 w-4" />Take it here · 5 min</span><PriceTag free /></Link></Button> : null}
+    {/* The same six types by pictures, for learners who'd rather not read 30 questions. */}
+    {here ? <Button asChild variant="surface" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref.replace(/\/portfolio\/interests.*$/, '/portfolio/picture-sort?start=1')}><span className="inline-flex items-center gap-2"><Images className="h-4 w-4" />Or use pictures</span><PriceTag free /></Link></Button> : null}
     {/* The main button is the first free way to take it; a paid one is never the big colored button. */}
     {template.take.map((place) => <Button key={place.url} asChild variant={!here && place === template.take.find((one) => one.free) ? 'brand' : 'surface'} className="h-12 w-full min-w-0 justify-between gap-2 text-[15px]">
       <a href={place.url} target="_blank" rel="noreferrer"><span className="flex min-w-0 items-center gap-2 overflow-hidden"><ExternalLink className="h-4 w-4 shrink-0" /><span className="truncate">Take it on {place.label}</span></span><PriceTag free={place.free} /></a>
@@ -106,7 +111,7 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, temp
   const ask = useAsk()
   const org = useOrg() as any
   const quizHref = org?.slug ? getUriWithOrg(org.slug, '/portfolio/interests') : ''
-  const fromQuiz = result?.source === INTEREST_QUIZ
+  const fromQuiz = fromInterestCheck(result?.source)
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const template = step?.template
   const kind = RESULT_KINDS.find((item) => item.value === draft.kind)

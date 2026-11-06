@@ -2,7 +2,7 @@
 
 from sqlmodel import select
 
-from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, EstimateSource, LifePlan
+from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, EstimateSource, LifePlan, ProgramEntry
 from src.db.resources import Resource, ResourceNoteBlock, UserSavedResource, UserSavedResourceUpdate
 from src.db.users import PublicUser
 from src.services.epp import report
@@ -22,7 +22,7 @@ CATALOG = (
 
 def _catalog(session) -> None:
     bind = session.get_bind()
-    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock):
+    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock, ProgramEntry):
         model.__table__.create(bind, checkfirst=True)
     source = EstimateSource(key="onet-31-0", title="O*NET 31.0", license="CC BY 4.0")
     session.add(source)
@@ -130,3 +130,100 @@ def test_interest_level_is_one_to_three():
     assert UserSavedResourceUpdate(interest_level=2, show_on_epp=True).interest_level == 2
     with pytest.raises(ValidationError):
         UserSavedResourceUpdate(interest_level=4)
+
+
+def _oregon_data(session) -> None:
+    """OED wages with percentiles (2026, newer than BLS 2025), BLS history, OED projections and O*NET education."""
+    dims = {"soc": "27-1024"}
+    wages = EstimateSource(key="oed-wages-2026", publisher="Oregon Employment Department", title="Oregon Occupational Wage Information, 2026")
+    history = [EstimateSource(key=f"bls-oews-{year}", publisher="U.S. Bureau of Labor Statistics", title=f"OEWS May {year}") for year in (2023, 2024)]
+    projections = EstimateSource(key="oed-projections-2024-2034", publisher="Oregon Employment Department", title="Oregon occupational employment projections, 2024-2034")
+    session.add_all([wages, projections, *history])
+    session.commit()
+    pct = {"p10": 20.0, "p25": 24.0, "p75": 36.0, "p90": 44.0}
+    for place, median in (("state:OR", 31.0), ("region:OR:douglas", 26.5), ("region:OR:portland-tri-county", 34.0)):
+        session.add(EstimateFact(metric="wage", place=place, dims=dims, dims_key=dims_key(dims), value=median, percentiles={**pct, "p50": median},
+                                 period="hr", stat="median", dollar_year=2026, source_id=wages.id, status="reviewed"))
+    for src, value in zip(history, (27.0, 28.5)):
+        session.add(EstimateFact(metric="wage", place="state:OR", dims=dims, dims_key=dims_key(dims), value=value, period="hr", stat="median",
+                                 dollar_year=int(src.key[-4:]), source_id=src.id, status="reviewed"))
+    for place, jobs, later, openings in (("state:OR", 2000, 2200, 210.0), ("region:OR:southwestern", 120, 126, 11.4)):
+        for metric, value in (("employment", jobs), ("employment_projected", later), ("growth", (later - jobs) / jobs), ("openings", openings)):
+            session.add(EstimateFact(metric=metric, place=place, dims=dims, dims_key=dims_key(dims), value=value, period="yr" if metric == "openings" else "",
+                                     note="typical entry: Bachelor's degree; competitive: Bachelor's degree" if metric == "openings" and place == "state:OR" else "",
+                                     source_id=projections.id, status="reviewed"))
+    designer = session.exec(select(CareerEntry).where(CareerEntry.code == "27-1024.00")).one()
+    designer.education = [{"level": 5, "pct": 20.0}, {"level": 6, "pct": 80.0}]
+    designer.related = ["29-2056.00", "15-1252.00", "00-0000.00"]
+    session.add(designer)
+    session.commit()
+
+
+def test_career_page_answers_pay_and_jobs_near_home_with_training_and_related(resources_mcp, monkeypatch):  # noqa: F811
+    from src.db.portfolio import Portfolio
+
+    session, _, alice, _, _ = _loaded(resources_mcp)
+    Portfolio.__table__.create(session.get_bind(), checkfirst=True)
+    monkeypatch.setattr(careers, "quiz_scores", lambda db, user_id: ARTSY)
+    _oregon_data(session)
+    session.add(Portfolio(portfolio_uuid="portfolio_1", user_id=alice.id, location_label="Roseburg, Oregon"))
+    session.commit()
+
+    page = careers.profile(session, _learner(alice), "27-1024.00", org_id=1)
+    # Home base comes from the portfolio; the nearest place with pay is Douglas County, from OED 2026.
+    assert page["home"] == {"key": "city:OR:roseburg", "label": "Roseburg, OR", "from": "portfolio"}
+    wages = page["wages"]
+    assert wages["here"] == "region:OR:douglas"
+    douglas = next(row for row in wages["places"] if row["place"] == "region:OR:douglas")
+    assert douglas["hourly"] == {"p10": 20.0, "p25": 24.0, "p50": 26.5, "p75": 36.0, "p90": 44.0} and douglas["yearly"]["p50"] == 55100
+    assert douglas["year"] == 2026 and douglas["source"].startswith("Oregon Employment Department")
+    oregon = next(row for row in wages["places"] if row["place"] == "state:OR")
+    assert oregon["year"] == 2026 and oregon["hourly"]["p50"] == 31.0
+    # Over time: BLS's own figures for the years it has, OED's for the year BLS doesn't.
+    assert [(row["year"], row["hourly"]) for row in wages["history"]["state:OR"]] == [(2023, 27.0), (2024, 28.5), (2025, 29.81), (2026, 31.0)]
+
+    jobs = page["outlook"]
+    assert jobs["here"] == "region:OR:southwestern" and (jobs["start"], jobs["end"]) == (2024, 2034)
+    assert jobs["places"][0] == {"place": "state:OR", "label": "Oregon", "jobs": 2000, "jobs_later": 2200, "growth": 0.1, "openings": 210}
+    assert jobs["entry"] == {"typical": "Bachelor's degree", "competitive": "Bachelor's degree"}
+
+    assert page["career"]["education"] == [{"level": 5, "pct": 20.0}, {"level": 6, "pct": 80.0}]
+    # O*NET's related careers, in its order, skipping ones we don't have.
+    assert [item["title"] for item in page["similar"]] == ["Veterinary Technologists and Technicians", "Software Developers"]
+
+
+def test_home_base_reads_typed_places():
+    assert careers.resolve_place("Douglas County, OR") == {"key": "county:OR:douglas", "label": "Douglas County, OR"}
+    assert careers.resolve_place("roseburg")["key"] == "city:OR:roseburg"
+    assert careers.resolve_place("Boise, ID") == {"key": "state:ID", "label": "Idaho"}
+    assert careers.resolve_place("") is None and careers.resolve_place("Somewhere") is None
+
+
+def test_career_paths_list_programs_near_home_and_open_schools_as_resources(resources_mcp, monkeypatch):  # noqa: F811
+    from src.db.life_plans import SchoolEntry
+    from src.db.portfolio import Portfolio
+
+    session, call, alice, _, _ = _loaded(resources_mcp)
+    monkeypatch.setattr(careers, "quiz_scores", lambda db, user_id: None)
+    bind = session.get_bind()
+    for model in (Portfolio, SchoolEntry):
+        model.__table__.create(bind, checkfirst=True)
+    source = EstimateSource(key="college-scorecard-institutions-2025-10-03", title="College Scorecard")
+    programs = EstimateSource(key="scorecard-programs-2026-10-15", publisher="U.S. Department of Education", title="College Scorecard, most recent field of study data")
+    session.add_all([source, programs])
+    session.commit()
+    session.add(SchoolEntry(unitid="208646", name="Lane Community College", city="Eugene", state="OR", url="www.lanecc.edu/", control="Public", source_id=source.id, status="reviewed"))
+    session.add(SchoolEntry(unitid="230764", name="University of Utah", city="Salt Lake City", state="UT", url="www.utah.edu", control="Public", source_id=source.id, status="reviewed"))
+    for unitid, credential in (("208646", 2), ("230764", 3)):
+        session.add(ProgramEntry(unitid=unitid, school="", cip="50.04", title="Design and Applied Arts", credential=credential, graduates=20,
+                                 earnings_5yr=40000, source_id=programs.id, status="reviewed"))
+    session.add(Portfolio(portfolio_uuid="portfolio_1", user_id=alice.id, location_label="Eugene, OR"))
+    session.commit()
+    channel = call("save_resource_channel", {"name": "Schools"})["structuredContent"]
+    assert not call("add_school_resources", {"channel_uuid": channel["channel_uuid"]}).get("isError")
+    lane = session.exec(select(Resource).where(Resource.title == "Lane Community College")).one()
+
+    paths = careers.profile(session, _learner(alice), "27-1024.00", org_id=1)["paths"]
+    # Utah's program isn't online, so only the Oregon school near home is listed; it opens as the school resource.
+    assert [(p["school"], p["near"], p["resource_uuid"]) for p in paths["programs"]] == [("Lane Community College", "In your town", lane.resource_uuid)]
+    assert paths["families"] == [{"cip": "50.04", "title": "Design and Applied Arts", "weight": 4}]

@@ -10,7 +10,7 @@ import zipfile
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, ProgramEntry, SchoolEntry
 from src.db.users import User
 from src.services.life_plans import estimates, importers, public_data
 
@@ -40,6 +40,14 @@ RATINGS = ("O*NET-SOC Code\tTitle\tTask ID\tTask\tScale ID\tCategory\tData Value
            "15-1252.00\tSoftware Developers\t1\tWrite code.\tIM\tn/a\t4.1\n"
            "15-1252.00\tSoftware Developers\t2\tFix bugs.\tIM\tn/a\t4.6\n"
            "15-1252.00\tSoftware Developers\t3\tGo to meetings.\tIM\tn/a\t4.9\n")
+EDUCATION = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tCategory\tData Value\tN\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t1\t0.00\t28\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t6\t71.40\t28\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t5\t8.30\t28\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t8\t20.30\t28\n"
+             "15-1252.00\t2.D.3\tRelated Work Experience\tRW\t2\t40.00\t28\n")
+RELATED = ("O*NET-SOC Code\tRelated O*NET-SOC Code\tRelatedness Tier\tIndex\n"
+           "15-1252.00\t27-1024.00\tPrimary-Long\t2\n15-1252.00\t29-2056.00\tPrimary-Short\t1\n")
 REPORTED = "O*NET-SOC Code\tReported Job Title\tShown in My Next Move\n15-1252.00\tSoftware Engineer\tN\n15-1252.00\tDeveloper\tY\n15-1252.00\tCoder\tN\n"
 
 
@@ -48,7 +56,7 @@ def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[byte
         files = (("Occupation Data.txt", OCCUPATIONS), ("Interests.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Alternate Titles.txt", ALTS))
     else:
         files = (("Occupation Data.txt", OCCUPATIONS), ("Career Interest Types.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Job Titles.txt", JOB_TITLES), ("Sample of Reported Titles.txt", REPORTED),
-                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS))
+                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS), ("Education, Training, and Experience.txt", EDUCATION), ("Related Occupations.txt", RELATED))
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as zf:
         for fname, text in (*files, ("Read Me.txt", "readme")):
@@ -58,7 +66,7 @@ def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[byte
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     db = Session(engine)
     db.add(User(id=1, user_uuid="user_1", username="u1", email="u1@example.com", first_name="U", last_name="1"))
     db.commit()
@@ -97,6 +105,9 @@ def test_onet_31_layout_loads_career_interest_types_and_job_titles():
     assert dev.alt_titles == ["Developer", "Software Engineer", "Coder", "Application Programmer"]
     # Core tasks first, the most important first; supplemental ones after.
     assert dev.tasks == ["Fix bugs.", "Write code.", "Go to meetings."]
+    # What workers say it takes (levels nobody picked left out), and O*NET's related careers in its order.
+    assert dev.education == [{"level": 5, "pct": 8.3}, {"level": 6, "pct": 71.4}, {"level": 8, "pct": 20.3}]
+    assert dev.related == ["29-2056.00", "27-1024.00"]
 
 
 def test_onet_zip_without_interests_is_refused():

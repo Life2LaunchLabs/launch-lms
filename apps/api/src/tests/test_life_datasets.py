@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, ProgramEntry, SchoolEntry
 from src.db.users import User
 from src.services.life_plans import datasets, importers
 from src.tests.test_life_plans import FMR_CSV, OEWS_CSV, _user
@@ -19,7 +19,7 @@ from src.tests.test_life_public_data import SCORECARD, _onet_zip
 @pytest.fixture
 def db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     with Session(engine) as session:
         session.add(User(id=1, user_uuid="user_1", username="u1", email="u1@example.com", first_name="U", last_name="1"))
         session.commit()
@@ -34,7 +34,7 @@ def db():
 
 def test_catalog_lists_every_expected_dataset_with_releases_newest_first(db):
     found = {d["kind"]: d for d in datasets.catalog(db)}
-    assert list(found) == ["hud_fmr", "bls_oews", "oed_projections", "oed_wages", "onet", "scorecard", "majors_map"]
+    assert list(found) == ["hud_fmr", "bls_oews", "oed_projections", "oed_wages", "onet", "scorecard_programs", "scorecard", "majors_map"]
     assert found["majors_map"]["origin"] == "composite" and not found["majors_map"]["importable"]
     hud = found["hud_fmr"]
     assert [r["key"] for r in hud["releases"]] == ["hud-fmr-fy2027-or", "hud-fmr-fy2026-or"]
