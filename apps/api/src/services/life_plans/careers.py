@@ -24,11 +24,12 @@ from src.db.resources import Resource, UserSavedResource
 from src.db.users import PublicUser
 from src.services.life_plans import places as place_service
 from src.services.life_plans.estimates import REVIEWED, dims_key
-from src.services.life_plans.public_data import RIASEC, _career_view, _correlation, get_career
+from src.services.life_plans.public_data import RIASEC, _career_view, _correlation, get_career, live_careers
 
 HOURS_A_YEAR = 2080
 CODE = re.compile(r"(\d{2}-\d{4}\.\d{2})")
 QUIZ_SOURCE, QUIZ_REFERENCE = "interest_quiz", "onet-mini-ip"
+SORT_SOURCE, SORT_REFERENCE = "picture_sort", "l2l-picture-sort"
 DECK_SIZE = 10
 # A skipped career drops this many places per skip, so new ones come first but it never disappears.
 SKIP_PENALTY = 100
@@ -55,8 +56,10 @@ def quiz_scores(db: Session, user_id: int) -> dict[str, int] | None:
     portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
     if not portfolio:
         return None
-    row = db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, PortfolioResult.source == QUIZ_SOURCE,
-                                                PortfolioResult.source_reference == QUIZ_REFERENCE)).first()
+    # The interest quiz or the picture sort, whichever the learner did last; matching uses the scores' shape, not their scale.
+    rows = db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, col(PortfolioResult.source).in_([QUIZ_SOURCE, SORT_SOURCE]),
+                                                 col(PortfolioResult.source_reference).in_([QUIZ_REFERENCE, SORT_REFERENCE]))).all()
+    row = max(rows, key=lambda item: item.update_date or item.creation_date or "", default=None)
     scores = (row.data or {}).get("scores") if row else None
     if not scores:
         return None
@@ -156,7 +159,7 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
     areas.sort(key=lambda row: (not row["mine"], -row["median"]))
     resources = career_resources(db, user, org_id) if org_id else {}
 
-    others = [c for c in db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED, CareerEntry.code != code)).all() if len(c.interests) == 6]
+    others = [c for c in db.exec(live_careers().where(CareerEntry.code != code)).all() if len(c.interests) == 6]
     similar = sorted(((_correlation(career["interests"], c.interests) or -1, c) for c in others), key=lambda t: (-t[0], t[1].title))[:6] if len(career["interests"]) == 6 else []
     similar_pay = median_pay(db, [c.soc for _, c in similar])
     return {
@@ -182,7 +185,7 @@ def deck(db: Session, user: PublicUser, org_id: int, size: int = DECK_SIZE) -> d
         return {"cards": [], "total": 0, "has_careers": False, "has_quiz": quiz_scores(db, user.id) is not None}
     saved = set(db.exec(select(UserSavedResource.resource_id).where(UserSavedResource.user_id == user.id, col(UserSavedResource.resource_id).in_([r.id for r in resources.values()]))).all())
     skips = {row.code: row.count for row in db.exec(select(CareerSkip).where(CareerSkip.user_id == user.id)).all()}
-    entries = {c.code: c for c in db.exec(select(CareerEntry).where(CareerEntry.status == REVIEWED, col(CareerEntry.code).in_(list(resources)))).all()}
+    entries = {c.code: c for c in db.exec(live_careers().where(col(CareerEntry.code).in_(list(resources)))).all()}
     scores = quiz_scores(db, user.id)
     places = my_places(db, user.id)
 

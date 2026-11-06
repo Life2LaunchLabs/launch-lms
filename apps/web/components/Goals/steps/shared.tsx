@@ -1,11 +1,13 @@
 'use client'
 
+import { Tx, useContentTranslation } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import { Check, Clock3, NotebookPen, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Textarea } from '@components/ui/textarea'
 import type { Step } from '@services/goals/types'
 import type { StepActions } from './registry'
+import { SpeakButton, useAutoRead, useSpeechId } from '@components/Accessibility/ReadAloud'
 
 const done = (step: Step) => step.status === 'completed' || step.status === 'excused'
 
@@ -77,9 +79,19 @@ export function AskCoach({ onAsk }: { onAsk: () => void }) {
 /** The description, with the step's materials under it. */
 export function StepIntro({ step }: { step: Step }) {
   const materials = step.materials.filter((item) => item && (item.url || item.title))
-  if (!step.description && !materials.length) return null
+  const prompt = String((step.config as any)?.prompt || '')
+  // Everything the step says, read by one speaker button (and on arrival for Read to me).
+  // Read what's shown: in another language that's the translated text, not the original.
+  const { tx } = useContentTranslation()
+  const spoken = [tx(step.title), tx(prompt), tx(step.description)].map((part) => part.trim()).filter(Boolean).map((part) => /[.!?:]$/.test(part) ? part : `${part}.`).join(' ')
+  const speechId = useSpeechId('step')
+  useAutoRead(speechId, spoken)
+  if (!step.description && !materials.length) return <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" className="self-end" />
   return <div className="flex flex-col gap-2">
-    {step.description ? <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/80">{step.description}</p> : null}
+    <div className="flex items-start gap-2">
+      {step.description ? <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm leading-6 text-foreground/80"><Tx text={step.description} /></p> : <span className="flex-1" />}
+      <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" />
+    </div>
     {materials.length ? <div className="flex flex-wrap gap-1.5">
       {materials.map((item, index) => <a key={index} href={String(item.url || '#')} target="_blank" rel="noreferrer" className="rounded-[10px] border-[1.5px] bg-background px-2.5 py-1.5 text-xs font-bold hover:border-[var(--plan-face)]">{String(item.title || item.url)}</a>)}
     </div> : null}

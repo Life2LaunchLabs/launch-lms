@@ -276,13 +276,13 @@ const LoginClient = (props: LoginClientProps) => {
       <div className={props.embedded ? 'flex flex-1 items-center justify-center px-0 py-0' : 'flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10'}>
         <div className={props.embedded ? 'w-full text-left' : 'w-full max-w-[426px] text-center'}>
           <h1 className={props.embedded ? 'text-2xl font-bold text-gray-900' : 'text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950'}>
-            {props.embedded ? 'Sign in' : t('auth.welcome_back')}
+            {props.embedded ? t('auth.sign_in') : t('auth.welcome_back')}
           </h1>
 
           <div className={props.embedded ? 'mt-6 space-y-4' : 'mt-12 space-y-4'}>
             {google ? <><Button type="button" onClick={handleGoogleLogin} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
-              {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+              {isGoogleLoading ? t('common.loading') : t('auth.continue_google')}
             </Button>
             <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>or</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
@@ -290,13 +290,13 @@ const LoginClient = (props: LoginClientProps) => {
               <Input
                 aria-describedby={formik.touched.email && formik.errors.email ? 'login-email-error' : undefined}
                 aria-invalid={Boolean(formik.touched.email && formik.errors.email)}
-                aria-label="Email address"
+                aria-label={t('auth.email_address')}
                 name="email"
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.email}
                 type="email"
-                placeholder="Enter email address"
+                placeholder={t('auth.enter_email')}
                 autoComplete="email"
                 className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
                 required
@@ -308,12 +308,12 @@ const LoginClient = (props: LoginClientProps) => {
               <PasswordInput
                 aria-describedby={formik.touched.password && formik.errors.password ? 'login-password-error' : undefined}
                 aria-invalid={Boolean(formik.touched.password && formik.errors.password)}
-                aria-label="Password"
+                aria-label={t('auth.password')}
                 name="password"
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                placeholder="Password"
+                placeholder={t('auth.password')}
                 autoComplete="current-password"
                 className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
                 required
@@ -351,15 +351,15 @@ const LoginClient = (props: LoginClientProps) => {
           </div>
 
           <p className="mt-5 text-center text-[12px] leading-relaxed text-gray-500">
-            By continuing, you agree to Launch LMS&apos;s{' '}
+            {t('auth.agree_prefix')}{' '}
             <span className="underline underline-offset-2">
-              Terms of Service
+              {t('auth.terms_of_service')}
             </span>{' '}
-            and{' '}
+            {t('auth.agree_and')}{' '}
             <span className="underline underline-offset-2">
-              Privacy Policy
+              {t('auth.privacy_policy')}
             </span>
-            .
+            {t('auth.agree_suffix')}
           </p>
 
           <p className={props.embedded ? 'mt-6 text-center text-[15px] text-gray-600' : 'mt-14 text-[15px] text-gray-600'}>

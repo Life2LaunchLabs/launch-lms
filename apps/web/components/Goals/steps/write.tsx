@@ -8,6 +8,7 @@ import { Textarea } from '@components/ui/textarea'
 import type { Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
+import { MicButton } from '@components/Accessibility/ReadAloud'
 
 const textOf = (step: Step<'write'>) => String(step.submission?.text || '')
 const words = (text: string) => text.trim() ? text.trim().split(/\s+/).length : 0
@@ -31,7 +32,10 @@ function WriteCard({ step, actions, canWork, staff }: StepCardProps<'write'>) {
     <StepIntro step={step} />
     <Feedback step={step} />
     {open ? <>
-      <Textarea value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { if (dirty) save() }} rows={6} placeholder="Write here" />
+      <div className="relative">
+        <Textarea value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { if (dirty) save() }} rows={6} placeholder="Write here, or tap the mic and talk" className="pr-14" />
+        <MicButton value={text} onChange={setText} className="absolute right-2 top-2" />
+      </div>
       <CardNote>{count} {count === 1 ? 'word' : 'words'}{limit ? ` of ${limit}` : ''}{dirty ? ' · not saved yet' : ''}</CardNote>
     </> : saved ? <p className="whitespace-pre-wrap rounded-xl border bg-background p-3 text-sm leading-6">{saved}</p> : null}
     <FinishControls step={step} actions={{ ...actions, setStatus: async (status, note) => { if (dirty) await save(); return actions.setStatus(status, note) } }} canWork={canWork} staff={staff}

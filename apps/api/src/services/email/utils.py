@@ -1,5 +1,6 @@
 import logging
 import smtplib
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
@@ -84,7 +85,54 @@ def get_base_url_from_request(request: Request) -> str:
     return f"{request.url.scheme}://{request.url.netloc}"
 
 
-def send_email(to: EmailStr, subject: str, body: str):
+class EmailDeliveryError(Exception):
+    """An email the provider did not take, with a reason an admin can act on (``reason``)."""
+
+    def __init__(self, reason: str, *, retryable: bool = False):
+        super().__init__(reason)
+        self.reason = reason
+        self.retryable = retryable
+
+
+# Resend answers a burst over its per-second limit with 429 rate_limit_exceeded, and has the odd
+# 5xx or dropped connection: those pass on a short wait. Quotas, a bad key or an unverified domain don't.
+_RESEND_RETRY_WAITS = (1.0, 2.5)
+# Seconds per Resend request (the SDK's default is 30): three stalled tries stay well under a minute.
+_RESEND_TIMEOUT = 10
+_resend_client = resend.RequestsClient(timeout=_RESEND_TIMEOUT)
+
+
+def _resend_failure(exc: Exception) -> EmailDeliveryError:
+    if isinstance(exc, resend.exceptions.ResendError):
+        kind = str(getattr(exc, "error_type", "") or "")
+        code = str(getattr(exc, "code", "") or "")
+        message = str(getattr(exc, "message", "") or exc)
+        lowered = message.lower()
+        if lowered.startswith("request failed"):
+            # The SDK's wrapper for a timeout or dropped connection.
+            return EmailDeliveryError("Couldn't reach the email provider. Try again in a minute.", retryable=True)
+        if kind in ("daily_quota_exceeded", "monthly_quota_exceeded"):
+            period = "daily" if kind.startswith("daily") else "monthly"
+            return EmailDeliveryError(f"The app's {period} email limit is used up, so the email wasn't sent. Raise the limit with the email provider (Resend) or try again later.")
+        if kind == "rate_limit_exceeded":
+            return EmailDeliveryError("The email provider was busy (too many emails at once). Try again in a minute.", retryable=True)
+        if kind in ("missing_api_key", "invalid_api_key") or code in ("401", "403") and "key" in lowered:
+            return EmailDeliveryError("Email isn't set up on this server: the email provider's API key is missing or wrong.")
+        if "testing emails" in lowered or "verify a domain" in lowered or "domain is not verified" in lowered:
+            return EmailDeliveryError("The email provider only sends to the account owner until the sending domain is verified in Resend.")
+        if code.startswith("5") or kind == "application_error":
+            return EmailDeliveryError("The email provider had a problem. Try again in a minute.", retryable=True)
+        return EmailDeliveryError(f"The email provider didn't accept it: {message}")
+    # The SDK turns a dropped or timed-out connection into a RuntimeError ("Request failed: ...").
+    return EmailDeliveryError("Couldn't reach the email provider. Try again in a minute.", retryable=True)
+
+
+def send_email(to: EmailStr, subject: str, body: str, *, idempotency_key: str | None = None):
+    """Send one email. Raises EmailDeliveryError (with ``reason``) when it can't be delivered.
+
+    This blocks (network calls, and short waits between retries): from an async route, call it
+    through ``run_in_threadpool``. ``idempotency_key`` lets a retry never send the same email twice.
+    """
     from src.services.demo.context import current_demo
     if current_demo.get():
         # Do not deliver live messages from a visitor copy.
@@ -94,19 +142,32 @@ def send_email(to: EmailStr, subject: str, body: str):
     sender = f"Launch LMS <{mailing.system_email_address}>"
 
     if mailing.email_provider == "smtp":
-        return _send_email_smtp(sender, to, subject, body, mailing)
+        try:
+            return _send_email_smtp(sender, to, subject, body, mailing)
+        except Exception as exc:
+            logger.exception("SMTP send to %s failed", to)
+            raise EmailDeliveryError(f"The mail server didn't accept it: {exc}") from exc
     else:
-        return _send_email_resend(sender, to, subject, body, mailing)
+        return _send_email_resend(sender, to, subject, body, mailing, idempotency_key=idempotency_key)
 
 
-def _send_email_resend(sender: str, to: EmailStr, subject: str, body: str, mailing):
+def _send_email_resend(sender: str, to: EmailStr, subject: str, body: str, mailing, *, idempotency_key: str | None = None):
+    if not mailing.resend_api_key:
+        raise EmailDeliveryError("Email isn't set up on this server: the email provider's API key is missing.")
     resend.api_key = mailing.resend_api_key
-    return resend.Emails.send({
-        "from": sender,
-        "to": [to],
-        "subject": subject,
-        "html": body,
-    })
+    resend.default_http_client = _resend_client
+    params = {"from": sender, "to": [str(to)], "subject": subject, "html": body}
+    options = {"idempotency_key": idempotency_key} if idempotency_key else None
+    for attempt in range(len(_RESEND_RETRY_WAITS) + 1):
+        try:
+            return resend.Emails.send(params, options) if options else resend.Emails.send(params)
+        except Exception as exc:
+            failure = _resend_failure(exc)
+            if not failure.retryable or attempt == len(_RESEND_RETRY_WAITS):
+                logger.warning("Resend send to %s failed after %d attempt(s): %r", to, attempt + 1, exc)
+                raise failure from exc
+            logger.info("Resend send to %s failed (%r); retrying", to, exc)
+            time.sleep(_RESEND_RETRY_WAITS[attempt])
 
 
 def _send_email_smtp(sender: str, to: EmailStr, subject: str, body: str, mailing):

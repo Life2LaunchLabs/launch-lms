@@ -114,6 +114,9 @@ export const routePaths = {
       demo: () => '/admin/platform/demo',
       coach: () => '/admin/platform/coach',
       settings: () => '/admin/platform/settings',
+      datasets: () => '/admin/platform/datasets',
+      dataset: (kind: string) => `/admin/platform/datasets/${encodeURIComponent(kind)}`,
+      /** The old name for Datasets; the page sends people on. */
       estimates: () => '/admin/platform/estimates',
       news: () => '/admin/news',
       newsNewPost: () => '/admin/news/new-post',

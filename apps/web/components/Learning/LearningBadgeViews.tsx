@@ -39,6 +39,7 @@ import PageBlock, { PAGE_BLOCKS } from './player/PageBlocks'
 import BlockLayout from './player/BlockLayout'
 import WordCountHint from './player/WordCountHint'
 import { useBlockSetters } from './player/blockSetters'
+import { AnswerVoiceTools, SpokenQuestion, SpokenRichText } from '@components/Accessibility/ReadAloud'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
@@ -105,7 +106,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, respon
 
   if (block.type === 'text') {
     const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run)
-    return <section className="learning-info-stack-section" style={blockStyle}><InfoTextBlock block={nodes} blockId={block.id} /></section>
+    return <section className="learning-info-stack-section" style={blockStyle}><SpokenRichText nodes={nodes}><InfoTextBlock block={nodes} blockId={block.id} /></SpokenRichText></section>
   }
 
   if (block.type === 'image') {
@@ -310,7 +311,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
       <div className="learning-question-block">
         {!page.content?.hide_prompt && (
           <section className="learning-info-stack-section">
-            <h1 className="text-3xl font-bold text-foreground">{page.content?.prompt || 'Question prompt'}</h1>
+            <SpokenQuestion title={String(page.content?.prompt || 'Question prompt')} className="text-3xl font-bold text-foreground" buttonSize="md" />
           </section>
         )}
         {page.content?.options_source ? <SourcedChoiceOptions source={page.content.options_source} selected={selectedIds} style={page.choice_style} onToggle={toggleOption} /> : <ChoiceOptions options={visibleOptions} selected={selectedIds} multiple={maxSelections > 1} style={page.choice_style} onToggle={toggleOption} />}
@@ -415,9 +416,8 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
             return (
               <div key={input.id} className="relative min-w-0">
                 <div className="mb-1 flex items-center gap-2">
-                  {input.label ? (
-                    <div className="min-w-0 flex-1 text-lg font-bold leading-7 text-foreground">{input.label}</div>
-                  ) : <span className="min-w-0 flex-1" />}
+                  {input.label ? <div className="min-w-0 flex-1 text-lg font-bold leading-7 text-foreground">{input.label}</div> : <span className="min-w-0 flex-1" />}
+                  <AnswerVoiceTools label={String(input.label || '')} value={value} typed={input.input_type !== 'select' && htmlInputType === 'text'} onChange={(next) => updateTextInput(input.id, next)} />
                 </div>
                 {input.input_type === 'select' ? (
                   <select value={value} onChange={(event) => updateTextInput(input.id, event.target.value)} style={{ height }} className="mx-auto block w-[calc(100%-1rem)] min-w-0 max-w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]">

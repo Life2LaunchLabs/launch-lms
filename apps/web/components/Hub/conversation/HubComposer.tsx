@@ -11,6 +11,7 @@ import type { HubEditReviewItem } from '../HubContext'
 import { HubResourceTrayHandle } from '../resources/HubResourceContext'
 import HubResourceLibrary from '../resources/HubResourceLibrary'
 import HubMemoryNotice from './HubMemoryNotice'
+import { MicButton } from '@components/Accessibility/ReadAloud'
 
 const LINE_HEIGHT = 24
 const VERTICAL_PADDING = 20
@@ -131,6 +132,8 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
                 {onBrowse ? <DropdownMenuItem onSelect={onBrowse}><Compass /> Find one in Discover</DropdownMenuItem> : null}
               </DropdownMenuContent>
             </DropdownMenu>
+            <div className="flex items-center gap-1.5">
+            <MicButton value={draft} onChange={setDraft} size="sm" label="Talk to Coach instead of typing" />
             <Button
               type={sending ? 'button' : 'submit'}
               size="icon"
@@ -141,6 +144,7 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
             >
               {sending ? <Square className="h-3.5 w-3.5 fill-current" /> : <Send className="h-4 w-4" />}
             </Button>
+            </div>
           </div>
         </div>
       </form>

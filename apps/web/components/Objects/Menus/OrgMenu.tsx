@@ -23,6 +23,7 @@ import OrgMenuMobile, { NavItemControl, NAV_ACTIVE_CLASS } from './OrgMenuMobile
 import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
 import { useConnectCounts } from '@components/Connect/useConnect'
+import { useTranslation } from 'react-i18next'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
@@ -34,6 +35,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const org = useOrg() as any
   const pathname = usePathname()
   const hub = useHub()
+  const { t } = useTranslation()
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(() => {
     if (typeof window === 'undefined') return true
     return window.localStorage.getItem(DESKTOP_NAV_STORAGE_KEY) !== 'true'
@@ -61,6 +63,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
     hubOpen: hub?.state === 'open',
     // Invitations and notices arrive as chat messages, so unread chats cover them.
     connectWaiting: connect.unread + connect.requests > 0,
+    t,
   }).filter((item) => item.show)
 
   const isDesktopNavExpanded = isDesktopExpanded && !props.compact
@@ -168,13 +171,13 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                           type="button"
                           onClick={() => setDesktopExpanded(true)}
                           className="absolute inset-0 flex items-center justify-center rounded-2xl text-muted-foreground opacity-0 transition-colors transition-opacity duration-150 hover:bg-foreground/[0.06] hover:text-foreground group-hover/sidebar:opacity-100"
-                          aria-label="Open sidebar"
+                          aria-label={t('nav.open_sidebar')}
                         >
                           <SidebarSimple size={20} weight="bold" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="right" className="text-xs">
-                        Open sidebar
+                        {t('nav.open_sidebar')}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -185,7 +188,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                   type="button"
                   onClick={() => setDesktopExpanded(false)}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-                  aria-label="Collapse sidebar"
+                  aria-label={t('nav.collapse_sidebar')}
                 >
                   <SidebarSimple size={20} weight="bold" />
                 </button>
@@ -273,18 +276,19 @@ function SidebarItem({
 }
 
 function FeedbackSidebarButton({ onClick, isExpanded }: { onClick: () => void; isExpanded: boolean }) {
+  const { t } = useTranslation()
   const button = (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Send feedback"
+      aria-label={t('nav.send_feedback')}
       className={cn(
         'relative flex h-11 items-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground',
         isExpanded ? 'w-full justify-start gap-1 pl-0.5 pr-3' : 'w-11 justify-center'
       )}
     >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center"><ChatCircleDots size={22} weight="fill" /></span>
-      <span className={cn('truncate text-sm font-medium', isExpanded ? 'inline' : 'hidden')}>Feedback</span>
+      <span className={cn('truncate text-sm font-medium', isExpanded ? 'inline' : 'hidden')}>{t('nav.feedback')}</span>
     </button>
   )
 
@@ -294,7 +298,7 @@ function FeedbackSidebarButton({ onClick, isExpanded }: { onClick: () => void; i
     <TooltipProvider delayDuration={0}>
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="right" className="text-xs">Feedback</TooltipContent>
+        <TooltipContent side="right" className="text-xs">{t('nav.feedback')}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )
@@ -309,10 +313,11 @@ type SidebarItemProps = {
 
 /** Settings sits under Feedback and looks like it: account, appearance and sign out are one page now. */
 function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string; isExpanded: boolean; active: boolean }) {
+  const { t } = useTranslation()
   const link = (
     <Link
       href={getUriWithOrg(orgslug, routePaths.owner.account.root())}
-      aria-label="Settings"
+      aria-label={t('nav.settings')}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'relative flex h-11 items-center rounded-2xl transition-colors',
@@ -321,7 +326,7 @@ function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string;
       )}
     >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center"><GearSix size={22} weight="fill" /></span>
-      <span className={cn('truncate text-sm', active ? 'font-semibold' : 'font-medium', isExpanded ? 'inline' : 'hidden')}>Settings</span>
+      <span className={cn('truncate text-sm', active ? 'font-semibold' : 'font-medium', isExpanded ? 'inline' : 'hidden')}>{t('nav.settings')}</span>
     </Link>
   )
 
@@ -331,7 +336,7 @@ function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string;
     <TooltipProvider delayDuration={0}>
       <Tooltip>
         <TooltipTrigger asChild>{link}</TooltipTrigger>
-        <TooltipContent side="right" className="text-xs">Settings</TooltipContent>
+        <TooltipContent side="right" className="text-xs">{t('nav.settings')}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

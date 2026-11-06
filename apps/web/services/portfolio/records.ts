@@ -43,6 +43,11 @@ const crud = (path: string) => ({
 export const updateMyIdentity = (payload: { first_name?: string; last_name?: string; preferred_name?: string }, token: string) => send('identity', 'PATCH', payload, token)
 export const updateMyHighlights = (highlights: Highlight[], token: string): Promise<{ highlights: Highlight[]; layout: PortfolioLayout }> => send('highlights', 'PUT', { highlights }, token)
 export const updateMyLayout = (layout: LayoutChange, token: string): Promise<{ highlights: Highlight[]; layout: PortfolioLayout }> => send('layout', 'PUT', layout, token)
+/** The email and phone printed on the learner's résumé, never shown on the portfolio. */
+export type ResumeContact = { email: string; phone: string }
+export const updateResumeContact = (contact: ResumeContact, token: string): Promise<ResumeContact> => send('resume-contact', 'PUT', contact, token)
+/** Let people who see your shared portfolio ask to connect. */
+export const updateConnectRequests = (on: boolean, token: string): Promise<{ connect_requests: boolean }> => send('connect-requests', 'PUT', { on }, token)
 export const markProgressSeen = (quest: number, token: string): Promise<{ seen: number[] }> => send('progress', 'PUT', { quest }, token)
 export const credentials = crud('credentials')
 export const contacts = crud('contacts')
@@ -111,3 +116,13 @@ export const getInterestQuiz = async (token: string): Promise<{ quiz: InterestQu
   return errorHandling(response)
 }
 export const takeInterestQuiz = (answers: number[], token: string): Promise<QuizTaken> => send('interest-quiz', 'POST', { answers }, token)
+
+// The picture sort: our own 36 photo cards (six per interest type) answered no, not sure or yes. Saved and
+// matched to careers like the quiz.
+export type PictureCard = { key: string; type: string; text: string; photo: string | null; alt: string; credit: { author: string; license: string; url: string } | null }
+export type PictureSort = { cards: PictureCard[]; answers: Array<{ value: number; label: string }>; types: Array<{ key: string; label: string }>; max: number }
+export const getPictureSort = async (token: string): Promise<{ sort: PictureSort; taken: QuizTaken | null }> => {
+  const response = await fetch(`${getAPIUrl()}portfolio/me/picture-sort`, RequestBodyWithAuthHeader('GET', null, null, token))
+  return errorHandling(response)
+}
+export const takePictureSort = (answers: Record<string, number>, token: string): Promise<QuizTaken> => send('picture-sort', 'POST', { answers }, token)

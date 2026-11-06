@@ -5,6 +5,8 @@ import type { GroupReportCard } from '@services/goals/reports'
 import type { SupportRequestCard } from '@services/school/support'
 
 const q = encodeURIComponent
+export type ConnectRequestState = { open: boolean; status: 'none' | 'asked' | 'connected' | 'known' | 'self' | 'unavailable'; chat_uuid: string | null }
+
 export const connectUrl = (path = '') => `${getAPIUrl()}connect${path}`
 export const filterQuery = (filter: ChatFilter) => {
   const params = new URLSearchParams()
@@ -273,6 +275,10 @@ export const connectApi = {
   /** The chat to talk about a portfolio or one item in it, started if needed: the owner names who with. */
   openPortfolioChat: (target: { portfolio_uuid: string; user_uuid?: string; item_uuid?: string }, token?: string) =>
     request<{ conversation_uuid: string; goal_uuid: string; step_uuid: string | null }>(connectUrl('/portfolios/chat'), token, 'POST', target),
+  /** What the Connect button on someone's shared portfolio does for you. */
+  requestState: (portfolioUuid: string, token?: string) => request<ConnectRequestState>(connectUrl(`/portfolios/${q(portfolioUuid)}/request`), token),
+  /** Ask the owner of a shared portfolio to connect, with a short note. */
+  askToConnect: (portfolioUuid: string, note: string, token?: string) => request<ConnectRequestState>(connectUrl(`/portfolios/${q(portfolioUuid)}/request`), token, 'POST', { note }),
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
   send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share, staff_only: options.staffOnly || undefined,

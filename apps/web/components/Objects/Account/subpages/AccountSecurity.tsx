@@ -49,10 +49,10 @@ function AccountSecurity() {
         await new Promise(resolve => setTimeout(resolve, 4000))
         signOut({ redirect: true, callbackUrl: getUriWithoutOrg('/') })
       } else {
-        toast.error(response.data.detail || 'Failed to update password', { id: loadingToast })
+        toast.error(response.data.detail || t('settings.password_failed'), { id: loadingToast })
       }
     } catch (error: any) {
-      const errorMessage = error.data?.detail || 'Failed to update password. Please try again.'
+      const errorMessage = error.data?.detail || t('settings.password_failed_retry')
       toast.error(errorMessage, { id: loadingToast })
       console.error('Password update error:', error)
     }
@@ -63,7 +63,7 @@ function AccountSecurity() {
       <div className="p-5 sm:p-6">
         <SettingsHeader icon={KeyRound} title={t('user.settings.password.title')} description={t('user.settings.password.subtitle')}>
           <Button type="button" variant="surface" size="sm" className="shrink-0" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
-            {expanded ? 'Cancel' : 'Change'}
+            {expanded ? t('settings.cancel') : t('settings.change')}
             {!expanded && <ChevronDown className="h-4 w-4" />}
           </Button>
         </SettingsHeader>

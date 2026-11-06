@@ -24,7 +24,8 @@ import {
 } from "@components/ui/dropdown-menu"
 import { signOut } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
-import { AVAILABLE_LANGUAGES } from '@/lib/languages'
+import { MENU_LANGUAGES } from '@/lib/languages'
+import { useLanguage } from '@components/Utils/useLanguage'
 import LanguageSwitcher from '@components/Utils/LanguageSwitcher'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import useSWR from 'swr'
@@ -47,7 +48,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
   const session = useLHSession() as any
   const { userRoles } = useAdminStatus()
   const org = useOrg() as any
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const colors = getMenuColorClasses(primaryColor)
   const accessToken = session?.data?.tokens?.access_token
   const ownerOrgSlug = getDefaultOrg()
@@ -63,9 +64,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
 
   const hasAdminOrganizations = Array.isArray(adminOrgs) && adminOrgs.length > 0
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng)
-  }
+  const { language: currentLanguage, setLanguage: changeLanguage } = useLanguage()
 
   useEffect(() => { }
     , [session])
@@ -269,14 +268,14 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent>
-                      {AVAILABLE_LANGUAGES.map((language) => (
+                      {MENU_LANGUAGES.map((language) => (
                         <DropdownMenuItem 
                           key={language.code}
                           onClick={() => changeLanguage(language.code)}
                           className="flex items-center justify-between"
                         >
                           <span>{t(language.translationKey)} ({language.nativeName})</span>
-                          {i18n.language === language.code && <Check size={14} weight="bold" />}
+                          {currentLanguage === language.code && <Check size={14} weight="bold" />}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuSubContent>

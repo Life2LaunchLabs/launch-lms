@@ -10,10 +10,12 @@ import { PortfolioDocumentsPage } from './PortfolioDocumentsPage'
 import { PortfolioResultsPage } from './PortfolioResultsPage'
 import { PortfolioImportPage } from './PortfolioImportPage'
 import { InterestQuizPage } from './InterestQuizPage'
+import { PictureSortPage } from './PictureSortPage'
 import { ResumeBuilder } from './ResumeBuilder'
 import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 import { ExperiencePage } from './ExperiencePage'
 import { ProjectPage } from './ProjectPage'
+import { VisitorPage } from './VisitorPage'
 
 // The portfolio's server pages.
 
@@ -37,17 +39,23 @@ export async function publicPortfolioPage(orgslug: string, username: string, vie
     const org = await getOrganizationContextInfoWithoutCredentials(orgslug, { revalidate: 0 })
     shell = await getPublicPortfolio(org.id, username, await getServerAccessToken())
   } catch { notFound() }
-  return view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} />
+  // The résumé is the learner's to unlock before anyone else gets it.
+  if (view === 'resume' && !shell.resume_unlocked) notFound()
+  const visitor = <VisitorPage layout={shell.layout} name={shell.identity?.shown_name || shell.portfolio?.display_name} detail={VISITOR_DETAIL[view]} />
+  return <>{visitor}{view === 'overview' ? <PortfolioV2 initialShell={shell} orgslug={orgslug} username={username} />
     : view === 'resume' ? <ResumeBuilder initialShell={shell} orgslug={orgslug} username={username} />
-    : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />
+    : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />}</>
 }
 
+const VISITOR_DETAIL: Partial<Record<View, string>> = { timeline: 'Experience', projects: 'Projects', badges: 'Badges', resume: 'Résumé' }
+
 /** My people, My documents, What I'm like, imports and the interest quiz. */
-export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import' | 'interests' | 'results') {
+export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import' | 'interests' | 'picture-sort' | 'results') {
   const token = await getServerAccessToken()
   if (!token) redirect(getUriWithOrg(orgslug, '/'))
   if (page === 'import') return <PortfolioImportPage orgslug={orgslug} />
   if (page === 'interests') return <><PageTitleRegistration section="What I’m like" detail="Interest quiz" /><InterestQuizPage orgslug={orgslug} /></>
+  if (page === 'picture-sort') return <><PageTitleRegistration section="What I’m like" detail="Picture sort" /><PictureSortPage orgslug={orgslug} /></>
   const shell = await getMyPortfolio(token)
   if (page === 'results') return <><PageTitleRegistration section="What I’m like" /><PortfolioResultsPage initialShell={shell} orgslug={orgslug} /></>
   return page === 'people' ? <PortfolioPeoplePage initialShell={shell} orgslug={orgslug} /> : <PortfolioDocumentsPage initialShell={shell} orgslug={orgslug} />

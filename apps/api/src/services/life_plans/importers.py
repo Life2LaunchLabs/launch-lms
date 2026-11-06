@@ -186,7 +186,7 @@ def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int,
 
 HUD_FMR_URL = "https://www.huduser.gov/portal/datasets/fmr.html"
 BLS_OEWS_URL = "https://www.bls.gov/oes/tables.htm"
-NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) or the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv), as the publisher gives it."
+NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv), or the Oregon Employment Department's occupational projections or wage information workbook, as the publisher gives it."
 
 
 def _zip_table_name(data: bytes) -> str:
@@ -215,8 +215,16 @@ def import_file(db: Session, data: bytes, filename: str) -> dict:
     Allowed: HUD's county Fair Market Rents (FYxx_FMRs.xlsx), BLS's OEWS all-data
     file (oesmYYall.zip), the O*NET text database (db_XX_X_text.zip) and the College
     Scorecard institution file. Anything else is refused."""
-    from src.services.life_plans import public_data
+    from src.services.life_plans import oregon, public_data
 
+    try:
+        oed = oregon.kind_of(data, filename)
+        if oed == "projections":
+            return oregon.import_projections(db, data, filename)
+        if oed == "wages":
+            return oregon.import_wages(db, data, filename)
+    except oregon.OregonProblem as exc:
+        raise ImportProblem(str(exc)) from exc
     try:
         if public_data.is_onet_zip(data, filename):
             return public_data.import_onet(db, data, filename)

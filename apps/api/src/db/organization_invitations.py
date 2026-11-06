@@ -106,6 +106,8 @@ class InviteRecipientResult(BaseModel):
     email: str
     status: str
     detail: str | None = None
+    # For a new invitation: whether its email went out (it's saved and shows in the list either way).
+    email_sent: bool | None = None
 
 
 class InviteUsersResponse(BaseModel):

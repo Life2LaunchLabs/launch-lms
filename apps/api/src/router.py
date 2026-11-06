@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from src.routers import accessibility as accessibility_router_module
 from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
@@ -52,6 +53,8 @@ from src.routers import (
 )
 from src.routers import life_plans as life_plans_router_module
 from src.routers import data_export as data_export_router_module
+from src.routers import user_language as user_language_router_module
+from src.routers import content_translation as content_translation_router_module
 from src.routers import learning as learning_router_module
 from src.routers import badges as badges_router_module
 from src.routers import learning_documents as learning_documents_router_module
@@ -90,6 +93,7 @@ async def get_non_api_token_user(user = Depends(get_current_user)):
     return await require_non_api_token_user(user)
 
 # API Routes
+v1_router.include_router(accessibility_router_module.router, dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     users.router,
     prefix="/users",
@@ -97,6 +101,8 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(data_export_router_module.router, prefix="/users", tags=["users"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(user_language_router_module.router, prefix="/users", tags=["users"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(content_translation_router_module.router, prefix="/translate", tags=["translate"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     usergroups.router,
     prefix="/usergroups",

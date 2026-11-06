@@ -12,6 +12,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi } from '@services/connect/connect'
 import { portfolioPeopleApi, profileKey, type PortfolioAccess, type Profile } from '@services/portfolio/people'
 import { CommentButton } from './v2/PortfolioTalk'
+import { ConnectRequestButton, SignInToConnect, useConnectRequest } from './ConnectRequest'
 import type { Shell } from './portfolioTypes'
 
 const SHEET_COLOR = '#7cc4ff'
@@ -27,7 +28,13 @@ export function PortfolioVisitorBar({ orgslug, username, token, shell }: { orgsl
   const [opening, setOpening] = React.useState(false)
   const access: PortfolioAccess | undefined = shell.access
   const onPortfolio = access && access.role !== 'public' && access.role !== 'owner'
-  if (!token || !profile || access?.role === 'owner') return null
+  const portfolioUuid = shell.portfolio?.portfolio_uuid
+  const { data: request, mutate: setRequest } = useConnectRequest(portfolioUuid, token, Boolean(shell.connect_requests) && access?.role !== 'owner')
+  // Asking to connect needs an account: signed out, the button goes through sign-in first.
+  if (!token) return shell.connect_requests && access?.role !== 'owner' ? <div className="flex flex-wrap items-center gap-2 sm:ml-auto"><SignInToConnect /></div> : null
+  if (!profile || access?.role === 'owner') return null
+  // While a request is on offer or waiting, it stands in for Message.
+  const requesting = request && (request.status === 'asked' || (request.status === 'none' && request.open))
 
   const message = async () => {
     if (profile.chat_uuid) return router.push(getUriWithOrg(orgslug, routePaths.org.chat(profile.chat_uuid)))
@@ -44,7 +51,8 @@ export function PortfolioVisitorBar({ orgslug, username, token, shell }: { orgsl
 
   return <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
     {access?.shared_privately ? <span className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-raised px-3 text-xs font-bold text-muted-foreground"><Lock className="h-3.5 w-3.5" />Shared with you</span> : null}
-    {profile.can_message ? <Button variant="brand" size="sm" onClick={message} disabled={opening}>{opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Message</Button> : null}
+    {requesting && portfolioUuid ? <ConnectRequestButton portfolioUuid={portfolioUuid} name={profile.person.name} token={token} state={request} onSent={(next) => setRequest(next, { revalidate: false })} /> : null}
+    {profile.can_message && !requesting ? <Button variant="brand" size="sm" onClick={message} disabled={opening}>{opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Message</Button> : null}
     {profile.goals.length ? <Button variant="surface" size="sm" onClick={() => setSheet('goals')}><Target className="h-4 w-4" />Goals · {profile.goals.length}</Button> : null}
     {access?.plans && profile.person.user_uuid ? <Button variant="surface" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.sharedPlan(profile.person.user_uuid))}><Map className="h-4 w-4" />Plans</Link></Button> : null}
     {onPortfolio ? <CommentButton portfolioUuid={shell.portfolio?.portfolio_uuid} orgslug={orgslug} token={token} /> : null}

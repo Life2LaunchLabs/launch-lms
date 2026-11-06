@@ -76,6 +76,11 @@ METRICS = {
     "rent": {"title": "Rent", "dims": ["bedrooms"], "required": []},
     "wage": {"title": "Pay", "dims": ["soc"], "required": ["soc"]},
     "tuition": {"title": "Tuition and fees", "dims": ["school", "residency"], "required": ["school", "residency"]},
+    # Outlook by occupation (Oregon Employment Department projections).
+    "openings": {"title": "Openings a year", "dims": ["soc"], "required": ["soc"]},
+    "growth": {"title": "Change in jobs", "dims": ["soc"], "required": ["soc"]},
+    "employment": {"title": "Jobs", "dims": ["soc"], "required": ["soc"]},
+    "employment_projected": {"title": "Projected jobs", "dims": ["soc"], "required": ["soc"]},
 }
 
 ASSET_KINDS = [

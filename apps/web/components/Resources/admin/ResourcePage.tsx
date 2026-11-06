@@ -17,7 +17,7 @@ import { useLibrarySave } from './LibraryTab'
 import { Loading } from './listing'
 import { ResourceComments } from './comments'
 import { ResourceModal } from './modals'
-import { OrgChip, SaveButton, TypeTile, channelHref, domainOf, useResourcesContext } from './pieces'
+import { OrgChip, SaveButton, StarButton, TypeTile, channelHref, domainOf, useResourcesContext } from './pieces'
 
 const cardClass = 'rounded-[20px] border border-border bg-card p-5'
 const personName = (person: ResourceDetail['added_by']) => person ? [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || 'Someone' : null
@@ -65,6 +65,7 @@ export default function ResourcePage({ resourceUuid }: { resourceUuid: string })
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <a href={resource.external_url} target="_blank" rel="noopener noreferrer" className={primaryActionClass}><ExternalLink size={16} aria-hidden="true" />Open link</a>
+              {resource.can_edit && !resource.is_shared_from_other_org ? <StarButton resourceUuid={resourceUuid} starred={Boolean(resource.is_featured)} /> : null}
               {resource.is_shared_from_other_org && !(resource.saved && !resource.saved_directly) ? <SaveButton saved={resource.saved} busy={save.busy === resourceUuid}
                 onClick={() => void save.toggle('resource', resourceUuid, resource.saved_directly)} /> : null}
             </div>
