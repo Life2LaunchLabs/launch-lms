@@ -11,6 +11,7 @@ import Script from 'next/script'
 import '../lib/i18n'
 import DemoExperience from '@components/Demo/DemoExperience'
 import I18nProvider from '@components/Contexts/I18nContext'
+import { AccessibilityProvider } from '@components/Accessibility/AccessibilityContext'
 import { ThemeProvider } from 'next-themes'
 import { LOOK_BOOT } from '@components/Looks/looks'
 
@@ -46,10 +47,12 @@ export default function RootLayout({
           <SessionProvider refetchInterval={600000}>
             <LHSessionProvider>
               <I18nProvider>
-                <DemoExperience />
-                <main className="animate-fade-in">
+                <AccessibilityProvider>
+                  <DemoExperience />
+                  <main className="animate-fade-in">
                     {children}
                   </main>
+                </AccessibilityProvider>
               </I18nProvider>
             </LHSessionProvider>
           </SessionProvider>

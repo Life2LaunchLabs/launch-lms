@@ -29,6 +29,7 @@ from src.services.life_plans.public_data import RIASEC, _career_view, _correlati
 HOURS_A_YEAR = 2080
 CODE = re.compile(r"(\d{2}-\d{4}\.\d{2})")
 QUIZ_SOURCE, QUIZ_REFERENCE = "interest_quiz", "onet-mini-ip"
+SORT_SOURCE, SORT_REFERENCE = "picture_sort", "l2l-picture-sort"
 DECK_SIZE = 10
 # A skipped career drops this many places per skip, so new ones come first but it never disappears.
 SKIP_PENALTY = 100
@@ -55,8 +56,10 @@ def quiz_scores(db: Session, user_id: int) -> dict[str, int] | None:
     portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
     if not portfolio:
         return None
-    row = db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, PortfolioResult.source == QUIZ_SOURCE,
-                                                PortfolioResult.source_reference == QUIZ_REFERENCE)).first()
+    # The interest quiz or the picture sort, whichever the learner did last; matching uses the scores' shape, not their scale.
+    rows = db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, col(PortfolioResult.source).in_([QUIZ_SOURCE, SORT_SOURCE]),
+                                                 col(PortfolioResult.source_reference).in_([QUIZ_REFERENCE, SORT_REFERENCE]))).all()
+    row = max(rows, key=lambda item: item.update_date or item.creation_date or "", default=None)
     scores = (row.data or {}).get("scores") if row else None
     if not scores:
         return None
