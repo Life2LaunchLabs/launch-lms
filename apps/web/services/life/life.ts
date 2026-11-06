@@ -53,6 +53,8 @@ export interface Phase {
   living?: string | null
   /** Place keys still being weighed; `place` is the one picked. */
   places?: string[]
+  /** Where it sits among the options after the same phase: 0 is the learner's first choice. */
+  rank?: number | null
 }
 /** A photo of a place, picked ahead of time from Wikimedia Commons, with the credit it is shown with. */
 export interface PlacePhoto { url: string; width?: number; height?: number; title?: string; author: string; license: string; license_url?: string; source_url: string }

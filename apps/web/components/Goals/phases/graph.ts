@@ -55,7 +55,9 @@ export function normalize(doc: LifeDoc): LifeDoc {
 export const byId = (doc: LifeDoc, id: string | null | undefined) => doc.phases.find((p) => p.id === id)
 const starts = (p: Phase) => mi(p.starts!)
 /** What comes straight after a phase: earliest first, real phases before ideas at the same month. */
-export const kids = (doc: LifeDoc, id: string) => doc.phases.filter((p) => p.after?.includes(id)).sort((a, b) => starts(a) - starts(b) || Number(!!a.idea) - Number(!!b.idea))
+/** Options in the learner's order (rank, their first choice first), then by when they start. */
+const byChoice = (a: Phase, b: Phase) => (a.rank ?? 99) - (b.rank ?? 99) || starts(a) - starts(b) || Number(!!a.idea) - Number(!!b.idea)
+export const kids = (doc: LifeDoc, id: string) => doc.phases.filter((p) => p.after?.includes(id)).sort(byChoice)
 export const parents = (doc: LifeDoc, p: Phase) => (p.after || []).map((id) => byId(doc, id)).filter(Boolean) as Phase[]
 export const roots = (doc: LifeDoc) => doc.phases.filter((p) => !p.after?.length).sort((a, b) => starts(a) - starts(b))
 /** When a phase ends: when the first phase after it starts, or its own length when nothing does. */
@@ -252,7 +254,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 export function optionsOf(doc: LifeDoc, key: string): Phase[] {
   if (!key.startsWith('g:')) return kids(doc, key)
   const group = key.slice(2).split(',')
-  return doc.phases.filter((p) => sameSet(p.after || [], group)).sort((a, b) => starts(a) - starts(b) || Number(!!a.idea) - Number(!!b.idea))
+  return doc.phases.filter((p) => sameSet(p.after || [], group)).sort(byChoice)
 }
 /** The split a phase is an option in (to add another option beside it), or null for a first phase. */
 export const splitOf = (p: Phase) => !p.after?.length ? null : p.after.length === 1 ? p.after[0] : groupKey(p.after)
@@ -327,7 +329,10 @@ export function lift(doc: LifeDoc, id: string, only = false): LifeDoc {
  * after it move later, and so does what follows it in line.
  */
 export function place(lifted: LifeDoc, ids: string[], at: string, inline: boolean): LifeDoc {
-  const next = clone(lifted), head = byId(next, ids[0]), from = byId(next, at)
+  // `at` can be a split's key: a new option beside phases that several ways lead into.
+  const after = at.startsWith('g:') ? at.slice(2).split(',') : [at]
+  if (after.length > 1) inline = false
+  const next = clone(lifted), head = byId(next, ids[0]), from = byId(next, after.reduce((a, b) => (starts(byId(next, b)!) > starts(byId(next, a)!) ? b : a)))
   if (!head || !from) return lifted
   const shape = heldShape(next, ids)
   const shiftAll = (list: Phase[], by: number) => list.forEach((p) => { p.starts = ym(starts(p) + by) })
@@ -341,7 +346,7 @@ export function place(lifted: LifeDoc, ids: string[], at: string, inline: boolea
       b.after = (b.after || []).map((x) => (x === at ? shape.tail! : x))
     }
   }
-  head.after = [at]
+  head.after = after
   return normalize(next)
 }
 /** A new piece (say, a career's route) that isn't on the map yet: its steps one after another, ready to place. */
@@ -353,6 +358,13 @@ export function loosePiece(doc: LifeDoc, steps: RouteStep[], start = thisMonthIn
     next.phases.push(p); ids.push(p.id); prev = p.id; at += Math.round((s.years || 3) * 12)
   }
   return { doc: normalize(next), ids }
+}
+
+/** Put a split's options in the learner's order: the first is their first choice. */
+export function rank(doc: LifeDoc, order: string[]): LifeDoc {
+  const next = clone(doc)
+  order.forEach((id, i) => { const p = byId(next, id); if (p) p.rank = i })
+  return next
 }
 
 /* ---------- careers: the usual ways in, added as ideas ---------- */

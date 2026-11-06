@@ -234,7 +234,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug}>
         {strip}
         {goal && goal.ownership === 'personal' && goal.status === 'active' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
-        <div className="relative mt-8 overflow-x-clip">
+        {/* Clips the swipe between views at the page edges, not the content edges, so full-width bands still reach them. */}
+        <div className="relative -mx-6 mt-8 overflow-x-clip px-6">
           <AnimatePresence initial={false} mode="popLayout" custom={motionState}>
             <motion.div key={viewKey} custom={motionState} variants={swipe} initial="enter" animate="center" exit="exit">
               {content}

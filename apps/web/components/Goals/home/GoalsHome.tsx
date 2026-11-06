@@ -2,12 +2,9 @@
 
 import React from 'react'
 import Link from 'next/link'
-import useSWR, { mutate } from 'swr'
-import toast from 'react-hot-toast'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, Compass, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
 import { GoalTabs } from '@components/Goals/learner/GoalHeader'
 import type { PhaseGroup } from '@components/Goals/learner/phases'
 import { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
@@ -16,14 +13,12 @@ import { current, normalize } from '@components/Goals/phases/graph'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
+import Invitations from './Invitations'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { isGoalsKey } from '@services/goals/goals'
 import { homeUrl } from '@services/goals/home'
 import type { LifeDoc } from '@services/life/life'
-import { goalSharingApi, myInvitationsKey, type ReceivedInvitation } from '@services/goals/sharing'
 import type { GoalSummary } from '@services/goals/types'
-import { swrFetcher } from '@services/utils/ts/requests'
 
 /** The SWR key of the learner's home payload (finished goals waiting to greet them). */
 export const homeKey = () => homeUrl()
@@ -78,28 +73,23 @@ export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: {
 /** Plans: invitations, then the phases of the learner's life as pictures, then finished goals. */
 export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
   const router = useRouter()
-  const { data: invitations = [], isLoading: invitesLoading } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { change } = useLifePlan(token)
   const params = useSearchParams()
   const focus = params?.get('phase')
   const wantsMap = Boolean(focus || params?.has('map'))
   const nowPhase = life?.phases?.length ? current(normalize(life)) : undefined
-  // Plans opens on the phase you're in; the map is one tap from there (?map or ?phase=). Invitations waiting keep you here to answer them.
-  const toPhase = Boolean(nowPhase && !wantsMap && token && !invitesLoading && !invitations.length)
+  // Plans opens on the phase you're in, where invitations wait too; the map is one tap from there (?map or ?phase=).
+  const toPhase = Boolean(nowPhase && !wantsMap && token)
   React.useEffect(() => { if (toPhase && nowPhase) router.replace(getUriWithOrg(orgslug, routePaths.org.phase(nowPhase.id))) }, [toPhase, nowPhase?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const photos = usePlacePhotos(token)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
 
   if (life?.phases?.length) {
     if (toPhase) return null
-    const now = nowPhase
     return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6">
-      <SharedWithYou token={token} />
-      <Invitations invitations={invitations} token={token} />
       <section aria-labelledby="plan-map" className="flex flex-col gap-3">
         <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus}
-          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">Your map</h1>}
-          actions={now ? <Button variant="brand" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(now.id))}>You’re in {now.title}</Link></Button> : null} />
+          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">Your map</h1>} />
       </section>
     </div>
   }
@@ -107,7 +97,7 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   // No phases yet: start the plan with the phase they're in; goals they already have wait below.
   return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
     <SharedWithYou token={token} />
-    <Invitations invitations={invitations} token={token} />
+    <Invitations token={token} />
     <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
     {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
@@ -116,38 +106,6 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
     </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
   </div>
-}
-
-/** Invitations to work on someone's goal, and goals an organization handed the learner, answered here. */
-function Invitations({ invitations, token }: { invitations: ReceivedInvitation[]; token?: string }) {
-  const [busy, setBusy] = React.useState('')
-  const { invitations: orgGoals, respond: respondOrg } = useGoalInvitations()
-  if (!invitations.length && !orgGoals.length) return null
-  const answer = async (uuid: string, send: () => Promise<unknown>) => {
-    setBusy(uuid)
-    try { await send(); await mutate(isGoalsKey) } catch { toast.error('Could not respond to this invitation') } finally { setBusy('') }
-  }
-  const respond = (uuid: string, accept: boolean) => answer(uuid, () => goalSharingApi.respondInvitation(uuid, accept, token))
-  const respondGoal = (goal: OrgGoalInvitation, accept: boolean) => answer(goal.goal_uuid, () => respondOrg(goal, accept))
-  return <section aria-label="Goal invitations" className="flex flex-col gap-3">
-    <h2 className="text-xl font-extrabold tracking-tight">Invitations</h2>
-    {orgGoals.map((goal) => <div key={goal.goal_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
-      <div className="min-w-0 flex-1">
-        <p className="font-bold">{goal.title}</p>
-        <p className="text-sm text-muted-foreground">{goal.organization?.name || 'Launch LMS'}</p>
-      </div>
-      <Button size="sm" variant="ghost" disabled={busy === goal.goal_uuid} onClick={() => void respondGoal(goal, false)}>Decline</Button>
-      <Button size="sm" variant="brand" disabled={busy === goal.goal_uuid} onClick={() => void respondGoal(goal, true)}>Accept</Button>
-    </div>)}
-    {invitations.map((invite) => <div key={invite.invitation_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
-      <div className="min-w-0 flex-1">
-        <p className="font-bold">{invite.goal.title}</p>
-        <p className="text-sm text-muted-foreground">{invite.organization?.name || invite.invited_by?.name || invite.invited_by?.username || 'Launch LMS'}{invite.kind !== 'subject' ? ` · Help as ${invite.role.name}` : ''}</p>
-      </div>
-      <Button size="sm" variant="ghost" disabled={busy === invite.invitation_uuid} onClick={() => void respond(invite.invitation_uuid, false)}>Decline</Button>
-      <Button size="sm" variant="brand" disabled={busy === invite.invitation_uuid} onClick={() => void respond(invite.invitation_uuid, true)}>Accept</Button>
-    </div>)}
-  </section>
 }
 
 // eslint-disable-next-line no-unused-vars

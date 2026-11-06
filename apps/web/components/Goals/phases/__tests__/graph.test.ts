@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LifeDoc } from '@services/life/life'
-import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -136,6 +136,16 @@ describe('a plan as a map', () => {
     // As another option after the apprenticeship.
     const opt = place(lift(doc, 'tr'), ['tr'], 'ap', false)
     expect(kids(opt, 'ap').map((p) => p.id).sort()).toEqual(['el', 'tr'])
+  })
+
+  test('ranking options puts the first choice first; a piece can go beside phases two ways lead into', () => {
+    const doc = rank(map(), ['tr', 'col', 'ap'])
+    expect(kids(doc, 'hs').map((p) => p.id)).toEqual(['tr', 'col', 'ap'])
+    const loose = loosePiece(doc, [{ title: 'Lineman', years: 1 }])
+    const placed = place(loose.doc, loose.ids, groupKey(['tr', 'ap']), true)
+    const p = placed.phases.find((x) => x.id === loose.ids[0])!
+    expect([...p.after!].sort()).toEqual(['ap', 'tr'])
+    expect(optionsOf(placed, groupKey(['tr', 'ap'])).map((x) => x.id)).toContain('el')
   })
 
   test('a career route waits off the map until you place it', () => {
