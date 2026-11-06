@@ -365,6 +365,26 @@ export function place(lifted: LifeDoc, ids: string[], at: string, inline: boolea
   head.after = after
   return normalize(next)
 }
+/** Where you live and how, as a new phase carries it over from the one before it. */
+export interface Carried { place: string | null; place_label: string; living: string | null }
+/**
+ * New phases start where the phase they follow left off: the same place, living the same way. Only what
+ * is blank, or still what was carried over last time (`was`), is filled in, so a phase moved to another
+ * spot picks up its new neighbour's but keeps anything the learner (or a career's route) set.
+ */
+export function carryOver(doc: LifeDoc, ids: string[], at: string, was?: Carried): { doc: LifeDoc; carried?: Carried } {
+  const after = at.startsWith('g:') ? at.slice(2).split(',') : [at]
+  const from = after.map((id) => byId(doc, id)).filter(Boolean).sort((a, b) => starts(b!) - starts(a!))[0]
+  if (!from) return { doc }
+  const next = clone(doc), carried: Carried = { place: from.place ?? null, place_label: from.place_label || '', living: from.living ?? null }
+  for (const id of ids) {
+    const p = byId(next, id)
+    if (!p) continue
+    if ((!p.place && !p.place_label) || (was && (p.place ?? null) === was.place && (p.place_label || '') === was.place_label)) { p.place = carried.place; p.place_label = carried.place_label }
+    if (p.living == null || (was && p.living === was.living)) p.living = carried.living
+  }
+  return { doc: next, carried }
+}
 /** A new piece (say, a career's route) that isn't on the map yet: its steps one after another, ready to place. */
 export function loosePiece(doc: LifeDoc, steps: RouteStep[], start = thisMonthIndex() + 12): { doc: LifeDoc; ids: string[] } {
   const next = clone(doc), ids: string[] = []

@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars -- parameter names in function types */
 
 import React from 'react'
-import { ArrowDown, ArrowUp, Check, MoreHorizontal, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
@@ -74,7 +74,7 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-opt={opt} data-title={p.title} onClick={onOpen} title={`${p.title} · from ${monthText(p.starts!)}`}
+  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={`${p.title} · from ${monthText(p.starts!)}`}
     {...drag}
     className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
@@ -89,27 +89,6 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
       <small className="truncate text-[12.5px] font-bold opacity-90">{monthText(p.starts!)}{p.place_label ? ` · ${p.place_label.split(',')[0]}` : ''}</small>
     </span>
   </button>
-}
-
-/** A new phase just dropped onto the map, not kept yet: name it and tick, or cross it out. Hold it to move it again. */
-export function PendingCard({ p, env, name, steps, onName, onKeep, onCancel, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; name: string; steps?: string[]; onName: (v: string) => void; onKeep: () => void; onCancel: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
-  const { holding, ...drag } = useHoldDrag(!env.moving, onLift, onLiftMove, onLiftEnd)
-  return <form data-card={p.id} onSubmit={(e) => { e.preventDefault(); onKeep() }} {...drag}
-    className={cn('flex h-[180px] select-none flex-col justify-between rounded-[22px] border-[3px] border-dashed border-foreground/60 bg-card p-4 transition-[transform,opacity] [-webkit-touch-callout:none]', holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
-    <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{steps ? `${steps.length === 1 ? '1 phase' : `${steps.length} phases`}` : 'New phase'} · from {monthText(p.starts!)}</span>
-    {steps ? <span className="grid gap-1">
-      <b className="truncate text-2xl font-extrabold leading-tight">{name}</b>
-      <small className="truncate text-sm font-bold text-muted-foreground">{steps.join(' → ')}</small>
-    </span> : <input autoFocus aria-label="Name of the new phase" value={name} onChange={(e) => onName(e.target.value)} placeholder="Gap year, trade school, move to Portland…"
-      className="h-12 w-full rounded-2xl bg-muted px-3 text-lg font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />}
-    <span className="flex items-center justify-between gap-2">
-      <small className="text-xs font-bold text-muted-foreground">Hold to move it</small>
-      <span className="flex gap-2">
-        <button type="button" onClick={onCancel} aria-label="Don’t add it" className="grid size-11 place-items-center rounded-full bg-muted text-foreground"><X size={20} aria-hidden="true" /></button>
-        <button type="submit" aria-label="Add it" className="grid size-11 place-items-center rounded-full bg-foreground text-background"><Check size={20} aria-hidden="true" /></button>
-      </span>
-    </span>
-  </form>
 }
 
 /**
