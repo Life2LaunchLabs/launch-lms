@@ -50,9 +50,9 @@ def _resolve_default_org_branding_dir() -> Path:
 
 DEFAULT_ORG_BRANDING_DIR = _resolve_default_org_branding_dir()
 DEFAULT_ORG_BRANDING_ASSETS = {
-    "logo": ("logos", "logo", "l2l-oregon.png"),
+    "logo": ("logos", "logo", "l2l-oregon-white.png"),
     "thumbnail": ("thumbnails", "thumbnail", "l2l on blue.png"),
-    "favicon": ("favicons", "favicon", "l2l-bug-tile.png"),
+    "favicon": ("favicons", "favicon", "l2l-bug-black.png"),
     "auth_background": ("auth_backgrounds", "auth_bg", "stacked-waves-haikei (1).png"),
     "og_image": ("og_images", "og", "l2l on blue.png"),
 }

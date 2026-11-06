@@ -1,7 +1,7 @@
 """Make the Life2Launch logo for a state: the LIFE2LAUNCH wordmark with the state's name centered under it.
 
-    python3 branding/scripts/state_logo.py Oregon            -> branding/states/l2l-oregon.png (white)
-    python3 branding/scripts/state_logo.py "North Carolina" --color "#13277a"
+    python3 branding/scripts/state_logo.py Oregon            -> branding/states/l2l-oregon-white.png
+    python3 branding/scripts/state_logo.py "North Carolina" --color black
 
 The state line is set like the wordmark (same heavy weight, tight spacing, right under it), never taller or wider; long names
 lose letter spacing first, then size. Needs Pillow and a bold geometric sans (Inter Display Bold by default).
@@ -15,7 +15,7 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 WORDMARK = ROOT / "life2launch-wordmark.png"
 FONT = "/usr/share/fonts/opentype/inter/InterDisplay-Black.otf"
-CAP_RATIO = 1.0  # state capitals / wordmark capitals (never more)
+CAP_RATIO = 0.6  # state capitals / wordmark capitals (never more than 1)
 GAP_RATIO = 0.07  # space between the lines / wordmark capitals: the two lines all but touch
 TRACKING = -0.02  # letter spacing, as a share of the state's cap height: tight, like the wordmark
 MAX_WIDTH = 1.0  # the state line never runs wider than the wordmark
@@ -69,8 +69,9 @@ if __name__ == "__main__":
     parser.add_argument("--out")
     parser.add_argument("--cap", type=float, default=CAP_RATIO, help="state capitals as a share of the wordmark's (at most 1)")
     args = parser.parse_args()
-    suffix = "" if args.color.lower() in ("#fff", "#ffffff", "white") else "-" + args.color.lstrip("#").lower()
-    out = Path(args.out) if args.out else ROOT / "states" / f"l2l-{args.state.lower().replace(' ', '-')}{suffix}.png"
+    named = {"#fff": "white", "#ffffff": "white", "white": "white", "#000": "black", "#000000": "black", "black": "black"}
+    suffix = named.get(args.color.lower(), args.color.lstrip("#").lower())
+    out = Path(args.out) if args.out else ROOT / "states" / f"l2l-{args.state.lower().replace(' ', '-')}-{suffix}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     make(args.state, args.color, args.font, args.cap).save(out)
     print(out)
