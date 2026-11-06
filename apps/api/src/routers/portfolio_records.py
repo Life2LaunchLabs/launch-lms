@@ -22,7 +22,7 @@ from src.db.portfolio_records import (
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.db.portfolio_people import PersonAccess, PersonLink
-from src.services import interest_quiz, people_access, portfolio_quotes as quote_asks
+from src.services import interest_quiz, people_access, picture_sort, portfolio_quotes as quote_asks
 from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
@@ -177,6 +177,22 @@ async def api_interest_quiz(current_user: PublicUser = User, db_session: Session
 async def api_take_interest_quiz(payload: QuizAnswers, current_user: PublicUser = User, db_session: Session = Db):
     """Scores the 30 answers (0 to 4 each), saves the result to "What I'm like" and returns matching careers."""
     return interest_quiz.take(payload.answers, current_user, db_session)
+
+
+class SortAnswers(BaseModel):
+    answers: dict[str, int]
+
+
+@router.get("/me/picture-sort")
+async def api_picture_sort(current_user: PublicUser = User, db_session: Session = Db):
+    """The picture sort's cards, and the learner's last result with matching careers if they've done it."""
+    return picture_sort.latest(current_user, db_session)
+
+
+@router.post("/me/picture-sort")
+async def api_take_picture_sort(payload: SortAnswers, current_user: PublicUser = User, db_session: Session = Db):
+    """Scores one answer per card (0 no, 1 not sure, 2 yes), saves the result to "What I'm like" and returns matching careers."""
+    return picture_sort.take(payload.answers, current_user, db_session)
 
 
 @router.post("/me/results")

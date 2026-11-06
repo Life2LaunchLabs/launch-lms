@@ -105,7 +105,7 @@ export function InterestQuizPage({ orgslug }: { orgslug: string }) {
     <div className="mx-auto max-w-[760px] px-4 pt-4 sm:px-6 sm:pt-6">
       <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Sparkles} title="Interest quiz" />
       {mode === 'loading' || !quiz ? <div className="h-64 animate-pulse rounded-3xl bg-muted" />
-        : mode === 'intro' ? <Intro quiz={quiz} resume={answers.length} onStart={start} />
+        : mode === 'intro' ? <Intro quiz={quiz} resume={answers.length} onStart={start} sortHref={getUriWithOrg(orgslug, '/portfolio/picture-sort')} />
         : mode === 'done' && taken ? <Results quiz={quiz} taken={taken} orgslug={orgslug} onRetake={() => start(true)} />
         : <Question quiz={quiz} answers={answers} saving={mode === 'saving'} onAnswer={answer} onBack={back} />}
       <Credit quiz={quiz} />
@@ -113,7 +113,7 @@ export function InterestQuizPage({ orgslug }: { orgslug: string }) {
   </main>
 }
 
-function Intro({ quiz, resume, onStart }: { quiz: InterestQuiz; resume: number; onStart: Start }) {
+function Intro({ quiz, resume, onStart, sortHref }: { quiz: InterestQuiz; resume: number; onStart: Start; sortHref: string }) {
   return <section className="rounded-3xl border border-border bg-card p-6 text-center sm:p-8">
     <div className="mx-auto mb-4 flex w-fit gap-1 text-3xl" aria-hidden>{FACES.map((face) => <span key={face}>{face}</span>)}</div>
     <h2 className="text-[clamp(22px,4vw,28px)] font-extrabold leading-tight">What kind of work would you enjoy?</h2>
@@ -122,6 +122,7 @@ function Intro({ quiz, resume, onStart }: { quiz: InterestQuiz; resume: number; 
       {resume ? <><Button type="button" variant="brand" onClick={() => onStart(false)}>Keep going ({resume} of {quiz.items.length})</Button><Button type="button" variant="surface" onClick={() => onStart(true)}>Start over</Button></>
         : <Button type="button" variant="brand" onClick={() => onStart(true)}>Start the quiz</Button>}
     </div>
+    <p className="mt-5 text-sm font-semibold text-muted-foreground">Rather look at pictures? <Link href={sortHref} className="font-extrabold text-[var(--org-primary-color)] underline">Try the picture sort</Link></p>
   </section>
 }
 
@@ -157,7 +158,8 @@ function Question({ quiz, answers, saving, onAnswer, onBack }: { quiz: InterestQ
   </section>
 }
 
-function Results({ quiz, taken, orgslug, onRetake }: { quiz: InterestQuiz; taken: QuizTaken; orgslug: string; onRetake: () => void }) {
+/** The result: the radar, the top three types and matching careers. The picture sort shows the same. */
+export function Results({ quiz, taken, orgslug, onRetake }: { quiz: Pick<InterestQuiz, 'types' | 'max'>; taken: QuizTaken; orgslug: string; onRetake: () => void }) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('all')
   const label = (key: string) => quiz.types.find((type) => type.key === key)?.label || key
   const top = taken.code.split('')
