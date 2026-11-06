@@ -3,7 +3,7 @@
 import React, { type Dispatch } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Check, ChevronDown, ChevronRight, GitBranch, Globe, Loader2, MapPin } from 'lucide-react'
+import { ArrowLeftRight, Check, ChevronDown, ChevronRight, GitBranch, Globe, Loader2, MapPin } from 'lucide-react'
 import { SpeakButton } from '@components/Accessibility/ReadAloud'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { routesFor } from '@components/Goals/phases/graph'
@@ -13,6 +13,7 @@ import {
 } from '@services/life/careers'
 import { cn } from '@/lib/utils'
 import { CAREER_TYPES, TRAINING, matchLabel } from './CareerTile'
+import CareerCompare, { type CompareChoice } from './CareerCompare'
 
 // A career's page inside its resource sheet, as the questions a learner asks: what would I do, would I like it,
 // what does it pay, can I get a job, what does it take, how do I get there, and what else is like this. Each answer
@@ -276,6 +277,7 @@ function Paths({ paths, onOpen, color }: { paths: CareerPaths; onOpen: Dispatch<
 export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { code: string; token: string; onOpen: Dispatch<string>; onAddToPlans?: Dispatch<Profile> }) {
   const org = useOrg() as any
   const { data, error } = useSWR(token ? ['career-profile', code, org?.id] : null, () => careersApi.profile(code, org?.id, token))
+  const [compare, setCompare] = React.useState<CompareChoice[] | null>(null)
   if (error) return null
   if (!data) return <div className="flex h-24 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading career" /></div>
   const { career, scores, wages, outlook, home } = data
@@ -369,14 +371,22 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       </button> : null}
     </Section>
 
-    {similar.length ? <Section title="What else is like this?">
-      <div className="flex flex-col gap-2">
-        {similar.map((item) => <button key={item.code} type="button" onClick={() => onOpen(item.resource_uuid!)} className="flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-muted/60 px-3 py-2.5 text-left hover:bg-muted">
-          <span className="text-[14.5px] font-extrabold">{item.title}</span>
-          <span className="shrink-0 text-[12.5px] font-bold text-muted-foreground">{[item.job_zone ? TRAINING[item.job_zone] : '', item.pay ? `$${Math.round(item.pay.yearly / 2080)}/hr` : ''].filter(Boolean).join(' · ')}</span>
-        </button>)}
-      </div>
-    </Section> : null}
+    <Section title="What else is like this?">
+      {similar.length ? <div className="flex flex-col gap-2">
+        {similar.map((item) => <div key={item.code} className="flex items-stretch gap-1.5">
+          <button type="button" onClick={() => onOpen(item.resource_uuid!)} className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-muted/60 px-3 py-2.5 text-left hover:bg-muted">
+            <span className="text-[14.5px] font-extrabold">{item.title}</span>
+            <span className="shrink-0 text-[12.5px] font-bold text-muted-foreground">{[item.job_zone ? TRAINING[item.job_zone] : '', item.pay ? `$${Math.round(item.pay.yearly / 2080)}/hr` : ''].filter(Boolean).join(' · ')}</span>
+          </button>
+          <button type="button" onClick={() => setCompare([{ code: career.code, title: career.title }, { code: item.code, title: item.title }])} aria-label={`Compare with ${item.title}`} title="Compare"
+            className="flex w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeftRight size={16} aria-hidden="true" /></button>
+        </div>)}
+      </div> : null}
+      <button type="button" onClick={() => setCompare([{ code: career.code, title: career.title }])} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-[14px] font-extrabold hover:bg-muted/60">
+        <ArrowLeftRight size={16} aria-hidden="true" />Compare with another career
+      </button>
+    </Section>
+    {compare ? <CareerCompare start={compare} token={token} onClose={() => setCompare(null)} suggestions={data.similar.map((item) => ({ code: item.code, title: item.title }))} /> : null}
 
     <details className="group rounded-2xl px-1">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1 text-[12.5px] font-bold text-muted-foreground hover:text-foreground">
