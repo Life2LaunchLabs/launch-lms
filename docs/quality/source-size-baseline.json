@@ -17,7 +17,7 @@
     "apps/api/src/services/payments/payments_stripe.py": 834,
     "apps/api/src/services/portfolio.py": 1483,
     "apps/api/src/services/requirements.py": 557,
-    "apps/api/src/services/resources.py": 1295,
+    "apps/api/src/services/resources.py": 1297,
     "apps/api/src/services/setup/setup.py": 609,
     "apps/api/src/services/sso/sso.py": 725,
     "apps/api/src/services/superadmin/orgs.py": 516,
