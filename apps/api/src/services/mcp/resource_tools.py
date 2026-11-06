@@ -241,12 +241,11 @@ def _school_description(school: dict) -> str:
 
 async def add_school_resources(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     from src.db.life_plans import SchoolEntry
-    from src.services.life_plans.estimates import REVIEWED
-    from src.services.life_plans.public_data import get_school
+    from src.services.life_plans.public_data import get_school, live_schools
 
     channel = _own_channel(db_session, ctx, str(args.get("channel_uuid") or ""))
     state = str(args.get("state") or "OR").upper()
-    stmt = select(SchoolEntry).where(SchoolEntry.status == REVIEWED, SchoolEntry.state == state)
+    stmt = live_schools().where(SchoolEntry.state == state)
     unitids = args.get("unitids")
     if unitids:
         if not isinstance(unitids, list):
@@ -300,11 +299,10 @@ def _career_description(career: dict) -> str:
 async def add_career_resources(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     from src.db.life_plans import CareerEntry
     from src.services.life_plans.careers import code_of, onet_link
-    from src.services.life_plans.estimates import REVIEWED
-    from src.services.life_plans.public_data import get_career, top_interests
+    from src.services.life_plans.public_data import get_career, live_careers, top_interests
 
     channel = _own_channel(db_session, ctx, str(args.get("channel_uuid") or ""))
-    stmt = select(CareerEntry).where(CareerEntry.status == REVIEWED)
+    stmt = live_careers()
     codes = args.get("codes")
     if codes:
         if not isinstance(codes, list):
