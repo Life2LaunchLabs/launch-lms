@@ -10,7 +10,7 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
 
 /** What people in the job say it takes: O*NET's required level of education, the share of workers at each level (1 to 12). */
 export interface EducationShare { level: number; pct: number }
-export interface FullCareer extends Career { description: string; alt_titles: string[]; tasks: string[]; education?: EducationShare[]; related?: string[] }
+export interface FullCareer extends Career { description: string; alt_titles: string[]; tasks: string[]; education?: EducationShare[]; related?: string[]; skills?: string[] }
 
 type Percentiles = Partial<Record<'p10' | 'p25' | 'p50' | 'p75' | 'p90', number>>
 /** Pay in one place: region (an Oregon Employment Department area), area (a BLS wage area), state or us. */
@@ -90,6 +90,8 @@ export interface CareerProfile {
     source: string
   }
   my_places: MyPlace[]
+  /** The skill chips the learner picked in their portfolio (null before they pick any), and the ones this career uses. */
+  skills?: { mine: string[] | null; used: string[] }
   /** Where the learner lives: the portfolio's location, else the first place on their plan. */
   home: HomeBase | null
   wages: CareerWages

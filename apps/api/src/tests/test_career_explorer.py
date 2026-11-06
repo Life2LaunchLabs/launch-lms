@@ -19,17 +19,24 @@ CATALOG = (
     ("27-1013.00", "Fine Artists", 3, (2.5, 2.0, 7.0, 2.5, 2.0, 1.0)),
 )
 
+# Element ids the O*NET import keeps per career: Graphic Designers lean on Technology Design (2.B.3.b),
+# Active Listening (2.A.1.b) and Attention to Detail (1.D.3.b).
+SKILLS = {"27-1024.00": ["2.B.3.b", "2.A.1.b", "1.D.3.b"], "15-1252.00": ["2.B.3.e", "2.B.2.i"]}
+
 
 def _catalog(session) -> None:
     bind = session.get_bind()
-    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock, ProgramEntry):
+    from src.db.portfolio import Portfolio
+    from src.db.portfolio_records import PortfolioResult
+
+    for model in (EstimateSource, EstimateFact, CareerEntry, CareerSkip, LifePlan, ResourceNoteBlock, ProgramEntry, Portfolio, PortfolioResult):
         model.__table__.create(bind, checkfirst=True)
     source = EstimateSource(key="onet-31-0", title="O*NET 31.0", license="CC BY 4.0")
     session.add(source)
     session.commit()
     for code, title, zone, values in CATALOG:
         session.add(CareerEntry(code=code, soc=code[:7], title=title, job_zone=zone, interests=dict(zip("RIASEC", values)),
-                                description=f"{title} do things.", tasks=[f"A task of {title}"], source_id=source.id, status="reviewed"))
+                                description=f"{title} do things.", tasks=[f"A task of {title}"], skills=SKILLS.get(code, []), source_id=source.id, status="reviewed"))
     session.add(CareerEntry(code="99-9999.00", soc="99-9999", title="Draft Job", interests=dict(zip("RIASEC", (1, 2, 3, 4, 5, 6))), source_id=source.id, status="draft"))
     session.add(CareerEntry(code="27-1019.00", soc="27-1019", title="Artists, All Other", interests={}, source_id=source.id, status="reviewed"))
     soc = "27-1024"
@@ -190,6 +197,25 @@ def test_career_page_answers_pay_and_jobs_near_home_with_training_and_related(re
     assert page["career"]["education"] == [{"level": 5, "pct": 20.0}, {"level": 6, "pct": 80.0}]
     # O*NET's related careers, in its order, skipping ones we don't have.
     assert [item["title"] for item in page["similar"]] == ["Veterinary Technologists and Technicians", "Software Developers"]
+
+
+def test_career_page_says_which_of_your_picked_skills_the_job_uses(resources_mcp, monkeypatch):  # noqa: F811
+    from src.db.portfolio import Portfolio
+    from src.db.portfolio_records import PortfolioResult
+
+    session, _, alice, _, _ = _loaded(resources_mcp)
+    monkeypatch.setattr(careers, "quiz_scores", lambda db, user_id: None)
+    # Before picking any skills, the page knows to ask.
+    assert careers.profile(session, _learner(alice), "27-1024.00", org_id=1)["skills"] == {"mine": None, "used": []}
+    portfolio = Portfolio(portfolio_uuid="portfolio_1", user_id=alice.id)
+    session.add(portfolio)
+    session.commit()
+    session.add(PortfolioResult(result_uuid="result_1", portfolio_id=portfolio.id, kind="skills", name="Skills and values",
+                                data={"template": "skills-values", "skills": ["coding", "attention-to-detail", "design-sense", "listening"], "values": ["fun"]}))
+    session.commit()
+    designer = careers.profile(session, _learner(alice), "27-1024.00", org_id=1)["skills"]
+    assert designer == {"mine": ["coding", "attention-to-detail", "design-sense", "listening"], "used": ["attention-to-detail", "design-sense", "listening"]}
+    assert careers.profile(session, _learner(alice), "15-1252.00", org_id=1)["skills"]["used"] == ["coding"]
 
 
 def test_home_base_reads_typed_places():

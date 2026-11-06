@@ -36,6 +36,10 @@ SCORECARD_URL = "https://collegescorecard.ed.gov/data/"
 MAX_ALT_TITLES = 25
 MAX_TASKS = 5
 MAX_RELATED = 10
+# A skill counts as one the job uses at this importance (O*NET's IM scale, 1 to 5) or more.
+SKILL_IMPORTANCE = 3.5
+# A work style counts at this impact (O*NET's WI scale, -3 to 3) or more, as well as when it's among the job's most distinctive.
+STYLE_IMPACT = 2.5
 
 
 class CatalogProblem(ValueError):
@@ -98,6 +102,38 @@ def _tsv(zf: zipfile.ZipFile, *names: str, required: bool = True) -> list[dict[s
     return [{(k or "").strip().lower(): (v or "").strip() for k, v in row.items()} for row in csv.DictReader(io.StringIO(text), delimiter="\t")]
 
 
+def _career_skills(skill_rows: list[dict[str, str]], style_rows: list[dict[str, str]], code_col: str) -> dict[str, list[str]]:
+    """Each career's skills (importance SKILL_IMPORTANCE or more) and its key work styles, by element id. Work styles
+    from release 31.0 carry an impact (WI) and a distinctiveness rank (DR, 1 to 10 for the job's top styles): a style
+    counts when either is high. Older releases rate styles by importance like skills."""
+    ranked: dict[str, list[tuple[int, float, str]]] = {}
+
+    def add(code: str, element: str, kind: int, value: float) -> None:
+        bucket = ranked.setdefault(code, [])
+        if element and not any(item[2] == element for item in bucket):
+            bucket.append((kind, -value, element))
+
+    for r in skill_rows:
+        if r.get("scale id", "").upper() != "IM" or r.get("recommend suppress", "").upper() == "Y":
+            continue
+        try:
+            value = float(r.get("data value", ""))
+        except ValueError:
+            continue
+        if value >= SKILL_IMPORTANCE:
+            add(r.get(code_col, ""), r.get("element id", ""), 0, value)
+    for r in style_rows:
+        scale = r.get("scale id", "").upper()
+        try:
+            value = float(r.get("data value", ""))
+        except ValueError:
+            continue
+        if (scale == "DR" and value > 0) or (scale == "WI" and value >= STYLE_IMPACT) or (scale == "IM" and value >= SKILL_IMPORTANCE):
+            # Ranked together: a distinctiveness rank (1 to 10), impact (up to 3) and older importance (up to 5) on one scale.
+            add(r.get(code_col, ""), r.get("element id", ""), 1, value if scale == "DR" else value * 10 / 3 if scale == "WI" else value * 2)
+    return {code: [element for _, _, element in sorted(rows)] for code, rows in ranked.items()}
+
+
 def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL) -> dict:
     """Careers from the O*NET text database: title, description, RIASEC profile, job zone, other titles."""
     version = _onet_version(filename)
@@ -115,6 +151,9 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         ratings = _tsv(zf, "Task Ratings.txt", required=False)
         schooling = _tsv(zf, "Education, Training, and Experience.txt", "Education.txt", required=False)
         related_rows = _tsv(zf, "Related Occupations.txt", required=False)
+        # Release 31.0 split Skills.txt into essential and transferable skills.
+        skill_rows = _tsv(zf, "Skills.txt", required=False) or (_tsv(zf, "Essential Skills.txt", required=False) + _tsv(zf, "Transferable Skills.txt", required=False))
+        style_rows = _tsv(zf, "Work Styles.txt", required=False)
     code_col = "o*net-soc code"
     if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
         raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
@@ -185,12 +224,14 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         if other and other not in bucket and len(bucket) < MAX_RELATED:
             bucket.append(other)
 
+    skills = _career_skills(skill_rows, style_rows, code_col)
+
     src = _upsert_source(
         db,
         key=f"onet-{version.replace('.', '-')}",
         publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
         title=f"O*NET {version} Database",
-        dataset="Occupation Data, Career Interest Types, Job Zones, job titles, task statements, required level of education and related occupations",
+        dataset="Occupation Data, Career Interest Types, Job Zones, job titles, task statements, required level of education, related occupations, skills and work styles",
         url=url,
         released=f"O*NET {version}",
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
@@ -206,7 +247,7 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
             continue
         db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []),
-                               education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), source_id=src.id, status="draft", creation_date=now))
+                               education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), skills=skills.get(code, []), source_id=src.id, status="draft", creation_date=now))
         n += 1
     if not n:
         raise CatalogProblem("No occupations found in Occupation Data.txt.")
@@ -380,7 +421,7 @@ def live_schools():
 def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
     out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
     if full:
-        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or [], "education": c.education or [], "related": c.related or []}
+        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or [], "education": c.education or [], "related": c.related or [], "skills": c.skills or []}
     return out
 
 

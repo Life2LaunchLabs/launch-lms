@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { ArrowLeftRight, Check, ChevronDown, ChevronRight, GitBranch, Globe, Loader2, MapPin } from 'lucide-react'
 import { SpeakButton } from '@components/Accessibility/ReadAloud'
 import { useOrg } from '@components/Contexts/OrgContext'
+import { PORTFOLIO_STRENGTHS } from '@components/Portfolio/traitOptions'
 import { routesFor } from '@components/Goals/phases/graph'
 import { getUriWithOrg } from '@services/config/config'
 import {
@@ -207,6 +208,20 @@ function Schooling({ education, color }: { education: EducationShare[]; color: s
   </div>
 }
 
+/** Which of the skills the learner picked in their portfolio this job uses, or a nudge to pick some. */
+function SkillsLine({ skills, color, href }: { skills: Profile['skills']; color: string; href: string }) {
+  if (!skills) return null
+  const words = (ids: string[]) => ids.map((id) => PORTFOLIO_STRENGTHS.find((option) => option.id === id)?.text || id)
+  if (!skills.mine?.length) return <p className="m-0 text-[14px] text-muted-foreground">
+    Pick what you’re good at to see which of your skills this job uses.{href ? <> <Link href={href} className="font-extrabold text-foreground underline">Pick your skills</Link></> : null}
+  </p>
+  if (!skills.used.length) return <p className="m-0 text-[14px] text-muted-foreground">It doesn’t lean on the skills you picked{href ? <>, so it would mean learning new ones. <Link href={href} className="font-extrabold text-foreground underline">Change your skills</Link></> : '.'}</p>
+  return <div className="flex flex-col gap-1.5">
+    <span className="text-[14px] font-bold">Uses {skills.used.length === 1 ? 'one' : skills.used.length} of your skills</span>
+    <div className="flex flex-wrap gap-1.5">{words(skills.used).map((word) => <span key={word} className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[12.5px] font-extrabold" style={{ backgroundColor: `${color}22` }}><Check size={13} aria-hidden="true" />{word}</span>)}</div>
+  </div>
+}
+
 type PathSort = 'near' | 'short' | 'cost' | 'online'
 const PATH_SORTS: Array<[PathSort, string]> = [['near', 'Near you'], ['short', 'Shortest'], ['cost', 'Lowest cost'], ['online', 'Online']]
 const STATE_NAMES: Record<string, string> = { OR: 'Oregon', WA: 'Washington', CA: 'California', ID: 'Idaho' }
@@ -338,6 +353,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       </div>
     </> : undefined}>
       {!scores ? <p className="m-0 text-[14px] text-muted-foreground">Answer a few questions or sort some pictures to see how this career lines up with you.{quizHref ? <> <Link href={quizHref} className="font-extrabold text-foreground underline">Find your interests</Link></> : null}</p> : null}
+      <SkillsLine skills={data.skills} color={color} href={org?.slug ? getUriWithOrg(org.slug, '/portfolio/results?open=skills-values') : ''} />
     </Section>
 
     {here && payLine ? <Section title="What does it pay?" headline={payLine} speak={payLine} moreLabel="Pay around Oregon and over time" more={<PayMore wages={wages} color={color} />}>

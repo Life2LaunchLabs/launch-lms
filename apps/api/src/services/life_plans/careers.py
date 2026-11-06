@@ -24,6 +24,7 @@ from src.db.resources import Resource, UserSavedResource
 from src.db.users import PublicUser
 from src.services.life_plans import places as place_service
 from src.services.life_plans import programs as program_service
+from src.services.life_plans import skill_words
 from src.services.life_plans.estimates import REVIEWED, dims_key
 from src.services.life_plans.public_data import RIASEC, _career_view, _correlation, get_career, live_careers
 
@@ -329,6 +330,7 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
         "career": career,
         "match": round(_correlation(scores, career["interests"]), 3) if scores and len(career["interests"]) == 6 and _correlation(scores, career["interests"]) is not None else None,
         "scores": scores,
+        "skills": _skills(db, user.id, career),
         "pay": {**money, "areas": areas},
         "my_places": places,
         "home": home,
@@ -340,6 +342,12 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
                      "resource_uuid": resources[c.code].resource_uuid if c.code in resources else None} for _, c in similar],
         "link": onet_link(code),
     }
+
+
+def _skills(db: Session, user_id: int, career: dict) -> dict:
+    """The learner's picked skill chips (None before they pick any) and the ones this career uses."""
+    mine = skill_words.my_chips(db, user_id)
+    return {"mine": mine, "used": skill_words.used(mine or [], career.get("skills") or [])}
 
 
 def _paths(db: Session, user, code: str, home: dict | None, org_id: int | None) -> dict:
