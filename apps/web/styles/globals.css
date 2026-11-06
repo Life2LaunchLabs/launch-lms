@@ -3045,3 +3045,15 @@
 }
 .phase-scene .stars { opacity: var(--stars); }
 .phase-scene.past { filter: saturate(.55); }
+
+/* Accessibility settings (components/Accessibility): bigger text scales the whole page, so sizes set in px
+   grow too; less motion stops animations and transitions when the learner turns it on. */
+html[data-bigger-text] body { zoom: 1.15; }
+html[data-less-motion] *, html[data-less-motion] *::before, html[data-less-motion] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+/* The word being read aloud. */
+.read-aloud-word { background: color-mix(in srgb, var(--org-primary-color, #2F66D6) 28%, transparent); border-radius: 4px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--org-primary-color, #2F66D6) 28%, transparent); }

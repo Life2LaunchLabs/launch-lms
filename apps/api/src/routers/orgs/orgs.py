@@ -23,6 +23,7 @@ from src.services.orgs.invites import (
     get_invite_codes,
 )
 from src.services.orgs import member_status, staff_permissions
+from src.services.users import accessibility
 from src.services.orgs.join import JoinOrg, join_org
 from src.services.orgs.orgs import (
     create_org,
@@ -245,6 +246,29 @@ async def api_set_member_status(
 ):
     """Mark a learner active or alumni; only active learners count toward the limit."""
     return member_status.set_member_status(db_session, current_user, org_id, user_id, payload.status)
+
+
+@router.get("/{org_id}/users/{user_id}/accessibility")
+async def api_get_learner_accessibility(
+    org_id: int,
+    user_id: int,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """A learner's accessibility settings, for staff who can manage learners."""
+    return accessibility.get_for_learner(db_session, current_user, org_id, user_id)
+
+
+@router.put("/{org_id}/users/{user_id}/accessibility")
+async def api_save_learner_accessibility(
+    org_id: int,
+    user_id: int,
+    payload: accessibility.AccessibilitySettings,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Set a learner's accessibility settings while assisting them; the learner sees who changed them."""
+    return accessibility.save_for_learner(db_session, current_user, org_id, user_id, payload)
 
 
 @router.put("/{org_id}/usergroups/{group_id}/status")

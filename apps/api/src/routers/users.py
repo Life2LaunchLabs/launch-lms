@@ -30,6 +30,7 @@ from src.db.users import (
 from src.security.auth import get_authenticated_user, get_current_user
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.security.rate_limiting import check_password_reset_rate_limit
+from src.services.users import accessibility
 from src.services.users.password_reset import (
     change_password_with_reset_code,
     change_password_with_reset_code_platform,
@@ -301,6 +302,24 @@ async def api_get_user_by_username(
     Returns a restricted view — sensitive fields (is_superadmin, signup_method) are excluded.
     """
     return await read_user_by_username(request, db_session, current_user, username)
+
+
+@router.get("/me/accessibility", tags=["users"])
+async def api_get_my_accessibility(
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_authenticated_user),
+) -> dict:
+    """Your accessibility settings: read aloud, voice and speed, bigger text, less motion."""
+    return accessibility.get_mine(db_session, current_user)
+
+
+@router.put("/me/accessibility", tags=["users"])
+async def api_save_my_accessibility(
+    payload: accessibility.AccessibilitySettings,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_authenticated_user),
+) -> dict:
+    return accessibility.save_mine(db_session, current_user, payload)
 
 
 @router.put("/{user_id}", response_model=UserRead, tags=["users"])

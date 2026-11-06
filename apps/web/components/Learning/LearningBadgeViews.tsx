@@ -39,6 +39,7 @@ import PageBlock, { PAGE_BLOCKS } from './player/PageBlocks'
 import BlockLayout from './player/BlockLayout'
 import WordCountHint from './player/WordCountHint'
 import { useBlockSetters } from './player/blockSetters'
+import { MicButton, SpeakButton, SpokenQuestion } from '@components/Accessibility/ReadAloud'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
@@ -98,6 +99,15 @@ export function buildQuestionVirtualPage(page: any, block: any) {
   }
 }
 
+/** The words in rich text, one block per line, for reading aloud. */
+function plainNodeText(node: any): string {
+  if (!node) return ''
+  if (Array.isArray(node)) return node.map(plainNodeText).filter(Boolean).join('\n')
+  if (typeof node.text === 'string') return node.text
+  const inner = Array.isArray(node.content) ? node.content.map(plainNodeText).join(node.type === 'doc' || node.type?.endsWith('List') ? '\n' : '') : ''
+  return inner
+}
+
 function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
   const blockStyle = getStandardBlockStyle(block)
   if (STORY_BLOCKS.has(block.type)) return <StoryBlock block={block} run={run} style={blockStyle} />
@@ -105,7 +115,11 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, respon
 
   if (block.type === 'text') {
     const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run)
-    return <section className="learning-info-stack-section" style={blockStyle}><InfoTextBlock block={nodes} blockId={block.id} /></section>
+    const spoken = plainNodeText(nodes)
+    return <section className="learning-info-stack-section" style={blockStyle}>
+      <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><InfoTextBlock block={nodes} blockId={block.id} /></div>
+        {spoken.length > 3 ? <SpeakButton text={spoken} size="sm" className="mt-1" /> : null}</div>
+    </section>
   }
 
   if (block.type === 'image') {
@@ -310,7 +324,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
       <div className="learning-question-block">
         {!page.content?.hide_prompt && (
           <section className="learning-info-stack-section">
-            <h1 className="text-3xl font-bold text-foreground">{page.content?.prompt || 'Question prompt'}</h1>
+            <SpokenQuestion title={String(page.content?.prompt || 'Question prompt')} className="text-3xl font-bold text-foreground" buttonSize="md" />
           </section>
         )}
         {page.content?.options_source ? <SourcedChoiceOptions source={page.content.options_source} selected={selectedIds} style={page.choice_style} onToggle={toggleOption} /> : <ChoiceOptions options={visibleOptions} selected={selectedIds} multiple={maxSelections > 1} style={page.choice_style} onToggle={toggleOption} />}
@@ -418,6 +432,8 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                   {input.label ? (
                     <div className="min-w-0 flex-1 text-lg font-bold leading-7 text-foreground">{input.label}</div>
                   ) : <span className="min-w-0 flex-1" />}
+                  {input.label ? <SpeakButton text={String(input.label)} size="sm" /> : null}
+                  {input.input_type !== 'select' && htmlInputType === 'text' ? <MicButton value={value} onChange={(next) => updateTextInput(input.id, next)} size="sm" /> : null}
                 </div>
                 {input.input_type === 'select' ? (
                   <select value={value} onChange={(event) => updateTextInput(input.id, event.target.value)} style={{ height }} className="mx-auto block w-[calc(100%-1rem)] min-w-0 max-w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]">
