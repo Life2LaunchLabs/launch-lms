@@ -74,7 +74,7 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={`${p.title} · from ${monthText(p.starts!)}`}
+  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={p.undated ? p.title : `${p.title} · from ${monthText(p.starts!)}`}
     {...drag}
     className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
@@ -86,7 +86,7 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
     <span className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-black/35 backdrop-blur" aria-hidden="true"><MoreHorizontal size={16} /></span>
     <span className="grid min-w-0 gap-0.5 px-4 pb-3.5">
       <b className="truncate text-[clamp(22px,3vw,27px)] font-extrabold leading-tight tracking-tight">{p.title}</b>
-      <small className="truncate text-[12.5px] font-bold opacity-90">{monthText(p.starts!)}{p.place_label ? ` · ${p.place_label.split(',')[0]}` : ''}</small>
+      <small className="truncate text-[12.5px] font-bold opacity-90">{[p.undated ? '' : monthText(p.starts!), p.place_label?.split(',')[0]].filter(Boolean).join(' · ')}</small>
     </span>
   </button>
 }

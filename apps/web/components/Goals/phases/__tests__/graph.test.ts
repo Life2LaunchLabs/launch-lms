@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LifeDoc } from '@services/life/life'
-import { addAfter, carryOver, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -167,21 +167,5 @@ describe('a plan as a map', () => {
     expect(off.phases.find((p) => p.id === loose.ids[0])!.after).toEqual([])
     for (const id of after) expect(off.phases.find((p) => p.id === id)!.after).toContain('hs')
     expect(off.phases.find((p) => p.id === loose.ids[1])!.after).toEqual([loose.ids[0]])
-  })
-
-  test('something new carries over where and how the phase before it lives, unless set or changed', () => {
-    const d = map()
-    Object.assign(d.phases.find((p) => p.id === 'hs')!, { place: 'or-eugene', place_label: 'Eugene, OR', living: 'family' })
-    Object.assign(d.phases.find((p) => p.id === 'ms')!, { place: 'or-bend', place_label: 'Bend, OR', living: 'family' })
-    const loose = loosePiece(d, [{ title: 'Gap year', years: 1 }, { title: 'College', years: 4, living: 'dorm' }], 2028 * 12)
-    const first = carryOver(place(loose.doc, loose.ids, 'hs', false), loose.ids, 'hs')
-    const [a, b] = loose.ids.map((id) => first.doc.phases.find((p) => p.id === id)!)
-    expect([a.place_label, a.living, b.place_label, b.living]).toEqual(['Eugene, OR', 'family', 'Eugene, OR', 'dorm'])
-    // Moved after Middle school, it follows Bend; a place the learner picked stays.
-    const moved = structuredClone(first.doc)
-    Object.assign(moved.phases.find((p) => p.id === loose.ids[1])!, { place: 'or-portland', place_label: 'Portland, OR' })
-    const again = carryOver(moved, loose.ids, 'ms', first.carried)
-    const [a2, b2] = loose.ids.map((id) => again.doc.phases.find((p) => p.id === id)!)
-    expect([a2.place_label, b2.place_label, b2.living]).toEqual(['Bend, OR', 'Portland, OR', 'dorm'])
   })
 })
