@@ -86,7 +86,12 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
   const isOn = (x: (typeof list)[number]) => checked[x.r.id] ?? x.def
   const on = list.filter(isOn)
   const total = (side: 'in' | 'out') => on.filter((x) => x.r.side === side).reduce((a, x) => a + x.effect, 0)
-  const net = total('in') + total('out')
+  // Starting or filling in: left over counts what the budget already has, plus what's ticked here.
+  const has = mode === 'change' ? 0 : phase.lines.reduce((a, l) => {
+    const row = shown.find((x) => x.r.line?.id === l.id)
+    return a + (l.side === 'in' ? 1 : -1) * ((row ? row.was : lineValue(l, null).monthly) ?? 0)
+  }, 0)
+  const net = has + total('in') + total('out')
 
   const apply = (ask: boolean) => {
     const keep = new Set(list.filter((x) => checked[x.r.id] ?? x.def).map((x) => x.r.id))
@@ -158,7 +163,7 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
           {section('in', 'Income')}
           {section('out', 'Expenses')}
           <div className="grid grid-cols-[minmax(0,1fr)_auto_36px] items-baseline gap-x-2.5 border-t border-border pt-2.5">
-            <span className="text-base font-extrabold">{start ? 'Left over' : 'Left over changes by'}</span>
+            <span className="text-base font-extrabold">{start ? 'Left over, before taxes' : 'Left over changes by'}</span>
             <b className={cn('font-extrabold tabular-nums', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{amount(net)}</b><span />
           </div>
           <p className="text-xs text-muted-foreground">Lines with <span className="font-bold text-amber-600 dark:text-amber-400">*</span> use a state or national figure, not one for your city. Tap <Info className="inline size-3" /> to see where a number comes from.</p>

@@ -65,11 +65,14 @@ def _get(db, metric, place, **dims):
 
 def test_spending_by_household_size_at_local_prices():
     db = _loaded()
-    one = _get(db, "going_out", "city:OR:bend", size=1)
-    # (1200 + 600) a year for one person, at Bend's 95 for other services.
-    assert one["value"] == 1710.0 and one["period"] == "yr" and one["level"] == "area"
-    assert one["scaled_by"]["value"] == 95 and "Bend area prices" in one["label"]
-    assert _get(db, "going_out", "city:OR:bend", size=3)["value"] == 5130.0
+    car = _get(db, "transport", "city:OR:bend", size=1)
+    # (1200 + 2400 + 600) a year for one person, at Bend's 104 for all items.
+    assert car["value"] == 4368.0 and car["period"] == "yr" and car["level"] == "area"
+    assert car["scaled_by"]["value"] == 104 and "Bend area prices" in car["label"]
+    assert _get(db, "transport", "city:OR:bend", size=3)["value"] == 13104.0
+    # Goods are priced state-wide: Oregon's 108, not the metro row's repeat of it.
+    clothes = _get(db, "clothes", "city:OR:bend", size=1)
+    assert clothes["value"] == 1296.0 and clothes["level"] == "state" and "Oregon prices" in clothes["label"]
     # No household size: the figure for all households.
     assert _get(db, "clothes", None)["value"] == 2400.0 and _get(db, "clothes", None)["level"] == "us"
     # Phone isn't scaled: the national figure.
@@ -78,16 +81,16 @@ def test_spending_by_household_size_at_local_prices():
 
 def test_price_levels_reach_nonmetro_areas_and_states():
     db = _loaded()
-    # Harney County is in BLS's Eastern Oregon nonmetro area: Oregon's nonmetro goods level.
-    assert _get(db, "clothes", "county:OR:harney", size=1)["value"] == 1260.0
+    # Harney County is in BLS's Eastern Oregon nonmetro area: no all-items row for it here, so Oregon's goods level for clothes.
+    assert _get(db, "clothes", "county:OR:harney", size=1)["value"] == 1296.0
     assert _get(db, "clothes", "state:OR", size=1)["value"] == 1296.0
 
 
 def test_groceries_add_up_the_household_with_usdas_size_adjustment():
     db = _loaded()
-    # Newest month only: adult (310 + 410) / 2 = 360, +20% alone, at Bend's 110 for goods.
+    # Newest month only: adult (310 + 410) / 2 = 360, +20% alone, at Oregon's 108 for goods.
     alone = _get(db, "groceries", "city:OR:bend", plan="moderate", adults=1)
-    assert alone["value"] == round(360 * 1.2 * 1.1, 2) and alone["metric"] == "groceries"
+    assert alone["value"] == round(360 * 1.2 * 1.08, 2) and alone["metric"] == "groceries"
     # Two adults, a 4-year-old and a 13-year-old: 360 + 360 + 210 + (310 + 350) / 2, no adjustment at four.
     fam = _get(db, "groceries", None, plan="thrifty", adults=2, kids=[4, 13])
     assert fam["value"] == 360 + 360 + 210 + 330

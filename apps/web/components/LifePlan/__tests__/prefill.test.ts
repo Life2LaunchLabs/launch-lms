@@ -46,6 +46,12 @@ describe('budget pre-fill', () => {
     expect(rows.find((r) => r.kind === 'add' && r.item === 'dorm')?.next?.settings).toEqual({ school: '208646', housing: 'on' })
   })
 
+  test('a change only offers lines it brings in, not ones the learner left out before', () => {
+    const before = phase({ living: 'family', lines: [line('job', { settings: { soc: '35-3023' }, side: 'in' })] })
+    const rows = planRows(before, phase({ living: 'roommates', lines: before.lines }), catalog)
+    expect(rows.filter((r) => r.kind === 'add').map((r) => r.item).sort()).toEqual(['rent', 'utilities'])
+  })
+
   test('a new school moves the tuition line to it, keeping the learner’s knobs', () => {
     const before = phase({ lines: [line('tuition', { settings: { school: '1', residency: 'in', note: 'x' } })] })
     const rows = planRows(before, phase({ lines: before.lines }), catalog)

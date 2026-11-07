@@ -87,6 +87,8 @@ export function planRows(base: Phase | null, now: Phase, catalog?: Catalog): Row
   const rows: Row[] = []
   for (const s of sugg) {
     if (now.lines.some((l) => fits(l, s))) continue
+    // On a change, only lines the change brings in: one the old picks suggested too was already offered, and left out.
+    if (base && was.some((x) => x.item === s.item && (s.item !== 'job' || x.settings.soc === s.settings.soc))) continue
     rows.push({ id: `add:${s.item}:${s.settings.soc || ''}`, kind: 'add', item: s.item, cat: s.cat, side: s.side, title: s.title, next: { id: uid('l'), cat: s.cat, item: s.item, title: s.title, side: s.side, settings: { ...s.settings }, hours: s.hours ?? null, start: 0, own: null } })
   }
   for (const l of now.lines) {
