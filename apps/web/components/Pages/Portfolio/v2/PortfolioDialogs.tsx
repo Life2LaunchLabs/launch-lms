@@ -91,9 +91,9 @@ export function HighlightsDialog({ open, onOpenChange, shell, setShell, token }:
       <DialogHeader><DialogTitle>{tr('portfolio.portfolio_dialogs.highlights', 'Highlights')}</DialogTitle><DialogDescription>{tr('portfolio.portfolio_dialogs.the_numbers_people_notice_first', 'The numbers people notice first, like hours worked, a GPA or a win. Up to four.')}</DialogDescription></DialogHeader>
       <div className="grid gap-2.5">
         {rows.map((row, index) => <div key={index} className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-2">
-          <Input aria-label={`Highlight ${index + 1} number`} value={row.value} maxLength={24} placeholder={EXAMPLES[index % 3].value} onChange={(event) => change(index, 'value', event.target.value)} className="font-extrabold" />
-          <Input aria-label={`Highlight ${index + 1} meaning`} value={row.label} maxLength={60} placeholder={EXAMPLES[index % 3].label} onChange={(event) => change(index, 'label', event.target.value)} />
-          <Button type="button" variant="ghost" size="icon" aria-label={`Remove highlight ${index + 1}`} onClick={() => setRows((current) => current.filter((_, at) => at !== index))}><Trash2 className="h-4 w-4" /></Button>
+          <Input aria-label={tr('portfolio.portfolio_dialogs.highlight_value_number', 'Highlight {{value}} number', { value: index + 1 })} value={row.value} maxLength={24} placeholder={EXAMPLES[index % 3].value} onChange={(event) => change(index, 'value', event.target.value)} className="font-extrabold" />
+          <Input aria-label={tr('portfolio.portfolio_dialogs.highlight_value_meaning', 'Highlight {{value}} meaning', { value: index + 1 })} value={row.label} maxLength={60} placeholder={EXAMPLES[index % 3].label} onChange={(event) => change(index, 'label', event.target.value)} />
+          <Button type="button" variant="ghost" size="icon" aria-label={tr('portfolio.portfolio_dialogs.remove_highlight_value', 'Remove highlight {{value}}', { value: index + 1 })} onClick={() => setRows((current) => current.filter((_, at) => at !== index))}><Trash2 className="h-4 w-4" /></Button>
         </div>)}
         {rows.length < 4 ? <Button type="button" variant="surface" size="sm" className="w-fit" onClick={() => setRows((current) => [...current, { value: '', label: '' }])}><Plus className="h-4 w-4" />{tr('portfolio.portfolio_dialogs.add_a_highlight', 'Add a highlight')}</Button> : null}
       </div>

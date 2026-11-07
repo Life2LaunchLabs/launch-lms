@@ -83,7 +83,7 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
       </DropdownMenu> : null}
     </form>
     {count ? <div className="flex flex-wrap items-center gap-2" aria-label={tr('discover.discover_search_bar.applied_filters', 'Applied filters')}>
-      {active.map((chip) => <button key={chip.key} type="button" onClick={chip.clear} aria-label={`Remove filter ${chip.label}`} className="flex h-8 items-center gap-1.5 rounded-full border-2 border-[var(--org-primary-color)] bg-card pl-3 pr-2 text-sm font-bold hover:bg-raised">{chip.label}<X size={14} aria-hidden="true" /></button>)}
+      {active.map((chip) => <button key={chip.key} type="button" onClick={chip.clear} aria-label={tr('discover.discover_search_bar.remove_filter_label', 'Remove filter {{label}}', { label: chip.label })} className="flex h-8 items-center gap-1.5 rounded-full border-2 border-[var(--org-primary-color)] bg-card pl-3 pr-2 text-sm font-bold hover:bg-raised">{chip.label}<X size={14} aria-hidden="true" /></button>)}
       {count > 1 ? <button type="button" onClick={() => onFilters({ type: '', resourceTypes: [], saved: false })} className="h-8 px-2 text-sm font-bold text-muted-foreground hover:text-foreground">{tr('discover.discover_search_bar.clear_all', 'Clear all')}</button> : null}
     </div> : null}
   </div>

@@ -43,7 +43,7 @@ export function ConnectRequestButton({ portfolioUuid, name, token, state, onSent
     try {
       onSent(await connectApi.askToConnect(portfolioUuid, note.trim(), token))
       setOpen(false)
-      toast.success(`Request sent to ${name}`)
+      toast.success(tr('portfolio.connect_request.request_sent_to_name', 'Request sent to {{name}}', { name }))
     } catch (error: any) {
       toast.error(error?.message || tr('portfolio.connect_request.that_request_didn_t_send', 'That request didn’t send'))
     } finally {

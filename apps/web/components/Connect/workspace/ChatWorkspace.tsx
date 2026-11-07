@@ -156,7 +156,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     try {
       const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope, share, staffOnly })
       for (const outcome of sent.mentions || []) {
-        if (outcome.status === 'invited') toast.success(`Invited ${outcome.user.name} as a commenter`)
+        if (outcome.status === 'invited') toast.success(tr('connect.chat_workspace.invited_name_as_a_commenter', 'Invited {{name}} as a commenter', { name: outcome.user.name }))
         else if (outcome.status === 'requested') toast.success(tr('connect.chat_workspace.asked_the_plan_s_admins', 'Asked the plan’s admins to add {{name}}', { name: outcome.user.name }))
         else if (outcome.status === 'no_access' || outcome.status === 'not_here') toast(tr('connect.chat_workspace.name_isn_t_in_this', '{{name}} isn’t in this chat', { name: outcome.user.name }))
       }
@@ -209,7 +209,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
               first={!before || before.kind !== 'message' || before.message.sender?.id !== message.sender?.id || before.message.kind === 'card'} />
           })}
         </ol>
-        : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
+        : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? tr('connect.chat_workspace.nothing_about_title_yet_anything', 'Nothing about {{title}} yet. Anything you write here is about it.', { title: step.title }) : plan ? tr('connect.chat_workspace.nothing_about_title_yet_anything', 'Nothing about {{title}} yet. Anything you write here is about it.', { title: plan.title }) : empty}</p>}
       {footer}
     </div>
     {chat && composerOff ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">{composerOff}</div>
@@ -217,7 +217,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
       {chat.can_post_staff_only ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
       <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token} resources={Boolean(isStaff)}
-        placeholder={staffOnly ? tr('connect.chat_workspace.only_staff_will_see_this', 'Only staff will see this') : step ? `Comment on ${step.title}` : plan ? `Message ${title ? `${title} ` : ''}about ${plan.title}` : `Message ${title || chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
+        placeholder={staffOnly ? tr('connect.chat_workspace.only_staff_will_see_this', 'Only staff will see this') : step ? tr('goals.goal_chat.comment_on_title', 'Comment on {{title}}', { title: step.title }) : plan ? tr('connect.chat_workspace.message_valueabout_title', 'Message {{value}}about {{title}}', { value: title ? `${title} ` : '', title: plan.title }) : `Message ${title || chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
@@ -260,7 +260,7 @@ function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
   // A portfolio shows all its experiences and projects, so you can pick one to talk about.
   const talked = plan.portfolio ? plan.steps : plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
   const PlanIcon = plan.portfolio ? BookUser : Flag
-  return <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className={shell}>
+  return <div ref={row} role="group" aria-label={tr('connect.chat_workspace.show_messages_about_title', 'Show messages about {{title}}', { title: plan.title })} className={shell}>
     <button type="button" onClick={() => onChange({})} aria-label={tr('connect.chat_workspace.show_everything', 'Show everything')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground hover:text-foreground"><X size={16} /></button>
     {/* With a step picked, a phone shows the plan as its flag so the step beside it fits without cutting the plan off. */}
     <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} aria-label={plan.title} title={plan.title}

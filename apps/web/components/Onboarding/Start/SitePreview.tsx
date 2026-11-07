@@ -122,7 +122,7 @@ function Invite({ state, spaceName, accent, mark }: { state: StartState; spaceNa
     <div className="w-full max-w-xs rounded-3xl bg-white p-6 text-center shadow-xl ring-1 ring-black/5">
       <div className="mx-auto flex w-fit scale-150 justify-center">{mark}</div>
       <small className="mt-5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{tr('onboarding.site_preview.you_re_invited', 'You’re invited')}</small>
-      <b className="mt-1 block text-lg">{state.orgOn ? `Join ${spaceName}` : `${who} invited you`}</b>
+      <b className="mt-1 block text-lg">{state.orgOn ? `Join ${spaceName}` : tr('onboarding.site_preview.who_invited_you', '{{who}} invited you', { who })}</b>
       <p className="mt-1 text-[12px] text-muted-foreground">{state.orgOn ? tr('onboarding.site_preview.who_invited_you_to_plan', '{{who}} invited you to plan what’s next with {{spaceName}}.', { who, spaceName }) : tr('onboarding.site_preview.they_ve_set_up_a', 'They’ve set up a plan to help you figure out what’s next and get there.')}</p>
       <span className="mt-4 block rounded-full py-2 text-[12px] font-bold text-white" style={{ background: accent }}>{tr('onboarding.site_preview.accept_invite', 'Accept invite')}</span>
     </div>

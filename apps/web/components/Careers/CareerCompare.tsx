@@ -206,7 +206,7 @@ export default function CareerCompare({ start, suggestions, token, onClose }: { 
             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: profile ? colorOf(profile) : 'hsl(var(--muted))' }} aria-hidden="true" />
             <span className="text-[15px] font-extrabold leading-tight">{choice.title}</span>
             {profile ? <span className="text-[12px] font-bold text-muted-foreground">{sidesOf(profile).join(' · ')}</span> : null}
-            {chosen.length > 1 ? <button type="button" onClick={() => drop(choice.code)} aria-label={`Take ${choice.title} out`} className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X size={15} /></button> : null}
+            {chosen.length > 1 ? <button type="button" onClick={() => drop(choice.code)} aria-label={tr('careers.career_compare.take_title_out', 'Take {{title}} out', { title: choice.title })} className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X size={15} /></button> : null}
           </div>
         })}
       </div>

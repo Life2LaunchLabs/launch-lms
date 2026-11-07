@@ -128,9 +128,9 @@ export function FinishSection({ goal, token, color, orgslug, badge }: { goal: Go
       <div className="min-w-0 flex-1 basis-40">
         <p className="font-extrabold">{finished ? tr('goals.goal_stages.victory_claimed', 'Victory claimed') : unlocked ? tr('goals.goal_stages.unlocked_claim_your_victory', 'Unlocked. Claim your victory!') : tr('goals.goal_stages.locked', 'Locked')}</p>
         <p className="text-sm opacity-80">{finished
-          ? goal.ownership === 'personal' ? tr('goals.goal_stages.your_story_is_ready', 'Your story is ready.') : badge?.name ? `You earned the ${badge.name} badge.` : tr('goals.goal_stages.every_step_is_done', 'Every step is done.')
+          ? goal.ownership === 'personal' ? tr('goals.goal_stages.your_story_is_ready', 'Your story is ready.') : badge?.name ? tr('goals.goal_stages.you_earned_the_name_badge', 'You earned the {{name}} badge.', { name: badge.name }) : tr('goals.goal_stages.every_step_is_done', 'Every step is done.')
           : unlocked ? goal.ownership === 'personal' ? tr('goals.goal_stages.every_step_is_done_say', 'Every step is done. Say how it went.') : tr('goals.goal_stages.every_step_is_done', 'Every step is done.')
-            : total ? `${left} step${left === 1 ? '' : 's'} to go to unlock it.` : tr('goals.goal_stages.add_steps_and_finishing_them', 'Add steps, and finishing them unlocks it.')}</p>
+            : total ? tr('goals.goal_stages.left_stepvalue_to_go_to', '{{left}} step{{value}} to go to unlock it.', { left, value: left === 1 ? '' : 's' }) : tr('goals.goal_stages.add_steps_and_finishing_them', 'Add steps, and finishing them unlocks it.')}</p>
       </div>
       {finished && goal.ownership === 'personal' ? <a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)} className="flex min-h-10 items-center gap-2 rounded-xl bg-[var(--plan-face-ink)] px-4 text-sm font-extrabold text-[var(--plan-face)]"><BookOpen size={15} aria-hidden="true" />{tr('goals.goal_stages.watch_your_story', 'Watch your story')}</a>
         : finished && badge ? <a href={getUriWithOrg(orgslug, '/portfolio/badges')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[var(--plan-face-ink)] px-4 text-sm font-extrabold text-[var(--plan-face)]">{tr('goals.goal_stages.view_badges', 'View badges')}</a>

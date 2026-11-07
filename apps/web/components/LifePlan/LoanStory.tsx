@@ -80,7 +80,7 @@ export function LoanStory({ planStart, startG, balance, rate, payment, lands, al
         {s.months != null && payment > 0 && <li className="grid grid-cols-[minmax(0,7.5rem)_1fr] gap-3"><span className="text-muted-foreground">{tr('budget.loan_story.in_all', 'In all')}</span><span>{tr('budget.loan_story.you_pay_back', 'You pay back')}{' '}<b>{money(s.total)}</b>{tr('budget.loan_story.the_money_plus', ': the {{money}} plus', { money: money(balance) })}{' '}<b>{money(interest)}</b>{' '}{tr('budget.loan_story.in_interest', 'in interest.')}</span></li>}
       </ol>
       {payment > 0 && s.months != null && (
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-3 h-14 w-full" role="img" aria-label={tr('budget.loan_story.what_you_owe_goes_from', 'What you owe goes from {{money}} to $0 by {{value}}', { money: money(balance), value: end != null ? monthLabel(planStart, end) : 'the end' })}>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-3 h-14 w-full" role="img" aria-label={tr('budget.loan_story.what_you_owe_goes_from', 'What you owe goes from {{money}} to $0 by {{value}}', { money: money(balance), value: end != null ? monthLabel(planStart, end) : tr('budget.loan_story.v_the_end', 'the end') })}>
           <polyline points={`0,${H} ${line} ${W},${H}`} fill="#E0662E" fillOpacity="0.12" stroke="none" />
           <polyline points={line} fill="none" stroke="#E0662E" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         </svg>

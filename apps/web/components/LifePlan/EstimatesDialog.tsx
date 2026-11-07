@@ -113,7 +113,7 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
     done.current = true
     if (!list.length) { onClose(true); return }
     applyRef.current(false)
-    toast.success(`Updated ${on.length} budget line${on.length === 1 ? '' : 's'} to the new estimates.`)
+    toast.success(tr('budget.estimates_dialog.updated_length_budget_linevalue_to', 'Updated {{length}} budget line{{value}} to the new estimates.', { length: on.length, value: on.length === 1 ? '' : 's' }))
     onClose()
   }, [auto, open, loading, list.length, on.length, onClose, catalog, mode])
   if (auto || (mode === 'change' && (loading || !catalog || !list.length))) return null
@@ -171,7 +171,7 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
         </div>}
       {list.length && !start ? <label className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} className="size-4 accent-[var(--org-primary-color)]" />{tr('budget.estimates_dialog.don_t_ask_next_time', 'Don’t ask next time, just update')}</label> : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {list.length ? <Button variant="brand" disabled={!on.length || !catalog} onClick={() => { apply(dontAsk); onClose() }}><Sparkles size={15} />{start ? `Add ${on.length} line${on.length === 1 ? '' : 's'}` : `Apply ${on.length} change${on.length === 1 ? '' : 's'}`}</Button> : null}
+        {list.length ? <Button variant="brand" disabled={!on.length || !catalog} onClick={() => { apply(dontAsk); onClose() }}><Sparkles size={15} />{start ? tr('budget.estimates_dialog.add_length_linevalue', 'Add {{length}} line{{value}}', { length: on.length, value: on.length === 1 ? '' : 's' }) : tr('budget.estimates_dialog.apply_length_changevalue', 'Apply {{length}} change{{value}}', { length: on.length, value: on.length === 1 ? '' : 's' })}</Button> : null}
         <Button variant="ghost" onClick={() => onClose()}>{list.length ? tr('budget.estimates_dialog.not_now', 'Not now') : tr('discover.resource_sheet.close', 'Close')}</Button>
       </div>
     </DialogContent>
@@ -200,7 +200,7 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
       </span>
       <span className="inline-flex w-9 items-center justify-end gap-px">
         {wide ? <span className="font-bold text-amber-600 dark:text-amber-400" aria-label={tr('budget.budget_table.not_for_your_city', 'Not for your city')}>*</span> : null}
-        {src ? <button type="button" onClick={onInfo} aria-expanded={info} aria-label={`Where ${r.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
+        {src ? <button type="button" onClick={onInfo} aria-expanded={info} aria-label={tr('budget.budget_table.where_tolowercase_comes_from', 'Where {{toLowerCase}} comes from', { toLowerCase: r.title.toLowerCase() })} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
       </span>
     </div>
     {!gone && next && (shareSetting || planSetting || r.item === 'job') ? <div className="flex flex-wrap gap-1.5 pb-1.5 pl-[30px]">
@@ -218,7 +218,7 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
     </div> : null}
     {info && src ? <p className="mb-1.5 ml-[30px] mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground">
       {gone ? tr('budget.estimates_dialog.was_based_on', 'Was based on: ') : ''}<b className="text-foreground">{src.source.title}</b>, {src.source.publisher}. {src.label}.{src.scaled_by ? <>{' '}{tr('budget.estimates_dialog.local_prices', 'Local prices:')}{' '}<b className="text-foreground">{src.scaled_by.source.title}</b>{tr('budget.estimates_dialog.publisher_place_label_round_us', ', {{publisher}} ({{place_label}} {{round}}, US = 100).', { publisher: src.scaled_by.source.publisher, place_label: src.scaled_by.place_label, round: Math.round(src.scaled_by.value) })}</> : src.place_label ? ` ${src.place_label}.` : ''}
-      {wide ? tr('budget.budget_table.not_for_value_itself_this', ' * Not for {{value}} itself: this is the {{value2}} figure.', { value: src.asked_place_label || 'your city', value2: src.level === 'us' ? 'national' : 'state' }) : ''}
+      {wide ? tr('budget.budget_table.not_for_value_itself_this', ' * Not for {{value}} itself: this is the {{value2}} figure.', { value: src.asked_place_label || tr('budget.budget_table.v_your_city', 'your city'), value2: src.level === 'us' ? tr('budget.budget_table.v_national', 'national') : tr('budget.budget_table.v_state', 'state') }) : ''}
     </p> : null}
   </div>
 }

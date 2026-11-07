@@ -102,10 +102,10 @@ function AssetRow({ a, value }: { a: Asset; value: number }) {
         {a.bought
           ? <Step icon={<LifeIcon name="arrow-up-right" />} title={tr('budget.you_own.bought', 'Bought')}>
               {readOnly ? monthLabel(doc.start, gOf(doc, a.bought)) : <span className="w-40"><WhenPick value={a.bought} onChange={(w) => edit((x, d) => { x.bought = w; if (x.loan_id) { const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.start = w } })} /></span>}
-              {!readOnly && <InPlace label={`Price of ${a.title}`} value={a.value} onCommit={(v) => edit((x, d) => { x.value = v; const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.balance = Math.max(0, v - (x.down ?? 0)) })} />}
+              {!readOnly && <InPlace label={tr('budget.you_own.price_of_title', 'Price of {{title}}', { title: a.title })} value={a.value} onCommit={(v) => edit((x, d) => { x.value = v; const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.balance = Math.max(0, v - (x.down ?? 0)) })} />}
               {readOnly && money(a.value)}
             </Step>
-          : <Step icon={<LifeIcon name="flag" />} title={`Yours from ${monthLabel(doc.start, 0)}`} value={readOnly ? money(a.value) : <InPlace label={`What ${a.title} is worth`} value={a.value} onCommit={(v) => edit((x) => { x.value = v })} />}>{tr('budget.you_own.worth', 'worth')}</Step>}
+          : <Step icon={<LifeIcon name="flag" />} title={tr('budget.you_own.yours_from_monthlabel', 'Yours from {{monthLabel}}', { monthLabel: monthLabel(doc.start, 0) })} value={readOnly ? money(a.value) : <InPlace label={tr('budget.you_own.what_title_is_worth', 'What {{title}} is worth', { title: a.title })} value={a.value} onCommit={(v) => edit((x) => { x.value = v })} />}>{tr('budget.you_own.worth', 'worth')}</Step>}
         {a.bought && loan && <>
           <Step icon={<LifeIcon name="piggy-bank" />} title={tr('budget.you_own.down_payment', 'Down payment')} value={readOnly ? money(a.down ?? 0) : <InPlace label={tr('budget.you_own.down_payment', 'Down payment')} value={a.down ?? 0} onCommit={(v) => edit((x, d) => { x.down = Math.min(x.value, v); const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.balance = Math.max(0, x.value - x.down) })} />}>{tr('budget.you_own.from_savings', 'from savings')}</Step>
           <li className="border-b border-border/60 py-2 last:border-b-0">

@@ -53,7 +53,7 @@ function MoreFrom({ resource, onOpen }: { resource: Resource; onOpen: Dispatch<s
     () => getResources(org.id, { channel_uuid: channel!.channel_uuid, limit: 8 }, token))
   const others = (data || []).filter((item) => item.resource_uuid !== resource.resource_uuid).slice(0, 6)
   if (!channel || !others.length) return null
-  return <Block title={`More in ${channel.name}`}>
+  return <Block title={tr('discover.resource_sheet.more_in_name', 'More in {{name}}', { name: channel.name })}>
     <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {others.map((item) => <button key={item.resource_uuid} type="button" onClick={() => onOpen(item.resource_uuid)} className="flex w-[160px] shrink-0 flex-col gap-1.5 text-left">
         <ResourceCover resource={item} className="rounded-xl" />

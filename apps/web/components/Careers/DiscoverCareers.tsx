@@ -40,7 +40,7 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
         <h2 className="m-0 mt-0.5 text-[22px] font-extrabold leading-tight">{tr('careers.career_swipe.career_swipe', 'Career swipe')}</h2>
         <p className="mb-3 mt-1.5 max-w-[42ch] text-[13.5px] opacity-90">
           {progress ? tr('careers.discover_careers.you_re_at_of_of', 'You’re {{at}} of {{of}} in. Pick up where you left off.', { at: progress.at, of: progress.of })
-            : `${Math.min(BATCH, deck.total)} careers picked ${deck.has_quiz ? 'for your interests' : 'to start you off'}. Save the ones that catch your eye and say why.`}
+            : tr('careers.discover_careers.min_careers_picked_value_save', '{{min}} careers picked {{value}}. Save the ones that catch your eye and say why.', { min: Math.min(BATCH, deck.total), value: deck.has_quiz ? tr('careers.discover_careers.v_for_your_interests', 'for your interests') : tr('careers.discover_careers.v_to_start_you_off', 'to start you off') })}
         </p>
         <Link href={swipe} className="inline-flex items-center gap-2 rounded-[14px] bg-card px-4 py-2.5 text-sm font-extrabold text-foreground no-underline shadow-[0_3px_0_rgba(0,0,0,.25)]">
           <Play size={15} aria-hidden="true" />{progress ? tr('discover.collection_page.keep_going', 'Keep going') : tr('careers.discover_careers.start', 'Start')}

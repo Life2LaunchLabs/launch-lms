@@ -246,7 +246,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const addable = ALL_SECTIONS.filter((type) => type === 'feature' ? !slides.length : !stored.some((row) => row.some((item) => item.type === type)))
   // Bio and experience are always on the page; the rest can be taken out (and come back from the adds below).
   const controls = (type: SectionType) => REQUIRED.includes(type) ? null
-    : <button type="button" data-sec-tool onClick={() => removeSection(type)} aria-label={`Take out ${titleOf(type)}`} title={tr('portfolio.portfolio_v2.take_this_section_out', 'Take this section out')} className="relative z-[2] grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>
+    : <button type="button" data-sec-tool onClick={() => removeSection(type)} aria-label={tr('portfolio.portfolio_v2.take_out_titleof', 'Take out {{titleOf}}', { titleOf: titleOf(type) })} title={tr('portfolio.portfolio_v2.take_this_section_out', 'Take this section out')} className="relative z-[2] grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>
   // One click from the page: each section's pencil opens what edits it.
   const edits: Partial<Record<SectionType, () => void>> = {
     feature: () => setFeatureOpen(true), highlights: () => setHighlightsOpen(true),

@@ -6,9 +6,9 @@
 import { isTaxable, monthlyTax } from './tax'
 import type { Asset, Catalog, Debt, Estimate, LifeDoc, LifeEvent, Line, Phase, Policy, Unit } from '@services/life/life'
 
-import { trLocale } from '@/lib/tr'
+import { tr, trLocale } from '@/lib/tr'
 export type Per = 'wk' | 'mo' | 'yr'
-export const PER_WORD: Record<Per, string> = { wk: 'week', mo: 'month', yr: 'year' }
+export const PER_WORD: Record<Per, string> = { get wk() { return tr('budget.per.week', 'week') }, get mo() { return tr('budget.per.month', 'month') }, get yr() { return tr('budget.per.year', 'year') } }
 export const UNIT_WORD: Record<Unit, string> = { hr: 'an hour', wk: 'a week', mo: 'a month', yr: 'a year' }
 export const WEEKS_PER_MONTH = 52 / 12
 export const DEFAULT_HOURS = 20

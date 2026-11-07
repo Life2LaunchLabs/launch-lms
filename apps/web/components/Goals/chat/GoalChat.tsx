@@ -171,7 +171,7 @@ export function StepChatButton({ step, quiet = false, label }: { step: Step; qui
   const count = chat.chat.counts[step.step_uuid] || 0
   if (!count && !label && (quiet || !chat.chat.can_post)) return null
   const about = count ? `${count} message${count === 1 ? '' : 's'} about ${step.title}` : null
-  return <button type="button" onClick={() => chat.open(step.step_uuid)} aria-label={label ? `${label} ${step.title}${about ? `, ${about}` : ''}` : about || `Comment on ${step.title}`}
+  return <button type="button" onClick={() => chat.open(step.step_uuid)} aria-label={label ? `${label} ${step.title}${about ? `, ${about}` : ''}` : about || tr('goals.goal_chat.comment_on_title', 'Comment on {{title}}', { title: step.title })}
     className={cn('flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-bold transition hover:bg-muted', count ? 'text-[var(--plan-accent)]' : 'text-muted-foreground')}>
     {count ? <MessageCircle size={14} aria-hidden="true" /> : <MessageSquarePlus size={14} aria-hidden="true" />}{label ? <span>{label}</span> : null}{count ? <span className={label ? 'opacity-70' : undefined}>{count}</span> : null}
   </button>

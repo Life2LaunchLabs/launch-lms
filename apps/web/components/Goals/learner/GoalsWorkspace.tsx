@@ -195,7 +195,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     const phaseId = life && isSubject ? phaseOfGoal(life, selectedUuid) : null
     const phase = phaseId ? phaseTimes(life).find((item) => item.phase.id === phaseId) : undefined
     const phaseGoals = phase ? stripGoals.filter((item) => phaseOfGoal(life, item.goal_uuid) === phaseId) : []
-    strip = phase ? <section aria-label={`Goals for ${phase.phase.title}`} className="flex flex-col gap-3">
+    strip = phase ? <section aria-label={tr('goals.goals_workspace.goals_for_title', 'Goals for {{title}}', { title: phase.phase.title })} className="flex flex-col gap-3">
       <PhaseHeading group={{ title: phase.phase.title, when: phase.when, starts: phase.starts }}>
         <span className="text-sm text-muted-foreground">{phaseGoals.length === 1 ? tr('goals.goals_workspace.1_goal', '1 goal') : `${phaseGoals.length} goals`}</span>
       </PhaseHeading>

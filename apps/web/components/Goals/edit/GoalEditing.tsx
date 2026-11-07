@@ -87,7 +87,7 @@ function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: 
       onClose()
     } catch { /* toast shown */ }
   }
-  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={`New ${stepDefinition(type).label.toLowerCase()} step`} description={stage ? `In ${stage.title}` : undefined}
+  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={tr('goals.goal_editing.new_tolowercase_step', 'New {{toLowerCase}} step', { toLowerCase: stepDefinition(type).label.toLowerCase() })} description={stage ? `In ${stage.title}` : undefined}
     footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button>
       <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{tr('goals.goal_editing.add_step', 'Add step')}</Button></>}>
     <form onSubmit={(event) => { event.preventDefault(); void save() }} className="contents">
@@ -140,7 +140,7 @@ export function StepMenu({ step, className }: { step: Step; className?: string }
   const reopen = done(step) && (can(goal, 'update_progress') || can(goal, 'complete_restricted_objectives'))
   const otherStages = goal.stages.filter((stage) => stage.stage_uuid !== stageUuid)
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={`More for ${step.title}`} className={cn(menuButton, className)}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={tr('goals.goal_editing.more_for_title', 'More for {{title}}', { title: step.title })} className={cn(menuButton, className)}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
       <DropdownMenuItem onSelect={() => editing.open({ kind: 'step', step })}><Pencil size={14} className="mr-2" />{tr('goals.shared.edit', 'Edit')}</DropdownMenuItem>
       {structure ? <DropdownMenuItem onSelect={duplicate}><Copy size={14} className="mr-2" />{tr('goals.goal_editing.duplicate', 'Duplicate')}</DropdownMenuItem> : null}
@@ -177,7 +177,7 @@ export function StageMenu({ stage, index, onMakeCurrent }: { stage: Stage; index
     void run(() => goalsApi.deleteStage(goal.goal_uuid, stage.stage_uuid, token), tr('lit.goal_editing.stage_deleted', 'Stage deleted')).catch(() => undefined)
   }
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={`More for ${stage.title}`} className={menuButton}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={tr('goals.goal_editing.more_for_title', 'More for {{title}}', { title: stage.title })} className={menuButton}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
       {onMakeCurrent ? <DropdownMenuItem onSelect={onMakeCurrent}><Flag size={14} className="mr-2" />{tr('goals.goal_editing.make_this_the_current_stage', 'Make this the current stage')}</DropdownMenuItem> : null}
       <DropdownMenuItem onSelect={() => editing.open({ kind: 'stage', stage })}><Pencil size={14} className="mr-2" />{tr('goals.goal_editing.edit_stage', 'Edit stage')}</DropdownMenuItem>

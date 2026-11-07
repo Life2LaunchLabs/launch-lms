@@ -149,7 +149,7 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
       <Dialog.Content aria-describedby={undefined} className="fixed inset-0 flex flex-col overflow-auto bg-background pt-[env(safe-area-inset-top,0px)]" style={{ zIndex: 'var(--z-modal)' }}>
         <div className="flex items-center gap-3.5 px-6 py-3.5">
           {plan ? <BadgeMedal badge={plan} size={40} /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-muted"><Medal size={18} aria-hidden="true" /></span>}
-          <Dialog.Title className="min-w-0 flex-1 truncate text-base font-bold">{plan ? `Award ${plan.name} directly` : tr('badges.award_flow.award_a_badge_directly', 'Award a badge directly')}</Dialog.Title>
+          <Dialog.Title className="min-w-0 flex-1 truncate text-base font-bold">{plan ? tr('badges.award_flow.award_name_directly', 'Award {{name}} directly', { name: plan.name }) : tr('badges.award_flow.award_a_badge_directly', 'Award a badge directly')}</Dialog.Title>
           <Dialog.Close className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card" aria-label={tr('onboarding.start_flow.close', 'Close')}><X size={18} /></Dialog.Close>
         </div>
         {plan && !done ? <FlowProgress step={step} steps={STEPS} /> : null}
@@ -177,7 +177,7 @@ export function BadgeChooser({ plans, picked, onPick, onCancel }: { plans: Award
           className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-muted aria-pressed:bg-muted">
           <BadgeMedal badge={plan} size={44} />
           <span className="flex min-w-0 flex-col"><b className="truncate text-sm">{plan.name}</b>
-            <span className="truncate text-[12.5px] text-muted-foreground">{badgeKindLabel(plan.kind)} · {plan.owned ? tr('badges.award_flow.your_plan', 'your plan') : tr('badges.award_flow.value_s_plan_you_re', '{{value}}’s plan you’re approved to run', { value: plan.owner?.name || 'another organization' })}</span></span>
+            <span className="truncate text-[12.5px] text-muted-foreground">{badgeKindLabel(plan.kind)} · {plan.owned ? tr('badges.award_flow.your_plan', 'your plan') : tr('badges.award_flow.value_s_plan_you_re', '{{value}}’s plan you’re approved to run', { value: plan.owner?.name || tr('badges.award_flow.v_another_organization', 'another organization') })}</span></span>
         </button>) : <p className="px-3 py-2.5 text-[13.5px] text-muted-foreground">{tr('badges.award_flow.no_badges_to_award_yet', 'No badges to award yet. A plan needs a live version with a badge first.')}</p>}
     </div>
     <p className="mt-2.5 text-[12.5px] text-muted-foreground">{tr('badges.award_flow.only_plans_that_earn_a', 'Only plans that earn a badge, from your organization or ones you’re approved to run, are listed.')}</p>
@@ -218,7 +218,7 @@ export function SignOff({ plan, statement, setStatement, evidenceUrl, setEvidenc
       <div className="mt-2.5 flex flex-col gap-2">{people.map((person) => <label key={recipientKey(person)} className="flex items-center gap-2.5">
         <PersonTile person={{ id: person.id, username: person.username, first_name: person.name, avatar_image: person.avatar_image }} size="sm" />
         <span className="w-28 shrink-0 truncate font-semibold">{person.name}</span>
-        <input value={notes[person.id] || ''} onChange={(event) => setNotes({ ...notes, [person.id]: event.target.value })} aria-label={`A line for ${person.name}`} placeholder={tr('badges.award_flow.only_on_their_badge', 'Only on their badge')} className={input} />
+        <input value={notes[person.id] || ''} onChange={(event) => setNotes({ ...notes, [person.id]: event.target.value })} aria-label={tr('badges.award_flow.a_line_for_name', 'A line for {{name}}', { name: person.name })} placeholder={tr('badges.award_flow.only_on_their_badge', 'Only on their badge')} className={input} />
       </label>)}</div>
     </details> : null}
     <label className="flex items-start gap-3 rounded-xl bg-amber-50 px-3.5 py-3 text-[13.5px] leading-[1.45] dark:bg-amber-500/15">
@@ -265,7 +265,7 @@ function Done({ plan, done, slug, onClose }: { plan: AwardablePlan; done: { awar
   return <div className="mx-auto w-full max-w-[520px] px-6 py-12">
     <div className="flex items-center gap-3.5">
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-good-soft text-good"><Check size={22} strokeWidth={3} aria-hidden="true" /></span>
-      <span className="flex min-w-0 flex-col"><b className="text-xl">{done.awarded.length ? `${plan.name} awarded to ${plural(done.awarded.length, 'learner')}` : tr('badges.award_flow.nothing_awarded', 'Nothing awarded')}</b>
+      <span className="flex min-w-0 flex-col"><b className="text-xl">{done.awarded.length ? tr('badges.award_flow.name_awarded_to_plural', '{{name}} awarded to {{plural}}', { name: plan.name, plural: plural(done.awarded.length, 'learner') }) : tr('badges.award_flow.nothing_awarded', 'Nothing awarded')}</b>
         <span className="truncate text-sm text-muted-foreground">{names.join(', ') || tr('badges.award_flow.everyone_picked_has_it_already', 'Everyone picked has it already.')}</span></span>
     </div>
     {done.skipped.length ? <p className="mt-3 text-[13px] text-muted-foreground">{tr('badges.award_flow.skipped_they_already_had_it', 'Skipped, they already had it:')}{' '}{done.skipped.map((person) => person.name).join(', ')}.</p> : null}

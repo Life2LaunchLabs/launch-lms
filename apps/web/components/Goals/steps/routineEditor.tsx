@@ -108,7 +108,7 @@ function MonthDayPicker({ days, onChange }: { days: number[]; onChange: (days: n
     <div className="flex flex-wrap items-center gap-1.5">
       {days.map((day, index) => <span key={day} className={cn(chip(true), 'inline-flex items-center gap-1 pr-1.5', editing === index && 'ring-2 ring-[var(--plan-face)]/50')}>
         <button type="button" onClick={() => setEditing(editing === index ? null : index)} aria-label={tr('goals.routine_editor.the_ordinal_change_it', 'The {{ordinal}}, change it', { ordinal: ordinal(day) })}>{tr('goals.routine_editor.the_ordinal', 'The {{ordinal}}', { ordinal: ordinal(day) })}</button>
-        {days.length > 1 ? <button type="button" aria-label={`Remove the ${ordinal(day)}`} onClick={() => onChange(days.filter((item) => item !== day))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button> : null}
+        {days.length > 1 ? <button type="button" aria-label={tr('goals.routine_editor.remove_the_ordinal', 'Remove the {{ordinal}}', { ordinal: ordinal(day) })} onClick={() => onChange(days.filter((item) => item !== day))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button> : null}
       </span>)}
       <button type="button" className={cn(chip(editing === days.length), 'inline-flex items-center gap-1')} onClick={add} aria-label={tr('goals.routine_editor.add_a_day_of_the', 'Add a day of the month')}><Plus size={12} aria-hidden="true" />{tr('goals.routine_editor.day', 'Day')}</button>
     </div>

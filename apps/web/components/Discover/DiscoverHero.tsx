@@ -70,7 +70,7 @@ export default function DiscoverHero({ slides = [], orgslug }: { slides?: Discov
       <p className="text-xs font-extrabold uppercase tracking-widest opacity-90"><Tx text={slide.eyebrow} /></p>
       <h2 className="text-3xl font-extrabold leading-tight tracking-tight md:text-4xl"><Tx text={slide.title} /></h2>
       {slide.description ? <p className="line-clamp-3 max-w-lg text-sm leading-6 opacity-90 md:text-base"><Tx text={slide.description} /></p> : null}
-      {href ? <Button asChild variant="surface" size="tall" className="mt-2 border-0 bg-white text-[#10181c] shadow-[0_4px_0_rgba(0,0,0,.35)] hover:bg-white/90"><Link href={href}>{slide.action_label || tr('discover.discover_hero.learn_more', 'Learn more')}</Link></Button> : <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">{tr('discover.discover_hero.coming_soon', 'Coming soon')}</span>}
+      {href ? <Button asChild variant="surface" size="tall" className="mt-2 border-0 bg-white text-[#10181c] shadow-[0_4px_0_rgba(0,0,0,.35)] hover:bg-white/90"><Link href={href}>{slide.action_label ? <Tx text={slide.action_label} /> : tr('discover.discover_hero.learn_more', 'Learn more')}</Link></Button> : <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">{tr('discover.discover_hero.coming_soon', 'Coming soon')}</span>}
     </div>
   </section>
 }

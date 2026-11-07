@@ -122,7 +122,7 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, temp
 
   async function save() {
     if (!token) return
-    if (template && !filled(template, draft.data)) return toast.error(template.input === 'chips' ? tr('portfolio.result_dialog.tap_at_least_one', 'Tap at least one') : template.input === 'pick' ? `Pick your top ${template.count}` : template.input === 'type' ? tr('portfolio.result_dialog.pick_your_type', 'Pick your type') : tr('portfolio.result_dialog.set_at_least_one_score', 'Set at least one score'))
+    if (template && !filled(template, draft.data)) return toast.error(template.input === 'chips' ? tr('portfolio.result_dialog.tap_at_least_one', 'Tap at least one') : template.input === 'pick' ? tr('portfolio.result_dialog.pick_your_top_count', 'Pick your top {{count}}', { count: template.count }) : template.input === 'type' ? tr('portfolio.result_dialog.pick_your_type', 'Pick your type') : tr('portfolio.result_dialog.set_at_least_one_score', 'Set at least one score'))
     const name = draft.name.trim() || template?.name || kind?.label || ''
     if (!name) return toast.error(tr('portfolio.result_dialog.give_it_a_name', 'Give it a name'))
     setBusy(true)

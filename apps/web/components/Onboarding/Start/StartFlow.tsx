@@ -230,7 +230,7 @@ export default function StartFlow() {
       </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{tr('onboarding.start_flow.no_shared_frameworks_yet_you', 'No shared frameworks yet. You can add your own under Requirements once you’re in.')}</p>}</div>
       <Nav back={() => move(-1)} next={() => move(1)} label={framework ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     if (step === 'plans') return <><Eyebrow>{tr('onboarding.site_preview.plans', 'Plans')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.start_with_a_few_plans', 'Start with a few plans')}</h1>
-      <p className={LEDE}>{framework ? tr('onboarding.start_flow.picked_from_discover_the_ones', 'Picked from Discover, the ones covering the most of {{name}} first.', { name: framework.name }) : `Picked from Discover for ${role?.audience}.`}{' '}{tr('onboarding.start_flow.add_as_many_as_you', 'Add as many as you like.')}</p>
+      <p className={LEDE}>{framework ? tr('onboarding.start_flow.picked_from_discover_the_ones', 'Picked from Discover, the ones covering the most of {{name}} first.', { name: framework.name }) : tr('onboarding.start_flow.picked_from_discover_for_audience', 'Picked from Discover for {{audience}}.', { audience: role?.audience })}{' '}{tr('onboarding.start_flow.add_as_many_as_you', 'Add as many as you like.')}</p>
       <div className="mt-6 space-y-2">
         {plans.length ? plans.map((plan) => { const on = state.picked.includes(plan.template_uuid); return <button key={plan.template_uuid} type="button" aria-pressed={on}
           onClick={() => patch({ picked: on ? state.picked.filter((uuid) => uuid !== plan.template_uuid) : [...state.picked, plan.template_uuid] })}
@@ -243,7 +243,7 @@ export default function StartFlow() {
         </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{tr('onboarding.start_flow.no_shared_plans_yet_you', 'No shared plans yet. You can build your own once you’re in.')}</p>}
         <p className="flex items-center gap-1.5 pt-1 text-[13px] text-muted-foreground"><Compass size={15} />{tr('onboarding.start_flow.more_in', 'More in')}{' '}<b className="text-foreground">{tr('onboarding.start_flow.discover', 'Discover')}</b>{' '}{tr('onboarding.start_flow.once_you_re_in', 'once you’re in.')}</p>
       </div>
-      <Nav back={() => move(-1)} next={() => move(1)} label={state.picked.length ? `Continue with ${state.picked.length}` : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
+      <Nav back={() => move(-1)} next={() => move(1)} label={state.picked.length ? tr('onboarding.start_flow.continue_with_length', 'Continue with {{length}}', { length: state.picked.length }) : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     if (step === 'account') return signedIn
       ? <><Eyebrow>{tr('onboarding.start_flow.account', 'Account')}</Eyebrow><h1 className={H1}>{tr('onboarding.joined_flow.you_re_in', 'You’re in')}</h1><p className={LEDE}>{tr('onboarding.start_flow.your_picks_are_saved_next', 'Your picks are saved. Next, make it look like yours.')}</p>
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-white p-3">
@@ -278,7 +278,7 @@ export default function StartFlow() {
     if (step === 'learners' || step === 'staff') {
       const staff = step === 'staff'
       const list = staff ? state.staff : state.learners
-      return <><Eyebrow>{staff ? tr('onboarding.start_flow.your_team', 'Your team') : tr('onboarding.site_preview.people', 'People')}</Eyebrow><h1 className={H1}>{staff ? tr('onboarding.start_flow.add_your_staff', 'Add your staff') : `Add your first ${role?.plural || 'learners'}`}</h1>
+      return <><Eyebrow>{staff ? tr('onboarding.start_flow.your_team', 'Your team') : tr('onboarding.site_preview.people', 'People')}</Eyebrow><h1 className={H1}>{staff ? tr('onboarding.start_flow.add_your_staff', 'Add your staff') : tr('onboarding.start_flow.add_your_first_value', 'Add your first {{value}}', { value: role?.plural || tr('onboarding.start_flow.v_learners', 'learners') })}</h1>
         <p className={LEDE}>{staff ? tr('onboarding.start_flow.counselors_volunteers_or_co_leaders', 'Counselors, volunteers or co-leaders. They can run assignments and review work, and you can change that per person later.') : tr('onboarding.start_flow.optional_add_a_couple_now', 'Optional. Add a couple now and we’ll email them an invite.')}</p>
         <AddList key={step} placeholder={staff ? tr('onboarding.start_flow.colleague_school_org', 'colleague@school.org') : tr('onboarding.start_flow.name_example_com', 'name@example.com')} items={list} email onChange={(items) => patch(staff ? { staff: items } : { learners: items })}
           hint={staff ? tr('onboarding.start_flow.full_includes_12_staff_seats', 'Full includes 12 staff seats. You’re using 1.') : tr('onboarding.start_flow.rather_share_a_link_you', 'Rather share a link? You’ll find a join link on the People page.')} />
@@ -306,7 +306,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 function CoverMeter({ covers, of }: { covers: number; of: number }) {
   return <span className="mt-1.5 flex items-center gap-2" data-testid="start-plan-covers">
     <span className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"><i className="block h-full rounded-full bg-sky-600" style={{ width: `${Math.round((covers / of) * 100)}%` }} /></span>
-    <span className="text-[11.5px] font-semibold text-muted-foreground">{covers ? `Covers ${covers} of ${of}` : tr('onboarding.start_flow.covers_none_yet', 'Covers none yet')}</span>
+    <span className="text-[11.5px] font-semibold text-muted-foreground">{covers ? tr('onboarding.start_flow.covers_covers_of_of', 'Covers {{covers}} of {{of}}', { covers, of }) : tr('onboarding.start_flow.covers_none_yet', 'Covers none yet')}</span>
   </span>
 }
 
@@ -324,7 +324,7 @@ function Nav({ back, next, label = tr('lit.start_flow.continue', 'Continue'), di
 /** One persistent row: the current step is a pill, three on each side show, the rest collapse. */
 function Dots({ steps, current }: { steps: Step[]; current: Step }) {
   const at = steps.indexOf(current)
-  return <div className="mb-6 flex h-2.5 items-center" aria-label={`Step ${at + 1} of ${steps.length}`}>
+  return <div className="mb-6 flex h-2.5 items-center" aria-label={tr('onboarding.start_flow.step_value_of_length', 'Step {{value}} of {{length}}', { value: at + 1, length: steps.length })}>
     {steps.map((step, index) => { const distance = Math.abs(index - at); return <motion.i key={step} className="block shrink-0 rounded-full"
       animate={{ width: distance > 3 ? 0 : index === at ? 30 : 8, marginRight: distance > 3 ? 0 : 6, opacity: distance > 3 ? 0 : distance === 3 ? 0.6 : 1, scale: distance === 3 ? 0.6 : 1,
         backgroundColor: index === at ? 'hsl(var(--foreground))' : index < at ? 'hsl(var(--foreground) / 0.4)' : 'hsl(var(--foreground) / 0.18)' }} style={{ height: 8 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} /> })}

@@ -99,7 +99,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       }
       mutate([...notes, ...created], false)
       onNotesChange?.()
-      toast.success(created.length === 1 ? tr('resources.resource_notes.media_added_to_notes', 'Media added to Notes') : `${created.length} items added to Notes`)
+      toast.success(created.length === 1 ? tr('resources.resource_notes.media_added_to_notes', 'Media added to Notes') : tr('resources.resource_notes.length_items_added_to_notes', '{{length}} items added to Notes', { length: created.length }))
     } catch (error: any) {
       toast.error(error?.message || tr('resources.resource_notes.failed_to_upload_media', 'Failed to upload media'))
       mutate()
@@ -321,7 +321,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
           <MediaPickerDialog
             open
             onOpenChange={(open) => { if (!open) setPickerType(null) }}
-            title={`Add ${pickerType === 'image' ? 'an image' : 'a PDF'} to Notes`}
+            title={tr('resources.resource_notes.add_value_to_notes', 'Add {{value}} to Notes', { value: pickerType === 'image' ? tr('resources.resource_notes.v_an_image', 'an image') : tr('resources.resource_notes.v_a_pdf', 'a PDF') })}
             description={tr('resources.resource_notes.upload_something_new_or_choose', 'Upload something new or choose it from your media library.')}
             owner={{ type: 'user', id: Number(userId) }}
             mediaType={pickerType}

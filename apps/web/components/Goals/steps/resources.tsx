@@ -124,7 +124,7 @@ function ResourcesCard({ goal, step, actions, canWork, staff, viewerUserId }: St
         canOpen={!step.locked} onOpen={() => open(card)} onNote={note(card)} />)}
     </ul>
     {learner && !done ? <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <CardNote icon={Eye}>{step.completed_by === 'staff' ? tr('goals.resources.people_helping_with_this_goal', 'People helping with this goal see what you open and your notes, and mark this done.') : `${finishLine(left, need, cards.length)} People helping with this goal can see what you open and your notes.`}</CardNote>
+      <CardNote icon={Eye}>{step.completed_by === 'staff' ? tr('goals.resources.people_helping_with_this_goal', 'People helping with this goal see what you open and your notes, and mark this done.') : tr('goals.resources.finishline_people_helping_with_this', '{{finishLine}} People helping with this goal can see what you open and your notes.', { finishLine: finishLine(left, need, cards.length) })}</CardNote>
       {actions.ask ? <span className="ml-auto"><AskCoach onAsk={actions.ask} /></span> : null}
     </div> : null}
     {staff ? <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} /> : null}

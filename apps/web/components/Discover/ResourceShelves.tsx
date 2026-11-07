@@ -79,7 +79,7 @@ export function ResourceTile({ resource, fill = false }: { resource: Resource; o
     </Link>
     <span className="pointer-events-none absolute inset-x-0 top-0 aspect-[16/10]">
       <a href={resource.external_url} target="_blank" rel="noopener noreferrer" onClick={() => countOpen(resource, token)}
-        aria-label={`Open ${site || resource.title} in a new tab`} title={`Open ${site || 'the site'}`}
+        aria-label={tr('discover.resource_shelves.open_value_in_a_new', 'Open {{value}} in a new tab', { value: site || resource.title })} title={`Open ${site || 'the site'}`}
         className="pointer-events-auto absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#14202a] shadow-[0_3px_0_rgba(0,0,0,.25)] transition-transform duration-150 hover:scale-110 motion-reduce:transition-none">
         <ArrowUpRight size={18} strokeWidth={2.5} aria-hidden="true" />
       </a>

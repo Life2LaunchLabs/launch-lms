@@ -110,7 +110,7 @@ function Card({ card, place, onDrag, onTap }: { card: SwipeCard; place: 0 | 1 | 
     <div className="flex flex-col gap-2 p-5">
       <div className="flex items-start gap-2">
         <h2 className="m-0 min-w-0 flex-1 text-balance text-[24px] font-extrabold leading-[1.12] tracking-tight"><ReadAloudText id={speechId} text={card.title} /></h2>
-        {place === 0 ? <SpeakButton id={speechId} text={spoken} label={`Hear about ${card.title}`} /> : null}
+        {place === 0 ? <SpeakButton id={speechId} text={spoken} label={tr('careers.career_swipe.hear_about_title', 'Hear about {{title}}', { title: card.title })} /> : null}
       </div>
       {card.alt_titles?.length ? <p className="m-0 line-clamp-1 text-[13px] font-semibold text-muted-foreground">{tr('careers.career_swipe.also_called_join', 'Also called {{join}}', { join: card.alt_titles.slice(0, 2).join(', ') })}</p> : null}
       {onTap ? <button type="button" onClick={onTap} className="flex items-center gap-0.5 self-start text-[14px] font-extrabold text-[var(--org-primary-color)]">{tr('careers.career_swipe.what_it_s_like', 'What it’s like')}<ChevronRight size={16} aria-hidden="true" /></button> : null}
@@ -130,8 +130,8 @@ function Card({ card, place, onDrag, onTap }: { card: SwipeCard; place: 0 | 1 | 
 
 function Horizon({ batch }: { batch: Batch }) {
   const done = batch.at >= batch.cards.length
-  return <div className="flex flex-col gap-1.5" aria-label={done ? `All ${batch.cards.length} done` : `Career ${batch.at + 1} of ${batch.cards.length}`}>
-    <div className="flex justify-between text-[12.5px] font-bold text-muted-foreground"><span>{done ? `All ${batch.cards.length} done` : `${batch.at + 1} of ${batch.cards.length}`}</span><span>{tr('careers.career_swipe.length_saved', '{{length}} saved', { length: batch.kept.length })}</span></div>
+  return <div className="flex flex-col gap-1.5" aria-label={done ? tr('careers.career_swipe.all_length_done', 'All {{length}} done', { length: batch.cards.length }) : tr('careers.career_swipe.career_value_of_length', 'Career {{value}} of {{length}}', { value: batch.at + 1, length: batch.cards.length })}>
+    <div className="flex justify-between text-[12.5px] font-bold text-muted-foreground"><span>{done ? tr('careers.career_swipe.all_length_done', 'All {{length}} done', { length: batch.cards.length }) : `${batch.at + 1} of ${batch.cards.length}`}</span><span>{tr('careers.career_swipe.length_saved', '{{length}} saved', { length: batch.kept.length })}</span></div>
     <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${batch.cards.length}, minmax(0, 1fr))` }}>
       {batch.cards.map((card, index) => <span key={card.code} className={cn('h-2 rounded-full', index < batch.at ? (batch.kept.includes(card.code) ? 'bg-emerald-500' : 'bg-foreground/40') : index === batch.at ? 'bg-[var(--org-primary-color)]' : 'bg-muted')} />)}
     </div>
@@ -250,7 +250,7 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
           <Card card={card} place={index as 0 | 1 | 2} onDrag={index === 0 ? decide : undefined} onTap={index === 0 ? () => setSheet(card.resource_uuid) : undefined} />
         </div>).reverse()
           : <div className="absolute inset-0 flex flex-col gap-3 overflow-y-auto rounded-[28px] bg-card p-6 shadow-[0_6px_0_hsl(var(--edge))]">
-            <h2 className="m-0 text-[23px] font-extrabold">{batch.kept.length ? `Nice. ${batch.kept.length} saved.` : `That was ${batch.cards.length}.`}</h2>
+            <h2 className="m-0 text-[23px] font-extrabold">{batch.kept.length ? tr('careers.career_swipe.nice_length_saved', 'Nice. {{length}} saved.', { length: batch.kept.length }) : tr('careers.career_swipe.that_was_length', 'That was {{length}}.', { length: batch.cards.length })}</h2>
             <p className="m-0 text-[14px] text-muted-foreground">{batch.kept.length ? tr('careers.career_swipe.they_re_in_your_library', 'They’re in your library with your notes. Open one to see more or put it on your plan.') : tr('careers.career_swipe.nothing_jumped_out_and_that', 'Nothing jumped out, and that’s useful too. The ones you skipped come back later, after new ones.')}</p>
             {batch.kept.length ? <div className="flex flex-col gap-2">{batch.kept.map((code) => {
               const card = batch.cards.find((item) => item.code === code)!

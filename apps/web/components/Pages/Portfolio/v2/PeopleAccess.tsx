@@ -60,7 +60,7 @@ export function PersonAccess({ contact, token, onChange }: { contact: Contact; t
 
   const first = contact.name.split(' ')[0] || contact.name
   const set = (next: { portfolio: boolean; plans: boolean }) => run(() => peopleAccess.set(contact.contact_uuid, next, token), tr('lit.people_access.could_not_change_that', 'Could not change that'))
-  return <section aria-label={`What ${first} can see`} className="grid gap-2">
+  return <section aria-label={tr('portfolio.people_access.what_first_can_see_2', 'What {{first}} can see', { first })} className="grid gap-2">
     <h3 className="text-sm font-extrabold">{tr('portfolio.people_access.what_first_can_see', 'What {{first}} can see', { first })}{' '}<span className="font-semibold text-muted-foreground">· @{account.username}</span></h3>
     <AccessSwitch icon={BookUser} title={tr('portfolio.people_access.my_portfolio', 'My portfolio')} hint={tr('portfolio.people_access.see_it_even_while_it', 'See it even while it’s private, and comment on it.')} checked={account.portfolio} disabled={busy} onChange={(value) => set({ portfolio: value, plans: account.plans })} />
     <AccessSwitch icon={MapIcon} title={tr('portfolio.people_access.my_plans', 'My plans')} hint={tr('portfolio.people_access.see_your_life_plan_budget', 'See your life plan, budget included.')} checked={account.plans} disabled={busy} onChange={(value) => set({ portfolio: account.portfolio, plans: value })} />

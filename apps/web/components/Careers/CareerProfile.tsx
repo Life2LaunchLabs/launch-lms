@@ -177,7 +177,7 @@ function JobsSection({ outlook, home, onHome }: { outlook: CareerOutlook; home: 
   const headline = `${many(main.openings)}: about ${main.openings.toLocaleString('en-US')} a year ${inPlace(main)}${main.growth != null ? `, ${growthWord(main.growth)}` : ''}.`
   const regions = outlook.places.filter((row) => row.place !== 'state:OR' && row.openings != null).sort((a, b) => (b.openings || 0) - (a.openings || 0))
   return <Section title={tr('careers.career_profile.can_i_get_a_job', 'Can I get a job?')} headline={headline} speak={headline} moreLabel={tr('lit.career_profile.jobs_over_10_years_by', 'Jobs over 10 years, by region')} more={<>
-    <p className="m-0 text-[14px]">{outlook.start && outlook.end ? tr('careers.career_profile.from_start_to_end', 'From {{start}} to {{end}}, ', { start: outlook.start, end: outlook.end }) : ''}{tr('careers.career_profile.oregon_expects', 'Oregon expects')}{' '}{oregon?.jobs != null && oregon.jobs_later != null ? `${oregon.jobs.toLocaleString('en-US')} jobs to become ${oregon.jobs_later.toLocaleString('en-US')}` : tr('careers.career_profile.these_openings', 'these openings')}.</p>
+    <p className="m-0 text-[14px]">{outlook.start && outlook.end ? tr('careers.career_profile.from_start_to_end', 'From {{start}} to {{end}}, ', { start: outlook.start, end: outlook.end }) : ''}{tr('careers.career_profile.oregon_expects', 'Oregon expects')}{' '}{oregon?.jobs != null && oregon.jobs_later != null ? tr('careers.career_profile.tolocalestring_jobs_to_become_tolocalestring2', '{{toLocaleString}} jobs to become {{toLocaleString2}}', { toLocaleString: oregon.jobs.toLocaleString('en-US'), toLocaleString2: oregon.jobs_later.toLocaleString('en-US') }) : tr('careers.career_profile.these_openings', 'these openings')}.</p>
     {regions.length ? <div className="flex flex-col gap-1">
       {regions.map((row) => <div key={row.place} className={cn('grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-2 py-1.5 text-[13.5px]', row.place === outlook.here && 'bg-amber-500/15')}>
         <span className="flex min-w-0 items-center gap-1 font-bold">{row.place === outlook.here ? <MapPin size={13} className="shrink-0 text-amber-600" aria-label={tr('careers.career_profile.near_you', 'Near you')} /> : null}<span className="truncate">{cap(row.label)}</span></span>
@@ -190,7 +190,7 @@ function JobsSection({ outlook, home, onHome }: { outlook: CareerOutlook; home: 
     <div className="grid grid-cols-3 gap-2">
       {near ? <Tile value={near.openings!.toLocaleString('en-US')} label={tr('careers.career_profile.openings_a_year_near_you', 'openings a year near you')} /> : null}
       {oregon?.openings != null ? <Tile value={oregon.openings.toLocaleString('en-US')} label={tr('careers.career_profile.a_year_in_oregon', 'a year in Oregon')} /> : null}
-      {main.growth != null ? <Tile value={percent(main.growth)} label={`${main.growth >= 0 ? 'more' : 'fewer'} jobs by ${outlook.end || 'ten years'}`} /> : null}
+      {main.growth != null ? <Tile value={percent(main.growth)} label={tr('careers.career_profile.value_jobs_by_value2', '{{value}} jobs by {{value2}}', { value: main.growth >= 0 ? tr('careers.career_profile.v_more', 'more') : tr('careers.career_profile.v_fewer', 'fewer'), value2: outlook.end || tr('careers.career_profile.v_ten_years', 'ten years') })} /> : null}
     </div>
     {newJobs != null && main.openings > Math.max(1, newJobs) * 2 ? <p className="m-0 text-[13px] text-muted-foreground">{tr('careers.career_profile.most_openings_come_from_people', 'Most openings come from people retiring or changing jobs, not only new jobs.')}</p> : null}
     {!near && !home ? <p className="m-0 text-[13px] text-muted-foreground"><TownButton onClick={onHome} />{' '}{tr('careers.career_profile.to_see_openings_near_you', 'to see openings near you.')}</p> : null}
@@ -297,7 +297,7 @@ function Paths({ paths, onOpen, color, home, onHome }: { paths: CareerPaths; onO
     {shown.length ? <div className="flex flex-col gap-2">{shown.map((program) => <ProgramCard key={`${program.unitid}-${program.cip}-${program.credential}`} program={program} onOpen={onOpen} />)}</div>
       : <p className="m-0 text-[13.5px] text-muted-foreground">{tr('careers.career_profile.none_of_these_programs_are', 'None of these programs are fully online.')}</p>}
     {list.length > 4 ? <button type="button" onClick={() => setAll(!all)} className="flex min-h-11 items-center gap-1 self-start text-[14px] font-extrabold text-[var(--org-primary-color)] hover:underline">
-      {all ? tr('careers.career_profile.show_fewer', 'Show fewer') : `Show all ${list.length}`}<ChevronDown size={16} className={cn('transition-transform', all && 'rotate-180')} aria-hidden="true" />
+      {all ? tr('careers.career_profile.show_fewer', 'Show fewer') : tr('careers.career_profile.show_all_length', 'Show all {{length}}', { length: list.length })}<ChevronDown size={16} className={cn('transition-transform', all && 'rotate-180')} aria-hidden="true" />
     </button> : null}
     <p className="m-0 text-[12px] text-muted-foreground">{tr('careers.career_profile.earnings_and_loans_are_for', 'Earnings and loans are for graduates of each program; small programs aren’t shown.')}{' '}{sort === 'cost' ? tr('careers.career_profile.lowest_cost_uses_in_state', 'Lowest cost uses in-state tuition for the whole program. ') : ''}{paths.source}.</p>
   </div>
@@ -413,7 +413,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
             <span className="text-[14.5px] font-extrabold">{item.title}</span>
             <span className="shrink-0 text-[12.5px] font-bold text-muted-foreground">{[item.job_zone ? TRAINING[item.job_zone] : '', item.pay ? `$${Math.round(item.pay.yearly / 2080)}/hr` : ''].filter(Boolean).join(' · ')}</span>
           </button>
-          <button type="button" onClick={() => setCompare([{ code: career.code, title: career.title }, { code: item.code, title: item.title }])} aria-label={`Compare with ${item.title}`} title={tr('careers.career_compare.compare', 'Compare')}
+          <button type="button" onClick={() => setCompare([{ code: career.code, title: career.title }, { code: item.code, title: item.title }])} aria-label={tr('careers.career_profile.compare_with_title', 'Compare with {{title}}', { title: item.title })} title={tr('careers.career_compare.compare', 'Compare')}
             className="flex w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeftRight size={16} aria-hidden="true" /></button>
         </div>)}
       </div> : null}
@@ -426,7 +426,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
 
     <details className="group rounded-2xl px-1">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1 text-[12.5px] font-bold text-muted-foreground hover:text-foreground">
-        {tr('careers.career_profile.how_we_know', 'How we know')}{here ? tr('careers.career_profile.o_net_value', ': O*NET, {{value}}', { value: here.publisher || 'BLS' }) : tr('careers.career_profile.o_net', ': O*NET')}<ChevronDown size={14} className="transition-transform group-open:rotate-180" aria-hidden="true" />
+        {tr('careers.career_profile.how_we_know', 'How we know')}{here ? tr('careers.career_profile.o_net_value', ': O*NET, {{value}}', { value: here.publisher || tr('careers.career_profile.v_bls', 'BLS') }) : tr('careers.career_profile.o_net', ': O*NET')}<ChevronDown size={14} className="transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0 pb-2 text-[12px] font-semibold leading-relaxed text-muted-foreground">{credits.map((line) => <li key={line}>{line}</li>)}</ul>
     </details>

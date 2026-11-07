@@ -57,7 +57,7 @@ export function PortfolioVisitorBar({ orgslug, username, token, shell }: { orgsl
     {profile.goals.length ? <Button variant="surface" size="sm" onClick={() => setSheet('goals')}><Target className="h-4 w-4" />{tr('portfolio.portfolio_visitor_bar.goals_length', 'Goals · {{length}}', { length: profile.goals.length })}</Button> : null}
     {access?.plans && profile.person.user_uuid ? <Button variant="surface" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.sharedPlan(profile.person.user_uuid))}><Map className="h-4 w-4" />{tr('portfolio.portfolio_visitor_bar.plans', 'Plans')}</Link></Button> : null}
     {onPortfolio ? <CommentButton portfolioUuid={shell.portfolio?.portfolio_uuid} orgslug={orgslug} token={token} /> : null}
-    <EditSheet open={sheet === 'goals'} onOpenChange={(open) => setSheet(open ? 'goals' : null)} color={SHEET_COLOR} title={`Goals ${profile.person.name} shares with you`}>
+    <EditSheet open={sheet === 'goals'} onOpenChange={(open) => setSheet(open ? 'goals' : null)} color={SHEET_COLOR} title={tr('portfolio.portfolio_visitor_bar.goals_name_shares_with_you', 'Goals {{name}} shares with you', { name: profile.person.name })}>
       <ul className="flex flex-col gap-2">{profile.goals.map((goal) => <li key={goal.goal_uuid}>
         <Link href={getUriWithOrg(orgslug, routePaths.org.plan(goal.goal_uuid))} className="flex items-center gap-3 rounded-2xl border border-border p-3 hover:bg-raised">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-raised text-lg" aria-hidden="true">{goal.icon || '🎯'}</span>

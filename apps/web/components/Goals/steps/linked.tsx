@@ -59,7 +59,7 @@ function BadgeCard(props: StepCardProps<'badge'>) {
       {plan?.badge ? <BadgeMedal badge={plan.badge} size={48} /> : <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-[var(--plan-accent)]"><Award size={22} /></span>}
       <div className="min-w-0">
         <p className="truncate font-bold">{plan?.badge?.name || plan?.title || tr('goals.linked.badge', 'Badge')}</p>
-        <CardNote>{step.status === 'completed' ? tr('goals.linked.awarded', 'Awarded') : `Done when you earn it${plan?.title ? ` by finishing ${plan.title}` : ''}`}</CardNote>
+        <CardNote>{step.status === 'completed' ? tr('goals.linked.awarded', 'Awarded') : tr('goals.linked.done_when_you_earn_itvalue', 'Done when you earn it{{value}}', { value: plan?.title ? ` by finishing ${plan.title}` : '' })}</CardNote>
       </div>
     </div>
     {step.config.template_uuid && step.status !== 'completed' ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(step.config.template_uuid))}>{tr('goals.linked.see_the_plan', 'See the plan')}</Link></Button> : null}

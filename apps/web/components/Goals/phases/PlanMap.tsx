@@ -423,7 +423,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
             className={cn('shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-extrabold data-[ins=l]:!shadow-[-7px_0_0_-3px_hsl(var(--foreground))] data-[ins=r]:!shadow-[7px_0_0_-3px_hsl(var(--foreground))] shadow-[0_0_0_1.5px_hsl(var(--border))]', q === sel ? 'bg-foreground text-background shadow-none' : 'bg-card', q.idea && q !== sel && 'shadow-[0_0_0_1.5px_hsl(var(--border))] [border-style:dashed]')}>{q.title}</button>)}
         </div>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><button type="button" aria-label={`More for ${label.toLowerCase()}`} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><button type="button" aria-label={tr('goals.plan_map.more_for_tolowercase', 'More for {{toLowerCase}}', { toLowerCase: label.toLowerCase() })} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => newOption(key)}><Plus size={15} aria-hidden="true" />{tr('goals.decision.add_an_option', 'Add an option')}</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setComparing(options.map((q) => q.id))}><Scale size={15} aria-hidden="true" />{tr('goals.plan_compare.compare', 'Compare')}</DropdownMenuItem>

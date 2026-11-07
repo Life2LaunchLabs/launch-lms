@@ -55,7 +55,7 @@ function ResourceSearchCard({ resource, orgUUID, selected, expanded, onSelect }:
         <div className="px-1.5 pb-1.5 pt-2">
           <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{resource.provider_name || resource.resource_type}</p>
           <h3 className="mt-1 line-clamp-2 text-xs font-semibold leading-4 tracking-tight">{resource.title}</h3>
-          <div className="mt-1 flex items-center gap-1 text-[9px] text-muted-foreground" aria-label={`${(resource.average_rating || 0).toFixed(1)} out of 5 stars from ${resource.rating_count || 0} ratings`}>
+          <div className="mt-1 flex items-center gap-1 text-[9px] text-muted-foreground" aria-label={tr('coach.hub_quick_search.tofixed_out_of_5_stars', '{{toFixed}} out of 5 stars from {{value}} ratings', { toFixed: (resource.average_rating || 0).toFixed(1), value: resource.rating_count || 0 })}>
             <span className="flex items-center gap-px" aria-hidden="true">
               {[1, 2, 3, 4, 5].map((star) => <Star key={star} className={`h-2.5 w-2.5 ${star <= Math.round(resource.average_rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/25'}`} />)}
             </span>
@@ -147,7 +147,7 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
   }, [loading, resources, selectSearchResult, selectedResourceUuids?.length])
 
   return (
-    <section className="w-full max-w-full overflow-hidden" aria-live="polite" aria-busy={loading} aria-label={`Resource results for ${searchQuery}`}>
+    <section className="w-full max-w-full overflow-hidden" aria-live="polite" aria-busy={loading} aria-label={tr('coach.hub_quick_search.resource_results_for_searchquery', 'Resource results for {{searchQuery}}', { searchQuery })}>
       <div className="flex items-center gap-2.5 border-b border-border/60 px-1 pb-2.5">
         <Search className="h-4 w-4 shrink-0" />
         <div className="min-w-0 flex-1">

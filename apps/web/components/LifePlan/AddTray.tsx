@@ -40,7 +40,7 @@ export default function AddTray({ target, onClose }: { target: AddTarget | null;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1">
             {back && <Button variant="ghost" size="icon" onClick={back} aria-label={tr('budget.add_tray.back', 'Back')} className="-ml-2"><ChevronLeft /></Button>}
-            {pick ? (pick.title || tr('budget.add_tray.something_else', 'Something else')) : c ? `Add ${c.title.toLowerCase()}` : side === 'in' ? tr('budget.add_tray.add_income', 'Add income') : tr('budget.add_tray.add_an_expense', 'Add an expense')}
+            {pick ? (pick.title || tr('budget.add_tray.something_else', 'Something else')) : c ? tr('careers.career_compare.add_tolowercase', 'Add {{toLowerCase}}', { toLowerCase: c.title.toLowerCase() }) : side === 'in' ? tr('budget.add_tray.add_income', 'Add income') : tr('budget.add_tray.add_an_expense', 'Add an expense')}
           </DialogTitle>
         </DialogHeader>
         {!c && (
@@ -131,7 +131,7 @@ function Confirm({ item, side, estimable, onDone }: { item: CatalogItem; side: S
             <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" aria-label={tr('budget.add_tray.hours_a_week', 'Hours a week')} className="h-10 w-14 rounded-xl border border-border bg-background px-2 text-right text-foreground outline-none" />{' '}{tr('budget.add_tray.hrs_a_week', 'hrs a week')}
           </span>}
         </div>
-        {item.metric && <span className="text-xs font-normal text-muted-foreground">{estimable ? `We only show an estimate when we have a published source for ${phase.place_label || 'this place'}.` : tr('budget.add_tray.we_don_t_have_a', 'We don\'t have a published estimate for {{value}} yet, so put in your own number.', { value: phase.place_label || 'this place' })}</span>}
+        {item.metric && <span className="text-xs font-normal text-muted-foreground">{estimable ? tr('budget.add_tray.we_only_show_an_estimate', 'We only show an estimate when we have a published source for {{value}}.', { value: phase.place_label || tr('budget.add_tray.v_this_place', 'this place') }) : tr('budget.add_tray.we_don_t_have_a', 'We don\'t have a published estimate for {{value}} yet, so put in your own number.', { value: phase.place_label || 'this place' })}</span>}
       </div>
       <label className="grid gap-1 text-sm font-semibold">{tr('budget.add_tray.starts', 'Starts')}
         <select value={start} onChange={(e) => setStart(Number(e.target.value))} className="h-10 rounded-xl border border-border bg-background px-2 font-normal">

@@ -171,7 +171,7 @@ export default function HubResourceLibrary({
                   </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon" className="mr-0.5 h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100" aria-label={`Actions for ${list.name}`}>
+                      <Button type="button" variant="ghost" size="icon" className="mr-0.5 h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100" aria-label={tr('coach.hub_resource_library.actions_for_name', 'Actions for {{name}}', { name: list.name })}>
                         <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>

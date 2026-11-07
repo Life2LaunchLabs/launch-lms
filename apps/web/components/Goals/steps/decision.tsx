@@ -84,7 +84,7 @@ function DecisionConfigPanel({ config, onChange }: ConfigPanelProps<'decision'>)
         <Mark on={false} multiple={config.multiple} />
         <Input value={option.label} onChange={(event) => setRow(index, event.target.value)} aria-label={`Option ${index + 1}`} placeholder={`Option ${index + 1}`} maxLength={300}
           className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" />
-        {rows.length > MIN_OPTIONS ? <button type="button" aria-label={`Remove option ${index + 1}`} onClick={() => onChange({ ...config, options: rows.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+        {rows.length > MIN_OPTIONS ? <button type="button" aria-label={tr('goals.decision.remove_option_value', 'Remove option {{value}}', { value: index + 1 })} onClick={() => onChange({ ...config, options: rows.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
       </li>)}
     </ol>
     <button type="button" onClick={() => onChange({ ...config, options: [...rows.map((item, at) => ({ ...item, key: item.key || `option_${Date.now().toString(36)}_${at}` })), { key: `option_${Date.now().toString(36)}_${rows.length}`, label: '' }] })}

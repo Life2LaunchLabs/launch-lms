@@ -165,7 +165,7 @@ export default function HubHeader({
             <span className="min-w-0 flex-1 truncate"><span className="mr-1.5 font-semibold text-violet-700 dark:text-violet-300">{sessionModeLabel}:</span><span className="text-muted-foreground">{editRun.goal}</span></span>
             <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'session' ? 'rotate-180' : ''}`} />
           </button>
-          <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`End focused session for ${editRun.scope.label}`}>{tr('coach.hub_header.end', 'End')}</button>
+          <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={tr('coach.hub_header.end_focused_session_for_label', 'End focused session for {{label}}', { label: editRun.scope.label })}>{tr('coach.hub_header.end', 'End')}</button>
         </div> : contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
           <span>I can&apos;t read this page yet.</span>
           <TooltipProvider delayDuration={200}>

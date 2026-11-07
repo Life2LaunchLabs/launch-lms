@@ -69,7 +69,7 @@ export function MarkCard({ g, ms, onClose, onShow, className = '' }: { g: number
     setTimeout(() => { const el = document.getElementById(`row-${id}`); el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); if (id.startsWith('ev:')) (el as HTMLElement | null)?.focus({ preventScroll: true }) }, 60)
   }
   return (
-    <div role="dialog" aria-label={`What happens in ${monthLabel(doc.start, g)}`} className={`w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl bg-card p-3 text-sm shadow-lg ring-1 ring-border ${className}`}
+    <div role="dialog" aria-label={tr('budget.chart_events.what_happens_in_monthlabel', 'What happens in {{monthLabel}}', { monthLabel: monthLabel(doc.start, g) })} className={`w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl bg-card p-3 text-sm shadow-lg ring-1 ring-border ${className}`}
       onPointerMove={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{tr('budget.chart_events.why_the_line_moves_monthlabel', 'Why the line moves · {{monthLabel}}', { monthLabel: monthLabel(doc.start, g) })}</p>

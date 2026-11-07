@@ -61,7 +61,7 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
     <span data-tile-icon className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
     <h2 data-tile-title className={`min-w-0 truncate text-[17px] font-extrabold ${renaming ? 'relative z-[2]' : ''}`}>{renaming && ctx?.rename ? <EditableTitle value={shown} onSave={ctx.rename} autoFocus onDone={() => setRenaming(false)} />
       : href ? <Link href={href} className="outline-none focus-visible:underline">{shown}</Link> : shown}</h2>
-    {editing && ctx?.rename && !renaming ? <EditButton label={`the name of ${shown}`} onClick={() => setRenaming(true)} /> : null}
+    {editing && ctx?.rename && !renaming ? <EditButton label={tr('portfolio.parts.the_name_of_shown', 'the name of {{shown}}', { shown })} onClick={() => setRenaming(true)} /> : null}
     <span className="flex-1" />
     {count ? <span data-tile-count className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
     {href ? arrow : null}

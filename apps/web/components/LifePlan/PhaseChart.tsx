@@ -86,7 +86,7 @@ export default function PhaseChart() {
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
         {tr('budget.chart_events.savings', 'Savings')}{hasOwn ? tr('budget.phase_chart.and_things_you_own', ' and things you own') : ''}{' '}{tr('budget.phase_chart.go_from', 'go from')}{' '}<b className="text-foreground">{short(stack[0])}</b>{' '}{tr('budget.budget_table.to', 'to')}{' '}<b className="text-foreground">{short(stack[M])}</b>.{(debt[0] > 0.5 || debt[M] > 0.5) && <>{' '}{tr('budget.phase_chart.debt_goes_from', 'Debt goes from')}{' '}<b style={{ color: DEBT }}>{short(debt[0])}</b>{' '}{tr('budget.budget_table.to', 'to')}{' '}<b style={{ color: DEBT }}>{short(debt[M])}</b>.</>}
-        {missing > 0 && <> {missing === 1 ? tr('budget.phase_chart.one_line_has', 'One line has') : `${missing} lines have`}{' '}{tr('budget.phase_chart.no_number_yet_so', 'no number yet, so')}{' '}{missing === 1 ? tr('budget.phase_chart.it_isn_t', 'it isn\'t') : tr('budget.phase_chart.they_aren_t', 'they aren\'t')}{' '}{tr('budget.phase_chart.counted', 'counted.')}</>}
+        {missing > 0 && <> {missing === 1 ? tr('budget.phase_chart.one_line_has', 'One line has') : tr('budget.phase_chart.missing_lines_have', '{{missing}} lines have', { missing })}{' '}{tr('budget.phase_chart.no_number_yet_so', 'no number yet, so')}{' '}{missing === 1 ? tr('budget.phase_chart.it_isn_t', 'it isn\'t') : tr('budget.phase_chart.they_aren_t', 'they aren\'t')}{' '}{tr('budget.phase_chart.counted', 'counted.')}</>}
       </p>
       </>)}
       <div className="mt-3 rounded-2xl bg-card p-3 shadow-[0_1px_0_hsl(var(--border))] sm:p-4">

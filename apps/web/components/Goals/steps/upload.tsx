@@ -64,7 +64,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
       })}
     </ul>
     {linkSlot ? <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); if (!link.trim()) return; await actions.addEntry({ kind: 'link', slot: linkSlot.key, url: link.trim(), title: link.trim() }); setLink(''); setLinkSlot(null) }}>
-      <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={`Link for ${linkSlot.label}`} />
+      <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={tr('goals.upload.link_for_label', 'Link for {{label}}', { label: linkSlot.label })} />
       <button type="submit" className="rounded-xl border-2 px-3 text-xs font-bold">{tr('goals.upload.add', 'Add')}</button>
     </form> : null}
     <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} blocker={blocker} />
@@ -89,7 +89,7 @@ function UploadConfigPanel({ config, onChange }: ConfigPanelProps<'upload'>) {
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex items-center gap-1">
             <Input className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" value={slot.label} onChange={(event) => update(index, { ...slot, label: event.target.value })} placeholder={tr('goals.upload.a_photo_of_your_work', 'A photo of your work')} aria-label={`Item ${index + 1}`} />
-            {slots.length > 1 ? <button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => onChange({ slots: slots.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+            {slots.length > 1 ? <button type="button" aria-label={tr('goals.upload.remove_item_value', 'Remove item {{value}}', { value: index + 1 })} onClick={() => onChange({ slots: slots.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
           </div>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr('goals.upload.what_it_takes', 'What it takes')}>
             {KINDS().map(([kind, label]) => { const on = slot.kinds.includes(kind); return <button key={kind} type="button" aria-pressed={on} className={chip(on)}

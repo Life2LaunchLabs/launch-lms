@@ -22,7 +22,7 @@ export default function EndSessionDialog({ open, unreviewed, title = tr('lit.end
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{unreviewed ? `${left} will stay on the goal as suggestions.` : tr('coach.end_session_dialog.you_can_start_a_new', 'You can start a new session with Coach any time.')}</DialogDescription>
+        <DialogDescription>{unreviewed ? tr('coach.end_session_dialog.left_will_stay_on_the', '{{left}} will stay on the goal as suggestions.', { left }) : tr('coach.end_session_dialog.you_can_start_a_new', 'You can start a new session with Coach any time.')}</DialogDescription>
       </DialogHeader>
       <DialogFooter className="gap-2">
         <Button type="button" variant="ghost" onClick={onKeep}>{keepLabel}</Button>

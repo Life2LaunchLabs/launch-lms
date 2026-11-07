@@ -4382,7 +4382,8 @@
       "you_re_invited": "Estás invitado",
       "who_invited_you_to_plan": "{{who}} te invitó a planear lo que sigue con {{spaceName}}.",
       "they_ve_set_up_a": "Prepararon un plan para ayudarte a descubrir lo que sigue y llegar ahí.",
-      "accept_invite": "Aceptar invitación"
+      "accept_invite": "Aceptar invitación",
+      "who_invited_you": "{{who}} te invitó"
     },
     "start_flow": {
       "life2launch": "Life2Launch",
@@ -4465,7 +4466,13 @@
       "sign_in_instead": "Iniciar sesión en su lugar",
       "see_your_space": "Ver tu espacio",
       "your_space_so_far": "Tu espacio hasta ahora",
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "picked_from_discover_for_audience": "Elegidos de Descubrir para {{audience}}.",
+      "continue_with_length": "Continuar con {{length}}",
+      "add_your_first_value": "Agrega tus primeros {{value}}",
+      "covers_covers_of_of": "Cubre {{covers}} de {{of}}",
+      "step_value_of_length": "Paso {{value}} de {{length}}",
+      "v_learners": "estudiantes"
     },
     "tier_compare": {
       "for_one_person_helping_a": "Para una persona que ayuda a algunos estudiantes.",
@@ -4530,7 +4537,8 @@
       "hi_i_saw_your_project": "¡Hola! Vi tu proyecto y…",
       "your_note": "Tu nota",
       "cancel": "Cancelar",
-      "send_request": "Enviar solicitud"
+      "send_request": "Enviar solicitud",
+      "request_sent_to_name": "Solicitud enviada a {{name}}"
     },
     "portfolio_projects": {
       "your_projects": "Tus proyectos",
@@ -4608,7 +4616,8 @@
       "more_sharing_options": "Más opciones para compartir",
       "download_qr_code": "Descargar código QR",
       "qr_code_for_displayname_s": "Código QR del portafolio de {{displayName}}",
-      "displayname_s_portfolio": "Portafolio de {{displayName}}"
+      "displayname_s_portfolio": "Portafolio de {{displayName}}",
+      "share_on_name": "Compartir en {{name}}"
     },
     "ask_quote": {
       "could_not_send_the_ask": "No se pudo enviar la petición",
@@ -4632,7 +4641,8 @@
       "take_it_back": "Retirarla",
       "ask_someone_about_this": "Pregúntale a alguien sobre esto",
       "a_boss_coach_or_teacher": "Un jefe, entrenador o maestro que vio tu trabajo aquí.",
-      "hi_could_you_say_a": "¡Hola! ¿Podrías decir una línea sobre mi tiempo en {{title}}? Es para mi portafolio."
+      "hi_could_you_say_a": "¡Hola! ¿Podrías decir una línea sobre mi tiempo en {{title}}? Es para mi portafolio.",
+      "take_back_the_ask_to": "Retirar la petición a {{name}}"
     },
     "resume_builder": {
       "take_off_this_version": "Quitar de esta versión",
@@ -4661,7 +4671,8 @@
       "take_anything_off_this_version": "Quita cualquier cosa de esta versión con su ×, y vuelve a agregarla desde las fichas punteadas. Los datos vienen de tu portafolio, así que cámbialos allí.",
       "new_r_sum_version": "Nueva versión del currículum",
       "name": "Nombre",
-      "food_service_jobs": "Trabajos de servicio de comida"
+      "food_service_jobs": "Trabajos de servicio de comida",
+      "take_what_off_this_version": "Quitar {{what}} de esta versión"
     },
     "welcome_dialog": {
       "look_look": "Estilo {{look}}",
@@ -4826,12 +4837,16 @@
       "handle": "@usuario",
       "hours_worked": "horas trabajadas",
       "gpa": "promedio",
-      "place_regional_art_show": "lugar, muestra regional de arte"
+      "place_regional_art_show": "lugar, muestra regional de arte",
+      "highlight_value_number": "Número del dato destacado {{value}}",
+      "highlight_value_meaning": "Significado del dato destacado {{value}}",
+      "remove_highlight_value": "Quitar el dato destacado {{value}}"
     },
     "parts": {
       "drag_to_move": "Arrastra para mover",
       "section_title": "Título de la sección",
-      "click_to_rename": "Haz clic para cambiar el nombre"
+      "click_to_rename": "Haz clic para cambiar el nombre",
+      "the_name_of_shown": "el nombre de {{shown}}"
     },
     "result_dialog": {
       "free": "Gratis",
@@ -4862,7 +4877,8 @@
       "strengths": "Fortalezas",
       "work_values": "Valores laborales",
       "something_else": "Otra cosa",
-      "tap_your_top_count_in": "Toca tus {{count}} favoritas en orden ({{length}} de {{count2}})"
+      "tap_your_top_count_in": "Toca tus {{count}} favoritas en orden ({{length}} de {{count2}})",
+      "pick_your_top_count": "Elige tus {{count}} favoritas"
     },
     "credential_dialog": {
       "something_you_ve_earned_that": "Algo que lograste y que una escuela o un jefe querría ver.",
@@ -4919,7 +4935,8 @@
       "your_photo": "Tu foto",
       "upload": "Subir",
       "banner_photo": "Foto de portada",
-      "upload_a_wide_photo_or": "Sube una foto ancha o elige una que ya usaste. Va arriba de tu portafolio."
+      "upload_a_wide_photo_or": "Sube una foto ancha o elige una que ya usaste. Va arriba de tu portafolio.",
+      "look_value_of_count": "Estilo {{value}} de {{count}}"
     },
     "experience_page": {
       "saved": "Guardado",
@@ -4988,7 +5005,10 @@
       "quote": "Cita",
       "badge": "Insignia",
       "link": "Enlace",
-      "you_don_t_have_any": "Todavía no tienes {{value}}."
+      "you_don_t_have_any": "Todavía no tienes {{value}}.",
+      "show_value_of_count": "Mostrar {{value}} de {{count}}",
+      "take_out_title": "Quitar {{title}}",
+      "search_your_value": "Buscar en tus {{value}}"
     },
     "section_stack": {
       "drop_here": "Suelta aquí",
@@ -5026,7 +5046,8 @@
       "once_it_s_public": " cuando sea público",
       "back_to_editing": "Volver a editar",
       "add_a_section": "Agregar una sección",
-      "make_your_portfolio_private": "¿Hacer privado tu portafolio?"
+      "make_your_portfolio_private": "¿Hacer privado tu portafolio?",
+      "take_out_titleof": "Quitar {{titleOf}}"
     },
     "portfolio_detail": {
       "featured_on_your_front_page": "Destacado en tu página principal",
@@ -5043,7 +5064,12 @@
       "coming_soon_cards_and_certificates": "Próximamente: tarjetas y certificados",
       "upload_your_food_handler_card": "Sube tu tarjeta de manipulador de alimentos, tu tarjeta de RCP o tu diploma y lo revisaremos antes de que aparezca aquí. Mientras tanto, cuentan las insignias que ganes aquí.",
       "earn_a_badge": "Ganar una insignia",
-      "credentials_badges": "Credenciales e insignias"
+      "credentials_badges": "Credenciales e insignias",
+      "stop_featuring_name": "Dejar de destacar {{name}}",
+      "feature_name_on_your_front": "Destacar {{name}} en tu página principal",
+      "show_name_to_visitors": "Mostrar {{name}} a visitantes",
+      "hide_name_from_visitors": "Ocultar {{name}} a visitantes",
+      "more_for_name": "Más opciones para {{name}}"
     },
     "project_page": {
       "what_did_you_make": "¿Qué hiciste?",
@@ -5079,7 +5105,8 @@
       "see_it_even_while_it": "Verlo aunque sea privado, y comentarlo.",
       "my_plans": "Mis planes",
       "see_your_life_plan_budget": "Ver tu plan de vida, incluido el presupuesto.",
-      "this_lasts_until_you_switch": "Esto dura hasta que lo apagues."
+      "this_lasts_until_you_switch": "Esto dura hasta que lo apagues.",
+      "what_first_can_see_2": "Lo que {{first}} puede ver"
     },
     "picture_sort_page": {
       "could_not_load_the_picture": "No se pudo cargar el orden de imágenes",
@@ -5113,7 +5140,13 @@
       "brought_in_before": "Traído antes",
       "count_added": "· {{count}} agregados",
       "oregon_cis": "Oregon CIS",
-      "a_r_sum": "Un currículum"
+      "a_r_sum": "Un currículum",
+      "added_count_value_to_your": "Se agregaron {{count}} {{value}} a tu portafolio",
+      "your_label_export": "tu exportación de {{label}}",
+      "bring_in_size": "Traer {{size}}",
+      "upload_from_title": "Subir desde {{title}}",
+      "v_thing": "cosa",
+      "v_things": "cosas"
     },
     "quest_bar": {
       "have_of_need": "{{have}} de {{need}}",
@@ -5134,7 +5167,13 @@
       "comment": "Comentar",
       "conversations": "Conversaciones",
       "the_people_you_let_see": "Las personas a las que dejas ver tu portafolio pueden comentar aquí.",
-      "choose_them_in_my_people": "Elígelas en Mi gente"
+      "choose_them_in_my_people": "Elígelas en Mi gente",
+      "talk_with_name_about_value": "Hablar con {{name}} sobre {{value}}",
+      "count_value_about_this": "{{count}} {{value}} sobre esto",
+      "ask_value_what_they_think": "Pregúntale a {{value}} qué piensa",
+      "v_their_portfolio": "su portafolio",
+      "v_message": "mensaje",
+      "v_messages": "mensajes"
     },
     "portfolio_header": {
       "edit_your_profile": "Editar tu perfil",
@@ -5166,7 +5205,8 @@
       "message": "Mensaje",
       "goals_length": "Metas · {{length}}",
       "plans": "Planes",
-      "you_can_comment": " · Puedes comentar"
+      "you_can_comment": " · Puedes comentar",
+      "goals_name_shares_with_you": "Metas que {{name}} comparte contigo"
     },
     "quote_request_page": {
       "loading": "Cargando…",
@@ -5297,7 +5337,9 @@
       "when_you_want_to_get": "Cuándo quieres llegar. La última etapa dura hasta entonces.",
       "cancel": "Cancelar",
       "save": "Guardar",
-      "date": "Fecha"
+      "date": "Fecha",
+      "you_earned_the_name_badge": "Ganaste la insignia {{name}}.",
+      "left_stepvalue_to_go_to": "Faltan {{left}} paso{{value}} para desbloquearlo."
     },
     "use_start_goal": {
       "could_not_start_your_goal": "No se pudo empezar tu meta. Inténtalo otra vez."
@@ -5335,7 +5377,8 @@
       "sign_in_to_see_your": "Inicia sesión para ver tus metas",
       "use_the_email_that_received": "Usa el correo que recibió tu invitación. ¿Eres nuevo? Crea una cuenta y tu meta pendiente te estará esperando.",
       "sign_in": "Iniciar sesión",
-      "create_account": "Crear cuenta"
+      "create_account": "Crear cuenta",
+      "goals_for_title": "Metas de {{title}}"
     },
     "goal_path": {
       "help_me_with_title_in": "Ayúdame con “{{title}}” en mi meta “{{title2}}”.",
@@ -5364,7 +5407,8 @@
       "in_shorter_months_a_day": "En los meses más cortos, un día después del final cae en el último día.",
       "separate_lines_optional": "Líneas separadas (opcional)",
       "another": "Otro",
-      "me_my_dog": "Yo, mi perro…"
+      "me_my_dog": "Yo, mi perro…",
+      "remove_the_ordinal": "Quitar el día {{ordinal}}"
     },
     "linked": {
       "round_through": " · {{round}}% completado",
@@ -5386,7 +5430,8 @@
       "open_my_portfolio": "Abrir mi portafolio",
       "what_the_portfolio_needs": "Lo que necesita el portafolio",
       "portfolio": "Portafolio",
-      "finish_a_section_of_their": "Terminar una sección de su portafolio, como proyectos."
+      "finish_a_section_of_their": "Terminar una sección de su portafolio, como proyectos.",
+      "done_when_you_earn_itvalue": "Hecho cuando la ganes{{value}}"
     },
     "decision": {
       "what_this_was_based_on": "En qué se basó esto",
@@ -5399,7 +5444,8 @@
       "more_than_one_can_be": "Se puede elegir más de una",
       "they_can_write_in_their": "Pueden escribir la suya",
       "decision": "Decisión",
-      "choose_between_options_like_which": "Elegir entre opciones, como qué camino seguir."
+      "choose_between_options_like_which": "Elegir entre opciones, como qué camino seguir.",
+      "remove_option_value": "Quitar la opción {{value}}"
     },
     "routine_chart": {
       "past_times": "Veces anteriores",
@@ -5442,7 +5488,9 @@
       "add_an_item": "Agregar un elemento",
       "upload": "Subir",
       "files_photos_or_links_one": "Archivos, fotos o enlaces, uno por cada elemento que pides.",
-      "your_file": "Tu archivo"
+      "your_file": "Tu archivo",
+      "link_for_label": "Enlace para {{label}}",
+      "remove_item_value": "Quitar el elemento {{value}}"
     },
     "routine_action": {
       "add_one": "Agregar uno",
@@ -5453,7 +5501,8 @@
       "value": "Valor",
       "logged": "Registrado",
       "done": "Hecho",
-      "undo": "Deshacer"
+      "undo": "Deshacer",
+      "add_a_label": "Agregar {{label}}"
     },
     "event": {
       "add_to_calendar": "Agregar al calendario",
@@ -5521,7 +5570,8 @@
       "resource": "Recurso",
       "nothing_matches": "Nada coincide.",
       "drop_links_photos_or_pdfs": "Suelta enlaces, fotos o PDF aquí, pega un enlace o toca Agregar.",
-      "adding": "Agregando…"
+      "adding": "Agregando…",
+      "value_of_5_stars": "{{value}} de 5 estrellas"
     },
     "task": {
       "your_list": "Tu lista",
@@ -5549,7 +5599,8 @@
       "any_count": "cualquier {{count}}",
       "if_the_learner_finishes_this": "Si el estudiante termina este paso, abrirlos lo termina. Si lo hace el personal, tú lo marcas como hecho después de ver lo que abrieron y sus notas.",
       "resources": "Recursos",
-      "a_few_resources_to_check": "Algunos recursos para revisar. Ves lo que abrieron y sus notas."
+      "a_few_resources_to_check": "Algunos recursos para revisar. Ves lo que abrieron y sus notas.",
+      "finishline_people_helping_with_this": "{{finishLine}} Las personas que ayudan con esta meta pueden ver lo que abres y tus notas."
     },
     "explore": {
       "what_did_you_land_on": "¿A qué conclusión llegaste?",
@@ -5691,7 +5742,9 @@
       "budget": "Presupuesto",
       "we_ll_suggest_lines_and": "Sugeriremos líneas y montos según dónde vives, cómo vives y qué estás haciendo.",
       "start_your_budget": "Empezar tu presupuesto",
-      "start_it": "Empezarlo"
+      "start_it": "Empezarlo",
+      "no_goals_were_left_open": "No quedaron metas abiertas en {{lower}}.",
+      "done_of_total_steps": "{{done}} de {{total}} pasos"
     },
     "phase_sheet": {
       "idea": "Idea ·",
@@ -5718,7 +5771,8 @@
       "here_after_name": "Aquí, después de {{name}}",
       "new_option_after_title": "Nueva opción después de {{title}}",
       "rank": "Ordenar",
-      "add_a_phase": "Agregar una fase"
+      "add_a_phase": "Agregar una fase",
+      "more_for_tolowercase": "Más opciones para {{toLowerCase}}"
     },
     "phase_stack": {
       "you_are_here": "Estás aquí",
@@ -5734,7 +5788,9 @@
       "title_from_monthtext": "{{title}} · desde {{monthText}}",
       "you_re_here": "Estás aquí",
       "rank_your_options": "Ordena tus opciones",
-      "your_first_choice_goes_first": "Tu primera opción va primero. Aparece primero en tu mapa."
+      "your_first_choice_goes_first": "Tu primera opción va primero. Aparece primero en tu mapa.",
+      "move_title_up": "Subir {{title}}",
+      "move_title_down": "Bajar {{title}}"
     },
     "compare_chart": {
       "saved_with_what_you_own": "Ahorrado, con lo que tienes",
@@ -5768,7 +5824,8 @@
       "retry_finished_goals": "Reintentar metas terminadas",
       "then_add_something_to_work": "Luego agrega algo hacia lo cual trabajar",
       "set_your_own_goal_or": "Pon tu propia meta, o elige una insignia para ganar y su meta aparece aquí.",
-      "find_one_in_discover": "Buscar una en Descubrir"
+      "find_one_in_discover": "Buscar una en Descubrir",
+      "no_goalsvalue_yet": "Todavía no hay metas{{value}}."
     },
     "goal_chat": {
       "open_in_connect": "Abrir en Connect",
@@ -5779,7 +5836,8 @@
       "close_chat": "Cerrar chat",
       "chat_count_messages_about_this": "Chat, {{count}} mensajes sobre esta meta",
       "chat_about_this_goal": "Chatear sobre esta meta",
-      "chat": "Chat"
+      "chat": "Chat",
+      "comment_on_title": "Comentar {{title}}"
     },
     "coach_notes": {
       "coach_has_value_line": "Coach tiene {{value}}: {{line}}",
@@ -5803,13 +5861,16 @@
       "invited_hasn_t_answered_yet": "Invitado, todavía no ha respondido",
       "make_someone_else_the_owner": "Hacer dueño a otra persona",
       "choose_a_person": "Elige una persona…",
-      "leave_this_goal": "Salir de esta meta"
+      "leave_this_goal": "Salir de esta meta",
+      "asked_by_name": "Lo pidió {{name}}"
     },
     "goal_proposals": {
       "this_suggestion_changed_in_another": "Esta sugerencia cambió en otra pestaña. Recarga para ver lo más reciente.",
       "coach_couldn_t_note_that": "Coach no pudo anotar esa elección, pero tu meta está guardada.",
       "suggested": "sugerido",
-      "coach_suggests_summary": "Coach sugiere: {{summary}}"
+      "coach_suggests_summary": "Coach sugiere: {{summary}}",
+      "suggested_step_label": "Paso sugerido {{label}}",
+      "suggested_stage_title": "Etapa sugerida {{title}}"
     },
     "materials_editor": {
       "name_isn_t_a_pdf": "{{name}} no es un PDF, foto ni video",
@@ -5888,7 +5949,9 @@
       "delete_stage": "Eliminar etapa",
       "add_a_step": "Agregar un paso",
       "cancel_adding_a_step": "Cancelar agregar un paso",
-      "add_a_stage": "Agregar una etapa"
+      "add_a_stage": "Agregar una etapa",
+      "new_tolowercase_step": "Nuevo paso de {{toLowerCase}}",
+      "more_for_title": "Más opciones para {{title}}"
     },
     "use_goal_coach_session": {
       "coach_couldn_t_start_a": "Coach no pudo empezar una sesión en esta meta.",
@@ -5901,7 +5964,8 @@
       "new_stage": "Nueva etapa",
       "add_stage": "Agregar etapa",
       "research_apply_decide": "Investigar, Postular, Decidir…",
-      "it_runs_until_the_next": "Dura hasta que empieza la siguiente etapa. Sin fecha, empieza cuando pases a ella."
+      "it_runs_until_the_next": "Dura hasta que empieza la siguiente etapa. Sin fecha, empieza cuando pases a ella.",
+      "starting_title_shortdate_leaves_value": "Empezar {{title}} el {{shortDate}} deja {{value}} fuera de {{value2}} etapa."
     },
     "goal_settings_sheet": {
       "goal": "Meta",
@@ -5931,6 +5995,9 @@
       "calendar": "Calendario",
       "star": "Estrella",
       "flag": "Bandera"
+    },
+    "phase_pickers": {
+      "say_the_tolowercase": "Di la {{toLowerCase}}"
     }
   },
   "discover": {
@@ -5947,7 +6014,8 @@
       "schools": "Escuelas",
       "careers": "Carreras",
       "more_resources": "Más recursos",
-      "saved": "Guardado"
+      "saved": "Guardado",
+      "open_value_in_a_new": "Abrir {{value}} en una pestaña nueva"
     },
     "resource_cover": {
       "video": "Video",
@@ -5998,7 +6066,10 @@
       "add_slide": "Agregar diapositiva",
       "reset_changes": "Deshacer cambios",
       "saving": "Guardando…",
-      "save_carousel": "Guardar carrusel"
+      "save_carousel": "Guardar carrusel",
+      "move_slide_value_up": "Subir la diapositiva {{value}}",
+      "move_slide_value_down": "Bajar la diapositiva {{value}}",
+      "remove_slide_value": "Quitar la diapositiva {{value}}"
     },
     "discover_results": {
       "searching": "Buscando",
@@ -6028,7 +6099,8 @@
       "everything": "Todo",
       "resource_type": "Tipo de recurso",
       "applied_filters": "Filtros aplicados",
-      "clear_all": "Borrar todo"
+      "clear_all": "Borrar todo",
+      "remove_filter_label": "Quitar el filtro {{label}}"
     },
     "discover_hero": {
       "featured_in_discover": "Destacado en Descubrir",
@@ -6059,7 +6131,12 @@
       "not_open_to_join": "No está abierto para unirse",
       "sign_in_to_join": "Inicia sesión para unirte",
       "take_back_request": "Retirar solicitud",
-      "start_this_plan": "Empezar este plan"
+      "start_this_plan": "Empezar este plan",
+      "name_says_yes_first": "{{name}} primero dice que sí",
+      "others_other_optionvalue": "{{others}} otra{{value}} opción",
+      "request_sent_to_name": "Solicitud enviada a {{name}}.",
+      "one_other_option": "1 opción más",
+      "others_other_options": "{{others}} opciones más"
     },
     "collection_page": {
       "collection_length_plan": "Colección · {{length}} planes",
@@ -6068,7 +6145,8 @@
       "ready_when_you_are": "Listo cuando tú lo estés.",
       "keep_going": "Seguir",
       "take_a_look": "Echar un vistazo",
-      "every_plan_in_it": "Todos los planes que tiene"
+      "every_plan_in_it": "Todos los planes que tiene",
+      "done_of_total_steps_done": "{{done}} de {{total}} pasos hechos."
     },
     "discover_feed": {
       "plans_you_re_working_on": "Planes en los que estás trabajando",
@@ -6093,7 +6171,8 @@
       "ask_coach_about_this": "Preguntar a Coach sobre esto",
       "your_take": "Tu opinión",
       "your_notes": "Tus notas",
-      "what_others_say": "Lo que dicen otros"
+      "what_others_say": "Lo que dicen otros",
+      "more_in_name": "Más en {{name}}"
     }
   },
   "careers": {
@@ -6138,7 +6217,8 @@
       "add_tolowercase": "Agregar {{toLowerCase}}",
       "add_both_to_plan_ideas": "Agregar {{both}} a las ideas del plan",
       "they_go_on_your_plan": "Van en el mapa de tu plan como ideas punteadas después de dónde estás ahora, para que pruebes cada camino.",
-      "start_my_plan_to_add": "Empieza mi plan para agregarlas"
+      "start_my_plan_to_add": "Empieza mi plan para agregarlas",
+      "take_title_out": "Quitar {{title}}"
     },
     "career_profile": {
       "high_school_or_less": "Preparatoria o menos",
@@ -6220,7 +6300,15 @@
       "compare_with_another_career": "Comparar con otra carrera",
       "how_we_know": "Cómo lo sabemos",
       "o_net_value": ": O*NET, {{value}}",
-      "o_net": ": O*NET"
+      "o_net": ": O*NET",
+      "tolocalestring_jobs_to_become_tolocalestring2": "{{toLocaleString}} empleos de {{toLocaleString2}}",
+      "value_jobs_by_value2": "{{value}} empleos para {{value2}}",
+      "show_all_length": "Mostrar las {{length}}",
+      "compare_with_title": "Comparar con {{title}}",
+      "v_more": "más",
+      "v_fewer": "menos",
+      "v_ten_years": "diez años",
+      "v_bls": "BLS"
     },
     "career_swipe": {
       "save": "GUARDAR",
@@ -6251,7 +6339,12 @@
       "skip_for_now": "Saltar por ahora",
       "see_details": "Ver detalles",
       "save_this_career": "Guardar esta carrera",
-      "swipe_right_to_save_left": "Desliza a la derecha para guardar, a la izquierda para saltar por ahora. Las flechas también funcionan."
+      "swipe_right_to_save_left": "Desliza a la derecha para guardar, a la izquierda para saltar por ahora. Las flechas también funcionan.",
+      "hear_about_title": "Escuchar sobre {{title}}",
+      "all_length_done": "Los {{length}} hechos",
+      "career_value_of_length": "Carrera {{value}} de {{length}}",
+      "nice_length_saved": "¡Bien! {{length}} guardadas.",
+      "that_was_length": "Esas fueron {{length}}."
     },
     "career_take": {
       "saved_and_on_your_epp": "Guardada, y en tu EPP",
@@ -6275,7 +6368,10 @@
       "careers_for_you": "Carreras para ti",
       "closest_to_your_interests_first": "Primero las más cercanas a tus intereses.",
       "take_the_interest_quiz_to": "Haz el test de intereses para ver primero las más parecidas.",
-      "pay_is_where_your_plan": "el sueldo es donde va tu plan."
+      "pay_is_where_your_plan": "el sueldo es donde va tu plan.",
+      "min_careers_picked_value_save": "{{min}} carreras elegidas {{value}}. Guarda las que te llamen la atención y di por qué.",
+      "v_for_your_interests": "para tus intereses",
+      "v_to_start_you_off": "para empezar"
     },
     "home_base_sheet": {
       "where_s_home_base": "¿Dónde está tu base?",
@@ -6326,7 +6422,8 @@
       "share_your_experience": "Comparte tu experiencia",
       "post_review": "Publicar reseña",
       "you_can_edit_your_review": "Puedes editar tu reseña arriba.",
-      "sign_in_to_review_this": "Inicia sesión para reseñar este recurso."
+      "sign_in_to_review_this": "Inicia sesión para reseñar este recurso.",
+      "rating_out_of_5_stars": "{{rating}} de 5 estrellas"
     },
     "resource_notes": {
       "failed_to_add_note": "No se pudo agregar la nota",
@@ -6363,7 +6460,11 @@
       "write_a_note_or_paste": "Escribe una nota, o pega un enlace o una imagen…",
       "add_link": "Agregar enlace",
       "add_note": "Agregar nota",
-      "paste_and_drag_supported": "Se puede pegar y arrastrar"
+      "paste_and_drag_supported": "Se puede pegar y arrastrar",
+      "length_items_added_to_notes": "{{length}} elementos agregados a Notas",
+      "add_value_to_notes": "Agregar {{value}} a Notas",
+      "v_an_image": "una imagen",
+      "v_a_pdf": "un PDF"
     },
     "resource_share_modal": {
       "share": "Compartir",
@@ -6407,7 +6508,9 @@
       "we_don_t_have_a": "Todavía no tenemos una estimación publicada para {{value}}, así que pon tu propio número.",
       "starts": "Empieza",
       "at_the_start_monthlabel": "Al inicio ({{monthLabel}})",
-      "add": "Agregar"
+      "add": "Agregar",
+      "we_only_show_an_estimate": "Solo mostramos una estimación cuando tenemos una fuente publicada para {{value}}.",
+      "v_this_place": "este lugar"
     },
     "budget_table": {
       "after_tax": "después de impuestos",
@@ -6461,7 +6564,14 @@
       "no_pay_figures_loaded_for": "Todavía no hay datos de sueldo para trabajos así. Pon tu propio sueldo abajo.",
       "your_city": "tu ciudad",
       "national": "nacional",
-      "state": "estatal"
+      "state": "estatal",
+      "left_over_each_value": "Sobra cada {{value}}",
+      "short_each_value": "Falta cada {{value}}",
+      "where_tolowercase_comes_from": "De dónde viene {{toLowerCase}}",
+      "no_figure_for_asked_place": ". Todavía no hay una cifra para {{asked_place_label}} en sí.",
+      "v_your_city": "tu ciudad",
+      "v_national": "nacional",
+      "v_state": "estatal"
     },
     "chart_events": {
       "why_the_line_moves_monthlabel": "Por qué se mueve la línea · {{monthLabel}}",
@@ -6473,7 +6583,8 @@
       "the_loan_lands_in_your": "El préstamo entra a tus ahorros, y debes {{money}} desde ahora.",
       "you_owe_money_from_now": "Debes {{money}} desde ahora. El dinero no entra a tus ahorros.",
       "you_set_your_real_numbers": "Aquí pusiste tus números reales, así que reemplazan lo que calculó el plan.",
-      "savings_run_out": "Se acaban los ahorros"
+      "savings_run_out": "Se acaban los ahorros",
+      "what_happens_in_monthlabel": "Qué pasa en {{monthLabel}}"
     },
     "context_bar": {
       "owner_s_budget": "Presupuesto de {{owner}}",
@@ -6510,7 +6621,10 @@
       "local_prices": "Precios locales:",
       "publisher_place_label_round_us": ", {{publisher}} ({{place_label}} {{round}}, EE. UU. = 100).",
       "value_hrs_wk": "{{value}} h/sem",
-      "hrs_wk": "h/sem"
+      "hrs_wk": "h/sem",
+      "updated_length_budget_linevalue_to": "Se actualizaron {{length}} línea{{value}} del presupuesto con las nuevas estimaciones.",
+      "add_length_linevalue": "Agregar {{length}} línea{{value}}",
+      "apply_length_changevalue": "Aplicar {{length}} cambio{{value}}"
     },
     "life_plan_workspace": {
       "your_life_plan_changed_in": "Tu plan de vida cambió en otra ventana. Cargando la versión más nueva.",
@@ -6549,7 +6663,8 @@
       "in_interest": "de interés.",
       "what_you_owe_goes_from": "Lo que debes pasa de {{money}} a $0 para {{value}}",
       "owe_money": "Debes {{money}}",
-      "0_by_monthlabel": "$0 para {{monthLabel}}"
+      "0_by_monthlabel": "$0 para {{monthLabel}}",
+      "v_the_end": "el final"
     },
     "money_cards": {
       "one_time_money": "Dinero de una sola vez",
@@ -6589,7 +6704,8 @@
       "zoom_in": "Acercar",
       "savings_things_you_own_and_2": "Ahorros, lo que tienes y deudas en todas las fases",
       "drag_to_move_along_use": "Arrastra para avanzar; usa + y − para hacer zoom.",
-      "tap_a_dot_to_see_2": " Toca un punto para ver por qué se mueve la línea."
+      "tap_a_dot_to_see_2": " Toca un punto para ver por qué se mueve la línea.",
+      "missing_lines_have": "{{missing}} líneas tienen"
     },
     "phase_form": {
       "pick_a_town_county_or": "Elige una ciudad, condado o estado",
@@ -6652,7 +6768,14 @@
       "you_put_in_of_pay": "Aportas (% del sueldo)",
       "put_in_a_month": "Aportar al mes",
       "your_employer_s_benefits_page": "La página de beneficios de tu empleador dice cuánto aporta. No adivinamos el crecimiento, así que pon tu propia tasa.",
-      "we_don_t_guess_growth": "No adivinamos el crecimiento, así que pon la tasa de tu cuenta."
+      "we_don_t_guess_growth": "No adivinamos el crecimiento, así que pon la tasa de tu cuenta.",
+      "what_you_pay_on_title": "Lo que pagas de {{title}} cada {{value}}",
+      "what_you_owe_at_monthlabel": "Lo que debes en {{monthLabel}}",
+      "percent_of_pay_into_title": "Porcentaje del sueldo para {{title}}",
+      "what_you_put_into_title": "Lo que aportas a {{title}} cada {{value}}",
+      "saving_per": "ahorrando {{p}}/{{per}}",
+      "saving_amount": "ahorrando {{amount}}",
+      "drawing_amount": "retirando {{amount}}"
     },
     "shared_with_you": {
       "plans_shared_with_you": "Planes compartidos contigo",
@@ -6704,7 +6827,84 @@
       "its_running_costs_go_into": "Sus gastos de mantenimiento van a tu presupuesto, para que los llenes.",
       "add_its_running_costs_to": "Agregar sus gastos de mantenimiento a tu presupuesto",
       "we_don_t_guess_prices": "Todavía no adivinamos precios ni cómo cambian los valores. Pon tus propios números; puedes cambiarlos todos después.",
-      "add_it": "Agregarlo"
+      "add_it": "Agregarlo",
+      "price_of_title": "Precio de {{title}}",
+      "yours_from_monthlabel": "Tuyo desde {{monthLabel}}",
+      "what_title_is_worth": "Lo que vale {{title}}"
+    },
+    "per": {
+      "week": "semana",
+      "month": "mes",
+      "year": "año"
+    },
+    "per_short": {
+      "mo": "mes",
+      "wk": "sem",
+      "yr": "año"
+    },
+    "catalog": {
+      "aid": "Ayuda económica",
+      "allowance": "Mesada",
+      "bedrooms": "Tamaño",
+      "bike": "Mantenimiento de la bici",
+      "bills": "Cuentas y gastos personales",
+      "books": "Libros y útiles",
+      "bus_pass": "Pase de autobús",
+      "car": "Carro",
+      "car_insurance": "Seguro del carro",
+      "car_loan": "Préstamo del carro",
+      "car_repairs": "Reparaciones del carro",
+      "card": "Tarjeta de crédito",
+      "clothes": "Ropa",
+      "dorm": "Dormitorio",
+      "eating_out": "Comer fuera",
+      "family_help": "Ayuda de la familia",
+      "family_home": "Vivir con la familia",
+      "food": "Comida",
+      "fun": "Tiempo libre",
+      "gas": "Gasolina",
+      "going_out": "Salidas",
+      "grant": "Beca de ayuda",
+      "groceries": "Despensa",
+      "gym": "Gimnasio",
+      "health_insurance": "Seguro médico",
+      "hobby": "Un pasatiempo",
+      "home": "Casa",
+      "home_insurance": "Seguro de la casa",
+      "home_upkeep": "Mantenimiento de la casa",
+      "ira": "IRA",
+      "job": "Un trabajo",
+      "k401": "401(k) del trabajo",
+      "meal_plan": "Plan de comidas",
+      "mortgage": "Hipoteca",
+      "move": "Transporte",
+      "other": "Otra cosa",
+      "other_in": "Otra cosa",
+      "other_out": "Otra cosa",
+      "personal": "Préstamo personal",
+      "personal_care": "Cuidado personal",
+      "pet": "Una mascota",
+      "phone": "Plan de celular",
+      "plan": "Cómo comes",
+      "property_tax": "Impuesto a la propiedad",
+      "rent": "Renta",
+      "renters_insurance": "Seguro de inquilino",
+      "retirement": "Retiro (401k o IRA)",
+      "rideshare": "Viajes y rideshare",
+      "savings": "Cuenta de ahorros",
+      "scholarship": "Beca",
+      "school": "Escuela",
+      "share": "Compartido con",
+      "side_gig": "Trabajo extra",
+      "soc": "Trabajo",
+      "streaming": "Streaming y música",
+      "student_loan": "Préstamo estudiantil",
+      "subscriptions": "Suscripciones",
+      "transport": "Transporte",
+      "travel": "Viajes",
+      "tuition": "Matrícula y cuotas",
+      "utilities": "Servicios e internet",
+      "work": "Trabajo"
     }
   },
   "coach": {
@@ -6762,7 +6962,8 @@
       "filter_by_resource_type": "Filtrar por tipo de recurso",
       "loading_library": "Cargando biblioteca…",
       "no_resources_here_yet": "Todavía no hay recursos aquí",
-      "open_or_save_a_resource": "Abre o guarda un recurso para agregarlo a tu biblioteca, y luego organízalo en listas."
+      "open_or_save_a_resource": "Abre o guarda un recurso para agregarlo a tu biblioteca, y luego organízalo en listas.",
+      "actions_for_name": "Acciones para {{name}}"
     },
     "hub_resource_tray": {
       "resources_in_this_chat": "Recursos en este chat",
@@ -6780,7 +6981,12 @@
       "reviews_2": "Reseñas",
       "resources": "Recursos",
       "not_in_this_chat_tap": "No está en este chat · toca para volver a agregarlo",
-      "1_resource": "1 recurso"
+      "1_resource": "1 recurso",
+      "remove_from_name": "Quitar de {{name}}",
+      "tofixed_out_of_5_stars": "{{toFixed}} de 5 estrellas",
+      "rate_this_resource_star_starvalue": "Calificar este recurso con {{star}} estrella{{value}}",
+      "add_title_back_to_this": "Agregar {{title}} otra vez a este chat",
+      "show_the_value_in_this": "Mostrar {{value}} en este chat"
     },
     "hub_quick_search": {
       "searching": "Buscando…",
@@ -6794,12 +7000,15 @@
       "free": "Gratis",
       "paid": "Pagado",
       "restricted": "Restringido",
-      "no_matching_resources": "Ningún recurso coincide."
+      "no_matching_resources": "Ningún recurso coincide.",
+      "tofixed_out_of_5_stars": "{{toFixed}} de 5 estrellas de {{value}} calificaciones",
+      "resource_results_for_searchquery": "Resultados de recursos para {{searchQuery}}"
     },
     "hub_message_parts": {
       "suggested_next_actions": "Próximos pasos sugeridos",
       "open_without_editing": "Abrir sin editar",
-      "plans_page": "Página de planes"
+      "plans_page": "Página de planes",
+      "more_options_for_value": "Más opciones para {{value}}"
     },
     "hub_memory_items": {
       "cancel": "Cancelar",
@@ -6809,7 +7018,8 @@
       "delete": "Eliminar"
     },
     "end_session_dialog": {
-      "you_can_start_a_new": "Puedes empezar una nueva sesión con Coach cuando quieras."
+      "you_can_start_a_new": "Puedes empezar una nueva sesión con Coach cuando quieras.",
+      "left_will_stay_on_the": "{{left}} se quedarán en la meta como sugerencias."
     },
     "hub_conversation_history": {
       "search_conversations": "Buscar conversaciones…",
@@ -6828,7 +7038,8 @@
       "find_one_in_discover": "Buscar uno en Descubrir",
       "talk_to_coach_instead_of": "Háblale a Coach en lugar de escribir",
       "stop_response": "Detener respuesta",
-      "send_message": "Enviar mensaje"
+      "send_message": "Enviar mensaje",
+      "length_objects_changed": "{{length}} objetos cambiaron"
     },
     "hub_memory_notice": {
       "coach_memory_notice": "Aviso de memoria de Coach",
@@ -6874,7 +7085,8 @@
       "scope": "Alcance",
       "a_new_personal_goal": "Una nueva meta personal",
       "your_goal_label": "Tu meta: {{label}}",
-      "goal": "Meta"
+      "goal": "Meta",
+      "end_focused_session_for_label": "Terminar la sesión enfocada de {{label}}"
     },
     "hub_report_dialog": {
       "harmful_or_upsetting": "Dañino o perturbador",
@@ -6966,7 +7178,12 @@
       "earned": "ganada",
       "reminder": "Recordatorio",
       "who_sent_a_reminder_aboutvalue": "{{who}} envió un recordatorio sobre{{value}}",
-      "due_due": " · para el {{due}}"
+      "due_due": " · para el {{due}}",
+      "sent_to_value": "Enviado a {{value}}",
+      "org_name_would_like_to": "{{org_name}} quiere apoyar tu plan",
+      "org_name_asked_to_support": "{{org_name}} pidió apoyar su plan",
+      "org_name_supports_you": "{{org_name}} te apoya",
+      "v_them": "ellos"
     },
     "tag_composer": {
       "no_one_by_that_name": "Nadie con ese nombre",
@@ -6993,7 +7210,11 @@
       "open_step": "Abrir paso",
       "staff_only": "Solo personal",
       "in_text": "en {{text}}",
-      "cheer": "Animar"
+      "cheer": "Animar",
+      "invited_name_as_a_commenter": "Invitaste a {{name}} a comentar",
+      "nothing_about_title_yet_anything": "Todavía no hay nada sobre {{title}}. Lo que escribas aquí será sobre eso.",
+      "message_valueabout_title": "Escribir a {{value}}sobre {{title}}",
+      "show_messages_about_title": "Mostrar mensajes sobre {{title}}"
     },
     "feed": {
       "write_a": "Escribe un",
@@ -7027,7 +7248,8 @@
       "tell_us_what_happened_if": "Cuéntanos qué pasó. Si te sientes en peligro, habla también con un adulto de confianza.",
       "what_s_going_on": "¿Qué está pasando?",
       "what_happened": "Qué pasó",
-      "also_block": "También bloquear"
+      "also_block": "También bloquear",
+      "v_them": "ellos"
     }
   },
   "badges": {
@@ -7060,7 +7282,8 @@
       "not_revoked": "No revocada",
       "an_open_badges_3_0": "Una credencial Open Badges 3.0. Código {{code}}",
       "version_semver": " · versión {{semver}}",
-      "plan_by_name": " · plan de {{name}}"
+      "plan_by_name": " · plan de {{name}}",
+      "v_the_issuer": "el emisor"
     },
     "certificate": {
       "this_certifies_that": "Se certifica que",
@@ -7124,7 +7347,11 @@
       "see_name_s_badge": "Ver la insignia de {{name}}",
       "see_their_badge": "Ver su insignia",
       "its_public_page_and_certificate": "Su página pública y su certificado",
-      "done": "Hecho"
+      "done": "Hecho",
+      "award_name_directly": "Otorgar {{name}} directamente",
+      "a_line_for_name": "Una línea para {{name}}",
+      "name_awarded_to_plural": "{{name}} otorgada a {{plural}}",
+      "v_another_organization": "otra organización"
     },
     "learner_badges": {
       "revoke": "Revocar",

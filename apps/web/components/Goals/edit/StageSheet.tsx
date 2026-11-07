@@ -77,7 +77,7 @@ export default function StageSheet({ goal, stage, token, color, onClose }: { goa
   }
   if (clashes) {
     return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={tr('goals.step_timing.which_should_move', 'Which should move?')}
-      description={`Starting ${stage?.title} ${shortDate(start)} leaves ${clashes.length === 1 ? 'a step' : `${clashes.length} steps`} outside ${clashes.length === 1 ? 'its' : 'their'} stage.`}
+      description={tr('goals.stage_sheet.starting_title_shortdate_leaves_value', 'Starting {{title}} {{shortDate}} leaves {{value}} outside {{value2}} stage.', { title: stage?.title, shortDate: shortDate(start), value: clashes.length === 1 ? 'a step' : `${clashes.length} steps`, value2: clashes.length === 1 ? 'its' : 'their' })}
       footer={<><Button type="button" variant="ghost" disabled={busy} onClick={() => setClashes(null)}>{tr('goals.stage_sheet.keep_the_stage_as_it', 'Keep the stage as it was')}</Button>
         <Button type="button" variant="plan" disabled={busy} onClick={() => void save(true)}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{tr('goals.stage_sheet.move_the_steps', 'Move the steps')}</Button></>}>
       <ul className="flex flex-col gap-1 text-sm">

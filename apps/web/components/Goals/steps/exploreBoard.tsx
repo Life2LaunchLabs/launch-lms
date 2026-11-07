@@ -53,7 +53,7 @@ export function Thumb({ entry, className }: { entry: StepEntry; className?: stri
 // eslint-disable-next-line no-unused-vars
 function Stars({ value, onChange, size = 14 }: { value: number; onChange?: (value: number) => void; size?: number }) {
   if (!onChange && !value) return null
-  return <span className="flex items-center" role={onChange ? 'radiogroup' : undefined} aria-label={onChange ? tr('goals.explore_board.rating', 'Rating') : `${value} of 5 stars`}>
+  return <span className="flex items-center" role={onChange ? 'radiogroup' : undefined} aria-label={onChange ? tr('goals.explore_board.rating', 'Rating') : tr('goals.explore_board.value_of_5_stars', '{{value}} of 5 stars', { value })}>
     {[1, 2, 3, 4, 5].map((star) => {
       const icon = <Star size={size} aria-hidden="true" className={star <= value ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40'} />
       return onChange ? <button key={star} type="button" role="radio" aria-checked={value === star} aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`} onClick={() => onChange(value === star ? 0 : star)} className="p-0.5">{icon}</button> : <span key={star}>{icon}</span>

@@ -46,7 +46,7 @@ export function HubSuggestedActions({ actions, disabled = false, onActivate }: {
         {busy !== action.action_id ? <ArrowRight size={13} aria-hidden="true" /> : null}
       </Button>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-none border-0 border-l border-border" disabled={disabled || busy !== null} aria-label={`More options for ${action.primary_label || action.label}`}><ChevronDown size={13} /></Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-none border-0 border-l border-border" disabled={disabled || busy !== null} aria-label={tr('coach.hub_message_parts.more_options_for_value', 'More options for {{value}}', { value: action.primary_label || action.label })}><ChevronDown size={13} /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => void onActivate(action, 'navigate')}>{action.alternate_label || tr('coach.hub_message_parts.open_without_editing', 'Open without editing')}</DropdownMenuItem></DropdownMenuContent>
       </DropdownMenu>
     </div> : <Button

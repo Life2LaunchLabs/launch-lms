@@ -49,7 +49,7 @@ export default function CollectionPage({ orgslug, initialCollection }: { orgslug
         <div className="flex flex-[1_1_260px] flex-col gap-0.5">
           <span className="text-xs font-black uppercase tracking-[.08em] text-[#D7F25C]">{tr('discover.collection_page.up_next', 'Up next')}</span>
           <strong className="text-[28px] font-black">{next.title}</strong>
-          <span className="text-[#C6CAD6]">{next.goal ? `${next.goal.done} of ${next.goal.total} steps done.` : next.description || tr('discover.collection_page.ready_when_you_are', 'Ready when you are.')}</span>
+          <span className="text-[#C6CAD6]">{next.goal ? tr('discover.collection_page.done_of_total_steps_done', '{{done}} of {{total}} steps done.', { done: next.goal.done, total: next.goal.total }) : next.description || tr('discover.collection_page.ready_when_you_are', 'Ready when you are.')}</span>
         </div>
         <Link href={next.goal ? getUriWithOrg(orgslug, routePaths.org.plan(next.goal.goal_uuid)) : planHref(orgslug, next.template_uuid)} className={cn(CHUNKY, 'h-[54px] text-[17px] no-underline')}>{next.goal ? tr('discover.collection_page.keep_going', 'Keep going') : tr('discover.collection_page.take_a_look', 'Take a look')}</Link>
       </section> : null}

@@ -50,7 +50,7 @@ export function CommentButton({ portfolioUuid, item, orgslug, token: given }: { 
   const { open, opening } = useOpen(orgslug, portfolioUuid, item, token)
   const owner = data && !data.mine ? data.people[0] : undefined
   if (!owner) return null
-  return <Button variant="surface" size="sm" onClick={() => void open()} disabled={Boolean(opening)} title={`Talk with ${owner.person.name} about ${item ? item.title : 'their portfolio'}`}>
+  return <Button variant="surface" size="sm" onClick={() => void open()} disabled={Boolean(opening)} title={tr('portfolio.portfolio_talk.talk_with_name_about_value', 'Talk with {{name}} about {{value}}', { name: owner.person.name, value: item ? item.title : tr('portfolio.portfolio_talk.v_their_portfolio', 'their portfolio') })}>
     {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}{tr('portfolio.portfolio_talk.comment', 'Comment')}{owner.count ? <span className="font-medium opacity-70">· {owner.count}</span> : null}
   </Button>
 }
@@ -66,7 +66,7 @@ export function ItemConversations({ portfolioUuid, item, orgslug, token }: { por
         className="flex w-full items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-left transition hover:bg-muted/60 disabled:opacity-60">
         <PersonAvatar user={person as any} />
         <span className="min-w-0 flex-1"><b className="block truncate text-sm font-extrabold">{person.name}</b>
-          <small className="block text-xs font-semibold text-muted-foreground">{count ? `${count} ${count === 1 ? 'message' : 'messages'} about this` : `Ask ${person.name.split(' ')[0]} what they think`}</small></span>
+          <small className="block text-xs font-semibold text-muted-foreground">{count ? tr('portfolio.portfolio_talk.count_value_about_this', '{{count}} {{value}} about this', { count, value: count === 1 ? tr('portfolio.portfolio_talk.v_message', 'message') : tr('portfolio.portfolio_talk.v_messages', 'messages') }) : tr('portfolio.portfolio_talk.ask_value_what_they_think', 'Ask {{value}} what they think', { value: person.name.split(' ')[0] })}</small></span>
         {opening === person.user_uuid ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </button>
     </li>)}</ul>

@@ -205,7 +205,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
           {goalsLoading ? <Skeleton className="h-28 rounded-2xl" /> : active.length
             ? <ul className="flex flex-col gap-2.5">{active.map((goal) => <li key={goal.goal_uuid}><GoalRow goal={goal} color={getGoalColor(goal.goal_uuid)} href={hrefOf(goal)} /></li>)}</ul>
             : <div className="rounded-[22px] border-2 border-dashed border-border px-5 py-8 text-center">
-              <p className="font-bold">{time.when === 'done' ? `No goals were left open in ${lower(phase.title)}.` : time.when === 'now' ? tr('goals.phase_page.what_are_you_working_toward', 'What are you working toward right now?') : tr('goals.phase_page.what_has_to_happen_first', 'What has to happen first?')}</p>
+              <p className="font-bold">{time.when === 'done' ? tr('goals.phase_page.no_goals_were_left_open', 'No goals were left open in {{lower}}.', { lower: lower(phase.title) }) : time.when === 'now' ? tr('goals.phase_page.what_are_you_working_toward', 'What are you working toward right now?') : tr('goals.phase_page.what_has_to_happen_first', 'What has to happen first?')}</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{tr('goals.phase_page.say_it_in_your_own', 'Say it in your own words, or pick one from Discover and earn a badge for it.')}</p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <Button variant="surface" size="sm" onClick={() => void startGoal(phase.id)} disabled={busy}><Plus size={15} />{tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
@@ -327,7 +327,7 @@ function GoalRow({ goal, color, href }: { goal: GoalSummary; color: string; href
       <b className="line-clamp-2 text-[17px] font-extrabold leading-snug">{goal.title}</b>
       {!finished && goal.next_step ? <span className="line-clamp-2 text-sm font-semibold text-foreground/80">{tr('goals.phase_page.next_next_step', 'Next: {{next_step}}', { next_step: goal.next_step })}</span> : null}
       <span role="progressbar" aria-label={`${goal.title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-[var(--plan-face)]" style={{ width: `${percent}%` }} /></span>
-      <small className="text-xs font-semibold text-muted-foreground">{finished ? tr('goals.routine_action.done', 'Done') : total ? `${done} of ${total} steps` : tr('goals.goal_path.no_steps_yet', 'No steps yet')}{goal.target_date ? ` · ${due(goal.target_date)}` : ''}</small>
+      <small className="text-xs font-semibold text-muted-foreground">{finished ? tr('goals.routine_action.done', 'Done') : total ? tr('goals.phase_page.done_of_total_steps', '{{done}} of {{total}} steps', { done, total }) : tr('goals.goal_path.no_steps_yet', 'No steps yet')}{goal.target_date ? ` · ${due(goal.target_date)}` : ''}</small>
     </span>
     <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
   </Link>

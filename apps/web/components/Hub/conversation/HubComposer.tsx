@@ -95,7 +95,7 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
     <div ref={overlayRef} className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-3 pb-3 sm:px-4 sm:pb-4">
       {memory.visible ? <HubMemoryNotice orgslug={orgslug} enabled={memory.enabled} saving={memory.saving} onSave={memory.onSave} onDismiss={() => void memory.onDismiss()} onLearnMore={(href) => { void memory.onDismiss().finally(() => window.location.assign(href)) }} /> : null}
       {reviewItems.length ? <div className="hub-edit-review-tray mb-2 flex items-center justify-between gap-3 rounded-2xl border-2 border-border bg-card px-3 py-2" role="status">
-        <div className="min-w-0"><p className="truncate text-xs font-semibold">{tr('coach.hub_composer.ready_to_review', 'Ready to review')}</p><p className="truncate text-[11px] text-muted-foreground">{reviewItems.length === 1 ? reviewItems[0].label : `${reviewItems.length} objects changed`}</p></div>
+        <div className="min-w-0"><p className="truncate text-xs font-semibold">{tr('coach.hub_composer.ready_to_review', 'Ready to review')}</p><p className="truncate text-[11px] text-muted-foreground">{reviewItems.length === 1 ? reviewItems[0].label : tr('coach.hub_composer.length_objects_changed', '{{length}} objects changed', { length: reviewItems.length })}</p></div>
         <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => onReview(reviewItems[0].targetId)}>{tr('coach.hub_composer.review', 'Review')}{' '}<ArrowRight size={12} /></Button>
       </div> : null}
       {conversationStarted ? <HubResourceTrayHandle resources={contextResources} onOpen={onOpenTray} /> : null}

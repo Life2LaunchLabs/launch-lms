@@ -105,7 +105,7 @@ export function SavingsDebtCard() {
         {short > 0.5 && <ShortRow owed={short} />}
         {!debts.length && short <= 0.5 && <p className="pb-3 text-sm text-muted-foreground">{tr('budget.savings_debt.loans_and_cards_you_pay', 'Loans and cards you pay back. A loan for a car or a home is added with the thing you buy.')}</p>}
       </Section>
-      <Section id="save" title={tr('budget.chart_events.savings', 'Savings')} total={left + put >= 0 ? `saving ${p(left + put)}/${per}` : <span className="text-red-700 dark:text-red-300">{tr('budget.savings_debt.drawing_p_per', 'drawing {{p}}/{{per}}', { p: p(-(left + put)), per })}</span>}>
+      <Section id="save" title={tr('budget.chart_events.savings', 'Savings')} total={left + put >= 0 ? tr('budget.savings_debt.saving_per', 'saving {{p}}/{{per}}', { p: p(left + put), per }) : <span className="text-red-700 dark:text-red-300">{tr('budget.savings_debt.drawing_p_per', 'drawing {{p}}/{{per}}', { p: p(-(left + put)), per })}</span>}>
         {doc.savings.filter((s) => !s.main).map((s) => <AccountRow key={s.id} s={s} at={saves.find((x) => x.id === s.id)!} />)}
         {mainSave && <MainRow s={mainSave} at={saves.find((x) => x.id === mainSave.id)!} left={left} />}
       </Section>
@@ -143,7 +143,7 @@ function DebtRow({ at }: { at: DebtAt }) {
         <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-2">
           {card && <button type="button" aria-pressed={!!pol?.full} onClick={() => update((doc2) => setPolicy(doc2, d.id, phase.id, stretch.m0, { full: !pol?.full, pay: null }))} className={`mr-auto rounded-full px-3 py-1 text-xs font-semibold ring-1 ${pol?.full ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>{tr('budget.savings_debt.pay_it_all_off', 'Pay it all off')}</button>}
           <span className="text-sm text-muted-foreground">{tr('budget.savings_debt.you_pay_from_monthlabel', 'You pay from {{monthLabel}}', { monthLabel: monthLabel(doc.start, stretch.g0) })}</span>
-          <InPlace label={`What you pay on ${d.title} each ${PER_WORD[per]}`} value={fromMonthly(payment, per)} suffix={`/${per}`} disabled={!!pol?.full}
+          <InPlace label={tr('budget.savings_debt.what_you_pay_on_title', 'What you pay on {{title}} each {{value}}', { title: d.title, value: PER_WORD[per] })} value={fromMonthly(payment, per)} suffix={`/${per}`} disabled={!!pol?.full}
             onCommit={(v) => update((doc2) => setPolicy(doc2, d.id, phase.id, stretch.m0, { pay: Math.max(d.payment, toMonthly(v, per)), full: null }))} />
         </div>
       )}
@@ -152,7 +152,7 @@ function DebtRow({ at }: { at: DebtAt }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-semibold">{tr('budget.add_tray.name', 'Name')}<input className={fieldCls} defaultValue={d.title} onBlur={(e) => e.target.value.trim() && edit((x) => { x.title = e.target.value.trim() })} /></label>
           <label className="grid gap-1 text-sm font-semibold">{tr('budget.savings_debt.kind', 'Kind')}<select className={fieldCls} value={d.kind} onChange={(e) => edit((x) => { x.kind = e.target.value })}>{catalog?.debt_kinds.map((k) => <option key={k.key} value={k.key}>{k.title}</option>)}</select></label>
-          <label className="grid gap-1 text-sm font-semibold">{d.start ? tr('budget.savings_debt.how_much_you_borrow', 'How much you borrow') : `What you owe at ${monthLabel(doc.start, 0)}`}<input className={fieldCls} inputMode="decimal" defaultValue={String(d.balance)} onBlur={(e) => edit((x) => { x.balance = num(e.target.value) })} /></label>
+          <label className="grid gap-1 text-sm font-semibold">{d.start ? tr('budget.savings_debt.how_much_you_borrow', 'How much you borrow') : tr('budget.savings_debt.what_you_owe_at_monthlabel', 'What you owe at {{monthLabel}}', { monthLabel: monthLabel(doc.start, 0) })}<input className={fieldCls} inputMode="decimal" defaultValue={String(d.balance)} onBlur={(e) => edit((x) => { x.balance = num(e.target.value) })} /></label>
           <label className="grid gap-1 text-sm font-semibold">{tr('budget.savings_debt.interest_a_year', 'Interest (% a year)')}<input className={fieldCls} inputMode="decimal" defaultValue={String(d.rate)} onBlur={(e) => edit((x) => { x.rate = num(e.target.value) })} /></label>
           <div className="sm:col-span-2"><LinkedTerms idPrefix={d.id} balance={d.balance} rate={d.rate} payment={d.payment} onPayment={(v) => edit((x) => { x.payment = v })} /></div>
           <div className="sm:col-span-2"><LoanStory planStart={doc.start} startG={startsAt ?? 0} balance={d.balance} rate={d.rate} payment={d.payment} lands={lands(doc, d)} already={!d.start} /></div>
@@ -199,8 +199,8 @@ function AccountRow({ s, at }: { s: Saving; at: SavingAt }) {
         <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-2">
           {at.put > 0.5 && <button type="button" onClick={() => update((doc2) => setPolicy(doc2, s.id, phase.id, stretch.m0, k ? { pct: 0 } : { put: 0 }))} className="mr-auto text-xs font-semibold text-muted-foreground underline decoration-dashed underline-offset-4 hover:text-foreground">{tr('budget.savings_debt.stop_adding_to_it_from', 'Stop adding to it from here on')}</button>}
           <span className="text-sm text-muted-foreground">{tr('budget.savings_debt.you_put_in_from_monthlabel', 'You put in from {{monthLabel}}', { monthLabel: monthLabel(doc.start, stretch.g0) })}</span>
-          {k ? <InPlace label={`Percent of pay into ${s.title}`} prefix="" suffix="% of pay" width={4} value={pct ?? 0} onCommit={(v) => update((doc2) => setPolicy(doc2, s.id, phase.id, stretch.m0, { pct: Math.min(100, v) }))} />
-            : <InPlace label={`What you put into ${s.title} each ${PER_WORD[per]}`} suffix={`/${per}`} value={fromMonthly(at.put, per)} onCommit={(v) => update((doc2) => setPolicy(doc2, s.id, phase.id, stretch.m0, { put: toMonthly(v, per) }))} />}
+          {k ? <InPlace label={tr('budget.savings_debt.percent_of_pay_into_title', 'Percent of pay into {{title}}', { title: s.title })} prefix="" suffix="% of pay" width={4} value={pct ?? 0} onCommit={(v) => update((doc2) => setPolicy(doc2, s.id, phase.id, stretch.m0, { pct: Math.min(100, v) }))} />
+            : <InPlace label={tr('budget.savings_debt.what_you_put_into_title', 'What you put into {{title}} each {{value}}', { title: s.title, value: PER_WORD[per] })} suffix={`/${per}`} value={fromMonthly(at.put, per)} onCommit={(v) => update((doc2) => setPolicy(doc2, s.id, phase.id, stretch.m0, { put: toMonthly(v, per) }))} />}
         </div>
       )}
       {!readOnly && <button type="button" onClick={() => setDetails(!details)} aria-expanded={details} className="text-xs font-semibold text-muted-foreground underline decoration-dashed underline-offset-4 hover:text-foreground">{details ? tr('budget.savings_debt.hide_the_account_details', 'Hide the account details') : tr('budget.savings_debt.change_the_account_details', 'Change the account details')}</button>}
@@ -232,7 +232,7 @@ function MainRow({ s, at, left }: { s: Saving; at: SavingAt; left: number }) {
   const { per, update, readOnly, phase } = useLife()
   const up = left >= 0
   return (
-    <RowShell id={`m:${s.id}`} icon="piggy-bank" title={s.title} value={up ? `saving ${money(fromMonthly(left, per))}` : `drawing ${money(fromMonthly(-left, per))}`} tone={up ? undefined : 'bad'}>
+    <RowShell id={`m:${s.id}`} icon="piggy-bank" title={s.title} value={up ? tr('budget.savings_debt.saving_amount', 'saving {{amount}}', { amount: money(fromMonthly(left, per)) }) : tr('budget.savings_debt.drawing_amount', 'drawing {{amount}}', { amount: money(fromMonthly(-left, per)) })} tone={up ? undefined : 'bad'}>
       <Facts rows={[[tr('lit.savings_debt.in_the_account', 'In the account'), money(at.balance)], [tr('lit.savings_debt.interest', 'Interest'), `${s.rate}% a year`]]}
         note={up ? tr('lit.savings_debt.whatever_is_left_after_your', 'Whatever is left after your budget, debt and other accounts goes here.') : tr('lit.savings_debt.your_budget_debt_and_accounts', 'Your budget, debt and accounts take more than comes in, so this comes out of savings. If it runs out, the rest goes on a card.')} />
       {!readOnly && (

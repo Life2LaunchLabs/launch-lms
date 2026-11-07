@@ -176,7 +176,7 @@ function BlockSheet({ open, onClose, chatUuid, name, onDone }: { open: boolean; 
       setBusy(false)
     }
   }
-  return <EditSheet open={open} onOpenChange={(next) => !next && onClose()} color="#7cc4ff" title={tr('connect.chat_pane.block_value', 'Block {{value}}?', { value: name || 'them' })}
+  return <EditSheet open={open} onOpenChange={(next) => !next && onClose()} color="#7cc4ff" title={tr('connect.chat_pane.block_value', 'Block {{value}}?', { value: name || tr('connect.chat_pane.v_them', 'them') })}
     description={tr('connect.chat_pane.neither_of_you_will_be', 'Neither of you will be able to message the other, and they won’t find you in search. They aren’t told. You can unblock them in Connect settings.')}
     footer={<><Button variant="ghost" onClick={onClose}>{tr('coach.hub_memory_items.cancel', 'Cancel')}</Button><Button variant="destructive" disabled={busy} onClick={block}>{tr('connect.chat_pane.block', 'Block')}</Button></>} />
 }

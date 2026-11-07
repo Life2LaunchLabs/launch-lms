@@ -65,7 +65,7 @@ export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<
 /** Start a goal in a phase, or find one: one row under the phase's goals, whatever their number. */
 export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: { orgslug: string; phaseTitle?: string; empty?: boolean; onCreate: () => void; creating: boolean }) {
   return <div className="flex flex-wrap items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 pl-4">
-    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? `No goals${phaseTitle ? ` for ${phaseTitle}` : ''} yet.` : tr('goals.goals_home.add_another_goal_here', 'Add another goal here.')}</span>
+    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? tr('goals.goals_home.no_goalsvalue_yet', 'No goals{{value}} yet.', { value: phaseTitle ? ` for ${phaseTitle}` : '' }) : tr('goals.goals_home.add_another_goal_here', 'Add another goal here.')}</span>
     <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? tr('goals.phase_page.starting', 'Starting…') : tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
     <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />{tr('goals.phase_page.discover', 'Discover')}</Link></Button>
   </div>

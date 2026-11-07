@@ -180,8 +180,8 @@ export function RankSheet({ options, onSave, onClose }: { options: Phase[]; onSa
       <div><h3 id="rank-title" className="text-xl font-extrabold">{tr('goals.map_parts.rank_your_options', 'Rank your options')}</h3><p className="text-sm text-muted-foreground">{tr('goals.map_parts.your_first_choice_goes_first', 'Your first choice goes first. It shows first on your map.')}</p></div>
       <ol className="grid gap-2">{order.map((q, j) => <li key={q.id} className="flex items-center gap-2 rounded-2xl bg-muted px-3 py-2">
         <b className="w-5 text-center text-muted-foreground">{j + 1}</b><span className="min-w-0 flex-1 truncate font-extrabold">{q.title}</span>
-        <button type="button" disabled={!j} onClick={() => swap(j, j - 1)} aria-label={`Move ${q.title} up`} className="grid size-9 place-items-center rounded-full hover:bg-card disabled:opacity-30"><ArrowUp size={16} aria-hidden="true" /></button>
-        <button type="button" disabled={j === order.length - 1} onClick={() => swap(j, j + 1)} aria-label={`Move ${q.title} down`} className="grid size-9 place-items-center rounded-full hover:bg-card disabled:opacity-30"><ArrowDown size={16} aria-hidden="true" /></button>
+        <button type="button" disabled={!j} onClick={() => swap(j, j - 1)} aria-label={tr('goals.map_parts.move_title_up', 'Move {{title}} up', { title: q.title })} className="grid size-9 place-items-center rounded-full hover:bg-card disabled:opacity-30"><ArrowUp size={16} aria-hidden="true" /></button>
+        <button type="button" disabled={j === order.length - 1} onClick={() => swap(j, j + 1)} aria-label={tr('goals.map_parts.move_title_down', 'Move {{title}} down', { title: q.title })} className="grid size-9 place-items-center rounded-full hover:bg-card disabled:opacity-30"><ArrowDown size={16} aria-hidden="true" /></button>
       </li>)}</ol>
       <div className="flex justify-end gap-2"><Button variant="ghost" onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button><Button variant="brand" onClick={() => onSave(order.map((q) => q.id))}>{tr('goals.goal_stages.save', 'Save')}</Button></div>
     </div>

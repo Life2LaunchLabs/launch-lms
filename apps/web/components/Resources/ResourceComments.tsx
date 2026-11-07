@@ -47,7 +47,7 @@ function RatingPicker({ value, onChange, label, compact = false }: { value: numb
 function RatingDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">{tr('resources.resource_comments.legacy_review_unrated', 'Legacy review · unrated')}</span>
   return (
-    <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+    <div className="flex items-center gap-0.5" aria-label={tr('resources.resource_comments.rating_out_of_5_stars', '{{rating}} out of 5 stars', { rating })}>
       {[1, 2, 3, 4, 5].map((star) => (
         <Star key={star} size={14} className={star <= rating ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/30'} />
       ))}

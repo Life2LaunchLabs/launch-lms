@@ -111,7 +111,7 @@ export function SuggestedStepLine({ goal, item, token, onSettled }: { goal: Goal
     } catch { setSaving(false) /* useGoalMutation already said what went wrong */ }
   }
 
-  return <li id={targetId} tabIndex={-1} aria-label={`Suggested step ${label}`} title={draft.description || undefined} className="group flex items-center gap-3 rounded-xl py-1 pr-2 text-sm text-muted-foreground outline-none transition hover:bg-current/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
+  return <li id={targetId} tabIndex={-1} aria-label={tr('goals.goal_proposals.suggested_step_label', 'Suggested step {{label}}', { label })} title={draft.description || undefined} className="group flex items-center gap-3 rounded-xl py-1 pr-2 text-sm text-muted-foreground outline-none transition hover:bg-current/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
     <span className="flex w-14 shrink-0 justify-center">
       <button type="button" disabled={saving} onClick={() => void keep()} aria-label={`Add ${label}`} className={lineButton}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />}</button>
     </span>
@@ -146,7 +146,7 @@ export function SuggestedStageLine({ goal, item, token, onSettled }: { goal: Goa
     } catch { setSaving(false) /* useGoalMutation already said what went wrong */ }
   }
 
-  return <div id={targetId} tabIndex={-1} role="group" aria-label={`Suggested stage ${stage.title}`} title={stage.description || undefined}
+  return <div id={targetId} tabIndex={-1} role="group" aria-label={tr('goals.goal_proposals.suggested_stage_title', 'Suggested stage {{title}}', { title: stage.title })} title={stage.description || undefined}
     className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card/40 px-4 py-2 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
     <button type="button" disabled={saving} onClick={() => void keep()} aria-label={`Add ${stage.title}`} className={lineButton}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />}</button>
     <span className="min-w-0 flex-1 truncate font-extrabold">{stage.title}{stage.timing ? <span className="ml-2 text-xs font-bold opacity-70">{stage.timing}</span> : null}</span>

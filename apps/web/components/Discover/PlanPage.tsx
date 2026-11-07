@@ -145,10 +145,10 @@ function JoinWith({ page, selected, onSelect, action }: { page: PublicPlanPage; 
         <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#111318] text-lg font-black text-white"><OrgLogo org={org} /></span>
         <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-0.5">
           <strong className="text-2xl leading-tight">{tr('discover.plan_page.with_name', 'With {{name}}', { name: org.name })}</strong>
-          <span className="text-[15px] text-muted-foreground">{selected.access === 'open' ? tr('discover.plan_page.start_right_away', 'Start right away') : `${org.name} says yes first`}{page.badge ? tr('discover.plan_page.they_award_the_tolowercase', ' · they award the {{toLowerCase}}', { toLowerCase: badgeKindLabel(page.badge.kind).toLowerCase() }) : ''}</span>
+          <span className="text-[15px] text-muted-foreground">{selected.access === 'open' ? tr('discover.plan_page.start_right_away', 'Start right away') : tr('discover.plan_page.name_says_yes_first', '{{name}} says yes first', { name: org.name })}{page.badge ? tr('discover.plan_page.they_award_the_tolowercase', ' · they award the {{toLowerCase}}', { toLowerCase: badgeKindLabel(page.badge.kind).toLowerCase() }) : ''}</span>
         </div>
         {others > 0 && !page.goal ? <button type="button" onClick={() => setChanging(!changing)} aria-expanded={changing}
-          className="min-h-11 px-2 text-[15px] font-black text-[#2B5FD9]">{changing ? tr('discover.plan_page.done', 'Done') : `${others} other option${others === 1 ? '' : 's'}`}</button> : null}
+          className="min-h-11 px-2 text-[15px] font-black text-[#2B5FD9]">{changing ? tr('discover.plan_page.done', 'Done') : (others === 1 ? tr('discover.plan_page.one_other_option', '1 other option') : tr('discover.plan_page.others_other_options', '{{others}} other options', { others }))}</button> : null}
         <ActionButton action={action} className="h-[54px] text-[17px]" />
       </div>
       {changing ? <div role="group" aria-label={tr('discover.plan_page.organizations_offering_this_plan', 'Organizations offering this plan')} className="grid gap-3 border-t border-border bg-muted px-6 py-4 sm:grid-cols-2 sm:px-7 lg:grid-cols-3">
@@ -191,7 +191,7 @@ export default function PlanPage({ orgslug, orgId, initialPage }: { orgslug: str
         router.push(getUriWithOrg(orgslug, routePaths.org.plan(result.goal_uuid)))
         return
       }
-      toast.success(`Request sent to ${offer.org!.name}.`)
+      toast.success(tr('discover.plan_page.request_sent_to_name', 'Request sent to {{name}}.', { name: offer.org!.name }))
       await refresh()
     } catch (error: any) {
       toast.error(error?.message || tr('discover.plan_page.could_not_join_this_plan', 'Could not join this plan.'))

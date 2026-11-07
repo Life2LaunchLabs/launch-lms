@@ -90,7 +90,7 @@ function ResourceListMembership({ resourceUuid }: { resourceUuid: string }) {
             disabled={pendingRemoval !== null}
             className={`group inline-flex h-7 max-w-44 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium transition-opacity disabled:cursor-wait ${list.color && list.icon_color ? '' : 'bg-muted text-muted-foreground'}`}
             style={{ background: list.color || undefined, color: list.icon_color || undefined }}
-            aria-label={`Remove from ${list.name}`}
+            aria-label={tr('coach.hub_resource_context.remove_from_name', 'Remove from {{name}}', { name: list.name })}
           >
             <Icon className="h-3 w-3 shrink-0" />
             <span className="truncate">{list.name}</span>
@@ -163,7 +163,7 @@ export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAd
               <span className="mt-1 line-clamp-2 text-base font-semibold leading-5 tracking-tight group-hover:underline">{resource.title}</span>
             </button>
             <div className="mt-2 flex min-h-5 items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-0.5" aria-label={`${headerRating.toFixed(1)} out of 5 stars`}>
+              <span className="flex items-center gap-0.5" aria-label={tr('coach.hub_resource_context.tofixed_out_of_5_stars', '{{toFixed}} out of 5 stars', { toFixed: headerRating.toFixed(1) })}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
@@ -174,7 +174,7 @@ export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAd
                       setReviewComposeRequest((current) => current + 1)
                     }}
                     className="rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={`Rate this resource ${star} star${star === 1 ? '' : 's'}`}
+                    aria-label={tr('coach.hub_resource_context.rate_this_resource_star_starvalue', 'Rate this resource {{star}} star{{value}}', { star, value: star === 1 ? '' : 's' })}
                   >
                     <Star className={`h-3.5 w-3.5 ${star <= Math.round(headerRating) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/25 hover:text-amber-400'}`} />
                   </button>
@@ -262,7 +262,7 @@ export default function HubResourceCarousel({ resources, inChat, label, onOpen }
               key={resource.resource_uuid}
               type="button"
               onClick={() => onOpen(resource)}
-              aria-label={present ? `Open ${resource.title}` : `Add ${resource.title} back to this chat`}
+              aria-label={present ? `Open ${resource.title}` : tr('coach.hub_resource_context.add_title_back_to_this', 'Add {{title}} back to this chat', { title: resource.title })}
               className={`flex h-16 w-[15rem] shrink-0 snap-start items-center gap-2.5 rounded-2xl border border-border/60 bg-card p-2 text-left transition hover:border-border hover:shadow-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ${present ? '' : 'opacity-55'}`}
             >
               <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
@@ -284,7 +284,7 @@ export default function HubResourceCarousel({ resources, inChat, label, onOpen }
 export function HubResourceTrayHandle({ resources, onOpen }: { resources: HubAdvisorResource[]; onOpen: () => void }) {
   if (resources.length === 0) return null
   return (
-    <button type="button" onClick={onOpen} aria-label={`Show the ${resources.length === 1 ? 'resource' : `${resources.length} resources`} in this chat`} className="mb-2 flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/95 pl-1.5 pr-3 text-xs font-medium shadow-xs backdrop-blur-md transition hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+    <button type="button" onClick={onOpen} aria-label={tr('coach.hub_resource_context.show_the_value_in_this', 'Show the {{value}} in this chat', { value: resources.length === 1 ? 'resource' : `${resources.length} resources` })} className="mb-2 flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/95 pl-1.5 pr-3 text-xs font-medium shadow-xs backdrop-blur-md transition hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
       <span className="flex">
         {resources.slice(-3).map((resource, index) => (
           <span key={resource.resource_uuid} className={`h-6 w-6 overflow-hidden rounded-md ring-2 ring-background ${index ? '-ml-2' : ''}`}>

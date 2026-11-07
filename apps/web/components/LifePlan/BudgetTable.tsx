@@ -77,7 +77,7 @@ export default function BudgetTable() {
       {section('out', tr('lit.budget_table.expenses', 'Expenses'), out)}
       <div className={`px-4 py-4 sm:px-5 ${left >= 0 ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-base font-extrabold">{left >= 0 ? `Left over each ${PER_WORD[per]}` : `Short each ${PER_WORD[per]}`}</span>
+          <span className="text-base font-extrabold">{left >= 0 ? tr('budget.budget_table.left_over_each_value', 'Left over each {{value}}', { value: PER_WORD[per] }) : tr('budget.budget_table.short_each_value', 'Short each {{value}}', { value: PER_WORD[per] })}</span>
           <span className="flex items-baseline"><b className="text-xl font-extrabold tabular-nums">{left >= 0 ? '+' : '−'}{money(Math.abs(fromMonthly(left, per)))}</b><span className="w-9 shrink-0" aria-hidden="true" /></span>
         </div>
         {(debtPay > 0 || saving > 0) && <p className="mt-1 text-xs font-semibold opacity-80">{tr('budget.budget_table.after', 'After')}{' '}{[debtPay > 0 && `${money(fromMonthly(debtPay, per))} to debt`, saving > 0 && `${money(fromMonthly(saving, per))} into savings`].filter(Boolean).join(' and ')}{tr('budget.budget_table.what_s_left_goes_into', '. What\'s left goes into your savings account.')}</p>}
@@ -89,7 +89,7 @@ export default function BudgetTable() {
 
 /** The muted "/mo" after an amount. */
 function Per({ per }: { per: string }) {
-  return <span className="ml-px text-[0.78em] font-normal text-muted-foreground">/{per}</span>
+  return <span className="ml-px text-[0.78em] font-normal text-muted-foreground">/{tr(`budget.per_short.${per}`, per)}</span>
 }
 
 const pct = (r: number) => `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`
@@ -122,7 +122,7 @@ function TaxLine({ pay, tax }: { pay: number; tax: number }) {
                   <div className="flex items-center gap-2">
                     <span className="flex-1">{x.title}</span>
                     <span className="tabular-nums text-muted-foreground">{money(fromMonthly(x.annual / 12, per))}</span>
-                    <button type="button" onClick={() => setSrc(src === x.key ? null : x.key)} aria-expanded={src === x.key} aria-label={`Where ${x.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted"><Info className="size-3.5" /></button>
+                    <button type="button" onClick={() => setSrc(src === x.key ? null : x.key)} aria-expanded={src === x.key} aria-label={tr('budget.budget_table.where_tolowercase_comes_from', 'Where {{toLowerCase}} comes from', { toLowerCase: x.title.toLowerCase() })} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted"><Info className="size-3.5" /></button>
                   </div>
                   {src === x.key && <p className="mt-1 text-xs text-muted-foreground">{x.note}. <a className="font-semibold text-[var(--org-primary-color)] underline dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]" href={x.source.url} target="_blank" rel="noreferrer">{x.source.publisher}, {x.source.title}</a></p>}
                 </li>
@@ -185,7 +185,7 @@ function Row({ line }: { line: Line }) {
         </button>
         <span className="inline-flex w-9 shrink-0 items-center justify-end gap-px">
           {wide && !open ? <span className="font-bold text-amber-600 dark:text-amber-400" aria-label={tr('budget.budget_table.not_for_your_city', 'Not for your city')}>*</span> : null}
-          {onEst && !open ? <button type="button" onClick={() => setSrc(!src)} aria-expanded={src} aria-label={`Where ${line.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
+          {onEst && !open ? <button type="button" onClick={() => setSrc(!src)} aria-expanded={src} aria-label={tr('budget.budget_table.where_tolowercase_comes_from', 'Where {{toLowerCase}} comes from', { toLowerCase: line.title.toLowerCase() })} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
         </span>
       </div>
       {src && onEst && !open ? <p className="mb-2 ml-11 mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground"><b className="text-foreground">{est!.source.title}</b>, {est!.source.publisher}. {est!.label}.{est!.scaled_by ? tr('budget.budget_table.local_prices_title_publisher_place', ' Local prices: {{title}}, {{publisher}} ({{place_label}} {{round}}, US = 100).', { title: est!.scaled_by.source.title, publisher: est!.scaled_by.source.publisher, place_label: est!.scaled_by.place_label, round: Math.round(est!.scaled_by.value) }) : est!.place_label ? ` ${est!.place_label}.` : ''}{wide ? tr('budget.budget_table.not_for_value_itself_this', ' * Not for {{value}} itself: this is the {{value2}} figure.', { value: est!.asked_place_label || tr('budget.budget_table.your_city', 'your city'), value2: est!.level === 'us' ? tr('budget.budget_table.national', 'national') : tr('budget.budget_table.state', 'state') }) : ''}</p> : null}
@@ -294,7 +294,7 @@ function EstimateView({ est, line }: { est: Estimate; line: Line }) {
     <div className="mt-1">
       <div className="flex items-baseline gap-1.5"><b className="text-sm font-bold tabular-nums text-muted-foreground">{money(fromMonthly(v.estMonthly ?? 0, per))}</b><span className="text-xs text-muted-foreground">a {PER_WORD[per]}</span></div>
       {v.calc && <p className="text-xs text-muted-foreground">{v.calc}</p>}
-      <p className="mt-1 text-xs text-muted-foreground">{tr('budget.budget_table.what_in_place_label', '{{what}} in {{place_label}}', { what, place_label: est.place_label })}{est.fallback && est.asked_place_label && est.place_label !== est.asked_place_label ? `. No figure for ${est.asked_place_label} itself yet.` : '.'}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{tr('budget.budget_table.what_in_place_label', '{{what}} in {{place_label}}', { what, place_label: est.place_label })}{est.fallback && est.asked_place_label && est.place_label !== est.asked_place_label ? tr('budget.budget_table.no_figure_for_asked_place', '. No figure for {{asked_place_label}} itself yet.', { asked_place_label: est.asked_place_label }) : '.'}</p>
       {p && p.p10 != null && p.p90 != null && (
         <div className="mt-2">
           <div className="relative h-2 rounded-full bg-border">

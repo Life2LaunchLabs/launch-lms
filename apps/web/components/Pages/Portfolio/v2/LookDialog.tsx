@@ -69,7 +69,7 @@ function LookCard({ look, dark, onStep, index, count }: { look: (typeof LOOKS)[n
     <div className="grid justify-items-center gap-1 text-center">
       <b className="text-base font-extrabold">{look.name}</b>
       <small className="max-w-[44ch] text-[13px] font-semibold leading-snug text-muted-foreground">{look.blurb}</small>
-      <span className="mt-1 flex gap-1.5" aria-label={`Look ${index + 1} of ${count}`}>{LOOKS.map((one, n) => <i key={one.id} className={`h-1.5 rounded-full transition-all ${n === index ? 'w-5 bg-foreground' : 'w-1.5 bg-border'}`} />)}</span>
+      <span className="mt-1 flex gap-1.5" aria-label={tr('portfolio.look_dialog.look_value_of_count', 'Look {{value}} of {{count}}', { value: index + 1, count })}>{LOOKS.map((one, n) => <i key={one.id} className={`h-1.5 rounded-full transition-all ${n === index ? 'w-5 bg-foreground' : 'w-1.5 bg-border'}`} />)}</span>
     </div>
   </div>
 }
