@@ -13,6 +13,7 @@ import type { PortfolioConfig, Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
 
+import { tr } from '@/lib/tr'
 // Activity, Badge and Portfolio steps finish on their own: a run, an award, a portfolio change.
 
 function ActivityCard(props: StepCardProps<'activity'>) {
@@ -23,23 +24,23 @@ function ActivityCard(props: StepCardProps<'activity'>) {
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
     <Feedback step={step} />
-    {step.reference?.page_count ? <CardNote icon={Play}>{step.reference.page_count} {step.reference.page_count === 1 ? 'page' : 'pages'}{started && !done ? ` · ${Math.round(step.fraction * 100)}% through` : ''}</CardNote> : null}
+    {step.reference?.page_count ? <CardNote icon={Play}>{step.reference.page_count} {step.reference.page_count === 1 ? 'page' : 'pages'}{started && !done ? tr('goals.linked.round_through', ' · {{round}}% through', { round: Math.round(step.fraction * 100) }) : ''}</CardNote> : null}
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      {canWork && !step.locked ? <Button type="button" variant={done ? 'surface' : 'plan'} onClick={actions.openActivity}><Play size={15} aria-hidden="true" />{done ? 'Review' : started ? 'Continue' : 'Start'}</Button> : null}
+      {canWork && !step.locked ? <Button type="button" variant={done ? 'surface' : 'plan'} onClick={actions.openActivity}><Play size={15} aria-hidden="true" />{done ? tr('goals.linked.review', 'Review') : started ? tr('goals.linked.continue', 'Continue') : tr('goals.linked.start', 'Start')}</Button> : null}
       <FinishControls {...props} finishesItself />
     </div>
   </div>
 }
 
 function ActivityConfigPanel({ config }: ConfigPanelProps<'activity'>) {
-  return <CardNote icon={Play}>{config.activity_uuid ? 'Edit the activity from the step in the template editor.' : 'Save the step to create its activity.'}</CardNote>
+  return <CardNote icon={Play}>{config.activity_uuid ? tr('goals.linked.edit_the_activity_from_the', 'Edit the activity from the step in the template editor.') : tr('goals.linked.save_the_step_to_create', 'Save the step to create its activity.')}</CardNote>
 }
 
 export const activity: StepDefinition<'activity'> = {
   type: 'activity',
-  label: 'Activity',
+  get label() { return tr('goals.linked.activity', 'Activity') },
   color: '#C9501E',
-  hint: 'An interactive lesson or quiz played in the app.',
+  get hint() { return tr('goals.linked.an_interactive_lesson_or_quiz', 'An interactive lesson or quiz played in the app.') },
   example: 'Needs vs wants sorting game',
   icon: Play,
   statusLine: (step) => step.status === 'in_progress' ? `${Math.round(step.fraction * 100)}% through` : null,
@@ -57,11 +58,11 @@ function BadgeCard(props: StepCardProps<'badge'>) {
     <div className="flex items-center gap-3">
       {plan?.badge ? <BadgeMedal badge={plan.badge} size={48} /> : <span className="grid h-12 w-12 place-items-center rounded-full bg-muted text-[var(--plan-accent)]"><Award size={22} /></span>}
       <div className="min-w-0">
-        <p className="truncate font-bold">{plan?.badge?.name || plan?.title || 'Badge'}</p>
-        <CardNote>{step.status === 'completed' ? 'Awarded' : `Done when you earn it${plan?.title ? ` by finishing ${plan.title}` : ''}`}</CardNote>
+        <p className="truncate font-bold">{plan?.badge?.name || plan?.title || tr('goals.linked.badge', 'Badge')}</p>
+        <CardNote>{step.status === 'completed' ? tr('goals.linked.awarded', 'Awarded') : `Done when you earn it${plan?.title ? ` by finishing ${plan.title}` : ''}`}</CardNote>
       </div>
     </div>
-    {step.config.template_uuid && step.status !== 'completed' ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(step.config.template_uuid))}>See the plan</Link></Button> : null}
+    {step.config.template_uuid && step.status !== 'completed' ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(step.config.template_uuid))}>{tr('goals.linked.see_the_plan', 'See the plan')}</Link></Button> : null}
     {props.staff ? <FinishControls {...props} finishesItself /> : null}
   </div>
 }
@@ -72,10 +73,10 @@ function BadgeConfigPanel({ config, onChange, orgId, token }: ConfigPanelProps<'
   const choices = plans.filter((plan) => plan.badge)
   const known = choices.some((plan) => plan.template_uuid === config.template_uuid)
   return <div className="flex flex-col gap-1">
-    <Label htmlFor="step-badge">Badge</Label>
+    <Label htmlFor="step-badge">{tr('goals.linked.badge', 'Badge')}</Label>
     <select id="step-badge" value={config.template_uuid || ''} disabled={isLoading} onChange={(event) => onChange({ ...config, template_uuid: event.target.value })} className="h-9 rounded-xl border-2 border-border bg-background px-2 text-sm font-semibold">
-      <option value="">{isLoading ? 'Loading plans…' : 'Choose a plan that earns a badge'}</option>
-      {config.template_uuid && !known && !isLoading ? <option value={config.template_uuid}>Another organization’s plan</option> : null}
+      <option value="">{isLoading ? tr('goals.linked.loading_plans', 'Loading plans…') : tr('goals.linked.choose_a_plan_that_earns', 'Choose a plan that earns a badge')}</option>
+      {config.template_uuid && !known && !isLoading ? <option value={config.template_uuid}>{tr('goals.linked.another_organization_s_plan', 'Another organization’s plan')}</option> : null}
       {choices.map((plan) => <option key={plan.template_uuid} value={plan.template_uuid}>{plan.badge?.name || plan.title}{plan.badge?.name && plan.badge.name !== plan.title ? ` (${plan.title})` : ''}</option>)}
     </select>
   </div>
@@ -83,9 +84,9 @@ function BadgeConfigPanel({ config, onChange, orgId, token }: ConfigPanelProps<'
 
 export const badge: StepDefinition<'badge'> = {
   type: 'badge',
-  label: 'Badge',
+  get label() { return tr('goals.linked.badge', 'Badge') },
   color: '#A47100',
-  hint: 'Earning the badge of another plan counts as this step.',
+  get hint() { return tr('goals.linked.earning_the_badge_of_another', 'Earning the badge of another plan counts as this step.') },
   example: 'Earn the Workplace Ready badge',
   icon: Award,
   CardBody: BadgeCard,
@@ -107,15 +108,15 @@ function PortfolioCard(props: StepCardProps<'portfolio'>) {
   const { step, orgslug } = props
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
-    <CardNote icon={BriefcaseBusiness}>{PORTFOLIO_CHECKS[step.config.check]}. This finishes itself when your portfolio has it.</CardNote>
-    {step.status !== 'completed' && !step.locked ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.portfolio())}>Open my portfolio</Link></Button> : null}
+    <CardNote icon={BriefcaseBusiness}>{tr('goals.linked.value_this_finishes_itself_when', '{{value}}. This finishes itself when your portfolio has it.', { value: PORTFOLIO_CHECKS[step.config.check] })}</CardNote>
+    {step.status !== 'completed' && !step.locked ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.portfolio())}>{tr('goals.linked.open_my_portfolio', 'Open my portfolio')}</Link></Button> : null}
     {props.staff ? <FinishControls {...props} finishesItself /> : null}
   </div>
 }
 
 function PortfolioConfigPanel({ config, onChange }: ConfigPanelProps<'portfolio'>) {
   return <div className="flex flex-col gap-1">
-    <Label>What the portfolio needs</Label>
+    <Label>{tr('goals.linked.what_the_portfolio_needs', 'What the portfolio needs')}</Label>
     <select className="h-9 rounded-md border bg-transparent px-2 text-sm" value={config.check} onChange={(event) => onChange({ check: event.target.value as PortfolioConfig['check'] })}>
       {Object.entries(PORTFOLIO_CHECKS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
     </select>
@@ -124,9 +125,9 @@ function PortfolioConfigPanel({ config, onChange }: ConfigPanelProps<'portfolio'
 
 export const portfolio: StepDefinition<'portfolio'> = {
   type: 'portfolio',
-  label: 'Portfolio',
+  get label() { return tr('goals.linked.portfolio', 'Portfolio') },
   color: '#46566B',
-  hint: 'Finish a section of their portfolio, like projects.',
+  get hint() { return tr('goals.linked.finish_a_section_of_their', 'Finish a section of their portfolio, like projects.') },
   example: 'Add two projects to your portfolio',
   icon: BriefcaseBusiness,
   statusLine: (step: Step<'portfolio'>) => PORTFOLIO_CHECKS[step.config.check] || null,

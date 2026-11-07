@@ -10,6 +10,7 @@ import PhaseCover from './PhaseCover'
 import type { Moving } from './MoveBar'
 import { monthText, whenOf } from './graph'
 
+import { tr } from '@/lib/tr'
 export interface Env { base: LifeDoc; photos?: Record<string, PlacePhoto>; wide: boolean; moving: Moving | null; held: Set<string>; later: (p: Phase) => boolean }
 
 export function Target({ alt, onClick, children }: { alt?: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -74,15 +75,15 @@ export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={p.undated ? p.title : `${p.title} · from ${monthText(p.starts!)}`}
+  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={p.undated ? p.title : tr('goals.map_parts.title_from_monthtext', '{{title}} · from {{monthText}}', { title: p.title, monthText: monthText(p.starts!) })}
     {...drag}
     className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
     <PhaseCover phase={p} photos={env.photos} past={wh === 'done'} className={cn('absolute inset-0 -z-20 h-full w-full', p.idea && 'saturate-[.45]')} />
     <Shade />
     {p.idea ? <span className="pointer-events-none absolute inset-0 z-10 rounded-[22px] border-[3px] border-dashed border-white/85" aria-hidden="true" /> : null}
-    {wh === 'now' ? <span className="absolute left-3.5 top-3 rounded-full bg-[var(--org-primary-color)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-on-primary-color,#fff)]">You’re here</span>
-      : p.idea ? <span className="absolute left-3.5 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900">Idea</span> : null}
+    {wh === 'now' ? <span className="absolute left-3.5 top-3 rounded-full bg-[var(--org-primary-color)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-on-primary-color,#fff)]">{tr('goals.map_parts.you_re_here', 'You’re here')}</span>
+      : p.idea ? <span className="absolute left-3.5 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900">{tr('goals.phase_page.idea', 'Idea')}</span> : null}
     <span className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-black/35 backdrop-blur" aria-hidden="true"><MoreHorizontal size={16} /></span>
     <span className="grid min-w-0 gap-0.5 px-4 pb-3.5">
       <b className="truncate text-[clamp(22px,3vw,27px)] font-extrabold leading-tight tracking-tight">{p.title}</b>
@@ -174,15 +175,15 @@ export function RankSheet({ options, onSave, onClose }: { options: Phase[]; onSa
   const [order, setOrder] = React.useState(options)
   const swap = (a: number, b: number) => setOrder((o) => { const n = [...o];[n[a], n[b]] = [n[b], n[a]]; return n })
   return <div className="fixed inset-0 flex items-end justify-center sm:items-center sm:p-6" style={{ zIndex: 'var(--z-modal)' }}>
-    <button type="button" aria-label="Close" className="absolute inset-0 cursor-default bg-black/45" onClick={onClose} />
+    <button type="button" aria-label={tr('goals.explore_board.close', 'Close')} className="absolute inset-0 cursor-default bg-black/45" onClick={onClose} />
     <div role="dialog" aria-modal="true" aria-labelledby="rank-title" className="relative grid w-full gap-3 rounded-t-[28px] bg-card p-5 pb-[max(18px,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-[420px] sm:rounded-[28px]">
-      <div><h3 id="rank-title" className="text-xl font-extrabold">Rank your options</h3><p className="text-sm text-muted-foreground">Your first choice goes first. It shows first on your map.</p></div>
+      <div><h3 id="rank-title" className="text-xl font-extrabold">{tr('goals.map_parts.rank_your_options', 'Rank your options')}</h3><p className="text-sm text-muted-foreground">{tr('goals.map_parts.your_first_choice_goes_first', 'Your first choice goes first. It shows first on your map.')}</p></div>
       <ol className="grid gap-2">{order.map((q, j) => <li key={q.id} className="flex items-center gap-2 rounded-2xl bg-muted px-3 py-2">
         <b className="w-5 text-center text-muted-foreground">{j + 1}</b><span className="min-w-0 flex-1 truncate font-extrabold">{q.title}</span>
         <button type="button" disabled={!j} onClick={() => swap(j, j - 1)} aria-label={`Move ${q.title} up`} className="grid size-9 place-items-center rounded-full hover:bg-card disabled:opacity-30"><ArrowUp size={16} aria-hidden="true" /></button>
         <button type="button" disabled={j === order.length - 1} onClick={() => swap(j, j + 1)} aria-label={`Move ${q.title} down`} className="grid size-9 place-items-center rounded-full hover:bg-card disabled:opacity-30"><ArrowDown size={16} aria-hidden="true" /></button>
       </li>)}</ol>
-      <div className="flex justify-end gap-2"><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="brand" onClick={() => onSave(order.map((q) => q.id))}>Save</Button></div>
+      <div className="flex justify-end gap-2"><Button variant="ghost" onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button><Button variant="brand" onClick={() => onSave(order.map((q) => q.id))}>{tr('goals.goal_stages.save', 'Save')}</Button></div>
     </div>
   </div>
 }

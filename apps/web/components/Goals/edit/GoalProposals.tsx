@@ -16,6 +16,7 @@ import type { StepDraft } from './StepEditor'
 import { liveMode, stepInput } from './stepDrafts'
 import type { PendingGoalChange, PendingStage, PendingStageChange, PendingStep, PendingStepChange, SuggestionKind } from './useGoalProposals'
 
+import { tr } from '@/lib/tr'
 type Fields = Record<string, string | number | boolean | null>
 type ObjectStatus = 'editing' | 'cancelled' | 'saved'
 // eslint-disable-next-line no-unused-vars
@@ -45,7 +46,7 @@ function useRecordDecision(runUuid: string, objectKey: string, objectType: 'goal
       revision.current = saved.revision
       hub?.setEditRun((value) => value?.run_uuid === runUuid ? updateRunObjectState(value, saved, status, label) : value)
     } catch (error: any) {
-      toast.error(error?.status === 409 ? 'This suggestion changed in another tab. Reload to see the latest.' : 'Coach couldn’t note that choice, but your goal is saved.')
+      toast.error(error?.status === 409 ? tr('goals.goal_proposals.this_suggestion_changed_in_another', 'This suggestion changed in another tab. Reload to see the latest.') : tr('goals.goal_proposals.coach_couldn_t_note_that', 'Coach couldn’t note that choice, but your goal is saved.'))
     }
   }
 }
@@ -61,7 +62,7 @@ function useReviewItem(key: string, label: string, objectType: string, targetId:
 
 const lineButton = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-current/25 transition hover:border-[var(--plan-face)] hover:bg-[var(--plan-face)] hover:text-[var(--plan-face-ink)] disabled:opacity-50'
 const dropButton = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full opacity-60 transition hover:bg-muted hover:opacity-100'
-const tag = <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider opacity-60">suggested</span>
+const tag = <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider opacity-60">{tr('goals.goal_proposals.suggested', 'suggested')}</span>
 
 function stepFields(draft: StepDraft, stageUuid: string): Fields {
   return { type: draft.type, title: draft.title, description: draft.description, due_date: draft.due_date || '', stage_uuid: stageUuid, config: JSON.stringify(draft.config) }
@@ -196,13 +197,13 @@ function ChangeLine({ id, label, summary, reason, objectType, recordKey, item, k
     } catch { setSaving(false) /* the mutation already said what went wrong */ }
   }
 
-  return <div id={targetId} tabIndex={-1} role="group" aria-label={`Coach suggests: ${summary}`}
+  return <div id={targetId} tabIndex={-1} role="group" aria-label={tr('goals.goal_proposals.coach_suggests_summary', 'Coach suggests: {{summary}}', { summary })}
     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-dashed border-[var(--plan-face)]/60 bg-[color-mix(in_srgb,var(--plan-face)_8%,transparent)] px-3 py-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
     <Sparkles size={13} aria-hidden="true" className="shrink-0 text-[var(--plan-accent)]" />
     <span className="min-w-0 flex-1"><span className="font-bold">{summary}</span>{reason ? <span className="ml-2 text-muted-foreground">{reason}</span> : null}</span>
     <span className="flex shrink-0 items-center gap-1">
-      <button type="button" disabled={saving} onClick={() => void keep()} className={cn('rounded-full px-3 py-1 font-bold transition disabled:opacity-50', 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] hover:opacity-90')}>{saving ? <Loader2 size={12} className="animate-spin" /> : 'Keep'}</button>
-      <button type="button" disabled={saving} onClick={() => void undo()} className="flex items-center gap-1 rounded-full px-2 py-1 font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"><Undo2 size={12} aria-hidden="true" />Undo</button>
+      <button type="button" disabled={saving} onClick={() => void keep()} className={cn('rounded-full px-3 py-1 font-bold transition disabled:opacity-50', 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] hover:opacity-90')}>{saving ? <Loader2 size={12} className="animate-spin" /> : tr('goals.phase_sheet.keep', 'Keep')}</button>
+      <button type="button" disabled={saving} onClick={() => void undo()} className="flex items-center gap-1 rounded-full px-2 py-1 font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"><Undo2 size={12} aria-hidden="true" />{tr('goals.routine_action.undo', 'Undo')}</button>
     </span>
   </div>
 }

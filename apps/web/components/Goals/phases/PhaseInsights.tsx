@@ -7,6 +7,7 @@ import { lifeApi, type Career, type Estimate, type Phase } from '@services/life/
 import { money, short } from '@components/LifePlan/model'
 import { levelOf } from './setup'
 
+import { tr } from '@/lib/tr'
 const TRAINING: Record<number, string> = {
   1: 'Little or no training: most people learn on the job',
   2: 'Usually a high school diploma',
@@ -60,49 +61,49 @@ export default function PhaseInsights({ phase, token, careers }: { phase: Phase;
         const min = Math.min(lo ?? mid, you ?? mid) * 0.7, max = Math.max(hi ?? mid, you ?? mid) * 1.15, X = (v: number) => Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100))
         const verdict = you && lo && hi ? (you < lo ? 'low' : you > hi ? 'high' : 'mid') : null
         return <>
-          <p className="font-semibold">{act?.apprentice ? `Once you’re through, ${plural(name).toLowerCase()}` : plural(name)} in {inPlace(e.place_label)} typically make <b className="font-extrabold">{money(mid)}</b> a year.</p>
-          {lo && hi ? <div className="relative h-9" role="img" aria-label={`Middle half of pay: ${money(lo)} to ${money(hi)}`}>
+          <p className="font-semibold">{act?.apprentice ? tr('goals.phase_insights.once_you_re_through_tolowercase', 'Once you’re through, {{toLowerCase}}', { toLowerCase: plural(name).toLowerCase() }) : plural(name)}{' '}{tr('goals.phase_insights.in_inplace_typically_make', 'in {{inPlace}} typically make', { inPlace: inPlace(e.place_label) })}{' '}<b className="font-extrabold">{money(mid)}</b>{' '}{tr('goals.phase_insights.a_year', 'a year.')}</p>
+          {lo && hi ? <div className="relative h-9" role="img" aria-label={tr('goals.phase_insights.middle_half_of_pay_money', 'Middle half of pay: {{money}} to {{money2}}', { money: money(lo), money2: money(hi) })}>
             <span className="absolute inset-x-0 top-3 h-2 rounded-full bg-muted" />
             <span className="absolute top-3 h-2 rounded-full bg-[color-mix(in_srgb,var(--org-primary-color)_55%,transparent)]" style={{ left: `${X(lo)}%`, width: `${X(hi) - X(lo)}%` }} />
             {you ? <span className="absolute top-1.5 h-5 w-1 -translate-x-0.5 rounded bg-foreground" style={{ left: `${X(you)}%` }} /> : null}
             <span className="absolute top-6 -translate-x-1/2 text-[11px] font-bold text-muted-foreground" style={{ left: `${X(lo)}%` }}>{short(lo)}</span>
             <span className="absolute top-6 -translate-x-1/2 text-[11px] font-bold text-muted-foreground" style={{ left: `${X(hi)}%` }}>{short(hi)}</span>
           </div> : null}
-          <Src>{lo && hi ? 'Middle half of pay · ' : ''}{srcText(e)}</Src>
-          {!act?.apprentice ? <label className="flex items-center gap-2 text-sm text-muted-foreground">What do you make a year?
+          <Src>{lo && hi ? tr('goals.phase_insights.middle_half_of_pay', 'Middle half of pay · ') : ''}{srcText(e)}</Src>
+          {!act?.apprentice ? <label className="flex items-center gap-2 text-sm text-muted-foreground">{tr('goals.phase_insights.what_do_you_make_a', 'What do you make a year?')}
             <input inputMode="numeric" placeholder="$" value={mine[c.code] ?? ''} onChange={(ev) => setMine({ ...mine, [c.code]: Number(ev.target.value.replace(/[^0-9]/g, '')) || null })} className="h-9 w-32 rounded-xl bg-muted px-2.5 font-bold text-foreground outline-none" />
           </label> : null}
-          {verdict === 'low' ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-bold text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">Most {name.toLowerCase()}s here make more than that. Worth asking about a raise, or looking around.</p> : null}
-          {verdict === 'high' ? <p className="rounded-xl bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-200">You’re paid more than most {name.toLowerCase()}s here.</p> : null}
-          {verdict === 'mid' ? <p className="rounded-xl bg-muted px-3 py-2 text-sm font-bold">You’re in the middle of what most {name.toLowerCase()}s here make.</p> : null}
+          {verdict === 'low' ? <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-bold text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">{tr('goals.phase_insights.most_tolowercases_here_make_more', 'Most {{toLowerCase}}s here make more than that. Worth asking about a raise, or looking around.', { toLowerCase: name.toLowerCase() })}</p> : null}
+          {verdict === 'high' ? <p className="rounded-xl bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-200">{tr('goals.phase_insights.you_re_paid_more_than', 'You’re paid more than most {{toLowerCase}}s here.', { toLowerCase: name.toLowerCase() })}</p> : null}
+          {verdict === 'mid' ? <p className="rounded-xl bg-muted px-3 py-2 text-sm font-bold">{tr('goals.phase_insights.you_re_in_the_middle', 'You’re in the middle of what most {{toLowerCase}}s here make.', { toLowerCase: name.toLowerCase() })}</p> : null}
         </>
-      })() : <p className="text-sm text-muted-foreground">No pay numbers for this job{phase.place_label ? ` around ${phase.place_label}` : ''} yet.</p>}
-      {c.job_zone ? <><p className="font-semibold">What it takes: <b className="font-extrabold">{TRAINING[c.job_zone]}</b></p><Src>O*NET job zone {c.job_zone}</Src></> : null}
+      })() : <p className="text-sm text-muted-foreground">{tr('goals.phase_insights.no_pay_numbers_for_this', 'No pay numbers for this job')}{phase.place_label ? ` around ${phase.place_label}` : ''}{' '}{tr('goals.phase_insights.yet', 'yet.')}</p>}
+      {c.job_zone ? <><p className="font-semibold">{tr('goals.phase_insights.what_it_takes', 'What it takes:')}{' '}<b className="font-extrabold">{TRAINING[c.job_zone]}</b></p><Src>{tr('goals.phase_insights.o_net_job_zone_job', 'O*NET job zone {{job_zone}}', { job_zone: c.job_zone })}</Src></> : null}
     </div>)
   }
   if (schoolAct && school) sections.push(<div key="school" className="grid gap-2">
     <Head icon={GraduationCap}>{school.name}</Head>
     <div className="grid grid-cols-2 gap-2">
-      {school.tuition?.in != null ? <Fact value={money(school.tuition.in)} label="tuition a year, in state" /> : null}
-      {school.admission_rate != null ? <Fact value={`${Math.round(school.admission_rate * 100)}%`} label="of applicants get in" /> : null}
+      {school.tuition?.in != null ? <Fact value={money(school.tuition.in)} label={tr('goals.phase_insights.tuition_a_year_in_state', 'tuition a year, in state')} /> : null}
+      {school.admission_rate != null ? <Fact value={`${Math.round(school.admission_rate * 100)}%`} label={tr('goals.phase_insights.of_applicants_get_in', 'of applicants get in')} /> : null}
       {school.completion_rate != null ? <Fact value={`${Math.round(school.completion_rate * 100)}%`} label="finish" /> : null}
-      {school.median_earnings != null ? <Fact value={money(school.median_earnings)} label="typical pay 10 years after starting" /> : null}
+      {school.median_earnings != null ? <Fact value={money(school.median_earnings)} label={tr('goals.phase_insights.typical_pay_10_years_after', 'typical pay 10 years after starting')} /> : null}
     </div>
     {school.source ? <Src>{school.source.title}</Src> : null}
   </div>)
   else if ((phase.activities || []).some((a) => a.kind === 'learning' && a.level === 'high')) sections.push(<div key="hs" className="grid gap-2">
     <Head icon={GraduationCap}>{levelOf('high')!.short}</Head>
-    <p className="font-semibold">An Oregon diploma takes <b className="font-extrabold">24 credits</b>.</p><Src>Oregon Department of Education</Src>
+    <p className="font-semibold">{tr('goals.phase_insights.an_oregon_diploma_takes', 'An Oregon diploma takes')}{' '}<b className="font-extrabold">{tr('goals.phase_insights.24_credits', '24 credits')}</b>.</p><Src>{tr('goals.phase_insights.oregon_department_of_education', 'Oregon Department of Education')}</Src>
   </div>)
   if (est.rent1 || est.rent2) sections.push(<div key="place" className="grid gap-2">
-    <Head icon={MapPin}>{phase.place_label || 'Where'}</Head>
-    <p className="font-semibold">A modest 1-bedroom rents for about <b className="font-extrabold">{est.rent1 ? money(est.rent1.value) : '—'}</b> a month{est.rent2 ? <>; a 2-bedroom about <b className="font-extrabold">{money(est.rent2.value)}</b></> : null}.</p>
+    <Head icon={MapPin}>{phase.place_label || tr('goals.phase_insights.where', 'Where')}</Head>
+    <p className="font-semibold">{tr('goals.phase_insights.a_modest_1_bedroom_rents', 'A modest 1-bedroom rents for about')}{' '}<b className="font-extrabold">{est.rent1 ? money(est.rent1.value) : '—'}</b>{' '}{tr('goals.phase_insights.a_month', 'a month')}{est.rent2 ? <>{tr('goals.phase_insights.a_2_bedroom_about', '; a 2-bedroom about')}{' '}<b className="font-extrabold">{money(est.rent2.value)}</b></> : null}.</p>
     <Src>{srcText((est.rent1 || est.rent2)!)}</Src>
   </div>)
 
   return <section aria-labelledby="phase-insights" className="grid gap-4 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)]">
-    <h2 id="phase-insights" className="text-xl font-extrabold tracking-tight">Insights</h2>
-    {sections.length ? sections.map((s, i) => <div key={i} className={i ? 'border-t-2 border-muted pt-4' : ''}>{s}</div>) : <p className="text-sm text-muted-foreground">Pick a place, a school or a job, and what we know about them shows up here, with where each number comes from.</p>}
+    <h2 id="phase-insights" className="text-xl font-extrabold tracking-tight">{tr('goals.phase_insights.insights', 'Insights')}</h2>
+    {sections.length ? sections.map((s, i) => <div key={i} className={i ? 'border-t-2 border-muted pt-4' : ''}>{s}</div>) : <p className="text-sm text-muted-foreground">{tr('goals.phase_insights.pick_a_place_a_school', 'Pick a place, a school or a job, and what we know about them shows up here, with where each number comes from.')}</p>}
   </section>
 }
 

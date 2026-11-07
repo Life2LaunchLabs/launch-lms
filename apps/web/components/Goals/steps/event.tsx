@@ -12,6 +12,7 @@ import type { EventConfig, Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
 
+import { tr } from '@/lib/tr'
 const RSVP = [['yes', 'Going'], ['maybe', 'Maybe'], ['no', 'Can’t go']] as const
 const today = () => new Date().toLocaleDateString('en-CA')
 
@@ -34,10 +35,10 @@ function AddToCalendar({ step }: { step: Step<'event'> }) {
     setTimeout(() => URL.revokeObjectURL(link.href), 1000)
   }
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><Button type="button" variant="surface" size="sm"><CalendarPlus size={15} aria-hidden="true" />Add to calendar</Button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><Button type="button" variant="surface" size="sm"><CalendarPlus size={15} aria-hidden="true" />{tr('goals.event.add_to_calendar', 'Add to calendar')}</Button></DropdownMenuTrigger>
     <DropdownMenuContent align="start">
-      <DropdownMenuItem asChild><a href={googleCalendarUrl(event)} target="_blank" rel="noreferrer"><CalendarDays size={14} className="mr-2" />Google Calendar</a></DropdownMenuItem>
-      <DropdownMenuItem onSelect={download}><Download size={14} className="mr-2" />Other calendars (.ics)</DropdownMenuItem>
+      <DropdownMenuItem asChild><a href={googleCalendarUrl(event)} target="_blank" rel="noreferrer"><CalendarDays size={14} className="mr-2" />{tr('goals.event.google_calendar', 'Google Calendar')}</a></DropdownMenuItem>
+      <DropdownMenuItem onSelect={download}><Download size={14} className="mr-2" />{tr('goals.event.other_calendars_ics', 'Other calendars (.ics)')}</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 }
@@ -48,11 +49,11 @@ function AddToCalendar({ step }: { step: Step<'event'> }) {
  */
 function Attendance({ step, actions, canWork, staff }: StepCardProps<'event'>) {
   if (staff || step.status === 'submitted' || step.completed_by === 'staff') return <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} />
-  if (step.status === 'completed') return <CardNote icon={Check}>You went.</CardNote>
+  if (step.status === 'completed') return <CardNote icon={Check}>{tr('goals.event.you_went', 'You went.')}</CardNote>
   if (!canWork || step.locked || (step.config.date && step.config.date > today())) return null
   return <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-    <span className="text-muted-foreground">Did you go?</span>
-    <Button type="button" variant="surface" size="sm" disabled={actions.busy} onClick={() => actions.setStatus('completed')}><Check size={14} aria-hidden="true" />{step.review_required ? 'I went, hand it in' : 'I went'}</Button>
+    <span className="text-muted-foreground">{tr('goals.event.did_you_go', 'Did you go?')}</span>
+    <Button type="button" variant="surface" size="sm" disabled={actions.busy} onClick={() => actions.setStatus('completed')}><Check size={14} aria-hidden="true" />{step.review_required ? tr('goals.event.i_went_hand_it_in', 'I went, hand it in') : tr('goals.event.i_went', 'I went')}</Button>
   </div>
 }
 
@@ -81,23 +82,23 @@ function EventCard(props: StepCardProps<'event'>) {
 function EventConfigPanel({ config, onChange }: ConfigPanelProps<'event'>) {
   const set = (patch: Partial<EventConfig>) => onChange({ ...config, ...patch })
   return <div className="grid gap-3 sm:grid-cols-3">
-    <div className="flex flex-col gap-1"><Label htmlFor="event-date">Date</Label><Input id="event-date" type="date" value={config.date || ''} onChange={(event) => set({ date: event.target.value || undefined })} /></div>
-    <div className="flex flex-col gap-1"><Label htmlFor="event-start">Starts</Label><Input id="event-start" type="time" value={(config.start_time || '').slice(0, 5)} onChange={(event) => set({ start_time: event.target.value || undefined })} /></div>
-    <div className="flex flex-col gap-1"><Label htmlFor="event-end">Ends</Label><Input id="event-end" type="time" value={(config.end_time || '').slice(0, 5)} onChange={(event) => set({ end_time: event.target.value || undefined })} /></div>
-    <div className="flex flex-col gap-1 sm:col-span-3"><Label htmlFor="event-place">Place</Label><Input id="event-place" value={config.place || ''} onChange={(event) => set({ place: event.target.value })} /></div>
-    <div className="flex flex-col gap-1 sm:col-span-3"><Label htmlFor="event-link">Link</Label><Input id="event-link" value={config.url || ''} onChange={(event) => set({ url: event.target.value })} placeholder="https://" /></div>
+    <div className="flex flex-col gap-1"><Label htmlFor="event-date">{tr('goals.goal_stages.date', 'Date')}</Label><Input id="event-date" type="date" value={config.date || ''} onChange={(event) => set({ date: event.target.value || undefined })} /></div>
+    <div className="flex flex-col gap-1"><Label htmlFor="event-start">{tr('goals.event.starts', 'Starts')}</Label><Input id="event-start" type="time" value={(config.start_time || '').slice(0, 5)} onChange={(event) => set({ start_time: event.target.value || undefined })} /></div>
+    <div className="flex flex-col gap-1"><Label htmlFor="event-end">{tr('goals.event.ends', 'Ends')}</Label><Input id="event-end" type="time" value={(config.end_time || '').slice(0, 5)} onChange={(event) => set({ end_time: event.target.value || undefined })} /></div>
+    <div className="flex flex-col gap-1 sm:col-span-3"><Label htmlFor="event-place">{tr('goals.event.place', 'Place')}</Label><Input id="event-place" value={config.place || ''} onChange={(event) => set({ place: event.target.value })} /></div>
+    <div className="flex flex-col gap-1 sm:col-span-3"><Label htmlFor="event-link">{tr('goals.event.link', 'Link')}</Label><Input id="event-link" value={config.url || ''} onChange={(event) => set({ url: event.target.value })} placeholder="https://" /></div>
   </div>
 }
 
 function EventSettings({ config, onChange }: ConfigPanelProps<'event'>) {
-  return <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.rsvp} onChange={(event) => onChange({ ...config, rsvp: event.target.checked })} />Ask whether they’re going</label>
+  return <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.rsvp} onChange={(event) => onChange({ ...config, rsvp: event.target.checked })} />{tr('goals.event.ask_whether_they_re_going', 'Ask whether they’re going')}</label>
 }
 
 export const event: StepDefinition<'event'> = {
   type: 'event',
-  label: 'Event',
+  get label() { return tr('goals.event.event', 'Event') },
   color: '#C8327D',
-  hint: 'Something to go to, with a date, place and RSVP.',
+  get hint() { return tr('goals.event.something_to_go_to_with', 'Something to go to, with a date, place and RSVP.') },
   example: 'Job shadow at Riverside Clinic',
   icon: CalendarDays,
   statusLine: (step: Step<'event'>) => {

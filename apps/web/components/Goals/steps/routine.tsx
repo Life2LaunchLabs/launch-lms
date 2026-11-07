@@ -12,6 +12,7 @@ import { RoutineActionInput } from './routineAction'
 import { RoutineChart, RoutineSparkline } from './routineChart'
 import { cleanRoutine, DEFAULT_ROUTINE, RoutineConfigPanel, routineConfig, routineProblem } from './routineEditor'
 
+import { tr } from '@/lib/tr'
 type RoutineResult = Extract<StepResult, { kind: 'routine' }>
 
 const resultOf = (step: Step<'routine'>): RoutineResult | null => (step.result?.kind === 'routine' ? step.result : null)
@@ -57,23 +58,23 @@ function RoutineCard({ step, actions, canWork, staff, compact }: StepCardProps<'
   return <div className="flex flex-col gap-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-[var(--plan-accent)]"><Repeat size={14} aria-hidden="true" />{cadenceText(config)}</span>
-      {result && result.streak >= 2 ? <span className="inline-flex items-center gap-1 text-xs font-extrabold text-muted-foreground"><Flame size={13} aria-hidden="true" />{result.streak} in a row</span> : null}
+      {result && result.streak >= 2 ? <span className="inline-flex items-center gap-1 text-xs font-extrabold text-muted-foreground"><Flame size={13} aria-hidden="true" />{tr('goals.routine.streak_in_a_row', '{{streak}} in a row', { streak: result.streak })}</span> : null}
     </div>
     <StepIntro step={step} />
     <Feedback step={step} />
     {result && result.periods.length > 1 ? <RoutineChart action={config.action} periods={result.periods} current={current} selected={selected} onSelect={setPicked} /> : null}
     {progress}
     {input}
-    {selected !== current ? <button type="button" onClick={() => setPicked(null)} className="self-start text-xs font-bold text-[var(--plan-accent)] underline-offset-2 hover:underline">Back to now</button> : null}
+    {selected !== current ? <button type="button" onClick={() => setPicked(null)} className="self-start text-xs font-bold text-[var(--plan-accent)] underline-offset-2 hover:underline">{tr('goals.routine.back_to_now', 'Back to now')}</button> : null}
     <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} finishLabel="End this routine" />
   </div>
 }
 
 export const routine: StepDefinition<'routine'> = {
   type: 'routine',
-  label: 'Routine',
+  get label() { return tr('goals.routine.routine', 'Routine') },
   color: '#5E9A14',
-  hint: 'A habit logged every day or week, with a chart.',
+  get hint() { return tr('goals.routine.a_habit_logged_every_day', 'A habit logged every day or week, with a chart.') },
   example: 'Log what you spend each day',
   icon: Repeat,
   statusLine: (step) => {

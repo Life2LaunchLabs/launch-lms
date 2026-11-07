@@ -1,6 +1,7 @@
 import type { Activity, LifeDoc, Phase } from '@services/life/life'
 import { trLocale } from '@/lib/tr'
 
+import { tr } from '@/lib/tr'
 /*
  * A plan is a map of phases. Each phase starts on a month and lasts until the next one after it
  * starts. A phase can lead to several (a branch: options you're weighing) and follow several (two
@@ -405,7 +406,7 @@ export function routesFor(career: CareerLike): CareerRoute[] {
   if (jz >= 5) return [{ common: true, steps: [school('College', 4, 'uni'), school('Graduate school', 2, 'grad'), job] }]
   if (jz === 4) return [
     { common: true, steps: [school('College', 4, 'uni'), job] },
-    { why: 'Cheaper first two years, then transfer', steps: [school('Community college', 2, 'cc'), school('University', 2, 'uni'), job] },
+    { why: tr('goals.graph.cheaper_first_two_years_then', 'Cheaper first two years, then transfer'), steps: [school('Community college', 2, 'cc'), school('University', 2, 'uni'), job] },
   ]
   if (jz === 3) {
     if (/^(47|49|51)/.test(career.code)) return [
@@ -413,13 +414,13 @@ export function routesFor(career: CareerLike): CareerRoute[] {
       { steps: [school('Trade school', 1, 'trade'), job] },
     ]
     return [
-      { common: true, why: 'A short program at a community college or training center', steps: [school('Certificate program', 1, 'trade'), job] },
-      { why: 'An associate degree, which can also count toward a 4-year degree later', steps: [school('2-year degree', 2, 'cc'), job] },
-      { why: 'Some people start in a related job', steps: [{ title: 'Entry job', years: 2, living: 'roommates', activities: [{ kind: 'working' }] }, job] },
+      { common: true, why: tr('goals.graph.a_short_program_at_a', 'A short program at a community college or training center'), steps: [school('Certificate program', 1, 'trade'), job] },
+      { why: tr('goals.graph.an_associate_degree_which_can', 'An associate degree, which can also count toward a 4-year degree later'), steps: [school('2-year degree', 2, 'cc'), job] },
+      { why: tr('goals.graph.some_people_start_in_a', 'Some people start in a related job'), steps: [{ title: tr('goals.graph.entry_job', 'Entry job'), years: 2, living: 'roommates', activities: [{ kind: 'working' }] }, job] },
     ]
   }
   return [
-    { common: true, why: 'Most learn on the job', steps: [job] },
+    { common: true, why: tr('goals.graph.most_learn_on_the_job', 'Most learn on the job'), steps: [job] },
     { steps: [school('Short training program', 1, 'trade'), job] },
   ]
 }

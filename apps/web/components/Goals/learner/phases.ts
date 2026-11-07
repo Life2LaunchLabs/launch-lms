@@ -1,6 +1,7 @@
 import type { LifeDoc } from '@services/life/life'
 import { endOf, normalize, whenOf, ym } from '../phases/graph'
 
+import { tr } from '@/lib/tr'
 // Goals live in the phases of the learner's life plan. A goal filed in no phase belongs to the
 // phase they're in now (or the first one, before the plan starts). Without a plan, every goal
 // sits in one group.
@@ -30,7 +31,7 @@ export function phaseOfGoal(doc: LifeDoc | null | undefined, goalUuid: string, t
 /** Goals grouped by phase, in plan order. Past phases show only when they still hold goals. */
 export function groupByPhase<T extends { goal_uuid: string }>(doc: LifeDoc | null | undefined, goals: T[], today = new Date()): PhaseGroup<T>[] {
   const times = phaseTimes(doc, today)
-  if (!times.length) return [{ id: null, title: 'Your goals', when: null, goals }]
+  if (!times.length) return [{ id: null, title: tr('goals.phases.your_goals', 'Your goals'), when: null, goals }]
   return times
     .map(({ phase, when, starts }) => ({ id: phase.id, title: phase.title, when, starts, goals: goals.filter((goal) => phaseOfGoal(doc, goal.goal_uuid, today) === phase.id) }))
     .filter((group) => group.when !== 'done' || group.goals.length)

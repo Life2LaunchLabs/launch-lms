@@ -9,6 +9,7 @@ import { HUB_NEXT_ACTIONS_PATH } from '@services/hub/nextActions'
 import type { Goal, Step } from '@services/goals/types'
 import type { StepActions } from './steps'
 
+import { tr } from '@/lib/tr'
 /**
  * Calls the goal API for one goal and keeps every view of it current: each change returns
  * the whole goal, which replaces the cached goal at once, and the rest of /goals revalidates.
@@ -28,7 +29,7 @@ export function useGoalMutation(goalUuid: string) {
       if (done) toast.success(done)
       return result
     } catch (error: any) {
-      toast.error(error?.message || 'That didn’t work. Try again.')
+      toast.error(error?.message || tr('goals.goal_share_dialog.that_didn_t_work_try', 'That didn’t work. Try again.'))
       throw error
     } finally {
       if (!background) setBusy(false)

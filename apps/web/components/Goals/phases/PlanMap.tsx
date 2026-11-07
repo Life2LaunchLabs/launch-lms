@@ -20,6 +20,7 @@ import {
   byId, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep,
 } from './graph'
 
+import { tr } from '@/lib/tr'
 type Change = (fn: (next: LifeDoc) => void) => Promise<LifeDoc | null>
 /**
  * Where a dragged piece would land: after `at` in line, or as a new option in the split `at`. `home`
@@ -128,8 +129,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   const startMove = (head: string, dragging = false) => { setSheet(null); setPending(null); setMoving({ head, only: true, dragging }) }
   const startNew = (dragging: boolean) => {
     setSheet(null); setPending(null)
-    const loose = loosePiece(doc, [{ title: 'New phase', years: 1 }])
-    setMoving({ head: loose.ids[0], only: false, loose, fresh: true, dragging, label: 'Where does the new phase go?' })
+    const loose = loosePiece(doc, [{ title: tr('goals.pending_card.new_phase', 'New phase'), years: 1 }])
+    setMoving({ head: loose.ids[0], only: false, loose, fresh: true, dragging, label: tr('goals.plan_map.where_does_the_new_phase', 'Where does the new phase go?') })
   }
   const drop = async (at: string, inline: boolean, where: { index?: number; beside?: string } = {}) => {
     if (!moving) return
@@ -158,7 +159,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   }
   /** A new phase straight into a split, from its menu: it waits there for a name. */
   const newOption = (key: string) => {
-    const loose = loosePiece(doc, [{ title: 'New phase', years: 1 }]), id = loose.ids[0], lifted = structuredClone(loose.doc)
+    const loose = loosePiece(doc, [{ title: tr('goals.pending_card.new_phase', 'New phase'), years: 1 }]), id = loose.ids[0], lifted = structuredClone(loose.doc)
     byId(lifted, id)!.starts = ym(freshStart(lifted, key, false))
     setSheet(null); setMoving(null)
     setPending({ doc: undated(place(lifted, [id], key, false), [id]), id, name: '' })
@@ -325,7 +326,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   const routePress = React.useRef<{ x: number; y: number; live: boolean } | null>(null)
   const routeMoving = (dragging: boolean): Moving | null => route ? { head: route.loose.ids[0], only: false, loose: route.loose, route: true, dragging, label: route.title } : null
   const routeCard = route ? <div className="relative">
-    <div role="button" tabIndex={0} aria-label={`${route.title}: drag it into your map, or tap to pick a spot`}
+    <div role="button" tabIndex={0} aria-label={tr('goals.plan_map.title_drag_it_into_your', '{{title}}: drag it into your map, or tap to pick a spot', { title: route.title })}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMoving(routeMoving(false)) } }}
       onPointerDown={(e) => { if (e.button > 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); routePress.current = { x: e.clientX, y: e.clientY, live: false } }}
       onPointerMove={(e) => {
@@ -338,11 +339,11 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       onPointerCancel={() => { routePress.current = null; ghostEnd() }}
       className={cn('grid w-[220px] cursor-grab touch-none select-none gap-1 rounded-[20px] border-[3px] border-dashed border-foreground/50 bg-card p-3 pr-9 text-left shadow-2xl transition-opacity', moving?.dragging && 'opacity-30')}>
       <b className="text-lg font-extrabold leading-tight">{route.title}</b>
-      <small className="text-xs font-bold text-muted-foreground">{route.loose.ids.length === 1 ? '1 phase' : `${route.loose.ids.length} phases`} · drag it into your map</small>
+      <small className="text-xs font-bold text-muted-foreground">{route.loose.ids.length === 1 ? tr('goals.plan_map.1_phase', '1 phase') : `${route.loose.ids.length} phases`}{' '}{tr('goals.plan_map.drag_it_into_your_map', '· drag it into your map')}</small>
     </div>
-    <button type="button" aria-label={`Don’t add ${route.title}`} onClick={() => setRoute(null)} className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted"><X size={15} aria-hidden="true" /></button>
+    <button type="button" aria-label={tr('goals.plan_map.don_t_add_title', 'Don’t add {{title}}', { title: route.title })} onClick={() => setRoute(null)} className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted"><X size={15} aria-hidden="true" /></button>
   </div> : null
-  const newCard = <div role="button" tabIndex={0} aria-label="New phase: drag it into your map, or tap to pick a spot"
+  const newCard = <div role="button" tabIndex={0} aria-label={tr('goals.plan_map.new_phase_drag_it_into', 'New phase: drag it into your map, or tap to pick a spot')}
     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFab(false); startNew(false) } }}
     onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); press.current = { x: e.clientX, y: e.clientY, live: false } }}
     onPointerMove={(e) => {
@@ -354,8 +355,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     onPointerUp={() => { const p = press.current; press.current = null; setFab(false); if (p?.live) ghostEnd(); else if (p) startNew(false) }}
     onPointerCancel={() => { press.current = null; ghostEnd() }}
     className={cn('grid h-[104px] w-[172px] cursor-grab touch-none select-none content-between rounded-[20px] border-[3px] border-dashed border-foreground/50 bg-card p-3 text-left shadow-2xl transition-opacity', moving?.dragging && 'opacity-30')}>
-    <b className="text-lg font-extrabold">New phase</b>
-    <small className="text-xs font-bold text-muted-foreground">Drag it into your map, or tap to pick a spot</small>
+    <b className="text-lg font-extrabold">{tr('goals.pending_card.new_phase', 'New phase')}</b>
+    <small className="text-xs font-bold text-muted-foreground">{tr('goals.plan_map.drag_it_into_your_map_2', 'Drag it into your map, or tap to pick a spot')}</small>
   </div>
 
   if (comparing) return <PlanCompare doc={doc} orgslug={orgslug} token={token} only={comparing} onBack={() => setComparing(null)} />
@@ -379,8 +380,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       </div>
       return <div key={key} data-slot={spot} data-modes={mode} data-title={name} className="flex flex-wrap justify-center gap-1.5 py-2">
         {<>
-          <Target onClick={() => void drop(spot, mode === 'in')}>{mode === 'in' ? 'Here, in line' : `Here, after ${name}`}</Target>
-          {a && b ? <Target alt onClick={() => void drop(spot, false)}><GitBranch size={13} aria-hidden="true" />New option after {a.title}</Target> : null}
+          <Target onClick={() => void drop(spot, mode === 'in')}>{mode === 'in' ? tr('goals.plan_map.here_in_line', 'Here, in line') : tr('goals.plan_map.here_after_name', 'Here, after {{name}}', { name })}</Target>
+          {a && b ? <Target alt onClick={() => void drop(spot, false)}><GitBranch size={13} aria-hidden="true" />{tr('goals.plan_map.new_option_after_title', 'New option after {{title}}', { title: a.title })}</Target> : null}
         </>}
       </div>
     }
@@ -416,7 +417,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const label = `Options after ${after}`
     const out: React.ReactNode[] = [<section key={`b-${key}`} aria-label={label} className="grid min-w-0 grid-cols-[minmax(0,1fr)]" style={wide ? undefined : { marginLeft: -gut.l, marginRight: -gut.r }}>
       <div data-band-key={key} className={cn('flex items-center gap-2 rounded-full py-1.5 transition-colors data-[hot]:bg-foreground/10', wide && 'mx-auto w-full max-w-[620px]')} style={pad}>
-        <span className="shrink-0 text-[13px] font-extrabold text-muted-foreground">Options</span>
+        <span className="shrink-0 text-[13px] font-extrabold text-muted-foreground">{tr('goals.decision.options', 'Options')}</span>
         <div role="tablist" aria-label={label} className="-my-0.5 flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none]">
           {options.map((q) => <button key={q.id} type="button" role="tab" data-chip={q.id} data-held={held.has(q.id) || undefined} aria-selected={q === sel} onClick={() => setShown(key, q.id)}
             className={cn('shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-extrabold data-[ins=l]:!shadow-[-7px_0_0_-3px_hsl(var(--foreground))] data-[ins=r]:!shadow-[7px_0_0_-3px_hsl(var(--foreground))] shadow-[0_0_0_1.5px_hsl(var(--border))]', q === sel ? 'bg-foreground text-background shadow-none' : 'bg-card', q.idea && q !== sel && 'shadow-[0_0_0_1.5px_hsl(var(--border))] [border-style:dashed]')}>{q.title}</button>)}
@@ -424,9 +425,9 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button type="button" aria-label={`More for ${label.toLowerCase()}`} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => newOption(key)}><Plus size={15} aria-hidden="true" />Add an option</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setComparing(options.map((q) => q.id))}><Scale size={15} aria-hidden="true" />Compare</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setRanking({ key, options })}><ArrowUpDown size={15} aria-hidden="true" />Rank</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => newOption(key)}><Plus size={15} aria-hidden="true" />{tr('goals.decision.add_an_option', 'Add an option')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setComparing(options.map((q) => q.id))}><Scale size={15} aria-hidden="true" />{tr('goals.plan_compare.compare', 'Compare')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setRanking({ key, options })}><ArrowUpDown size={15} aria-hidden="true" />{tr('goals.plan_map.rank', 'Rank')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -462,7 +463,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     {mounted ? createPortal(<>
     <div className={cn('fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-4 z-40 flex flex-col items-end gap-3 md:bottom-8 md:right-8', ((moving && !moving.fresh && !moving.route) || (moving && !moving.dragging) || pending) && 'invisible')}>
       {route ? routeCard : fab ? newCard : null}
-      <button type="button" aria-expanded={fab} aria-label={fab ? 'Close' : 'Add a phase'}
+      <button type="button" aria-expanded={fab} aria-label={fab ? tr('goals.explore_board.close', 'Close') : tr('goals.plan_map.add_a_phase', 'Add a phase')}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFab(!fab) } }}
         onPointerDown={(e) => { if (e.button > 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); fabPress.current = { x: e.clientX, y: e.clientY, live: false } }}
         onPointerMove={(e) => {

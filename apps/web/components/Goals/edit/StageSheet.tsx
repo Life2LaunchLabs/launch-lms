@@ -13,6 +13,7 @@ import { useGoalMutation } from '../useGoalActions'
 import EditSheet from './EditSheet'
 import { dateValue } from './stepDrafts'
 
+import { tr } from '@/lib/tr'
 type Clash = { step: Step; clear: { start_date?: null; due_date?: null } }
 
 /**
@@ -75,27 +76,27 @@ export default function StageSheet({ goal, stage, token, color, onClose }: { goa
     } catch { /* toast shown */ }
   }
   if (clashes) {
-    return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title="Which should move?"
+    return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={tr('goals.step_timing.which_should_move', 'Which should move?')}
       description={`Starting ${stage?.title} ${shortDate(start)} leaves ${clashes.length === 1 ? 'a step' : `${clashes.length} steps`} outside ${clashes.length === 1 ? 'its' : 'their'} stage.`}
-      footer={<><Button type="button" variant="ghost" disabled={busy} onClick={() => setClashes(null)}>Keep the stage as it was</Button>
-        <Button type="button" variant="plan" disabled={busy} onClick={() => void save(true)}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Move the steps</Button></>}>
+      footer={<><Button type="button" variant="ghost" disabled={busy} onClick={() => setClashes(null)}>{tr('goals.stage_sheet.keep_the_stage_as_it', 'Keep the stage as it was')}</Button>
+        <Button type="button" variant="plan" disabled={busy} onClick={() => void save(true)}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{tr('goals.stage_sheet.move_the_steps', 'Move the steps')}</Button></>}>
       <ul className="flex flex-col gap-1 text-sm">
         {clashes.map((clash) => <li key={clash.step.step_uuid} className="rounded-xl bg-muted px-3 py-2"><span className="font-bold">{clash.step.title}</span>
-          <span className="block text-xs text-muted-foreground">{[clash.clear.start_date === null ? `opens ${shortDate(clash.step.start_date)}` : '', clash.clear.due_date === null ? `closes ${shortDate(clash.step.due_date)}` : ''].filter(Boolean).join(', ')}; it would go with its stage instead</span></li>)}
+          <span className="block text-xs text-muted-foreground">{[clash.clear.start_date === null ? `opens ${shortDate(clash.step.start_date)}` : '', clash.clear.due_date === null ? `closes ${shortDate(clash.step.due_date)}` : ''].filter(Boolean).join(', ')}{tr('goals.stage_sheet.it_would_go_with_its', '; it would go with its stage instead')}</span></li>)}
       </ul>
     </EditSheet>
   }
-  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={stage ? 'Edit stage' : 'New stage'}
-    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
-      <Button type="button" variant="plan" disabled={busy || !title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{stage ? 'Save' : 'Add stage'}</Button></>}>
+  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={stage ? tr('goals.goal_editing.edit_stage', 'Edit stage') : tr('goals.stage_sheet.new_stage', 'New stage')}
+    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button>
+      <Button type="button" variant="plan" disabled={busy || !title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{stage ? tr('goals.goal_stages.save', 'Save') : tr('goals.stage_sheet.add_stage', 'Add stage')}</Button></>}>
     <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); void save() }}>
-      <div className="flex flex-col gap-1"><Label htmlFor="stage-title">Name</Label>
-        <Input id="stage-title" value={title} disabled={!canName} autoFocus={!stage} onChange={(event) => setTitle(event.target.value)} placeholder="Research, Apply, Decide…" />
+      <div className="flex flex-col gap-1"><Label htmlFor="stage-title">{tr('goals.phase_sheet.name', 'Name')}</Label>
+        <Input id="stage-title" value={title} disabled={!canName} autoFocus={!stage} onChange={(event) => setTitle(event.target.value)} placeholder={tr('goals.stage_sheet.research_apply_decide', 'Research, Apply, Decide…')} />
       </div>
       {canSchedule ? <div className="flex flex-col gap-1">
-        <Label htmlFor="stage-start">Starts <span className="font-normal text-muted-foreground">(optional)</span></Label>
+        <Label htmlFor="stage-start">{tr('goals.event.starts', 'Starts')}{' '}<span className="font-normal text-muted-foreground">{tr('goals.goal_stages.optional', '(optional)')}</span></Label>
         <Input id="stage-start" type="date" value={start} onChange={(event) => setStart(event.target.value)} className="sm:w-56" />
-        <p className="text-xs text-muted-foreground">It runs until the next stage starts. Without a date, it starts when you move on to it.</p>
+        <p className="text-xs text-muted-foreground">{tr('goals.stage_sheet.it_runs_until_the_next', 'It runs until the next stage starts. Without a date, it starts when you move on to it.')}</p>
       </div> : null}
       <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
     </form>

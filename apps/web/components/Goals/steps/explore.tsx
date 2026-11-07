@@ -12,6 +12,7 @@ import { AskCoach, CardNote, Feedback, FinishControls, StepIntro } from './share
 import { evidenceOf, ExploreBoard, KIND, pinned, Thumb, type Evidence } from './exploreBoard'
 import { ExploreSuggestions } from './exploreSuggestions'
 
+import { tr } from '@/lib/tr'
 function ExploreRow({ step }: { step: Step<'explore'> }) {
   const result = step.result?.kind === 'explore' ? step.result : null
   if (!result) return null
@@ -34,11 +35,11 @@ function Outcome({ step, actions, onCancel }: { step: Step<'explore'>; actions: 
     if (await actions.saveSubmission({ answer: outcome.trim() })) await actions.setStatus('completed')
   }
   return <form className="flex flex-col gap-2 rounded-2xl border-2 border-[var(--plan-face)] bg-background p-3" onSubmit={(event) => { event.preventDefault(); void finish() }}>
-    <Label htmlFor={`outcome-${step.step_uuid}`} className="text-sm font-bold">What did you land on?</Label>
-    <Textarea id={`outcome-${step.step_uuid}`} autoFocus rows={3} maxLength={2000} value={outcome} onChange={(event) => setOutcome(event.target.value)} placeholder="What you found out, what you decided, what’s next" />
+    <Label htmlFor={`outcome-${step.step_uuid}`} className="text-sm font-bold">{tr('goals.explore.what_did_you_land_on', 'What did you land on?')}</Label>
+    <Textarea id={`outcome-${step.step_uuid}`} autoFocus rows={3} maxLength={2000} value={outcome} onChange={(event) => setOutcome(event.target.value)} placeholder={tr('goals.explore.what_you_found_out_what', 'What you found out, what you decided, what’s next')} />
     <div className="flex flex-wrap gap-2">
-      <Button type="submit" variant="plan" disabled={actions.busy || !outcome.trim()}><Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : 'Finish'}</Button>
-      <Button type="button" variant="ghost" onClick={onCancel}>Not yet</Button>
+      <Button type="submit" variant="plan" disabled={actions.busy || !outcome.trim()}><Check size={15} aria-hidden="true" />{step.review_required ? tr('goals.shared.hand_in', 'Hand in') : tr('goals.goal_stages.finish', 'Finish')}</Button>
+      <Button type="button" variant="ghost" onClick={onCancel}>{tr('goals.goal_stages.not_yet', 'Not yet')}</Button>
     </div>
   </form>
 }
@@ -54,7 +55,7 @@ function ClosedBoard(props: StepCardProps<'explore'>) {
       <Thumb entry={entry} className="w-full" /><span className="line-clamp-2 px-0.5 text-xs font-bold leading-snug">{entry.title || entry.note || entry.url}</span>
     </button>)}</div> : null}
     {step.answer ? <p className="whitespace-pre-wrap rounded-xl border-l-4 border-[var(--plan-face)] bg-background px-3 py-2 text-sm font-bold">{step.answer}</p> : null}
-    {entries.length ? <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setAll(true)}>See all {entries.length} on the board</Button> : null}
+    {entries.length ? <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setAll(true)}>{tr('goals.explore.see_all_length_on_the', 'See all {{length}} on the board', { length: entries.length })}</Button> : null}
     {all ? <Dialog open onOpenChange={setAll}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader><DialogTitle>{step.title}</DialogTitle></DialogHeader>
@@ -75,22 +76,22 @@ function ExploreCard(props: StepCardProps<'explore'>) {
     <Feedback step={step} />
     {open ? <ExploreBoard step={step} actions={actions} open orgId={goal.org_id} orgslug={orgslug} token={token} viewerUserId={viewerUserId} /> : <ClosedBoard {...props} />}
     {learnerFinishes ? finishing ? <Outcome step={step} actions={actions} onCancel={() => setFinishing(false)} /> : <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <Button type="button" variant="plan" onClick={() => setFinishing(true)}><Check size={15} aria-hidden="true" />Mark done</Button>
+      <Button type="button" variant="plan" onClick={() => setFinishing(true)}><Check size={15} aria-hidden="true" />{tr('goals.shared.mark_done', 'Mark done')}</Button>
       {actions.ask ? <span className="ml-auto"><AskCoach onAsk={actions.ask} /></span> : null}
     </div> : <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} />}
-    {open && !evidenceOf(step).length && !staff ? <CardNote>Collect what you find here, then tap Mark done to say what you made of it.</CardNote> : null}
+    {open && !evidenceOf(step).length && !staff ? <CardNote>{tr('goals.explore.collect_what_you_find_here', 'Collect what you find here, then tap Mark done to say what you made of it.')}</CardNote> : null}
   </div>
 }
 
 function ExploreSettings({ config, onChange }: ConfigPanelProps<'explore'>) {
-  return <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.ratings} onChange={(event) => onChange({ ...config, ratings: event.target.checked })} />Rate each find, 1 to 5 stars</label>
+  return <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.ratings} onChange={(event) => onChange({ ...config, ratings: event.target.checked })} />{tr('goals.explore.rate_each_find_1_to', 'Rate each find, 1 to 5 stars')}</label>
 }
 
 export const explore: StepDefinition<'explore'> = {
   type: 'explore',
-  label: 'Explore',
+  get label() { return tr('goals.explore.explore', 'Explore') },
   color: '#0B8077',
-  hint: 'Research on a board of links, files and notes, ending in what they found.',
+  get hint() { return tr('goals.explore.research_on_a_board_of', 'Research on a board of links, files and notes, ending in what they found.') },
   example: 'Research three jobs in health care',
   icon: Compass,
   statusLine: (step) => {

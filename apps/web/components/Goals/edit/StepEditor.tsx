@@ -12,6 +12,7 @@ import { STEP_TYPE_ORDER, stepDefinition } from '../steps'
 import MaterialsEditor from './MaterialsEditor'
 import StepTiming from './StepTiming'
 
+import { tr } from '@/lib/tr'
 /**
  * One step being written, the same shape wherever steps are edited: a template draft, a live
  * goal (staff or a cohort edit) or a learner's own goal. ``after`` holds template step keys in a
@@ -46,7 +47,7 @@ export function newStepDraft<T extends StepTypeKey>(type: T, title = ''): StepDr
 export function StepTypePicker({ value, onChange, personal = false, types: only }: { value?: StepTypeKey; onChange: (type: StepTypeKey) => void; personal?: boolean; types?: StepTypeKey[] }) { // eslint-disable-line no-unused-vars
   // A learner's own goal can't point at an organization's activities or badges.
   const types = only || (personal ? STEP_TYPE_ORDER.filter((type) => type !== 'activity') : STEP_TYPE_ORDER)
-  return <div role="radiogroup" aria-label="Step type" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+  return <div role="radiogroup" aria-label={tr('goals.step_editor.step_type', 'Step type')} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
     {types.map((type) => {
       const definition = stepDefinition(type)
       const Icon = definition.icon
@@ -112,11 +113,11 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
   const whoMarks = personal ? null : <WhoMarksDone value={value} set={set} finishesItself={!!definition.finishesItself} framed={template} />
   return <div className="flex flex-col gap-4">
     {typeLocked ? null : <StepTypePicker value={value.type} personal={personal} onChange={(type) => type !== value.type && onChange({ ...value, type, config: stepDefinition(type).defaultConfig() })} />}
-    <div className="flex flex-col gap-1.5"><Label htmlFor="step-title">Title</Label><Input id="step-title" value={value.title} onChange={(event) => set({ title: event.target.value })} placeholder={template ? `e.g. ${definition.example}` : 'What needs to happen?'} className={cn(template && 'h-11 text-[15px] font-semibold')} /></div>
-    {shown.details ? <div className="flex flex-col gap-1.5"><Label htmlFor="step-details">{template ? 'Learner instructions' : 'Details'}</Label><Textarea id="step-details" rows={3} value={value.description} onChange={(event) => set({ description: event.target.value })} placeholder={template ? 'What should they do, and why?' : 'Anything that helps'} autoFocus={template && !value.description} /></div> : null}
+    <div className="flex flex-col gap-1.5"><Label htmlFor="step-title">{tr('goals.explore_board.title', 'Title')}</Label><Input id="step-title" value={value.title} onChange={(event) => set({ title: event.target.value })} placeholder={template ? `e.g. ${definition.example}` : tr('goals.step_editor.what_needs_to_happen', 'What needs to happen?')} className={cn(template && 'h-11 text-[15px] font-semibold')} /></div>
+    {shown.details ? <div className="flex flex-col gap-1.5"><Label htmlFor="step-details">{template ? tr('goals.step_editor.learner_instructions', 'Learner instructions') : tr('goals.routine_action.details', 'Details')}</Label><Textarea id="step-details" rows={3} value={value.description} onChange={(event) => set({ description: event.target.value })} placeholder={template ? tr('goals.step_editor.what_should_they_do_and', 'What should they do, and why?') : tr('goals.step_editor.anything_that_helps', 'Anything that helps')} autoFocus={template && !value.description} /></div> : null}
     {ConfigPanel ? <ConfigPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
     {template && shown.materials ? <div className="flex flex-col gap-1.5">
-      <Label htmlFor="step-materials">Materials</Label>
+      <Label htmlFor="step-materials">{tr('goals.step_editor.materials', 'Materials')}</Label>
       <MaterialsEditor id="step-materials" value={value.materials || []} onChange={(materials) => set({ materials })} orgId={orgId} token={token} />
     </div> : null}
     {template && shown.staff ? <StaffGuide value={value} set={set} orgId={orgId} token={token} /> : null}
@@ -128,18 +129,18 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
     {template ? whoMarks : null}
     <details className="group/settings border-t pt-3">
       <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
-        <span>{template ? 'More settings' : 'Settings'}{summary ? <span className="font-normal"> · {summary}</span> : null}</span>
+        <span>{template ? tr('goals.step_editor.more_settings', 'More settings') : tr('goals.step_editor.settings', 'Settings')}{summary ? <span className="font-normal"> · {summary}</span> : null}</span>
         <span aria-hidden="true" className="text-xs transition-transform group-open/settings:rotate-180">▾</span>
       </summary>
       <div className="mt-3 flex flex-col gap-5">
         {SettingsPanel ? <SettingsPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
-        {template || !whoMarks ? null : <Setting title="Who marks it done">{whoMarks}</Setting>}
-        {template ? <Setting title="Timing">
+        {template || !whoMarks ? null : <Setting title={tr('goals.step_editor.who_marks_it_done', 'Who marks it done')}>{whoMarks}</Setting>}
+        {template ? <Setting title={tr('goals.step_editor.timing', 'Timing')}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
+            <div className="flex flex-col gap-1"><Label htmlFor="step-week">{tr('goals.step_editor.due_in_week', 'Due in week')}</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder={tr('goals.step_editor.no_due_week', 'No due week')} /></div>
             <AfterPicker value={value} others={others} set={set} />
           </div>
-        </Setting> : live ? <Setting title="Timing"><StepTiming {...live} value={value} set={set} token={token} /></Setting> : null}
+        </Setting> : live ? <Setting title={tr('goals.step_editor.timing', 'Timing')}><StepTiming {...live} value={value} set={set} token={token} /></Setting> : null}
       </div>
     </details>
   </div>
@@ -153,22 +154,22 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
 function WhoMarksDone({ value, set, finishesItself, framed }: { value: StepDraft; set: (patch: Partial<StepDraft>) => void; finishesItself: boolean; framed: boolean }) { // eslint-disable-line no-unused-vars
   if (finishesItself && framed) return null
   const guidance = value.review_required || value.completed_by === 'staff'
-    ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">Notes for reviewers</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder="What a good one looks like" /></div> : null
+    ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">{tr('goals.step_editor.notes_for_reviewers', 'Notes for reviewers')}</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder={tr('goals.step_editor.what_a_good_one_looks', 'What a good one looks like')} /></div> : null
   const who = <div className="inline-flex flex-wrap gap-0.5 self-start rounded-xl bg-muted p-[3px]">
     {(['learner', 'staff'] as const).map((person) => <button key={person} type="button" aria-pressed={value.completed_by === person} onClick={() => set({ completed_by: person, review_required: person === 'staff' ? false : value.review_required })}
-      className={cn('rounded-[9px] px-3 py-[7px] text-[13px] font-semibold', value.completed_by === person ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{person === 'learner' ? 'The learner' : framed ? 'Staff, like a meeting' : 'Staff'}</button>)}
+      className={cn('rounded-[9px] px-3 py-[7px] text-[13px] font-semibold', value.completed_by === person ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{person === 'learner' ? tr('goals.step_editor.the_learner', 'The learner') : framed ? tr('goals.step_editor.staff_like_a_meeting', 'Staff, like a meeting') : tr('goals.step_editor.staff', 'Staff')}</button>)}
   </div>
   if (!framed) return <>
     {who}
-    {value.completed_by === 'learner' && !finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />Staff review it before it counts</label> : null}
+    {value.completed_by === 'learner' && !finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />{tr('goals.step_editor.staff_review_it_before_it', 'Staff review it before it counts')}</label> : null}
     {guidance}
   </>
   return <>
     {value.completed_by === 'learner' ? <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-border px-3.5 py-3">
-      <span className="min-w-0 flex-1"><b className="block text-sm">Review before it counts</b><span className="text-[12.5px] text-muted-foreground">You approve their work before the step is done</span></span>
-      <Switch checked={value.review_required} onCheckedChange={(checked) => set({ review_required: checked })} aria-label="Review before it counts" className="h-6 w-[42px] data-[state=checked]:bg-emerald-600 [&>span]:h-[18px] [&>span]:w-[18px] [&>span]:data-[state=checked]:translate-x-[18px]" />
+      <span className="min-w-0 flex-1"><b className="block text-sm">{tr('goals.step_editor.review_before_it_counts', 'Review before it counts')}</b><span className="text-[12.5px] text-muted-foreground">{tr('goals.step_editor.you_approve_their_work_before', 'You approve their work before the step is done')}</span></span>
+      <Switch checked={value.review_required} onCheckedChange={(checked) => set({ review_required: checked })} aria-label={tr('goals.step_editor.review_before_it_counts', 'Review before it counts')} className="h-6 w-[42px] data-[state=checked]:bg-emerald-600 [&>span]:h-[18px] [&>span]:w-[18px] [&>span]:data-[state=checked]:translate-x-[18px]" />
     </label> : null}
-    <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Who marks it done</span>{who}</div>
+    <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">{tr('goals.step_editor.who_marks_it_done', 'Who marks it done')}</span>{who}</div>
     {guidance}
   </>
 }
@@ -180,12 +181,12 @@ function WhoMarksDone({ value, set, finishesItself, framed }: { value: StepDraft
 function StaffGuide({ value, set, orgId, token }: { value: StepDraft; set: (patch: Partial<StepDraft>) => void; orgId?: number | null; token?: string }) { // eslint-disable-line no-unused-vars
   return <section aria-labelledby="step-staff-guide" className="flex flex-col gap-3 rounded-xl border border-dashed bg-muted/40 p-3">
     <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-      <Label id="step-staff-guide" htmlFor="step-staff-notes" className="text-sm font-black">Staff guide</Label>
-      <span className="text-xs text-muted-foreground">Only staff see this</span>
+      <Label id="step-staff-guide" htmlFor="step-staff-notes" className="text-sm font-black">{tr('goals.step_editor.staff_guide', 'Staff guide')}</Label>
+      <span className="text-xs text-muted-foreground">{tr('goals.step_editor.only_staff_see_this', 'Only staff see this')}</span>
     </div>
     <Textarea id="step-staff-notes" rows={4} value={value.staff_guide || ''} onChange={(event) => set({ staff_guide: event.target.value })}
-      placeholder="How to run this step: the lesson plan, timing, what to prepare, what to say" className="bg-background font-mono text-[13px]" />
-    <p className="-mt-2 text-xs text-muted-foreground">Markdown works: # headings, - lists, **bold**, links. Staff open it with the files below in one viewer.</p>
+      placeholder={tr('goals.step_editor.how_to_run_this_step', 'How to run this step: the lesson plan, timing, what to prepare, what to say')} className="bg-background font-mono text-[13px]" />
+    <p className="-mt-2 text-xs text-muted-foreground">{tr('goals.step_editor.markdown_works_headings_lists_bold', 'Markdown works: # headings, - lists, **bold**, links. Staff open it with the files below in one viewer.')}</p>
     <MaterialsEditor id="step-staff-materials" value={value.staff_materials || []} onChange={(staff_materials) => set({ staff_materials })} orgId={orgId} token={token} addLabel="Add for staff" />
   </section>
 }
@@ -201,12 +202,12 @@ type TimingProps = { value: StepDraft; others: Array<{ id: string; title: string
 function AfterPicker({ value, others, set }: TimingProps) {
   if (!others.length) return null
   return <div className="flex flex-col gap-1 sm:col-span-2">
-    <Label>Starts after</Label>
+    <Label>{tr('goals.step_editor.starts_after', 'Starts after')}</Label>
     <div className="flex flex-wrap gap-1.5">
       {others.map((other) => {
         const on = value.after.includes(other.id)
         return <button key={other.id} type="button" aria-pressed={on} onClick={() => set({ after: on ? value.after.filter((id) => id !== other.id) : [...value.after, other.id] })}
-          className={cn('max-w-[16rem] truncate rounded-[10px] border-2 px-2.5 py-1 text-xs font-bold', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border text-muted-foreground')}>{other.title || 'Untitled step'}</button>
+          className={cn('max-w-[16rem] truncate rounded-[10px] border-2 px-2.5 py-1 text-xs font-bold', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border text-muted-foreground')}>{other.title || tr('goals.step_editor.untitled_step', 'Untitled step')}</button>
       })}
     </div>
   </div>

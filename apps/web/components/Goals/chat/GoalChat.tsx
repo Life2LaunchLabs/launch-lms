@@ -13,6 +13,7 @@ import ChatWorkspace, { type ChatSource } from '@components/Connect/workspace/Ch
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type GoalChat as GoalChatData } from '@services/connect/connect'
 import { can, type Goal, type Step } from '@services/goals/types'
+import { tr } from '@/lib/tr'
 import './side-chat.css'
 
 /** What a plan's chat is about: one learner's goal. */
@@ -98,8 +99,8 @@ function useGoalScopeChat(goal: Goal | null, token: string | undefined, orgslug:
     const source: ChatSource | null = data.conversation_uuid ? { chatUuid: data.conversation_uuid }
       : staffOrgId && subject?.id && goal.ownership === 'external' && data.title ? { orgId: staffOrgId, userId: subject.id } : null
     if (!source) return null
-    const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
-      : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)), label: `See ${subject.name}’s profile` } : null
+    const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: tr('goals.goal_chat.open_in_connect', 'Open in Connect') }
+      : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)), label: tr('goals.goal_chat.see_name_s_profile', 'See {{name}}’s profile', { name: subject.name }) } : null
     return { key: goal.goal_uuid, chat: data, source, about: goal.title, topicUuid: goal.goal_uuid, elsewhere }
   }, [goal, data, staffOrgId, orgslug])
   return { ready, refresh: mutate }
@@ -132,21 +133,21 @@ function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, onClose }: 
   return createPortal(<aside aria-label={`${chat.chat.title || 'Chat'} about ${chat.about}`} className="side-chat-panel">
     <ChatWorkspace key={`${chat.key}:${stepUuid || ''}`} source={chat.source} orgslug={orgslug} token={token} initialFilter={{ goal_uuid: chat.topicUuid, step_uuid: stepUuid || undefined }}
       onOpenPlan={onOpenPlan}
-      header={(loaded) => <><header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label="Chat navigation">
-        <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onClose} aria-label="Show the page"><ChevronRight className="h-4 w-4" /></Button>
+      header={(loaded) => <><header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label={tr('goals.goal_chat.chat_navigation', 'Chat navigation')}>
+        <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onClose} aria-label={tr('goals.goal_chat.show_the_page', 'Show the page')}><ChevronRight className="h-4 w-4" /></Button>
         <span className="flex min-w-0 items-center gap-1.5 px-1.5 text-sm font-medium" title={loaded?.people.map((person) => person.name).join(', ')}>
           <span className="truncate">{loaded?.title || chat.chat.title}</span>
         </span>
         <div className="flex-1" />
         {elsewhere ? <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Chat options"><MoreHorizontal className="h-4 w-4" /></Button>
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={tr('goals.goal_chat.chat_options', 'Chat options')}><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem asChild><Link href={elsewhere.href}><ArrowUpRight /> {elsewhere.label}</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu> : null}
-        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Close chat"><X className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onClose} aria-label={tr('goals.goal_chat.close_chat', 'Close chat')}><X className="h-4 w-4" /></Button>
       </header></>} />
   </aside>, home)
 }
@@ -155,8 +156,8 @@ function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, onClose }: 
 export function GoalChatChip({ className }: { className: string }) {
   const chat = useGoalChat()
   if (!chat) return null
-  return <button type="button" onClick={() => chat.open(null)} className={className} aria-label={chat.chat.count ? `Chat, ${chat.chat.count} messages about this goal` : 'Chat about this goal'}>
-    <MessageCircle size={15} aria-hidden="true" /><span>Chat</span>{chat.chat.count ? <span className="opacity-70">{chat.chat.count}</span> : null}
+  return <button type="button" onClick={() => chat.open(null)} className={className} aria-label={chat.chat.count ? tr('goals.goal_chat.chat_count_messages_about_this', 'Chat, {{count}} messages about this goal', { count: chat.chat.count }) : tr('goals.goal_chat.chat_about_this_goal', 'Chat about this goal')}>
+    <MessageCircle size={15} aria-hidden="true" /><span>{tr('goals.goal_chat.chat', 'Chat')}</span>{chat.chat.count ? <span className="opacity-70">{chat.chat.count}</span> : null}
   </button>
 }
 

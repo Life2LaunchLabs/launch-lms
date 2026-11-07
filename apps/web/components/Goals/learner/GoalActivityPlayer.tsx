@@ -11,6 +11,7 @@ import { goalActivityApi } from '@services/goals/activity'
 import { isGoalsKey } from '@services/goals/goals'
 import { getUriWithOrg } from '@services/config/config'
 
+import { tr } from '@/lib/tr'
 /** Plays an activity step; finishing it completes the step and returns to the goal. */
 export default function GoalActivityPlayer({ orgslug, goalUuid, stepUuid, activity, initialRun }: { orgslug: string; goalUuid: string; stepUuid: string; activity: any; initialRun: any }) {
   const router = useRouter()
@@ -39,9 +40,9 @@ export default function GoalActivityPlayer({ orgslug, goalUuid, stepUuid, activi
     const result = getActivityResult(run)
     // An activity with an ending screen has already told them how it went.
     if (activity.settings?.design?.ending) { /* nothing more to say */ }
-    else if (result?.status === 'pending') toast.success('Activity submitted for review.')
-    else if (result?.status === 'failed') toast.error(grading.failure_message || 'Activity finished. Review your answers and try again when you are ready.')
-    else toast.success(grading.success_message || 'Step done. Nice work.')
+    else if (result?.status === 'pending') toast.success(tr('goals.goal_activity_player.activity_submitted_for_review', 'Activity submitted for review.'))
+    else if (result?.status === 'failed') toast.error(grading.failure_message || tr('goals.goal_activity_player.activity_finished_review_your_answers', 'Activity finished. Review your answers and try again when you are ready.'))
+    else toast.success(grading.success_message || tr('goals.goal_activity_player.step_done_nice_work', 'Step done. Nice work.'))
     void mutate((key) => isGoalsKey(key))
     router.replace(goalHref)
     router.refresh()

@@ -10,6 +10,7 @@ import type { GoalIcon, GoalSummary } from '@services/goals/types'
 import type { BadgeSummary } from '@services/badges/badges'
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
 
+import { tr } from '@/lib/tr'
 export type GoalBadge = BadgeSummary | null
 /** What a goal's header needs: the goal list's summary, filled in by the full goal once it loads. */
 export type HeaderGoal = {
@@ -84,8 +85,8 @@ export function GoalHeaderCard({ goal, done, total, actions, pending = false }: 
     <Settle className="mt-4 flex flex-col gap-4">
       {goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.organization ? <Tx text={goal.description} /> : goal.description}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
-        <GoalProgress percent={percent} label="Goal progress" />
-        <span className="text-xs font-bold">{done} of {total} done</span>
+        <GoalProgress percent={percent} label={tr('goals.goal_header.goal_progress', 'Goal progress')} />
+        <span className="text-xs font-bold">{tr('goals.goal_header.done_of_total_done', '{{done}} of {{total}} done', { done, total })}</span>
       </div>
       {pending ? <div className="flex h-10 gap-2" aria-hidden="true"><span className="w-32 rounded-xl bg-black/15 motion-safe:animate-pulse" /><span className="flex-1" /><span className="w-10 rounded-xl bg-black/15 motion-safe:animate-pulse" /></div> : actions}
     </Settle>
@@ -117,7 +118,7 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
     <Settle className="flex min-w-0 flex-1 flex-col gap-1">
       {source ? <span className="truncate text-[11px] font-extrabold uppercase tracking-wider opacity-80">{source}</span> : null}
       <span className="truncate text-sm font-extrabold leading-tight">{goal.organization ? <Tx text={goal.title} /> : goal.title}</span>
-      {goal.status === 'draft' ? <span className="text-[11px] font-bold opacity-90">Finish setting up</span>
+      {goal.status === 'draft' ? <span className="text-[11px] font-bold opacity-90">{tr('goals.goal_header.finish_setting_up', 'Finish setting up')}</span>
         : <span className="flex items-center gap-2"><GoalProgress thin percent={percent} label={`${goal.title} progress`} /><span className="text-[11px] font-bold tabular-nums opacity-90">{percent}%</span></span>}
     </Settle>
   </motion.button>
@@ -138,7 +139,7 @@ export function GoalTabs({ goals, getGoalColor, choose, onIntent, children, labe
 function GoalPeek({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color: string; onChoose: () => void; onIntent?: () => void }) {
   const percent = Math.round(summaryPercent(goal))
   return <motion.button type="button" layoutId={goalMorphId(goal.goal_uuid)} transition={GOAL_MORPH} data-plan-card={goal.goal_uuid} onClick={onChoose} onPointerEnter={onIntent} onFocus={onIntent} onTouchStart={onIntent}
-    aria-label={`Open ${goal.title}, ${percent}% done`} style={{ ...planVars(color), borderRadius: 24 }}
+    aria-label={tr('goals.goal_header.open_title_percent_done', 'Open {{title}}, {{percent}}% done', { title: goal.title, percent })} style={{ ...planVars(color), borderRadius: 24 }}
     className="flex w-[86%] shrink-0 snap-center flex-col bg-[var(--plan-deep)] p-5 text-left text-[var(--plan-deep-ink)] opacity-70 shadow-[0_6px_0_var(--plan-deep-edge)] transition-opacity hover:opacity-100 md:w-14 md:px-0 md:py-5 md:opacity-90">
     <Settle className="flex flex-1 flex-col justify-end gap-3 md:items-center md:justify-start">
       <span className="text-xl font-extrabold leading-tight md:hidden">{goal.title}</span>

@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast'
 import { lifeApi, lifeUrl, type LifeDoc } from '@services/life/life'
 import { newDoc } from '@components/LifePlan/model'
 
+import { tr } from '@/lib/tr'
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 
 /**
@@ -28,8 +29,8 @@ export default function useLifePlan(token?: string) {
       await mutate({ plan: res.plan }, { revalidate: false })
       return res.plan.document
     } catch (e: any) {
-      if (e?.status === 409) { toast.error('Your plan changed in another window. Loading the newest version.'); await mutate() }
-      else toast.error("Couldn't save your plan. Try again in a moment.")
+      if (e?.status === 409) { toast.error(tr('goals.use_life_plan.your_plan_changed_in_another', 'Your plan changed in another window. Loading the newest version.')); await mutate() }
+      else toast.error(tr('goals.use_life_plan.couldn_t_save_your_plan', 'Couldn\'t save your plan. Try again in a moment.'))
       return null
     } finally { setBusy(false) }
   }, [doc, data, token, mutate])

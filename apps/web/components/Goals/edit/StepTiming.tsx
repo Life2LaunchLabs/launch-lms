@@ -13,6 +13,7 @@ import { shortDate } from '../path/stepText'
 import { useGoalMutation } from '../useGoalActions'
 import type { StepDraft } from './StepEditor'
 
+import { tr } from '@/lib/tr'
 type Side = 'open' | 'close'
 const PLAN_VARS = ['--plan-face', '--plan-edge', '--plan-face-ink', '--plan-accent']
 type View = 'menu' | 'date' | 'after' | 'clash'
@@ -34,7 +35,7 @@ type TimingProps = {
  * Open can instead wait on another step; the ones it can't wait on show why.
  */
 export default function StepTiming(props: TimingProps) {
-  return <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Timing">
+  return <div className="flex flex-wrap items-center gap-2" role="group" aria-label={tr('goals.step_editor.timing', 'Timing')}>
     <TimingChip side="open" {...props} />
     <TimingChip side="close" {...props} />
   </div>
@@ -94,38 +95,38 @@ function TimingChip({ side, goal, stageUuid, stepUuid, value, set, token }: Timi
       <button ref={trigger} type="button" aria-label={`${side === 'open' ? 'Opens' : 'Closes'}: ${label}`}
         className={cn('flex min-h-9 max-w-full items-center gap-1.5 rounded-full border-2 px-3 text-sm transition hover:border-[var(--plan-face)] data-[state=open]:border-[var(--plan-face)]',
           own || waitsFor ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_12%,hsl(var(--card)))]' : 'border-border')}>
-        <span className="font-semibold text-muted-foreground">{side === 'open' ? 'Opens' : 'Closes'}</span>
+        <span className="font-semibold text-muted-foreground">{side === 'open' ? tr('goals.step_timing.opens', 'Opens') : tr('goals.step_timing.closes', 'Closes')}</span>
         <span className="truncate font-bold">{label}</span>
         <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
       </button>
     </PopoverTrigger>
     <PopoverContent align="start" className="w-80 p-2" style={shade}>
       {view === 'menu' ? <div role="menu" className="flex flex-col">
-        <Option on={!own && !waitsFor} title={side === 'open' ? (stage ? 'Start of stage' : 'Any time') : stage ? 'End of stage' : 'With the goal'}
-          hint={edge ? shortDate(edge) : side === 'open' ? 'When the goal moves on to this stage' : 'When the next stage starts'}
+        <Option on={!own && !waitsFor} title={side === 'open' ? (stage ? tr('goals.step_timing.start_of_stage', 'Start of stage') : tr('goals.step_timing.any_time', 'Any time')) : stage ? tr('goals.step_timing.end_of_stage', 'End of stage') : tr('goals.step_timing.with_the_goal', 'With the goal')}
+          hint={edge ? shortDate(edge) : side === 'open' ? tr('goals.step_timing.when_the_goal_moves_on', 'When the goal moves on to this stage') : tr('goals.step_timing.when_the_next_stage_starts', 'When the next stage starts')}
           onClick={() => { set(side === 'open' ? { start_date: null, after: [] } : { due_date: null }); close() }} />
-        <Option on={Boolean(own)} title="On a date…" hint={own ? shortDate(own) : undefined} icon={<CalendarDays size={15} />} onClick={() => { setDate(own || edge || ''); setView('date') }} />
-        {side === 'open' ? <Option on={Boolean(waitsFor)} title="After another step…" hint={waitsFor?.step.title} icon={<Link2 size={15} />} onClick={() => setView('after')} /> : null}
+        <Option on={Boolean(own)} title={tr('goals.step_timing.on_a_date', 'On a date…')} hint={own ? shortDate(own) : undefined} icon={<CalendarDays size={15} />} onClick={() => { setDate(own || edge || ''); setView('date') }} />
+        {side === 'open' ? <Option on={Boolean(waitsFor)} title={tr('goals.step_timing.after_another_step', 'After another step…')} hint={waitsFor?.step.title} icon={<Link2 size={15} />} onClick={() => setView('after')} /> : null}
       </div> : null}
 
       {view === 'date' ? <form className="flex flex-col gap-2 p-1" onSubmit={(event) => { event.preventDefault(); pick() }}>
-        <Back onClick={() => setView('menu')}>{side === 'open' ? 'Opens on' : 'Closes on'}</Back>
-        <Input type="date" autoFocus aria-label={side === 'open' ? 'Open date' : 'Close date'} value={date} onChange={(event) => setDate(event.target.value)} />
-        {backwards ? <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{side === 'open' ? 'That’s after it closes.' : 'That’s before it opens.'}</p> : null}
-        <Button type="submit" variant="plan" size="sm" disabled={!date || backwards}>Set date</Button>
+        <Back onClick={() => setView('menu')}>{side === 'open' ? tr('goals.step_timing.opens_on', 'Opens on') : tr('goals.step_timing.closes_on', 'Closes on')}</Back>
+        <Input type="date" autoFocus aria-label={side === 'open' ? tr('goals.step_timing.open_date', 'Open date') : tr('goals.step_timing.close_date', 'Close date')} value={date} onChange={(event) => setDate(event.target.value)} />
+        {backwards ? <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{side === 'open' ? tr('goals.step_timing.that_s_after_it_closes', 'That’s after it closes.') : tr('goals.step_timing.that_s_before_it_opens', 'That’s before it opens.')}</p> : null}
+        <Button type="submit" variant="plan" size="sm" disabled={!date || backwards}>{tr('goals.step_timing.set_date', 'Set date')}</Button>
       </form> : null}
 
       {view === 'clash' && clash ? <div className="flex flex-col gap-2 p-1">
-        <p className="text-sm font-bold">{clash.side === 'before' ? `That’s before ${stage?.title} starts (${shortDate(clash.stepDate)}).` : `That’s after ${stage?.title} ends (${shortDate(clash.stepDate)}).`}</p>
-        <p className="text-sm text-muted-foreground">Which should move?</p>
+        <p className="text-sm font-bold">{clash.side === 'before' ? tr('goals.step_timing.that_s_before_title_starts', 'That’s before {{title}} starts ({{shortDate}}).', { title: stage?.title, shortDate: shortDate(clash.stepDate) }) : tr('goals.step_timing.that_s_after_title_ends', 'That’s after {{title}} ends ({{shortDate}}).', { title: stage?.title, shortDate: shortDate(clash.stepDate) })}</p>
+        <p className="text-sm text-muted-foreground">{tr('goals.step_timing.which_should_move', 'Which should move?')}</p>
         <Button type="button" variant="surface" size="sm" className="justify-start" disabled={busy} onClick={() => { setOwn(clash.stepDate === edge ? null : clash.stepDate); close() }}>
-          Keep the step in its stage ({shortDate(clash.stepDate)})
+          {tr('goals.step_timing.keep_the_step_in_its', 'Keep the step in its stage ({{shortDate}})', { shortDate: shortDate(clash.stepDate) })}
         </Button>
         {canMoveStage ? <Button type="button" variant="plan" size="sm" className="justify-start" disabled={busy} onClick={() => void moveStage(clash)}>
           {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-          {clash.move.kind === 'stage' ? `Start ${clash.move.stage.title} ${shortDate(clash.move.start_date)}` : `Move the goal’s target to ${shortDate(clash.move.target_date)}`}
+          {clash.move.kind === 'stage' ? `Start ${clash.move.stage.title} ${shortDate(clash.move.start_date)}` : tr('goals.step_timing.move_the_goal_s_target', 'Move the goal’s target to {{shortDate}}', { shortDate: shortDate(clash.move.target_date) })}
         </Button> : null}
-        <Button type="button" variant="ghost" size="sm" onClick={() => setView('date')}>Pick another date</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setView('date')}>{tr('goals.step_timing.pick_another_date', 'Pick another date')}</Button>
       </div> : null}
 
       {view === 'after' ? <AfterList goal={goal} stageUuid={stageUuid} stepUuid={stepUuid} closes={value.due_date} query={query} setQuery={setQuery} chosen={value.after}
@@ -159,21 +160,21 @@ function AfterList({ goal, stageUuid, stepUuid, closes, query, chosen, setQuery,
   const needle = query.trim().toLowerCase()
   const choices = afterChoices(goal, stageUuid, stepUuid, closes).filter((item) => !needle || item.step.title.toLowerCase().includes(needle))
   return <div className="flex flex-col gap-2 p-1">
-    <Back onClick={onBack}>Opens after</Back>
+    <Back onClick={onBack}>{tr('goals.step_timing.opens_after', 'Opens after')}</Back>
     <div className="relative"><Search size={14} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a step" aria-label="Find a step" className="pl-8" />
+      <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr('goals.step_timing.find_a_step', 'Find a step')} aria-label={tr('goals.step_timing.find_a_step', 'Find a step')} className="pl-8" />
     </div>
-    <ul role="listbox" aria-label="Steps" className="flex max-h-64 flex-col overflow-y-auto">
+    <ul role="listbox" aria-label={tr('goals.step_timing.steps', 'Steps')} className="flex max-h-64 flex-col overflow-y-auto">
       {choices.length ? choices.map(({ step, stage, reason }) => <li key={step.step_uuid}>
         <button type="button" role="option" aria-selected={chosen.includes(step.step_uuid)} aria-disabled={Boolean(reason)} disabled={Boolean(reason)} onClick={() => onPick(step.step_uuid)}
           className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left enabled:hover:bg-muted disabled:cursor-not-allowed">
           <span className="min-w-0 flex-1">
-            <span className={cn('block truncate text-sm font-bold', reason && 'text-muted-foreground/70')}>{step.title || 'Untitled step'}</span>
-            <span className="block truncate text-xs text-muted-foreground">{reason || stage?.title || 'More steps'}</span>
+            <span className={cn('block truncate text-sm font-bold', reason && 'text-muted-foreground/70')}>{step.title || tr('goals.step_editor.untitled_step', 'Untitled step')}</span>
+            <span className="block truncate text-xs text-muted-foreground">{reason || stage?.title || tr('goals.step_timing.more_steps', 'More steps')}</span>
           </span>
           {chosen.includes(step.step_uuid) ? <Check size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--plan-accent)]" /> : null}
         </button>
-      </li>) : <li className="px-2 py-3 text-sm text-muted-foreground">No steps match.</li>}
+      </li>) : <li className="px-2 py-3 text-sm text-muted-foreground">{tr('goals.step_timing.no_steps_match', 'No steps match.')}</li>}
     </ul>
   </div>
 }

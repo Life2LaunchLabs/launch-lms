@@ -9,6 +9,7 @@ import { goalSteps, type DecisionConfig, type DecisionOption, type Step } from '
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
 
+import { tr } from '@/lib/tr'
 type Choice = { choices: string[]; other: string; supporting_step_uuids?: string[] }
 const choiceOf = (step: Step<'decision'>): Choice => ({ choices: step.submission?.choices || [], other: step.submission?.other || '', ...(step.submission?.supporting_step_uuids?.length ? { supporting_step_uuids: step.submission.supporting_step_uuids } : {}) })
 const MIN_OPTIONS = 2
@@ -49,21 +50,21 @@ function DecisionCard({ goal, step, actions, canWork, staff }: StepCardProps<'de
     <StepIntro step={step} />
     <Feedback step={step} />
     {supporting.length ? <div className="flex flex-col gap-1.5">
-      <p className="text-xs font-extrabold text-muted-foreground">{step.status === 'completed' ? 'What this was based on' : 'What you found'}</p>
+      <p className="text-xs font-extrabold text-muted-foreground">{step.status === 'completed' ? tr('goals.decision.what_this_was_based_on', 'What this was based on') : tr('goals.decision.what_you_found', 'What you found')}</p>
       {supporting.map((item) => <a key={item.step_uuid} href={`#step-${item.step_uuid}`} className="rounded-xl border-l-4 border-[var(--plan-face)] bg-background px-3 py-2 text-sm">
         <span className="block text-xs font-bold text-muted-foreground">{item.title}</span>
         {item.answer || (item.result?.kind === 'text' ? item.result.text : '')}
       </a>)}
     </div> : null}
-    <div role={config.multiple ? 'group' : 'radiogroup'} aria-label="Options" className="flex flex-col gap-1.5">
+    <div role={config.multiple ? 'group' : 'radiogroup'} aria-label={tr('goals.decision.options', 'Options')} className="flex flex-col gap-1.5">
       {config.options.map((option) => { const on = draft.choices.includes(option.key); return <button key={option.key} type="button" role={config.multiple ? 'checkbox' : 'radio'} aria-checked={on} disabled={!open} onClick={() => toggle(option.key)}
         className={cn('flex items-center gap-3 rounded-xl border-2 px-3 py-2 text-left text-sm font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'bg-background enabled:hover:border-[var(--plan-face)]')}>
         <Mark on={on} multiple={config.multiple} />{option.label}
       </button> })}
       {config.allow_other !== false && open ? <form className={cn('flex items-center gap-3 rounded-xl border-2 px-3 py-1', draft.other.trim() ? 'border-[var(--plan-face)]' : 'border-dashed')} onSubmit={(event) => { event.preventDefault(); void save(draft) }}>
         <Mark on={Boolean(draft.other.trim())} multiple={config.multiple} />
-        <Input value={draft.other} onChange={(event) => writeIn(event.target.value)} onBlur={() => void save(draft)} maxLength={300} aria-label="Your own choice"
-          placeholder={config.options.length ? 'Something else' : 'Your choice'} className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" />
+        <Input value={draft.other} onChange={(event) => writeIn(event.target.value)} onBlur={() => void save(draft)} maxLength={300} aria-label={tr('goals.decision.your_own_choice', 'Your own choice')}
+          placeholder={config.options.length ? tr('goals.decision.something_else', 'Something else') : tr('goals.decision.your_choice', 'Your choice')} className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" />
       </form> : !open && saved.other ? <p className="flex items-center gap-3 rounded-xl border-2 border-[var(--plan-face)] px-3 py-2 text-sm font-bold"><Mark on multiple={config.multiple} />{saved.other}</p> : null}
     </div>
     <FinishControls step={step} canWork={canWork} staff={staff} blocker={!chosen ? 'Make a choice first' : null}
@@ -77,7 +78,7 @@ function DecisionConfigPanel({ config, onChange }: ConfigPanelProps<'decision'>)
   const rows: DecisionOption[] = [...options, ...Array.from({ length: Math.max(0, MIN_OPTIONS - options.length) }, () => ({ key: '', label: '' }))]
   const setRow = (index: number, label: string) => onChange({ ...config, options: rows.map((item, at) => ({ key: item.key || `option_${Date.now().toString(36)}_${at}`, label: at === index ? label : item.label })) })
   return <div className="flex flex-col gap-1.5">
-    <Label>Options</Label>
+    <Label>{tr('goals.decision.options', 'Options')}</Label>
     <ol className="flex flex-col gap-1.5 border-l-2 border-[color-mix(in_srgb,var(--plan-face)_40%,transparent)] pl-3">
       {rows.map((option, index) => <li key={index} className="flex items-center gap-2 rounded-xl border-2 bg-background px-3 py-1">
         <Mark on={false} multiple={config.multiple} />
@@ -87,14 +88,14 @@ function DecisionConfigPanel({ config, onChange }: ConfigPanelProps<'decision'>)
       </li>)}
     </ol>
     <button type="button" onClick={() => onChange({ ...config, options: [...rows.map((item, at) => ({ ...item, key: item.key || `option_${Date.now().toString(36)}_${at}` })), { key: `option_${Date.now().toString(36)}_${rows.length}`, label: '' }] })}
-      className="ml-3 self-start text-xs font-bold text-[var(--plan-accent)]">Add an option</button>
+      className="ml-3 self-start text-xs font-bold text-[var(--plan-accent)]">{tr('goals.decision.add_an_option', 'Add an option')}</button>
   </div>
 }
 
 function DecisionSettings({ config, onChange }: ConfigPanelProps<'decision'>) {
   return <div className="flex flex-col gap-2">
-    <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.multiple} onChange={(event) => onChange({ ...config, multiple: event.target.checked })} />More than one can be picked</label>
-    <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={config.allow_other !== false} onChange={(event) => onChange({ ...config, allow_other: event.target.checked })} />They can write in their own</label>
+    <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.multiple} onChange={(event) => onChange({ ...config, multiple: event.target.checked })} />{tr('goals.decision.more_than_one_can_be', 'More than one can be picked')}</label>
+    <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={config.allow_other !== false} onChange={(event) => onChange({ ...config, allow_other: event.target.checked })} />{tr('goals.decision.they_can_write_in_their', 'They can write in their own')}</label>
   </div>
 }
 
@@ -102,9 +103,9 @@ const cleanOptions = (config: DecisionConfig): DecisionConfig => ({ ...config, o
 
 export const decision: StepDefinition<'decision'> = {
   type: 'decision',
-  label: 'Decision',
+  get label() { return tr('goals.decision.decision', 'Decision') },
   color: '#C77A0E',
-  hint: 'Choose between options, like which pathway to follow.',
+  get hint() { return tr('goals.decision.choose_between_options_like_which', 'Choose between options, like which pathway to follow.') },
   example: 'Pick a career area to explore',
   icon: Signpost,
   RowResult: DecisionRow,

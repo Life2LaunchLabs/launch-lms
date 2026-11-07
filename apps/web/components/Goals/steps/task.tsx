@@ -8,6 +8,7 @@ import type { Step } from '@services/goals/types'
 import type { StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
 
+import { tr } from '@/lib/tr'
 const listOf = (step: Step<'task'>) => step.config.list
 const items = (step: Step<'task'>) => step.entries.filter((entry) => entry.kind === 'item')
 
@@ -37,17 +38,17 @@ function TaskCard({ step, actions, canWork, staff }: StepCardProps<'task'>) {
     <Feedback step={step} />
     {list ? <div className="flex flex-col gap-2">
       {/* The count already sits in the step's status line, right above. */}
-      <p className="text-xs font-extrabold text-muted-foreground">{list.label || 'Your list'}</p>
+      <p className="text-xs font-extrabold text-muted-foreground">{list.label || tr('goals.task.your_list', 'Your list')}</p>
       {entries.length ? <ul className="flex flex-col gap-1.5">
         {entries.map((entry) => <li key={entry.entry_uuid} className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2 text-sm">
-          <button type="button" disabled={!open} aria-label={entry.done ? 'Mark not done' : 'Mark done'} onClick={() => actions.updateEntry(entry.entry_uuid, { done: !entry.done })} className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border-2', entry.done ? 'border-[var(--plan-face)] bg-[var(--plan-face)] text-[var(--plan-face-ink)]' : 'border-border')}>{entry.done ? <Check size={12} strokeWidth={3.5} /> : null}</button>
+          <button type="button" disabled={!open} aria-label={entry.done ? tr('goals.task.mark_not_done', 'Mark not done') : tr('goals.shared.mark_done', 'Mark done')} onClick={() => actions.updateEntry(entry.entry_uuid, { done: !entry.done })} className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border-2', entry.done ? 'border-[var(--plan-face)] bg-[var(--plan-face)] text-[var(--plan-face-ink)]' : 'border-border')}>{entry.done ? <Check size={12} strokeWidth={3.5} /> : null}</button>
           {entry.url ? <a href={entry.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-semibold underline-offset-2 hover:underline">{entry.title || entry.url}</a> : <span className="min-w-0 flex-1 truncate font-semibold">{entry.title}</span>}
-          {open ? <button type="button" aria-label="Remove" onClick={() => actions.deleteEntry(entry.entry_uuid)} className="text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+          {open ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => actions.deleteEntry(entry.entry_uuid)} className="text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
         </li>)}
       </ul> : null}
       {open ? <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); add() }}>
-        <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={list.item_kind === 'link' ? 'Paste a link' : 'Add an item'} />
-        <button type="submit" disabled={actions.busy || !draft.trim()} aria-label="Add" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-[var(--plan-accent)] disabled:opacity-40"><Plus size={16} /></button>
+        <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={list.item_kind === 'link' ? tr('goals.explore_add.paste_a_link', 'Paste a link') : tr('goals.upload.add_an_item', 'Add an item')} />
+        <button type="submit" disabled={actions.busy || !draft.trim()} aria-label={tr('goals.upload.add', 'Add')} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-[var(--plan-accent)] disabled:opacity-40"><Plus size={16} /></button>
       </form> : null}
     </div> : null}
     <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} blocker={target && entries.length < target ? `Add ${target - entries.length} more first` : null} />
@@ -56,9 +57,9 @@ function TaskCard({ step, actions, canWork, staff }: StepCardProps<'task'>) {
 
 export const task: StepDefinition<'task'> = {
   type: 'task',
-  label: 'Task',
+  get label() { return tr('goals.task.task', 'Task') },
   color: '#2F66D6',
-  hint: 'Something to do and tick off. Add a checklist if it has parts.',
+  get hint() { return tr('goals.task.something_to_do_and_tick', 'Something to do and tick off. Add a checklist if it has parts.') },
   example: 'Open a savings account',
   icon: SquareCheck,
   statusLine: (step) => {

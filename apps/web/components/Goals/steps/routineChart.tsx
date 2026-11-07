@@ -6,6 +6,7 @@ import type { RoutineAction, RoutinePeriod } from '@services/goals/types'
 import { progressText } from '@services/goals/routine'
 import { shortDate } from '../path/stepText'
 
+import { tr } from '@/lib/tr'
 // One colour per named line; the first is the plan's own.
 const LINE_COLORS = ['var(--plan-face)', 'hsl(var(--foreground) / 0.55)', '#e9a23b', '#4aa3df', '#c66bd6', '#5cb85c']
 const STRIPES = 'repeating-linear-gradient(135deg, var(--plan-face) 0 4px, color-mix(in srgb, var(--plan-face) 45%, transparent) 4px 8px)'
@@ -24,7 +25,7 @@ export function RoutineChart({ action, periods, current, selected, onSelect }: P
   const series = action.series?.length ? action.series : ['']
   return <div className="flex flex-col gap-1">
     <div className="relative h-24">
-      <div className="absolute inset-0 flex items-end gap-1" role="group" aria-label="Past times">
+      <div className="absolute inset-0 flex items-end gap-1" role="group" aria-label={tr('goals.routine_chart.past_times', 'Past times')}>
         {periods.map((period) => {
           const on = period.start === selected
           const met = period.done >= period.wanted
@@ -40,7 +41,7 @@ export function RoutineChart({ action, periods, current, selected, onSelect }: P
       {action.kind === 'number' ? <Lines periods={periods} series={series} /> : null}
     </div>
     <div className="flex justify-between text-[11px] font-bold text-muted-foreground" aria-hidden="true">
-      <span>{periods.length > 1 ? shortDate(periods[0].start) : ''}</span><span>Now</span>
+      <span>{periods.length > 1 ? shortDate(periods[0].start) : ''}</span><span>{tr('goals.routine_chart.now', 'Now')}</span>
     </div>
     {action.kind === 'number' && series.length > 1 ? <div className="flex flex-wrap gap-3 text-xs font-semibold text-muted-foreground">
       {series.map((name, index) => <span key={name} className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded-full" style={{ background: LINE_COLORS[index % LINE_COLORS.length] }} />{name}</span>)}
