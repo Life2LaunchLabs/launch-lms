@@ -82,6 +82,8 @@ export interface LifeDoc {
   policies?: Policy[]
   /** The learner's rate for the card that covers being short, percent a year. */
   card_rate?: number | null
+  /** The learner said "don't ask": estimate changes from a new place, living or job apply on their own. */
+  auto_estimates?: boolean
 }
 
 export interface LifePlanView { plan_uuid: string; revision: number; document: LifeDoc; update_date: string }

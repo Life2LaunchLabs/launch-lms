@@ -78,6 +78,9 @@ export interface LineValue {
   calc: string | null
 }
 
+/** Costs a household splits: the line's `share` setting divides them. */
+export const SHARED_METRICS = ['rent', 'utilities']
+
 export function lineValue(line: Line, est: Estimate | null | undefined): LineValue {
   let estMonthly: number | null = null
   let calc: string | null = null
@@ -86,7 +89,7 @@ export function lineValue(line: Line, est: Estimate | null | undefined): LineVal
     estMonthly = toMonthly(est.value, est.period, hours)
     if (est.period === 'hr') calc = `${money(est.value, { cents: true })} an hour × ${hours} hours a week`
     const share = Number(line.settings?.share || 1)
-    if (est.metric === 'rent' && share > 1) { estMonthly = estMonthly / share; calc = `${money(est.value)} split ${share} ways` }
+    if (SHARED_METRICS.includes(est.metric) && share > 1) { estMonthly = estMonthly / share; calc = `${money(toMonthly(est.value, est.period))} split ${share} ways` }
   }
   if (line.own) return { monthly: toMonthly(line.own.value, line.own.unit, line.own.hours ?? line.hours), mine: true, estMonthly, calc }
   return { monthly: estMonthly, mine: false, estMonthly, calc }

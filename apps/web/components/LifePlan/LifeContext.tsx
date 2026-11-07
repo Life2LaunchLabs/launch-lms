@@ -25,6 +25,8 @@ export interface LifeCtx {
   openLine: string | null
   setOpenLine: (id: string | null) => void
   openAdd: (side: 'in' | 'out', cat?: string) => void
+  /** Estimates for this phase's picks: start the budget from them, or fill in what's missing. */
+  openEstimates?: () => void
   /** Someone else's plan, shared with you: shown as theirs, with nothing to add or change. */
   readOnly?: boolean
 }

@@ -1,20 +1,21 @@
 'use client'
 
 import React from 'react'
-import { ChevronDown, Info, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Info, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { lifeApi, type Estimate, type Line, type Occupation, type Unit } from '@services/life/life'
 import { useLife } from './LifeContext'
+import { isWide } from './EstimatesDialog'
 import { LifeIcon } from './icons'
 import { estimateTax, isTaxable, monthlyTax, stateName, stateOf, type Filing } from './tax'
-import { DEFAULT_HOURS, PER_WORD, activeAt, fromMonthly, money, monthLabel, phaseOffset, toMonthly } from './model'
+import { DEFAULT_HOURS, PER_WORD, SHARED_METRICS, activeAt, fromMonthly, money, monthLabel, phaseOffset, toMonthly } from './model'
 
 const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')); return Number.isFinite(v) && v >= 0 ? v : null }
 const fmt = (v: number, cents = false) => v.toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 })
 
 /** Income and expenses for the stretch in view, grouped like the Add tray. */
 export default function BudgetTable() {
-  const { doc, phase, stretch, catalog, valueOf, per, openAdd, projection, readOnly } = useLife()
+  const { doc, phase, stretch, catalog, valueOf, per, openAdd, openEstimates, projection, readOnly } = useLife()
   const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({})
   const lines = phase.lines.filter((l) => activeAt(l, stretch.m0))
   const total = (side: 'in' | 'out') => lines.filter((l) => l.side === side).reduce((a, l) => a + (valueOf(phase, l).monthly ?? 0), 0)
@@ -37,7 +38,8 @@ export default function BudgetTable() {
           </button>
           <span className="flex items-baseline gap-2">
             {side === 'in' && pay > 0 && <span className="text-xs font-semibold text-muted-foreground">after tax</span>}
-            <b className={`text-lg font-extrabold tabular-nums ${side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{side === 'out' && value > 0.5 ? '−' : ''}{money(fromMonthly(value, per))}</b>
+            <b className={`text-lg font-extrabold tabular-nums ${side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{side === 'out' && value > 0.5 ? '−' : ''}{money(fromMonthly(value, per))}<Per per={per} /></b>
+            <span className="w-9 shrink-0" aria-hidden="true" />
           </span>
         </div>
         {side === 'in' && pay > 0 && <TaxLine pay={pay} tax={tax} />}
@@ -66,18 +68,27 @@ export default function BudgetTable() {
 
   return (
     <div className="overflow-hidden rounded-2xl bg-card shadow-[0_1px_0_hsl(var(--border))]">
+      {!phase.lines.length && !readOnly && openEstimates ? <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-[color-mix(in_srgb,var(--org-primary-color)_8%,transparent)] px-4 py-4 sm:px-5">
+        <span className="min-w-0"><b className="block text-base font-extrabold">Start your budget</b><span className="text-sm text-muted-foreground">We’ll suggest lines and amounts from where you live, how you live and what you’re doing.</span></span>
+        <Button variant="brand" size="sm" onClick={openEstimates}><Sparkles size={15} />See estimates</Button>
+      </div> : null}
       {section('in', 'Income', inn)}
       {section('out', 'Expenses', out)}
       <div className={`px-4 py-4 sm:px-5 ${left >= 0 ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-base font-extrabold">{left >= 0 ? `Left over each ${PER_WORD[per]}` : `Short each ${PER_WORD[per]}`}</span>
-          <b className="text-xl font-extrabold tabular-nums">{left >= 0 ? '+' : '−'}{money(Math.abs(fromMonthly(left, per)))}</b>
+          <span className="flex items-baseline"><b className="text-xl font-extrabold tabular-nums">{left >= 0 ? '+' : '−'}{money(Math.abs(fromMonthly(left, per)))}</b><span className="w-9 shrink-0" aria-hidden="true" /></span>
         </div>
         {(debtPay > 0 || saving > 0) && <p className="mt-1 text-xs font-semibold opacity-80">After {[debtPay > 0 && `${money(fromMonthly(debtPay, per))} to debt`, saving > 0 && `${money(fromMonthly(saving, per))} into savings`].filter(Boolean).join(' and ')}. What's left goes into your savings account.</p>}
       </div>
       <p className="sr-only">{monthLabel(doc.start, phaseOffset(doc, phase.id))}</p>
     </div>
   )
+}
+
+/** The muted "/mo" after an amount. */
+function Per({ per }: { per: string }) {
+  return <span className="ml-px text-[0.78em] font-normal text-muted-foreground">/{per}</span>
 }
 
 const pct = (r: number) => `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`
@@ -153,15 +164,30 @@ function Row({ line }: { line: Line }) {
   const est = estimates[`${phase.id}:${line.id}`]
   const sign = line.side === 'out' ? '−' : ''
   const value = v.monthly == null ? null : fromMonthly(v.monthly, per)
+  const [src, setSrc] = React.useState(false)
+  const onEst = !line.own && !!est
+  const wide = onEst && isWide(est)
+  // Your own number far from ours: say so on the line.
+  const far = line.own && v.monthly != null && v.estMonthly != null && Math.abs(v.monthly - v.estMonthly) > Math.max(25, v.estMonthly * 0.15)
   return (
     <div id={`row-${line.id}`} className="border-b border-border/70 last:border-b-0">
-      <button type="button" aria-expanded={open} onClick={() => setOpenLine(open ? null : line.id)} className="flex w-full items-center gap-3 py-3 text-left">
-        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} /></span>
-        <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
-        {!open && (value == null
-          ? <span className="text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : 'Add your number'}</span>
-          : <span className={`font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{sign}{money(value)}</span>)}
-      </button>
+      <div className="flex w-full items-center gap-3">
+        <button type="button" aria-expanded={open} onClick={() => setOpenLine(open ? null : line.id)} className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left">
+          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} /></span>
+          <span className="min-w-0 flex-1">
+            <span className={`block truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
+            {far && !open ? <small className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400"><AlertTriangle className="size-3" aria-hidden="true" />{v.monthly! < v.estMonthly! ? 'Much lower' : 'Much higher'} than our {money(fromMonthly(v.estMonthly!, per))} estimate</small> : null}
+          </span>
+          {!open && (value == null
+            ? <span className="text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : 'Add your number'}</span>
+            : <span className={`font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{sign}{money(value)}<Per per={per} /></span>)}
+        </button>
+        <span className="inline-flex w-9 shrink-0 items-center justify-end gap-px">
+          {wide && !open ? <span className="font-bold text-amber-600 dark:text-amber-400" aria-label="Not for your city">*</span> : null}
+          {onEst && !open ? <button type="button" onClick={() => setSrc(!src)} aria-expanded={src} aria-label={`Where ${line.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
+        </span>
+      </div>
+      {src && onEst && !open ? <p className="mb-2 ml-11 mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground"><b className="text-foreground">{est!.source.title}</b>, {est!.source.publisher}. {est!.label}{est!.place_label ? `, ${est!.place_label}` : ''}.{wide ? ` * Not for ${est!.asked_place_label || 'your city'} itself: this is the ${est!.level === 'us' ? 'national' : 'state'} figure.` : ''}</p> : null}
       {open && <RowEditor line={line} est={est ?? null} hasMetric={!!item?.metric} />}
     </div>
   )
@@ -260,8 +286,8 @@ function EstimateView({ est, line }: { est: Estimate; line: Line }) {
   const v = valueOf(phase, line)
   const p = est.percentiles
   const hours = line.hours ?? DEFAULT_HOURS
-  const conv = (x: number) => fromMonthly(toMonthly(x, est.period, hours) / (est.metric === 'rent' ? Number(line.settings?.share || 1) : 1), per)
-  const what = est.metric === 'rent' ? `${est.stat ? `${est.stat.charAt(0).toUpperCase()}${est.stat.slice(1)}` : 'Rent'} for ${est.dims.bedrooms === 0 ? 'a studio' : `a ${est.dims.bedrooms} bedroom`}` : `${est.stat === 'median' ? 'Median pay' : 'Pay'} for ${est.label.toLowerCase()}`
+  const conv = (x: number) => fromMonthly(toMonthly(x, est.period, hours) / (SHARED_METRICS.includes(est.metric) ? Number(line.settings?.share || 1) : 1), per)
+  const what = est.metric === 'rent' ? `${est.stat ? `${est.stat.charAt(0).toUpperCase()}${est.stat.slice(1)}` : 'Rent'} for ${est.dims.bedrooms === 0 ? 'a studio' : `a ${est.dims.bedrooms} bedroom`}` : est.metric === 'wage' ? `${est.stat === 'median' ? 'Median pay' : 'Pay'} for ${est.label.toLowerCase()}` : est.label
   return (
     <div className="mt-1">
       <div className="flex items-baseline gap-1.5"><b className="text-sm font-bold tabular-nums text-muted-foreground">{money(fromMonthly(v.estMonthly ?? 0, per))}</b><span className="text-xs text-muted-foreground">a {PER_WORD[per]}</span></div>

@@ -19,6 +19,8 @@ import { OneTimeCard } from './MoneyCards'
 import { YouOwnCard } from './YouOwn'
 import { SavingsDebtCard } from './SavingsDebt'
 import AddTray, { type AddTarget } from './AddTray'
+import EstimatesDialog from './EstimatesDialog'
+import { Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
@@ -45,6 +47,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   const [sel, setSel] = React.useState<{ phase: string; i: number } | null>(phaseId ? { phase: phaseId, i: 0 } : null)
   const [openLine, setOpenLine] = React.useState<string | null>(null)
   const [add, setAdd] = React.useState<AddTarget | null>(null)
+  const [estOpen, setEstOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (!data || ready) return
@@ -122,6 +125,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
     updatePhase: (fn) => { const next = clone(doc); const p = next.phases.find((x) => x.id === phase.id); if (p) fn(p); commit(mergeRoute(full!, next)) },
     openLine, setOpenLine, readOnly: Boolean(of),
     openAdd: (side, cat) => setAdd({ side, cat }),
+    openEstimates: of ? undefined : () => setEstOpen(true),
   }
 
   return (
@@ -131,10 +135,13 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
         <PhaseChart />
         <div className="mb-3 mt-8 flex items-center justify-between gap-3">
           <h2 className="text-2xl font-extrabold tracking-tight">Budget</h2>
+          <div className="ml-auto flex items-center gap-2">
+          {of || !phase.lines.length ? null : <Button variant="ghost" size="sm" onClick={() => setEstOpen(true)}><Sparkles size={15} />Estimates</Button>}
           <div className="flex rounded-full bg-muted p-1" role="group" aria-label="Show amounts per">
             {(['wk', 'mo', 'yr'] as Per[]).map((p) => (
               <button key={p} type="button" onClick={() => setPer(p)} aria-pressed={per === p} className={`rounded-full px-3 py-1 text-sm font-semibold ${per === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>{p === 'wk' ? 'Week' : p === 'mo' ? 'Month' : 'Year'}</button>
             ))}
+          </div>
           </div>
         </div>
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
@@ -149,6 +156,8 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
         </p>
       </div>
       {of ? null : <AddTray target={add} onClose={() => setAdd(null)} />}
+      {of || !estOpen ? null : <EstimatesDialog open mode={phase.lines.length ? 'fill' : 'start'} base={null} phase={phase} catalog={catalog} token={token}
+        onApply={(lines) => ctx.updatePhase((p) => { p.lines = lines })} onClose={() => setEstOpen(false)} />}
     </LifeContext.Provider>
   )
 }

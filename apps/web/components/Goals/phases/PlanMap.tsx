@@ -15,7 +15,7 @@ import MoveBar, { type Moving } from './MoveBar'
 import { PhaseCard, RankSheet, Target, Tray, type Env } from './MapParts'
 import { PendingCard } from './PendingCard'
 import { pagePinned, scrollSpeed } from './dragPage'
-import { kindFor, seedLines, suggestTitle } from './setup'
+import { kindFor, suggestTitle } from './setup'
 import {
   byId, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep,
 } from './graph'
@@ -186,9 +186,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     for (const id of pending.ids || [pending.id]) {
       const p = byId(kept, id)
       if (!p) continue
-      // Named for what it is when no name was typed; its budget starts from what was picked.
+      // Named for what it is when no name was typed. Its budget starts empty: the phase page offers estimates.
       if (!pending.ids) { if (p.activities?.length) p.kind = kindFor(p.activities); p.title = pending.name.trim() || (p.activities?.length || p.living || p.place_label ? suggestTitle(p) : 'New phase') }
-      p.lines = seedLines(p)
     }
     setPending(null)
     await change((next) => { Object.assign(next, kept) })
