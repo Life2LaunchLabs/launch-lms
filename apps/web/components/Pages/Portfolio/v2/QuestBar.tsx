@@ -20,7 +20,7 @@ function Gauge({ percent, color, children, size = 'h-6 w-6' }: { percent: number
   </span>
 }
 
-const LOCKED_LABEL = { 1: 'Share', 2: 'Résumé', 3: 'Mastery' } as const
+const LOCKED_LABEL = { get 1() { return tr('lit.quest_bar.share', 'Share') }, 2: 'Résumé', get 3() { return tr('lit.quest_bar.mastery', 'Mastery') } } as const
 
 /** The action a quest unlocks, while it's locked or just unlocked. It opens and closes the quest banner. */
 export function QuestButton({ stage, open, onToggle }: { stage: Stage; open: boolean; onToggle: () => void }) {
@@ -38,9 +38,9 @@ export function QuestButton({ stage, open, onToggle }: { stage: Stage; open: boo
 }
 
 const UNLOCKS = {
-  1: { get title() { return tr('portfolio.quest_bar.sharing_unlocked', 'Sharing unlocked!') }, body: 'Your portfolio is private until you make it public.', action: 'Make it public' },
-  2: { get title() { return tr('portfolio.quest_bar.r_sum_unlocked', 'Résumé unlocked!') }, body: 'It builds itself from everything in your portfolio.', action: 'Open my résumé' },
-  3: { get title() { return tr('portfolio.quest_bar.you_earned_the_mastery_badge', 'You earned the mastery badge!') }, body: 'It shows next to your name for anyone who sees your portfolio.', action: 'Nice' },
+  1: { get title() { return tr('portfolio.quest_bar.sharing_unlocked', 'Sharing unlocked!') }, get body() { return tr('lit.quest_bar.your_portfolio_is_private_until', 'Your portfolio is private until you make it public.') }, get action() { return tr('lit.quest_bar.make_it_public', 'Make it public') } },
+  2: { get title() { return tr('portfolio.quest_bar.r_sum_unlocked', 'Résumé unlocked!') }, get body() { return tr('lit.quest_bar.it_builds_itself_from_everything', 'It builds itself from everything in your portfolio.') }, get action() { return tr('lit.quest_bar.open_my_r_sum', 'Open my résumé') } },
+  3: { get title() { return tr('portfolio.quest_bar.you_earned_the_mastery_badge', 'You earned the mastery badge!') }, get body() { return tr('lit.quest_bar.it_shows_next_to_your', 'It shows next to your name for anyone who sees your portfolio.') }, get action() { return tr('lit.quest_bar.nice', 'Nice') } },
 } as const
 
 function ItemRow({ item, onItem }: { item: QuestItem; onItem: (key: string) => void }) { // eslint-disable-line no-unused-vars

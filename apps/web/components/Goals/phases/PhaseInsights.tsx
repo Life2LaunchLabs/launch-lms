@@ -9,11 +9,11 @@ import { levelOf } from './setup'
 
 import { tr } from '@/lib/tr'
 const TRAINING: Record<number, string> = {
-  1: 'Little or no training: most people learn on the job',
-  2: 'Usually a high school diploma',
-  3: 'Training after high school: a certificate, an associate’s degree or an apprenticeship',
-  4: 'Usually a bachelor’s degree',
-  5: 'Usually a graduate degree',
+  get 1() { return tr('lit.phase_insights.little_or_no_training_most', 'Little or no training: most people learn on the job') },
+  get 2() { return tr('lit.phase_insights.usually_a_high_school_diploma', 'Usually a high school diploma') },
+  get 3() { return tr('lit.phase_insights.training_after_high_school_a', 'Training after high school: a certificate, an associate’s degree or an apprenticeship') },
+  get 4() { return tr('lit.phase_insights.usually_a_bachelor_s_degree', 'Usually a bachelor’s degree') },
+  get 5() { return tr('lit.phase_insights.usually_a_graduate_degree', 'Usually a graduate degree') },
 }
 // O*NET titles are mostly plural already, and a place label can be a whole area.
 const plural = (name: string) => /s$/i.test(name) ? name : `${name}s`

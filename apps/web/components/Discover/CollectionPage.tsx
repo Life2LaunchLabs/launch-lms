@@ -23,7 +23,7 @@ export default function CollectionPage({ orgslug, initialCollection }: { orgslug
   const collection = feed?.collections.find((item) => item.collection_uuid === initialCollection.collection_uuid) || initialCollection
   const next = collection.plans.find((card) => card.state === 'joined') || collection.plans.find((card) => card.state === 'none')
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
-    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
+    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel={tr('lit.plan_page.discover', 'Discover')} onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
     <section className="relative overflow-hidden bg-muted">
       <div className="absolute inset-0 bg-[url('/landing/cta.png')] bg-cover bg-center opacity-50" aria-hidden="true" />
       <div className="relative mx-auto max-w-[1056px] px-4 pb-14 pt-6 sm:px-6">

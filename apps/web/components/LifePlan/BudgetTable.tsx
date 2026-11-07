@@ -73,8 +73,8 @@ export default function BudgetTable() {
         <span className="min-w-0"><b className="block text-base font-extrabold">{tr('budget.budget_table.start_your_budget', 'Start your budget')}</b><span className="text-sm text-muted-foreground">{tr('budget.budget_table.we_ll_suggest_lines_and', 'We’ll suggest lines and amounts from where you live, how you live and what you’re doing.')}</span></span>
         <Button variant="brand" size="sm" onClick={openEstimates}><Sparkles size={15} />{tr('budget.budget_table.see_estimates', 'See estimates')}</Button>
       </div> : null}
-      {section('in', 'Income', inn)}
-      {section('out', 'Expenses', out)}
+      {section('in', tr('lit.budget_table.income', 'Income'), inn)}
+      {section('out', tr('lit.budget_table.expenses', 'Expenses'), out)}
       <div className={`px-4 py-4 sm:px-5 ${left >= 0 ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-base font-extrabold">{left >= 0 ? `Left over each ${PER_WORD[per]}` : `Short each ${PER_WORD[per]}`}</span>
@@ -134,7 +134,7 @@ function TaxLine({ pay, tax }: { pay: number; tax: number }) {
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="mr-1 text-xs font-semibold text-muted-foreground">{tr('budget.budget_table.filing', 'Filing')}</span>
-              {([['single', 'Single'], ['joint', 'Married, filing together']] as [Filing, string][]).map(([k, t]) => (
+              {([['single', tr('lit.budget_table.single', 'Single')], ['joint', tr('lit.budget_table.married_filing_together', 'Married, filing together')]] as [Filing, string][]).map(([k, t]) => (
                 <button key={k} type="button" aria-pressed={filing === k} disabled={readOnly} onClick={() => setTax({ filing: k })} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${filing === k ? 'bg-card text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>
               ))}
             </div>
@@ -289,7 +289,7 @@ function EstimateView({ est, line }: { est: Estimate; line: Line }) {
   const p = est.percentiles
   const hours = line.hours ?? DEFAULT_HOURS
   const conv = (x: number) => fromMonthly(toMonthly(x, est.period, hours) / (SHARED_METRICS.includes(est.metric) ? Number(line.settings?.share || 1) : 1), per)
-  const what = est.metric === 'rent' ? `${est.stat ? `${est.stat.charAt(0).toUpperCase()}${est.stat.slice(1)}` : 'Rent'} for ${est.dims.bedrooms === 0 ? 'a studio' : `a ${est.dims.bedrooms} bedroom`}` : est.metric === 'wage' ? `${est.stat === 'median' ? 'Median pay' : 'Pay'} for ${est.label.toLowerCase()}` : est.label
+  const what = est.metric === 'rent' ? `${est.stat ? `${est.stat.charAt(0).toUpperCase()}${est.stat.slice(1)}` : tr('lit.prefill.rent', 'Rent')} for ${est.dims.bedrooms === 0 ? 'a studio' : `a ${est.dims.bedrooms} bedroom`}` : est.metric === 'wage' ? `${est.stat === 'median' ? tr('lit.budget_table.median_pay', 'Median pay') : tr('lit.budget_table.pay', 'Pay')} for ${est.label.toLowerCase()}` : est.label
   return (
     <div className="mt-1">
       <div className="flex items-baseline gap-1.5"><b className="text-sm font-bold tabular-nums text-muted-foreground">{money(fromMonthly(v.estMonthly ?? 0, per))}</b><span className="text-xs text-muted-foreground">a {PER_WORD[per]}</span></div>

@@ -29,7 +29,7 @@ const STORY = [
 ] as const
 
 const textOf = (project: Project | undefined, type: string) => String(project?.blocks.find((block) => block.block_type === type)?.data?.text || '')
-const links = (entry: TimelineEntry) => (entry.projects || []).map((item: any) => ({ project_uuid: item.project_uuid, relationship_label: item.relationship_label || 'Related to this experience' }))
+const links = (entry: TimelineEntry) => (entry.projects || []).map((item: any) => ({ project_uuid: item.project_uuid, relationship_label: item.relationship_label || tr('lit.experience_page.related_to_this_experience', 'Related to this experience') }))
 
 export function ProjectPage({ project, timeline, orgslug, experience: askedExperience, mark, quotes = [], contacts = [], portfolioUuid }: { project?: Project; timeline: TimelineEntry[]; orgslug: string; experience?: string; mark?: string; quotes?: Quote[]; contacts?: Contact[]; portfolioUuid?: string }) {
   const session = useLHSession() as any
@@ -56,7 +56,7 @@ export function ProjectPage({ project, timeline, orgslug, experience: askedExper
     for (const entry of timeline) {
       const had = links(entry).filter((item) => item.project_uuid !== uuid)
       if (entry.timeline_uuid === partOf) await updatePortfolioTimeline(entry.timeline_uuid, { revision: entry.revision, project_links: had }, token)
-      if (entry.timeline_uuid === experience) await updatePortfolioTimeline(entry.timeline_uuid, { revision: entry.revision, project_links: [...had, { project_uuid: uuid, relationship_label: 'Related to this experience' }] }, token)
+      if (entry.timeline_uuid === experience) await updatePortfolioTimeline(entry.timeline_uuid, { revision: entry.revision, project_links: [...had, { project_uuid: uuid, relationship_label: tr('lit.experience_page.related_to_this_experience', 'Related to this experience') }] }, token)
     }
   }
 
@@ -94,7 +94,7 @@ export function ProjectPage({ project, timeline, orgslug, experience: askedExper
 
   async function remove() {
     if (!project || !token) return
-    if (!await ask.confirm({ title: tr('portfolio.experience_page.delete_title', 'Delete {{title}}?', { title: project.title }), body: 'It comes off your portfolio and your résumés. This can’t be undone.', action: 'Delete', danger: true })) return
+    if (!await ask.confirm({ title: tr('portfolio.experience_page.delete_title', 'Delete {{title}}?', { title: project.title }), body: tr('lit.experience_page.it_comes_off_your_portfolio', 'It comes off your portfolio and your résumés. This can’t be undone.'), action: tr('lit.experience_page.delete', 'Delete'), danger: true })) return
     try { await deletePortfolioProject(project.project_uuid, project.revision, token); router.push(list); router.refresh() } catch (error: any) { toast.error(error?.message || tr('portfolio.experience_page.could_not_delete_this', 'Could not delete this')) }
   }
 
@@ -103,7 +103,7 @@ export function ProjectPage({ project, timeline, orgslug, experience: askedExper
   return <main className="min-h-screen bg-background pb-24 text-foreground" data-project-page={project ? 'edit' : 'new'}>
     <form onSubmit={submit} onChange={() => setDirty(true)} className="mx-auto grid max-w-[760px] gap-7 px-4 pt-2 sm:px-6">
       <div>
-        <ItemHero back={list} backLabel="Projects" cover={<KindCover kind="project" url={coverUrl ? normalizeMediaUrl(coverUrl) : ''} />} onCover={() => { setOpen((now) => ({ ...now, photos: true })); setPicker(true) }}>
+        <ItemHero back={list} backLabel={tr('lit.portfolio_projects.projects', 'Projects')} cover={<KindCover kind="project" url={coverUrl ? normalizeMediaUrl(coverUrl) : ''} />} onCover={() => { setOpen((now) => ({ ...now, photos: true })); setPicker(true) }}>
           {project ? <button type="button" onClick={() => void remove()} className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="h-4 w-4" />{tr('portfolio.experience_page.delete', 'Delete')}</button> : null}
         </ItemHero>
         <div className="mt-5 grid gap-2">

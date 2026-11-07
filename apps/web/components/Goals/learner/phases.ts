@@ -1,7 +1,7 @@
 import type { LifeDoc } from '@services/life/life'
 import { endOf, normalize, whenOf, ym } from '../phases/graph'
 
-import { tr } from '@/lib/tr'
+import { tr, trLocale } from '@/lib/tr'
 // Goals live in the phases of the learner's life plan. A goal filed in no phase belongs to the
 // phase they're in now (or the first one, before the plan starts). Without a plan, every goal
 // sits in one group.
@@ -37,9 +37,10 @@ export function groupByPhase<T extends { goal_uuid: string }>(doc: LifeDoc | nul
     .filter((group) => group.when !== 'done' || group.goals.length)
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// Short month names in the current language ("Jan", "ene").
+const shortMonth = (index: number) => new Intl.DateTimeFormat(trLocale(), { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, index, 1))).replace('.', '')
 /** "Sep 2026" from "2026-09". */
-export const monthName = (value: string) => { const [year, month] = value.split('-').map(Number); return `${MONTHS[month - 1]} ${year}` }
+export const monthName = (value: string) => { const [year, month] = value.split('-').map(Number); return `${shortMonth(month - 1)} ${year}` }
 /** A phase's span in years for its card: "2026–2029", or "2026" when it starts and ends in one year. */
 export const phaseYears = (time: Pick<PhaseTime, 'starts' | 'ends'>) => {
   const a = time.starts.slice(0, 4), b = time.ends.slice(0, 4)

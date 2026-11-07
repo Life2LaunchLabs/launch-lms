@@ -127,7 +127,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
 
   const remove = async () => {
     const goals = here.length ? ` Its ${here.length === 1 ? 'goal moves' : `${here.length} goals move`} to the phase you’re in.` : ''
-    if (!phase.idea && !(await ask.confirm({ title: tr('goals.phase_page.remove_title', 'Remove "{{title}}"?', { title: phase.title }), body: `Its budget and the one-time money in it go too.${goals}`, action: 'Remove phase', danger: true }))) return
+    if (!phase.idea && !(await ask.confirm({ title: tr('goals.phase_page.remove_title', 'Remove "{{title}}"?', { title: phase.title }), body: `Its budget and the one-time money in it go too.${goals}`, action: tr('lit.phase_page.remove_phase', 'Remove phase'), danger: true }))) return
     const saved = await change((next) => { Object.assign(next, removePhase(normalize(next), phase.id)) })
     if (saved) router.push(getUriWithOrg(orgslug, routePaths.org.plans()))
   }
@@ -154,7 +154,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
               {phase.idea ? <DropdownMenuItem onSelect={() => { void edit((p) => { p.idea = false }) }}>{tr('goals.phase_page.make_it_real', 'Make it real')}</DropdownMenuItem> : null}
               <DropdownMenuItem asChild><Link href={mapHref}>{tr('goals.phase_page.add_a_phase_on_the', 'Add a phase on the map')}</Link></DropdownMenuItem>
               <DropdownMenuItem disabled={viewerUserId === undefined || uploading} onSelect={() => fileInput.current?.click()}>{phase.cover ? tr('goals.phase_page.change_your_photo', 'Change your photo') : tr('goals.phase_page.use_your_own_photo', 'Use your own photo')}</DropdownMenuItem>
-              {phase.cover ? <DropdownMenuItem onSelect={() => { void edit((p) => { p.cover = null }) }}>{phase.place && photos?.[phase.place] ? 'Use the photo of ' + (phase.place_label || 'the place') : tr('goals.phase_page.remove_your_photo', 'Remove your photo')}</DropdownMenuItem> : null}
+              {phase.cover ? <DropdownMenuItem onSelect={() => { void edit((p) => { p.cover = null }) }}>{phase.place && photos?.[phase.place] ? tr('lit.phase_page.use_the_photo_of', 'Use the photo of ') + (phase.place_label || 'the place') : tr('goals.phase_page.remove_your_photo', 'Remove your photo')}</DropdownMenuItem> : null}
               {time.when === 'now' || time.when === 'done' ? null : <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onSelect={() => { void remove() }}>{tr('goals.phase_page.remove_this_phase', 'Remove this phase')}</DropdownMenuItem></>}
             </DropdownMenuContent>
           </DropdownMenu>} />
@@ -257,8 +257,8 @@ function careerGaps(doc: LifeDoc, phase: Phase, careers: Career[]): { title: str
     if (!c?.job_zone || a.apprentice || !prev) continue
     const name = c.title.split(/,| and /)[0].trim()
     const school = (title: string, level: string) => (d: LifeDoc) => addBetween(d, prev.id, phase.id, { title, idea: true, activities: [{ kind: 'learning', level, schools: [] }], living: level === 'uni' ? 'dorm' : prev.living }).doc
-    if (c.job_zone >= 4 && !learned((lv) => lv === 'uni' || lv === 'grad')) out.push({ title: `${name}s usually need a ${c.job_zone >= 5 ? 'graduate' : 'bachelor’s'} degree`, body: `Your way here goes from ${prev.title} straight to this job.`, fix: school('College', 'uni') })
-    else if (c.job_zone === 3 && !learned((lv) => !!lv && !['middle', 'high'].includes(lv))) out.push({ title: `${name}s usually need training after high school`, body: 'A certificate, a 2-year degree or an apprenticeship.', fix: school('Training', 'trade') })
+    if (c.job_zone >= 4 && !learned((lv) => lv === 'uni' || lv === 'grad')) out.push({ title: `${name}s usually need a ${c.job_zone >= 5 ? 'graduate' : 'bachelor’s'} degree`, body: `Your way here goes from ${prev.title} straight to this job.`, fix: school(tr('lit.graph.college', 'College'), 'uni') })
+    else if (c.job_zone === 3 && !learned((lv) => !!lv && !['middle', 'high'].includes(lv))) out.push({ title: `${name}s usually need training after high school`, body: 'A certificate, a 2-year degree or an apprenticeship.', fix: school(tr('lit.phase_page.training', 'Training'), 'trade') })
   }
   return out
 }
@@ -306,7 +306,7 @@ function Cover({ time, menu, photos, uploading, pop, setPop, onRename }: { time:
           className="w-[min(100%,520px)] rounded-xl bg-black/30 px-2.5 py-0.5 text-[clamp(28px,6vw,44px)] font-extrabold text-white outline outline-2 outline-white/80" />
         : <h1><button type="button" onClick={() => setPop('name')} className="rounded-xl text-left text-[clamp(30px,6vw,48px)] font-extrabold leading-[1.02] tracking-tight [text-shadow:0_2px_20px_rgb(0_0_0/0.25)] hover:outline hover:outline-2 hover:outline-offset-4 hover:outline-dashed hover:outline-white/70">{phase.title}</button></h1>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{phase.undated ? tr('goals.phase_page.when', 'When?') : `${when === 'now' || when === 'done' ? 'Since' : 'From'} ${monthName(time.starts)}`}</button>
+        <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{phase.undated ? tr('goals.phase_page.when', 'When?') : `${when === 'now' || when === 'done' ? tr('lit.phase_page.since', 'Since') : tr('lit.phase_page.from', 'From')} ${monthName(time.starts)}`}</button>
         <button type="button" className={chip} onClick={() => toggle('place')}><MapPin size={14} aria-hidden="true" />{phase.place_label || tr('goals.phase_page.where', 'Where?')}</button>
         <button type="button" className={chip} onClick={() => toggle('living')}><Home size={14} aria-hidden="true" />{livingLabel(phase.living) || tr('goals.phase_page.living', 'Living?')}</button>
         <button type="button" className={chip} onClick={() => toggle('household')}><Users size={14} aria-hidden="true" />{householdLabel(phase.household)}</button>
@@ -337,7 +337,7 @@ function GoalRow({ goal, color, href }: { goal: GoalSummary; color: string; href
 function BudgetCard({ doc, phase, ends, projection, href, onStart }: { doc: LifeDoc; phase: Phase; ends: string; projection: Projection | null; href: string; onStart: () => void }) {
   const off = phaseOffset(doc, phase.id)
   const empty = !phase.lines.length
-  let sentence: React.ReactNode = 'Add what comes in and what goes out to see where this phase leaves you.'
+  let sentence: React.ReactNode = tr('lit.phase_page.add_what_comes_in_and', 'Add what comes in and what goes out to see where this phase leaves you.')
   let spark: React.ReactNode = null
   let after: React.ReactNode = null
   if (!empty && projection) {

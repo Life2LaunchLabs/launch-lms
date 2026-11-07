@@ -8,14 +8,14 @@ import { Label } from '@components/ui/label'
 import { lifeApi, type PlaceOption } from '@services/life/life'
 
 import { tr } from '@/lib/tr'
-export const PHASE_KINDS: [string, string][] = [
-  ['school', 'In school'],
-  ['study', 'College or training'],
-  ['work', 'Working'],
-  ['gap', 'Gap or travel'],
-  ['family', 'Family or care'],
-  ['other', 'Something else'],
-]
+export const PHASE_KINDS = (): [string, string][] => ([
+  ['school', tr('lit.phase_form.in_school', 'In school')],
+  ['study', tr('lit.phase_form.college_or_training', 'College or training')],
+  ['work', tr('lit.phase_form.working', 'Working')],
+  ['gap', tr('lit.phase_form.gap_or_travel', 'Gap or travel')],
+  ['family', tr('lit.phase_form.family_or_care', 'Family or care')],
+  ['other', tr('lit.phase_stack.something_else', 'Something else')],
+])
 
 export interface PhaseDraft { title: string; kind: string; place: string | null; placeLabel: string; months: number }
 
@@ -75,7 +75,7 @@ export function PhaseForm({ token, initial, submitLabel, onSubmit, onCancel }: {
       <div className="space-y-1.5">
         <Label>{tr('budget.phase_form.what_you_re_mostly_doing', 'What you\'re mostly doing')}</Label>
         <div className="flex flex-wrap gap-2">
-          {PHASE_KINDS.map(([k, t]) => (
+          {PHASE_KINDS().map(([k, t]) => (
             <button key={k} type="button" aria-pressed={d.kind === k} onClick={() => setD({ ...d, kind: k })} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${d.kind === k ? 'border-transparent bg-foreground text-background' : 'border-border text-foreground hover:bg-muted'}`}>{t}</button>
           ))}
         </div>

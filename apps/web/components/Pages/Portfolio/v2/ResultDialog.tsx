@@ -38,11 +38,11 @@ export const PICTURE_SORT = 'picture_sort'
 export const fromInterestCheck = (source?: string | null) => source === INTEREST_QUIZ || source === PICTURE_SORT
 
 export const RESULT_KINDS = [
-  { value: 'interests', get label() { return tr('portfolio.result_dialog.interests', 'Interests') }, example: 'Artistic · Social · Investigative' },
+  { value: 'interests', get label() { return tr('portfolio.result_dialog.interests', 'Interests') }, get example() { return tr('lit.result_dialog.artistic_social_investigative', 'Artistic · Social · Investigative') } },
   { value: 'personality', get label() { return tr('portfolio.result_dialog.personality', 'Personality') }, example: 'INFJ' },
-  { value: 'strengths', get label() { return tr('portfolio.result_dialog.strengths', 'Strengths') }, example: 'Curious, patient, a good listener' },
-  { value: 'values', get label() { return tr('portfolio.result_dialog.work_values', 'Work values') }, example: 'Creativity, helping others' },
-  { value: 'skills', get label() { return tr('portfolio.resume_model.skills', 'Skills') }, example: 'Spanish, Figma, customer service' },
+  { value: 'strengths', get label() { return tr('portfolio.result_dialog.strengths', 'Strengths') }, get example() { return tr('lit.result_dialog.curious_patient_a_good_listener', 'Curious, patient, a good listener') } },
+  { value: 'values', get label() { return tr('portfolio.result_dialog.work_values', 'Work values') }, get example() { return tr('lit.result_dialog.creativity_helping_others', 'Creativity, helping others') } },
+  { value: 'skills', get label() { return tr('portfolio.resume_model.skills', 'Skills') }, get example() { return tr('lit.result_dialog.spanish_figma_customer_service', 'Spanish, Figma, customer service') } },
   { value: 'other', get label() { return tr('portfolio.result_dialog.something_else', 'Something else') }, example: '' },
 ] as const
 
@@ -99,7 +99,7 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, temp
   // An older skills line (or a new "skills" start) is the chips, its skills already picked as your own.
   const legacySkills = (startKind === 'skills' && !result) || (result?.kind === 'skills' && !templateOf(result))
   const started = legacySkills ? chips : RESULT_TEMPLATES.find((item) => item.id === startTemplate)
-  const legacyData = () => { const words = (result?.summary || '').split(/[,;·]/).map((part) => part.trim()).filter(Boolean); return { template: SKILLS_VALUES, skills: words, custom: { skills: words.map((text) => ({ id: text, text, category: 'Your own' })) } } }
+  const legacyData = () => { const words = (result?.summary || '').split(/[,;·]/).map((part) => part.trim()).filter(Boolean); return { template: SKILLS_VALUES, skills: words, custom: { skills: words.map((text) => ({ id: text, text, category: tr('lit.result_dialog.your_own', 'Your own') })) } } }
   const firstStep = (): Step => legacySkills ? { template: chips } : result ? (templateOf(result) ? { template: templateOf(result) } : { custom: result.kind }) : started ? { template: started } : startKind ? { custom: startKind } : null
   const initial = (): Draft => ({ kind: result?.kind || started?.kind || startKind || 'interests', name: result?.name || started?.name || '', summary: result?.summary || '', taken_on: result?.taken_on || '', visible: result ? result.visibility !== 'private' : true, data: legacySkills && result ? { ...result.data, ...legacyData() } : result?.data || (started ? { template: started.id } : {}) })
   const [step, setStep] = useState<Step>(firstStep)
@@ -135,14 +135,14 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, temp
   }
 
   async function remove() {
-    if (!token || !result || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: result.name }), action: 'Remove', danger: true }))) return
+    if (!token || !result || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: result.name }), action: tr('lit.portfolio_people_page.remove', 'Remove'), danger: true }))) return
     setBusy(true)
     try { await resultsApi.remove(result.result_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_people_page.could_not_remove_this', 'Could not remove this')) } finally { setBusy(false) }
   }
 
   const back = !result && step ? <button type="button" onClick={() => setStep(null)} className="mb-1 inline-flex w-fit items-center gap-1 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />{tr('portfolio.result_dialog.all_results', 'All results')}</button> : null
-  const title = result ? result.name : template ? template.name : step ? (kind?.value === 'skills' ? 'Your skills' : 'Something else') : 'Add a result'
-  const description = !step ? 'Pick a test. Take it, then copy your result in; you can add the PDF too.' : template ? template.blurb : draft.kind === 'skills' ? 'Things you can do. Separate them with commas; each one counts.' : 'Something a quiz or a person helped you learn about yourself.'
+  const title = result ? result.name : template ? template.name : step ? (kind?.value === 'skills' ? tr('lit.result_dialog.your_skills', 'Your skills') : tr('lit.result_dialog.something_else', 'Something else')) : tr('lit.result_dialog.add_a_result', 'Add a result')
+  const description = !step ? tr('lit.result_dialog.pick_a_test_take_it', 'Pick a test. Take it, then copy your result in; you can add the PDF too.') : template ? template.blurb : draft.kind === 'skills' ? tr('lit.result_dialog.things_you_can_do_separate', 'Things you can do. Separate them with commas; each one counts.') : tr('lit.result_dialog.something_a_quiz_or_a', 'Something a quiz or a person helped you learn about yourself.')
 
   return <Dialog open={open} onOpenChange={(next) => { if (next) { setDraft(initial()); setStep(firstStep()) } onOpenChange(next) }}>
     {ask.dialog}

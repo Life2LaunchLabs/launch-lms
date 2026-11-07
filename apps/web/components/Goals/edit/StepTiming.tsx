@@ -55,8 +55,8 @@ function TimingChip({ side, goal, stageUuid, stepUuid, value, set, token }: Timi
   const own = side === 'open' ? value.start_date : value.due_date
   const waitsFor = side === 'open' && value.after.length ? afterChoices(goal, stageUuid, stepUuid).find((item) => value.after.includes(item.step.step_uuid)) : undefined
   const label = side === 'open'
-    ? waitsFor ? `After ${waitsFor.step.title}` : own ? shortDate(own) : stage ? 'Start of stage' : 'Any time'
-    : own ? shortDate(own) : stage ? 'End of stage' : goal.target_date ? 'End of goal' : 'No close'
+    ? waitsFor ? `After ${waitsFor.step.title}` : own ? shortDate(own) : stage ? tr('lit.step_timing.start_of_stage', 'Start of stage') : tr('lit.step_timing.any_time', 'Any time')
+    : own ? shortDate(own) : stage ? tr('lit.step_timing.end_of_stage', 'End of stage') : goal.target_date ? tr('lit.step_timing.end_of_goal', 'End of goal') : tr('lit.step_timing.no_close', 'No close')
   const edge = side === 'open' ? bounds.start : bounds.end
   const setOwn = (day: string | null) => set(side === 'open' ? { start_date: day, after: [] } : { due_date: day })
   const reset = (next: boolean) => {
@@ -92,7 +92,7 @@ function TimingChip({ side, goal, stageUuid, stepUuid, value, set, token }: Timi
 
   return <Popover open={open} onOpenChange={reset}>
     <PopoverTrigger asChild>
-      <button ref={trigger} type="button" aria-label={`${side === 'open' ? 'Opens' : 'Closes'}: ${label}`}
+      <button ref={trigger} type="button" aria-label={`${side === 'open' ? tr('lit.step_timing.opens', 'Opens') : tr('lit.step_timing.closes', 'Closes')}: ${label}`}
         className={cn('flex min-h-9 max-w-full items-center gap-1.5 rounded-full border-2 px-3 text-sm transition hover:border-[var(--plan-face)] data-[state=open]:border-[var(--plan-face)]',
           own || waitsFor ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_12%,hsl(var(--card)))]' : 'border-border')}>
         <span className="font-semibold text-muted-foreground">{side === 'open' ? tr('goals.step_timing.opens', 'Opens') : tr('goals.step_timing.closes', 'Closes')}</span>

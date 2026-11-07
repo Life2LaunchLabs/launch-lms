@@ -26,15 +26,15 @@ export function QuoteRequestPage({ token }: { token: string }) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const body = String(data.get('body') || '').trim(), name = String(data.get('name') || '').trim()
-    if (!name || !body) return setError(!name ? 'Add your name' : 'Write your quote')
+    if (!name || !body) return setError(!name ? tr('lit.quote_request_page.add_your_name', 'Add your name') : tr('lit.quote_request_page.write_your_quote', 'Write your quote'))
     setBusy(true); setError('')
     try {
       await answerQuoteRequest(token, { name, role_label: String(data.get('role_label') || '').trim(), body, reference: data.get('reference') === 'on' })
       setState('sent')
-    } catch (failure: any) { setError(failure?.message || 'That didn’t go through. Try again.') } finally { setBusy(false) }
+    } catch (failure: any) { setError(failure?.message || tr('lit.quote_request_page.that_didn_t_go_through', 'That didn’t go through. Try again.')) } finally { setBusy(false) }
   }
 
-  const first = view?.learner.first_name || view?.learner.name || 'They'
+  const first = view?.learner.first_name || view?.learner.name || tr('lit.quote_request_page.they', 'They')
   const Icon = view?.item.kind === 'project' ? FolderOpen : BriefcaseBusiness
   return <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:py-16" data-quote-request={state}>
     <div className="mx-auto grid max-w-[560px] gap-6">

@@ -167,7 +167,7 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
 
   useEffect(() => {
     if (!currentSurface) return
-    const section = /\/plans(?:\/|$)/.test(pathname) ? 'Goals' : currentSurface.label
+    const section = /\/plans(?:\/|$)/.test(pathname) ? tr('lit.hub_shell.goals', 'Goals') : currentSurface.label
     const detail = currentSurface.label === section ? undefined : currentSurface.label
     setPageTitle?.({ path: pathname, section, detail })
     return () => setPageTitle?.(null)
@@ -256,6 +256,6 @@ function PanelTabs({ tab, onTab, unread }: { tab: HubTab; onTab: (tab: HubTab) =
     {icon}{label}{value === 'coach' && unread && tab !== 'coach' ? <span className="absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full bg-[#7cc4ff]" aria-label={tr('coach.hub_shell.new_reply', 'new reply')} /> : null}
   </button>
   return <div role="tablist" aria-label={tr('coach.hub_shell.panel', 'Panel')} className="mx-3 mt-3 flex shrink-0 rounded-full bg-foreground/[0.06] p-1">
-    {option('threads', 'Threads')}{option('coach', 'Coach', <Sparkle size={13} weight="fill" aria-hidden="true" />)}
+    {option('threads', tr('lit.hub_shell.threads', 'Threads'))}{option('coach', tr('lit.hub_shell.coach', 'Coach'), <Sparkle size={13} weight="fill" aria-hidden="true" />)}
   </div>
 }

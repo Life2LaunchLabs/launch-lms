@@ -6,7 +6,7 @@ import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@components/ui/dialog'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
-import { money, monthLabel, phaseOffset, short } from './model'
+import { money, monthIndex, monthLabel, phaseOffset, short } from './model'
 import { MarkCard, MarkDot, markLabel, marksBetween } from './ChartEvents'
 
 import { tr } from '@/lib/tr'
@@ -68,7 +68,7 @@ export default function PhaseChart() {
   void valueOf
 
   const years: [number, string][] = []
-  for (let m = 0; m < M; m++) { const l = monthLabel(doc.start, off + m); if (l.startsWith('Jan ')) years.push([m, l.slice(4)]) }
+  for (let m = 0; m < M; m++) { const l = monthLabel(doc.start, off + m); if (monthIndex(doc.start, off + m) === 0) years.push([m, l.slice(l.lastIndexOf(' ') + 1)]) }
   const every = Math.max(1, Math.ceil(years.length / 6))
 
   const onMove = (e: React.PointerEvent) => {
@@ -170,7 +170,7 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
   }
   const yrPx = 12 * scale, step = yrPx > 60 ? 1 : yrPx > 28 ? 2 : yrPx > 12 ? 5 : 10
   const ticks: [number, string][] = []
-  for (let g = 0; g < G; g++) { const l = monthLabel(doc.start, g); if (l.startsWith('Jan ') && Number(l.slice(4)) % step === 0) ticks.push([g, l.slice(4)]) }
+  for (let g = 0; g < G; g++) { const l = monthLabel(doc.start, g), year = l.slice(l.lastIndexOf(' ') + 1); if (monthIndex(doc.start, g) === 0 && Number(year) % step === 0) ticks.push([g, year]) }
   const drag = React.useRef<{ x: number; s: number } | null>(null)
   const [pick, setPick] = React.useState<number | null>(null)
   React.useEffect(() => { if (!open) setPick(null) }, [open])

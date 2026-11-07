@@ -60,7 +60,7 @@ export const task: StepDefinition<'task'> = {
   get label() { return tr('goals.task.task', 'Task') },
   color: '#2F66D6',
   get hint() { return tr('goals.task.something_to_do_and_tick', 'Something to do and tick off. Add a checklist if it has parts.') },
-  example: 'Open a savings account',
+  get example() { return tr('lit.task.open_a_savings_account', 'Open a savings account') },
   icon: SquareCheck,
   statusLine: (step) => {
     const target = listOf(step)?.target

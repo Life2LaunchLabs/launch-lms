@@ -57,7 +57,7 @@ export default function HubThread({ messages, timelineSlots, editRun, editObject
   const microBar = (message: HubConversationMessage, content = message.content) => accessToken && orgId
     ? <HubMessageMicroBar role={message.role === 'user' ? 'user' : 'assistant'} content={content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={orgId} accessToken={accessToken} reportableId={message.role === 'assistant' && !message.searchQuery ? message.id : undefined} />
     : null
-  const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? tr('coach.hub_thread.coach_suggested', 'Coach suggested') : message.resourceLabel} onOpen={onOpenResource} />
+  const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? tr('coach.hub_thread.coach_suggested', 'Coach suggested') : message.resourceLabel ? tr('coach.hub_thread.you_added', 'You added') : undefined} onOpen={onOpenResource} />
 
   return <>
     {messages.map((message, index) => <div key={`timeline:${message.id}`} className="contents">

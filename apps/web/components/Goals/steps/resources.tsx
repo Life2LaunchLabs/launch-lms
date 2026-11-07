@@ -21,7 +21,7 @@ type SaveNote = (text: string) => Promise<boolean>
 /** The step's resources, with their links when the server sent them (a template preview has only titles). */
 function cardsOf(step: Step<'resources'>): StepResourceCard[] {
   const known = new Map((step.reference?.resources || []).map((item) => [item.resource_uuid, item]))
-  return (step.config.resources || []).map((item) => known.get(item.resource_uuid) || { resource_uuid: item.resource_uuid, title: item.title || 'Resource', url: '' })
+  return (step.config.resources || []).map((item) => known.get(item.resource_uuid) || { resource_uuid: item.resource_uuid, title: item.title || tr('lit.resources.resource', 'Resource'), url: '' })
 }
 
 const visitOf = (step: Step<'resources'>, uuid: string): StepEntry | undefined => step.entries.find((entry) => entry.kind === 'resource' && entry.resource_uuid === uuid)
@@ -76,7 +76,7 @@ function ResourceItem({ card, entry, learner, canOpen, staff, onOpen, onNote }: 
   const { icon: Icon, color } = getResourceTypePresentation(type)
   const opens = opensOf(entry)
   const meta = [card.provider_name, card.estimated_time ? `${card.estimated_time} min` : null].filter(Boolean).join(' · ')
-  const seen = opens ? staff ? `Opened ${opens === 1 ? 'once' : `${opens} times`}${day(entry?.data?.last_opened_at) ? `, last ${day(entry?.data?.last_opened_at)}` : ''}` : 'Opened' : staff ? 'Not opened yet' : ''
+  const seen = opens ? staff ? `Opened ${opens === 1 ? 'once' : `${opens} times`}${day(entry?.data?.last_opened_at) ? `, last ${day(entry?.data?.last_opened_at)}` : ''}` : tr('lit.resources.opened', 'Opened') : staff ? tr('lit.resources.not_opened_yet', 'Not opened yet') : ''
   return <li className="flex flex-col gap-2 rounded-2xl border-2 bg-background p-2.5 sm:p-3">
     <div className="flex items-center gap-2.5 sm:gap-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white sm:h-11 sm:w-11" style={{ background: color }} aria-hidden="true"><Icon size={19} /></span>
@@ -97,8 +97,8 @@ function ResourceItem({ card, entry, learner, canOpen, staff, onOpen, onNote }: 
 }
 
 function finishLine(left: number, need: number, total: number) {
-  if (!left) return 'All set.'
-  if (left === total) return total === 1 ? 'Open it to finish this step.' : 'Open each one to finish this step.'
+  if (!left) return tr('lit.resources.all_set', 'All set.')
+  if (left === total) return total === 1 ? tr('lit.resources.open_it_to_finish_this', 'Open it to finish this step.') : tr('lit.resources.open_each_one_to_finish', 'Open each one to finish this step.')
   if (left === need) return `Open any ${need} to finish this step.`
   return `Open ${left} more to finish this step.`
 }
@@ -163,7 +163,7 @@ export const resources: StepDefinition<'resources'> = {
   get label() { return tr('goals.resources.resources', 'Resources') },
   color: '#1A86AE',
   get hint() { return tr('goals.resources.a_few_resources_to_check', 'A few resources to check out. You see what they opened and their notes.') },
-  example: 'Check out these two college cost guides',
+  get example() { return tr('lit.resources.check_out_these_two_college', 'Check out these two college cost guides') },
   icon: Library,
   statusLine: (step) => {
     const total = step.config.resources?.length || 0
@@ -174,5 +174,5 @@ export const resources: StepDefinition<'resources'> = {
   ConfigPanel: ResourcesConfigPanel,
   defaultConfig: () => ({ resources: [] }),
   cleanConfig: (config) => ({ resources: config.resources || [], ...(config.required ? { required: config.required } : {}) }),
-  configProblem: (config) => (config.resources || []).length ? null : 'Add at least one resource',
+  configProblem: (config) => (config.resources || []).length ? null : tr('lit.resources.add_at_least_one_resource', 'Add at least one resource'),
 }

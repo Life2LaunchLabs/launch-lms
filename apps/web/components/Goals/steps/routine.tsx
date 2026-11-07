@@ -19,7 +19,7 @@ const resultOf = (step: Step<'routine'>): RoutineResult | null => (step.result?.
 
 /** A time's name: today, since the day the current one came round, or the day an earlier one did. */
 function periodName(start: string, current: string) {
-  if (start === localToday()) return 'Today'
+  if (start === localToday()) return tr('lit.routine.today', 'Today')
   return start === current ? `Since ${shortDate(start)}` : shortDate(start)
 }
 
@@ -66,7 +66,7 @@ function RoutineCard({ step, actions, canWork, staff, compact }: StepCardProps<'
     {progress}
     {input}
     {selected !== current ? <button type="button" onClick={() => setPicked(null)} className="self-start text-xs font-bold text-[var(--plan-accent)] underline-offset-2 hover:underline">{tr('goals.routine.back_to_now', 'Back to now')}</button> : null}
-    <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} finishLabel="End this routine" />
+    <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} finishLabel={tr('lit.routine.end_this_routine', 'End this routine')} />
   </div>
 }
 
@@ -75,7 +75,7 @@ export const routine: StepDefinition<'routine'> = {
   get label() { return tr('goals.routine.routine', 'Routine') },
   color: '#5E9A14',
   get hint() { return tr('goals.routine.a_habit_logged_every_day', 'A habit logged every day or week, with a chart.') },
-  example: 'Log what you spend each day',
+  get example() { return tr('lit.routine.log_what_you_spend_each', 'Log what you spend each day') },
   icon: Repeat,
   statusLine: (step) => {
     const result = resultOf(step)

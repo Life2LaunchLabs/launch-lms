@@ -43,7 +43,7 @@ export function MarkDot({ ms, onClick, active, style, label }: { ms: Mark[]; onC
   )
 }
 
-export const markLabel = (ms: Mark[]) => ms.map((x) => (x.kind === 'short' ? 'Savings run out' : x.title)).join(', ')
+export const markLabel = (ms: Mark[]) => ms.map((x) => (x.kind === 'short' ? tr('lit.chart_events.savings_run_out', 'Savings run out') : x.title)).join(', ')
 
 /**
  * Why the line jumps in month g: each thing that lands, the rest of the month's budget,
@@ -109,13 +109,13 @@ function explain(doc: ReturnType<typeof useLife>['doc'], x: Mark, cardRate: numb
   }
   if (x.kind === 'buy') {
     const a = doc.assets.find((v) => v.id === x.ref)
-    return { title: `You buy ${x.title.toLowerCase()}`, why: a?.loan_id ? `This is the down payment. A loan covers the rest, so debt goes up too.` : `Paid from your savings. It now counts as something you own.` }
+    return { title: `You buy ${x.title.toLowerCase()}`, why: a?.loan_id ? tr('lit.chart_events.this_is_the_down_payment', 'This is the down payment. A loan covers the rest, so debt goes up too.') : tr('lit.chart_events.paid_from_your_savings_it', 'Paid from your savings. It now counts as something you own.') }
   }
   if (x.kind === 'sell') {
     const a = doc.assets.find((v) => v.id === x.ref)
-    return { title: `You sell ${x.title.toLowerCase()}`, why: a?.loan_id ? `What's left of the sale price after paying off its loan.` : `The sale price goes into your savings.` }
+    return { title: `You sell ${x.title.toLowerCase()}`, why: a?.loan_id ? tr('lit.chart_events.what_s_left_of_the', 'What\'s left of the sale price after paying off its loan.') : tr('lit.chart_events.the_sale_price_goes_into', 'The sale price goes into your savings.') }
   }
-  if (x.kind === 'once') return { title: x.title, why: x.amount >= 0 ? 'One-time money that comes in.' : 'A one-time cost, paid from your savings.' }
+  if (x.kind === 'once') return { title: x.title, why: x.amount >= 0 ? tr('lit.chart_events.one_time_money_that_comes', 'One-time money that comes in.') : 'A one-time cost, paid from your savings.' }
   if (x.kind === 'start') return { title: x.title, why: tr('budget.chart_events.you_set_your_real_numbers', 'You set your real numbers here, so they replace what the plan worked out.') }
-  return { title: tr('budget.chart_events.savings_run_out', 'Savings run out'), why: cardRate > 0 ? `More goes out than you have, so the rest goes on a credit card at ${cardRate}% a year and shows as debt.` : `More goes out than you have, so the rest goes on a credit card and shows as debt.` }
+  return { title: tr('budget.chart_events.savings_run_out', 'Savings run out'), why: cardRate > 0 ? `More goes out than you have, so the rest goes on a credit card at ${cardRate}% a year and shows as debt.` : tr('lit.chart_events.more_goes_out_than_you', 'More goes out than you have, so the rest goes on a credit card and shows as debt.') }
 }

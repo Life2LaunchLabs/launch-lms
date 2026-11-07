@@ -33,10 +33,10 @@ export function PlanArt({ card, size = 120 }: { card: Pick<PlanOfferCard, 'templ
 }
 
 function Tag({ card }: { card: PlanOfferCard }) {
-  const [label, style] = card.state === 'earned' ? ['Earned', 'bg-[#D7F25C] text-[#111318]']
-    : card.state === 'joined' ? ['In progress', 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]']
-    : card.state === 'requested' ? ['Asked', 'bg-shell text-white']
-    : card.badge ? ['Badge', 'bg-white/90 text-[#111318]'] : [null, '']
+  const [label, style] = card.state === 'earned' ? [tr('lit.plan_art.earned', 'Earned'), 'bg-[#D7F25C] text-[#111318]']
+    : card.state === 'joined' ? [tr('lit.plan_art.in_progress', 'In progress'), 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]']
+    : card.state === 'requested' ? [tr('lit.plan_art.asked', 'Asked'), 'bg-shell text-white']
+    : card.badge ? [tr('lit.feature_section.badge', 'Badge'), 'bg-white/90 text-[#111318]'] : [null, '']
   if (!label) return null
   return <span className={cn('absolute left-2.5 top-2.5 rounded-full px-2 py-1 text-[11px] font-black uppercase tracking-wide', style)}>{label}</span>
 }

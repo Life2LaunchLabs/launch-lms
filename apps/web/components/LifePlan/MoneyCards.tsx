@@ -88,7 +88,7 @@ export function OneTimeCard() {
     setIsNew(!e); setEdit(ev); setF({ title: ev.title, amount: ev.amount ? String(Math.abs(ev.amount)) : '', dir: ev.amount > 0 ? 'in' : 'out', month: ev.month })
   }
   return (
-    <Card title={tr('budget.money_cards.one_time_money', 'One-time money')} note={evs.length || loans.length ? undefined : 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.'} addLabel="Add" onAdd={() => open(null)} empty={!evs.length && !loans.length}>
+    <Card title={tr('budget.money_cards.one_time_money', 'One-time money')} note={evs.length || loans.length ? undefined : tr('lit.money_cards.big_costs_or_money_that', 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.')} addLabel={tr('lit.people_access.add', 'Add')} onAdd={() => open(null)} empty={!evs.length && !loans.length}>
       {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
       {evs.map((e) => <Item key={e.id} id={`row-ev:${e.id}`} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
       <Editor title={isNew ? tr('budget.money_cards.add_one_time_money', 'Add one-time money') : tr('budget.money_cards.one_time_money', 'One-time money')} open={!!edit} onClose={() => setEdit(null)}

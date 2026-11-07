@@ -34,7 +34,7 @@ export function AddByAccount({ token, onAdded }: { token?: string; onAdded: Sett
     setBusy(true)
     try { onAdded(await peopleAccess.add(handle, token)) } catch (error: any) { toast.error(error?.message || tr('portfolio.people_access.could_not_find_them', 'Could not find them')) } finally { setBusy(false) }
   }
-  return <div className="rounded-2xl bg-muted p-4"><HandleField label={tr('portfolio.people_access.do_they_have_an_account', 'Do they have an account here?')} action="Add" busy={busy} onSubmit={add} /><small className="mt-1.5 block text-xs text-muted-foreground">{tr('portfolio.people_access.then_you_can_let_them', 'Then you can let them see your portfolio or plans. Otherwise, fill in their details below.')}</small></div>
+  return <div className="rounded-2xl bg-muted p-4"><HandleField label={tr('portfolio.people_access.do_they_have_an_account', 'Do they have an account here?')} action={tr('lit.people_access.add', 'Add')} busy={busy} onSubmit={add} /><small className="mt-1.5 block text-xs text-muted-foreground">{tr('portfolio.people_access.then_you_can_let_them', 'Then you can let them see your portfolio or plans. Otherwise, fill in their details below.')}</small></div>
 }
 
 function AccessSwitch({ icon: Icon, title, hint, checked, disabled, onChange }: { icon: typeof MapIcon; title: string; hint: string; checked: boolean; disabled: boolean; onChange: Setter<boolean> }) {
@@ -56,10 +56,10 @@ export function PersonAccess({ contact, token, onChange }: { contact: Contact; t
   }
 
   if (!token) return null
-  if (!account) return <div className="rounded-2xl bg-muted p-4"><HandleField label={tr('portfolio.people_access.do_they_have_an_account', 'Do they have an account here?')} action="Link" busy={busy} onSubmit={(handle) => run(() => peopleAccess.link(contact.contact_uuid, handle, token), 'Could not find them')} /><small className="mt-1.5 block text-xs text-muted-foreground">{tr('portfolio.people_access.link_it_to_let_them', 'Link it to let them see your portfolio or plans.')}</small></div>
+  if (!account) return <div className="rounded-2xl bg-muted p-4"><HandleField label={tr('portfolio.people_access.do_they_have_an_account', 'Do they have an account here?')} action={tr('lit.people_access.link', 'Link')} busy={busy} onSubmit={(handle) => run(() => peopleAccess.link(contact.contact_uuid, handle, token), tr('lit.people_access.could_not_find_them', 'Could not find them'))} /><small className="mt-1.5 block text-xs text-muted-foreground">{tr('portfolio.people_access.link_it_to_let_them', 'Link it to let them see your portfolio or plans.')}</small></div>
 
   const first = contact.name.split(' ')[0] || contact.name
-  const set = (next: { portfolio: boolean; plans: boolean }) => run(() => peopleAccess.set(contact.contact_uuid, next, token), 'Could not change that')
+  const set = (next: { portfolio: boolean; plans: boolean }) => run(() => peopleAccess.set(contact.contact_uuid, next, token), tr('lit.people_access.could_not_change_that', 'Could not change that'))
   return <section aria-label={`What ${first} can see`} className="grid gap-2">
     <h3 className="text-sm font-extrabold">{tr('portfolio.people_access.what_first_can_see', 'What {{first}} can see', { first })}{' '}<span className="font-semibold text-muted-foreground">· @{account.username}</span></h3>
     <AccessSwitch icon={BookUser} title={tr('portfolio.people_access.my_portfolio', 'My portfolio')} hint={tr('portfolio.people_access.see_it_even_while_it', 'See it even while it’s private, and comment on it.')} checked={account.portfolio} disabled={busy} onChange={(value) => set({ portfolio: value, plans: account.plans })} />

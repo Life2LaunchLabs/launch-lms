@@ -120,8 +120,8 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
 
   const start = mode !== 'change'
   const chips: { icon: React.ReactNode; now: string; was?: string }[] = []
-  const place = (p?: Phase | null) => p?.place_label || 'No place yet'
-  const doing = (p?: Phase | null) => (p?.activities || []).map(activityText).join(' + ') || 'Nothing picked'
+  const place = (p?: Phase | null) => p?.place_label || tr('lit.estimates_dialog.no_place_yet', 'No place yet')
+  const doing = (p?: Phase | null) => (p?.activities || []).map(activityText).join(' + ') || tr('lit.estimates_dialog.nothing_picked', 'Nothing picked')
   if (start) {
     if (phase.place_label) chips.push({ icon: <MapPin size={14} />, now: phase.place_label })
     if (phase.living) chips.push({ icon: <Home size={14} />, now: livingLabel(phase.living) })
@@ -129,7 +129,7 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
     chips.push({ icon: <Users size={14} />, now: householdLabel(phase.household) })
   } else if (base) {
     if ((base.place || '') !== (phase.place || '')) chips.push({ icon: <MapPin size={14} />, now: place(phase), was: place(base) })
-    if ((base.living || '') !== (phase.living || '')) chips.push({ icon: <Home size={14} />, now: livingLabel(phase.living) || 'Not picked', was: (livingLabel(base.living) || 'not picked').toLowerCase() })
+    if ((base.living || '') !== (phase.living || '')) chips.push({ icon: <Home size={14} />, now: livingLabel(phase.living) || tr('lit.estimates_dialog.not_picked', 'Not picked'), was: (livingLabel(base.living) || 'not picked').toLowerCase() })
     if (doing(base) !== doing(phase)) chips.push({ icon: <Briefcase size={14} />, now: doing(phase), was: doing(base) })
     if (householdLabel(base.household) !== householdLabel(phase.household) || JSON.stringify(base.household?.kids || []) !== JSON.stringify(phase.household?.kids || [])) chips.push({ icon: <Users size={14} />, now: householdLabel(phase.household), was: householdLabel(base.household).toLowerCase() })
   }
@@ -161,8 +161,8 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
       {!catalog || (loading && !list.length) ? <div className="mt-4 grid gap-2"><Skeleton className="h-6" /><Skeleton className="h-6" /><Skeleton className="h-6" /></div>
         : !list.length ? <p className="mt-4 text-sm text-muted-foreground">{start ? tr('budget.estimates_dialog.your_budget_already_has_every', 'Your budget already has every line we’d suggest.') : tr('budget.estimates_dialog.nothing_in_your_budget_changes', 'Nothing in your budget changes.')}</p>
         : <div className="mt-2 grid gap-2">
-          {section('in', 'Income')}
-          {section('out', 'Expenses')}
+          {section('in', tr('lit.budget_table.income', 'Income'))}
+          {section('out', tr('lit.budget_table.expenses', 'Expenses'))}
           <div className="grid grid-cols-[minmax(0,1fr)_auto_36px] items-baseline gap-x-2.5 border-t border-border pt-2.5">
             <span className="text-base font-extrabold">{start ? tr('budget.estimates_dialog.left_over_before_taxes', 'Left over, before taxes') : tr('budget.estimates_dialog.left_over_changes_by', 'Left over changes by')}</span>
             <b className={cn('font-extrabold tabular-nums', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{amount(net)}</b><span />
@@ -191,7 +191,7 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
   const next = x.next
   return <div className="grid">
     <div className="grid grid-cols-[20px_minmax(0,1fr)_auto_auto_36px] items-center gap-x-2.5 py-1">
-      <button type="button" role="checkbox" aria-checked={on} aria-label={`${gone ? 'Remove' : r.kind === 'add' ? 'Add' : 'Update'} ${r.title}`} onClick={onToggle}
+      <button type="button" role="checkbox" aria-checked={on} aria-label={`${gone ? tr('lit.portfolio_people_page.remove', 'Remove') : r.kind === 'add' ? tr('lit.people_access.add', 'Add') : tr('lit.estimates_dialog.update', 'Update')} ${r.title}`} onClick={onToggle}
         className={cn('grid size-5 place-items-center rounded-md border-2', on ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border')}>{on ? <Check size={13} strokeWidth={3} /> : null}</button>
       <span className={cn('min-w-0 truncate', gone && 'text-muted-foreground line-through', !on && 'text-muted-foreground')}>{r.title}</span>
       <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{r.kind === 'change' && x.now != null ? <>{x.mine ? tr('budget.estimates_dialog.yours', 'yours ') : ''}<s>{money(Math.round(x.was ?? 0))}</s> → {money(Math.round(x.now))}</> : null}</span>

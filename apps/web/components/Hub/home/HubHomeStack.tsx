@@ -9,7 +9,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import HubLaunchCards from './HubLaunchCards'
 
 import { tr } from '@/lib/tr'
-const CHECK_IN = 'Can you check in with me on my goals? Help me pick the next small thing to do.'
+const CHECK_IN = () => (tr('lit.hub_home_stack.can_you_check_in_with', 'Can you check in with me on my goals? Help me pick the next small thing to do.'))
 
 // Top of the full Coach: ranked next steps for learners with goal steps to do, launch cards for everyone else.
 // It always renders something, including while loading and when next actions cannot be fetched.
@@ -51,7 +51,7 @@ export default function HubHomeStack({
           </li>
         ))}
       </ul>
-      <button type="button" disabled={disabled} onClick={() => onPick(CHECK_IN)} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none">
+      <button type="button" disabled={disabled} onClick={() => onPick(CHECK_IN())} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><HeartHandshake className="size-4" aria-hidden /></span>
         <span className="text-sm font-medium text-foreground">{tr('coach.hub_home_stack.check_in_with_your_coach', 'Check in with your coach')}</span>
       </button>

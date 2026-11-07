@@ -172,7 +172,7 @@ export function mergeRoute(doc: LifeDoc, route: LifeDoc): LifeDoc {
 export interface NewPhase { title: string; idea?: boolean; activities?: Activity[]; living?: string | null; place?: string | null; place_label?: string; kind?: string; months?: number }
 function make(base: Phase | undefined, x: NewPhase, after: string[], start: number): Phase {
   return {
-    id: phaseId(), title: x.title.trim() || 'New phase', kind: x.kind || kindOf(x.activities), idea: x.idea ?? true,
+    id: phaseId(), title: x.title.trim() || tr('lit.graph.new_phase', 'New phase'), kind: x.kind || kindOf(x.activities), idea: x.idea ?? true,
     place: x.place !== undefined ? x.place : base?.place ?? null, place_label: x.place_label !== undefined ? x.place_label : base?.place_label || '',
     living: x.living !== undefined ? x.living : base?.living ?? null, activities: x.activities || [],
     months: x.months || 12, lines: [], goals: [], after, starts: ym(start),
@@ -403,25 +403,25 @@ export function routesFor(career: CareerLike): CareerRoute[] {
   const name = careerName(career.title), jz = career.job_zone || 3
   const job: RouteStep = { title: name, years: 3, activities: [{ kind: 'working', career: career.code, career_title: career.title }], living: 'roommates' }
   const school = (title: string, years: number, level: string): RouteStep => ({ title, years, living: level === 'uni' || level === 'grad' ? 'dorm' : 'family', activities: [{ kind: 'learning', level, schools: [] }] })
-  if (jz >= 5) return [{ common: true, steps: [school('College', 4, 'uni'), school('Graduate school', 2, 'grad'), job] }]
+  if (jz >= 5) return [{ common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), school(tr('lit.graph.graduate_school', 'Graduate school'), 2, 'grad'), job] }]
   if (jz === 4) return [
-    { common: true, steps: [school('College', 4, 'uni'), job] },
-    { why: tr('goals.graph.cheaper_first_two_years_then', 'Cheaper first two years, then transfer'), steps: [school('Community college', 2, 'cc'), school('University', 2, 'uni'), job] },
+    { common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), job] },
+    { why: tr('goals.graph.cheaper_first_two_years_then', 'Cheaper first two years, then transfer'), steps: [school(tr('lit.graph.community_college', 'Community college'), 2, 'cc'), school(tr('lit.graph.university', 'University'), 2, 'uni'), job] },
   ]
   if (jz === 3) {
     if (/^(47|49|51)/.test(career.code)) return [
       { common: true, steps: [{ title: `${name} apprentice`, years: 4, living: 'family', activities: [{ kind: 'working', career: career.code, career_title: career.title, apprentice: true }] }, job] },
-      { steps: [school('Trade school', 1, 'trade'), job] },
+      { steps: [school(tr('lit.graph.trade_school', 'Trade school'), 1, 'trade'), job] },
     ]
     return [
-      { common: true, why: tr('goals.graph.a_short_program_at_a', 'A short program at a community college or training center'), steps: [school('Certificate program', 1, 'trade'), job] },
+      { common: true, why: tr('goals.graph.a_short_program_at_a', 'A short program at a community college or training center'), steps: [school(tr('lit.graph.certificate_program', 'Certificate program'), 1, 'trade'), job] },
       { why: tr('goals.graph.an_associate_degree_which_can', 'An associate degree, which can also count toward a 4-year degree later'), steps: [school('2-year degree', 2, 'cc'), job] },
       { why: tr('goals.graph.some_people_start_in_a', 'Some people start in a related job'), steps: [{ title: tr('goals.graph.entry_job', 'Entry job'), years: 2, living: 'roommates', activities: [{ kind: 'working' }] }, job] },
     ]
   }
   return [
     { common: true, why: tr('goals.graph.most_learn_on_the_job', 'Most learn on the job'), steps: [job] },
-    { steps: [school('Short training program', 1, 'trade'), job] },
+    { steps: [school(tr('lit.graph.short_training_program', 'Short training program'), 1, 'trade'), job] },
   ]
 }
 

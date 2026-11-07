@@ -42,7 +42,7 @@ export function AccessibilityControls({ settings, onChange, forSomeoneElse = fal
   const inLang = voices.filter((voice) => voice.lang.toLowerCase().startsWith(lang.split('-')[0].toLowerCase()))
   const they = forSomeoneElse ? 'their' : 'your'
   return <div className="divide-y divide-border">
-    <Toggle label={tr('access.read_aloud.read_to_me', 'Read to me')} help={`Reads each new question, card and step out loud as it shows up. The speaker buttons work either way.`} checked={settings.read_to_me} onChange={(read_to_me) => onChange({ read_to_me })} />
+    <Toggle label={tr('access.read_aloud.read_to_me', 'Read to me')} help={tr('lit.accessibility_controls.reads_each_new_question_card', 'Reads each new question, card and step out loud as it shows up. The speaker buttons work either way.')} checked={settings.read_to_me} onChange={(read_to_me) => onChange({ read_to_me })} />
     <Choice label={tr('access.accessibility_controls.how_fast_it_talks', 'How fast it talks')} options={RATES} value={settings.rate} onChange={(rate) => onChange({ rate })} />
     {!forSomeoneElse && supported && inLang.length > 1 ? <div className="py-3">
       <label className="mb-2 block text-[15px] font-bold" htmlFor="read-aloud-voice">{tr('access.accessibility_controls.voice', 'Voice')}</label>
@@ -53,11 +53,11 @@ export function AccessibilityControls({ settings, onChange, forSomeoneElse = fal
           {inLang.map((voice) => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name}</option>)}
         </select>
         <button type="button" className="min-h-11 rounded-full border-2 border-border px-4 text-sm font-bold hover:bg-muted"
-          onClick={() => speak('voice-sample', 'Hi! This is how I sound when I read to you.', { rate: settings.rate, voice: settings.voice })}>{tr('access.accessibility_controls.try_it', 'Try it')}</button>
+          onClick={() => speak('voice-sample', tr('lit.accessibility_controls.hi_this_is_how_i', 'Hi! This is how I sound when I read to you.'), { rate: settings.rate, voice: settings.voice })}>{tr('access.accessibility_controls.try_it', 'Try it')}</button>
       </div>
       <p className="mt-1.5 text-sm text-muted-foreground">{tr('access.accessibility_controls.voices_come_from_this_device', 'Voices come from this device, so another computer may sound different.')}</p>
     </div> : null}
-    <Toggle label={tr('access.accessibility_controls.light_up_words', 'Light up words')} help="Highlights each word as it’s read." checked={settings.highlight} onChange={(highlight) => onChange({ highlight })} />
+    <Toggle label={tr('access.accessibility_controls.light_up_words', 'Light up words')} help={tr('lit.accessibility_controls.highlights_each_word_as_it', 'Highlights each word as it’s read.')} checked={settings.highlight} onChange={(highlight) => onChange({ highlight })} />
     <Toggle label={tr('access.accessibility_controls.bigger_text', 'Bigger text')} help={`Makes words and buttons larger on ${they} screens.`} checked={settings.bigger_text} onChange={(bigger_text) => onChange({ bigger_text })} />
     <Choice label={tr('access.accessibility_controls.motion', 'Motion')} options={MOTION} value={settings.less_motion} onChange={(less_motion) => onChange({ less_motion })} />
   </div>

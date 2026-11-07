@@ -82,7 +82,7 @@ export function savedConfig(draft: StepDraft) {
 
 /** Why the draft can't be saved yet: no title, or the type's own settings aren't complete. */
 export function draftProblem(draft: StepDraft): string | null {
-  if (!draft.title.trim()) return 'Give it a title'
+  if (!draft.title.trim()) return tr('lit.step_editor.give_it_a_title', 'Give it a title')
   const problem = stepDefinition(draft.type).configProblem as ((config: StepConfigs[StepTypeKey]) => string | null) | undefined // eslint-disable-line no-unused-vars
   return problem ? problem(draft.config) : null
 }
@@ -105,7 +105,7 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
   const timed = value.start_date || value.due_date || value.after.length || value.due_week
   // A template's optional parts stay folded into "+" buttons until they're added or already used.
   const [shown, setShown] = React.useState(() => ({ details: !template || !!value.description, materials: !!value.materials?.length, staff: !!(value.staff_guide || value.staff_materials?.length) }))
-  const addons = template ? ([['details', 'Learner instructions'], ['materials', 'Materials'], ['staff', 'Staff guide']] as const).filter(([key]) => !shown[key]) : []
+  const addons = template ? ([['details', tr('lit.step_editor.learner_instructions', 'Learner instructions')], ['materials', tr('lit.step_editor.materials', 'Materials')], ['staff', tr('lit.step_editor.staff_guide', 'Staff guide')]] as const).filter(([key]) => !shown[key]) : []
   const summary = [
     timed ? 'timing set' : template ? null : 'opens and closes with its stage',
     personal || template ? null : value.completed_by === 'staff' ? 'staff mark it done' : value.review_required ? 'staff review it' : null,
@@ -187,7 +187,7 @@ function StaffGuide({ value, set, orgId, token }: { value: StepDraft; set: (patc
     <Textarea id="step-staff-notes" rows={4} value={value.staff_guide || ''} onChange={(event) => set({ staff_guide: event.target.value })}
       placeholder={tr('goals.step_editor.how_to_run_this_step', 'How to run this step: the lesson plan, timing, what to prepare, what to say')} className="bg-background font-mono text-[13px]" />
     <p className="-mt-2 text-xs text-muted-foreground">{tr('goals.step_editor.markdown_works_headings_lists_bold', 'Markdown works: # headings, - lists, **bold**, links. Staff open it with the files below in one viewer.')}</p>
-    <MaterialsEditor id="step-staff-materials" value={value.staff_materials || []} onChange={(staff_materials) => set({ staff_materials })} orgId={orgId} token={token} addLabel="Add for staff" />
+    <MaterialsEditor id="step-staff-materials" value={value.staff_materials || []} onChange={(staff_materials) => set({ staff_materials })} orgId={orgId} token={token} addLabel={tr('lit.step_editor.add_for_staff', 'Add for staff')} />
   </section>
 }
 

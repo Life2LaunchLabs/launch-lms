@@ -13,7 +13,7 @@ import PhaseCover, { PhotoCredit } from './PhaseCover'
 
 import { tr } from '@/lib/tr'
 export const KIND_ICON: Record<string, React.ElementType> = { school: BookOpen, study: GraduationCap, work: Briefcase, gap: Plane, family: Heart, other: Sparkles }
-export const kindLabel = (kind: string) => PHASE_KINDS.find(([key]) => key === kind)?.[1] || 'Something else'
+export const kindLabel = (kind: string) => PHASE_KINDS().find(([key]) => key === kind)?.[1] || tr('lit.phase_stack.something_else', 'Something else')
 
 /** The pill at a phase's top left: where the learner is, a phase behind them, or one coming up. */
 export function PhaseStatus({ when, className }: { when: PhaseTime['when']; className?: string }) {

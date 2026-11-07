@@ -18,10 +18,10 @@ export const CAREER_TYPES: Record<string, { color: string; name: string }> = {
 }
 
 /** O*NET job zones, said in a few words. */
-export const TRAINING: Record<number, string> = { 1: 'Little or no prep', 2: 'High school + training', 3: 'Certificate or 2-year', 4: '4-year degree', 5: 'Grad school' }
+export const TRAINING: Record<number, string> = { get 1() { return tr('lit.career_tile.little_or_no_prep', 'Little or no prep') }, get 2() { return tr('lit.career_tile.high_school_training', 'High school + training') }, get 3() { return tr('lit.career_tile.certificate_or_2_year', 'Certificate or 2-year') }, 4: '4-year degree', get 5() { return tr('lit.career_tile.grad_school', 'Grad school') } }
 
 /** How well a career's interest profile lines up with someone's (the correlation /life/careers/match returns). */
-export const matchLabel = (match: number) => match >= 0.7 ? 'Strong match' : match >= 0.4 ? 'Good match' : 'Something different'
+export const matchLabel = (match: number) => match >= 0.7 ? tr('lit.career_tile.strong_match', 'Strong match') : match >= 0.4 ? tr('lit.career_tile.good_match', 'Good match') : tr('lit.career_tile.something_different', 'Something different')
 
 // An icon for each SOC major group (the first two digits of the code).
 const ICONS: Record<string, ComponentType<{ className?: string }>> = {

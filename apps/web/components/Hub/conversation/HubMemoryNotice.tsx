@@ -27,7 +27,7 @@ export default function HubMemoryNotice({
 }) {
   const [draft, setDraft] = useState(enabled)
   const [error, setError] = useState('')
-  const save = async () => { setError(''); if (!await onSave(draft)) setError('Your choice could not be saved. Please try again.') }
+  const save = async () => { setError(''); if (!await onSave(draft)) setError(tr('lit.hub_memory_notice.your_choice_could_not_be', 'Your choice could not be saved. Please try again.')) }
   const learnMoreHref = getUriWithOrg(orgslug, routePaths.owner.account.memory())
   return (
     <aside className="relative mb-2 rounded-2xl border border-border/80 bg-background/95 px-4 py-3 pr-11 shadow-sm backdrop-blur-md" aria-label={tr('coach.hub_memory_notice.coach_memory_notice', 'Coach memory notice')}>

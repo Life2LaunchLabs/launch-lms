@@ -7179,5 +7179,813 @@
       "maya_torres_junior": "Maya Torres, estudiante de 11.º grado",
       "mt": "MT"
     }
+  },
+  "lit": {
+    "portfolio_projects": {
+      "projects": "Proyectos"
+    },
+    "resume_builder": {
+      "your_name": "Tu nombre",
+      "it_starts_as_a_copy": "Empieza como copia del que tienes abierto.",
+      "make_version": "Crear versión"
+    },
+    "portfolio_results_page": {
+      "from_the_interest_quiz": "Del test de intereses",
+      "from_the_picture_sort": "Del orden de imágenes",
+      "added_by_you": "Agregado por ti",
+      "from_a_plan": "De un plan",
+      "imported": "Importado",
+      "from_oregon_cis": "De Oregon CIS",
+      "from_linkedin": "De LinkedIn",
+      "from_your_r_sum": "De tu currículum"
+    },
+    "portfolio_people_page": {
+      "their_quotes_come_off_your": "Sus citas también se quitan de tu portafolio.",
+      "remove": "Quitar"
+    },
+    "portfolio_documents_page": {
+      "uploaded": "Subido",
+      "rename": "Cambiar nombre",
+      "could_not_rename_this": "No se pudo cambiar el nombre",
+      "it_comes_off_your_portfolio": "Se quita de tu portafolio. Esto no se puede deshacer.",
+      "could_not_remove_this": "No se pudo quitar",
+      "document": "Documento",
+      "could_not_add_this": "No se pudo agregar"
+    },
+    "inplace": {
+      "cancel": "Cancelar"
+    },
+    "portfolio_title": {
+      "portfolio": "Portafolio"
+    },
+    "interest_quiz_page": {
+      "hands_on_work_building_fixing": "Trabajo práctico: construir, reparar y trabajar con herramientas, máquinas, plantas o animales.",
+      "figuring_things_out_science_research": "Descubrir cosas: ciencia, investigación y resolver acertijos.",
+      "making_things_art_music_writing": "Crear cosas: arte, música, escritura, diseño e ideas nuevas.",
+      "helping_people_teaching_caring_for": "Ayudar a la gente: enseñar, cuidar y apoyar a otros.",
+      "leading_starting_things_persuading_people": "Liderar: empezar cosas, convencer a la gente, vender y decidir.",
+      "organizing_details_records_data_and": "Organizar: detalles, registros, datos y pasos claros."
+    },
+    "result_dialog": {
+      "artistic_social_investigative": "Artístico · Social · Investigador",
+      "curious_patient_a_good_listener": "Curioso, paciente, sabe escuchar",
+      "creativity_helping_others": "Creatividad, ayudar a otros",
+      "spanish_figma_customer_service": "Español, Figma, servicio al cliente",
+      "your_own": "Los tuyos",
+      "your_skills": "Tus habilidades",
+      "something_else": "Otra cosa",
+      "add_a_result": "Agregar un resultado",
+      "pick_a_test_take_it": "Elige un test. Hazlo y luego copia aquí tu resultado; también puedes agregar el PDF.",
+      "things_you_can_do_separate": "Cosas que sabes hacer. Sepáralas con comas; cada una cuenta.",
+      "something_a_quiz_or_a": "Algo que un test o una persona te ayudó a descubrir de ti."
+    },
+    "experience_page": {
+      "where_the_business_or_organization": "Dónde: el negocio u organización",
+      "school": "Escuela",
+      "organization_or_community": "Organización o comunidad",
+      "who_ran_it": "Quién lo dirigió",
+      "team_club_or_group": "Equipo, club o grupo",
+      "who_gave_it": "Quién lo otorgó",
+      "where_it_happened": "Dónde pasó",
+      "where": "Dónde",
+      "related_to_this_experience": "Relacionado con esta experiencia",
+      "it_comes_off_your_portfolio": "Se quita de tu portafolio y tus currículums. Esto no se puede deshacer.",
+      "delete": "Eliminar",
+      "experience": "Experiencia"
+    },
+    "feature_section": {
+      "project": "Proyecto",
+      "badge": "Insignia",
+      "credential": "Credencial",
+      "featured": "Destacado"
+    },
+    "portfolio_v2": {
+      "your_portfolio": "Tu portafolio",
+      "only_you_and_the_people": "Solo tú y las personas que agregaste lo verán. Puedes volver a hacerlo público después.",
+      "make_private": "Hacer privado",
+      "the_numbers_people_notice_first": "Los números que la gente nota primero, como horas trabajadas, un promedio o un premio",
+      "put_a_project_a_quote": "Pon arriba un proyecto, una cita o un enlace",
+      "jobs_volunteering_teams_and_clubs": "Trabajos, voluntariado, equipos y clubes",
+      "things_you_made_with_a": "Cosas que hiciste, con una foto y una línea",
+      "cards_certificates_and_badges": "Tarjetas, certificados e insignias",
+      "quiz_and_test_results_that": "Resultados de tests que dicen cómo eres",
+      "where_you_are_now_and": "Dónde estás ahora y qué sigue",
+      "quotes_from_people_who_know": "Citas de personas que conocen tu trabajo"
+    },
+    "portfolio_detail": {
+      "could_not_change_what_s": "No se pudo cambiar lo destacado",
+      "could_not_change_who_sees": "No se pudo cambiar quién ve esto",
+      "could_not_delete_this": "No se pudo eliminar"
+    },
+    "people_access": {
+      "add": "Agregar",
+      "link": "Vincular",
+      "could_not_find_them": "No se pudo encontrar",
+      "could_not_change_that": "No se pudo cambiar"
+    },
+    "portfolio_import_page": {
+      "in_oregon_cis_open_account": "En Oregon CIS, abre la configuración de la cuenta y elige \"Download my data\". Sube el zip que te da.",
+      "about_me": "Sobre mí",
+      "credentials": "Credenciales",
+      "what_i_m_like": "Cómo soy",
+      "my_people": "Mi gente",
+      "links": "Enlaces",
+      "documents": "Documentos"
+    },
+    "quest_bar": {
+      "share": "Compartir",
+      "mastery": "Dominio",
+      "your_portfolio_is_private_until": "Tu portafolio es privado hasta que lo hagas público.",
+      "make_it_public": "Hacerlo público",
+      "it_builds_itself_from_everything": "Se arma solo con todo lo que hay en tu portafolio.",
+      "open_my_r_sum": "Abrir mi currículum",
+      "it_shows_next_to_your": "Aparece junto a tu nombre para cualquiera que vea tu portafolio.",
+      "nice": "¡Genial!"
+    },
+    "portfolio_pages": {
+      "experience": "Experiencia",
+      "projects": "Proyectos",
+      "badges": "Insignias",
+      "what_i_m_like": "Cómo soy",
+      "interest_quiz": "Test de intereses",
+      "picture_sort": "Orden de imágenes",
+      "new_experience": "Nueva experiencia",
+      "new_project": "Nuevo proyecto"
+    },
+    "progress": {
+      "unlock_sharing": "Desbloquea compartir",
+      "unlock_your_r_sum": "Desbloquea tu currículum",
+      "portfolio_mastery": "Dominio del portafolio",
+      "finish_these_to_share_your": "Termina esto para compartir tu portafolio.",
+      "finish_these_to_turn_your": "Termina esto para convertir tu portafolio en un currículum.",
+      "round_it_out_to_earn": "Complétalo para ganar la insignia de dominio junto a tu nombre.",
+      "add_3_experiences": "Agrega 3 experiencias",
+      "name_3_skills": "Nombra 3 habilidades",
+      "show_your_work": "Muestra tu trabajo",
+      "tell_your_stories": "Cuenta tus historias",
+      "get_vouched_for": "Consigue quien hable por ti",
+      "prove_it": "Demuéstralo",
+      "earn_a_badge_by_finishing": "Gana una insignia terminando un plan",
+      "show_what_you_re_like": "Muestra cómo eres",
+      "your_interests_strengths_or_values": "Tus intereses, fortalezas o valores"
+    },
+    "timeline": {
+      "work_career": "Trabajo y carrera",
+      "education": "Educación",
+      "leadership_service": "Liderazgo y servicio",
+      "learning_experiences": "Experiencias de aprendizaje",
+      "teams_activities": "Equipos y actividades",
+      "awards_recognition": "Premios y reconocimientos",
+      "challenges_milestones": "Retos y logros",
+      "other": "Otro",
+      "current": "Actual",
+      "winter": "Invierno",
+      "spring": "Primavera",
+      "summer": "Verano",
+      "fall": "Otoño",
+      "present": "Presente",
+      "undated": "Sin fecha"
+    },
+    "quote_request_page": {
+      "add_your_name": "Agrega tu nombre",
+      "write_your_quote": "Escribe tu cita",
+      "that_didn_t_go_through": "Eso no se pudo enviar. Inténtalo otra vez.",
+      "they": "Esta persona"
+    },
+    "goal_header": {
+      "earns_a_badge": "Otorga una insignia",
+      "your_goals": "Tus metas"
+    },
+    "goal_story_player": {
+      "done": "Hecho"
+    },
+    "goal_header_actions": {
+      "people_with_access": "Personas con acceso"
+    },
+    "goals_workspace": {
+      "your_goals_could_not_load": "Tus metas no se pudieron cargar.",
+      "this_goal_could_not_load": "Esta meta no se pudo cargar. Puede que ya no esté disponible para ti.",
+      "plans": "Planes"
+    },
+    "goal_path": {
+      "more_steps": "Más pasos",
+      "steps": "Pasos",
+      "opens_when_the_goal_moves": "Abre cuando la meta pase a ella"
+    },
+    "routine_editor": {
+      "pick_at_least_one_day": "Elige al menos un día de la semana",
+      "pick_at_least_one_day_2": "Elige al menos un día del mes",
+      "daily": "Diario",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "add_items": "Agregar elementos",
+      "a_few_named_things_each": "Algunas cosas con nombre cada vez, como vacantes de trabajo",
+      "enter_a_number": "Poner un número",
+      "a_value_each_time_like": "Un valor cada vez, como un peso; una línea en la gráfica",
+      "check_it_off": "Marcarlo",
+      "just_do_it_and_tick": "Solo hazlo y márcalo"
+    },
+    "linked": {
+      "needs_vs_wants_sorting_game": "Juego de ordenar necesidades y deseos",
+      "earn_the_workplace_ready_badge": "Gana la insignia Listo para el trabajo",
+      "write_your_welcome": "Escribe tu bienvenida",
+      "add_to_your_timeline": "Agrega a tu línea de tiempo",
+      "add_a_project": "Agrega un proyecto",
+      "choose_your_traits": "Elige tus rasgos",
+      "launch_your_portfolio": "Lanza tu portafolio",
+      "show_your_badges": "Muestra tus insignias",
+      "add_two_projects_to_your": "Agrega dos proyectos a tu portafolio"
+    },
+    "decision": {
+      "make_a_choice_first": "Elige algo primero",
+      "pick_a_career_area_to": "Elige un área de carreras para explorar",
+      "give_it_at_least_two": "Dale al menos dos opciones"
+    },
+    "upload": {
+      "your_resume_and_a_headshot": "Tu currículum y una foto de perfil",
+      "photo": "Foto",
+      "video": "Video"
+    },
+    "event": {
+      "job_shadow_at_riverside_clinic": "Observar un día de trabajo en Riverside Clinic",
+      "going": "Voy",
+      "maybe": "Tal vez",
+      "can_t_go": "No puedo ir"
+    },
+    "write": {
+      "write_something_first": "Escribe algo primero",
+      "what_surprised_you_on_your": "¿Qué te sorprendió de tu visita?"
+    },
+    "explore_board": {
+      "untitled": "Sin título",
+      "grid": "Cuadrícula",
+      "stack": "Pila"
+    },
+    "task": {
+      "open_a_savings_account": "Abre una cuenta de ahorros"
+    },
+    "routine": {
+      "today": "Hoy",
+      "end_this_routine": "Terminar esta rutina",
+      "log_what_you_spend_each": "Anota lo que gastas cada día"
+    },
+    "resources": {
+      "resource": "Recurso",
+      "opened": "Abierto",
+      "not_opened_yet": "Todavía sin abrir",
+      "all_set": "Todo listo.",
+      "open_it_to_finish_this": "Ábrelo para terminar este paso.",
+      "open_each_one_to_finish": "Abre cada uno para terminar este paso.",
+      "check_out_these_two_college": "Revisa estas dos guías de costos universitarios",
+      "add_at_least_one_resource": "Agrega al menos un recurso"
+    },
+    "plan_compare": {
+      "takes": "Dura",
+      "left_a_month": "Sobra al mes",
+      "saved": "Ahorrado",
+      "owed": "Debido",
+      "nothing": "Nada",
+      "the_options": "Las opciones",
+      "whole_plan": "Todo el plan"
+    },
+    "phase_insights": {
+      "little_or_no_training_most": "Poca o ninguna preparación: la mayoría aprende en el trabajo",
+      "usually_a_high_school_diploma": "Por lo general, un diploma de preparatoria",
+      "training_after_high_school_a": "Preparación después de la preparatoria: un certificado, un título asociado o un aprendizaje",
+      "usually_a_bachelor_s_degree": "Por lo general, una licenciatura",
+      "usually_a_graduate_degree": "Por lo general, un posgrado"
+    },
+    "graph": {
+      "new_phase": "Nueva fase",
+      "college": "Universidad",
+      "graduate_school": "Posgrado",
+      "community_college": "Colegio comunitario",
+      "university": "Universidad",
+      "trade_school": "Escuela técnica",
+      "certificate_program": "Programa de certificado",
+      "short_training_program": "Programa de capacitación corto"
+    },
+    "phase_page": {
+      "remove_phase": "Quitar fase",
+      "use_the_photo_of": "Usar la foto de",
+      "training": "Capacitación",
+      "since": "Desde",
+      "from": "De",
+      "add_what_comes_in_and": "Agrega lo que entra y lo que sale para ver cómo te deja esta fase."
+    },
+    "phase_sheet": {
+      "you_re_here": "Estás aquí",
+      "before_now": "Antes",
+      "up_next": "Lo siguiente",
+      "later": "Después"
+    },
+    "plan_map": {
+      "put_it_back": "Devolverlo",
+      "the_last_option": "La última opción",
+      "the_first_option": "La primera opción",
+      "drop_it_on_the_map": "Suéltalo en el mapa"
+    },
+    "phase_stack": {
+      "something_else": "Otra cosa"
+    },
+    "map_parts": {
+      "nothing_that_way": "Nada por ese lado"
+    },
+    "goals_home": {
+      "next": "Siguiente",
+      "before": "Antes"
+    },
+    "step_text": {
+      "someone_helping_with_this_goal": "Alguien que ayuda con esta meta puso este paso en pausa.",
+      "on_hold_for_now": "En pausa por ahora",
+      "not_open_yet": "Todavía no abre",
+      "excused": "Excusado",
+      "waiting_on_review": "Esperando revisión",
+      "needs_another_go": "Necesita otro intento"
+    },
+    "goal_chat": {
+      "chat": "Chat"
+    },
+    "coach_notes": {
+      "coach_is_taking_a_first": "Coach está dando un primer vistazo…"
+    },
+    "goal_proposals": {
+      "cancelled": "Cancelado",
+      "why": "Por qué",
+      "notes": "Notas"
+    },
+    "step_editor": {
+      "give_it_a_title": "Ponle un título",
+      "learner_instructions": "Instrucciones para el estudiante",
+      "materials": "Materiales",
+      "staff_guide": "Guía para el personal",
+      "add_for_staff": "Agregar para el personal"
+    },
+    "step_timing": {
+      "start_of_stage": "Inicio de la etapa",
+      "any_time": "En cualquier momento",
+      "end_of_stage": "Fin de la etapa",
+      "end_of_goal": "Fin de la meta",
+      "no_close": "Sin cierre",
+      "opens": "Abre",
+      "closes": "Cierra"
+    },
+    "goal_editing": {
+      "step_added": "Paso agregado",
+      "step_duplicated": "Paso duplicado",
+      "step_deleted": "Paso eliminado",
+      "step_reopened": "Paso reabierto",
+      "stage_deleted": "Etapa eliminada"
+    },
+    "plan_art": {
+      "earned": "Ganada",
+      "in_progress": "En curso",
+      "asked": "Solicitado"
+    },
+    "resource_cover": {
+      "watch_on": "Ver en",
+      "read_on": "Leer en",
+      "open_on": "Abrir en",
+      "take_it_on": "Hacerlo en",
+      "start_on": "Empezar en",
+      "visit": "Visitar",
+      "full_report_on": "Reporte completo en"
+    },
+    "discover_settings_panel": {
+      "could_not_load_discover_settings": "No se pudo cargar la configuración de Descubrir",
+      "could_not_save_discover_settings": "No se pudo guardar la configuración de Descubrir"
+    },
+    "discover_search_bar": {
+      "resources": "Recursos"
+    },
+    "plan_page": {
+      "kind": "Tipo",
+      "made_by": "Hecho por",
+      "version": "Versión",
+      "code": "Código",
+      "field_of_study": "Área de estudio",
+      "specialization": "Especialización",
+      "credits": "Créditos",
+      "request_sent": "Solicitud enviada",
+      "open": "Abierto",
+      "ask_to_join": "Pedir unirse",
+      "see_your_plan": "Ver tu plan",
+      "keep_going": "Seguir",
+      "no_organization_offers_this_plan": "Ninguna organización ofrece este plan a estudiantes ahora mismo.",
+      "it_shows_up_in_plans": "Aparece en Planes en cuanto empiezas.",
+      "discover": "Descubrir"
+    },
+    "resource_sheet": {
+      "costs_money": "Cuesta dinero",
+      "needs_an_account": "Necesita una cuenta"
+    },
+    "career_profile": {
+      "more": "Más",
+      "lots_of_openings": "Muchas vacantes",
+      "steady_openings": "Vacantes constantes",
+      "very_few_openings": "Muy pocas vacantes",
+      "jobs_over_10_years_by": "Trabajos en 10 años, por región",
+      "strong_fit": "Encaja muy bien",
+      "good_fit": "Encaja bien",
+      "not_much_like_your_interests": "No se parece mucho a tus intereses",
+      "pay_over_time_bls_occupational": "Sueldo con el tiempo: BLS Occupational Employment and Wage Statistics.",
+      "more_about_the_work": "Más sobre el trabajo",
+      "find_out_how_this_fits": "Descubre cómo encaja contigo.",
+      "your_interests_next_to_this": "Tus intereses junto a esta carrera",
+      "pay_around_oregon_and_over": "Sueldos en Oregón y con el tiempo",
+      "one_main_way_in": "Una forma principal de entrar.",
+      "little_or_no_training": "Poca o ninguna preparación",
+      "many_people_start_right_after": "Muchas personas empiezan justo después de la preparatoria y aprenden en el trabajo.",
+      "high_school_plus_on_the": "Preparatoria más capacitación en el trabajo",
+      "training_after_high_school": "Preparación después de la preparatoria",
+      "think_a_certificate_an_apprenticeship": "Piensa en un certificado, un aprendizaje o un título de 2 años.",
+      "usually_a_4_year_degree": "Por lo general, una licenciatura de 4 años",
+      "most_people_in_this_job": "La mayoría de las personas en este trabajo tiene licenciatura.",
+      "most_people_in_this_job_2": "La mayoría de las personas en este trabajo tiene maestría, doctorado o título profesional.",
+      "near_you": "Cerca de ti",
+      "shortest": "Más corto",
+      "lowest_cost": "Costo más bajo",
+      "online": "En línea"
+    },
+    "career_tile": {
+      "little_or_no_prep": "Poca o ninguna preparación",
+      "high_school_training": "Preparatoria + capacitación",
+      "certificate_or_2_year": "Certificado o 2 años",
+      "grad_school": "Posgrado",
+      "strong_match": "Muy parecida",
+      "good_match": "Parecida",
+      "something_different": "Algo diferente"
+    },
+    "career_compare": {
+      "not_much_like_you": "No se parece mucho a ti",
+      "pay_is_about_the_same": "El sueldo es más o menos igual."
+    },
+    "context_bar": {
+      "start": "Inicio"
+    },
+    "savings_debt": {
+      "none": "Ninguno",
+      "paid_off": "Pagado",
+      "not_at_this_rate": "No a este ritmo",
+      "you_borrow": "Pides prestado",
+      "you_owe": "Debes",
+      "interest": "Interés",
+      "minimum": "Mínimo",
+      "money_into_savings": "Dinero a los ahorros",
+      "payments_start_the_month_you": "Los pagos empiezan el mes en que lo sacas.",
+      "what_you_pay_carries_on": "Lo que pagas sigue igual hasta que lo cambies en un tramo posterior.",
+      "in_it_now": "Saldo actual",
+      "you_put_in": "Tú aportas",
+      "your_employer_adds": "Tu empleador agrega",
+      "growth": "Crecimiento",
+      "what_you_put_in_carries": "Lo que aportas sigue igual hasta que lo cambies en un tramo posterior.",
+      "in_the_account": "En la cuenta",
+      "whatever_is_left_after_your": "Aquí va lo que queda después de tu presupuesto, deudas y otras cuentas.",
+      "your_budget_debt_and_accounts": "Tu presupuesto, deudas y cuentas toman más de lo que entra, así que esto sale de tus ahorros. Si se acaban, el resto va a una tarjeta.",
+      "add_a_debt": "Agregar una deuda",
+      "add_an_account": "Agregar una cuenta",
+      "add_a_debt_or_an": "Agregar una deuda o una cuenta",
+      "credit_card": "Tarjeta de crédito",
+      "on_a_date_in_your": "En una fecha de tu plan. El dinero entra ese día.",
+      "savings": "Ahorros"
+    },
+    "prefill": {
+      "rent": "Renta",
+      "utilities_and_internet": "Servicios e internet",
+      "dorm": "Dormitorio",
+      "groceries": "Comida",
+      "getting_around": "Transporte",
+      "tuition_and_fees": "Matrícula y cuotas",
+      "books_and_supplies": "Libros y útiles",
+      "going_out": "Salidas",
+      "phone_plan": "Plan de celular",
+      "clothes": "Ropa"
+    },
+    "loan_story": {
+      "each_month": "Cada mes"
+    },
+    "budget_table": {
+      "income": "Ingresos",
+      "expenses": "Gastos",
+      "single": "Soltero",
+      "married_filing_together": "Casados, declaración conjunta",
+      "median_pay": "Sueldo mediano",
+      "pay": "Sueldo"
+    },
+    "money_cards": {
+      "big_costs_or_money_that": "Gastos grandes o dinero que llega una vez, como un depósito, una laptop o un regalo de graduación."
+    },
+    "chart_events": {
+      "savings_run_out": "Se acaban los ahorros",
+      "this_is_the_down_payment": "Este es el enganche. Un préstamo cubre el resto, así que la deuda también sube.",
+      "paid_from_your_savings_it": "Pagado con tus ahorros. Ahora cuenta como algo que tienes.",
+      "what_s_left_of_the": "Lo que queda del precio de venta después de pagar su préstamo.",
+      "the_sale_price_goes_into": "El precio de venta va a tus ahorros.",
+      "one_time_money_that_comes": "Dinero de una sola vez que entra.",
+      "more_goes_out_than_you": "Sale más de lo que tienes, así que el resto va a una tarjeta de crédito y aparece como deuda."
+    },
+    "you_own": {
+      "it_s_yours_when_your": "Es tuyo cuando empieza tu plan. No cambia de manos ningún dinero.",
+      "the_price_comes_out_of": "El precio sale de tus ahorros el día que lo compras.",
+      "car": "Carro"
+    },
+    "life_plan_workspace": {
+      "back": "Volver"
+    },
+    "estimates_dialog": {
+      "no_place_yet": "Todavía sin lugar",
+      "nothing_picked": "Nada elegido",
+      "not_picked": "Sin elegir",
+      "update": "Actualizar"
+    },
+    "hub_shell": {
+      "goals": "Metas",
+      "threads": "Hilos",
+      "coach": "Coach"
+    },
+    "hub_resource_library": {
+      "failed_to_delete_list": "No se pudo eliminar la lista"
+    },
+    "hub_resource_context": {
+      "failed_to_remove_from_list": "No se pudo quitar de la lista"
+    },
+    "hub_quick_search": {
+      "search_is_temporarily_unavailable": "La búsqueda no está disponible por ahora."
+    },
+    "hub_memory_items": {
+      "this_memory_could_not_be": "Este recuerdo no se pudo actualizar.",
+      "this_memory_could_not_be_2": "Este recuerdo no se pudo eliminar."
+    },
+    "end_session_dialog": {
+      "end_coach_s_session": "¿Terminar la sesión de Coach?",
+      "end_session": "Terminar sesión"
+    },
+    "use_hub_edit_run": {
+      "editing_could_not_be_stopped": "No se pudo detener la edición.",
+      "this_editing_goal_could_not": "No se pudo terminar esta meta de edición.",
+      "this_focused_session_could_not": "No se pudo restaurar esta sesión enfocada.",
+      "the_session_goal_could_not": "No se pudo actualizar la meta de la sesión."
+    },
+    "hub_memory_notice": {
+      "your_choice_could_not_be": "Tu elección no se pudo guardar. Inténtalo otra vez."
+    },
+    "hub_conversation": {
+      "the_advisor_is_temporarily_unavailable": "El asesor no está disponible por ahora. Tu mensaje se restauró.",
+      "conversation_history_is_unavailable": "El historial de la conversación no está disponible.",
+      "this_conversation_could_not_be": "Esta conversación no se pudo abrir.",
+      "conversation_changes_could_not_be": "Los cambios de la conversación no se pudieron guardar.",
+      "this_resource_is_not_available": "Este recurso no está disponible.",
+      "you_added": "Agregaste",
+      "suggested": "Sugerido",
+      "the_search_could_not_be": "La búsqueda no se pudo guardar. Tu mensaje se restauró.",
+      "let_s_plan_this_goal": "Planeemos esta meta juntos.",
+      "that_suggested_destination_is_no": "Ese destino sugerido ya no está disponible.",
+      "your_answers_could_not_be": "Tus respuestas no se pudieron enviar.",
+      "this_conversation_could_not_be_2": "Esta conversación no se pudo renombrar.",
+      "this_conversation_could_not_be_3": "Esta conversación no se pudo archivar.",
+      "keep_the_session": "Mantener la sesión"
+    },
+    "edit_run_timeline": {
+      "focused_work": "Trabajo enfocado",
+      "create_a_goal": "Crear una meta",
+      "edit_a_goal": "Editar una meta",
+      "you_updated_the_session_goal": "Actualizaste la meta de la sesión"
+    },
+    "hub_header": {
+      "creating_a_goal": "Creando una meta",
+      "planning": "Planeando"
+    },
+    "use_hub_memory": {
+      "the_memory_notice_could_not": "El aviso de memoria no se pudo cerrar. Inténtalo otra vez.",
+      "your_memory_setting_could_not": "Tu configuración de memoria no se pudo guardar."
+    },
+    "hub_message_micro_bar": {
+      "what_informed_this_answer": "¿Qué informó esta respuesta?",
+      "memory_updated_by_this_message": "Memoria actualizada por este mensaje"
+    },
+    "connect_view": {
+      "wants_to_chat_with_you": "Quiere chatear contigo",
+      "you": "Tú:"
+    },
+    "composer_parts": {
+      "changes_asked_for": "Pidieron cambios",
+      "started": "Empezado",
+      "not_started": "Sin empezar",
+      "organization": "Organización",
+      "personal": "Personal",
+      "the_whole_plan": "Todo el plan"
+    },
+    "chat_cards": {
+      "finished": "Terminado",
+      "turned_in": "Entregado",
+      "approved": "Aprobado",
+      "asked_for_changes": "Pidió cambios",
+      "marked_done": "Marcado como hecho",
+      "accepted": "Aceptado",
+      "declined": "Rechazado",
+      "no_longer_open": "Ya no está abierto",
+      "withdrawn": "Retirado",
+      "someone": "Alguien",
+      "you": "Tú",
+      "waiting_for_an_answer": "Esperando respuesta",
+      "stopped": "Detenido"
+    },
+    "chat_workspace": {
+      "everyone_in_the_group_sees": "Todos en el grupo ven esto",
+      "you_can_read_along_here": "Puedes leer aquí"
+    },
+    "feed": {
+      "message": "Mensaje",
+      "staff_only": "Solo personal"
+    },
+    "chat_pane": {
+      "you_can_t_message_in": "No puedes escribir en este chat.",
+      "accept_to_reply": "Acepta para responder."
+    },
+    "award_flow": {
+      "add_someone": "Agregar a alguien",
+      "say_what_they_did": "Di lo que hicieron",
+      "confirm_the_work": "Confirma el trabajo",
+      "the_date_can_t_be": "La fecha no puede ser en el futuro",
+      "everyone_picked_has_this_badge": "Todos los elegidos ya tienen esta insignia",
+      "award_a_badge": "Otorgar una insignia",
+      "what_you_write_goes_on": "Lo que escribas va en su insignia, donde cualquiera que la revise puede leerlo.",
+      "nothing_is_awarded_until_you": "No se otorga nada hasta que confirmes.",
+      "learner_name": "Nombre del estudiante",
+      "award_a_plan_s_badge": "Otorga la insignia de un plan a estudiantes que hicieron el mismo trabajo en otro lugar. Tú lo confirmas, y queda marcada como otorgada directamente."
+    },
+    "learner_badges": {
+      "could_not_revoke_it_try": "No se pudo revocar. Inténtalo otra vez."
+    },
+    "chip_multi_select": {
+      "select_options": "Elegir opciones",
+      "search_options": "Buscar opciones",
+      "no_options_yet": "Todavía no hay opciones."
+    },
+    "new_user_resource_channel_modal": {
+      "failed_to_update_list": "No se pudo actualizar la lista",
+      "failed_to_create_list": "No se pudo crear la lista"
+    },
+    "resource_comments": {
+      "unknown": "Desconocido"
+    },
+    "resource_notes": {
+      "request_failed": "La solicitud falló"
+    },
+    "save_dropdown": {
+      "failed_to_remove_save": "No se pudo quitar de guardados",
+      "failed_to_save_resource": "No se pudo guardar el recurso",
+      "failed_to_remove_from_channel": "No se pudo quitar del canal",
+      "failed_to_add_to_channel": "No se pudo agregar al canal"
+    },
+    "joined_flow": {
+      "add_your_first_name_so": "Agrega tu nombre para que la gente sepa quién eres.",
+      "we_couldn_t_save_your": "No pudimos guardar tu nombre",
+      "we_couldn_t_save_your_2": "No pudimos guardar tu perfil"
+    },
+    "site_preview": {
+      "people": "Personas",
+      "groups": "Grupos",
+      "requirements": "Requisitos",
+      "insights": "Datos",
+      "your_plans": "Tus planes",
+      "invite": "Invitar",
+      "admin": "Administrador",
+      "staff": "Personal",
+      "ready_to_invite": "Listo para invitar",
+      "cohorts_classes_and_teams": "Cohortes, clases y equipos",
+      "what_your_plans_count_toward": "Para qué cuentan tus planes"
+    },
+    "roles": {
+      "parent_or_guardian": "Madre, padre o tutor",
+      "helping_my_own_kid": "Ayudo a mi propio hijo",
+      "mentor_or_life_coach": "Mentor o coach de vida",
+      "guiding_a_few_people_one": "Guío a algunas personas una a una",
+      "teacher_or_counselor": "Maestro o consejero",
+      "supporting_a_class_or_caseload": "Apoyo a una clase o grupo de casos",
+      "youth_program_staff": "Personal de programa juvenil",
+      "school_or_district_leader": "Líder escolar o de distrito",
+      "readiness_across_schools": "Preparación en varias escuelas",
+      "new_hires": "Nuevos empleados"
+    },
+    "start_flow": {
+      "your_organization": "Tu organización",
+      "your_space": "Tu espacio",
+      "something_went_wrong_try_again": "Algo salió mal. Inténtalo otra vez.",
+      "sign_in_first": "Primero inicia sesión.",
+      "your_space_isn_t_ready": "Tu espacio todavía no está listo. Vuelve un paso e inténtalo otra vez.",
+      "could_not_send_the_invites": "No se pudieron enviar las invitaciones.",
+      "continue": "Continuar",
+      "that_doesn_t_look_like": "Eso no parece una dirección de correo.",
+      "could_not_create_the_account": "No se pudo crear la cuenta.",
+      "that_email_and_password_don": "Ese correo y contraseña no coinciden."
+    },
+    "tour": {
+      "welcome_to_life2launch": "Bienvenido a Life2Launch",
+      "where_young_people_map_out": "Donde los jóvenes trazan lo que sigue y toman el control para llegar ahí.",
+      "you_guide_they_go": "Tú guías. Ellos avanzan.",
+      "hand_someone_a_plan_and": "Dale un plan a alguien y lo recorre por su cuenta. Ves cada paso que completa y sabes exactamente cuándo te toca.",
+      "step_in_right_where_it": "Interviene justo donde importa",
+      "review_work_answer_questions_and": "Revisa trabajos, responde preguntas y anímalos en una sola conversación, unida al plan en el que están.",
+      "celebrate_every_launch": "Celebra cada lanzamiento",
+      "finished_plans_add_up_to": "Los planes terminados se suman a un portafolio que es suyo, con insignias y trabajo real para mostrar a escuelas y empleadores."
+    },
+    "tour_scene": {
+      "maya_interest_quiz": "Maya · Test de intereses",
+      "resume_draft": "Borrador del currículum",
+      "interview_a_nurse_2": "Entrevistar a una enfermera",
+      "career_explorer": "Explorador de carreras",
+      "step_1_of_5": "Paso 1 de 5",
+      "money_basics": "Lo básico del dinero",
+      "my_portfolio": "Mi portafolio",
+      "hospital_job_shadow": "Observar un día en un hospital",
+      "what_i_m_good_at": "En qué soy bueno",
+      "reflection": "Reflexión",
+      "resume": "Currículum",
+      "upload_2": "Subir",
+      "badge": "Insignia"
+    },
+    "read_aloud": {
+      "read_aloud": "Leer en voz alta",
+      "talk_instead_of_typing": "Hablar en lugar de escribir"
+    },
+    "accessibility_controls": {
+      "reads_each_new_question_card": "Lee en voz alta cada pregunta, tarjeta y paso nuevo cuando aparece. Los botones de bocina funcionan de todos modos.",
+      "hi_this_is_how_i": "¡Hola! Así sueno cuando te leo.",
+      "highlights_each_word_as_it": "Resalta cada palabra mientras se lee."
+    },
+    "dictation": {
+      "allow_the_microphone_to_talk": "Permite el micrófono para hablar en lugar de escribir.",
+      "talking_didn_t_work_this": "Hablar no funcionó esta vez. Inténtalo otra vez."
+    },
+    "career_take": {
+      "into_it": "Me interesa",
+      "love_it": "Me encanta",
+      "sounds_like_me": "Me describe",
+      "i_want_to_job_shadow": "Quiero observar un día de trabajo",
+      "ask_my_counselor_about_classes": "Preguntar a mi consejero sobre clases",
+      "the_pay_looks_good": "El sueldo se ve bien",
+      "i_know_someone_who_does": "Conozco a alguien que hace esto"
+    },
+    "home_base_sheet": {
+      "stay_close": "Quedarme cerca",
+      "my_town_and_county": "Mi ciudad y condado",
+      "my_region": "Mi región",
+      "an_hour_or_two_away": "A una o dos horas",
+      "anywhere_in_oregon": "En cualquier parte de Oregón",
+      "any_school_in_the_state": "Cualquier escuela del estado",
+      "anywhere": "En cualquier parte",
+      "other_states_too": "También otros estados"
+    },
+    "phase_form": {
+      "in_school": "En la escuela",
+      "college_or_training": "Universidad o capacitación",
+      "working": "Trabajando",
+      "gap_or_travel": "Año sabático o viaje",
+      "family_or_care": "Familia o cuidados"
+    },
+    "hub_home_stack": {
+      "can_you_check_in_with": "¿Puedes revisar mis metas conmigo? Ayúdame a elegir la siguiente cosa pequeña que hacer."
+    },
+    "model": {
+      "highlights": "Datos destacados",
+      "featured": "Destacado",
+      "about_me": "Sobre mí",
+      "experience": "Experiencia",
+      "projects": "Proyectos",
+      "credentials_badges": "Credenciales e insignias",
+      "what_i_m_like": "Cómo soy",
+      "where_i_m_headed": "Hacia dónde voy",
+      "my_people": "Mi gente",
+      "numbers": "Números",
+      "now_showing": "En exhibición",
+      "info": "Info",
+      "work": "Obras",
+      "certified": "Certificado",
+      "character": "Carácter",
+      "next": "Lo siguiente",
+      "said_about_me": "Lo que dicen de mí",
+      "at_a_glance": "De un vistazo",
+      "about": "Sobre mí",
+      "licenses_and_certifications": "Licencias y certificaciones",
+      "strengths": "Fortalezas",
+      "goals": "Metas",
+      "recommendations": "Recomendaciones",
+      "stats": "Estadísticas",
+      "bio": "Bio",
+      "history": "Historial",
+      "showcase": "Vitrina",
+      "achievements": "Logros",
+      "class": "Clase",
+      "next_quest": "Próxima misión",
+      "squad_says": "Lo que dice mi equipo",
+      "by_the_numbers": "En números",
+      "journey": "Trayectoria",
+      "latest_work": "Trabajo reciente",
+      "badges": "Insignias",
+      "how_i_work": "Cómo trabajo",
+      "next_up": "Lo que sigue",
+      "shoutouts": "Menciones"
+    }
   }
 }

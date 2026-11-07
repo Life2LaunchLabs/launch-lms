@@ -30,7 +30,7 @@ export function RoutineChart({ action, periods, current, selected, onSelect }: P
           const on = period.start === selected
           const met = period.done >= period.wanted
           const now = period.start === current
-          const label = `${now ? 'Now' : shortDate(period.start)}: ${progressText(action, period.done, period.wanted)}`
+          const label = `${now ? tr('lit.routine_chart.now', 'Now') : shortDate(period.start)}: ${progressText(action, period.done, period.wanted)}`
           return <button key={period.start} type="button" onClick={() => onSelect(period.start)} aria-label={label} aria-pressed={on} title={label}
             className={cn('flex h-full min-w-0 flex-1 flex-col justify-end rounded-md p-0.5 transition hover:bg-muted/70', on && 'bg-muted ring-2 ring-[var(--plan-face)]/40')}>
             {action.kind === 'number' ? null : <span className={cn('block w-full rounded-[4px]', met ? 'bg-[var(--plan-face)]' : period.done ? 'bg-[color-mix(in_srgb,var(--plan-face)_45%,transparent)]' : 'bg-border')}

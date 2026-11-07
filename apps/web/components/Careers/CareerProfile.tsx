@@ -24,13 +24,13 @@ import { tr } from '@/lib/tr'
 // base. Every number names where it came from under "How we know".
 
 const ORDER = ['R', 'I', 'A', 'S', 'E', 'C']
-const ZONE: Record<number, [string, string]> = {
-  1: ['Little or no training', 'Many people start right after high school and learn on the job.'],
-  2: ['High school plus on-the-job training', 'Many people start right after high school and learn on the job.'],
-  3: ['Training after high school', 'Think a certificate, an apprenticeship or a 2-year degree.'],
-  4: ['Usually a 4-year degree', 'Most people in this job have a bachelor’s degree.'],
-  5: ['Graduate school', 'Most people in this job have a master’s, doctorate or professional degree.'],
-}
+const ZONE = (): Record<number, [string, string]> => ({
+  1: [tr('lit.career_profile.little_or_no_training', 'Little or no training'), tr('lit.career_profile.many_people_start_right_after', 'Many people start right after high school and learn on the job.')],
+  2: [tr('lit.career_profile.high_school_plus_on_the', 'High school plus on-the-job training'), tr('lit.career_profile.many_people_start_right_after', 'Many people start right after high school and learn on the job.')],
+  3: [tr('lit.career_profile.training_after_high_school', 'Training after high school'), tr('lit.career_profile.think_a_certificate_an_apprenticeship', 'Think a certificate, an apprenticeship or a 2-year degree.')],
+  4: [tr('lit.career_profile.usually_a_4_year_degree', 'Usually a 4-year degree'), tr('lit.career_profile.most_people_in_this_job', 'Most people in this job have a bachelor’s degree.')],
+  5: [tr('lit.graph.graduate_school', 'Graduate school'), tr('lit.career_profile.most_people_in_this_job_2', 'Most people in this job have a master’s, doctorate or professional degree.')],
+})
 // O*NET's 12 education levels, grouped the way a 15-year-old thinks about them.
 const SCHOOLING: Array<{ label: string; levels: number[]; shade: number }> = [
   { get label() { return tr('careers.career_profile.high_school_or_less', 'High school or less') }, levels: [1, 2], shade: 0.22 },
@@ -40,7 +40,7 @@ const SCHOOLING: Array<{ label: string; levels: number[]; shade: number }> = [
   { get label() { return tr('careers.career_profile.master_s_or_more', 'Master’s or more') }, levels: [8, 9, 10, 11, 12], shade: 1 },
 ]
 
-function Section({ title, headline, speak, accent, more, moreLabel = 'More', children }: {
+function Section({ title, headline, speak, accent, more, moreLabel = tr('lit.career_profile.more', 'More'), children }: {
   title: string; headline?: React.ReactNode; speak?: string; accent?: string; more?: React.ReactNode; moreLabel?: string; children?: React.ReactNode
 }) {
   const [open, setOpen] = React.useState(false)
@@ -165,7 +165,7 @@ function PayHistory({ wages, color }: { wages: CareerWages; color: string }) {
 
 const growthWord = (growth: number | null) => growth == null ? '' : growth > 0.03 ? 'and growing' : growth < -0.03 ? 'but shrinking' : 'and holding steady'
 const percent = (growth: number) => `${growth > 0 ? '+' : ''}${(growth * 100).toFixed(1)}%`
-const many = (openings: number) => openings >= 100 ? 'Lots of openings' : openings >= 20 ? 'Steady openings' : openings >= 5 ? 'A few openings' : 'Very few openings'
+const many = (openings: number) => openings >= 100 ? tr('lit.career_profile.lots_of_openings', 'Lots of openings') : openings >= 20 ? tr('lit.career_profile.steady_openings', 'Steady openings') : openings >= 5 ? 'A few openings' : tr('lit.career_profile.very_few_openings', 'Very few openings')
 
 function JobsSection({ outlook, home, onHome }: { outlook: CareerOutlook; home: Profile['home']; onHome: () => void }) {
   const oregon = outlook.places.find((row) => row.place === 'state:OR')
@@ -176,7 +176,7 @@ function JobsSection({ outlook, home, onHome }: { outlook: CareerOutlook; home: 
   const newJobs = main.jobs != null && main.jobs_later != null ? (main.jobs_later - main.jobs) / span : null
   const headline = `${many(main.openings)}: about ${main.openings.toLocaleString('en-US')} a year ${inPlace(main)}${main.growth != null ? `, ${growthWord(main.growth)}` : ''}.`
   const regions = outlook.places.filter((row) => row.place !== 'state:OR' && row.openings != null).sort((a, b) => (b.openings || 0) - (a.openings || 0))
-  return <Section title={tr('careers.career_profile.can_i_get_a_job', 'Can I get a job?')} headline={headline} speak={headline} moreLabel="Jobs over 10 years, by region" more={<>
+  return <Section title={tr('careers.career_profile.can_i_get_a_job', 'Can I get a job?')} headline={headline} speak={headline} moreLabel={tr('lit.career_profile.jobs_over_10_years_by', 'Jobs over 10 years, by region')} more={<>
     <p className="m-0 text-[14px]">{outlook.start && outlook.end ? tr('careers.career_profile.from_start_to_end', 'From {{start}} to {{end}}, ', { start: outlook.start, end: outlook.end }) : ''}{tr('careers.career_profile.oregon_expects', 'Oregon expects')}{' '}{oregon?.jobs != null && oregon.jobs_later != null ? `${oregon.jobs.toLocaleString('en-US')} jobs to become ${oregon.jobs_later.toLocaleString('en-US')}` : tr('careers.career_profile.these_openings', 'these openings')}.</p>
     {regions.length ? <div className="flex flex-col gap-1">
       {regions.map((row) => <div key={row.place} className={cn('grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-2 py-1.5 text-[13.5px]', row.place === outlook.here && 'bg-amber-500/15')}>
@@ -225,7 +225,7 @@ function SkillsLine({ skills, color, href }: { skills: Profile['skills']; color:
 }
 
 type PathSort = 'near' | 'short' | 'cost' | 'online'
-const PATH_SORTS: Array<[PathSort, string]> = [['near', 'Near you'], ['short', 'Shortest'], ['cost', 'Lowest cost'], ['online', 'Online']]
+const PATH_SORTS = (): Array<[PathSort, string]> => ([['near', tr('lit.career_profile.near_you', 'Near you')], ['short', tr('lit.career_profile.shortest', 'Shortest')], ['cost', tr('lit.career_profile.lowest_cost', 'Lowest cost')], ['online', tr('lit.career_profile.online', 'Online')]])
 const STATE_NAMES: Record<string, string> = { OR: 'Oregon', WA: 'Washington', CA: 'California', ID: 'Idaho' }
 /** Tuition for the whole program, where the Scorecard has a yearly figure. */
 const totalCost = (program: CareerProgram) => program.tuition != null && program.years ? program.tuition * program.years : null
@@ -290,7 +290,7 @@ function Paths({ paths, onOpen, color, home, onHome }: { paths: CareerPaths; onO
     <HomeLine home={home} onHome={onHome} />
     <span className="text-[13.5px] font-bold">{tr('careers.career_profile.schools_school', '{{schools}} school', { schools })}{schools === 1 ? '' : 's'}{' '}{tr('careers.career_profile.near_you_train_for_this', 'near you train for this')}{programs.some((p) => p.near_rank === 5) ? tr('careers.career_profile.plus_online_programs', ', plus online programs') : ''}.</span>
     <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label={tr('careers.career_profile.sort_programs', 'Sort programs')}>
-      {PATH_SORTS.filter(([key]) => key !== 'online' || programs.some((p) => p.online)).map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
+      {PATH_SORTS().filter(([key]) => key !== 'online' || programs.some((p) => p.online)).map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
         className={cn('min-h-9 shrink-0 rounded-full border-2 px-3 text-[13px] font-extrabold', sort === key ? 'text-white' : 'border-border bg-card text-foreground')}
         style={sort === key ? { backgroundColor: color, borderColor: color } : undefined}>{label}</button>)}
     </div>
@@ -318,14 +318,14 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
   const { career, scores, wages, outlook, home } = data
   const top = (career.top_interests || '').split('').slice(0, 2)
   const color = (CAREER_TYPES[top[0]] || CAREER_TYPES.E).color
-  const zone = career.job_zone ? ZONE[career.job_zone] : null
+  const zone = career.job_zone ? ZONE()[career.job_zone] : null
   const quizHref = org?.slug ? getUriWithOrg(org.slug, '/portfolio/interests') : ''
   const similar = data.similar.filter((item) => item.resource_uuid)
   const here = wages.places.find((row) => row.place === wages.here)
   const tasks = career.tasks || []
   const routes = routesFor(career)
 
-  const fit = data.match == null ? null : data.match >= 0.7 ? 'Strong fit' : data.match >= 0.4 ? 'Good fit' : 'Not much like your interests'
+  const fit = data.match == null ? null : data.match >= 0.7 ? tr('lit.career_profile.strong_fit', 'Strong fit') : data.match >= 0.4 ? tr('lit.career_profile.good_fit', 'Good fit') : tr('lit.career_profile.not_much_like_your_interests', 'Not much like your interests')
   const sides = top.map((letter) => CAREER_TYPES[letter]?.name).filter(Boolean).join(' and ')
   const fitLine = fit ? (data.match! >= 0.4 ? `${fit} with your ${sides} side.` : `${fit}: this career leans ${sides}.`) : null
   const payLine = here?.hourly.p50 != null ? `Usually ${hourlyMoney(here.hourly.p50)} an hour ${here.place === wages.here && home && here.place !== 'state:OR' ? `${inPlace(here)}, near you` : inPlace(here)}, about ${fullMoney(here.yearly.p50 || here.hourly.p50 * 2080)} a year.` : null
@@ -335,7 +335,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
   const credits = [
     `Career facts: ${career.source?.title || 'O*NET Database'}, U.S. Department of Labor, Employment and Training Administration (CC BY 4.0); we shortened some descriptions. O*NET-SOC ${career.code}.`,
     here ? `Pay: ${credit(here)}.` : '',
-    wages.history['state:OR']?.length >= 3 ? 'Pay over time: BLS Occupational Employment and Wage Statistics.' : '',
+    wages.history['state:OR']?.length >= 3 ? tr('lit.career_profile.pay_over_time_bls_occupational', 'Pay over time: BLS Occupational Employment and Wage Statistics.') : '',
     outlook ? `Jobs and openings: ${outlook.source}.` : '',
     data.paths?.programs.length ? `Programs: ${data.paths.source}, linked to careers through the ${data.paths.credit}.` : '',
     career.job_zone ? `Training: O*NET job zone ${career.job_zone} (${TRAINING[career.job_zone]})${career.education?.length ? ' and O*NET’s survey of the education workers say the job needs' : ''}.` : '',
@@ -347,7 +347,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       {data.match != null ? <span className="text-muted-foreground">{tr('careers.career_profile.matchlabel_for_you', '{{matchLabel}} for you', { matchLabel: matchLabel(data.match) })}</span> : null}
     </div>
 
-    {tasks.length ? <Section title={tr('careers.career_profile.what_would_i_do', 'What would I do?')} speak={tasks.slice(0, 3).join('. ')} moreLabel="More about the work" more={tasks.length > 3 || career.alt_titles?.length ? <>
+    {tasks.length ? <Section title={tr('careers.career_profile.what_would_i_do', 'What would I do?')} speak={tasks.slice(0, 3).join('. ')} moreLabel={tr('lit.career_profile.more_about_the_work', 'More about the work')} more={tasks.length > 3 || career.alt_titles?.length ? <>
       {tasks.slice(3).map((task) => <span key={task} className="text-[14px]">{task}</span>)}
       {career.alt_titles?.length ? <span className="text-[12.5px] text-muted-foreground">{tr('careers.career_profile.also_called_join', 'Also called: {{join}}', { join: career.alt_titles.slice(0, 6).join(', ') })}</span> : null}
     </> : undefined}>
@@ -356,7 +356,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       </ul>
     </Section> : null}
 
-    <Section title={tr('careers.career_profile.would_i_like_it', 'Would I like it?')} headline={fitLine || 'Find out how this fits you.'} speak={fitLine || undefined} moreLabel="Your interests next to this career" more={scores ? <>
+    <Section title={tr('careers.career_profile.would_i_like_it', 'Would I like it?')} headline={fitLine || tr('lit.career_profile.find_out_how_this_fits', 'Find out how this fits you.')} speak={fitLine || undefined} moreLabel={tr('lit.career_profile.your_interests_next_to_this', 'Your interests next to this career')} more={scores ? <>
       <div className="flex gap-4 text-[12px] font-bold text-muted-foreground">
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-foreground/35" />{tr('careers.career_profile.you_2', 'You')}</span>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />{tr('careers.career_profile.this_career', 'This career')}</span>
@@ -375,7 +375,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       <SkillsLine skills={data.skills} color={color} href={org?.slug ? getUriWithOrg(org.slug, '/portfolio/results?open=skills-values') : ''} />
     </Section>
 
-    {here && payLine ? <Section title={tr('careers.career_profile.what_does_it_pay', 'What does it pay?')} headline={payLine} speak={payLine} moreLabel="Pay around Oregon and over time" more={<PayMore wages={wages} color={color} />}>
+    {here && payLine ? <Section title={tr('careers.career_profile.what_does_it_pay', 'What does it pay?')} headline={payLine} speak={payLine} moreLabel={tr('lit.career_profile.pay_around_oregon_and_over', 'Pay around Oregon and over time')} more={<PayMore wages={wages} color={color} />}>
       <PayRange wage={here} color={color} lo={lo} hi={hi} />
       <div className="flex justify-between text-[12.5px] font-bold text-muted-foreground">
         <span>{here.hourly.p10 != null ? tr('careers.career_profile.lower_hourlymoney', 'Lower: {{hourlyMoney}}', { hourlyMoney: hourlyMoney(here.hourly.p10) }) : here.hourly.p25 != null ? tr('careers.career_profile.lower_hourlymoney', 'Lower: {{hourlyMoney}}', { hourlyMoney: hourlyMoney(here.hourly.p25) }) : ''}</span>
@@ -393,7 +393,7 @@ export default function CareerProfile({ code, token, onOpen, onAddToPlans }: { c
       {career.education?.length ? <Schooling education={career.education} color={color} /> : null}
     </Section> : null}
 
-    <Section title={tr('careers.career_profile.how_do_i_get_there', 'How do I get there?')} accent={color} headline={routes.length === 1 ? 'One main way in.' : `${routes.length} ways in.`}>
+    <Section title={tr('careers.career_profile.how_do_i_get_there', 'How do I get there?')} accent={color} headline={routes.length === 1 ? tr('lit.career_profile.one_main_way_in', 'One main way in.') : `${routes.length} ways in.`}>
       <ol className="m-0 flex list-none flex-col gap-2 p-0">
         {routes.map((route, index) => <li key={index} className="flex flex-col gap-0.5 rounded-2xl bg-muted/60 px-3 py-2">
           <span className="text-[14px] font-extrabold">{route.steps.map((step) => step.title).join(' → ')}</span>

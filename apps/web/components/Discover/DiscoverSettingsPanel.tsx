@@ -32,7 +32,7 @@ export default function DiscoverSettingsPanel({ orgId }: { orgId: number }) {
     if (!token || (!force && loadedOrg.current === orgId)) return
     setError('')
     try { const result = await planJoiningApi.settings(orgId, token); setData(result); setDraft(result.settings); loadedOrg.current = orgId }
-    catch (failure: any) { setError(failure?.message || 'Could not load Discover settings') }
+    catch (failure: any) { setError(failure?.message || tr('lit.discover_settings_panel.could_not_load_discover_settings', 'Could not load Discover settings')) }
   }, [orgId, token])
   useEffect(() => { void load() }, [load])
   const update = (index: number, values: Partial<DiscoverSlideConfig>) => setDraft(current => current && ({ ...current, slides: current.slides.map((slide, position) => position === index ? { ...slide, ...values } : slide) }))
@@ -48,7 +48,7 @@ export default function DiscoverSettingsPanel({ orgId }: { orgId: number }) {
     if (!draft || !token || saving) return
     setSaving(true); setError('')
     try { const result = await planJoiningApi.saveSettings(orgId, draft, token); setData(result); setDraft(result.settings); toast.success(tr('discover.discover_settings_panel.discover_carousel_saved', 'Discover carousel saved')) }
-    catch (failure: any) { setError(failure?.message || 'Could not save Discover settings') }
+    catch (failure: any) { setError(failure?.message || tr('lit.discover_settings_panel.could_not_save_discover_settings', 'Could not save Discover settings')) }
     finally { setSaving(false) }
   }
   return <div className="min-h-full bg-background text-foreground">

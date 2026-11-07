@@ -57,9 +57,9 @@ export default function TourScene({ scene }: { scene: number }) {
     {/* The cards a mentor gets while Maya works; in the next beat they become the chat. */}
     <div className="pointer-events-none absolute inset-y-0 right-3 hidden w-48 flex-col justify-center gap-3 sm:flex">
       <AnimatePresence>
-        {scene === 1 && beat >= 2 ? <Note key="n1" color="#13B3A4" icon={<Check size={14} />} title={tr('onboarding.tour_scene.step_completed', 'Step completed')} detail="Maya · Interest quiz" /> : null}
-        {scene === 1 && beat >= 4 ? <Note key="n2" color="#C77A0E" icon={<Inbox size={14} />} title={tr('onboarding.tour_scene.waiting_for_your_review', 'Waiting for your review')} detail="Resume draft" /> : null}
-        {scene === 1 && beat >= 5 ? <Note key="n3" color="#6B3FE0" icon={<CircleHelp size={14} />} title={tr('onboarding.tour_scene.maya_asked_a_question', 'Maya asked a question')} detail="Interview a nurse" /> : null}
+        {scene === 1 && beat >= 2 ? <Note key="n1" color="#13B3A4" icon={<Check size={14} />} title={tr('onboarding.tour_scene.step_completed', 'Step completed')} detail={tr('lit.tour_scene.maya_interest_quiz', 'Maya · Interest quiz')} /> : null}
+        {scene === 1 && beat >= 4 ? <Note key="n2" color="#C77A0E" icon={<Inbox size={14} />} title={tr('onboarding.tour_scene.waiting_for_your_review', 'Waiting for your review')} detail={tr('lit.tour_scene.resume_draft', 'Resume draft')} /> : null}
+        {scene === 1 && beat >= 5 ? <Note key="n3" color="#6B3FE0" icon={<CircleHelp size={14} />} title={tr('onboarding.tour_scene.maya_asked_a_question', 'Maya asked a question')} detail={tr('lit.tour_scene.interview_a_nurse_2', 'Interview a nurse')} /> : null}
       </AnimatePresence>
     </div>
     <AnimatePresence>{celebrating ? <Celebration key="cel" beat={beat} /> : null}</AnimatePresence>
@@ -94,7 +94,7 @@ function Note({ color, icon, title, detail }: { color: string; icon: React.React
 function Profile({ beat }: { beat: number }) {
   const at = (b: number) => ({ initial: { opacity: 0, y: 8 }, animate: beat >= b ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }, transition: { duration: 0.35 } })
   const plans: Array<[string, string, string, React.ReactNode, number]> = [
-    ['Career Explorer', 'Step 1 of 5', '#0B8077', <Briefcase key="b" size={15} />, 20], ['Money Basics', '4 of 9 done', '#5E9A14', <Wallet key="w" size={15} />, 44], ['My portfolio', '6 things I’ve made', '#C8327D', <Folder key="f" size={15} />, 0],
+    [tr('lit.tour_scene.career_explorer', 'Career Explorer'), tr('lit.tour_scene.step_1_of_5', 'Step 1 of 5'), '#0B8077', <Briefcase key="b" size={15} />, 20], [tr('lit.tour_scene.money_basics', 'Money Basics'), '4 of 9 done', '#5E9A14', <Wallet key="w" size={15} />, 44], [tr('lit.tour_scene.my_portfolio', 'My portfolio'), '6 things I’ve made', '#C8327D', <Folder key="f" size={15} />, 0],
   ]
   return <div className="flex h-full flex-col">
     <div className="bg-gradient-to-b from-[#2F66D6] to-[#5B8DEF] px-5 pb-5 pt-10 text-center text-white">
@@ -168,8 +168,8 @@ function Chat({ beat }: { beat: number }) {
 
 function Celebration({ beat }: { beat: number }) {
   const tiles: Array<[string, string, string, string]> = [
-    ['Hospital job shadow', 'Project', 'url(/images/start/neon-work.webp)', 'left-[6%] top-[12%]'], ['What I’m good at', 'Reflection', 'url(/images/start/neon-traits.webp)', 'right-[6%] top-[14%]'],
-    ['Resume', 'Upload', 'hsl(222 80% 95%)', 'left-[8%] bottom-[12%]'], ['Career Explorer', 'Badge', 'hsl(40 90% 92%)', 'right-[7%] bottom-[10%]'],
+    [tr('lit.tour_scene.hospital_job_shadow', 'Hospital job shadow'), tr('lit.feature_section.project', 'Project'), 'url(/images/start/neon-work.webp)', 'left-[6%] top-[12%]'], [tr('lit.tour_scene.what_i_m_good_at', 'What I’m good at'), tr('lit.tour_scene.reflection', 'Reflection'), 'url(/images/start/neon-traits.webp)', 'right-[6%] top-[14%]'],
+    [tr('lit.tour_scene.resume', 'Resume'), tr('lit.tour_scene.upload_2', 'Upload'), 'hsl(222 80% 95%)', 'left-[8%] bottom-[12%]'], [tr('lit.tour_scene.career_explorer', 'Career Explorer'), tr('lit.tour_scene.badge', 'Badge'), 'hsl(40 90% 92%)', 'right-[7%] bottom-[10%]'],
   ]
   return <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
     {tiles.map(([title, kind, background, place], index) => <motion.div key={title} className={cn('absolute w-32 rounded-2xl bg-white p-1.5 shadow-xl sm:w-36', place)}

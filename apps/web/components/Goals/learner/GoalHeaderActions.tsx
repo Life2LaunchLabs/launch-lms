@@ -45,7 +45,7 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
   const [shareOpen, setShareOpen] = React.useState(false)
   const { data: people } = useSWR<{ collaborators: Person[] }>(token ? goalUrl(goal.goal_uuid, '/people') : null, (url: string) => swrFetcher(url, token))
   const others = (people?.collaborators || []).filter((person) => !person.is_subject)
-  const label = others.length === 1 ? `Shared with ${others[0].user?.name || '1 person'}` : others.length ? `Shared with ${others.length} people` : can(goal, 'manage_collaborators') || can(goal, 'request_collaborators') ? 'Share' : 'People with access'
+  const label = others.length === 1 ? `Shared with ${others[0].user?.name || '1 person'}` : others.length ? `Shared with ${others.length} people` : can(goal, 'manage_collaborators') || can(goal, 'request_collaborators') ? tr('lit.quest_bar.share', 'Share') : tr('lit.goal_header_actions.people_with_access', 'People with access')
   const personal = goal.ownership === 'personal'
   const finished = goal.status === 'finished' || goal.status === 'archived'
   React.useEffect(() => setShareOpen(false), [goal.goal_uuid])

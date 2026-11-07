@@ -45,7 +45,7 @@ type GoalsHomeProps = {
   retryFinished?: () => void
 }
 
-const WHEN = { now: 'Now', next: 'Next', later: 'Later', done: 'Before' } as const
+const WHEN = { get now() { return tr('lit.routine_chart.now', 'Now') }, get next() { return tr('lit.goals_home.next', 'Next') }, get later() { return tr('lit.phase_sheet.later', 'Later') }, get done() { return tr('lit.goals_home.before', 'Before') } } as const
 const monthYear = (value?: string) => {
   if (!value) return ''
   const [year, month] = value.split('-').map(Number)

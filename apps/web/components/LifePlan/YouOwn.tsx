@@ -150,8 +150,8 @@ function OwnTray({ onClose }: { onClose: () => void }) {
         <DialogHeader><DialogTitle className="flex items-center gap-1">{back && <Button variant="ghost" size="icon" onClick={back} aria-label={tr('budget.add_tray.back', 'Back')} className="-ml-2"><ChevronLeft /></Button>}{k ? k.title : tr('budget.you_own.add_something_you_own', 'Add something you own')}</DialogTitle></DialogHeader>
         {!k && <ul className="grid gap-1 pt-2">{KINDS.map((x) => <Pick key={x.key} icon={x.icon} label={x.title} onClick={() => setKind(x.key)} />)}</ul>}
         {k && !how && <ul className="grid gap-1 pt-2">
-          <Pick icon="flag" label={tr('budget.you_own.i_already_own_it', 'I already own it')} note="It's yours when your plan starts. No money changes hands." onClick={() => setHow('have')} />
-          <Pick icon="piggy-bank" label={tr('budget.you_own.i_buy_it_with_savings', 'I buy it with savings')} note="The price comes out of your savings on the day you buy it." onClick={() => setHow('cash')} />
+          <Pick icon="flag" label={tr('budget.you_own.i_already_own_it', 'I already own it')} note={tr('lit.you_own.it_s_yours_when_your', 'It\'s yours when your plan starts. No money changes hands.')} onClick={() => setHow('have')} />
+          <Pick icon="piggy-bank" label={tr('budget.you_own.i_buy_it_with_savings', 'I buy it with savings')} note={tr('lit.you_own.the_price_comes_out_of', 'The price comes out of your savings on the day you buy it.')} onClick={() => setHow('cash')} />
           <Pick icon="landmark" label={tr('budget.you_own.i_buy_it_with_a', 'I buy it with a loan')} note="A down payment from savings, and a loan for the rest." onClick={() => setHow('loan')} />
         </ul>}
         {k && how && <OwnForm kind={k.key} how={how} onDone={onClose} />}
@@ -164,7 +164,7 @@ function OwnForm({ kind, how, onDone }: { kind: string; how: How; onDone: () => 
   const { doc, phase, stretch, catalog, update, setOpenLine } = useLife()
   const k = kindOf(kind)
   const n = doc.assets.filter((x) => x.kind === kind).length
-  const base = kind === 'car' ? 'Car' : kind === 'home' ? 'Home' : ''
+  const base = kind === 'car' ? tr('lit.you_own.car', 'Car') : kind === 'home' ? 'Home' : ''
   const [f, setF] = React.useState({ title: base ? (n ? `${base} ${n + 1}` : base) : '', price: '', when: { phase: phase.id, month: stretch.m0 } as When, change: '', down: '', rate: '' })
   const [payment, setPayment] = React.useState(0)
   const [costs, setCosts] = React.useState<string[]>(k.costs)

@@ -47,7 +47,7 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef, onContac
   const modern = version.layout === 'modern'
   // The shown name falls back to the username, which isn't a name to head a résumé with.
   const identity = shell.identity
-  const name = (identity && (identity.preferred_name || identity.first_name) ? identity.shown_name : shell.portfolio.display_name) || (editing ? 'Your name' : '')
+  const name = (identity && (identity.preferred_name || identity.first_name) ? identity.shown_name : shell.portfolio.display_name) || (editing ? tr('lit.resume_builder.your_name', 'Your name') : '')
   // The résumé's own email and phone (set in the profile) only reach the owner's copy and the PDF they print.
   const own = shell.resume_contact
   const contact = [shell.portfolio.location_label, own?.email || '', own?.phone || '', ...(shell.portfolio.socials || []).filter((social: any) => social.type === 'website' || social.type === 'linkedin').map((social: any) => String(social.url).replace(/^https?:\/\/(www\.)?/, ''))].filter(Boolean)
@@ -168,7 +168,7 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
 
   async function choose(value: string) {
     if (value !== NEW_VERSION) { const version = versions.find((item) => item.version_uuid === value); setSelected(value); if (version) setDraft(version); return }
-    const name = await ask.text({ title: tr('portfolio.resume_builder.new_r_sum_version', 'New résumé version'), body: 'It starts as a copy of the one you have open.', label: tr('portfolio.resume_builder.name', 'Name'), placeholder: tr('portfolio.resume_builder.food_service_jobs', 'Food service jobs'), action: 'Make version' })
+    const name = await ask.text({ title: tr('portfolio.resume_builder.new_r_sum_version', 'New résumé version'), body: tr('lit.resume_builder.it_starts_as_a_copy', 'It starts as a copy of the one you have open.'), label: tr('portfolio.resume_builder.name', 'Name'), placeholder: tr('portfolio.resume_builder.food_service_jobs', 'Food service jobs'), action: tr('lit.resume_builder.make_version', 'Make version') })
     if (!name || !token) return
     try {
       await queue.current

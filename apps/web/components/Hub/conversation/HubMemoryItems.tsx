@@ -44,7 +44,7 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
         : item))
       setEditing(null)
     } catch (requestError: any) {
-      setError(requestError?.message || 'This memory could not be updated.')
+      setError(requestError?.message || tr('lit.hub_memory_items.this_memory_could_not_be', 'This memory could not be updated.'))
     } finally {
       setBusy(null)
     }
@@ -57,7 +57,7 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
       await deleteHubMemory(orgId, memory.memory_uuid, accessToken)
       onChange(memories.filter((item) => item.memory_uuid !== memory.memory_uuid))
     } catch (requestError: any) {
-      setError(requestError?.message || 'This memory could not be deleted.')
+      setError(requestError?.message || tr('lit.hub_memory_items.this_memory_could_not_be_2', 'This memory could not be deleted.'))
     } finally {
       setBusy(null)
     }

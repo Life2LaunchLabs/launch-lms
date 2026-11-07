@@ -35,7 +35,7 @@ export function ProjectDetail({ project, orgslug, owner, layout }: { project: Pr
   const title = <div data-pj-title><h1 className="text-3xl font-black sm:text-5xl">{project.title}</h1>{project.subtitle || when ? <p className="mt-2 text-sm font-semibold text-muted-foreground">{[project.subtitle, when].filter(Boolean).join(' · ')}</p> : null}</div>
   return <main data-project-detail data-look={look || undefined} data-accent={layout?.accent ? '' : undefined} className={`min-h-screen ${look && dark ? 'dark' : ''}`} style={accentVars(layout?.accent) as CSSProperties}>
     <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-6">
-      <ContentPageHeader orgslug={orgslug} backLabel="Projects" noHorizontalBleed />
+      <ContentPageHeader orgslug={orgslug} backLabel={tr('lit.portfolio_projects.projects', 'Projects')} noHorizontalBleed />
       {owner && <div className="mb-4 flex justify-end"><Button asChild variant="outline"><Link href={`${getUriWithOrg(orgslug, '/portfolio/projects')}?editProject=${encodeURIComponent(project.project_uuid)}`}><Pencil className="mr-2 h-4 w-4" />{tr('portfolio.portfolio_projects.edit', 'Edit')}</Link></Button></div>}
       <article className="grid gap-8">
         {project.cover_url ? <div data-pj-hero className="relative aspect-[16/9] overflow-hidden rounded-3xl border-2 border-border bg-muted shadow-[0_4px_0_hsl(var(--border))]"><img src={normalizeMediaUrl(project.cover_url)} alt="" className="h-full w-full object-cover" /><div data-pj-over className="hidden">{title}</div></div> : null}

@@ -29,7 +29,7 @@ export function updateRunObjectState(run: HubEditRun, saved: HubEditObjectState,
   const sequence = Math.max(0, ...run.events.map((event) => Number(event.sequence || 0))) + 1
   return { ...run, objects, events: [...run.events, {
     event_uuid: `local:${saved.object_key}:${status}`, sequence, kind: `${saved.object_type}.${status}`,
-    summary: `${status === 'saved' ? 'Saved' : 'Cancelled'} ${label}`, object_type: saved.object_type, object_uuid: saved.object_uuid,
+    summary: `${status === 'saved' ? tr('lit.plan_compare.saved', 'Saved') : tr('lit.goal_proposals.cancelled', 'Cancelled')} ${label}`, object_type: saved.object_type, object_uuid: saved.object_uuid,
     object_label: label, transient: false, payload: { object_key: saved.object_key }, created_at: new Date().toISOString(),
   }] }
 }
@@ -165,7 +165,7 @@ export function describeChange(change: PendingStepChange['change'] | PendingStag
   if ('stage_title' in change && change.stage_title) parts.push(`Move to ${quote(change.stage_title, 40)}`)
   if ('milestone' in change && change.milestone) parts.push(`Milestone: ${quote(change.milestone)}`)
   if ('timing' in change && change.timing) parts.push(`Timing: ${quote(change.timing, 40)}`)
-  if ('description' in change && change.description) parts.push(`${noun === 'goal' ? 'Why' : 'Notes'}: ${quote(change.description)}`)
+  if ('description' in change && change.description) parts.push(`${noun === 'goal' ? tr('lit.goal_proposals.why', 'Why') : tr('lit.goal_proposals.notes', 'Notes')}: ${quote(change.description)}`)
   return parts.join(' · ')
 }
 

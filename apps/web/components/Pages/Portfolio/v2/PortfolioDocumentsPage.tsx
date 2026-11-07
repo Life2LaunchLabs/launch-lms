@@ -20,7 +20,7 @@ import type { PortfolioDocument, Shell } from '../portfolioTypes'
 import { tr } from '@/lib/tr'
 // My documents: files kept for yourself, like a saved résumé or what came with an import. Never shown to visitors.
 
-const SOURCES: Record<string, string> = { manual: 'Uploaded', cis: 'From Oregon CIS', linkedin: 'From LinkedIn', resume: 'From your résumé' }
+const SOURCES: Record<string, string> = { get manual() { return tr('lit.portfolio_documents_page.uploaded', 'Uploaded') }, get cis() { return tr('lit.portfolio_results_page.from_oregon_cis', 'From Oregon CIS') }, get linkedin() { return tr('lit.portfolio_results_page.from_linkedin', 'From LinkedIn') }, get resume() { return tr('lit.portfolio_results_page.from_your_r_sum', 'From your résumé') } }
 
 export function PortfolioDocumentsPage({ initialShell, orgslug }: { initialShell: Shell; orgslug: string }) {
   const session = useLHSession() as any
@@ -34,8 +34,8 @@ export function PortfolioDocumentsPage({ initialShell, orgslug }: { initialShell
     if (!token) return
     try { await change(); setShell(await getMyPortfolio(token)) } catch (error: any) { toast.error(error?.message || failure) }
   }
-  const rename = async (item: PortfolioDocument) => { const title = await ask.text({ title: tr('portfolio.portfolio_documents_page.rename_this_document', 'Rename this document'), label: tr('portfolio.resume_builder.name', 'Name'), initial: item.title, action: 'Rename' }); if (title && title !== item.title) run(() => documentsApi.update(item.document_uuid, { title }, token), 'Could not rename this') }
-  const remove = async (item: PortfolioDocument) => { if (await ask.confirm({ title: tr('portfolio.portfolio_documents_page.remove_title', 'Remove {{title}}?', { title: item.title }), body: 'It comes off your portfolio. This can’t be undone.', action: 'Remove', danger: true })) run(() => documentsApi.remove(item.document_uuid, token), 'Could not remove this') }
+  const rename = async (item: PortfolioDocument) => { const title = await ask.text({ title: tr('portfolio.portfolio_documents_page.rename_this_document', 'Rename this document'), label: tr('portfolio.resume_builder.name', 'Name'), initial: item.title, action: tr('lit.portfolio_documents_page.rename', 'Rename') }); if (title && title !== item.title) run(() => documentsApi.update(item.document_uuid, { title }, token), tr('lit.portfolio_documents_page.could_not_rename_this', 'Could not rename this')) }
+  const remove = async (item: PortfolioDocument) => { if (await ask.confirm({ title: tr('portfolio.portfolio_documents_page.remove_title', 'Remove {{title}}?', { title: item.title }), body: tr('lit.portfolio_documents_page.it_comes_off_your_portfolio', 'It comes off your portfolio. This can’t be undone.'), action: tr('lit.portfolio_people_page.remove', 'Remove'), danger: true })) run(() => documentsApi.remove(item.document_uuid, token), tr('lit.portfolio_documents_page.could_not_remove_this', 'Could not remove this')) }
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2="documents">
     {ask.dialog}
@@ -47,6 +47,6 @@ export function PortfolioDocumentsPage({ initialShell, orgslug }: { initialShell
         <span className="min-w-0"><b className="block truncate text-[15px] font-extrabold">{item.title}</b><small className="block truncate text-[13px] font-semibold text-muted-foreground">{[SOURCES[item.source] || item.source, item.filename, item.creation_date ? new Date(item.creation_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''].filter(Boolean).join(' · ')}</small></span>
       </Row>)}</ul> : <EmptyAdd title={tr('portfolio.portfolio_documents_page.add_a_document', 'Add a document')} hint={tr('portfolio.portfolio_documents_page.a_r_sum_a_transcript', 'A résumé, a transcript, a letter. Only you see it.')} onClick={() => setPicking(true)} />}
     </div>
-    <MediaPickerDialog open={picking} onOpenChange={setPicking} title={tr('portfolio.portfolio_documents_page.add_a_document', 'Add a document')} description={tr('portfolio.portfolio_documents_page.upload_a_file_or_choose', 'Upload a file or choose one from your media library. It stays private.')} owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="document" accessToken={token} onSave={async (asset) => { setPicking(false); await run(() => documentsApi.create({ title: asset.title || asset.filename || 'Document', kind: 'upload', media_asset_uuid: asset.asset_uuid }, token), 'Could not add this') }} />
+    <MediaPickerDialog open={picking} onOpenChange={setPicking} title={tr('portfolio.portfolio_documents_page.add_a_document', 'Add a document')} description={tr('portfolio.portfolio_documents_page.upload_a_file_or_choose', 'Upload a file or choose one from your media library. It stays private.')} owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="document" accessToken={token} onSave={async (asset) => { setPicking(false); await run(() => documentsApi.create({ title: asset.title || asset.filename || tr('lit.portfolio_documents_page.document', 'Document'), kind: 'upload', media_asset_uuid: asset.asset_uuid }, token), tr('lit.portfolio_documents_page.could_not_add_this', 'Could not add this')) }} />
   </main>
 }

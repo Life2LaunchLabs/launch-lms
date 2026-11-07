@@ -83,8 +83,8 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
   }
   const blocked = (chat: Chat) => {
     if (chat.policy_block) return chat.policy_block
-    if (chat.unavailable) return 'You can’t message in this chat.'
-    if (chat.status === 'request') return 'Accept to reply.'
+    if (chat.unavailable) return tr('lit.chat_pane.you_can_t_message_in', 'You can’t message in this chat.')
+    if (chat.status === 'request') return tr('lit.chat_pane.accept_to_reply', 'Accept to reply.')
     return chat.waiting_for_them && chat.messages.some((message) => message.mine) ? `You can send more once ${chat.people[0]?.name || 'they'} accepts.` : ''
   }
 

@@ -67,7 +67,7 @@ function DecisionCard({ goal, step, actions, canWork, staff }: StepCardProps<'de
           placeholder={config.options.length ? tr('goals.decision.something_else', 'Something else') : tr('goals.decision.your_choice', 'Your choice')} className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" />
       </form> : !open && saved.other ? <p className="flex items-center gap-3 rounded-xl border-2 border-[var(--plan-face)] px-3 py-2 text-sm font-bold"><Mark on multiple={config.multiple} />{saved.other}</p> : null}
     </div>
-    <FinishControls step={step} canWork={canWork} staff={staff} blocker={!chosen ? 'Make a choice first' : null}
+    <FinishControls step={step} canWork={canWork} staff={staff} blocker={!chosen ? tr('lit.decision.make_a_choice_first', 'Make a choice first') : null}
       actions={{ ...actions, setStatus: async (status, note) => (await save(draft)) && actions.setStatus(status, note) }} />
   </div>
 }
@@ -106,13 +106,13 @@ export const decision: StepDefinition<'decision'> = {
   get label() { return tr('goals.decision.decision', 'Decision') },
   color: '#C77A0E',
   get hint() { return tr('goals.decision.choose_between_options_like_which', 'Choose between options, like which pathway to follow.') },
-  example: 'Pick a career area to explore',
+  get example() { return tr('lit.decision.pick_a_career_area_to', 'Pick a career area to explore') },
   icon: Signpost,
   RowResult: DecisionRow,
   CardBody: DecisionCard,
   ConfigPanel: DecisionConfigPanel,
   SettingsPanel: DecisionSettings,
   cleanConfig: cleanOptions,
-  configProblem: (config) => cleanOptions(config).options.length < MIN_OPTIONS ? 'Give it at least two options' : null,
+  configProblem: (config) => cleanOptions(config).options.length < MIN_OPTIONS ? tr('lit.decision.give_it_at_least_two', 'Give it at least two options') : null,
   defaultConfig: () => ({ options: [], multiple: false, allow_other: true }),
 }

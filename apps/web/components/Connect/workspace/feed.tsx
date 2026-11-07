@@ -32,7 +32,7 @@ export function ComposeModeToggle({ mode, onChange }: { mode: ComposeMode; onCha
     {value === 'staff' ? <Lock size={11} aria-hidden="true" /> : null}{label}
   </button>
   return <div className="flex items-center gap-2 px-1 pb-1.5">
-    <div role="group" aria-label={tr('connect.feed.write_a', 'Write a')} className="flex rounded-full bg-muted p-0.5">{option('message', 'Message')}{option('staff', 'Staff only')}</div>
+    <div role="group" aria-label={tr('connect.feed.write_a', 'Write a')} className="flex rounded-full bg-muted p-0.5">{option('message', tr('lit.feed.message', 'Message'))}{option('staff', tr('lit.feed.staff_only', 'Staff only'))}</div>
     <span className="truncate text-xs text-muted-foreground">{mode === 'staff' ? tr('connect.feed.only_staff_see_this', 'Only staff see this') : tr('connect.feed.everyone_in_this_chat_sees', 'Everyone in this chat sees this')}</span>
   </div>
 }

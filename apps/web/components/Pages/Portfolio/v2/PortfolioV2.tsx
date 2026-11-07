@@ -118,7 +118,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     if (newLook) setTheme(mode)
   }, [owner, look, accent, mode, setTheme])
   const centered = layout.header === 'center'
-  const name = shell.identity?.shown_name || shell.portfolio.display_name || username || 'Your portfolio'
+  const name = shell.identity?.shown_name || shell.portfolio.display_name || username || tr('lit.portfolio_v2.your_portfolio', 'Your portfolio')
   // Without a name the portfolio would be headed by the username, which can come from an email.
   const hasName = Boolean(shell.identity?.preferred_name || shell.identity?.first_name || shell.portfolio.display_name)
   const avatarUrl = shell.portfolio.avatar_image ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image) : ''
@@ -196,7 +196,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   }
 
   async function unpublish() {
-    if (!token || !(await ask.confirm({ title: tr('portfolio.portfolio_v2.make_your_portfolio_private', 'Make your portfolio private?'), body: 'Only you and the people you added will see it. You can make it public again later.', action: 'Make private' }))) return
+    if (!token || !(await ask.confirm({ title: tr('portfolio.portfolio_v2.make_your_portfolio_private', 'Make your portfolio private?'), body: tr('lit.portfolio_v2.only_you_and_the_people', 'Only you and the people you added will see it. You can make it public again later.'), action: tr('lit.portfolio_v2.make_private', 'Make private') }))) return
     setBusy(true)
     try { setShell(await unpublishMyPortfolio(shell.portfolio.revision, token)); toast.success(tr('portfolio.portfolio_v2.your_portfolio_is_private', 'Your portfolio is private')) }
     catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_v2.could_not_make_your_portfolio_2', 'Could not make your portfolio private')) } finally { setBusy(false) }
@@ -289,10 +289,10 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
     onUnlock={(next) => seeUnlock(next, next.n === 1 ? publish : next.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null
   const ADD_HINTS: Record<SectionType, string> = {
-    highlights: 'The numbers people notice first, like hours worked, a GPA or a win', feature: 'Put a project, a quote or a link up top',
-    about: 'A few lines about you', experience: 'Jobs, volunteering, teams and clubs', projects: 'Things you made, with a photo and a line',
-    credentials: 'Cards, certificates and badges', results: 'Quiz and test results that say what you’re like', headed: 'Where you are now, and what’s next',
-    people: 'Quotes from people who know your work',
+    highlights: tr('lit.portfolio_v2.the_numbers_people_notice_first', 'The numbers people notice first, like hours worked, a GPA or a win'), feature: tr('lit.portfolio_v2.put_a_project_a_quote', 'Put a project, a quote or a link up top'),
+    about: 'A few lines about you', experience: tr('lit.portfolio_v2.jobs_volunteering_teams_and_clubs', 'Jobs, volunteering, teams and clubs'), projects: tr('lit.portfolio_v2.things_you_made_with_a', 'Things you made, with a photo and a line'),
+    credentials: tr('lit.portfolio_v2.cards_certificates_and_badges', 'Cards, certificates and badges'), results: tr('lit.portfolio_v2.quiz_and_test_results_that', 'Quiz and test results that say what you’re like'), headed: tr('lit.portfolio_v2.where_you_are_now_and', 'Where you are now, and what’s next'),
+    people: tr('lit.portfolio_v2.quotes_from_people_who_know', 'Quotes from people who know your work'),
   }
   const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.portfolio.location_label || ''}
     socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onProfile={() => setProfileOpen(true)}

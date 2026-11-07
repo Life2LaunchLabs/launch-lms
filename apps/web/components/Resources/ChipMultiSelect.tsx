@@ -25,9 +25,9 @@ export default function ChipMultiSelect({
   options,
   selectedValues,
   onChange,
-  placeholder = 'Select options',
-  searchPlaceholder = 'Search options',
-  emptyMessage = 'No options yet.',
+  placeholder = tr('lit.chip_multi_select.select_options', 'Select options'),
+  searchPlaceholder = tr('lit.chip_multi_select.search_options', 'Search options'),
+  emptyMessage = tr('lit.chip_multi_select.no_options_yet', 'No options yet.'),
   disabled = false,
   displayMode = 'inline-chips',
 }: ChipMultiSelectProps) {

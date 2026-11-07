@@ -33,7 +33,7 @@ function minutes(value: number | null) {
 export function resourceMeta(resource: Resource) {
   const kind = resourceKind(resource.resource_type)
   const where = resource.resource_type === 'video' ? `Video on ${resourceSource(resource)}` : resourceSource(resource)
-  const access = resource.access_mode === 'paid' ? 'Costs money' : resource.access_mode === 'restricted' ? 'Needs an account' : 'Free'
+  const access = resource.access_mode === 'paid' ? tr('lit.resource_sheet.costs_money', 'Costs money') : resource.access_mode === 'restricted' ? tr('lit.resource_sheet.needs_an_account', 'Needs an account') : tr('lit.resource_sheet.free', 'Free')
   return { kind, line: [where, minutes(resource.estimated_time), access].filter(Boolean).join(' · ') }
 }
 

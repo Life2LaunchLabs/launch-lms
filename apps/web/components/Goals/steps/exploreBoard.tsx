@@ -26,7 +26,7 @@ const imageOf = (entry: StepEntry) => {
   if (image) return normalizeMediaUrl(image)
   return entry.kind === 'file' && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(entry.url) ? normalizeMediaUrl(entry.url) : ''
 }
-const titleOf = (entry: StepEntry) => entry.title || entry.note.split('\n')[0] || entry.url || 'Untitled'
+const titleOf = (entry: StepEntry) => entry.title || entry.note.split('\n')[0] || entry.url || tr('lit.explore_board.untitled', 'Untitled')
 
 /** Where an entry opens: library resources inside the app, everything else in a new tab. */
 function openHref(entry: StepEntry, orgslug: string) {
@@ -162,7 +162,7 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
 
   const viewControls = <>
     <div role="radiogroup" aria-label={tr('goals.explore_board.view', 'View')} className="flex rounded-lg border p-0.5">
-      {([['grid', LayoutGrid, 'Grid'], ['stack', Rows3, 'Stack']] as const).map(([key, Icon, label]) => <button key={key} type="button" role="radio" aria-checked={view === key} aria-label={label} onClick={() => pickView(key)}
+      {([['grid', LayoutGrid, tr('lit.explore_board.grid', 'Grid')], ['stack', Rows3, tr('lit.explore_board.stack', 'Stack')]] as const).map(([key, Icon, label]) => <button key={key} type="button" role="radio" aria-checked={view === key} aria-label={label} onClick={() => pickView(key)}
         className={cn('grid h-7 w-7 place-items-center rounded-md', view === key ? 'bg-muted text-foreground' : 'text-muted-foreground')}><Icon size={15} /></button>)}
     </div>
     {full ? null : <button type="button" aria-label={tr('goals.explore_board.expand_the_board', 'Expand the board')} onClick={() => setExpanded(true)} className="grid h-9 w-9 place-items-center rounded-lg border text-muted-foreground hover:text-foreground"><Maximize2 size={15} /></button>}

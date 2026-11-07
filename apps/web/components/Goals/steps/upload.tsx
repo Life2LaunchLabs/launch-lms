@@ -39,7 +39,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const missing = step.config.slots.filter((slot) => !filled(step, slot))
   // Mirrors the API: required slots first; when every slot is optional, any one file will do.
   const required = missing.find((slot) => !slot.optional)
-  const blocker = required ? `Add ${required.label} first` : missing.length === step.config.slots.length ? 'Add a file first' : null
+  const blocker = required ? `Add ${required.label} first` : missing.length === step.config.slots.length ? tr('lit.upload.add_a_file_first', 'Add a file first') : null
   const choose = (slot: UploadSlot) => {
     const media = slot.kinds.filter((kind) => kind !== 'link') as MediaType[]
     if (!media.length) return setLinkSlot(slot)
@@ -73,8 +73,8 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   </div>
 }
 
-const KINDS = [['image', 'Photo'], ['video', 'Video'], ['document', 'Document'], ['link', 'Link']] as const
-const kindText = (slot: UploadSlot) => slot.kinds.map((kind) => KINDS.find(([key]) => key === kind)?.[1] || kind).join(' or ')
+const KINDS = () => ([['image', tr('lit.upload.photo', 'Photo')], ['video', tr('lit.upload.video', 'Video')], ['document', tr('lit.portfolio_documents_page.document', 'Document')], ['link', tr('lit.people_access.link', 'Link')]] as const)
+const kindText = (slot: UploadSlot) => slot.kinds.map((kind) => KINDS().find(([key]) => key === kind)?.[1] || kind).join(' or ')
 const chip = (on: boolean) => cn('rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))]' : 'text-muted-foreground hover:border-[var(--plan-face)]')
 
 /** The items to add, each laid out the way it shows on the step: its slot, its name and what it takes. */
@@ -92,7 +92,7 @@ function UploadConfigPanel({ config, onChange }: ConfigPanelProps<'upload'>) {
             {slots.length > 1 ? <button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => onChange({ slots: slots.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
           </div>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr('goals.upload.what_it_takes', 'What it takes')}>
-            {KINDS.map(([kind, label]) => { const on = slot.kinds.includes(kind); return <button key={kind} type="button" aria-pressed={on} className={chip(on)}
+            {KINDS().map(([kind, label]) => { const on = slot.kinds.includes(kind); return <button key={kind} type="button" aria-pressed={on} className={chip(on)}
               onClick={() => { const kinds = on ? slot.kinds.filter((item) => item !== kind) : [...slot.kinds, kind]; if (kinds.length) update(index, { ...slot, kinds }) }}>{label}</button> })}
             <button type="button" aria-pressed={!!slot.optional} className={chip(!!slot.optional)} onClick={() => update(index, { ...slot, optional: !slot.optional })}>{tr('goals.upload.optional_2', 'Optional')}</button>
           </div>
@@ -108,7 +108,7 @@ export const upload: StepDefinition<'upload'> = {
   get label() { return tr('goals.upload.upload', 'Upload') },
   color: '#1A86AE',
   get hint() { return tr('goals.upload.files_photos_or_links_one', 'Files, photos or links, one per item you ask for.') },
-  example: 'Your resume and a headshot',
+  get example() { return tr('lit.upload.your_resume_and_a_headshot', 'Your resume and a headshot') },
   icon: UploadIcon,
   statusLine: (step) => step.config.slots.length > 1 ? `${step.config.slots.filter((slot) => filled(step, slot)).length} of ${step.config.slots.length} added` : null,
   RowResult: UploadRow,

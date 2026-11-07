@@ -132,7 +132,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   return (
     <LifeContext.Provider value={ctx}>
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
-        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? 'Back' : `Back to ${phase.title}`} />
+        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} />
         <PhaseChart />
         <div className="mb-3 mt-8 flex items-center justify-between gap-3">
           <h2 className="text-2xl font-extrabold tracking-tight">{tr('budget.context_bar.budget', 'Budget')}</h2>

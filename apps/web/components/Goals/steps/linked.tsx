@@ -41,7 +41,7 @@ export const activity: StepDefinition<'activity'> = {
   get label() { return tr('goals.linked.activity', 'Activity') },
   color: '#C9501E',
   get hint() { return tr('goals.linked.an_interactive_lesson_or_quiz', 'An interactive lesson or quiz played in the app.') },
-  example: 'Needs vs wants sorting game',
+  get example() { return tr('lit.linked.needs_vs_wants_sorting_game', 'Needs vs wants sorting game') },
   icon: Play,
   statusLine: (step) => step.status === 'in_progress' ? `${Math.round(step.fraction * 100)}% through` : null,
   CardBody: ActivityCard,
@@ -87,7 +87,7 @@ export const badge: StepDefinition<'badge'> = {
   get label() { return tr('goals.linked.badge', 'Badge') },
   color: '#A47100',
   get hint() { return tr('goals.linked.earning_the_badge_of_another', 'Earning the badge of another plan counts as this step.') },
-  example: 'Earn the Workplace Ready badge',
+  get example() { return tr('lit.linked.earn_the_workplace_ready_badge', 'Earn the Workplace Ready badge') },
   icon: Award,
   CardBody: BadgeCard,
   ConfigPanel: BadgeConfigPanel,
@@ -96,12 +96,12 @@ export const badge: StepDefinition<'badge'> = {
 }
 
 export const PORTFOLIO_CHECKS: Record<PortfolioConfig['check'], string> = {
-  welcome: 'Write your welcome',
-  timeline: 'Add to your timeline',
-  project: 'Add a project',
-  traits: 'Choose your traits',
-  launch: 'Launch your portfolio',
-  badges: 'Show your badges',
+  get welcome() { return tr('lit.linked.write_your_welcome', 'Write your welcome') },
+  get timeline() { return tr('lit.linked.add_to_your_timeline', 'Add to your timeline') },
+  get project() { return tr('lit.linked.add_a_project', 'Add a project') },
+  get traits() { return tr('lit.linked.choose_your_traits', 'Choose your traits') },
+  get launch() { return tr('lit.linked.launch_your_portfolio', 'Launch your portfolio') },
+  get badges() { return tr('lit.linked.show_your_badges', 'Show your badges') },
 }
 
 function PortfolioCard(props: StepCardProps<'portfolio'>) {
@@ -128,7 +128,7 @@ export const portfolio: StepDefinition<'portfolio'> = {
   get label() { return tr('goals.linked.portfolio', 'Portfolio') },
   color: '#46566B',
   get hint() { return tr('goals.linked.finish_a_section_of_their', 'Finish a section of their portfolio, like projects.') },
-  example: 'Add two projects to your portfolio',
+  get example() { return tr('lit.linked.add_two_projects_to_your', 'Add two projects to your portfolio') },
   icon: BriefcaseBusiness,
   statusLine: (step: Step<'portfolio'>) => PORTFOLIO_CHECKS[step.config.check] || null,
   CardBody: PortfolioCard,

@@ -92,7 +92,7 @@ export const explore: StepDefinition<'explore'> = {
   get label() { return tr('goals.explore.explore', 'Explore') },
   color: '#0B8077',
   get hint() { return tr('goals.explore.research_on_a_board_of', 'Research on a board of links, files and notes, ending in what they found.') },
-  example: 'Research three jobs in health care',
+  get example() { return tr('lit.explore.research_three_jobs_in_health', 'Research three jobs in health care') },
   icon: Compass,
   statusLine: (step) => {
     const count = evidenceOf(step).length

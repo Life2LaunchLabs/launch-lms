@@ -35,7 +35,7 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
   const [copied, setCopied] = useState(false)
   const [reporting, setReporting] = useState(false)
   const source = pageContext?.status === 'ready' ? pageContext.sources[0] : undefined
-  const label = role === 'assistant' ? 'What informed this answer?' : 'Memory updated by this message'
+  const label = role === 'assistant' ? tr('lit.hub_message_micro_bar.what_informed_this_answer', 'What informed this answer?') : tr('lit.hub_message_micro_bar.memory_updated_by_this_message', 'Memory updated by this message')
   const currentQuery = searchParams.toString()
   const currentLocation = `${pathname}${currentQuery ? `?${currentQuery}` : ''}`
   const sourceTitle = pageContext?.page_title || source?.page_title || source?.title

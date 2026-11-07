@@ -41,7 +41,7 @@ export default function DiscoverSearchBar({ query, onQuery, filters, onFilters, 
   const both = showPlans && showResources
   const resourceFilters = showResources && filters.type !== 'plans'
   const active = [
-    ...(filters.type ? [{ key: 'type', label: filters.type === 'plans' ? 'Plans' : 'Resources', clear: () => onFilters({ ...filters, type: '', resourceTypes: filters.type === 'resources' ? [] : filters.resourceTypes }) }] : []),
+    ...(filters.type ? [{ key: 'type', label: filters.type === 'plans' ? tr('lit.goals_workspace.plans', 'Plans') : tr('lit.discover_search_bar.resources', 'Resources'), clear: () => onFilters({ ...filters, type: '', resourceTypes: filters.type === 'resources' ? [] : filters.resourceTypes }) }] : []),
     ...filters.resourceTypes.map((value) => ({ key: value, label: RESOURCE_TYPES.find((item) => item.value === value)?.label || value, clear: () => onFilters({ ...filters, resourceTypes: filters.resourceTypes.filter((item) => item !== value) }) })),
     ...(filters.saved ? [{ key: 'saved', label: tr('discover.discover_search_bar.my_library', 'My library'), clear: () => onFilters({ ...filters, saved: false }) }] : []),
   ]

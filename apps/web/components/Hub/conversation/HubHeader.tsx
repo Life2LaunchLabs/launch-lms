@@ -65,7 +65,7 @@ export default function HubHeader({
   onEnd: () => void
 }) {
   const hasConversation = conversationStarted || Boolean(conversationUuid)
-  const sessionModeLabel = editRun?.scope.kind === 'new_goal' ? 'Creating a goal' : 'Planning'
+  const sessionModeLabel = editRun?.scope.kind === 'new_goal' ? tr('lit.hub_header.creating_a_goal', 'Creating a goal') : tr('lit.hub_header.planning', 'Planning')
   const [panel, setPanel] = useState<Panel>(null)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(title)

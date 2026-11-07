@@ -7167,5 +7167,813 @@
       "maya_torres_junior": "Maya Torres, junior",
       "mt": "MT"
     }
+  },
+  "lit": {
+    "portfolio_projects": {
+      "projects": "Projects"
+    },
+    "resume_builder": {
+      "your_name": "Your name",
+      "it_starts_as_a_copy": "It starts as a copy of the one you have open.",
+      "make_version": "Make version"
+    },
+    "portfolio_results_page": {
+      "from_the_interest_quiz": "From the interest quiz",
+      "from_the_picture_sort": "From the picture sort",
+      "added_by_you": "Added by you",
+      "from_a_plan": "From a plan",
+      "imported": "Imported",
+      "from_oregon_cis": "From Oregon CIS",
+      "from_linkedin": "From LinkedIn",
+      "from_your_r_sum": "From your résumé"
+    },
+    "portfolio_people_page": {
+      "their_quotes_come_off_your": "Their quotes come off your portfolio too.",
+      "remove": "Remove"
+    },
+    "portfolio_documents_page": {
+      "uploaded": "Uploaded",
+      "rename": "Rename",
+      "could_not_rename_this": "Could not rename this",
+      "it_comes_off_your_portfolio": "It comes off your portfolio. This can’t be undone.",
+      "could_not_remove_this": "Could not remove this",
+      "document": "Document",
+      "could_not_add_this": "Could not add this"
+    },
+    "inplace": {
+      "cancel": "Cancel"
+    },
+    "portfolio_title": {
+      "portfolio": "Portfolio"
+    },
+    "interest_quiz_page": {
+      "hands_on_work_building_fixing": "Hands-on work: building, fixing, and working with tools, machines, plants or animals.",
+      "figuring_things_out_science_research": "Figuring things out: science, research, and solving puzzles.",
+      "making_things_art_music_writing": "Making things: art, music, writing, design and new ideas.",
+      "helping_people_teaching_caring_for": "Helping people: teaching, caring for and supporting others.",
+      "leading_starting_things_persuading_people": "Leading: starting things, persuading people, selling and deciding.",
+      "organizing_details_records_data_and": "Organizing: details, records, data and clear steps."
+    },
+    "result_dialog": {
+      "artistic_social_investigative": "Artistic · Social · Investigative",
+      "curious_patient_a_good_listener": "Curious, patient, a good listener",
+      "creativity_helping_others": "Creativity, helping others",
+      "spanish_figma_customer_service": "Spanish, Figma, customer service",
+      "your_own": "Your own",
+      "your_skills": "Your skills",
+      "something_else": "Something else",
+      "add_a_result": "Add a result",
+      "pick_a_test_take_it": "Pick a test. Take it, then copy your result in; you can add the PDF too.",
+      "things_you_can_do_separate": "Things you can do. Separate them with commas; each one counts.",
+      "something_a_quiz_or_a": "Something a quiz or a person helped you learn about yourself."
+    },
+    "experience_page": {
+      "where_the_business_or_organization": "Where: the business or organization",
+      "school": "School",
+      "organization_or_community": "Organization or community",
+      "who_ran_it": "Who ran it",
+      "team_club_or_group": "Team, club or group",
+      "who_gave_it": "Who gave it",
+      "where_it_happened": "Where it happened",
+      "where": "Where",
+      "related_to_this_experience": "Related to this experience",
+      "it_comes_off_your_portfolio": "It comes off your portfolio and your résumés. This can’t be undone.",
+      "delete": "Delete",
+      "experience": "Experience"
+    },
+    "feature_section": {
+      "project": "Project",
+      "badge": "Badge",
+      "credential": "Credential",
+      "featured": "Featured"
+    },
+    "portfolio_v2": {
+      "your_portfolio": "Your portfolio",
+      "only_you_and_the_people": "Only you and the people you added will see it. You can make it public again later.",
+      "make_private": "Make private",
+      "the_numbers_people_notice_first": "The numbers people notice first, like hours worked, a GPA or a win",
+      "put_a_project_a_quote": "Put a project, a quote or a link up top",
+      "jobs_volunteering_teams_and_clubs": "Jobs, volunteering, teams and clubs",
+      "things_you_made_with_a": "Things you made, with a photo and a line",
+      "cards_certificates_and_badges": "Cards, certificates and badges",
+      "quiz_and_test_results_that": "Quiz and test results that say what you’re like",
+      "where_you_are_now_and": "Where you are now, and what’s next",
+      "quotes_from_people_who_know": "Quotes from people who know your work"
+    },
+    "portfolio_detail": {
+      "could_not_change_what_s": "Could not change what’s featured",
+      "could_not_change_who_sees": "Could not change who sees this",
+      "could_not_delete_this": "Could not delete this"
+    },
+    "people_access": {
+      "add": "Add",
+      "link": "Link",
+      "could_not_find_them": "Could not find them",
+      "could_not_change_that": "Could not change that"
+    },
+    "portfolio_import_page": {
+      "in_oregon_cis_open_account": "In Oregon CIS, open Account settings and choose \"Download my data\". Upload the zip it gives you.",
+      "about_me": "About me",
+      "credentials": "Credentials",
+      "what_i_m_like": "What I'm like",
+      "my_people": "My people",
+      "links": "Links",
+      "documents": "Documents"
+    },
+    "quest_bar": {
+      "share": "Share",
+      "mastery": "Mastery",
+      "your_portfolio_is_private_until": "Your portfolio is private until you make it public.",
+      "make_it_public": "Make it public",
+      "it_builds_itself_from_everything": "It builds itself from everything in your portfolio.",
+      "open_my_r_sum": "Open my résumé",
+      "it_shows_next_to_your": "It shows next to your name for anyone who sees your portfolio.",
+      "nice": "Nice"
+    },
+    "portfolio_pages": {
+      "experience": "Experience",
+      "projects": "Projects",
+      "badges": "Badges",
+      "what_i_m_like": "What I’m like",
+      "interest_quiz": "Interest quiz",
+      "picture_sort": "Picture sort",
+      "new_experience": "New experience",
+      "new_project": "New project"
+    },
+    "progress": {
+      "unlock_sharing": "Unlock sharing",
+      "unlock_your_r_sum": "Unlock your résumé",
+      "portfolio_mastery": "Portfolio mastery",
+      "finish_these_to_share_your": "Finish these to share your portfolio.",
+      "finish_these_to_turn_your": "Finish these to turn your portfolio into a résumé.",
+      "round_it_out_to_earn": "Round it out to earn the mastery badge by your name.",
+      "add_3_experiences": "Add 3 experiences",
+      "name_3_skills": "Name 3 skills",
+      "show_your_work": "Show your work",
+      "tell_your_stories": "Tell your stories",
+      "get_vouched_for": "Get vouched for",
+      "prove_it": "Prove it",
+      "earn_a_badge_by_finishing": "Earn a badge by finishing a plan",
+      "show_what_you_re_like": "Show what you’re like",
+      "your_interests_strengths_or_values": "Your interests, strengths or values"
+    },
+    "timeline": {
+      "work_career": "Work & Career",
+      "education": "Education",
+      "leadership_service": "Leadership & Service",
+      "learning_experiences": "Learning Experiences",
+      "teams_activities": "Teams & Activities",
+      "awards_recognition": "Awards & Recognition",
+      "challenges_milestones": "Challenges & Milestones",
+      "other": "Other",
+      "current": "Current",
+      "winter": "Winter",
+      "spring": "Spring",
+      "summer": "Summer",
+      "fall": "Fall",
+      "present": "Present",
+      "undated": "Undated"
+    },
+    "quote_request_page": {
+      "add_your_name": "Add your name",
+      "write_your_quote": "Write your quote",
+      "that_didn_t_go_through": "That didn’t go through. Try again.",
+      "they": "They"
+    },
+    "goal_header": {
+      "earns_a_badge": "Earns a badge",
+      "your_goals": "Your goals"
+    },
+    "goal_story_player": {
+      "done": "Done"
+    },
+    "goal_header_actions": {
+      "people_with_access": "People with access"
+    },
+    "goals_workspace": {
+      "your_goals_could_not_load": "Your goals could not load.",
+      "this_goal_could_not_load": "This goal could not load. It may no longer be available to you.",
+      "plans": "Plans"
+    },
+    "goal_path": {
+      "more_steps": "More steps",
+      "steps": "Steps",
+      "opens_when_the_goal_moves": "Opens when the goal moves on to it"
+    },
+    "routine_editor": {
+      "pick_at_least_one_day": "Pick at least one day of the week",
+      "pick_at_least_one_day_2": "Pick at least one day of the month",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "add_items": "Add items",
+      "a_few_named_things_each": "A few named things each time, like job openings",
+      "enter_a_number": "Enter a number",
+      "a_value_each_time_like": "A value each time, like a weight; a line on the chart",
+      "check_it_off": "Check it off",
+      "just_do_it_and_tick": "Just do it, and tick it"
+    },
+    "linked": {
+      "needs_vs_wants_sorting_game": "Needs vs wants sorting game",
+      "earn_the_workplace_ready_badge": "Earn the Workplace Ready badge",
+      "write_your_welcome": "Write your welcome",
+      "add_to_your_timeline": "Add to your timeline",
+      "add_a_project": "Add a project",
+      "choose_your_traits": "Choose your traits",
+      "launch_your_portfolio": "Launch your portfolio",
+      "show_your_badges": "Show your badges",
+      "add_two_projects_to_your": "Add two projects to your portfolio"
+    },
+    "decision": {
+      "make_a_choice_first": "Make a choice first",
+      "pick_a_career_area_to": "Pick a career area to explore",
+      "give_it_at_least_two": "Give it at least two options"
+    },
+    "upload": {
+      "your_resume_and_a_headshot": "Your resume and a headshot",
+      "photo": "Photo",
+      "video": "Video"
+    },
+    "event": {
+      "job_shadow_at_riverside_clinic": "Job shadow at Riverside Clinic",
+      "going": "Going",
+      "maybe": "Maybe",
+      "can_t_go": "Can’t go"
+    },
+    "write": {
+      "write_something_first": "Write something first",
+      "what_surprised_you_on_your": "What surprised you on your visit?"
+    },
+    "explore_board": {
+      "untitled": "Untitled",
+      "grid": "Grid",
+      "stack": "Stack"
+    },
+    "task": {
+      "open_a_savings_account": "Open a savings account"
+    },
+    "routine": {
+      "today": "Today",
+      "end_this_routine": "End this routine",
+      "log_what_you_spend_each": "Log what you spend each day"
+    },
+    "resources": {
+      "resource": "Resource",
+      "opened": "Opened",
+      "not_opened_yet": "Not opened yet",
+      "all_set": "All set.",
+      "open_it_to_finish_this": "Open it to finish this step.",
+      "open_each_one_to_finish": "Open each one to finish this step.",
+      "check_out_these_two_college": "Check out these two college cost guides",
+      "add_at_least_one_resource": "Add at least one resource"
+    },
+    "plan_compare": {
+      "takes": "Takes",
+      "left_a_month": "Left a month",
+      "saved": "Saved",
+      "owed": "Owed",
+      "nothing": "Nothing",
+      "the_options": "The options",
+      "whole_plan": "Whole plan"
+    },
+    "phase_insights": {
+      "little_or_no_training_most": "Little or no training: most people learn on the job",
+      "usually_a_high_school_diploma": "Usually a high school diploma",
+      "training_after_high_school_a": "Training after high school: a certificate, an associate’s degree or an apprenticeship",
+      "usually_a_bachelor_s_degree": "Usually a bachelor’s degree",
+      "usually_a_graduate_degree": "Usually a graduate degree"
+    },
+    "graph": {
+      "new_phase": "New phase",
+      "college": "College",
+      "graduate_school": "Graduate school",
+      "community_college": "Community college",
+      "university": "University",
+      "trade_school": "Trade school",
+      "certificate_program": "Certificate program",
+      "short_training_program": "Short training program"
+    },
+    "phase_page": {
+      "remove_phase": "Remove phase",
+      "use_the_photo_of": "Use the photo of ",
+      "training": "Training",
+      "since": "Since",
+      "from": "From",
+      "add_what_comes_in_and": "Add what comes in and what goes out to see where this phase leaves you."
+    },
+    "phase_sheet": {
+      "you_re_here": "You’re here",
+      "before_now": "Before now",
+      "up_next": "Up next",
+      "later": "Later"
+    },
+    "plan_map": {
+      "put_it_back": "Put it back",
+      "the_last_option": "The last option",
+      "the_first_option": "The first option",
+      "drop_it_on_the_map": "Drop it on the map"
+    },
+    "phase_stack": {
+      "something_else": "Something else"
+    },
+    "map_parts": {
+      "nothing_that_way": "Nothing that way"
+    },
+    "goals_home": {
+      "next": "Next",
+      "before": "Before"
+    },
+    "step_text": {
+      "someone_helping_with_this_goal": "Someone helping with this goal has put this step on hold.",
+      "on_hold_for_now": "On hold for now",
+      "not_open_yet": "Not open yet",
+      "excused": "Excused",
+      "waiting_on_review": "Waiting on review",
+      "needs_another_go": "Needs another go"
+    },
+    "goal_chat": {
+      "chat": "Chat"
+    },
+    "coach_notes": {
+      "coach_is_taking_a_first": "Coach is taking a first look…"
+    },
+    "goal_proposals": {
+      "cancelled": "Cancelled",
+      "why": "Why",
+      "notes": "Notes"
+    },
+    "step_editor": {
+      "give_it_a_title": "Give it a title",
+      "learner_instructions": "Learner instructions",
+      "materials": "Materials",
+      "staff_guide": "Staff guide",
+      "add_for_staff": "Add for staff"
+    },
+    "step_timing": {
+      "start_of_stage": "Start of stage",
+      "any_time": "Any time",
+      "end_of_stage": "End of stage",
+      "end_of_goal": "End of goal",
+      "no_close": "No close",
+      "opens": "Opens",
+      "closes": "Closes"
+    },
+    "goal_editing": {
+      "step_added": "Step added",
+      "step_duplicated": "Step duplicated",
+      "step_deleted": "Step deleted",
+      "step_reopened": "Step reopened",
+      "stage_deleted": "Stage deleted"
+    },
+    "plan_art": {
+      "earned": "Earned",
+      "in_progress": "In progress",
+      "asked": "Asked"
+    },
+    "resource_cover": {
+      "watch_on": "Watch on",
+      "read_on": "Read on",
+      "open_on": "Open on",
+      "take_it_on": "Take it on",
+      "start_on": "Start on",
+      "visit": "Visit",
+      "full_report_on": "Full report on"
+    },
+    "discover_settings_panel": {
+      "could_not_load_discover_settings": "Could not load Discover settings",
+      "could_not_save_discover_settings": "Could not save Discover settings"
+    },
+    "discover_search_bar": {
+      "resources": "Resources"
+    },
+    "plan_page": {
+      "kind": "Kind",
+      "made_by": "Made by",
+      "version": "Version",
+      "code": "Code",
+      "field_of_study": "Field of study",
+      "specialization": "Specialization",
+      "credits": "Credits",
+      "request_sent": "Request sent",
+      "open": "Open",
+      "ask_to_join": "Ask to join",
+      "see_your_plan": "See your plan",
+      "keep_going": "Keep going",
+      "no_organization_offers_this_plan": "No organization offers this plan to learners right now.",
+      "it_shows_up_in_plans": "It shows up in Plans as soon as you start.",
+      "discover": "Discover"
+    },
+    "resource_sheet": {
+      "costs_money": "Costs money",
+      "needs_an_account": "Needs an account"
+    },
+    "career_profile": {
+      "more": "More",
+      "lots_of_openings": "Lots of openings",
+      "steady_openings": "Steady openings",
+      "very_few_openings": "Very few openings",
+      "jobs_over_10_years_by": "Jobs over 10 years, by region",
+      "strong_fit": "Strong fit",
+      "good_fit": "Good fit",
+      "not_much_like_your_interests": "Not much like your interests",
+      "pay_over_time_bls_occupational": "Pay over time: BLS Occupational Employment and Wage Statistics.",
+      "more_about_the_work": "More about the work",
+      "find_out_how_this_fits": "Find out how this fits you.",
+      "your_interests_next_to_this": "Your interests next to this career",
+      "pay_around_oregon_and_over": "Pay around Oregon and over time",
+      "one_main_way_in": "One main way in.",
+      "little_or_no_training": "Little or no training",
+      "many_people_start_right_after": "Many people start right after high school and learn on the job.",
+      "high_school_plus_on_the": "High school plus on-the-job training",
+      "training_after_high_school": "Training after high school",
+      "think_a_certificate_an_apprenticeship": "Think a certificate, an apprenticeship or a 2-year degree.",
+      "usually_a_4_year_degree": "Usually a 4-year degree",
+      "most_people_in_this_job": "Most people in this job have a bachelor’s degree.",
+      "most_people_in_this_job_2": "Most people in this job have a master’s, doctorate or professional degree.",
+      "near_you": "Near you",
+      "shortest": "Shortest",
+      "lowest_cost": "Lowest cost",
+      "online": "Online"
+    },
+    "career_tile": {
+      "little_or_no_prep": "Little or no prep",
+      "high_school_training": "High school + training",
+      "certificate_or_2_year": "Certificate or 2-year",
+      "grad_school": "Grad school",
+      "strong_match": "Strong match",
+      "good_match": "Good match",
+      "something_different": "Something different"
+    },
+    "career_compare": {
+      "not_much_like_you": "Not much like you",
+      "pay_is_about_the_same": "Pay is about the same."
+    },
+    "context_bar": {
+      "start": "Start"
+    },
+    "savings_debt": {
+      "none": "None",
+      "paid_off": "Paid off",
+      "not_at_this_rate": "Not at this rate",
+      "you_borrow": "You borrow",
+      "you_owe": "You owe",
+      "interest": "Interest",
+      "minimum": "Minimum",
+      "money_into_savings": "Money into savings",
+      "payments_start_the_month_you": "Payments start the month you take it out.",
+      "what_you_pay_carries_on": "What you pay carries on until you change it in a later stretch.",
+      "in_it_now": "In it now",
+      "you_put_in": "You put in",
+      "your_employer_adds": "Your employer adds",
+      "growth": "Growth",
+      "what_you_put_in_carries": "What you put in carries on until you change it in a later stretch.",
+      "in_the_account": "In the account",
+      "whatever_is_left_after_your": "Whatever is left after your budget, debt and other accounts goes here.",
+      "your_budget_debt_and_accounts": "Your budget, debt and accounts take more than comes in, so this comes out of savings. If it runs out, the rest goes on a card.",
+      "add_a_debt": "Add a debt",
+      "add_an_account": "Add an account",
+      "add_a_debt_or_an": "Add a debt or an account",
+      "credit_card": "Credit card",
+      "on_a_date_in_your": "On a date in your plan. The money comes in then.",
+      "savings": "Savings"
+    },
+    "prefill": {
+      "rent": "Rent",
+      "utilities_and_internet": "Utilities and internet",
+      "dorm": "Dorm",
+      "groceries": "Groceries",
+      "getting_around": "Getting around",
+      "tuition_and_fees": "Tuition and fees",
+      "books_and_supplies": "Books and supplies",
+      "going_out": "Going out",
+      "phone_plan": "Phone plan",
+      "clothes": "Clothes"
+    },
+    "loan_story": {
+      "each_month": "Each month"
+    },
+    "budget_table": {
+      "income": "Income",
+      "expenses": "Expenses",
+      "single": "Single",
+      "married_filing_together": "Married, filing together",
+      "median_pay": "Median pay",
+      "pay": "Pay"
+    },
+    "money_cards": {
+      "big_costs_or_money_that": "Big costs or money that comes once, like a deposit, a laptop, or a graduation gift."
+    },
+    "chart_events": {
+      "savings_run_out": "Savings run out",
+      "this_is_the_down_payment": "This is the down payment. A loan covers the rest, so debt goes up too.",
+      "paid_from_your_savings_it": "Paid from your savings. It now counts as something you own.",
+      "what_s_left_of_the": "What's left of the sale price after paying off its loan.",
+      "the_sale_price_goes_into": "The sale price goes into your savings.",
+      "one_time_money_that_comes": "One-time money that comes in.",
+      "more_goes_out_than_you": "More goes out than you have, so the rest goes on a credit card and shows as debt."
+    },
+    "you_own": {
+      "it_s_yours_when_your": "It's yours when your plan starts. No money changes hands.",
+      "the_price_comes_out_of": "The price comes out of your savings on the day you buy it.",
+      "car": "Car"
+    },
+    "life_plan_workspace": {
+      "back": "Back"
+    },
+    "estimates_dialog": {
+      "no_place_yet": "No place yet",
+      "nothing_picked": "Nothing picked",
+      "not_picked": "Not picked",
+      "update": "Update"
+    },
+    "hub_shell": {
+      "goals": "Goals",
+      "threads": "Threads",
+      "coach": "Coach"
+    },
+    "hub_resource_library": {
+      "failed_to_delete_list": "Failed to delete list"
+    },
+    "hub_resource_context": {
+      "failed_to_remove_from_list": "Failed to remove from list"
+    },
+    "hub_quick_search": {
+      "search_is_temporarily_unavailable": "Search is temporarily unavailable."
+    },
+    "hub_memory_items": {
+      "this_memory_could_not_be": "This memory could not be updated.",
+      "this_memory_could_not_be_2": "This memory could not be deleted."
+    },
+    "end_session_dialog": {
+      "end_coach_s_session": "End Coach’s session?",
+      "end_session": "End session"
+    },
+    "use_hub_edit_run": {
+      "editing_could_not_be_stopped": "Editing could not be stopped.",
+      "this_editing_goal_could_not": "This editing goal could not be finished.",
+      "this_focused_session_could_not": "This focused session could not be restored.",
+      "the_session_goal_could_not": "The session goal could not be updated."
+    },
+    "hub_memory_notice": {
+      "your_choice_could_not_be": "Your choice could not be saved. Please try again."
+    },
+    "hub_conversation": {
+      "the_advisor_is_temporarily_unavailable": "The advisor is temporarily unavailable. Your message has been restored.",
+      "conversation_history_is_unavailable": "Conversation history is unavailable.",
+      "this_conversation_could_not_be": "This conversation could not be opened.",
+      "conversation_changes_could_not_be": "Conversation changes could not be saved.",
+      "this_resource_is_not_available": "This resource is not available.",
+      "you_added": "You added",
+      "suggested": "Suggested",
+      "the_search_could_not_be": "The search could not be saved. Your message has been restored.",
+      "let_s_plan_this_goal": "Let’s plan this goal together.",
+      "that_suggested_destination_is_no": "That suggested destination is no longer available.",
+      "your_answers_could_not_be": "Your answers could not be sent.",
+      "this_conversation_could_not_be_2": "This conversation could not be renamed.",
+      "this_conversation_could_not_be_3": "This conversation could not be archived.",
+      "keep_the_session": "Keep the session"
+    },
+    "edit_run_timeline": {
+      "focused_work": "Focused work",
+      "create_a_goal": "Create a goal",
+      "edit_a_goal": "Edit a goal",
+      "you_updated_the_session_goal": "You updated the session goal"
+    },
+    "hub_header": {
+      "creating_a_goal": "Creating a goal",
+      "planning": "Planning"
+    },
+    "use_hub_memory": {
+      "the_memory_notice_could_not": "The memory notice could not be dismissed. Please try again.",
+      "your_memory_setting_could_not": "Your memory setting could not be saved."
+    },
+    "hub_message_micro_bar": {
+      "what_informed_this_answer": "What informed this answer?",
+      "memory_updated_by_this_message": "Memory updated by this message"
+    },
+    "connect_view": {
+      "wants_to_chat_with_you": "Wants to chat with you",
+      "you": "You: "
+    },
+    "composer_parts": {
+      "changes_asked_for": "Changes asked for",
+      "started": "Started",
+      "not_started": "Not started",
+      "organization": "Organization",
+      "personal": "Personal",
+      "the_whole_plan": "The whole plan"
+    },
+    "chat_cards": {
+      "finished": "Finished",
+      "turned_in": "Turned in",
+      "approved": "Approved",
+      "asked_for_changes": "Asked for changes",
+      "marked_done": "Marked done",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "no_longer_open": "No longer open",
+      "withdrawn": "Withdrawn",
+      "someone": "Someone",
+      "you": "You",
+      "waiting_for_an_answer": "Waiting for an answer",
+      "stopped": "Stopped"
+    },
+    "chat_workspace": {
+      "everyone_in_the_group_sees": "Everyone in the group sees this",
+      "you_can_read_along_here": "You can read along here"
+    },
+    "feed": {
+      "message": "Message",
+      "staff_only": "Staff only"
+    },
+    "chat_pane": {
+      "you_can_t_message_in": "You can’t message in this chat.",
+      "accept_to_reply": "Accept to reply."
+    },
+    "award_flow": {
+      "add_someone": "Add someone",
+      "say_what_they_did": "Say what they did",
+      "confirm_the_work": "Confirm the work",
+      "the_date_can_t_be": "The date can’t be in the future",
+      "everyone_picked_has_this_badge": "Everyone picked has this badge already",
+      "award_a_badge": "Award a badge",
+      "what_you_write_goes_on": "What you write goes on their badge, where anyone checking it can read it.",
+      "nothing_is_awarded_until_you": "Nothing is awarded until you confirm.",
+      "learner_name": "Learner name",
+      "award_a_plan_s_badge": "Award a plan’s badge to learners who did the same work somewhere else. You sign off on it, and it’s marked as awarded directly."
+    },
+    "learner_badges": {
+      "could_not_revoke_it_try": "Could not revoke it. Try again."
+    },
+    "chip_multi_select": {
+      "select_options": "Select options",
+      "search_options": "Search options",
+      "no_options_yet": "No options yet."
+    },
+    "new_user_resource_channel_modal": {
+      "failed_to_update_list": "Failed to update list",
+      "failed_to_create_list": "Failed to create list"
+    },
+    "resource_comments": {
+      "unknown": "Unknown"
+    },
+    "resource_notes": {
+      "request_failed": "Request failed"
+    },
+    "save_dropdown": {
+      "failed_to_remove_save": "Failed to remove save",
+      "failed_to_save_resource": "Failed to save resource",
+      "failed_to_remove_from_channel": "Failed to remove from channel",
+      "failed_to_add_to_channel": "Failed to add to channel"
+    },
+    "joined_flow": {
+      "add_your_first_name_so": "Add your first name so people know who you are.",
+      "we_couldn_t_save_your": "We couldn’t save your name",
+      "we_couldn_t_save_your_2": "We couldn’t save your profile"
+    },
+    "site_preview": {
+      "people": "People",
+      "groups": "Groups",
+      "requirements": "Requirements",
+      "insights": "Insights",
+      "your_plans": "Your plans",
+      "invite": "Invite",
+      "admin": "Admin",
+      "staff": "Staff",
+      "ready_to_invite": "Ready to invite",
+      "cohorts_classes_and_teams": "Cohorts, classes and teams",
+      "what_your_plans_count_toward": "What your plans count toward"
+    },
+    "roles": {
+      "parent_or_guardian": "Parent or guardian",
+      "helping_my_own_kid": "Helping my own kid",
+      "mentor_or_life_coach": "Mentor or life coach",
+      "guiding_a_few_people_one": "Guiding a few people one-on-one",
+      "teacher_or_counselor": "Teacher or counselor",
+      "supporting_a_class_or_caseload": "Supporting a class or caseload",
+      "youth_program_staff": "Youth program staff",
+      "school_or_district_leader": "School or district leader",
+      "readiness_across_schools": "Readiness across schools",
+      "new_hires": "New hires"
+    },
+    "start_flow": {
+      "your_organization": "Your organization",
+      "your_space": "Your space",
+      "something_went_wrong_try_again": "Something went wrong. Try again.",
+      "sign_in_first": "Sign in first.",
+      "your_space_isn_t_ready": "Your space isn’t ready yet. Go back a step and try again.",
+      "could_not_send_the_invites": "Could not send the invites.",
+      "continue": "Continue",
+      "that_doesn_t_look_like": "That doesn’t look like an email address.",
+      "could_not_create_the_account": "Could not create the account.",
+      "that_email_and_password_don": "That email and password don’t match."
+    },
+    "tour": {
+      "welcome_to_life2launch": "Welcome to Life2Launch",
+      "where_young_people_map_out": "Where young people map out what’s next and take charge of getting there.",
+      "you_guide_they_go": "You guide. They go.",
+      "hand_someone_a_plan_and": "Hand someone a plan and they move through it on their own. You see every step land, and know exactly when it’s your turn.",
+      "step_in_right_where_it": "Step in right where it counts",
+      "review_work_answer_questions_and": "Review work, answer questions and cheer them on in one conversation, tied to the plan they’re on.",
+      "celebrate_every_launch": "Celebrate every launch",
+      "finished_plans_add_up_to": "Finished plans add up to a portfolio they own, with badges and real work to show schools and employers."
+    },
+    "tour_scene": {
+      "maya_interest_quiz": "Maya · Interest quiz",
+      "resume_draft": "Resume draft",
+      "interview_a_nurse_2": "Interview a nurse",
+      "career_explorer": "Career Explorer",
+      "step_1_of_5": "Step 1 of 5",
+      "money_basics": "Money Basics",
+      "my_portfolio": "My portfolio",
+      "hospital_job_shadow": "Hospital job shadow",
+      "what_i_m_good_at": "What I’m good at",
+      "reflection": "Reflection",
+      "resume": "Resume",
+      "upload_2": "Upload",
+      "badge": "Badge"
+    },
+    "read_aloud": {
+      "read_aloud": "Read aloud",
+      "talk_instead_of_typing": "Talk instead of typing"
+    },
+    "accessibility_controls": {
+      "reads_each_new_question_card": "Reads each new question, card and step out loud as it shows up. The speaker buttons work either way.",
+      "hi_this_is_how_i": "Hi! This is how I sound when I read to you.",
+      "highlights_each_word_as_it": "Highlights each word as it’s read."
+    },
+    "dictation": {
+      "allow_the_microphone_to_talk": "Allow the microphone to talk instead of typing.",
+      "talking_didn_t_work_this": "Talking didn’t work this time. Try again."
+    },
+    "career_take": {
+      "into_it": "Into it",
+      "love_it": "Love it",
+      "sounds_like_me": "Sounds like me",
+      "i_want_to_job_shadow": "I want to job shadow",
+      "ask_my_counselor_about_classes": "Ask my counselor about classes",
+      "the_pay_looks_good": "The pay looks good",
+      "i_know_someone_who_does": "I know someone who does this"
+    },
+    "home_base_sheet": {
+      "stay_close": "Stay close",
+      "my_town_and_county": "My town and county",
+      "my_region": "My region",
+      "an_hour_or_two_away": "An hour or two away",
+      "anywhere_in_oregon": "Anywhere in Oregon",
+      "any_school_in_the_state": "Any school in the state",
+      "anywhere": "Anywhere",
+      "other_states_too": "Other states too"
+    },
+    "phase_form": {
+      "in_school": "In school",
+      "college_or_training": "College or training",
+      "working": "Working",
+      "gap_or_travel": "Gap or travel",
+      "family_or_care": "Family or care"
+    },
+    "hub_home_stack": {
+      "can_you_check_in_with": "Can you check in with me on my goals? Help me pick the next small thing to do."
+    },
+    "model": {
+      "highlights": "Highlights",
+      "featured": "Featured",
+      "about_me": "About me",
+      "experience": "Experience",
+      "projects": "Projects",
+      "credentials_badges": "Credentials & badges",
+      "what_i_m_like": "What I’m like",
+      "where_i_m_headed": "Where I’m headed",
+      "my_people": "My people",
+      "numbers": "Numbers",
+      "now_showing": "Now showing",
+      "info": "Info",
+      "work": "Work",
+      "certified": "Certified",
+      "character": "Character",
+      "next": "Next",
+      "said_about_me": "Said about me",
+      "at_a_glance": "At a glance",
+      "about": "About",
+      "licenses_and_certifications": "Licenses and certifications",
+      "strengths": "Strengths",
+      "goals": "Goals",
+      "recommendations": "Recommendations",
+      "stats": "Stats",
+      "bio": "Bio",
+      "history": "History",
+      "showcase": "Showcase",
+      "achievements": "Achievements",
+      "class": "Class",
+      "next_quest": "Next quest",
+      "squad_says": "Squad says",
+      "by_the_numbers": "By the numbers",
+      "journey": "Journey",
+      "latest_work": "Latest work",
+      "badges": "Badges",
+      "how_i_work": "How I work",
+      "next_up": "Next up",
+      "shoutouts": "Shoutouts"
+    }
   }
 }

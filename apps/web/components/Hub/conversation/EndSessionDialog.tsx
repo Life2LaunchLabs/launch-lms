@@ -8,7 +8,7 @@ import { tr } from '@/lib/tr'
  * Asks before Coach's session ends while it still has suggestions the learner hasn't reviewed.
  * Ending never removes them: they stay on the goal as suggestions.
  */
-export default function EndSessionDialog({ open, unreviewed, title = 'End Coach’s session?', endLabel = 'End session', keepLabel = 'Keep going', onEnd, onKeep }: {
+export default function EndSessionDialog({ open, unreviewed, title = tr('lit.end_session_dialog.end_coach_s_session', 'End Coach’s session?'), endLabel = tr('lit.end_session_dialog.end_session', 'End session'), keepLabel = tr('lit.plan_page.keep_going', 'Keep going'), onEnd, onKeep }: {
   open: boolean
   unreviewed: number
   title?: string

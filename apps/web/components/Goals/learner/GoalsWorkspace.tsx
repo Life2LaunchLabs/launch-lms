@@ -212,8 +212,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const backPhase = life && isSubject && selectedUuid ? life.phases.find((item) => item.id === phaseOfGoal(life, selectedUuid)) : undefined
 
   let content: React.ReactNode
-  if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
-  else if (detailError) content = failed('This goal could not load. It may no longer be available to you.', () => void retryDetail())
+  if (!selectedUuid) content = listError ? failed(tr('lit.goals_workspace.your_goals_could_not_load', 'Your goals could not load.'), () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
+  else if (detailError) content = failed(tr('lit.goals_workspace.this_goal_could_not_load', 'This goal could not load. It may no longer be available to you.'), () => void retryDetail())
   else {
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
     let body: React.ReactNode = null
@@ -228,7 +228,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   return <GeneralWrapperStyled>
     <main className="pb-16">
       {selectedUuid
-        ? <ContentPageHeader orgslug={orgslug} backLabel={backPhase ? backPhase.title : 'Plans'} onBack={backPhase ? () => router.push(getUriWithOrg(orgslug, routePaths.org.phase(backPhase.id))) : clear} compactBottomMargin />
+        ? <ContentPageHeader orgslug={orgslug} backLabel={backPhase ? backPhase.title : tr('lit.goals_workspace.plans', 'Plans')} onBack={backPhase ? () => router.push(getUriWithOrg(orgslug, routePaths.org.phase(backPhase.id))) : clear} compactBottomMargin />
         : <h1 className="sr-only">{tr('goals.goals_workspace.plans', 'Plans')}</h1>}
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>

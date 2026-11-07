@@ -38,22 +38,22 @@ export function suggestLines(p: Phase, catalog?: Catalog): Suggestion[] {
   }
   const living = p.living
   if (living && SHARED.includes(living)) {
-    out.push({ item: 'rent', cat: 'home', side: 'out', title: title('rent', 'Rent'), settings: shareSettings(living, undefined, p.household) })
-    out.push({ item: 'utilities', cat: 'home', side: 'out', title: title('utilities', 'Utilities and internet'), settings: { share: shareSettings(living).share } })
+    out.push({ item: 'rent', cat: 'home', side: 'out', title: title('rent', tr('lit.prefill.rent', 'Rent')), settings: shareSettings(living, undefined, p.household) })
+    out.push({ item: 'utilities', cat: 'home', side: 'out', title: title('utilities', tr('lit.prefill.utilities_and_internet', 'Utilities and internet')), settings: { share: shareSettings(living).share } })
   }
   const college = acts.find((a) => a.kind === 'learning' && levelOf(a.level)?.college)
   const school = college?.school_id || null
-  if (living === 'dorm') out.push({ item: 'dorm', cat: 'home', side: 'out', title: title('dorm', 'Dorm'), settings: school ? { school, housing: 'on' } : { housing: 'on' } })
-  else out.push({ item: 'groceries', cat: 'food', side: 'out', title: title('groceries', 'Groceries'), settings: { plan: 'moderate' } })
-  out.push({ item: 'transport', cat: 'move', side: 'out', title: title('transport', 'Getting around'), settings: {} })
+  if (living === 'dorm') out.push({ item: 'dorm', cat: 'home', side: 'out', title: title('dorm', tr('lit.prefill.dorm', 'Dorm')), settings: school ? { school, housing: 'on' } : { housing: 'on' } })
+  else out.push({ item: 'groceries', cat: 'food', side: 'out', title: title('groceries', tr('lit.prefill.groceries', 'Groceries')), settings: { plan: 'moderate' } })
+  out.push({ item: 'transport', cat: 'move', side: 'out', title: title('transport', tr('lit.prefill.getting_around', 'Getting around')), settings: {} })
   if (college) {
-    out.push({ item: 'tuition', cat: 'school', side: 'out', title: title('tuition', 'Tuition and fees'), settings: school ? { school, residency: 'in' } : {} })
-    out.push({ item: 'books', cat: 'school', side: 'out', title: title('books', 'Books and supplies'), settings: school ? { school } : {} })
+    out.push({ item: 'tuition', cat: 'school', side: 'out', title: title('tuition', tr('lit.prefill.tuition_and_fees', 'Tuition and fees')), settings: school ? { school, residency: 'in' } : {} })
+    out.push({ item: 'books', cat: 'school', side: 'out', title: title('books', tr('lit.prefill.books_and_supplies', 'Books and supplies')), settings: school ? { school } : {} })
   }
-  out.push({ item: 'going_out', cat: 'fun', side: 'out', title: title('going_out', 'Going out'), settings: {} })
-  out.push({ item: 'phone', cat: 'bills', side: 'out', title: title('phone', 'Phone plan'), settings: {} })
-  out.push({ item: 'clothes', cat: 'bills', side: 'out', title: title('clothes', 'Clothes'), settings: {} })
-  out.push({ item: 'personal_care', cat: 'bills', side: 'out', title: title('personal_care', 'Personal care'), settings: {} })
+  out.push({ item: 'going_out', cat: 'fun', side: 'out', title: title('going_out', tr('lit.prefill.going_out', 'Going out')), settings: {} })
+  out.push({ item: 'phone', cat: 'bills', side: 'out', title: title('phone', tr('lit.prefill.phone_plan', 'Phone plan')), settings: {} })
+  out.push({ item: 'clothes', cat: 'bills', side: 'out', title: title('clothes', tr('lit.prefill.clothes', 'Clothes')), settings: {} })
+  out.push({ item: 'personal_care', cat: 'bills', side: 'out', title: title('personal_care', tr('lit.prefill.personal_care', 'Personal care')), settings: {} })
   return out
 }
 

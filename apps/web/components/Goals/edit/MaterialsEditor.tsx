@@ -15,7 +15,7 @@ const mediaType = (file: File): MediaType | null => file.type.startsWith('image/
 const hostOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url } }
 
 /** A step's files, links and resources, as a list you rename or remove, a link box, an upload button and a resource picker. Files go to the org's media. */
-export default function MaterialsEditor({ id, value, onChange, orgId, token, addLabel = 'Add' }: {
+export default function MaterialsEditor({ id, value, onChange, orgId, token, addLabel = tr('lit.people_access.add', 'Add') }: {
   id: string
   value: StepMaterial[]
   onChange: (value: StepMaterial[]) => void // eslint-disable-line no-unused-vars

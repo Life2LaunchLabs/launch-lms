@@ -83,7 +83,7 @@ function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: 
   const save = async () => {
     if (draftProblem(draft)) return
     try {
-      await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, mode), stage_uuid: stageUuid }, token), 'Step added')
+      await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, mode), stage_uuid: stageUuid }, token), tr('lit.goal_editing.step_added', 'Step added'))
       onClose()
     } catch { /* toast shown */ }
   }
@@ -131,11 +131,11 @@ export function StepMenu({ step, className }: { step: Step; className?: string }
   const index = stageSteps.findIndex((item) => item.step_uuid === step.step_uuid)
   const quiet = (change: () => Promise<unknown>, message?: string) => void run(change, message).catch(() => undefined)
   const move = (stage: string | null, position: number) => quiet(() => goalsApi.moveStep(goal.goal_uuid, step.step_uuid, { stage_uuid: stage, position }, token))
-  const duplicate = () => quiet(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput({ ...stepDraft(step), title: `${step.title} (copy)` }, liveMode(goal)), stage_uuid: stageUuid, position: index + 1 }, token), 'Step duplicated')
+  const duplicate = () => quiet(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput({ ...stepDraft(step), title: `${step.title} (copy)` }, liveMode(goal)), stage_uuid: stageUuid, position: index + 1 }, token), tr('lit.goal_editing.step_duplicated', 'Step duplicated'))
   const remove = () => {
     const worked = step.state === 'done' || step.state === 'started' || Boolean(step.result)
     if (!window.confirm(worked ? `Delete “${step.title}”? What you've done on it goes too.` : `Delete “${step.title}”?`)) return
-    quiet(() => goalsApi.deleteStep(goal.goal_uuid, step.step_uuid, token), 'Step deleted')
+    quiet(() => goalsApi.deleteStep(goal.goal_uuid, step.step_uuid, token), tr('lit.goal_editing.step_deleted', 'Step deleted'))
   }
   const reopen = done(step) && (can(goal, 'update_progress') || can(goal, 'complete_restricted_objectives'))
   const otherStages = goal.stages.filter((stage) => stage.stage_uuid !== stageUuid)
@@ -144,7 +144,7 @@ export function StepMenu({ step, className }: { step: Step; className?: string }
     <DropdownMenuContent align="end" className="min-w-44">
       <DropdownMenuItem onSelect={() => editing.open({ kind: 'step', step })}><Pencil size={14} className="mr-2" />{tr('goals.shared.edit', 'Edit')}</DropdownMenuItem>
       {structure ? <DropdownMenuItem onSelect={duplicate}><Copy size={14} className="mr-2" />{tr('goals.goal_editing.duplicate', 'Duplicate')}</DropdownMenuItem> : null}
-      {reopen ? <DropdownMenuItem onSelect={() => quiet(() => goalsApi.setStatus(goal.goal_uuid, step.step_uuid, 'in_progress', undefined, token), 'Step reopened')}><Undo2 size={14} className="mr-2" />{tr('goals.shared.reopen', 'Reopen')}</DropdownMenuItem> : null}
+      {reopen ? <DropdownMenuItem onSelect={() => quiet(() => goalsApi.setStatus(goal.goal_uuid, step.step_uuid, 'in_progress', undefined, token), tr('lit.goal_editing.step_reopened', 'Step reopened'))}><Undo2 size={14} className="mr-2" />{tr('goals.shared.reopen', 'Reopen')}</DropdownMenuItem> : null}
       {structure ? <>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={index <= 0} onSelect={() => move(stageUuid, index - 1)}><ArrowUp size={14} className="mr-2" />{tr('goals.goal_editing.move_up', 'Move up')}</DropdownMenuItem>
@@ -174,7 +174,7 @@ export function StageMenu({ stage, index, onMakeCurrent }: { stage: Stage; index
   }
   const remove = () => {
     if (!window.confirm(`Delete the stage “${stage.title}”?`)) return
-    void run(() => goalsApi.deleteStage(goal.goal_uuid, stage.stage_uuid, token), 'Stage deleted').catch(() => undefined)
+    void run(() => goalsApi.deleteStage(goal.goal_uuid, stage.stage_uuid, token), tr('lit.goal_editing.stage_deleted', 'Stage deleted')).catch(() => undefined)
   }
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={`More for ${stage.title}`} className={menuButton}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>

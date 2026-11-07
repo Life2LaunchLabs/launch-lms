@@ -15,12 +15,12 @@ import { tr } from '@/lib/tr'
 // Bring in from another app: pick the export, see what's in it, choose what to keep. A one-time copy.
 
 const SOURCES: Array<{ source: ImportSource; title: string; how: string; accept: string }> = [
-  { source: 'cis', get title() { return tr('portfolio.portfolio_import_page.oregon_cis', 'Oregon CIS') }, how: 'In Oregon CIS, open Account settings and choose "Download my data". Upload the zip it gives you.', accept: '.zip,.xlsx' },
-  { source: 'linkedin', get title() { return tr('portfolio.portfolio_header_parts.linkedin', 'LinkedIn') }, how: 'In LinkedIn, open Settings, then Data privacy, then "Get a copy of your data", and upload the zip LinkedIn emails you. Or open your profile, choose More, then "Save to PDF", and upload that.', accept: '.zip,.pdf' },
-  { source: 'resume', get title() { return tr('portfolio.portfolio_import_page.a_r_sum', 'A résumé') }, how: 'Upload your résumé as a PDF. We read its sections and dates, so check what we found before you bring it in. The PDF is kept in My documents.', accept: '.pdf' },
+  { source: 'cis', get title() { return tr('portfolio.portfolio_import_page.oregon_cis', 'Oregon CIS') }, get how() { return tr('lit.portfolio_import_page.in_oregon_cis_open_account', 'In Oregon CIS, open Account settings and choose "Download my data". Upload the zip it gives you.') }, accept: '.zip,.xlsx' },
+  { source: 'linkedin', get title() { return tr('portfolio.portfolio_header_parts.linkedin', 'LinkedIn') }, get how() { return tr('lit.portfolio_import_page.in_linkedin_open_settings_then', 'In LinkedIn, open Settings, then Data privacy, then "Get a copy of your data", and upload the zip LinkedIn emails you. Or open your profile, choose More, then "Save to PDF", and upload that.') }, accept: '.zip,.pdf' },
+  { source: 'resume', get title() { return tr('portfolio.portfolio_import_page.a_r_sum', 'A résumé') }, get how() { return tr('lit.portfolio_import_page.upload_your_r_sum_as', 'Upload your résumé as a PDF. We read its sections and dates, so check what we found before you bring it in. The PDF is kept in My documents.') }, accept: '.pdf' },
 ]
-const GROUPS: Array<[string, string]> = [['about', 'About me'], ['experience', 'Experience'], ['projects', 'Projects'], ['credentials', 'Credentials'], ['results', "What I'm like"], ['people', 'My people'], ['links', 'Links'], ['documents', 'Documents']]
-const groupLabel = (key: string) => GROUPS.find(([group]) => group === key)?.[1] || key
+const GROUPS = (): Array<[string, string]> => ([['about', tr('lit.portfolio_import_page.about_me', 'About me')], ['experience', tr('lit.portfolio_pages.experience', 'Experience')], ['projects', tr('lit.portfolio_pages.projects', 'Projects')], ['credentials', tr('lit.portfolio_import_page.credentials', 'Credentials')], ['results', tr('lit.portfolio_import_page.what_i_m_like', 'What I\'m like')], ['people', tr('lit.portfolio_import_page.my_people', 'My people')], ['links', tr('lit.portfolio_import_page.links', 'Links')], ['documents', tr('lit.portfolio_import_page.documents', 'Documents')]])
+const groupLabel = (key: string) => GROUPS().find(([group]) => group === key)?.[1] || key
 const count = (counts: Record<string, number>) => Object.values(counts).reduce((sum, value) => sum + value, 0)
 
 export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
@@ -73,7 +73,7 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
 
       : preview ? <section>
         <p className="mb-4 px-1 text-[15px] text-muted-foreground">Here&apos;s what we found in {preview.source === 'resume' ? tr('portfolio.portfolio_import_page.your_r_sum', 'your résumé') : `your ${preview.label} export`}. Untick anything you don&apos;t want. This is a one-time copy; change anything later.</p>
-        {GROUPS.map(([group, label]) => {
+        {GROUPS().map(([group, label]) => {
           const items = preview.items.filter((item) => item.group === group)
           if (!items.length) return null
           return <div key={group} className="mb-4 rounded-3xl border border-border bg-card p-2">

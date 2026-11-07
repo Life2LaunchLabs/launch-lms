@@ -106,8 +106,8 @@ export function buildHubRunTimeline(events: HubEditRunEvent[]): HubRunTimelineEn
 export function HubSessionBoundary({ event, run, onRestore }: { event: HubEditRunEvent; run: EditRun; onRestore: () => void }) {
   const terminal = event.kind === 'run.completed' || event.kind === 'run.cancelled'
   const scopeKind = String(event.payload?.scope_kind || run?.scope.kind || '')
-  const rawGoal = String(event.payload?.goal || run?.goal || 'Focused work')
-  const goal = /^\s*(create|edit|update|build|plan)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? 'Create a goal' : 'Edit a goal'}: ${rawGoal}`
+  const rawGoal = String(event.payload?.goal || run?.goal || tr('lit.edit_run_timeline.focused_work', 'Focused work'))
+  const goal = /^\s*(create|edit|update|build|plan)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? tr('lit.edit_run_timeline.create_a_goal', 'Create a goal') : tr('lit.edit_run_timeline.edit_a_goal', 'Edit a goal')}: ${rawGoal}`
   const verb = event.kind === 'run.started' ? 'started session' : event.kind === 'run.reopened' ? 'reopened session' : 'ended session'
   return <div className="flex items-center gap-2 py-1 text-[10px] text-muted-foreground" aria-label={`${verb}: ${goal}`}>
     <span className="h-px flex-1 bg-border" />
@@ -141,7 +141,7 @@ export function HubLearnerSessionEvent({ events, onPoint }: { events: HubEditRun
   const status = first.kind.endsWith('.cancelled') ? 'cancelled' : 'saved'
   const objectType = first.object_type || 'object'
   const label = first.kind === 'run.goal_updated'
-    ? 'You updated the session goal'
+    ? tr('lit.edit_run_timeline.you_updated_the_session_goal', 'You updated the session goal')
     : `You ${status} ${events.length === 1 ? (first.object_label ? `“${first.object_label}”` : `1 ${objectType}`) : `${events.length} ${objectType}s`}`
   const targets = events.map((event) => ({ event, targetId: hubEventTarget(event) })).filter((item) => item.targetId)
   if (targets.length <= 1) return <button type="button" disabled={!targets.length} onClick={() => targets[0]?.targetId && onPoint(targets[0].targetId)} className="w-fit text-left text-[11px] italic text-muted-foreground enabled:hover:text-foreground">{label}</button>

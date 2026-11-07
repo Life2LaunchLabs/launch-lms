@@ -22,7 +22,7 @@ import { tr } from '@/lib/tr'
 // feature it on the front page and the eye to hide it. Below, the tests you haven't added, each with a big
 // way to take it (free or paid, said plainly) and a way to copy in a result you already have.
 
-const SOURCES: Record<string, string> = { [INTEREST_QUIZ]: 'From the interest quiz', [PICTURE_SORT]: 'From the picture sort', manual: 'Added by you', plan: 'From a plan', import: 'Imported', cis: 'From Oregon CIS', linkedin: 'From LinkedIn', resume: 'From your résumé' }
+const SOURCES: Record<string, string> = { get [INTEREST_QUIZ]() { return tr('lit.portfolio_results_page.from_the_interest_quiz', 'From the interest quiz') }, get [PICTURE_SORT]() { return tr('lit.portfolio_results_page.from_the_picture_sort', 'From the picture sort') }, get manual() { return tr('lit.portfolio_results_page.added_by_you', 'Added by you') }, get plan() { return tr('lit.portfolio_results_page.from_a_plan', 'From a plan') }, get import() { return tr('lit.portfolio_results_page.imported', 'Imported') }, get cis() { return tr('lit.portfolio_results_page.from_oregon_cis', 'From Oregon CIS') }, get linkedin() { return tr('lit.portfolio_results_page.from_linkedin', 'From LinkedIn') }, get resume() { return tr('lit.portfolio_results_page.from_your_r_sum', 'From your résumé') } }
 // An imported skill is one skill with a name; its summary is a description. A typed line lists several in its summary.
 const skillChips = (item: PortfolioResult) => ['cis', 'linkedin', 'resume'].includes(item.source) ? [item.name] : item.summary.split(/[,;·]/)
 const month = (value?: string | null) => value ? new Date(`${value.slice(0, 7)}-01T12:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''

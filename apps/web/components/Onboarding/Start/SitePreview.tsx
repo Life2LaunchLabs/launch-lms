@@ -21,11 +21,11 @@ export default function SitePreview({ state, page, plans, spaceName, framework }
   const picked = state.picked.map((uuid) => plans.find((plan) => plan.template_uuid === uuid)).filter((plan): plan is SuggestedPlan => !!plan)
   const full = state.trial === true
   const nav: Array<[PreviewPage | 'home' | 'insights', string, React.ReactNode, number?]> = [
-    ['home', 'Home', <Home key="h" size={14} />], ['plans', 'Plans', <Layers3 key="p" size={14} />, picked.length],
-    ['people', 'People', <Users key="u" size={14} />, full ? state.staff.length : state.learners.length],
-    ...(full ? [['groups', 'Groups', <UsersRound key="g" size={14} />, state.groups.length] as [PreviewPage, string, React.ReactNode, number]] : []),
-    ...(page === 'requirements' || framework ? [['requirements', 'Requirements', <ListChecks key="r" size={14} />, framework ? 1 : 0] as [PreviewPage, string, React.ReactNode, number]] : []),
-    ['insights', 'Insights', <BarChart3 key="i" size={14} />],
+    ['home', 'Home', <Home key="h" size={14} />], ['plans', tr('lit.goals_workspace.plans', 'Plans'), <Layers3 key="p" size={14} />, picked.length],
+    ['people', tr('lit.site_preview.people', 'People'), <Users key="u" size={14} />, full ? state.staff.length : state.learners.length],
+    ...(full ? [['groups', tr('lit.site_preview.groups', 'Groups'), <UsersRound key="g" size={14} />, state.groups.length] as [PreviewPage, string, React.ReactNode, number]] : []),
+    ...(page === 'requirements' || framework ? [['requirements', tr('lit.site_preview.requirements', 'Requirements'), <ListChecks key="r" size={14} />, framework ? 1 : 0] as [PreviewPage, string, React.ReactNode, number]] : []),
+    ['insights', tr('lit.site_preview.insights', 'Insights'), <BarChart3 key="i" size={14} />],
   ]
   const mark = <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[11px] font-black text-white" style={{ background: accent }}>{initials(spaceName)}</span>
   return <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_30px_80px_rgba(15,23,42,0.18)] ring-1 ring-black/5" style={{ ['--accent' as string]: accent }}>
@@ -60,7 +60,7 @@ const enter = { initial: { opacity: 0, scale: 0.92, y: 8 }, animate: { opacity: 
 
 function PlansPage({ picked }: { picked: SuggestedPlan[] }) {
   return <>
-    <Head title={tr('onboarding.site_preview.plans', 'Plans')} sub={picked.length ? `${picked.length} in your plans` : 'Your plans'} action="+ New plan" />
+    <Head title={tr('onboarding.site_preview.plans', 'Plans')} sub={picked.length ? `${picked.length} in your plans` : tr('lit.site_preview.your_plans', 'Your plans')} action="+ New plan" />
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
       <AnimatePresence>{picked.map((plan) => <motion.div key={plan.template_uuid} layout {...enter} className="overflow-hidden rounded-xl border border-border">
         <div className="flex h-16 items-center justify-center" style={{ background: `hsl(${hue(plan.title)} 70% 92%)`, color: `hsl(${hue(plan.title)} 55% 38%)` }}>
@@ -74,10 +74,10 @@ function PlansPage({ picked }: { picked: SuggestedPlan[] }) {
 
 function PeoplePage({ full, people, name }: { full: boolean; people: string[]; name: string }) {
   return <>
-    <Head title={tr('onboarding.site_preview.people', 'People')} sub={full ? `${people.length + 1} of 12 staff · 0 of 200 learners` : `${people.length} of 25 learners`} action="Invite" />
+    <Head title={tr('onboarding.site_preview.people', 'People')} sub={full ? `${people.length + 1} of 12 staff · 0 of 200 learners` : `${people.length} of 25 learners`} action={tr('lit.site_preview.invite', 'Invite')} />
     <div className="space-y-1.5">
-      {full ? <Row label={name || tr('onboarding.site_preview.you', 'You')} pill="Admin" color="#2F66D6" /> : null}
-      <AnimatePresence>{people.map((person, index) => <motion.div key={person} layout {...enter}><Row label={person} pill={full ? 'Staff' : 'Ready to invite'} color={AVATAR_COLORS[index % AVATAR_COLORS.length]} /></motion.div>)}</AnimatePresence>
+      {full ? <Row label={name || tr('onboarding.site_preview.you', 'You')} pill={tr('lit.site_preview.admin', 'Admin')} color="#2F66D6" /> : null}
+      <AnimatePresence>{people.map((person, index) => <motion.div key={person} layout {...enter}><Row label={person} pill={full ? tr('lit.site_preview.staff', 'Staff') : tr('lit.site_preview.ready_to_invite', 'Ready to invite')} color={AVATAR_COLORS[index % AVATAR_COLORS.length]} /></motion.div>)}</AnimatePresence>
       {!full && !people.length ? <p className="rounded-xl border border-dashed border-border p-4 text-center text-[11px] text-muted-foreground">{tr('onboarding.site_preview.people_you_add_show_up', 'People you add show up here')}</p> : null}
     </div>
   </>
@@ -92,7 +92,7 @@ function Row({ label, pill, color }: { label: string; pill: string; color: strin
 
 function GroupsPage({ groups, staff }: { groups: string[]; staff: number }) {
   return <>
-    <Head title={tr('onboarding.site_preview.groups', 'Groups')} sub={groups.length ? `${groups.length} groups` : 'Cohorts, classes and teams'} action="+ New group" />
+    <Head title={tr('onboarding.site_preview.groups', 'Groups')} sub={groups.length ? `${groups.length} groups` : tr('lit.site_preview.cohorts_classes_and_teams', 'Cohorts, classes and teams')} action="+ New group" />
     <div className="grid grid-cols-2 gap-2">
       <AnimatePresence>{groups.map((group, index) => <motion.div key={group} layout {...enter} className="rounded-xl border border-border p-2.5">
         <i className="mb-2 block h-1.5 w-8 rounded-full" style={{ background: AVATAR_COLORS[(index + 2) % AVATAR_COLORS.length] }} />
@@ -105,7 +105,7 @@ function GroupsPage({ groups, staff }: { groups: string[]; staff: number }) {
 
 function RequirementsPage({ chosen }: { chosen: Array<{ id: string; title: string }> }) {
   return <>
-    <Head title={tr('onboarding.site_preview.requirements', 'Requirements')} sub="What your plans count toward" action="+ Add" />
+    <Head title={tr('onboarding.site_preview.requirements', 'Requirements')} sub={tr('lit.site_preview.what_your_plans_count_toward', 'What your plans count toward')} action="+ Add" />
     <div className="space-y-1.5">
       <AnimatePresence>{chosen.map((item) => <motion.div key={item.id} layout {...enter} className="flex items-center gap-2 rounded-xl border border-border p-2.5">
         <ListChecks size={14} className="text-sky-700" /><span className="min-w-0 flex-1"><b className="block truncate text-[11px]">{item.title}</b><span className="text-[10px] text-muted-foreground">{tr('onboarding.site_preview.plans_you_add_count_toward', 'Plans you add count toward it')}</span></span>
@@ -117,7 +117,7 @@ function RequirementsPage({ chosen }: { chosen: Array<{ id: string; title: strin
 
 /** What a learner sees when invited: this is where the name, logo and color show. */
 function Invite({ state, spaceName, accent, mark }: { state: StartState; spaceName: string; accent: string; mark: React.ReactNode }) {
-  const who = state.name.trim() || 'Someone'
+  const who = state.name.trim() || tr('lit.chat_cards.someone', 'Someone')
   return <div className="relative flex flex-1 items-center justify-center p-6" style={{ background: `linear-gradient(180deg, ${accent}22, #fff 60%)` }}>
     <div className="w-full max-w-xs rounded-3xl bg-white p-6 text-center shadow-xl ring-1 ring-black/5">
       <div className="mx-auto flex w-fit scale-150 justify-center">{mark}</div>

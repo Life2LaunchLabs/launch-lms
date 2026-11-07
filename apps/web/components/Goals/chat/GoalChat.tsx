@@ -130,7 +130,7 @@ function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, onClose }: 
   const [home, setHome] = React.useState<Element | null>(null)
   React.useEffect(() => setHome(document.querySelector('.hub-shell') || document.body), [])
   if (!home) return null
-  return createPortal(<aside aria-label={`${chat.chat.title || 'Chat'} about ${chat.about}`} className="side-chat-panel">
+  return createPortal(<aside aria-label={`${chat.chat.title || tr('lit.goal_chat.chat', 'Chat')} about ${chat.about}`} className="side-chat-panel">
     <ChatWorkspace key={`${chat.key}:${stepUuid || ''}`} source={chat.source} orgslug={orgslug} token={token} initialFilter={{ goal_uuid: chat.topicUuid, step_uuid: stepUuid || undefined }}
       onOpenPlan={onOpenPlan}
       header={(loaded) => <><header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label={tr('goals.goal_chat.chat_navigation', 'Chat navigation')}>

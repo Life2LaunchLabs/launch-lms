@@ -35,8 +35,8 @@ export function chatTime(stamp?: string | null) {
 function preview(chat: ChatSummary) {
   const last = chat.last_message
   if (!last) return ''
-  if (chat.status === 'request') return 'Wants to chat with you'
-  return `${last.mine ? 'You: ' : ''}${last.preview || last.body}`
+  if (chat.status === 'request') return tr('lit.connect_view.wants_to_chat_with_you', 'Wants to chat with you')
+  return `${last.mine ? tr('lit.connect_view.you', 'You: ') : ''}${last.preview || last.body}`
 }
 
 /**

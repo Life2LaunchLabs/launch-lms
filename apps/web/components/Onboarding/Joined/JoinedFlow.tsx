@@ -59,12 +59,12 @@ export default function JoinedFlow() {
 
   const finish = async () => {
     setError('')
-    if (!name.first_name.trim()) return setError('Add your first name so people know who you are.')
+    if (!name.first_name.trim()) return setError(tr('lit.joined_flow.add_your_first_name_so', 'Add your first name so people know who you are.'))
     setBusy(true)
     try {
       if (user?.username && (name.first_name !== user.first_name || name.last_name !== user.last_name)) {
         const saved = await updateProfile({ username: user.username, email: user.email, first_name: name.first_name.trim(), last_name: name.last_name.trim() }, user.id, token)
-        if (!saved.success) throw new Error(typeof saved.data?.detail === 'string' ? saved.data.detail : 'We couldn’t save your name')
+        if (!saved.success) throw new Error(typeof saved.data?.detail === 'string' ? saved.data.detail : tr('lit.joined_flow.we_couldn_t_save_your', 'We couldn’t save your name'))
         await session.update?.(true)
         setUser({ ...user, ...name })
       }
@@ -76,12 +76,12 @@ export default function JoinedFlow() {
       if (index < steps.length - 1) setIndex(index + 1)
       else router.push(home)
     } catch (err: any) {
-      setError(err?.message || 'We couldn’t save your profile')
+      setError(err?.message || tr('lit.joined_flow.we_couldn_t_save_your_2', 'We couldn’t save your profile'))
       setBusy(false)
     }
   }
 
-  const shown = (learnerName.staff && learnerName.value.trim()) || [name.first_name, name.last_name].filter(Boolean).join(' ') || 'You'
+  const shown = (learnerName.staff && learnerName.value.trim()) || [name.first_name, name.last_name].filter(Boolean).join(' ') || tr('lit.chat_cards.you', 'You')
   return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-foreground">
     <AdminSurface />
     <header className="flex min-h-[68px] items-center gap-4 px-6 py-3.5">

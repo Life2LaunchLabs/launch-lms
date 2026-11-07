@@ -13,7 +13,7 @@ import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
 
 import { tr } from '@/lib/tr'
-const RSVP = [['yes', 'Going'], ['maybe', 'Maybe'], ['no', 'Can’t go']] as const
+const RSVP = () => ([['yes', tr('lit.event.going', 'Going')], ['maybe', tr('lit.event.maybe', 'Maybe')], ['no', tr('lit.event.can_t_go', 'Can’t go')]] as const)
 const today = () => new Date().toLocaleDateString('en-CA')
 
 export function eventWhen(config: EventConfig) {
@@ -71,7 +71,7 @@ function EventCard(props: StepCardProps<'event'>) {
     <StepIntro step={step} />
     <Feedback step={step} />
     {open && (config.rsvp || config.date) ? <div className="flex flex-wrap items-center gap-1.5">
-      {config.rsvp ? RSVP.map(([value, label]) => <button key={value} type="button" disabled={actions.busy} aria-pressed={rsvp === value} onClick={() => actions.saveSubmission({ submission: { ...step.submission, rsvp: value } })}
+      {config.rsvp ? RSVP().map(([value, label]) => <button key={value} type="button" disabled={actions.busy} aria-pressed={rsvp === value} onClick={() => actions.saveSubmission({ submission: { ...step.submission, rsvp: value } })}
         className={cn('rounded-xl border-2 px-3 py-1.5 text-xs font-extrabold', rsvp === value ? 'border-[var(--plan-face)] bg-[var(--plan-face)] text-[var(--plan-face-ink)]' : 'bg-background')}>{label}</button>) : null}
       {rsvp !== 'no' ? <AddToCalendar step={step} /> : null}
     </div> : null}
@@ -99,7 +99,7 @@ export const event: StepDefinition<'event'> = {
   get label() { return tr('goals.event.event', 'Event') },
   color: '#C8327D',
   get hint() { return tr('goals.event.something_to_go_to_with', 'Something to go to, with a date, place and RSVP.') },
-  example: 'Job shadow at Riverside Clinic',
+  get example() { return tr('lit.event.job_shadow_at_riverside_clinic', 'Job shadow at Riverside Clinic') },
   icon: CalendarDays,
   statusLine: (step: Step<'event'>) => {
     const when = eventWhen(step.config)

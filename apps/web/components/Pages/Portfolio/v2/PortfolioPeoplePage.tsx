@@ -55,7 +55,7 @@ function ContactDialog({ open, onOpenChange, contact, shell, token, onSaved, onC
   }
 
   async function remove() {
-    if (!token || !contact || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: contact.name }), body: 'Their quotes come off your portfolio too.', action: 'Remove', danger: true }))) return
+    if (!token || !contact || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: contact.name }), body: tr('lit.portfolio_people_page.their_quotes_come_off_your', 'Their quotes come off your portfolio too.'), action: tr('lit.portfolio_people_page.remove', 'Remove'), danger: true }))) return
     setBusy(true)
     try { await contactsApi.remove(contact.contact_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_people_page.could_not_remove_this', 'Could not remove this')) } finally { setBusy(false) }
   }

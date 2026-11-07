@@ -117,7 +117,7 @@ export default function HubResourceLibrary({
   const removeList = async (list: UserResourceChannel) => {
     if (!accessToken || !orgId || !window.confirm(`Delete “${list.name}”? Resources will stay in your Library.`)) return
     try {
-      requireSuccess(await deleteUserResourceChannel(orgId, list.user_channel_uuid, accessToken), 'Failed to delete list')
+      requireSuccess(await deleteUserResourceChannel(orgId, list.user_channel_uuid, accessToken), tr('lit.hub_resource_library.failed_to_delete_list', 'Failed to delete list'))
       setLists((current) => current.filter((item) => item.user_channel_uuid !== list.user_channel_uuid))
       if (selectedList === list.user_channel_uuid) setSelectedList('library')
       toast.success(tr('coach.hub_resource_library.list_deleted', 'List deleted'))

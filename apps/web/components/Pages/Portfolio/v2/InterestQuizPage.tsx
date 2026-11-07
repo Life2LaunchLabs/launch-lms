@@ -27,12 +27,12 @@ const FACES = ['😖', '🙁', '🤷', '🙂', '😍']
 const FACE_COLORS = ['#EF4444', '#F97316', '#A3A3A3', '#22C55E', '#8B5CF6']
 // What each type means, in our own words, for a 15-year-old.
 const MEANS: Record<string, string> = {
-  R: 'Hands-on work: building, fixing, and working with tools, machines, plants or animals.',
-  I: 'Figuring things out: science, research, and solving puzzles.',
-  A: 'Making things: art, music, writing, design and new ideas.',
-  S: 'Helping people: teaching, caring for and supporting others.',
-  E: 'Leading: starting things, persuading people, selling and deciding.',
-  C: 'Organizing: details, records, data and clear steps.',
+  get R() { return tr('lit.interest_quiz_page.hands_on_work_building_fixing', 'Hands-on work: building, fixing, and working with tools, machines, plants or animals.') },
+  get I() { return tr('lit.interest_quiz_page.figuring_things_out_science_research', 'Figuring things out: science, research, and solving puzzles.') },
+  get A() { return tr('lit.interest_quiz_page.making_things_art_music_writing', 'Making things: art, music, writing, design and new ideas.') },
+  get S() { return tr('lit.interest_quiz_page.helping_people_teaching_caring_for', 'Helping people: teaching, caring for and supporting others.') },
+  get E() { return tr('lit.interest_quiz_page.leading_starting_things_persuading_people', 'Leading: starting things, persuading people, selling and deciding.') },
+  get C() { return tr('lit.interest_quiz_page.organizing_details_records_data_and', 'Organizing: details, records, data and clear steps.') },
 }
 // O*NET job zones, said simply.
 const FILTERS = [

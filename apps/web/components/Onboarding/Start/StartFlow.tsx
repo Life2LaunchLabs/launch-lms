@@ -112,7 +112,7 @@ export default function StartFlow() {
   const go = (step: Step) => { setError(''); patch({ step }) }
   const move = (direction: number) => go(steps[Math.max(0, Math.min(steps.length - 1, steps.indexOf(state.step) + direction))])
   const role = state.role ? ROLES[state.role] : null
-  const spaceName = state.space?.name || (state.orgOn ? state.org.trim() || 'Your organization' : state.name.trim() ? `${state.name.trim().split(' ')[0]}’s space` : 'Your space')
+  const spaceName = state.space?.name || (state.orgOn ? state.org.trim() || tr('lit.start_flow.your_organization', 'Your organization') : state.name.trim() ? `${state.name.trim().split(' ')[0]}’s space` : tr('lit.start_flow.your_space', 'Your space'))
 
   const { data: frameworks = [] } = useSWR(startKeys.frameworks(), async () => { try { return await startApi.frameworks() } catch { return [] } }, { revalidateOnFocus: false })
   const framework = frameworks.find((item) => item.framework_uuid === state.framework) || null
@@ -121,11 +121,11 @@ export default function StartFlow() {
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
     setError('')
-    try { await work() } catch (failure: any) { setError(failure?.detail?.message || failure?.detail || failure?.message || 'Something went wrong. Try again.') } finally { setBusy(false) }
+    try { await work() } catch (failure: any) { setError(failure?.detail?.message || failure?.detail || failure?.message || tr('lit.start_flow.something_went_wrong_try_again', 'Something went wrong. Try again.')) } finally { setBusy(false) }
   }
 
   const setUp = (trial: boolean) => run(async () => {
-    if (!token || !state.role) throw new Error('Sign in first.')
+    if (!token || !state.role) throw new Error(tr('lit.start_flow.sign_in_first', 'Sign in first.'))
     const result = await startApi.setUp({
       role: state.role, name: state.name.trim(), org_name: state.orgOn ? state.org.trim() : '',
       color: state.orgOn ? state.color : '', plan_uuids: state.picked, framework_uuid: framework?.framework_uuid || null, trial,
@@ -137,12 +137,12 @@ export default function StartFlow() {
   /** Sends what's new on a people step, then moves on. */
   const finishStep = (kind: 'learners' | 'staff' | 'groups') => run(async () => {
     const space = state.space
-    if (!space || !token) throw new Error('Your space isn’t ready yet. Go back a step and try again.')
+    if (!space || !token) throw new Error(tr('lit.start_flow.your_space_isn_t_ready', 'Your space isn’t ready yet. Go back a step and try again.'))
     const items = { learners: state.learners, staff: state.staff, groups: state.groups }[kind].filter((item) => !state.sent.includes(`${kind}:${item}`))
     if (items.length) {
       if (kind === 'learners' || kind === 'staff') {
         const result = await inviteBatchUsers(space.id, { emails: items, role_id: kind === 'staff' ? 2 : 4, source: 'manual' }, token)
-        if (!result.success) throw new Error(result.data?.detail?.message || result.data?.detail || 'Could not send the invites.')
+        if (!result.success) throw new Error(result.data?.detail?.message || result.data?.detail || tr('lit.start_flow.could_not_send_the_invites', 'Could not send the invites.'))
       } else {
         for (const name of items) {
           const result = await createUserGroup({ org_id: space.id, name, description: '' }, token)
@@ -314,7 +314,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <label className="block"><span className="mb-1.5 block text-[13px] font-semibold">{label}</span>{children}</label>
 }
 
-function Nav({ back, next, label = 'Continue', disabled = false, busy = false }: { back?: () => void; next?: () => void; label?: string; disabled?: boolean; busy?: boolean }) {
+function Nav({ back, next, label = tr('lit.start_flow.continue', 'Continue'), disabled = false, busy = false }: { back?: () => void; next?: () => void; label?: string; disabled?: boolean; busy?: boolean }) {
   return <div className="mt-8 flex items-center justify-between gap-3">
     {back ? <Button variant="ghost" className="rounded-full" onClick={back} disabled={busy}><ArrowLeft />{tr('onboarding.joined_flow.back', 'Back')}</Button> : <span />}
     {next ? <Button size="lg" className="rounded-full" onClick={next} disabled={disabled || busy}>{busy ? <Loader2 className="animate-spin" /> : null}{label}<ArrowRight /></Button> : null}
@@ -358,7 +358,7 @@ function AddList({ items, onChange, placeholder, email = false, hint, chips = []
     const values = draft.split(/[,;\s]+/).map((value) => value.trim()).filter(Boolean)
     const entries = email ? values : [draft.trim()].filter(Boolean)
     if (!entries.length) return
-    if (email && entries.some((value) => !EMAIL.test(value))) return setProblem('That doesn’t look like an email address.')
+    if (email && entries.some((value) => !EMAIL.test(value))) return setProblem(tr('lit.start_flow.that_doesn_t_look_like', 'That doesn’t look like an email address.'))
     onChange([...items, ...entries.filter((value) => !items.includes(value))])
     setDraft('')
     setProblem('')
@@ -399,15 +399,15 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
         const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
         if (response.status !== 200) {
           const body = await response.json().catch(() => null)
-          throw new Error(typeof body?.detail === 'string' ? body.detail : body?.detail?.message || 'Could not create the account.')
+          throw new Error(typeof body?.detail === 'string' ? body.detail : body?.detail?.message || tr('lit.start_flow.could_not_create_the_account', 'Could not create the account.'))
         }
       }
       const result = await signIn('credentials', { redirect: false, email: email.trim(), password })
-      if (result && result.error) throw new Error(existing ? 'That email and password don’t match.' : result.error)
+      if (result && result.error) throw new Error(existing ? tr('lit.start_flow.that_email_and_password_don', 'That email and password don’t match.') : result.error)
       // Signing in clears every cached request, the org's included, so start the page over signed in; the picks are kept.
       window.location.reload()
     } catch (failure: any) {
-      setError(failure?.message || 'Something went wrong. Try again.')
+      setError(failure?.message || tr('lit.start_flow.something_went_wrong_try_again', 'Something went wrong. Try again.'))
     } finally {
       setBusy(false)
     }

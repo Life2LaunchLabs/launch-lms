@@ -37,7 +37,7 @@ const goalMarkId = (goalUuid: string) => `plan-mark-${goalUuid}`
 
 /** Where a goal comes from, as the small line over its title. */
 export function goalSource(goal: HeaderGoal) {
-  if (goal.badge) return goal.organization?.name ? `From ${goal.organization.name} · earns a badge` : 'Earns a badge'
+  if (goal.badge) return goal.organization?.name ? `From ${goal.organization.name} · earns a badge` : tr('lit.goal_header.earns_a_badge', 'Earns a badge')
   if (goal.organization?.name) return `From ${goal.organization.name}`
   const forWhom = goal.is_subject === false ? goal.subject?.name : ''
   return forWhom ? `For ${forWhom}` : ''
@@ -128,7 +128,7 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
  * The learner's goals as tabs on the overview. Each tab shares its identity with the
  * goal's header and spine, so opening one grows the tab into the header.
  */
-export function GoalTabs({ goals, getGoalColor, choose, onIntent, children, label = 'Your goals' }: StripProps & { children?: React.ReactNode; label?: string }) {
+export function GoalTabs({ goals, getGoalColor, choose, onIntent, children, label = tr('lit.goal_header.your_goals', 'Your goals') }: StripProps & { children?: React.ReactNode; label?: string }) {
   return <motion.section layoutScroll aria-label={label} className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
     {goals.map((goal) => <GoalTab key={goal.goal_uuid} goal={goal} color={getGoalColor(goal.goal_uuid)} onChoose={() => choose(goal)} onIntent={onIntent ? () => onIntent(goal) : undefined} />)}
     {children}

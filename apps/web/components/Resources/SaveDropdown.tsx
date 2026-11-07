@@ -118,13 +118,13 @@ export default function SaveDropdown({
     try {
       if (isSaved) {
         const result = await unsaveResource(resourceUuid, accessToken)
-        requireSuccess(result, 'Failed to remove save')
+        requireSuccess(result, tr('lit.save_dropdown.failed_to_remove_save', 'Failed to remove save'))
         onSaveChange(false)
         setActiveUuids(new Set())
         onMembershipChange?.([])
       } else {
         const result = await saveResource(resourceUuid, { add_to_default_channel: false }, accessToken)
-        requireSuccess(result, 'Failed to save resource')
+        requireSuccess(result, tr('lit.save_dropdown.failed_to_save_resource', 'Failed to save resource'))
         onSaveChange(true)
       }
     } catch {
@@ -150,7 +150,7 @@ export default function SaveDropdown({
         add_to_default_channel: false,
         user_channel_uuids: [...next],
       }, accessToken)
-      requireSuccess(result, isActive ? 'Failed to remove from channel' : 'Failed to add to channel')
+      requireSuccess(result, isActive ? tr('lit.save_dropdown.failed_to_remove_from_channel', 'Failed to remove from channel') : tr('lit.save_dropdown.failed_to_add_to_channel', 'Failed to add to channel'))
       if (!isSaved) onSaveChange(true)
       setActiveUuids(next)
       onMembershipChange?.([...next])
@@ -175,7 +175,7 @@ export default function SaveDropdown({
       add_to_default_channel: false,
       user_channel_uuids: [...next],
     }, accessToken)
-    requireSuccess(saveResult, 'Failed to add to channel')
+    requireSuccess(saveResult, tr('lit.save_dropdown.failed_to_add_to_channel', 'Failed to add to channel'))
     if (!isSaved) onSaveChange(true)
     setActiveUuids(next)
     onMembershipChange?.([...next])
@@ -367,7 +367,7 @@ export default function SaveDropdown({
           title={share.title}
           description={share.description}
           url={share.url}
-          eyebrow="Resource"
+          eyebrow={tr('lit.resources.resource', 'Resource')}
         />,
         document.body
       )}

@@ -62,7 +62,7 @@ export function CredentialDialog({ open, onOpenChange, credential, shell, token,
   }
 
   async function remove() {
-    if (!token || !credential || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: credential.name }), action: 'Remove', danger: true }))) return
+    if (!token || !credential || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: credential.name }), action: tr('lit.portfolio_people_page.remove', 'Remove'), danger: true }))) return
     setBusy(true)
     try { await credentialsApi.remove(credential.credential_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_people_page.could_not_remove_this', 'Could not remove this')) } finally { setBusy(false) }
   }

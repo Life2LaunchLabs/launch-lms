@@ -69,7 +69,7 @@ export function GoalCoachBar({ goalUuid, token }: { goalUuid: string; token?: st
   const looking = useFirstLook(goalUuid, data, org?.id, token, refresh)
   if (!data) return null
   const notes = data.notes || []
-  const line = looking && !notes.length ? 'Coach is taking a first look…' : notes.length ? notes[0].title : checkInLine(data)
+  const line = looking && !notes.length ? tr('lit.coach_notes.coach_is_taking_a_first', 'Coach is taking a first look…') : notes.length ? notes[0].title : checkInLine(data)
   return <button type="button" onClick={() => hub?.open()} disabled={!hub} aria-label={notes.length ? tr('goals.coach_notes.coach_has_value_line', 'Coach has {{value}}: {{line}}', { value: notes.length === 1 ? 'a note' : `${notes.length} notes`, line }) : line}
     className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-2xl border border-border/70 bg-card px-4 py-2.5 text-left text-xs text-muted-foreground shadow-xs transition hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
     <Sparkles size={14} aria-hidden="true" className={notes.length ? 'text-foreground' : undefined} />

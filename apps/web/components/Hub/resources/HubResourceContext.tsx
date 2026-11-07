@@ -67,7 +67,7 @@ function ResourceListMembership({ resourceUuid }: { resourceUuid: string }) {
         add_to_default_channel: false,
         user_channel_uuids: nextMemberships,
       }, accessToken)
-      if (!result.success) throw new Error(result.data?.detail || 'Failed to remove from list')
+      if (!result.success) throw new Error(result.data?.detail || tr('lit.hub_resource_context.failed_to_remove_from_list', 'Failed to remove from list'))
       const updated = result.data as Resource
       setMembershipOverride(updated.user_channel_uuids ?? nextMemberships)
       await mutate(updated, false)

@@ -36,11 +36,11 @@ const external = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${
 export function featureChoices(shell: Shell, orgslug: string, owner: boolean, username?: string): Record<FeatureKind, Slide[]> {
   const page = (own: string, visitor: string) => getUriWithOrg(orgslug, owner ? own : `/user/${username}${visitor}`)
   return {
-    project: (shell.projects || []).map((project) => ({ key: project.project_uuid, kind: 'project', title: project.title, sub: project.subtitle || project.summary || 'Project', image: project.cover_url ? normalizeMediaUrl(project.cover_url) : '', cover: <KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} />, href: page(`/portfolio/projects/${project.project_uuid}`, `/projects/${project.slug}`) })),
+    project: (shell.projects || []).map((project) => ({ key: project.project_uuid, kind: 'project', title: project.title, sub: project.subtitle || project.summary || tr('lit.feature_section.project', 'Project'), image: project.cover_url ? normalizeMediaUrl(project.cover_url) : '', cover: <KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} />, href: page(`/portfolio/projects/${project.project_uuid}`, `/projects/${project.slug}`) })),
     experience: (shell.timeline || []).map((entry) => ({ key: entry.timeline_uuid, kind: 'experience', title: entry.title, sub: [entry.organization, timelineDateLabel(entry)].filter(Boolean).join(' · '), image: entry.cover_url ? normalizeMediaUrl(entry.cover_url) : '', cover: <KindCover kind="experience" type={entry.entry_type} url={entry.cover_url ? normalizeMediaUrl(entry.cover_url) : ''} />, href: page(`/portfolio/timeline/${entry.timeline_uuid}`, `/timeline/${entry.slug}`) })),
     quote: (shell.quotes || []).filter((quote) => quote.body && quote.status !== 'requested').map((quote) => ({ key: quote.quote_uuid, kind: 'quote', title: quote.name, sub: quote.role_label, body: quote.body, person: quote.name })),
-    badge: (shell.badges?.earned || []).map((badge) => ({ key: badge.award_uuid, kind: 'badge', title: badge.name, sub: badge.issuer?.name || 'Badge', cover: <BadgeMedal badge={{ image_url: normalizeMediaUrl(badge.image_url || '') || '', icon: badge.icon, color: badge.color }} size={120} /> })),
-    credential: (shell.credentials || []).map((credential) => ({ key: credential.credential_uuid, kind: 'credential', title: credential.name, sub: credential.issuer || 'Credential', cover: <span className="block w-[min(260px,70%)]"><CredentialFace credential={credential} /></span> })),
+    badge: (shell.badges?.earned || []).map((badge) => ({ key: badge.award_uuid, kind: 'badge', title: badge.name, sub: badge.issuer?.name || tr('lit.feature_section.badge', 'Badge'), cover: <BadgeMedal badge={{ image_url: normalizeMediaUrl(badge.image_url || '') || '', icon: badge.icon, color: badge.color }} size={120} /> })),
+    credential: (shell.credentials || []).map((credential) => ({ key: credential.credential_uuid, kind: 'credential', title: credential.name, sub: credential.issuer || tr('lit.feature_section.credential', 'Credential'), cover: <span className="block w-[min(260px,70%)]"><CredentialFace credential={credential} /></span> })),
     link: shellSocials(shell).map((social) => ({ key: social.type, kind: 'link', title: socialHandle(social.type, social.url) || social.url, sub: SOCIAL_OPTIONS.find((option) => option.type === social.type)?.label || social.type, href: external(social.url), external: true })),
   }
 }
@@ -86,7 +86,7 @@ export function FeatureSection({ slides, autoplay }: { slides: Slide[]; autoplay
   }, [autoplay, count, paused])
   if (!count) return null
   const go = (step: number) => setAt((value) => (((value + step) % count) + count) % count)
-  const title = ctx?.title || 'Featured'
+  const title = ctx?.title || tr('lit.feature_section.featured', 'Featured')
   return <section aria-label={tr('portfolio.feature_section.featured', 'Featured')} aria-roledescription={count > 1 ? 'carousel' : undefined} data-feature className="@container flex min-w-0 flex-col" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
     <div data-feature-frame className={`group/feat relative min-h-[240px] overflow-hidden rounded-3xl border-2 border-border bg-card shadow-[0_4px_0_hsl(var(--border))] ${ctx?.fixed ? 'min-h-0 flex-1' : ''}`}>
       <div className="flex h-full transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none" style={{ transform: `translateX(-${index * 100}%)` }}>

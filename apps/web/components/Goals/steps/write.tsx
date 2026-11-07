@@ -40,7 +40,7 @@ function WriteCard({ step, actions, canWork, staff }: StepCardProps<'write'>) {
       <CardNote>{count} {count === 1 ? 'word' : 'words'}{limit ? ` of ${limit}` : ''}{dirty ? tr('goals.write.not_saved_yet', ' · not saved yet') : ''}</CardNote>
     </> : saved ? <p className="whitespace-pre-wrap rounded-xl border bg-background p-3 text-sm leading-6">{saved}</p> : null}
     <FinishControls step={step} actions={{ ...actions, setStatus: async (status, note) => { if (dirty) await save(); return actions.setStatus(status, note) } }} canWork={canWork} staff={staff}
-      blocker={!text.trim() ? 'Write something first' : limit && count > limit ? `Keep it under ${limit} words` : null} />
+      blocker={!text.trim() ? tr('lit.write.write_something_first', 'Write something first') : limit && count > limit ? `Keep it under ${limit} words` : null} />
   </div>
 }
 
@@ -55,7 +55,7 @@ export const write: StepDefinition<'write'> = {
   get label() { return tr('goals.write.write', 'Write') },
   color: '#6B3FE0',
   get hint() { return tr('goals.write.a_written_answer_or_reflection', 'A written answer or reflection to your prompt.') },
-  example: 'What surprised you on your visit?',
+  get example() { return tr('lit.write.what_surprised_you_on_your', 'What surprised you on your visit?') },
   icon: PenLine,
   RowResult: WriteRow,
   CardBody: WriteCard,

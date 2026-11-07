@@ -24,7 +24,7 @@ type Section = { key: string; title: string; stage?: Stage; index: number; steps
 /** The goal's stages as sections; an empty stage stays when it can be planned from here. */
 function sectionsOf(goal: Goal, keepEmpty: boolean): Section[] {
   const sections: Section[] = goal.stages.map((stage, index) => ({ key: stage.stage_uuid, title: stage.title, stage, index, steps: stage.steps }))
-  if (goal.unstaged_steps.length) sections.push({ key: 'loose', title: sections.length ? 'More steps' : 'Steps', index: sections.length, steps: goal.unstaged_steps })
+  if (goal.unstaged_steps.length) sections.push({ key: 'loose', title: sections.length ? tr('lit.goal_path.more_steps', 'More steps') : tr('lit.goal_path.steps', 'Steps'), index: sections.length, steps: goal.unstaged_steps })
   return sections.filter((section) => section.steps.length || (keepEmpty && section.stage))
 }
 
@@ -124,7 +124,7 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
       const suggested = section.stage ? proposals.steps.filter((item) => item.stageUuid === section.stage!.stage_uuid) : looseSuggestions
       // A stage the goal hasn't reached says once why its steps are closed, instead of every row saying it.
       const waiting = !cohort && Boolean(section.stage) && section.steps.length > 0 && section.steps.every((step) => step.state === 'locked' && step.locked_reason?.kind === 'stage')
-      const when = stageDate(goal, section, place) || (waiting ? 'Opens when the goal moves on to it' : '')
+      const when = stageDate(goal, section, place) || (waiting ? tr('lit.goal_path.opens_when_the_goal_moves', 'Opens when the goal moves on to it') : '')
       const titled = sections.length > 1 || (section.title !== 'Steps' && section.title !== goal.title) || Boolean(editing?.structure)
       // The stage the goal is on sits on a quiet surface of the goal's colour; every stage keeps the same inset so the path lines up.
       return <section key={section.key} id={section.stage ? `goal-stage-${section.stage.stage_uuid}` : undefined} aria-label={section.title} aria-current={active && sections.length > 1 ? 'step' : undefined}

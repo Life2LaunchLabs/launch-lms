@@ -98,13 +98,13 @@ function BadgeFacts({ page }: { page: PublicPlanPage }) {
   const badge = page.badge
   if (!badge) return null
   const facts = [
-    ['Kind', badgeKindLabel(badge.kind)],
-    ['Made by', badge.creator?.name || ''],
-    ['Version', badge.version || ''],
-    ['Code', badge.human_code || ''],
-    ['Field of study', badge.field_of_study || ''],
-    ['Specialization', badge.specialization || ''],
-    ['Credits', badge.credits_available != null ? String(badge.credits_available) : ''],
+    [tr('lit.plan_page.kind', 'Kind'), badgeKindLabel(badge.kind)],
+    [tr('lit.plan_page.made_by', 'Made by'), badge.creator?.name || ''],
+    [tr('lit.plan_page.version', 'Version'), badge.version || ''],
+    [tr('lit.plan_page.code', 'Code'), badge.human_code || ''],
+    [tr('lit.plan_page.field_of_study', 'Field of study'), badge.field_of_study || ''],
+    [tr('lit.plan_page.specialization', 'Specialization'), badge.specialization || ''],
+    [tr('lit.plan_page.credits', 'Credits'), badge.credits_available != null ? String(badge.credits_available) : ''],
   ].filter(([, value]) => value)
   return <section aria-labelledby="badge-title" className="flex flex-col gap-4">
     <h2 id="badge-title" className="m-0 text-2xl font-semibold leading-tight tracking-tight">{tr('discover.plan_page.the_badge', 'The badge')}</h2>
@@ -129,8 +129,8 @@ function BadgeFacts({ page }: { page: PublicPlanPage }) {
 }
 
 function accessLabel(offer: PlanOfferCard): string {
-  if (offer.state === 'requested') return 'Request sent'
-  return offer.access === 'open' ? 'Open' : 'Ask to join'
+  if (offer.state === 'requested') return tr('lit.plan_page.request_sent', 'Request sent')
+  return offer.access === 'open' ? tr('lit.plan_page.open', 'Open') : tr('lit.plan_page.ask_to_join', 'Ask to join')
 }
 
 /** Who offers the plan: the learner picks one when more than one organization runs it. */
@@ -213,7 +213,7 @@ export default function PlanPage({ orgslug, orgId, initialPage }: { orgslug: str
 
   const here = getUriWithOrg(orgslug, routePaths.org.discoverPlan(page.template_uuid))
   const earned = page.offers.some((offer) => offer.state === 'earned')
-  const action: Action = page.goal ? { label: page.goal.status === 'finished' ? 'See your plan' : 'Keep going', href: getUriWithOrg(orgslug, routePaths.org.plan(page.goal.goal_uuid)) }
+  const action: Action = page.goal ? { label: page.goal.status === 'finished' ? tr('lit.plan_page.see_your_plan', 'See your plan') : tr('lit.plan_page.keep_going', 'Keep going'), href: getUriWithOrg(orgslug, routePaths.org.plan(page.goal.goal_uuid)) }
     : earned ? { label: tr('discover.plan_page.you_earned_this', 'You earned this'), href: getUriWithOrg(orgslug, routePaths.org.portfolioBadges()) }
     : !selected ? { label: tr('discover.plan_page.not_open_to_join', 'Not open to join'), disabled: true }
     : !token ? { label: tr('discover.plan_page.sign_in_to_join', 'Sign in to join'), href: `/login?next=${encodeURIComponent(here)}` }
@@ -221,12 +221,12 @@ export default function PlanPage({ orgslug, orgId, initialPage }: { orgslug: str
     : selected.access === 'open' ? { label: tr('discover.plan_page.start_this_plan', 'Start this plan'), onClick: () => void join(selected), busy }
     : { label: `Ask ${selected.org?.name}`, onClick: () => void join(selected), busy }
   const note = page.goal || earned ? undefined
-    : !selected ? 'No organization offers this plan to learners right now.'
+    : !selected ? tr('lit.plan_page.no_organization_offers_this_plan', 'No organization offers this plan to learners right now.')
     : selected.state === 'requested' ? `${selected.org?.name} will let you know.`
-    : selected.access === 'open' ? 'It shows up in Plans as soon as you start.' : undefined
+    : selected.access === 'open' ? tr('lit.plan_page.it_shows_up_in_plans', 'It shows up in Plans as soon as you start.') : undefined
 
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
-    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
+    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel={tr('lit.plan_page.discover', 'Discover')} onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
     <Hero page={page} action={action} note={note} />
     <main className="mx-auto flex max-w-[1056px] flex-col gap-8 px-4 pb-24 pt-6 sm:px-6">
       <Outline page={page} />

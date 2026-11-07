@@ -32,7 +32,7 @@ export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, on
       <div className="relative h-28 overflow-hidden rounded-[18px]"><PhaseCover phase={p} photos={photos} className="absolute inset-0 h-full w-full" />
         <button type="button" onClick={close} aria-label={tr('goals.explore_board.close', 'Close')} className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full bg-black/40 text-white"><X size={16} aria-hidden="true" /></button></div>
       <div>
-        <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{p.idea ? tr('goals.phase_sheet.idea', 'Idea · ') : ''}{{ now: 'You’re here', done: 'Before now', next: 'Up next', later: 'Later' }[wh]}</span>
+        <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{p.idea ? tr('goals.phase_sheet.idea', 'Idea · ') : ''}{{ now: tr('lit.phase_sheet.you_re_here', 'You’re here'), done: tr('lit.phase_sheet.before_now', 'Before now'), next: tr('lit.phase_sheet.up_next', 'Up next'), later: tr('lit.phase_sheet.later', 'Later') }[wh]}</span>
         {renaming
           ? <form onSubmit={(e) => { e.preventDefault(); onRename(state.renaming || '') }} className="mt-1 flex gap-2">
             <input autoFocus aria-label={tr('goals.phase_sheet.name', 'Name')} value={state.renaming} placeholder={p.title} onChange={(e) => setState({ ...state, renaming: e.target.value })} className="h-11 min-w-0 flex-1 rounded-xl bg-muted px-3 text-xl font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />

@@ -156,7 +156,7 @@ export default function ResourceComments({
           const isAuthor = currentUserId === Number(review.author_id)
           const authorName = review.author
             ? `${review.author.first_name || ''} ${review.author.last_name || ''}`.trim() || review.author.username
-            : 'Unknown'
+            : tr('lit.resource_comments.unknown', 'Unknown')
           return (
             <div key={review.comment_uuid} className={compact ? 'rounded-lg border border-border p-2.5' : 'rounded-2xl border border-border p-4'}>
               <div className="flex items-start justify-between gap-3">

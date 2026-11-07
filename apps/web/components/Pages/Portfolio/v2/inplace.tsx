@@ -79,7 +79,7 @@ export function PhotoPicker({ images, setImages, cover, setCover, userId, token,
 }
 
 /** The bar that keeps the item: always there for a new one, and once something changes on a saved one. */
-export function SaveBar({ show, busy, label, mark, onCancel, cancelLabel = 'Cancel' }: { show: boolean; busy: boolean; label: string; mark?: string; onCancel?: () => void; cancelLabel?: string }) {
+export function SaveBar({ show, busy, label, mark, onCancel, cancelLabel = tr('lit.inplace.cancel', 'Cancel') }: { show: boolean; busy: boolean; label: string; mark?: string; onCancel?: () => void; cancelLabel?: string }) {
   if (!show) return null
   return <div className="sticky bottom-3 z-[5] mt-10 flex items-center justify-end gap-2 rounded-2xl border-2 border-border bg-card/95 p-2.5 shadow-[0_4px_0_hsl(var(--border))] backdrop-blur">
     {onCancel ? <Button type="button" variant="ghost" onClick={onCancel}>{cancelLabel}</Button> : null}

@@ -15,17 +15,17 @@ import { supportApi, type SupportRequestCard } from '@services/school/support'
 import { PlanTag, StepMark } from './tags'
 
 import { tr } from '@/lib/tr'
-const VERBS: Record<string, string> = { finished: 'Finished', turned_in: 'Turned in', approved: 'Approved', changes: 'Asked for changes', marked_done: 'Marked done', excused: 'Excused' }
-const ANSWERED: Record<string, string> = { accepted: 'Accepted', declined: 'Declined', expired: 'No longer open', revoked: 'Withdrawn' }
+const VERBS: Record<string, string> = { get finished() { return tr('lit.chat_cards.finished', 'Finished') }, get turned_in() { return tr('lit.chat_cards.turned_in', 'Turned in') }, get approved() { return tr('lit.chat_cards.approved', 'Approved') }, get changes() { return tr('lit.chat_cards.asked_for_changes', 'Asked for changes') }, get marked_done() { return tr('lit.chat_cards.marked_done', 'Marked done') }, get excused() { return tr('lit.step_text.excused', 'Excused') } }
+const ANSWERED: Record<string, string> = { get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get declined() { return tr('lit.chat_cards.declined', 'Declined') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') }, get revoked() { return tr('lit.chat_cards.withdrawn', 'Withdrawn') } }
 
 /** A card the app posted into the chat, or null for an ordinary message. */
 // eslint-disable-next-line no-unused-vars
 export function CardMessage({ message, orgslug, token, topics, time, first, onTag, onAnswered }: { message: ChatMessage; orgslug: string; token?: string; topics: ChatTopic[]; time: string; first: boolean; onTag: (ref: MessageRef) => void; onAnswered: () => void }) {
   const card = message.card
-  const who = message.sender?.name || 'Someone'
+  const who = message.sender?.name || tr('lit.chat_cards.someone', 'Someone')
   if (message.kind !== 'card' || !card) return null
   if (card.type === 'plan_progress') return <li className="my-3 flex">
-    <ProgressView card={card} who={message.mine ? 'You' : who} time={time} topic={topics.find((item) => item.goal_uuid === card.goal_uuid)} onTag={onTag} />
+    <ProgressView card={card} who={message.mine ? tr('lit.chat_cards.you', 'You') : who} time={time} topic={topics.find((item) => item.goal_uuid === card.goal_uuid)} onTag={onTag} />
   </li>
   if (card.type === 'invitation') return <li className="my-2 flex justify-start">
     <InvitationView card={card} orgslug={orgslug} token={token} time={time} onAnswered={onAnswered} />
@@ -43,10 +43,10 @@ export function CardMessage({ message, orgslug, token, topics, time, first, onTa
     <span className="rounded-full bg-[hsl(var(--raised)/0.55)] px-3 py-1 text-center text-xs text-muted-foreground">{message.mine ? `You ${card.verb}` : message.body}<span className="ml-1.5">· {time}</span></span>
   </li>
   if (card.type === 'step_reminder') return <li className={cn('flex justify-start', first && 'mt-2')}>
-    <ReminderView card={card} who={message.mine ? 'You' : who} time={time} onTag={onTag} />
+    <ReminderView card={card} who={message.mine ? tr('lit.chat_cards.you', 'You') : who} time={time} onTag={onTag} />
   </li>
   if (card.type === 'group_report') return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', 'mt-2')}>
-    <ReportView card={card} who={message.mine ? 'You' : who} orgslug={orgslug} time={time} />
+    <ReportView card={card} who={message.mine ? tr('lit.chat_cards.you', 'You') : who} orgslug={orgslug} time={time} />
   </li>
   if (card.type === 'org_mention') return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', 'mt-2')}>
     <div className="w-full max-w-[360px] rounded-2xl bg-background p-3.5">
@@ -99,7 +99,7 @@ function InvitationView({ card, orgslug, token, time, onAnswered }: { card: Invi
   </div>
 }
 
-const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { pending: 'Waiting for an answer', accepted: 'Accepted', declined: 'Declined', ended: 'Stopped', expired: 'No longer open' }
+const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { get pending() { return tr('lit.chat_cards.waiting_for_an_answer', 'Waiting for an answer') }, get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get declined() { return tr('lit.chat_cards.declined', 'Declined') }, get ended() { return tr('lit.chat_cards.stopped', 'Stopped') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') } }
 
 /**
  * A school asking to support the learner's Education Plan and Profile. The learner answers here, and can

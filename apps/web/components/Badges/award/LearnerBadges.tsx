@@ -27,7 +27,7 @@ function RevokeAward({ award, token, onRevoked }: { award: BadgeAward; token?: s
       await badgeAwardsApi.revoke(award.award_uuid, reason.trim(), token)
       onRevoked()
     } catch {
-      setError('Could not revoke it. Try again.')
+      setError(tr('lit.learner_badges.could_not_revoke_it_try', 'Could not revoke it. Try again.'))
       setBusy(false)
     }
   }

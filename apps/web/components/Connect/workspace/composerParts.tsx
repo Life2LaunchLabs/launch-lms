@@ -8,6 +8,7 @@ import type { ChatTopic, FoundPerson, TopicStep } from '@services/connect/connec
 import type { PersonSummary } from '@services/goals/types'
 import { StepMark, orgToken, planToken, resourceToken, stepToken, userToken } from './tags'
 
+import { tr } from '@/lib/tr'
 export type TagOrg = { org_uuid: string; name: string }
 
 export type Option =
@@ -20,7 +21,7 @@ export type Option =
 export type Draft = { el: HTMLSpanElement; char: '/' | '@'; stage: 'plan' | 'step' | 'person'; plan?: ChatTopic; outside?: boolean; query: string }
 
 export const ZWSP = '\u200b'
-const STATUS: Record<string, string> = { completed: 'Done', excused: 'Excused', submitted: 'Waiting on review', changes_requested: 'Changes asked for', in_progress: 'Started', not_started: 'Not started' }
+const STATUS: Record<string, string> = { get completed() { return tr('lit.goal_story_player.done', 'Done') }, get excused() { return tr('lit.step_text.excused', 'Excused') }, get submitted() { return tr('lit.step_text.waiting_on_review', 'Waiting on review') }, get changes_requested() { return tr('lit.composer_parts.changes_asked_for', 'Changes asked for') }, get in_progress() { return tr('lit.composer_parts.started', 'Started') }, get not_started() { return tr('lit.composer_parts.not_started', 'Not started') } }
 
 export const PLAN_CHIP = 'mx-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border bg-card py-px pl-1 pr-1.5 align-baseline text-[0.92em] font-semibold leading-snug'
 const PILL = 'mx-0.5 inline-flex items-center whitespace-nowrap rounded-full px-2 py-px align-baseline text-[0.92em] font-bold leading-snug'
@@ -138,8 +139,8 @@ export function label(option: Option) {
 
 export function detail(option: Option) {
   if (option.type === 'person') return `@${option.person.username}`
-  if (option.type === 'org') return 'Organization'
-  const where = option.outside ? ` · ${option.plan.org_name || 'Personal'}, from outside this chat` : ''
-  if (option.type === 'plan') return option.whole ? 'The whole plan' : `${option.plan.progress.done} of ${option.plan.progress.total} done${where}`
-  return `${STATUS[option.step.status] || 'Not started'}${option.step.behind ? ', behind' : ''}`
+  if (option.type === 'org') return tr('lit.composer_parts.organization', 'Organization')
+  const where = option.outside ? ` · ${option.plan.org_name || tr('lit.composer_parts.personal', 'Personal')}, from outside this chat` : ''
+  if (option.type === 'plan') return option.whole ? tr('lit.composer_parts.the_whole_plan', 'The whole plan') : `${option.plan.progress.done} of ${option.plan.progress.total} done${where}`
+  return `${STATUS[option.step.status] || tr('lit.composer_parts.not_started', 'Not started')}${option.step.behind ? ', behind' : ''}`
 }

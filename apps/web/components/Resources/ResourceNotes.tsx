@@ -26,7 +26,7 @@ import { tr } from '@/lib/tr'
 const WEB_URL = /^https?:\/\/\S+$/i
 
 function requireSuccess(result: any) {
-  if (!result?.success) throw new Error(result?.data?.detail || 'Request failed')
+  if (!result?.success) throw new Error(result?.data?.detail || tr('lit.resource_notes.request_failed', 'Request failed'))
 }
 
 export default function ResourceNotes({ resourceUuid, compact = false, onNotesChange }: { resourceUuid: string; compact?: boolean; onNotesChange?: () => void }) {

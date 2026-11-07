@@ -20,7 +20,7 @@ export default function ContextBar({ saving, owner, onBack, backLabel }: { savin
     if (box && on) box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2
   }, [stretch.i, phase.id])
   const go = (d: number) => { const p = doc.phases[k + d]; if (p) selectStretch(p.id, 0) }
-  const label = (i: number) => (i === 0 ? 'Start' : stretchesOf[i].why.join(', '))
+  const label = (i: number) => (i === 0 ? tr('lit.context_bar.start', 'Start') : stretchesOf[i].why.join(', '))
 
   return (
     <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-border/70 bg-background/90 px-4 pb-3 pt-3 backdrop-blur sm:-mx-6 sm:px-6">

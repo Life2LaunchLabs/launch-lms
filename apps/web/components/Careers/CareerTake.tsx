@@ -8,8 +8,8 @@ import { saveResource, type SavedResourceState } from '@services/resources/resou
 import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
-export const INTEREST_LEVELS: Array<[number, string, string]> = [[1, 'Maybe', '♥'], [2, 'Into it', '♥♥'], [3, 'Love it', '♥♥♥']]
-const QUICK = ['Sounds like me', 'I want to job shadow', 'Ask my counselor about classes', 'The pay looks good', 'I know someone who does this']
+export const INTEREST_LEVELS = (): Array<[number, string, string]> => ([[1, tr('lit.event.maybe', 'Maybe'), '♥'], [2, tr('lit.career_take.into_it', 'Into it'), '♥♥'], [3, tr('lit.career_take.love_it', 'Love it'), '♥♥♥']])
+const QUICK = () => ([tr('lit.career_take.sounds_like_me', 'Sounds like me'), tr('lit.career_take.i_want_to_job_shadow', 'I want to job shadow'), tr('lit.career_take.ask_my_counselor_about_classes', 'Ask my counselor about classes'), tr('lit.career_take.the_pay_looks_good', 'The pay looks good'), tr('lit.career_take.i_know_someone_who_does', 'I know someone who does this')])
 
 /**
  * The learner's own take on a saved career: how into it they are, what caught their eye, and whether it shows on
@@ -43,7 +43,7 @@ export default function CareerTake({ resourceUuid, state, token, onSaved, onSkip
     <div className="flex flex-col gap-2">
       <span className="text-[14px] font-extrabold">{tr('careers.career_take.how_into_it_are_you', 'How into it are you?')}</span>
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={tr('careers.career_take.how_into_it_are_you_2', 'How into it are you')}>
-        {INTEREST_LEVELS.map(([value, label, hearts]) => <button key={value} type="button" role="radio" aria-checked={level === value} onClick={() => setLevel(value)}
+        {INTEREST_LEVELS().map(([value, label, hearts]) => <button key={value} type="button" role="radio" aria-checked={level === value} onClick={() => setLevel(value)}
           className={cn('flex flex-col items-center gap-0.5 rounded-2xl border-2 py-2 text-[13px] font-extrabold', level === value ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_12%,transparent)]' : 'border-border bg-card')}>
           <small className="text-[11px] tracking-widest text-rose-500" aria-hidden="true">{hearts}</small>{label}
         </button>)}
@@ -54,7 +54,7 @@ export default function CareerTake({ resourceUuid, state, token, onSaved, onSkip
       <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={1000} rows={3} placeholder={tr('careers.career_take.a_few_words_for_future', 'A few words for future you (and your counselor)')}
         className="w-full resize-y rounded-2xl border-2 border-border bg-card p-3 text-[14px] focus:border-[var(--org-primary-color)] focus:outline-none" />
     </label>
-    <div className="flex flex-wrap gap-1.5">{QUICK.map((text) => <button key={text} type="button" onClick={() => quick(text)} className="rounded-full border-2 border-border bg-card px-3 py-1 text-[12.5px] font-bold hover:bg-raised">{text}</button>)}</div>
+    <div className="flex flex-wrap gap-1.5">{QUICK().map((text) => <button key={text} type="button" onClick={() => quick(text)} className="rounded-full border-2 border-border bg-card px-3 py-1 text-[12.5px] font-bold hover:bg-raised">{text}</button>)}</div>
     <label className="flex items-start gap-3 rounded-2xl bg-muted p-3">
       <Switch checked={epp} onCheckedChange={setEpp} className="mt-0.5" aria-label={tr('careers.career_take.add_to_my_epp', 'Add to my EPP')} />
       <span className="flex flex-col gap-0.5"><b className="text-[14px]">{tr('careers.career_take.add_to_my_epp', 'Add to my EPP')}</b><span className="text-[12.5px] text-muted-foreground">{tr('careers.career_take.it_shows_under_careers_i', 'It shows under Careers I’m exploring in your Education Plan and Profile, with your note, so your counselor sees it when you review your plan.')}</span></span>

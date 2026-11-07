@@ -11,12 +11,12 @@ import { tr } from '@/lib/tr'
 // Where's home base? The town Explore measures "near you" from, how far the learner would go for school or work,
 // and whether online classes are OK. The town is the portfolio's location, so the sheet says it shows there too.
 
-const REACHES: Array<[HomeReach, string, string]> = [
-  ['close', 'Stay close', 'My town and county'],
-  ['region', 'My region', 'An hour or two away'],
-  ['state', 'Anywhere in Oregon', 'Any school in the state'],
-  ['anywhere', 'Anywhere', 'Other states too'],
-]
+const REACHES = (): Array<[HomeReach, string, string]> => ([
+  ['close', tr('lit.home_base_sheet.stay_close', 'Stay close'), tr('lit.home_base_sheet.my_town_and_county', 'My town and county')],
+  ['region', tr('lit.home_base_sheet.my_region', 'My region'), tr('lit.home_base_sheet.an_hour_or_two_away', 'An hour or two away')],
+  ['state', tr('lit.home_base_sheet.anywhere_in_oregon', 'Anywhere in Oregon'), tr('lit.home_base_sheet.any_school_in_the_state', 'Any school in the state')],
+  ['anywhere', tr('lit.home_base_sheet.anywhere', 'Anywhere'), tr('lit.home_base_sheet.other_states_too', 'Other states too')],
+])
 
 export default function HomeBaseSheet({ token, onClose, onSaved }: { token: string; onClose: () => void; onSaved: () => void }) {
   const { data } = useSWR(['life-home'], () => careersApi.home(token))
@@ -86,7 +86,7 @@ export default function HomeBaseSheet({ token, onClose, onSaved }: { token: stri
 
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 p-0 text-[14px] font-extrabold">{tr('careers.home_base_sheet.how_far_would_you_go', 'How far would you go for school or work?')}</legend>
-          {REACHES.map(([key, name, hint]) => <label key={key} className={cn('flex min-h-12 cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2', reachNow === key ? 'border-[var(--org-primary-color)] bg-card' : 'border-border bg-card')}>
+          {REACHES().map(([key, name, hint]) => <label key={key} className={cn('flex min-h-12 cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2', reachNow === key ? 'border-[var(--org-primary-color)] bg-card' : 'border-border bg-card')}>
             <input type="radio" name="home-reach" value={key} checked={reachNow === key} onChange={() => setReach(key)} className="sr-only" />
             <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', reachNow === key ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border')} aria-hidden="true">
               {reachNow === key ? <Check size={12} strokeWidth={3} /> : null}

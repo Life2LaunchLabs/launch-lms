@@ -146,7 +146,7 @@ export function Tray({ env, trayKey, panes, index, onIndex, wide }: { env: Env; 
     const to = i + (dx < 0 ? 1 : -1), there = to >= 0 && to < n
     g.dx = there ? dx : dx / 4
     if (track.current) { track.current.style.transition = 'none'; track.current.style.transform = tf(i, g.dx) }
-    if (label.current) label.current.textContent = there ? `Swap in ${panes[to].phase.title}` : 'Nothing that way'
+    if (label.current) label.current.textContent = there ? `Swap in ${panes[to].phase.title}` : tr('lit.map_parts.nothing_that_way', 'Nothing that way')
   }
   const up = () => {
     const g = d.current

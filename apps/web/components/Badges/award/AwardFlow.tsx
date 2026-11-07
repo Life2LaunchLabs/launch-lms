@@ -122,25 +122,25 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
   const orgName = String(org?.name || 'your organization')
   const members = picks.filter((pick) => pick.kind === 'member') as Extract<Recipient, { kind: 'member' }>[]
   const count = reach ? reach.learners.length : null
-  const blocked = step === 1 ? (picks.length ? null : 'Add someone') : step === 2 ? (!statement.trim() ? 'Say what they did' : !confirmed ? 'Confirm the work' : earnedOn > today() ? 'The date can’t be in the future' : null)
-    : step === 3 && !count ? 'Everyone picked has this badge already' : null
-  const eyebrow = plan ? `Award ${plan.name} · ${step + 1} of ${STEPS.length}` : 'Award a badge'
+  const blocked = step === 1 ? (picks.length ? null : tr('lit.award_flow.add_someone', 'Add someone')) : step === 2 ? (!statement.trim() ? tr('lit.award_flow.say_what_they_did', 'Say what they did') : !confirmed ? tr('lit.award_flow.confirm_the_work', 'Confirm the work') : earnedOn > today() ? tr('lit.award_flow.the_date_can_t_be', 'The date can’t be in the future') : null)
+    : step === 3 && !count ? tr('lit.award_flow.everyone_picked_has_this_badge', 'Everyone picked has this badge already') : null
+  const eyebrow = plan ? `Award ${plan.name} · ${step + 1} of ${STEPS.length}` : tr('lit.award_flow.award_a_badge', 'Award a badge')
 
   const left = !plan ? null : step === 1 ? <>
     <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.who_earned_it', 'Who earned it?')} lede={`Add learners${canGroups ? ' and groups' : ''} who did work equal to ${plan.title} somewhere else. Groups bring their active learners.`} />
     <WhoStep award picks={picks} setPicks={setPicks} query={query} setQuery={setQuery} groups={groups.data || []} people={learners} canGroups={canGroups} taken={taken} />
   </> : step === 2 ? <>
-    <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.sign_off', 'Sign off')} lede="What you write goes on their badge, where anyone checking it can read it." />
+    <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.sign_off', 'Sign off')} lede={tr('lit.award_flow.what_you_write_goes_on', 'What you write goes on their badge, where anyone checking it can read it.')} />
     <SignOff plan={plan} statement={statement} setStatement={setStatement} evidenceUrl={evidenceUrl} setEvidenceUrl={setEvidenceUrl} earnedOn={earnedOn} setEarnedOn={setEarnedOn}
       people={members} notes={notes} setNotes={setNotes} confirmed={confirmed} setConfirmed={setConfirmed} picks={picks} signer={myName} orgName={orgName} />
   </> : <>
-    <StepHead eyebrow={eyebrow} title={tr('coach.hub_composer.review', 'Review')} lede="Nothing is awarded until you confirm." />
+    <StepHead eyebrow={eyebrow} title={tr('coach.hub_composer.review', 'Review')} lede={tr('lit.award_flow.nothing_is_awarded_until_you', 'Nothing is awarded until you confirm.')} />
     <Review plan={plan} reach={reach} statement={statement} earnedOn={earnedOn} evidenceUrl={evidenceUrl} signer={myName} orgName={orgName} goTo={setStep} />
   </>
 
   const right = !plan ? null : step === 1 ? <WhoPreview plan={plan} picks={picks} holders={(holders.data || []).length} />
     : <><PreviewCaption><span>{tr('badges.award_flow.their_certificate', 'Their certificate')}</span></PreviewCaption>
-      <div className="overflow-hidden rounded-2xl"><Certificate badge={plan} style={plan.style} learner={members[0]?.name || 'Learner name'} awardedBy={{ name: orgName }} date={longDate(earnedOn || today())} code="PREVIEW" /></div>
+      <div className="overflow-hidden rounded-2xl"><Certificate badge={plan} style={plan.style} learner={members[0]?.name || tr('lit.award_flow.learner_name', 'Learner name')} awardedBy={{ name: orgName }} date={longDate(earnedOn || today())} code="PREVIEW" /></div>
       {statement.trim() ? <p className="mt-3 whitespace-pre-wrap border-l-[3px] border-border pl-3 text-[13.5px] leading-normal text-muted-foreground">{statement.trim()}</p> : null}</>
 
   return <Dialog.Root open={open} onOpenChange={change}>
@@ -170,7 +170,7 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
 /** Which badge: the released plans with a badge your organization owns or is approved to run. */
 export function BadgeChooser({ plans, picked, onPick, onCancel }: { plans: AwardablePlan[] | null; picked: string; onPick: (uuid: string) => void; onCancel: () => void }) { // eslint-disable-line no-unused-vars
   return <div className="mx-auto w-full max-w-[560px] px-6 pb-10 pt-8">
-    <StepHead eyebrow={`Award a badge · 1 of ${STEPS.length}`} title={tr('badges.award_flow.which_badge', 'Which badge?')} lede="Award a plan’s badge to learners who did the same work somewhere else. You sign off on it, and it’s marked as awarded directly." />
+    <StepHead eyebrow={`Award a badge · 1 of ${STEPS.length}`} title={tr('badges.award_flow.which_badge', 'Which badge?')} lede={tr('lit.award_flow.award_a_plan_s_badge', 'Award a plan’s badge to learners who did the same work somewhere else. You sign off on it, and it’s marked as awarded directly.')} />
     <div className="mt-[22px] flex flex-col gap-1 rounded-[18px] border border-border bg-card p-1.5">
       {plans === null ? <p className="px-3 py-2.5 text-[13.5px] text-muted-foreground">{tr('badges.award_flow.loading_badges', 'Loading badges…')}</p>
         : plans.length ? plans.map((plan) => <button key={plan.template_uuid} type="button" aria-pressed={plan.template_uuid === picked} onClick={() => onPick(plan.template_uuid)}

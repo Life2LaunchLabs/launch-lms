@@ -98,7 +98,7 @@ export default function NewUserResourceChannelModal({
       const result = channel
         ? await updateUserResourceChannel(orgId, channel.user_channel_uuid, payload, accessToken)
         : await createUserResourceChannel(orgId, payload, accessToken)
-      requireSuccess(result, channel ? 'Failed to update list' : 'Failed to create list')
+      requireSuccess(result, channel ? tr('lit.new_user_resource_channel_modal.failed_to_update_list', 'Failed to update list') : tr('lit.new_user_resource_channel_modal.failed_to_create_list', 'Failed to create list'))
       if (channel) {
         await onUpdated?.(result.data as UserResourceChannel)
       } else {

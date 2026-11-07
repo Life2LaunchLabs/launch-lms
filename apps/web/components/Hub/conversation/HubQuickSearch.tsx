@@ -119,7 +119,7 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
       .catch((requestError: any) => {
         if (!active) return
         setAvailableResources([])
-        setError(requestError?.message || 'Search is temporarily unavailable.')
+        setError(requestError?.message || tr('lit.hub_quick_search.search_is_temporarily_unavailable', 'Search is temporarily unavailable.'))
       })
       .finally(() => active && setLoading(false))
     return () => { active = false }

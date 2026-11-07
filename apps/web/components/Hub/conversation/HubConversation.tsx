@@ -31,7 +31,7 @@ import useHubEditRun from './useHubEditRun'
 import { tr } from '@/lib/tr'
 function advisorErrorMessage(error: any) {
   if (error?.status === 422) return 'I couldn’t send that turn. Please try again—your message is still here.'
-  return error?.message || 'The advisor is temporarily unavailable. Your message has been restored.'
+  return error?.message || tr('lit.hub_conversation.the_advisor_is_temporarily_unavailable', 'The advisor is temporarily unavailable. Your message has been restored.')
 }
 
 type HubConversationProps = {
@@ -107,7 +107,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       const history = await listHubConversations(org.id, accessToken)
       if (alive.current) setConversations(history)
     } catch (historyError: any) {
-      setError(historyError?.message || 'Conversation history is unavailable.')
+      setError(historyError?.message || tr('lit.hub_conversation.conversation_history_is_unavailable', 'Conversation history is unavailable.'))
     } finally {
       setHistoryLoading(false)
     }
@@ -144,7 +144,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
         .catch(() => { if (alive.current && load === loadSequence.current) hub?.setEditRun(null) })
     } catch (loadError: any) {
       if (!alive.current || load !== loadSequence.current) return
-      setError(loadError?.message || 'This conversation could not be opened.')
+      setError(loadError?.message || tr('lit.hub_conversation.this_conversation_could_not_be', 'This conversation could not be opened.'))
       if (loadError?.status === 404) rememberConversation(null)
     } finally {
       if (alive.current && load === loadSequence.current) setConversationLoading(false)
@@ -173,7 +173,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     }
     stateSaveQueueRef.current = stateSaveQueueRef.current.catch(() => undefined)
       .then(() => saveHubConversationState(org.id, uuid, accessToken, state))
-      .catch((stateError: any) => setError(stateError?.message || 'Conversation changes could not be saved.'))
+      .catch((stateError: any) => setError(stateError?.message || tr('lit.hub_conversation.conversation_changes_could_not_be', 'Conversation changes could not be saved.')))
   }
 
   const addResource = (resource: Resource) => {
@@ -193,7 +193,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     if (intent.conversation && intent.conversation !== conversationUuid) void openConversation(intent.conversation)
     if (intent.resource) {
       const uuid = intent.resource.startsWith('resource_') ? intent.resource : `resource_${intent.resource}`
-      getResource(uuid, accessToken).then(addResource).catch((loadError: any) => setError(loadError?.message || 'This resource is not available.'))
+      getResource(uuid, accessToken).then(addResource).catch((loadError: any) => setError(loadError?.message || tr('lit.hub_conversation.this_resource_is_not_available', 'This resource is not available.')))
     }
     if (intent.prompt?.trim()) {
       pendingSubmissionRef.current = { content: intent.prompt, preserveDraft: true, allowHidden: true }
@@ -327,7 +327,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       if (!alive.current) return
       restore()
       continuationInFlightRef.current = null
-      if (requestError?.name !== 'AbortError') setError(inferHubResponseKind(content) === 'search' ? requestError?.message || 'The search could not be saved. Your message has been restored.' : advisorErrorMessage(requestError))
+      if (requestError?.name !== 'AbortError') setError(inferHubResponseKind(content) === 'search' ? requestError?.message || tr('lit.hub_conversation.the_search_could_not_be', 'The search could not be saved. Your message has been restored.') : advisorErrorMessage(requestError))
     } finally {
       advisorAbortRef.current = null
       setSending(false)
@@ -355,11 +355,11 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       if (resolved.edit_run && resolved.edit_run.conversation_uuid !== conversationUuid) { void openConversation(resolved.edit_run.conversation_uuid); return }
       if (mode === 'edit' && resolved.edit_run && !automaticallyStartedRunsRef.current.has(resolved.edit_run.run_uuid)) {
         automaticallyStartedRunsRef.current.add(resolved.edit_run.run_uuid)
-        pendingSubmissionRef.current = { content: 'Let’s plan this goal together.', preserveDraft: true }
+        pendingSubmissionRef.current = { content: tr('lit.hub_conversation.let_s_plan_this_goal', 'Let’s plan this goal together.'), preserveDraft: true }
         window.requestAnimationFrame(() => composerRef.current?.submit())
       } else if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck()
     } catch (actionError: any) {
-      setError(actionError?.message || 'That suggested destination is no longer available.')
+      setError(actionError?.message || tr('lit.hub_conversation.that_suggested_destination_is_no', 'That suggested destination is no longer available.'))
     }
   }
 
@@ -373,7 +373,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       pendingSubmissionRef.current = { content: result.content, preserveDraft: true, allowHidden: true }
       window.requestAnimationFrame(() => composerRef.current?.submit())
     } catch (answerError: any) {
-      setError(answerError?.message || 'Your answers could not be sent.')
+      setError(answerError?.message || tr('lit.hub_conversation.your_answers_could_not_be', 'Your answers could not be sent.'))
     }
   }
 
@@ -384,7 +384,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       setConversations((current) => current.map((item) => item.conversation_uuid === uuid ? { ...item, title: updated.title, updated_at: new Date().toISOString() } : item))
       if (conversationUuid === uuid) setConversationTitle(updated.title)
     } catch (renameError: any) {
-      setError(renameError?.message || 'This conversation could not be renamed.')
+      setError(renameError?.message || tr('lit.hub_conversation.this_conversation_could_not_be_2', 'This conversation could not be renamed.'))
       throw renameError
     }
   }
@@ -398,7 +398,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       setConversations((current) => current.filter((item) => item.conversation_uuid !== uuid))
       resetChat()
     } catch (archiveError: any) {
-      setError(archiveError?.message || 'This conversation could not be archived.')
+      setError(archiveError?.message || tr('lit.hub_conversation.this_conversation_could_not_be_3', 'This conversation could not be archived.'))
     }
   }
 
@@ -418,7 +418,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       onStopEditing={() => endingSession(() => void editing.stop())} onUpdateEditGoal={editing.updateGoal}
       onTuck={() => hub?.tuck()} onEnd={() => endingSession(() => hub?.end())}
     />
-    <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel="Keep the session"
+    <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel={tr('lit.hub_conversation.keep_the_session', 'Keep the session')}
       onEnd={() => { const then = pendingEnd; setPendingEnd(null); then?.() }} onKeep={() => setPendingEnd(null)} />
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : !hub?.surface ? 'top-[5rem]' : 'top-14'}`}>
       <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>

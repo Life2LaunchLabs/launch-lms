@@ -9,6 +9,7 @@ import { goalLifecycleApi } from '@services/goals/lifecycle'
 import { goalsUrl, isGoalsKey } from '@services/goals/goals'
 import { getUriWithOrg } from '@services/config/config'
 
+import { tr } from '@/lib/tr'
 /** A run kept in the page: the story asks nothing, so nothing is saved but having seen it. */
 function storyRun(activity: any, done: string[]): any {
   const path = (activity.pages || []).map((page: any) => page.page_uuid)
@@ -47,6 +48,6 @@ export default function GoalStoryPlayer({ orgslug, goalUuid, activity }: { orgsl
     router.refresh()
   }
 
-  return <ActivityPlayer activity={activity} initialRun={initialRun} runtime={runtime} onClose={() => void leave()} onFinish={() => void leave()} finishLabel="Done"
+  return <ActivityPlayer activity={activity} initialRun={initialRun} runtime={runtime} onClose={() => void leave()} onFinish={() => void leave()} finishLabel={tr('lit.goal_story_player.done', 'Done')}
     responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }} />
 }

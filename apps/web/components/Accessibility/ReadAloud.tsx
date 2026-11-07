@@ -24,7 +24,7 @@ export function useSpeechId(prefix = 'say'): string {
  * The speaker button: reads `text` aloud, or stops it. Shows for everyone (no setting needed) wherever the
  * browser can speak. Pass the same `id` to <ReadAloudText> to light up each word as it's read.
  */
-export function SpeakButton({ text, id, label = 'Read aloud', size = 'md', className, tone = 'muted' }: {
+export function SpeakButton({ text, id, label = tr('lit.read_aloud.read_aloud', 'Read aloud'), size = 'md', className, tone = 'muted' }: {
   text: string; id?: string; label?: string; size?: Size; className?: string; tone?: 'muted' | 'onDark'
 }) {
   const own = useSpeechId()
@@ -85,7 +85,7 @@ export function SpokenLine({ text, as: Tag = 'p', className, buttonSize = 'md', 
  * browsers without speech recognition (Firefox).
  */
 // eslint-disable-next-line no-unused-vars
-export function MicButton({ value, onChange, size = 'md', className, label = 'Talk instead of typing' }: { value: string; onChange: (next: string) => void; size?: Size; className?: string; label?: string }) {
+export function MicButton({ value, onChange, size = 'md', className, label = tr('lit.read_aloud.talk_instead_of_typing', 'Talk instead of typing') }: { value: string; onChange: (next: string) => void; size?: Size; className?: string; label?: string }) {
   const latest = React.useRef(value)
   React.useEffect(() => { latest.current = value }, [value])
   const dictation = useDictation((said) => {

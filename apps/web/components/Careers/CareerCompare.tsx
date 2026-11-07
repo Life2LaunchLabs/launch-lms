@@ -34,7 +34,7 @@ const openingsOf = (profile: Profile) => {
   const row = (outlook.here && outlook.places.find((place) => place.place === outlook.here)) || outlook.places.find((place) => place.place === 'state:OR')
   return row?.openings != null ? { ...row, openings: row.openings, end: outlook.end } : null
 }
-const fitOf = (match: number | null) => match == null ? null : match >= 0.7 ? 'Strong fit' : match >= 0.4 ? 'Good fit' : 'Not much like you'
+const fitOf = (match: number | null) => match == null ? null : match >= 0.7 ? tr('lit.career_profile.strong_fit', 'Strong fit') : match >= 0.4 ? tr('lit.career_profile.good_fit', 'Good fit') : tr('lit.career_compare.not_much_like_you', 'Not much like you')
 /** "uses 3 of your skills", when the learner has picked some. */
 const usesLine = (profile: Profile) => profile.skills?.mine?.length ? `uses ${profile.skills.used.length || 'none'} of your skills` : ''
 const apprenticeship = (profile: Profile) => /apprentice/i.test(routesFor(profile.career)[0]?.steps[0]?.title || '')
@@ -58,7 +58,7 @@ function inShort(profiles: Profile[]) {
   if (pay.length >= 2) {
     pay.sort((a, b) => b.pay - a.pay)
     const gap = pay[0].pay - pay[pay.length - 1].pay
-    lines.push(gap >= 1 ? `${named(pay[0].profile)} usually earn about ${fullMoney(gap)} more an hour than ${named(pay[pay.length - 1].profile).toLowerCase()}.` : 'Pay is about the same.')
+    lines.push(gap >= 1 ? `${named(pay[0].profile)} usually earn about ${fullMoney(gap)} more an hour than ${named(pay[pay.length - 1].profile).toLowerCase()}.` : tr('lit.career_compare.pay_is_about_the_same', 'Pay is about the same.'))
   }
   const jobs = profiles.map((profile) => ({ profile, n: openingsOf(profile)?.openings })).filter((row) => row.n != null) as Array<{ profile: Profile; n: number }>
   if (jobs.length >= 2) {

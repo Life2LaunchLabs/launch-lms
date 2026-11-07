@@ -6,6 +6,7 @@
 import { isTaxable, monthlyTax } from './tax'
 import type { Asset, Catalog, Debt, Estimate, LifeDoc, LifeEvent, Line, Phase, Policy, Unit } from '@services/life/life'
 
+import { trLocale } from '@/lib/tr'
 export type Per = 'wk' | 'mo' | 'yr'
 export const PER_WORD: Record<Per, string> = { wk: 'week', mo: 'month', yr: 'year' }
 export const UNIT_WORD: Record<Unit, string> = { hr: 'an hour', wk: 'a week', mo: 'a month', yr: 'a year' }
@@ -39,11 +40,17 @@ export function short(v: number): string {
   return `${sign}$${Math.round(a)}`
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// Short month names in the current language ("Jan", "ene").
+const shortMonth = (index: number) => new Intl.DateTimeFormat(trLocale(), { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, index, 1))).replace('.', '')
+/** The month of the year (0 = January) `g` months after `start`. */
+export function monthIndex(start: string, g: number): number {
+  const m = Number(start.split('-')[1])
+  return ((((m - 1) + g) % 12) + 12) % 12
+}
 export function monthLabel(start: string, g: number): string {
   const [y, m] = start.split('-').map(Number)
   const t = (m - 1) + g
-  return `${MONTHS[((t % 12) + 12) % 12]} ${y + Math.floor(t / 12)}`
+  return `${shortMonth(((t % 12) + 12) % 12)} ${y + Math.floor(t / 12)}`
 }
 export const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
 

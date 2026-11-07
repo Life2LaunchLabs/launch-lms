@@ -188,7 +188,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       const p = byId(kept, id)
       if (!p) continue
       // Named for what it is when no name was typed. Its budget starts empty: the phase page offers estimates.
-      if (!pending.ids) { if (p.activities?.length) p.kind = kindFor(p.activities); p.title = pending.name.trim() || (p.activities?.length || p.living || p.place_label ? suggestTitle(p) : 'New phase') }
+      if (!pending.ids) { if (p.activities?.length) p.kind = kindFor(p.activities); p.title = pending.name.trim() || (p.activities?.length || p.living || p.place_label ? suggestTitle(p) : tr('lit.graph.new_phase', 'New phase')) }
     }
     setPending(null)
     await change((next) => { Object.assign(next, kept) })
@@ -216,12 +216,12 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const home = el?.closest<HTMLElement>('[data-card][data-held]')
     let spot: Spot | null = null
     // Still over where it came from: it goes back there.
-    if (home) spot = { at: '', inline: false, home: true, text: 'Put it back', el: home }
+    if (home) spot = { at: '', inline: false, home: true, text: tr('lit.plan_map.put_it_back', 'Put it back'), el: home }
     else if (row) {
       // Among the options, where the finger is: before the first, between two, or after the last.
       const chips = [...row.querySelectorAll<HTMLElement>('[data-chip]:not([data-held])')]
       const index = chips.filter((c) => { const r = c.getBoundingClientRect(); return x > r.left + r.width / 2 }).length
-      spot = { at: row.dataset.bandKey!, inline: false, index, el: row, text: !chips.length || index >= chips.length ? 'The last option' : index === 0 ? 'The first option' : `Option ${index + 1}` }
+      spot = { at: row.dataset.bandKey!, inline: false, index, el: row, text: !chips.length || index >= chips.length ? tr('lit.plan_map.the_last_option', 'The last option') : index === 0 ? tr('lit.plan_map.the_first_option', 'The first option') : `Option ${index + 1}` }
     } else if (card) { const r = card.getBoundingClientRect(); if (y > r.top + r.height * 0.2 && y < r.bottom - r.height * 0.2) spot = { at: card.dataset.opt!, inline: false, beside: card.dataset.card, text: `An option beside ${card.dataset.title}`, el: card } }
     if (chip && chip.dataset.chip !== l.drill?.id) {
       if (l.drill) clearTimeout(l.drill.timer)
@@ -232,8 +232,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // the option that way after a short pause, and on to the next after a longer one while it stays there.
     // A card picked up already near a side flips nothing until it has been back over the middle.
     const tray = el?.closest<HTMLElement>('[data-tray]'), tk = tray?.dataset.tray || ''
-    const tr = tray?.getBoundingClientRect(), quarter = tr ? tr.width / 4 : 0
-    const side = tr ? (x < tr.left + quarter ? -1 : x > tr.right - quarter ? 1 : 0) : 0
+    const box = tray?.getBoundingClientRect(), quarter = box ? box.width / 4 : 0
+    const side = box ? (x < box.left + quarter ? -1 : x > box.right - quarter ? 1 : 0) : 0
     const flip = (dir: number) => { if (!tray) return; const ids = tray.dataset.opts!.split(','), j = Number(tray.dataset.index) + dir; if (j >= 0 && j < ids.length) { setShown(tk, ids[j]); navigator.vibrate?.(8); setTimeout(() => { if (lifting.current === l) moveRef.current(l.x, l.y) }, 330) } }
     const f = l.flip
     if (!tray || tk !== f?.k || side !== f.side || (side && !f.armed)) {
@@ -262,7 +262,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
         if (chips[spot.index]) chips[spot.index].dataset.ins = 'l'; else if (chips.length) chips[chips.length - 1].dataset.ins = 'r'
       }
       l.spot = spot
-      l.ghost.textContent = spot?.text || 'Drop it on the map'
+      l.ghost.textContent = spot?.text || tr('lit.plan_map.drop_it_on_the_map', 'Drop it on the map')
     }
     // Carried up to the top or down to the bottom, the page scrolls smoothly for as long as the finger stays
     // there, faster the closer it gets. A card picked up near an edge doesn't scroll until it moves that way.
@@ -313,7 +313,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   // The new phase waiting for a name moves the same way, and keeps waiting where it lands.
   const liftPending = (x: number, y: number) => {
     if (!pending) return
-    const ids = pending.ids || [pending.id], name = pending.name.trim() || 'New phase'
+    const ids = pending.ids || [pending.id], name = pending.name.trim() || tr('lit.graph.new_phase', 'New phase')
     setMoving({ head: pending.id, only: true, fresh: !pending.ids, route: !!pending.ids, dragging: true, label: name, loose: { doc: liftLine(pending.doc, ids), ids } })
     ghostStart(name, x, y)
   }
@@ -349,7 +349,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     onPointerMove={(e) => {
       const p = press.current
       if (!p) return
-      if (!p.live) { if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 6) return; p.live = true; startNew(true); ghostStart('New phase', e.clientX, e.clientY) }
+      if (!p.live) { if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 6) return; p.live = true; startNew(true); ghostStart(tr('lit.graph.new_phase', 'New phase'), e.clientX, e.clientY) }
       ghostMove(e.clientX, e.clientY)
     }}
     onPointerUp={() => { const p = press.current; press.current = null; setFab(false); if (p?.live) ghostEnd(); else if (p) startNew(false) }}
@@ -469,7 +469,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
         onPointerMove={(e) => {
           const p = fabPress.current
           if (!p) return
-          if (!p.live) { if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) return; p.live = true; setFab(false); startNew(true); ghostStart('New phase', e.clientX, e.clientY) }
+          if (!p.live) { if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) return; p.live = true; setFab(false); startNew(true); ghostStart(tr('lit.graph.new_phase', 'New phase'), e.clientX, e.clientY) }
           ghostMove(e.clientX, e.clientY)
         }}
         onPointerUp={() => { const p = fabPress.current; fabPress.current = null; if (p?.live) ghostEnd(); else if (p) setFab(!fab) }}

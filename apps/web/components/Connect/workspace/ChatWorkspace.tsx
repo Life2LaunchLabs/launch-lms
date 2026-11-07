@@ -34,8 +34,8 @@ export type ChatSource = ({ chatUuid: string } | { orgId: number; userId: number
 export type { TimelineItem }
 
 const AUDIENCE: Record<ChatAudience, { icon: React.ElementType; text: string }> = {
-  staff: { icon: Users, text: 'Everyone in the group sees this' },
-  group: { icon: Users, text: 'Everyone in the group sees this' },
+  staff: { icon: Users, get text() { return tr('lit.chat_workspace.everyone_in_the_group_sees', 'Everyone in the group sees this') } },
+  group: { icon: Users, get text() { return tr('lit.chat_workspace.everyone_in_the_group_sees', 'Everyone in the group sees this') } },
 }
 
 function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string) {
@@ -190,7 +190,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   }
 
   const shown = React.useMemo(() => !chat ? [] : only ? chat.messages.filter(only) : chat.messages, [chat, only])
-  const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : 'You can read along here')) : ''
+  const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : tr('lit.chat_workspace.you_can_read_along_here', 'You can read along here'))) : ''
   const names = chat ? chat.kind !== 'direct' : false
   return <>
     {header?.(chat, mutate)}
