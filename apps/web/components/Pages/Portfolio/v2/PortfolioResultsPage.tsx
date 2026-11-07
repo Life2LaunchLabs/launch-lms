@@ -17,6 +17,7 @@ import { ResultPicture } from './ResultView'
 import { RESULT_TEMPLATES, isFree, templateOf } from './resultTemplates'
 import type { PortfolioResult, Shell } from '../portfolioTypes'
 
+import { tr } from '@/lib/tr'
 // What I'm like, on its own page: every result as a card, drawn the way its test shows it, with the star to
 // feature it on the front page and the eye to hide it. Below, the tests you haven't added, each with a big
 // way to take it (free or paid, said plainly) and a way to copy in a result you already have.
@@ -34,7 +35,7 @@ function ResultCard({ result, onOpen, onFeature, onHide }: { result: PortfolioRe
   return <li className="group/row relative grid min-w-0 content-start gap-3 rounded-3xl border-2 border-border bg-card p-5 shadow-[0_4px_0_hsl(var(--border))]" data-result-card>
     <div className="flex min-w-0 items-start gap-2">
       <span className={`min-w-0 flex-1 ${hidden ? 'opacity-55' : ''}`}>
-        <small className="block text-xs font-bold uppercase tracking-wide text-muted-foreground">{template ? kind : kind || 'Result'}</small>
+        <small className="block text-xs font-bold uppercase tracking-wide text-muted-foreground">{template ? kind : kind || tr('portfolio.portfolio_results_page.result', 'Result')}</small>
         <b className="block truncate text-[17px] font-extrabold">{result.name}</b>
       </span>
       <RowControls name={result.name} featured={result.featured} hidden={hidden} onFeature={onFeature} onHide={onHide} />
@@ -70,31 +71,31 @@ export function PortfolioResultsPage({ initialShell, orgslug }: { initialShell: 
   async function change(result: PortfolioResult, payload: Partial<PortfolioResult>) {
     if (!token) return
     setShell((current) => ({ ...current, results: (current.results || []).map((item) => item.result_uuid === result.result_uuid ? { ...item, ...payload } : item) }))
-    try { await resultsApi.update(result.result_uuid, payload, token) } catch (error: any) { toast.error(error?.message || 'Could not save that'); void reload() }
+    try { await resultsApi.update(result.result_uuid, payload, token) } catch (error: any) { toast.error(error?.message || tr('portfolio.resume_builder.could_not_save_that', 'Could not save that')); void reload() }
   }
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2="results">
     <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6">
-      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Sparkles} title="What I’m like"><Button type="button" variant="brand" className="h-10" onClick={() => setEditor({})}><Plus className="h-4 w-4" />Add a result</Button></DetailHeader>
-      {items.length ? <ul className="grid gap-4 sm:grid-cols-2" aria-label="Your results">{items.map((item) => <ResultCard key={item.result_uuid} result={item}
+      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Sparkles} title={tr('portfolio.portfolio_tiles.what_i_m_like', 'What I’m like')}><Button type="button" variant="brand" className="h-10" onClick={() => setEditor({})}><Plus className="h-4 w-4" />{tr('portfolio.portfolio_results_page.add_a_result', 'Add a result')}</Button></DetailHeader>
+      {items.length ? <ul className="grid gap-4 sm:grid-cols-2" aria-label={tr('portfolio.portfolio_results_page.your_results', 'Your results')}>{items.map((item) => <ResultCard key={item.result_uuid} result={item}
         onOpen={() => setEditor({ result: item })} onFeature={() => void change(item, { featured: !item.featured })}
         onHide={() => void change(item, { visibility: item.visibility === 'private' ? 'public' : 'private' })} />)}</ul>
-        : <EmptyAdd title="Take the interest quiz" hint="Answer 30 quick questions or sort pictures of work you might enjoy, then see careers that fit. Free, about 5 minutes." href={quizHref} />}
+        : <EmptyAdd title={tr('portfolio.portfolio_tiles.take_the_interest_quiz', 'Take the interest quiz')} hint={tr('portfolio.portfolio_results_page.answer_30_quick_questions_or', 'Answer 30 quick questions or sort pictures of work you might enjoy, then see careers that fit. Free, about 5 minutes.')} href={quizHref} />}
 
-      {skills.length ? <section className="mt-8 grid gap-3" aria-label="Skills">
-        <h2 className="text-lg font-extrabold">Skills</h2>
+      {skills.length ? <section className="mt-8 grid gap-3" aria-label={tr('portfolio.portfolio_results_page.skills', 'Skills')}>
+        <h2 className="text-lg font-extrabold">{tr('portfolio.portfolio_results_page.skills', 'Skills')}</h2>
         <button type="button" onClick={() => setEditor({ result: skills[0] })} className="flex flex-wrap gap-1.5 rounded-2xl border-2 border-border bg-card p-4 text-left hover:bg-muted/40">{skills.flatMap((item) => skillChips(item).map((part) => part.trim()).filter(Boolean)).map((skill) => <span key={skill} className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-[13px] font-bold">{skill}</span>)}</button>
       </section> : null}
 
-      {more.length ? <section className="mt-10 grid gap-4" aria-label="Tests to take">
-        <div><h2 className="text-lg font-extrabold">Tests to take</h2><p className="text-sm font-semibold text-muted-foreground">Take one, then copy your result in. Paid tests cost money on the site that runs them.</p></div>
+      {more.length ? <section className="mt-10 grid gap-4" aria-label={tr('portfolio.portfolio_results_page.tests_to_take', 'Tests to take')}>
+        <div><h2 className="text-lg font-extrabold">{tr('portfolio.portfolio_results_page.tests_to_take', 'Tests to take')}</h2><p className="text-sm font-semibold text-muted-foreground">{tr('portfolio.portfolio_results_page.take_one_then_copy_your', 'Take one, then copy your result in. Paid tests cost money on the site that runs them.')}</p></div>
         <ul className="grid gap-4 sm:grid-cols-2">{more.map((item) => {
           const free = isFree(item)
           return <li key={item.id} className="grid content-start gap-3 rounded-3xl border-2 border-dashed border-border p-5" data-test-card>
             <div className="flex items-start gap-2"><span className="min-w-0 flex-1"><b className="block text-[16px] font-extrabold">{item.name}</b><small className="block text-[13px] font-semibold text-muted-foreground">{item.blurb}</small></span><PriceTag free={free} /></div>
-            {item.input === 'chips' ? <Button type="button" variant="brand" className="h-12 w-full justify-between text-[15px]" onClick={() => setEditor({ template: item.id })}><span className="inline-flex items-center gap-2"><Plus className="h-4 w-4" />Pick yours · 2 min</span><PriceTag free /></Button> : <>
+            {item.input === 'chips' ? <Button type="button" variant="brand" className="h-12 w-full justify-between text-[15px]" onClick={() => setEditor({ template: item.id })}><span className="inline-flex items-center gap-2"><Plus className="h-4 w-4" />{tr('portfolio.portfolio_results_page.pick_yours_2_min', 'Pick yours · 2 min')}</span><PriceTag free /></Button> : <>
               <TakeIt template={item} quizHref={quizHref} />
-              <button type="button" onClick={() => setEditor({ template: item.id })} className="w-fit rounded-lg px-1 text-sm font-bold text-muted-foreground hover:text-foreground">Already took it? Add your result</button>
+              <button type="button" onClick={() => setEditor({ template: item.id })} className="w-fit rounded-lg px-1 text-sm font-bold text-muted-foreground hover:text-foreground">{tr('portfolio.portfolio_results_page.already_took_it_add_your', 'Already took it? Add your result')}</button>
             </>}
           </li>
         })}</ul>

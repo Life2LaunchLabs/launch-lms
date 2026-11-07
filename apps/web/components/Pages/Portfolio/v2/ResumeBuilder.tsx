@@ -19,6 +19,7 @@ import { DetailHeader } from './PortfolioDetail'
 import { RESUME_ACCENTS, RESUME_LAYOUTS, buildResume, sectionTitle, type ResumeItem } from './resumeModel'
 import type { ResumeVersion, Shell } from '../portfolioTypes'
 
+import { tr } from '@/lib/tr'
 // The résumé builder: one letter-size page made from the portfolio. Each version keeps its own layout, accent
 // and what it took off; facts are edited in the portfolio. Download prints just the page, which saves as a PDF.
 
@@ -50,7 +51,7 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef, onContac
   // The résumé's own email and phone (set in the profile) only reach the owner's copy and the PDF they print.
   const own = shell.resume_contact
   const contact = [shell.portfolio.location_label, own?.email || '', own?.phone || '', ...(shell.portfolio.socials || []).filter((social: any) => social.type === 'website' || social.type === 'linkedin').map((social: any) => String(social.url).replace(/^https?:\/\/(www\.)?/, ''))].filter(Boolean)
-  const remove = (key: string, what: string) => editing ? <button type="button" onClick={() => onRemove(key)} aria-label={`Take ${what} off this version`} title="Take off this version" className="absolute -right-7 top-0 grid h-6 w-6 place-items-center rounded-full bg-[#f1f3f5] text-[#5b6770] opacity-0 transition hover:bg-[#e3e7ea] focus-visible:opacity-100 group-hover/r:opacity-100 print:hidden [@media(hover:none)]:opacity-100"><X className="h-3.5 w-3.5" /></button> : null
+  const remove = (key: string, what: string) => editing ? <button type="button" onClick={() => onRemove(key)} aria-label={`Take ${what} off this version`} title={tr('portfolio.resume_builder.take_off_this_version', 'Take off this version')} className="absolute -right-7 top-0 grid h-6 w-6 place-items-center rounded-full bg-[#f1f3f5] text-[#5b6770] opacity-0 transition hover:bg-[#e3e7ea] focus-visible:opacity-100 group-hover/r:opacity-100 print:hidden [@media(hover:none)]:opacity-100"><X className="h-3.5 w-3.5" /></button> : null
   const restore = (items: Array<{ key: string; label: string }>) => editing && items.length ? <div className="mt-2 flex flex-wrap gap-1.5 print:hidden">{items.map((item) => <button key={item.key} type="button" onClick={() => onRestore(item.key)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#c7cfd4] px-2.5 py-0.5 text-[12px] font-semibold text-[#5b6770] hover:border-[#5b6770]"><Plus className="h-3 w-3" />{item.label}</button>)}</div> : null
   const row = (item: ResumeItem) => <div key={item.key} className="group/r relative">
     <div className="flex justify-between gap-4"><div className="min-w-0"><b>{item.title}</b>{item.detail ? <span>, {item.detail}</span> : null}</div>{item.when ? <small className="shrink-0 whitespace-nowrap text-[#5b6770]">{item.when}</small> : null}</div>
@@ -61,14 +62,14 @@ function Paper({ shell, version, editing, onRemove, onRestore, pageRef, onContac
     <header className={modern ? '-mx-14 -mt-12 mb-4 px-14 pb-6 pt-10 text-white' : 'mb-2'} style={modern ? { background: accent } : undefined}>
       <h2 className="text-[30px] font-extrabold leading-tight">{name}</h2>
       {contact.length ? <p className={modern ? 'text-white/85' : 'text-[#5b6770]'}>{contact.join(' · ')}</p> : null}
-      {editing && onContact && !own?.email && !own?.phone ? <button type="button" onClick={onContact} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-dashed border-[#c7cfd4] px-2.5 py-0.5 text-[12px] font-semibold text-[#5b6770] hover:border-[#5b6770] print:hidden"><Plus className="h-3 w-3" />Email or phone</button> : null}
+      {editing && onContact && !own?.email && !own?.phone ? <button type="button" onClick={onContact} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-dashed border-[#c7cfd4] px-2.5 py-0.5 text-[12px] font-semibold text-[#5b6770] hover:border-[#5b6770] print:hidden"><Plus className="h-3 w-3" />{tr('portfolio.resume_builder.email_or_phone', 'Email or phone')}</button> : null}
     </header>
     {sections.map((section) => <section key={section.key} className="group/s relative">
       <h3 className={`${compact ? 'mb-1.5 mt-4' : 'mb-2.5 mt-6'} relative border-b border-[#e3e7ea] pb-1 text-[11px] font-bold uppercase tracking-[0.14em]`} style={{ color: accent }}>
         <span className="group/r relative inline-block pr-1">{section.title}{remove(`section:${section.key}`, `the ${section.title} section`)}</span>
       </h3>
       {section.text ? <p className="text-[#33414a]">{section.text}</p> : null}
-      <div className={compact ? 'grid gap-1.5' : 'grid gap-2.5'}>{section.key === 'references' ? <>{section.items.map(row)}<p className="text-[#5b6770]">Contact details on request.</p></> : section.items.map(row)}</div>
+      <div className={compact ? 'grid gap-1.5' : 'grid gap-2.5'}>{section.key === 'references' ? <>{section.items.map(row)}<p className="text-[#5b6770]">{tr('portfolio.resume_builder.contact_details_on_request', 'Contact details on request.')}</p></> : section.items.map(row)}</div>
       {restore(section.removed.map((item) => ({ key: item.key, label: item.title })))}
     </section>)}
     {restore(removedSections.map((key) => ({ key: `section:${key}`, label: sectionTitle(key) })))}
@@ -86,16 +87,16 @@ function ResumeContactDialog({ open, onOpenChange, shell, token, onSaved }: { op
     try {
       onSaved(await updateResumeContact({ email: String(form.get('email') || '').trim(), phone: String(form.get('phone') || '').trim() }, token))
       onOpenChange(false)
-    } catch (error: any) { toast.error(error?.message || 'Could not save that') } finally { setBusy(false) }
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.resume_builder.could_not_save_that', 'Could not save that')) } finally { setBusy(false) }
   }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-md">
-      <DialogHeader><DialogTitle>How employers reach you</DialogTitle><DialogDescription>Printed on your résumé only. Your portfolio never shows them.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{tr('portfolio.resume_builder.how_employers_reach_you', 'How employers reach you')}</DialogTitle><DialogDescription>{tr('portfolio.resume_builder.printed_on_your_r_sum', 'Printed on your résumé only. Your portfolio never shows them.')}</DialogDescription></DialogHeader>
       <form id="resume-contact" onSubmit={save} className="grid gap-3">
-        <div className="grid gap-1.5"><Label htmlFor="rc-email">Email</Label><Input id="rc-email" name="email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || 'you@example.com'} autoComplete="email" autoFocus /></div>
-        <div className="grid gap-1.5"><Label htmlFor="rc-phone">Phone</Label><Input id="rc-phone" name="phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
+        <div className="grid gap-1.5"><Label htmlFor="rc-email">{tr('portfolio.resume_builder.email', 'Email')}</Label><Input id="rc-email" name="email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || tr('portfolio.resume_builder.you_example_com', 'you@example.com')} autoComplete="email" autoFocus /></div>
+        <div className="grid gap-1.5"><Label htmlFor="rc-phone">{tr('portfolio.resume_builder.phone', 'Phone')}</Label><Input id="rc-phone" name="phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
       </form>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="submit" form="resume-contact" variant="brand" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Button type="submit" form="resume-contact" variant="brand" disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }
@@ -161,42 +162,42 @@ export function ResumeBuilder({ initialShell, orgslug, username, owner = false }
         const saved: ResumeVersion = uuid ? await resumeVersions.update(uuid, payload, token) : await resumeVersions.create({ name: 'My résumé', ...payload }, token)
         if (!uuid) { setSelected(saved.version_uuid); setShell(await getMyPortfolio(token)) }
         else setShell((value) => ({ ...value, resume_versions: (value.resume_versions || []).map((item) => item.version_uuid === saved.version_uuid ? saved : item) }))
-      } catch (error: any) { toast.error(error?.message || 'Could not save this version') }
+      } catch (error: any) { toast.error(error?.message || tr('portfolio.resume_builder.could_not_save_this_version', 'Could not save this version')) }
     })
   }
 
   async function choose(value: string) {
     if (value !== NEW_VERSION) { const version = versions.find((item) => item.version_uuid === value); setSelected(value); if (version) setDraft(version); return }
-    const name = await ask.text({ title: 'New résumé version', body: 'It starts as a copy of the one you have open.', label: 'Name', placeholder: 'Food service jobs', action: 'Make version' })
+    const name = await ask.text({ title: tr('portfolio.resume_builder.new_r_sum_version', 'New résumé version'), body: 'It starts as a copy of the one you have open.', label: tr('portfolio.resume_builder.name', 'Name'), placeholder: tr('portfolio.resume_builder.food_service_jobs', 'Food service jobs'), action: 'Make version' })
     if (!name || !token) return
     try {
       await queue.current
       const from = selectedRef.current
       const saved: ResumeVersion = from ? await resumeVersions.create({ name, copy_from_uuid: from }, token) : await resumeVersions.create({ name, ...draft }, token)
       setShell(await getMyPortfolio(token)); setSelected(saved.version_uuid); setDraft(saved)
-    } catch (error: any) { toast.error(error?.message || 'Could not make a new version') }
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.resume_builder.could_not_make_a_new', 'Could not make a new version')) }
   }
 
   const toggle = (key: string, on: boolean) => save({ ...draft, excluded: on ? draft.excluded.filter((item) => item !== key) : [...draft.excluded, key] })
-  const download = <Button type="button" variant="brand" className="h-10" onClick={() => window.print()} aria-label="Download PDF"><Download className="h-4 w-4" /><span className="hidden sm:inline">Download PDF</span><span className="sm:hidden">PDF</span></Button>
+  const download = <Button type="button" variant="brand" className="h-10" onClick={() => window.print()} aria-label={tr('portfolio.resume_builder.download_pdf', 'Download PDF')}><Download className="h-4 w-4" /><span className="hidden sm:inline">{tr('portfolio.resume_builder.download_pdf', 'Download PDF')}</span><span className="sm:hidden">{tr('portfolio.resume_builder.pdf', 'PDF')}</span></Button>
 
   return <main className="min-h-screen bg-background pb-20 text-foreground" data-portfolio-v2="resume">
     <div className="mx-auto max-w-[960px] px-4 pt-4 sm:px-6 sm:pt-6 print:hidden">
-      <DetailHeader href={getUriWithOrg(orgslug, owner ? '/portfolio' : `/user/${username}`)} owner={owner} color="sky" icon={FileText} title="Résumé">{download}</DetailHeader>
+      <DetailHeader href={getUriWithOrg(orgslug, owner ? '/portfolio' : `/user/${username}`)} owner={owner} color="sky" icon={FileText} title={tr('portfolio.resume_builder.r_sum', 'Résumé')}>{download}</DetailHeader>
       {owner ? <>
         {ask.dialog}
         <ResumeContactDialog open={contactOpen} onOpenChange={setContactOpen} shell={shell} token={token} onSaved={(resume_contact) => setShell((value) => ({ ...value, resume_contact }))} />
         <div className="sticky top-2 z-10 mb-2 flex flex-wrap items-center gap-2.5 rounded-3xl border-2 border-border bg-card p-2.5">
           <Select value={selected || 'draft'} onValueChange={choose}>
-            <SelectTrigger className="h-10 w-auto min-w-[11rem] rounded-2xl font-bold" aria-label="Résumé version"><FileText className="mr-1 h-4 w-4" /><SelectValue /></SelectTrigger>
-            <SelectContent>{versions.length ? versions.map((item) => <SelectItem key={item.version_uuid} value={item.version_uuid}>{item.name}</SelectItem>) : <SelectItem value="draft">My résumé</SelectItem>}<SelectSeparator /><SelectItem value={NEW_VERSION}>New version…</SelectItem></SelectContent>
+            <SelectTrigger className="h-10 w-auto min-w-[11rem] rounded-2xl font-bold" aria-label={tr('portfolio.resume_builder.r_sum_version', 'Résumé version')}><FileText className="mr-1 h-4 w-4" /><SelectValue /></SelectTrigger>
+            <SelectContent>{versions.length ? versions.map((item) => <SelectItem key={item.version_uuid} value={item.version_uuid}>{item.name}</SelectItem>) : <SelectItem value="draft">{tr('portfolio.resume_builder.my_r_sum', 'My résumé')}</SelectItem>}<SelectSeparator /><SelectItem value={NEW_VERSION}>{tr('portfolio.resume_builder.new_version', 'New version…')}</SelectItem></SelectContent>
           </Select>
-          <div role="group" aria-label="Layout" className="flex rounded-2xl bg-muted p-1">{RESUME_LAYOUTS.map(([key, label]) => <button key={key} type="button" aria-pressed={draft.layout === key} onClick={() => save({ ...draft, layout: key })} className={`rounded-xl px-3 py-1.5 text-sm font-bold ${draft.layout === key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</div>
-          <div role="group" aria-label="Accent color" className="flex gap-1.5">{Object.entries(RESUME_ACCENTS).map(([key, color]) => <button key={key} type="button" aria-pressed={draft.accent === key} aria-label={key} onClick={() => save({ ...draft, accent: key })} className={`h-7 w-7 rounded-full border border-border ring-offset-2 ring-offset-card ${draft.accent === key ? 'ring-2 ring-foreground' : ''}`} style={{ background: color }} />)}</div>
-          <Button type="button" variant="surface" className="h-10" onClick={() => setContactOpen(true)}><Phone className="h-4 w-4" />Contact</Button>
-          <span role="status" className={`ml-auto inline-flex items-center gap-1.5 text-sm font-bold ${over ? 'text-[#B86E12]' : 'text-[#0B7D73]'}`}>{over ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}{over ? 'Runs past one page' : 'Fits on one page'}</span>
+          <div role="group" aria-label={tr('portfolio.resume_builder.layout', 'Layout')} className="flex rounded-2xl bg-muted p-1">{RESUME_LAYOUTS.map(([key, label]) => <button key={key} type="button" aria-pressed={draft.layout === key} onClick={() => save({ ...draft, layout: key })} className={`rounded-xl px-3 py-1.5 text-sm font-bold ${draft.layout === key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</div>
+          <div role="group" aria-label={tr('portfolio.resume_builder.accent_color', 'Accent color')} className="flex gap-1.5">{Object.entries(RESUME_ACCENTS).map(([key, color]) => <button key={key} type="button" aria-pressed={draft.accent === key} aria-label={key} onClick={() => save({ ...draft, accent: key })} className={`h-7 w-7 rounded-full border border-border ring-offset-2 ring-offset-card ${draft.accent === key ? 'ring-2 ring-foreground' : ''}`} style={{ background: color }} />)}</div>
+          <Button type="button" variant="surface" className="h-10" onClick={() => setContactOpen(true)}><Phone className="h-4 w-4" />{tr('portfolio.resume_builder.contact', 'Contact')}</Button>
+          <span role="status" className={`ml-auto inline-flex items-center gap-1.5 text-sm font-bold ${over ? 'text-[#B86E12]' : 'text-[#0B7D73]'}`}>{over ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}{over ? tr('portfolio.resume_builder.runs_past_one_page', 'Runs past one page') : tr('portfolio.resume_builder.fits_on_one_page', 'Fits on one page')}</span>
         </div>
-        <p className="mb-4 px-2 text-sm text-muted-foreground">Take anything off this version with its ×, and add it back from the dashed chips. The facts come from your portfolio, so change them there.</p>
+        <p className="mb-4 px-2 text-sm text-muted-foreground">{tr('portfolio.resume_builder.take_anything_off_this_version', 'Take anything off this version with its ×, and add it back from the dashed chips. The facts come from your portfolio, so change them there.')}</p>
       </> : null}
     </div>
     <div className="mx-auto max-w-[960px] px-4 sm:px-6">

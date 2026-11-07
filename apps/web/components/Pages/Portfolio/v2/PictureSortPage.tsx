@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { DetailHeader } from './PortfolioDetail'
 import { Results } from './InterestQuizPage'
 
+import { tr } from '@/lib/tr'
 // The picture sort: a free interest check for learners who read little or not at all. One photo of someone
 // at work at a time, with a few words that can be read aloud. Swipe right or tap the happy face for yes, swipe
 // left or tap the frown for no, or tap the shrug for not sure. Every swipe has a button, and arrow keys work.
@@ -53,7 +54,7 @@ export function PictureSortPage({ orgslug }: { orgslug: string }) {
       setAnswers(draft)
       // ?start=1 comes from the interest quiz's "Look at pictures": go to the start, not the saved result.
       setMode(found.taken && !Object.keys(draft).length && !new URLSearchParams(window.location.search).has('start') ? 'done' : 'intro')
-    }).catch((error) => { toast.error(error?.message || 'Could not load the picture sort'); setMode('intro') })
+    }).catch((error) => { toast.error(error?.message || tr('portfolio.picture_sort_page.could_not_load_the_picture', 'Could not load the picture sort')); setMode('intro') })
   }, [token])
 
   const cards = sort?.cards || []
@@ -73,7 +74,7 @@ export function PictureSortPage({ orgslug }: { orgslug: string }) {
       setMode('done')
       window.scrollTo({ top: 0 })
     } catch (error: any) {
-      toast.error(error?.message || 'Could not save your answers')
+      toast.error(error?.message || tr('portfolio.interest_quiz_page.could_not_save_your_answers', 'Could not save your answers'))
       const { [cards[at].key]: _dropped, ...rest } = next // eslint-disable-line no-unused-vars
       setAnswers(rest)
       setMode('sorting')
@@ -104,13 +105,13 @@ export function PictureSortPage({ orgslug }: { orgslug: string }) {
 
   return <main className="min-h-screen bg-background pb-24 text-foreground" data-portfolio-v2="picture-sort">
     <div className="mx-auto max-w-[760px] px-4 pt-4 sm:px-6 sm:pt-6">
-      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Images} title="Your interests" />
+      <DetailHeader href={getUriWithOrg(orgslug, '/portfolio')} owner color="violet" icon={Images} title={tr('portfolio.interest_quiz_page.your_interests', 'Your interests')} />
       {mode === 'loading' || !sort ? <div className="h-64 animate-pulse rounded-3xl bg-muted" />
         : mode === 'intro' ? <Intro count={cards.length} resume={done} onStart={start} quizHref={getUriWithOrg(orgslug, '/portfolio/interests?start=1')} />
-        : mode === 'done' && taken ? <Results quiz={sort} taken={taken} orgslug={orgslug} onRetake={() => start(true)} other={{ label: 'Answer questions instead', href: getUriWithOrg(orgslug, '/portfolio/interests?start=1') }} />
+        : mode === 'done' && taken ? <Results quiz={sort} taken={taken} orgslug={orgslug} onRetake={() => start(true)} other={{ label: tr('portfolio.picture_sort_page.answer_questions_instead', 'Answer questions instead'), href: getUriWithOrg(orgslug, '/portfolio/interests?start=1') }} />
         : <Sorting sort={sort} card={cards[Math.max(0, at)]} done={done} saving={mode === 'saving'} onAnswer={answer} onBack={back} />}
       <p className="mt-8 px-1 text-[11.5px] font-semibold leading-relaxed text-muted-foreground">
-        The picture sort and its words are Life2Launch’s own. Photos are from Wikimedia Commons and US government sources, credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.
+        {tr('portfolio.picture_sort_page.the_picture_sort_and_its', 'The picture sort and its words are Life2Launch’s own. Photos are from Wikimedia Commons and US government sources, credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.')}
       </p>
     </div>
   </main>
@@ -120,15 +121,15 @@ function Intro({ count, resume, onStart, quizHref }: { count: number; resume: nu
   return <section className="rounded-3xl border border-border bg-card p-6 text-center sm:p-8">
     <div className="mx-auto mb-4 flex w-fit gap-3 text-4xl" aria-hidden>{FACES.map((face) => <span key={face}>{face}</span>)}</div>
     <div className="mx-auto max-w-md text-left">
-      <SpokenQuestion title="What work would you like to do?" sub={`You will see ${count} pictures of people at work. For each one, tap the face that shows how you feel about doing it. Or swipe the picture: right for yes, left for no.`}
+      <SpokenQuestion title={tr('portfolio.picture_sort_page.what_work_would_you_like', 'What work would you like to do?')} sub={`You will see ${count} pictures of people at work. For each one, tap the face that shows how you feel about doing it. Or swipe the picture: right for yes, left for no.`}
         as="h2" className="text-[clamp(22px,4vw,28px)] font-extrabold leading-tight" subClassName="mt-2 text-[15px] font-semibold text-muted-foreground" />
     </div>
     <div className="mt-4 flex justify-center"><ReadToMeToggle /></div>
     <div className="mt-6 flex flex-wrap justify-center gap-2">
-      {resume ? <><Button type="button" variant="brand" size="lg" onClick={() => onStart(false)}>Keep going ({resume} of {count})</Button><Button type="button" variant="surface" size="lg" onClick={() => onStart(true)}>Start over</Button></>
-        : <Button type="button" variant="brand" size="lg" onClick={() => onStart(true)}>Start</Button>}
+      {resume ? <><Button type="button" variant="brand" size="lg" onClick={() => onStart(false)}>{tr('portfolio.picture_sort_page.keep_going_resume_of_count', 'Keep going ({{resume}} of {{count}})', { resume, count })}</Button><Button type="button" variant="surface" size="lg" onClick={() => onStart(true)}>{tr('portfolio.interest_quiz_page.start_over', 'Start over')}</Button></>
+        : <Button type="button" variant="brand" size="lg" onClick={() => onStart(true)}>{tr('portfolio.month_date_range_field.start', 'Start')}</Button>}
     </div>
-    <p className="mt-5 text-sm font-semibold text-muted-foreground">Rather read and answer questions? <Link href={quizHref} className="font-extrabold text-[var(--org-primary-color)] underline">Answer questions instead</Link></p>
+    <p className="mt-5 text-sm font-semibold text-muted-foreground">{tr('portfolio.picture_sort_page.rather_read_and_answer_questions', 'Rather read and answer questions?')}{' '}<Link href={quizHref} className="font-extrabold text-[var(--org-primary-color)] underline">{tr('portfolio.picture_sort_page.answer_questions_instead', 'Answer questions instead')}</Link></p>
   </section>
 }
 
@@ -136,12 +137,12 @@ function Sorting({ sort, card, done, saving, onAnswer, onBack }: { sort: Picture
   const total = sort.cards.length
   return <section className="grid gap-4">
     <div className="flex items-center gap-3">
-      <button type="button" onClick={onBack} disabled={!done || saving} aria-label="Back to the last picture" className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-muted disabled:opacity-30"><ArrowLeft className="h-5 w-5" /></button>
-      <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Pictures sorted"><div className="h-full rounded-full bg-[#8B5CF6] transition-[width] duration-300" style={{ width: `${Math.max(3, (done / total) * 100)}%` }} /></div>
+      <button type="button" onClick={onBack} disabled={!done || saving} aria-label={tr('portfolio.picture_sort_page.back_to_the_last_picture', 'Back to the last picture')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-muted disabled:opacity-30"><ArrowLeft className="h-5 w-5" /></button>
+      <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={tr('portfolio.picture_sort_page.pictures_sorted', 'Pictures sorted')}><div className="h-full rounded-full bg-[#8B5CF6] transition-[width] duration-300" style={{ width: `${Math.max(3, (done / total) * 100)}%` }} /></div>
       <span className="w-14 shrink-0 text-right text-sm font-extrabold tabular-nums text-muted-foreground">{Math.min(done + 1, total)}/{total}</span>
     </div>
     <PhotoCard key={card.key} card={card} disabled={saving} onAnswer={onAnswer} />
-    <div className="grid grid-cols-3 gap-2" role="group" aria-label="Would you like to do this?">
+    <div className="grid grid-cols-3 gap-2" role="group" aria-label={tr('portfolio.picture_sort_page.would_you_like_to_do', 'Would you like to do this?')}>
       {sort.answers.map((option) => <button key={option.value} type="button" disabled={saving} onClick={() => onAnswer(option.value)}
         className="group grid min-h-[88px] content-center justify-items-center gap-1 rounded-2xl border-2 border-border bg-card py-3 shadow-[0_4px_0_hsl(var(--border))] transition-[transform,box-shadow,border-color] [@media(hover:hover)]:hover:border-[var(--face)] active:translate-y-[3px] active:shadow-[0_1px_0_hsl(var(--border))] disabled:opacity-50"
         style={{ ['--face' as any]: FACE_COLORS[option.value] }}>
@@ -149,8 +150,8 @@ function Sorting({ sort, card, done, saving, onAnswer, onBack }: { sort: Picture
         <span className="text-[14px] font-extrabold">{option.label}</span>
       </button>)}
     </div>
-    <p className="hidden text-center text-xs font-semibold text-muted-foreground sm:block">Tip: press ← for no, ↓ for not sure, → for yes.</p>
-    {saving ? <p className="text-center text-sm font-bold text-muted-foreground">Working out your result…</p> : null}
+    <p className="hidden text-center text-xs font-semibold text-muted-foreground sm:block">{tr('portfolio.picture_sort_page.tip_press_for_no_for', 'Tip: press ← for no, ↓ for not sure, → for yes.')}</p>
+    {saving ? <p className="text-center text-sm font-bold text-muted-foreground">{tr('portfolio.interest_quiz_page.working_out_your_result', 'Working out your result…')}</p> : null}
   </section>
 }
 
@@ -192,15 +193,15 @@ function PhotoCard({ card, disabled, onAnswer }: { card: PictureCard; disabled: 
     <div className="relative h-[min(46vh,440px)] min-h-[220px] w-full" style={{ backgroundColor: TYPE_COLORS[card.type] || '#8B5CF6' }}>
       {broken || !card.photo ? <div className="absolute inset-0 grid place-items-center text-white/90"><Images className="h-16 w-16" aria-hidden="true" /></div>
         : <img ref={(img) => { if (img?.complete && !img.naturalWidth) setBroken(true) }} src={card.photo} alt={card.alt || card.text} draggable={false} onError={() => setBroken(true)} className="absolute inset-0 h-full w-full object-cover" />}
-      <span aria-hidden="true" className="absolute left-4 top-4 -rotate-12 rounded-xl border-4 border-emerald-400 bg-black/30 px-3 py-1 text-2xl font-black text-emerald-300" style={{ opacity: yes }}>YES</span>
-      <span aria-hidden="true" className="absolute right-4 top-4 rotate-12 rounded-xl border-4 border-orange-400 bg-black/30 px-3 py-1 text-2xl font-black text-orange-300" style={{ opacity: no }}>NO</span>
+      <span aria-hidden="true" className="absolute left-4 top-4 -rotate-12 rounded-xl border-4 border-emerald-400 bg-black/30 px-3 py-1 text-2xl font-black text-emerald-300" style={{ opacity: yes }}>{tr('portfolio.picture_sort_page.yes', 'YES')}</span>
+      <span aria-hidden="true" className="absolute right-4 top-4 rotate-12 rounded-xl border-4 border-orange-400 bg-black/30 px-3 py-1 text-2xl font-black text-orange-300" style={{ opacity: no }}>{tr('portfolio.picture_sort_page.no', 'NO')}</span>
     </div>
     <div className="flex items-center gap-3 px-5 py-4">
       <h2 className="m-0 min-w-0 flex-1 text-balance text-[clamp(22px,5vw,28px)] font-extrabold leading-tight"><ReadAloudText id={speechId} text={card.text} /></h2>
       <SpeakButton id={speechId} text={card.text} size="lg" />
     </div>
     {card.credit ? <p className="-mt-2 px-5 pb-3 text-[11px] font-semibold text-muted-foreground">
-      Photo: <a href={card.credit.url} target="_blank" rel="noreferrer" className="underline">{card.credit.author}</a>, {card.credit.license}
+      {tr('portfolio.picture_sort_page.photo', 'Photo:')}{' '}<a href={card.credit.url} target="_blank" rel="noreferrer" className="underline">{card.credit.author}</a>, {card.credit.license}
     </p> : null}
   </article>
 }

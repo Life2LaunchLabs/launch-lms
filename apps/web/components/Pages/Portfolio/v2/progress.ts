@@ -1,6 +1,7 @@
 import type { Shell } from '../portfolioTypes'
 import { skillsOf } from './resultTemplates'
 
+import { tr } from '@/lib/tr'
 // Progress on the portfolio is three quests, each unlocking a real action: sharing, then the résumé,
 // then the mastery badge by the learner's name. Everything is worked out from the portfolio itself;
 // the API only keeps which unlocks the learner has seen, so an unlock never goes away again.
@@ -34,16 +35,16 @@ export function quests(shell: Shell): Quest[] {
   return [
     quest(1, [
       // Asked at sign-up, so it's usually ticked already.
-      { key: 'name', label: 'Add your first and last name', done: Boolean(shell.identity?.first_name?.trim() && shell.identity?.last_name?.trim()), spot: 'name' },
-      { key: 'photo', label: 'Add a profile photo', done: Boolean(shell.portfolio.avatar_image), spot: 'avatar' },
-      { key: 'bio', label: 'Write a short bio', done: Boolean(String(shell.portfolio.short_bio || '').trim()), spot: 'about' },
-      { key: 'now', label: 'Add where you are right now', done: timeline.length >= 1, spot: 'experience' },
-      { key: 'made', label: 'Add something you made', done: projects.length >= 1, spot: 'projects' },
-      { key: 'look', label: 'Pick your look', done: Boolean(shell.layout?.look), spot: 'settings' },
+      { key: 'name', label: tr('portfolio.progress.add_your_first_and_last', 'Add your first and last name'), done: Boolean(shell.identity?.first_name?.trim() && shell.identity?.last_name?.trim()), spot: 'name' },
+      { key: 'photo', label: tr('portfolio.progress.add_a_profile_photo', 'Add a profile photo'), done: Boolean(shell.portfolio.avatar_image), spot: 'avatar' },
+      { key: 'bio', label: tr('portfolio.progress.write_a_short_bio', 'Write a short bio'), done: Boolean(String(shell.portfolio.short_bio || '').trim()), spot: 'about' },
+      { key: 'now', label: tr('portfolio.progress.add_where_you_are_right', 'Add where you are right now'), done: timeline.length >= 1, spot: 'experience' },
+      { key: 'made', label: tr('portfolio.progress.add_something_you_made', 'Add something you made'), done: projects.length >= 1, spot: 'projects' },
+      { key: 'look', label: tr('portfolio.progress.pick_your_look', 'Pick your look'), done: Boolean(shell.layout?.look), spot: 'settings' },
     ]),
     quest(2, [
       count('xp3', 'Add 3 experiences', timeline.length, 3, 'experience'),
-      { key: 'school', label: 'Add your school', done: timeline.some((entry) => entry.entry_type === 'education'), spot: 'experience' },
+      { key: 'school', label: tr('portfolio.progress.add_your_school', 'Add your school'), done: timeline.some((entry) => entry.entry_type === 'education'), spot: 'experience' },
       // A résumé needs a way to reach you, not a social link; the email and phone stay off the portfolio.
       { key: 'contact', label: RESUME_CONTACT_ITEM, done: Boolean(shell.resume_contact?.email?.trim() || shell.resume_contact?.phone?.trim()), spot: 'name' },
       count('skills', 'Name 3 skills', skills.size, 3, 'results'),

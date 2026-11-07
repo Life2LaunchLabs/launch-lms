@@ -24,6 +24,7 @@ import type { Setter } from './inplace'
 import { ResultPicture } from './ResultView'
 import { RESULT_TEMPLATES, SKILLS_VALUES, filled, isFree, summaryFor, templateOf, type ResultTemplate } from './resultTemplates'
 
+import { tr } from '@/lib/tr'
 // Adding or changing one of "What I'm like". A result follows one of the known assessments: take it (here,
 // for the interest quiz, or where it's offered, marked free or paid), then copy the result in with its
 // sliders, type or top picks, and attach the PDF if there is one. Skills and values are chips you tap here.
@@ -37,12 +38,12 @@ export const PICTURE_SORT = 'picture_sort'
 export const fromInterestCheck = (source?: string | null) => source === INTEREST_QUIZ || source === PICTURE_SORT
 
 export const RESULT_KINDS = [
-  { value: 'interests', label: 'Interests', example: 'Artistic · Social · Investigative' },
-  { value: 'personality', label: 'Personality', example: 'INFJ' },
-  { value: 'strengths', label: 'Strengths', example: 'Curious, patient, a good listener' },
-  { value: 'values', label: 'Work values', example: 'Creativity, helping others' },
-  { value: 'skills', label: 'Skills', example: 'Spanish, Figma, customer service' },
-  { value: 'other', label: 'Something else', example: '' },
+  { value: 'interests', get label() { return tr('portfolio.result_dialog.interests', 'Interests') }, example: 'Artistic · Social · Investigative' },
+  { value: 'personality', get label() { return tr('portfolio.result_dialog.personality', 'Personality') }, example: 'INFJ' },
+  { value: 'strengths', get label() { return tr('portfolio.result_dialog.strengths', 'Strengths') }, example: 'Curious, patient, a good listener' },
+  { value: 'values', get label() { return tr('portfolio.result_dialog.work_values', 'Work values') }, example: 'Creativity, helping others' },
+  { value: 'skills', get label() { return tr('portfolio.resume_model.skills', 'Skills') }, example: 'Spanish, Figma, customer service' },
+  { value: 'other', get label() { return tr('portfolio.result_dialog.something_else', 'Something else') }, example: '' },
 ] as const
 
 type Draft = { kind: PortfolioResult['kind']; name: string; summary: string; taken_on: string; visible: boolean; data: Record<string, any> }
@@ -50,20 +51,20 @@ type Step = { template?: ResultTemplate; custom?: PortfolioResult['kind'] } | nu
 
 /** Free or paid, said plainly: a paid test costs money, and that should never be a surprise. */
 export function PriceTag({ free }: { free: boolean }) {
-  return free ? <span className="inline-flex h-6 shrink-0 normal-case tracking-normal items-center rounded-full bg-[#16a34a]/12 px-2 text-[11.5px] font-extrabold text-[#15803d] dark:text-[#4ade80]">Free</span>
-    : <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-[#f5a524]/20 normal-case tracking-normal px-2 text-[11.5px] font-extrabold text-[#9a5b00] dark:text-[#fbbf24]"><CircleDollarSign className="h-3.5 w-3.5" />Paid</span>
+  return free ? <span className="inline-flex h-6 shrink-0 normal-case tracking-normal items-center rounded-full bg-[#16a34a]/12 px-2 text-[11.5px] font-extrabold text-[#15803d] dark:text-[#4ade80]">{tr('portfolio.result_dialog.free', 'Free')}</span>
+    : <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-[#f5a524]/20 normal-case tracking-normal px-2 text-[11.5px] font-extrabold text-[#9a5b00] dark:text-[#fbbf24]"><CircleDollarSign className="h-3.5 w-3.5" />{tr('portfolio.result_dialog.paid', 'Paid')}</span>
 }
 
 /** Where to take an assessment, as big buttons: the in-app quiz first, then the sites that offer it. */
 export function TakeIt({ template, quizHref }: { template: ResultTemplate; quizHref?: string }) {
   const here = template.id === 'riasec' && quizHref
   return <div className="grid gap-2" data-take-it>
-    {here ? <Button asChild variant="brand" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref}><span className="inline-flex items-center gap-2"><Play className="h-4 w-4" />Take it here · 5 min</span><PriceTag free /></Link></Button> : null}
+    {here ? <Button asChild variant="brand" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref}><span className="inline-flex items-center gap-2"><Play className="h-4 w-4" />{tr('portfolio.result_dialog.take_it_here_5_min', 'Take it here · 5 min')}</span><PriceTag free /></Link></Button> : null}
     {/* The same six types by pictures, for learners who'd rather not read 30 questions. */}
-    {here ? <Button asChild variant="surface" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref.replace(/\/portfolio\/interests.*$/, '/portfolio/picture-sort?start=1')}><span className="inline-flex items-center gap-2"><Images className="h-4 w-4" />Or use pictures</span><PriceTag free /></Link></Button> : null}
+    {here ? <Button asChild variant="surface" className="h-12 w-full justify-between text-[15px]"><Link href={quizHref.replace(/\/portfolio\/interests.*$/, '/portfolio/picture-sort?start=1')}><span className="inline-flex items-center gap-2"><Images className="h-4 w-4" />{tr('portfolio.result_dialog.or_use_pictures', 'Or use pictures')}</span><PriceTag free /></Link></Button> : null}
     {/* The main button is the first free way to take it; a paid one is never the big colored button. */}
     {template.take.map((place) => <Button key={place.url} asChild variant={!here && place === template.take.find((one) => one.free) ? 'brand' : 'surface'} className="h-12 w-full min-w-0 justify-between gap-2 text-[15px]">
-      <a href={place.url} target="_blank" rel="noreferrer"><span className="flex min-w-0 items-center gap-2 overflow-hidden"><ExternalLink className="h-4 w-4 shrink-0" /><span className="truncate">Take it on {place.label}</span></span><PriceTag free={place.free} /></a>
+      <a href={place.url} target="_blank" rel="noreferrer"><span className="flex min-w-0 items-center gap-2 overflow-hidden"><ExternalLink className="h-4 w-4 shrink-0" /><span className="truncate">{tr('portfolio.result_dialog.take_it_on_label', 'Take it on {{label}}', { label: place.label })}</span></span><PriceTag free={place.free} /></a>
     </Button>)}
   </div>
 }
@@ -76,7 +77,7 @@ function TemplateFields({ template, data, setData }: { template: ResultTemplate;
       <span className="truncate">{item.label}</span>
       <input type="range" min={0} max={max} value={value} aria-label={item.label} onChange={(event) => setData({ ...data, max, scores: { ...data.scores, [item.key]: Number(event.target.value) } })} className="w-full accent-[#8B5CF6]" />
       <span className="text-right tabular-nums text-muted-foreground">{value}</span>
-    </label> })}<p className="text-xs text-muted-foreground">Copy your scores from your results. Each one goes from 0 to {max}.</p></div>
+    </label> })}<p className="text-xs text-muted-foreground">{tr('portfolio.result_dialog.copy_your_scores_from_your', 'Copy your scores from your results. Each one goes from 0 to {{max}}.', { max })}</p></div>
   }
   if (template.input === 'chips') return <div className="grid gap-6">{template.groups.map((group) => <section key={group.key} className="grid gap-2" aria-label={group.label}>
     <div><b className="block text-[16px] font-extrabold">{group.label}</b><small className="block text-[13px] font-semibold text-muted-foreground">{group.hint}</small></div>
@@ -86,7 +87,7 @@ function TemplateFields({ template, data, setData }: { template: ResultTemplate;
   if (template.input === 'type') return <div role="radiogroup" aria-label={template.name} className="grid grid-cols-4 gap-1.5 sm:grid-cols-4">{template.options.map((option) => <button key={option.value} type="button" role="radio" aria-checked={data.type === option.value} onClick={() => setData({ ...data, type: option.value })} className={`h-10 truncate rounded-xl border-2 px-2 text-[13px] font-extrabold ${data.type === option.value ? 'border-[#6539D8] bg-[#8B5CF6] text-white' : 'border-border bg-card'} ${template.id === 'enneagram' ? 'col-span-2 text-left' : ''}`}>{option.label}</button>)}</div>
   const top: string[] = data.top || []
   return <div className="grid gap-2">
-    <p className="text-xs font-bold text-muted-foreground">{top.length < template.count ? `Tap your top ${template.count} in order (${top.length} of ${template.count})` : 'Tap one to take it off.'}</p>
+    <p className="text-xs font-bold text-muted-foreground">{top.length < template.count ? tr('portfolio.result_dialog.tap_your_top_count_in', 'Tap your top {{count}} in order ({{length}} of {{count2}})', { count: template.count, length: top.length, count2: template.count }) : tr('portfolio.result_dialog.tap_one_to_take_it', 'Tap one to take it off.')}</p>
     <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">{template.options.map((option) => { const at = top.indexOf(option); return <button key={option} type="button" aria-pressed={at >= 0} disabled={at < 0 && top.length >= template.count} onClick={() => setData({ ...data, top: at >= 0 ? top.filter((item) => item !== option) : [...top, option] })} className={`inline-flex h-8 items-center gap-1 rounded-full border-2 px-2.5 text-[12.5px] font-bold disabled:opacity-40 ${at >= 0 ? 'border-[#6539D8] bg-[#8B5CF6] text-white' : 'border-border bg-card'}`}>{at >= 0 ? <b>{at + 1}</b> : null}{option}</button> })}</div>
   </div>
 }
@@ -121,25 +122,25 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, temp
 
   async function save() {
     if (!token) return
-    if (template && !filled(template, draft.data)) return toast.error(template.input === 'chips' ? 'Tap at least one' : template.input === 'pick' ? `Pick your top ${template.count}` : template.input === 'type' ? 'Pick your type' : 'Set at least one score')
+    if (template && !filled(template, draft.data)) return toast.error(template.input === 'chips' ? tr('portfolio.result_dialog.tap_at_least_one', 'Tap at least one') : template.input === 'pick' ? `Pick your top ${template.count}` : template.input === 'type' ? tr('portfolio.result_dialog.pick_your_type', 'Pick your type') : tr('portfolio.result_dialog.set_at_least_one_score', 'Set at least one score'))
     const name = draft.name.trim() || template?.name || kind?.label || ''
-    if (!name) return toast.error('Give it a name')
+    if (!name) return toast.error(tr('portfolio.result_dialog.give_it_a_name', 'Give it a name'))
     setBusy(true)
     const payload = { kind: template?.kind || draft.kind, name, summary: template ? summaryFor(template, draft.data) : draft.summary.trim(), data: template ? draft.data : { ...draft.data, template: undefined }, taken_on: draft.taken_on || null, visibility: draft.visible ? 'public' : 'private' }
     try {
       if (result) await resultsApi.update(result.result_uuid, payload, token)
       else await resultsApi.create(payload, token)
       onSaved()
-    } catch (error: any) { toast.error(error?.message || 'Could not save this') } finally { setBusy(false) }
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_people_page.could_not_save_this', 'Could not save this')) } finally { setBusy(false) }
   }
 
   async function remove() {
-    if (!token || !result || !(await ask.confirm({ title: `Remove ${result.name}?`, action: 'Remove', danger: true }))) return
+    if (!token || !result || !(await ask.confirm({ title: tr('portfolio.portfolio_people_page.remove_name', 'Remove {{name}}?', { name: result.name }), action: 'Remove', danger: true }))) return
     setBusy(true)
-    try { await resultsApi.remove(result.result_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || 'Could not remove this') } finally { setBusy(false) }
+    try { await resultsApi.remove(result.result_uuid, token); onSaved() } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_people_page.could_not_remove_this', 'Could not remove this')) } finally { setBusy(false) }
   }
 
-  const back = !result && step ? <button type="button" onClick={() => setStep(null)} className="mb-1 inline-flex w-fit items-center gap-1 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />All results</button> : null
+  const back = !result && step ? <button type="button" onClick={() => setStep(null)} className="mb-1 inline-flex w-fit items-center gap-1 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />{tr('portfolio.result_dialog.all_results', 'All results')}</button> : null
   const title = result ? result.name : template ? template.name : step ? (kind?.value === 'skills' ? 'Your skills' : 'Something else') : 'Add a result'
   const description = !step ? 'Pick a test. Take it, then copy your result in; you can add the PDF too.' : template ? template.blurb : draft.kind === 'skills' ? 'Things you can do. Separate them with commas; each one counts.' : 'Something a quiz or a person helped you learn about yourself.'
 
@@ -152,28 +153,28 @@ export function ResultDialog({ open, onOpenChange, result, kind: startKind, temp
       </div> : <div className="grid gap-4">
         {fromQuiz ? <div className="grid justify-items-center gap-3 rounded-2xl bg-muted/60 p-4 text-foreground">
           <ResultPicture result={{ data: draft.data }} /><b className="text-center text-[15px] font-extrabold">{result?.summary}</b>
-          {quizHref ? <Button asChild variant="surface" size="sm"><Link href={quizHref}>See your careers or take it again</Link></Button> : null}
+          {quizHref ? <Button asChild variant="surface" size="sm"><Link href={quizHref}>{tr('portfolio.result_dialog.see_your_careers_or_take', 'See your careers or take it again')}</Link></Button> : null}
         </div> : template ? <>
           {result || template.input === 'chips' ? null : <><TakeIt template={template} quizHref={quizHref} />
-            <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground"><span className="h-px flex-1 bg-border" />Already took it? Copy your result in<span className="h-px flex-1 bg-border" /></p></>}
+            <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground"><span className="h-px flex-1 bg-border" />{tr('portfolio.result_dialog.already_took_it_copy_your', 'Already took it? Copy your result in')}<span className="h-px flex-1 bg-border" /></p></>}
           <TemplateFields template={template} data={draft.data} setData={(data) => set('data', data)} />
           {filled(template, draft.data) && template.input !== 'chips' ? <div className="grid justify-items-center gap-2 rounded-2xl bg-muted/60 p-4 text-foreground"><ResultPicture result={{ data: draft.data }} /><b className="text-center text-[15px] font-extrabold">{summaryFor(template, draft.data)}</b></div> : null}
         </> : <>
-          <div className="grid gap-1.5"><Label htmlFor="rs-name">Name</Label><Input id="rs-name" value={draft.name} maxLength={160} onChange={(event) => set('name', event.target.value)} placeholder={kind?.label} /></div>
-          <div className="grid gap-1.5"><Label htmlFor="rs-summary">In a line</Label><Input id="rs-summary" value={draft.summary} maxLength={300} onChange={(event) => set('summary', event.target.value)} placeholder={kind?.example} /></div>
+          <div className="grid gap-1.5"><Label htmlFor="rs-name">{tr('portfolio.portfolio_header_parts.name', 'Name')}</Label><Input id="rs-name" value={draft.name} maxLength={160} onChange={(event) => set('name', event.target.value)} placeholder={kind?.label} /></div>
+          <div className="grid gap-1.5"><Label htmlFor="rs-summary">{tr('portfolio.result_dialog.in_a_line', 'In a line')}</Label><Input id="rs-summary" value={draft.summary} maxLength={300} onChange={(event) => set('summary', event.target.value)} placeholder={kind?.example} /></div>
         </>}
-        {template?.input === 'chips' ? null : <div className="grid gap-1.5"><Label htmlFor="rs-taken">When <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="rs-taken" type="month" value={draft.taken_on} onChange={(event) => set('taken_on', event.target.value)} /></div>}
-        {draft.kind !== 'skills' ? <div className="grid gap-1.5"><Label>The report <span className="font-normal text-muted-foreground">(optional, only you see it)</span></Label>
-          {pdf ? <div className="flex items-center gap-2 rounded-xl border-2 border-border p-2.5 text-sm font-bold"><FileText className="h-4 w-4 shrink-0" /><a href={normalizeMediaUrl(pdf.url)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">{pdf.title || 'Your report'}</a><button type="button" aria-label="Remove the report" onClick={() => set('data', { ...draft.data, pdf: undefined })} className="grid h-7 w-7 place-items-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button></div>
-            : <Button type="button" variant="surface" size="sm" className="w-fit" onClick={() => setPicker(true)}><Paperclip className="h-4 w-4" />Attach the PDF</Button>}
+        {template?.input === 'chips' ? null : <div className="grid gap-1.5"><Label htmlFor="rs-taken">{tr('portfolio.result_dialog.when', 'When')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="rs-taken" type="month" value={draft.taken_on} onChange={(event) => set('taken_on', event.target.value)} /></div>}
+        {draft.kind !== 'skills' ? <div className="grid gap-1.5"><Label>{tr('portfolio.result_dialog.the_report', 'The report')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.result_dialog.optional_only_you_see_it', '(optional, only you see it)')}</span></Label>
+          {pdf ? <div className="flex items-center gap-2 rounded-xl border-2 border-border p-2.5 text-sm font-bold"><FileText className="h-4 w-4 shrink-0" /><a href={normalizeMediaUrl(pdf.url)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">{pdf.title || tr('portfolio.result_dialog.your_report', 'Your report')}</a><button type="button" aria-label={tr('portfolio.result_dialog.remove_the_report', 'Remove the report')} onClick={() => set('data', { ...draft.data, pdf: undefined })} className="grid h-7 w-7 place-items-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button></div>
+            : <Button type="button" variant="surface" size="sm" className="w-fit" onClick={() => setPicker(true)}><Paperclip className="h-4 w-4" />{tr('portfolio.result_dialog.attach_the_pdf', 'Attach the PDF')}</Button>}
         </div> : null}
-        <label className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3"><b className="text-sm font-extrabold">Show to visitors</b><Switch checked={draft.visible} onCheckedChange={(value) => set('visible', value)} aria-label="Show to visitors" /></label>
+        <label className="flex items-center justify-between gap-3 rounded-2xl bg-muted px-4 py-3"><b className="text-sm font-extrabold">{tr('portfolio.result_dialog.show_to_visitors', 'Show to visitors')}</b><Switch checked={draft.visible} onCheckedChange={(value) => set('visible', value)} aria-label={tr('portfolio.result_dialog.show_to_visitors', 'Show to visitors')} /></label>
       </div>}
       {step ? <DialogFooter className="gap-2 sm:justify-between">
-        {result ? <Button type="button" variant="ghost" className="text-red-600" onClick={remove} disabled={busy}><Trash2 className="h-4 w-4" />Remove</Button> : <span />}
-        <div className="flex gap-2"><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></div>
+        {result ? <Button type="button" variant="ghost" className="text-red-600" onClick={remove} disabled={busy}><Trash2 className="h-4 w-4" />{tr('portfolio.month_date_range_field.remove', 'Remove')}</Button> : <span />}
+        <div className="flex gap-2"><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></div>
       </DialogFooter> : null}
-      <MediaPickerDialog open={picker} onOpenChange={setPicker} title="Your report" description="Upload the PDF of your results." owner={{ type: 'user', id: userId }} mediaType="document" accessToken={token} onSave={(asset) => { set('data', { ...draft.data, pdf: { asset_uuid: asset.asset_uuid, url: asset.url, title: asset.title } }); setPicker(false) }} />
+      <MediaPickerDialog open={picker} onOpenChange={setPicker} title={tr('portfolio.result_dialog.your_report', 'Your report')} description={tr('portfolio.result_dialog.upload_the_pdf_of_your', 'Upload the PDF of your results.')} owner={{ type: 'user', id: userId }} mediaType="document" accessToken={token} onSave={(asset) => { set('data', { ...draft.data, pdf: { asset_uuid: asset.asset_uuid, url: asset.url, title: asset.title } }); setPicker(false) }} />
     </DialogContent>
   </Dialog>
 }
