@@ -6379,7 +6379,19 @@
       "pay_is_where_your_plan": "el sueldo es donde va tu plan.",
       "min_careers_picked_value_save": "{{min}} carreras elegidas {{value}}. Guarda las que te llamen la atención y di por qué.",
       "v_for_your_interests": "para tus intereses",
-      "v_to_start_you_off": "para empezar"
+      "v_to_start_you_off": "para empezar",
+      "your_explore_home": "Tu inicio de Explorar",
+      "careers_that_fit_you_with": "Carreras que encajan contigo, con el sueldo cerca de casa y cuánto dura la preparación.",
+      "career_swipe": "Desliza carreras",
+      "discover_tool_2": "Herramienta de Descubrir",
+      "you_re_at_of_of_2": "Vas en {{at}} de {{of}}. Sigue donde lo dejaste.",
+      "min_careers_picked_value_save_2": "{{min}} carreras elegidas {{value}}. Guarda las que te llamen la atención y di por qué.",
+      "keep_going": "Seguir",
+      "start_2": "Empezar",
+      "careers_for_you_2": "Carreras para ti",
+      "closest_to_your_interests_first_2": "Primero las más cercanas a tus intereses.",
+      "take_the_interest_quiz_to_2": "Haz el test de intereses para ver primero las más parecidas.",
+      "pay_is_where_your_plan_2": "el sueldo es donde va tu plan."
     },
     "home_base_sheet": {
       "where_s_home_base": "¿Dónde está tu base?",

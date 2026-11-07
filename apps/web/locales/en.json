@@ -6367,7 +6367,19 @@
       "pay_is_where_your_plan": "pay is where your plan goes.",
       "min_careers_picked_value_save": "{{min}} careers picked {{value}}. Save the ones that catch your eye and say why.",
       "v_for_your_interests": "for your interests",
-      "v_to_start_you_off": "to start you off"
+      "v_to_start_you_off": "to start you off",
+      "your_explore_home": "Your Explore home",
+      "careers_that_fit_you_with": "Careers that fit you, with pay near home and how long training takes.",
+      "career_swipe": "Career swipe",
+      "discover_tool_2": "Discover tool",
+      "you_re_at_of_of_2": "You’re {{at}} of {{of}} in. Pick up where you left off.",
+      "min_careers_picked_value_save_2": "{{min}} careers picked {{value}}. Save the ones that catch your eye and say why.",
+      "keep_going": "Keep going",
+      "start_2": "Start",
+      "careers_for_you_2": "Careers for you",
+      "closest_to_your_interests_first_2": "Closest to your interests first.",
+      "take_the_interest_quiz_to_2": "Take the interest quiz to see your closest matches first.",
+      "pay_is_where_your_plan_2": "pay is where your plan goes."
     },
     "home_base_sheet": {
       "where_s_home_base": "Where’s home base?",
