@@ -11,6 +11,7 @@ import { LifeIcon } from './icons'
 import { OccupationPicker } from './BudgetTable'
 import { DEFAULT_HOURS, monthLabel, phaseOffset, uid } from './model'
 
+import { tr } from '@/lib/tr'
 export interface AddTarget { side: Side; cat?: string }
 
 const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')); return s.trim() && Number.isFinite(v) && v >= 0 ? v : null }
@@ -38,8 +39,8 @@ export default function AddTray({ target, onClose }: { target: AddTarget | null;
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1">
-            {back && <Button variant="ghost" size="icon" onClick={back} aria-label="Back" className="-ml-2"><ChevronLeft /></Button>}
-            {pick ? (pick.title || 'Something else') : c ? `Add ${c.title.toLowerCase()}` : side === 'in' ? 'Add income' : 'Add an expense'}
+            {back && <Button variant="ghost" size="icon" onClick={back} aria-label={tr('budget.add_tray.back', 'Back')} className="-ml-2"><ChevronLeft /></Button>}
+            {pick ? (pick.title || tr('budget.add_tray.something_else', 'Something else')) : c ? `Add ${c.title.toLowerCase()}` : side === 'in' ? tr('budget.add_tray.add_income', 'Add income') : tr('budget.add_tray.add_an_expense', 'Add an expense')}
           </DialogTitle>
         </DialogHeader>
         {!c && (
@@ -55,18 +56,18 @@ export default function AddTray({ target, onClose }: { target: AddTarget | null;
           <div className="pt-2">
             {catalog.items.filter((i) => i.cat === c.key).length > 6 && (
               <label className="mb-2 flex items-center gap-2 rounded-xl bg-muted px-3"><Search className="size-4 text-muted-foreground" />
-                <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search" className="h-10 w-full bg-transparent outline-none" />
+                <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr('budget.add_tray.search', 'Search')} aria-label={tr('budget.add_tray.search', 'Search')} className="h-10 w-full bg-transparent outline-none" />
               </label>
             )}
             <ul className="grid gap-1">
               {items.map((i) => (
                 <li key={i.key}><button type="button" onClick={() => setPick(i)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left font-semibold hover:bg-muted">
                   <span className="grid size-9 place-items-center rounded-xl bg-muted"><LifeIcon name={i.icon} /></span>{i.title}
-                  {canEstimate(i) && <span className="ml-auto text-xs font-semibold text-muted-foreground">can estimate</span>}
+                  {canEstimate(i) && <span className="ml-auto text-xs font-semibold text-muted-foreground">{tr('budget.add_tray.can_estimate', 'can estimate')}</span>}
                 </button></li>
               ))}
               <li><button type="button" onClick={() => setPick(custom)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
-                <span className="grid size-9 place-items-center rounded-xl bg-muted"><LifeIcon name="pencil" /></span>Something else
+                <span className="grid size-9 place-items-center rounded-xl bg-muted"><LifeIcon name="pencil" /></span>{tr('budget.add_tray.something_else', 'Something else')}
               </button></li>
             </ul>
           </div>
@@ -102,8 +103,8 @@ function Confirm({ item, side, estimable, onDone }: { item: CatalogItem; side: S
 
   return (
     <form className="space-y-4 pt-2" onSubmit={(e) => { e.preventDefault(); if (ok) add() }}>
-      <label className="grid gap-1 text-sm font-semibold">Name
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={side === 'in' ? 'Like "Tutoring"' : 'Like "Concert tickets"'} autoFocus={!item.key} className="h-10 rounded-xl border border-border bg-background px-3 font-normal outline-none focus:border-[var(--org-primary-color)]" />
+      <label className="grid gap-1 text-sm font-semibold">{tr('budget.add_tray.name', 'Name')}
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={side === 'in' ? tr('budget.add_tray.like_tutoring', 'Like "Tutoring"') : tr('budget.add_tray.like_concert_tickets', 'Like "Concert tickets"')} autoFocus={!item.key} className="h-10 rounded-xl border border-border bg-background px-3 font-normal outline-none focus:border-[var(--org-primary-color)]" />
       </label>
       {(item.settings || []).map((s) => s.kind === 'choice' ? (
         <div key={s.key} className="grid gap-1.5 text-sm font-semibold">{s.title}
@@ -118,26 +119,26 @@ function Confirm({ item, side, estimable, onDone }: { item: CatalogItem; side: S
         </div>
       ))}
       <div className="grid gap-1 text-sm font-semibold">
-        {estimable ? 'Your number (leave empty to use the estimate)' : 'How much'}
+        {estimable ? tr('budget.add_tray.your_number_leave_empty_to', 'Your number (leave empty to use the estimate)') : tr('budget.add_tray.how_much', 'How much')}
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 focus-within:border-[var(--org-primary-color)]">$
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" aria-label="Amount" className="h-10 w-24 bg-transparent pl-1 font-normal outline-none" />
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" aria-label={tr('budget.add_tray.amount', 'Amount')} className="h-10 w-24 bg-transparent pl-1 font-normal outline-none" />
           </span>
-          <select value={unit} onChange={(e) => setUnit(e.target.value as Unit)} aria-label="Per" className="h-10 rounded-xl border border-border bg-background px-2 font-normal">
-            {(item.hourly ? ['hr', 'wk', 'mo', 'yr'] : ['wk', 'mo', 'yr']).map((u) => <option key={u} value={u}>{u === 'hr' ? 'an hour' : u === 'wk' ? 'a week' : u === 'mo' ? 'a month' : 'a year'}</option>)}
+          <select value={unit} onChange={(e) => setUnit(e.target.value as Unit)} aria-label={tr('budget.add_tray.per', 'Per')} className="h-10 rounded-xl border border-border bg-background px-2 font-normal">
+            {(item.hourly ? ['hr', 'wk', 'mo', 'yr'] : ['wk', 'mo', 'yr']).map((u) => <option key={u} value={u}>{u === 'hr' ? tr('budget.add_tray.an_hour', 'an hour') : u === 'wk' ? tr('budget.add_tray.a_week', 'a week') : u === 'mo' ? tr('budget.add_tray.a_month', 'a month') : tr('budget.add_tray.a_year', 'a year')}</option>)}
           </select>
           {(item.hourly) && <span className="inline-flex items-center gap-1 font-normal text-muted-foreground">
-            <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" aria-label="Hours a week" className="h-10 w-14 rounded-xl border border-border bg-background px-2 text-right text-foreground outline-none" /> hrs a week
+            <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" aria-label={tr('budget.add_tray.hours_a_week', 'Hours a week')} className="h-10 w-14 rounded-xl border border-border bg-background px-2 text-right text-foreground outline-none" />{' '}{tr('budget.add_tray.hrs_a_week', 'hrs a week')}
           </span>}
         </div>
-        {item.metric && <span className="text-xs font-normal text-muted-foreground">{estimable ? `We only show an estimate when we have a published source for ${phase.place_label || 'this place'}.` : `We don't have a published estimate for ${phase.place_label || 'this place'} yet, so put in your own number.`}</span>}
+        {item.metric && <span className="text-xs font-normal text-muted-foreground">{estimable ? `We only show an estimate when we have a published source for ${phase.place_label || 'this place'}.` : tr('budget.add_tray.we_don_t_have_a', 'We don\'t have a published estimate for {{value}} yet, so put in your own number.', { value: phase.place_label || 'this place' })}</span>}
       </div>
-      <label className="grid gap-1 text-sm font-semibold">Starts
+      <label className="grid gap-1 text-sm font-semibold">{tr('budget.add_tray.starts', 'Starts')}
         <select value={start} onChange={(e) => setStart(Number(e.target.value))} className="h-10 rounded-xl border border-border bg-background px-2 font-normal">
-          {Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{m === 0 ? `At the start (${monthLabel(doc.start, off)})` : monthLabel(doc.start, off + m)}</option>)}
+          {Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{m === 0 ? tr('budget.add_tray.at_the_start_monthlabel', 'At the start ({{monthLabel}})', { monthLabel: monthLabel(doc.start, off) }) : monthLabel(doc.start, off + m)}</option>)}
         </select>
       </label>
-      <Button type="submit" variant="brand" className="w-full" disabled={!ok}>Add {title.trim() ? `"${title.trim()}"` : ''}</Button>
+      <Button type="submit" variant="brand" className="w-full" disabled={!ok}>{tr('budget.add_tray.add', 'Add')}{' '}{title.trim() ? `"${title.trim()}"` : ''}</Button>
     </form>
   )
 }

@@ -17,6 +17,7 @@ import {
   updateResourceReview,
 } from '@services/resources/resources'
 
+import { tr } from '@/lib/tr'
 function avatarUrl(review: ResourceComment) {
   if (!review.author?.avatar_image || !review.author?.user_uuid) return undefined
   if (review.author.avatar_image.startsWith('http')) return review.author.avatar_image
@@ -44,7 +45,7 @@ function RatingPicker({ value, onChange, label, compact = false }: { value: numb
 }
 
 function RatingDisplay({ rating }: { rating: number | null }) {
-  if (!rating) return <span className="text-xs text-muted-foreground">Legacy review · unrated</span>
+  if (!rating) return <span className="text-xs text-muted-foreground">{tr('resources.resource_comments.legacy_review_unrated', 'Legacy review · unrated')}</span>
   return (
     <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -115,7 +116,7 @@ export default function ResourceComments({
       mutate([...(reviews || []), created], false)
       onReviewsChange?.()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to post review')
+      toast.error(error?.message || tr('resources.resource_comments.failed_to_post_review', 'Failed to post review'))
     }
   }
 
@@ -131,7 +132,7 @@ export default function ResourceComments({
       onReviewsChange?.()
       setEditingId(null)
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update review')
+      toast.error(error?.message || tr('resources.resource_comments.failed_to_update_review', 'Failed to update review'))
     }
   }
 
@@ -142,14 +143,14 @@ export default function ResourceComments({
       mutate(reviews.filter((review) => review.comment_uuid !== commentUuid), false)
       onReviewsChange?.()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete review')
+      toast.error(error?.message || tr('resources.resource_comments.failed_to_delete_review', 'Failed to delete review'))
     }
   }
 
   return (
     <div className={compact ? 'p-4 sm:p-5' : 'p-6'}>
-      {!compact && <h2 className="text-lg font-semibold text-foreground">Reviews</h2>}
-      {!compact && <p className="mt-1 text-sm text-muted-foreground">Ratings and comments are visible to people with access.</p>}
+      {!compact && <h2 className="text-lg font-semibold text-foreground">{tr('resources.resource_comments.reviews', 'Reviews')}</h2>}
+      {!compact && <p className="mt-1 text-sm text-muted-foreground">{tr('resources.resource_comments.ratings_and_comments_are_visible', 'Ratings and comments are visible to people with access.')}</p>}
       <div className={compact ? 'max-h-48 space-y-1.5 overflow-y-auto pr-1' : 'mt-5 space-y-4'}>
         {reviews.map((review) => {
           const isAuthor = currentUserId === Number(review.author_id)
@@ -186,26 +187,26 @@ export default function ResourceComments({
                         setEditingRating(review.rating || 0)
                       }}
                     >
-                      Edit
+                      {tr('resources.new_user_resource_channel_modal.edit', 'Edit')}
                     </Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(review.comment_uuid)}>
-                      Delete
+                      {tr('resources.resource_comments.delete', 'Delete')}
                     </Button>
                   </div>
                 )}
               </div>
               {editingId === review.comment_uuid ? (
                 <div className="mt-4 space-y-3">
-                  <RatingPicker value={editingRating} onChange={setEditingRating} label="Edit your rating" compact={compact} />
+                  <RatingPicker value={editingRating} onChange={setEditingRating} label={tr('resources.resource_comments.edit_your_rating', 'Edit your rating')} compact={compact} />
                   <Textarea ref={editingRef} value={editingDraft} onChange={(event) => setEditingDraft(event.target.value)} rows={compact ? 2 : 3} />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleUpdate(review.comment_uuid)}>Save review</Button>
+                    <Button size="sm" onClick={() => handleUpdate(review.comment_uuid)}>{tr('resources.resource_comments.save_review', 'Save review')}</Button>
                     <Button size="sm" variant="outline" onClick={() => {
                       setEditingId(null)
                       setEditingDraft('')
                       setEditingRating(0)
                       onCancelDraft?.()
-                    }}>Cancel</Button>
+                    }}>{tr('careers.add_to_plans.cancel', 'Cancel')}</Button>
                   </div>
                 </div>
               ) : (
@@ -214,15 +215,15 @@ export default function ResourceComments({
             </div>
           )
         })}
-        {reviews.length === 0 && <p className="text-sm text-muted-foreground">No reviews yet.</p>}
+        {reviews.length === 0 && <p className="text-sm text-muted-foreground">{tr('resources.resource_comments.no_reviews_yet', 'No reviews yet.')}</p>}
       </div>
 
       {accessToken && !hasReview ? (
         <div className={compact ? 'mt-2 space-y-1.5 border-t border-border pt-2' : 'mt-6 space-y-3 border-t border-border pt-5'}>
-          <RatingPicker value={rating} onChange={setRating} label="Your rating" compact={compact} />
-          <Textarea ref={composerRef} className={compact ? 'min-h-16 resize-none text-xs' : ''} value={draft} onChange={(event) => setDraft(event.target.value)} rows={compact ? 2 : 3} placeholder="Share your experience" />
+          <RatingPicker value={rating} onChange={setRating} label={tr('resources.resource_comments.your_rating', 'Your rating')} compact={compact} />
+          <Textarea ref={composerRef} className={compact ? 'min-h-16 resize-none text-xs' : ''} value={draft} onChange={(event) => setDraft(event.target.value)} rows={compact ? 2 : 3} placeholder={tr('resources.resource_comments.share_your_experience', 'Share your experience')} />
           <div className="flex gap-2">
-            <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={handleCreate} disabled={!draft.trim() || !rating}>Post review</Button>
+            <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={handleCreate} disabled={!draft.trim() || !rating}>{tr('resources.resource_comments.post_review', 'Post review')}</Button>
             {(draft || rating > 0) && (
               <Button
                 size={compact ? 'sm' : 'default'}
@@ -234,15 +235,15 @@ export default function ResourceComments({
                   onCancelDraft?.()
                 }}
               >
-                Cancel
+                {tr('careers.add_to_plans.cancel', 'Cancel')}
               </Button>
             )}
           </div>
         </div>
       ) : accessToken ? (
-        <p className="mt-6 text-sm text-muted-foreground">You can edit your review above.</p>
+        <p className="mt-6 text-sm text-muted-foreground">{tr('resources.resource_comments.you_can_edit_your_review', 'You can edit your review above.')}</p>
       ) : (
-        <p className="mt-6 text-sm text-muted-foreground">Sign in to review this resource.</p>
+        <p className="mt-6 text-sm text-muted-foreground">{tr('resources.resource_comments.sign_in_to_review_this', 'Sign in to review this resource.')}</p>
       )}
     </div>
   )

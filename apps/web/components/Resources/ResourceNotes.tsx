@@ -22,6 +22,7 @@ import {
   uploadResourceNote,
 } from '@services/resources/resources'
 
+import { tr } from '@/lib/tr'
 const WEB_URL = /^https?:\/\/\S+$/i
 
 function requireSuccess(result: any) {
@@ -62,7 +63,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       mutate([...notes, created], false)
       onNotesChange?.()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to add note')
+      toast.error(error?.message || tr('resources.resource_notes.failed_to_add_note', 'Failed to add note'))
     } finally {
       setIsSaving(false)
     }
@@ -71,7 +72,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
   const addLink = async (rawUrl: string) => {
     const url = rawUrl.trim()
     if (!accessToken || !WEB_URL.test(url)) {
-      toast.error('Paste a complete http or https link')
+      toast.error(tr('resources.resource_notes.paste_a_complete_http_or', 'Paste a complete http or https link'))
       return
     }
     setIsSaving(true)
@@ -82,7 +83,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       mutate([...notes, created], false)
       onNotesChange?.()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to add link')
+      toast.error(error?.message || tr('resources.resource_notes.failed_to_add_link', 'Failed to add link'))
     } finally {
       setIsSaving(false)
     }
@@ -98,9 +99,9 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       }
       mutate([...notes, ...created], false)
       onNotesChange?.()
-      toast.success(created.length === 1 ? 'Media added to Notes' : `${created.length} items added to Notes`)
+      toast.success(created.length === 1 ? tr('resources.resource_notes.media_added_to_notes', 'Media added to Notes') : `${created.length} items added to Notes`)
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to upload media')
+      toast.error(error?.message || tr('resources.resource_notes.failed_to_upload_media', 'Failed to upload media'))
       mutate()
     } finally {
       setIsSaving(false)
@@ -151,7 +152,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       setEditing(null)
       onNotesChange?.()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update note')
+      toast.error(error?.message || tr('resources.resource_notes.failed_to_update_note', 'Failed to update note'))
     } finally {
       setIsSaving(false)
     }
@@ -163,7 +164,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       requireSuccess(await deleteResourceNote(noteUuid, accessToken))
       mutate(notes.filter((note) => note.note_uuid !== noteUuid), false)
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete note')
+      toast.error(error?.message || tr('resources.resource_notes.failed_to_delete_note', 'Failed to delete note'))
     }
   }
 
@@ -218,7 +219,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
       setCompactTextOverride(null)
       if (savedMeaningfulChange) onNotesChange?.()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to save note')
+      toast.error(error?.message || tr('resources.resource_notes.failed_to_save_note', 'Failed to save note'))
     } finally {
       setIsSaving(false)
     }
@@ -227,8 +228,8 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
   if (!accessToken) {
     return (
       <Card size={compact ? 'none' : 'sm'} className={compact ? 'rounded-xl p-3' : ''}>
-        <h2 className={compact ? 'text-sm font-semibold text-foreground' : 'text-base font-semibold text-foreground'}>Notes</h2>
-        <p className={compact ? 'mt-1 text-xs text-muted-foreground' : 'mt-2 text-sm text-muted-foreground'}>Sign in to keep private notes and media with this resource.</p>
+        <h2 className={compact ? 'text-sm font-semibold text-foreground' : 'text-base font-semibold text-foreground'}>{tr('resources.resource_notes.notes', 'Notes')}</h2>
+        <p className={compact ? 'mt-1 text-xs text-muted-foreground' : 'mt-2 text-sm text-muted-foreground'}>{tr('resources.resource_notes.sign_in_to_keep_private', 'Sign in to keep private notes and media with this resource.')}</p>
       </Card>
     )
   }
@@ -265,13 +266,13 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
             }
           }}
           rows={4}
-          placeholder="Add a note about what you learned…"
+          placeholder={tr('resources.resource_notes.add_a_note_about_what', 'Add a note about what you learned…')}
           className="min-h-28 resize-none rounded-xl border-0 bg-muted/45 px-4 py-3 text-sm leading-6 shadow-none focus-visible:bg-muted/60 focus-visible:ring-1"
         />
 
         <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
           <LockKeyhole className="h-3.5 w-3.5" />
-          <span>{isSaving ? 'Saving…' : 'Only you can see your notes'}</span>
+          <span>{isSaving ? tr('discover.discover_settings_panel.saving', 'Saving…') : tr('resources.resource_notes.only_you_can_see_your', 'Only you can see your notes')}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -282,19 +283,19 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                 disabled={isSaving || !userId}
               >
                 {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                Add media
+                {tr('resources.resource_notes.add_media', 'Add media')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setPickerType('image')}><ImageIcon className="mr-2 h-4 w-4" /> Image</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPickerType('document')}><FileText className="mr-2 h-4 w-4" /> PDF</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPickerType('image')}><ImageIcon className="mr-2 h-4 w-4" />{' '}{tr('resources.resource_notes.image', 'Image')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPickerType('document')}><FileText className="mr-2 h-4 w-4" />{' '}{tr('resources.resource_notes.pdf', 'PDF')}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <span className="sr-only" aria-live="polite">{isDragging ? 'Drop to attach' : ''}</span>
+          <span className="sr-only" aria-live="polite">{isDragging ? tr('resources.resource_notes.drop_to_attach', 'Drop to attach') : ''}</span>
         </div>
 
         {attachmentNotes.length > 0 && (
-          <div className="-mx-1 mt-3 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1" aria-label="Note attachments">
+          <div className="-mx-1 mt-3 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1" aria-label={tr('resources.resource_notes.note_attachments', 'Note attachments')}>
             {attachmentNotes.map((note) => {
               const href = note.block_type === 'link' ? note.url || '#' : mediaUrl(note)
               const preview = note.block_type === 'image' ? mediaUrl(note) : note.preview_image_url
@@ -308,7 +309,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                     )}
                     <p className="truncate px-1.5 py-1 text-[9px] text-muted-foreground">{note.title || note.original_filename || note.url}</p>
                   </a>
-                  <button type="button" onClick={() => void removeNote(note.note_uuid)} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/85 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100" aria-label="Remove attachment">
+                  <button type="button" onClick={() => void removeNote(note.note_uuid)} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/85 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100" aria-label={tr('resources.resource_notes.remove_attachment', 'Remove attachment')}>
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
@@ -321,7 +322,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
             open
             onOpenChange={(open) => { if (!open) setPickerType(null) }}
             title={`Add ${pickerType === 'image' ? 'an image' : 'a PDF'} to Notes`}
-            description="Upload something new or choose it from your media library."
+            description={tr('resources.resource_notes.upload_something_new_or_choose', 'Upload something new or choose it from your media library.')}
             owner={{ type: 'user', id: Number(userId) }}
             mediaType={pickerType}
             initialTab="library"
@@ -349,16 +350,16 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
     >
       <div className={`flex items-start justify-between ${compact ? 'gap-2' : 'gap-4'}`}>
         <div>
-          <h2 className={compact ? 'text-sm font-semibold text-foreground' : 'text-base font-semibold text-foreground'}>Notes</h2>
-          <p className={compact ? 'mt-0.5 text-[11px] leading-4 text-muted-foreground' : 'mt-1 text-sm text-muted-foreground'}>Private to you. Paste or drop text, links, images, or PDFs.</p>
+          <h2 className={compact ? 'text-sm font-semibold text-foreground' : 'text-base font-semibold text-foreground'}>{tr('resources.resource_notes.notes', 'Notes')}</h2>
+          <p className={compact ? 'mt-0.5 text-[11px] leading-4 text-muted-foreground' : 'mt-1 text-sm text-muted-foreground'}>{tr('resources.resource_notes.private_to_you_paste_or', 'Private to you. Paste or drop text, links, images, or PDFs.')}</p>
         </div>
         <Button
           type="button"
           variant="outline"
           size="icon"
           className={compact ? 'h-7 w-7 shrink-0' : ''}
-          aria-label="Add media to Notes"
-          title="Add media"
+          aria-label={tr('resources.resource_notes.add_media_to_notes', 'Add media to Notes')}
+          title={tr('resources.resource_notes.add_media', 'Add media')}
           onClick={() => fileInputRef.current?.click()}
           disabled={isSaving}
         >
@@ -376,7 +377,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
 
       {isDragging && (
         <div className={`${compact ? 'mt-2 rounded-lg p-3 text-xs' : 'mt-4 rounded-2xl p-8 text-sm'} flex items-center justify-center gap-2 border-2 border-dashed border-[var(--org-primary-color)] font-medium`}>
-          <Clipboard /> Drop media into Notes
+          <Clipboard />{' '}{tr('resources.resource_notes.drop_media_into_notes', 'Drop media into Notes')}
         </div>
       )}
 
@@ -389,14 +390,14 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                   <Textarea value={editContent} onChange={(event) => setEditContent(event.target.value)} rows={4} />
                 ) : (
                   <>
-                    <Input value={editUrl} onChange={(event) => setEditUrl(event.target.value)} aria-label="Link URL" />
-                    <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Card title" />
-                    <Textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} placeholder="Card description" />
+                    <Input value={editUrl} onChange={(event) => setEditUrl(event.target.value)} aria-label={tr('resources.resource_notes.link_url', 'Link URL')} />
+                    <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder={tr('resources.resource_notes.card_title', 'Card title')} />
+                    <Textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} placeholder={tr('resources.resource_notes.card_description', 'Card description')} />
                   </>
                 )}
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={saveEdit} disabled={isSaving}>Save</Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                  <Button size="sm" onClick={saveEdit} disabled={isSaving}>{tr('careers.career_take.save', 'Save')}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditing(null)}>{tr('careers.add_to_plans.cancel', 'Cancel')}</Button>
                 </div>
               </div>
             ) : (
@@ -419,7 +420,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                     <div className="min-w-0 py-1">
                       <div className={`${compact ? 'line-clamp-1 text-xs' : 'line-clamp-2 text-sm'} font-semibold text-foreground`}>{note.title || note.url}</div>
                       {note.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{note.description}</p>}
-                      <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground"><ExternalLink size={12} /> Open link</span>
+                      <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground"><ExternalLink size={12} />{' '}{tr('resources.resource_notes.open_link', 'Open link')}</span>
                     </div>
                   </a>
                 )}
@@ -429,7 +430,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                       className={`aspect-video bg-muted bg-contain bg-center bg-no-repeat ${compact ? 'max-h-24 rounded-md' : 'max-h-72 rounded-xl'}`}
                       style={{ backgroundImage: `url("${mediaUrl(note).replace(/"/g, '%22')}")` }}
                       role="img"
-                      aria-label={note.original_filename || 'Note image'}
+                      aria-label={note.original_filename || tr('resources.resource_notes.note_image', 'Note image')}
                     />
                     <span className="mt-2 flex items-center gap-2 text-xs text-muted-foreground"><ImageIcon size={13} /> {note.original_filename}</span>
                   </a>
@@ -437,15 +438,15 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                 {note.block_type === 'file' && (
                   <a href={mediaUrl(note)} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl bg-muted p-3 text-sm font-medium text-foreground">
                     <FileText />
-                    <span className="min-w-0 flex-1 truncate">{note.original_filename || 'Attachment'}</span>
+                    <span className="min-w-0 flex-1 truncate">{note.original_filename || tr('resources.resource_notes.attachment', 'Attachment')}</span>
                     <ExternalLink size={14} className="text-muted-foreground" />
                   </a>
                 )}
                 <div className={`${compact ? 'mt-1' : 'mt-2'} flex justify-end gap-1`}>
                   {(note.block_type === 'text' || note.block_type === 'link') && (
-                    <Button size="icon" variant="ghost" className={compact ? 'h-6 w-6' : 'h-8 w-8'} aria-label="Edit note" onClick={() => startEdit(note)}><Pencil size={compact ? 12 : 14} /></Button>
+                    <Button size="icon" variant="ghost" className={compact ? 'h-6 w-6' : 'h-8 w-8'} aria-label={tr('resources.resource_notes.edit_note', 'Edit note')} onClick={() => startEdit(note)}><Pencil size={compact ? 12 : 14} /></Button>
                   )}
-                  <Button size="icon" variant="ghost" className={`${compact ? 'h-6 w-6' : 'h-8 w-8'} text-destructive`} aria-label="Delete note" onClick={() => removeNote(note.note_uuid)}><Trash2 size={compact ? 12 : 14} /></Button>
+                  <Button size="icon" variant="ghost" className={`${compact ? 'h-6 w-6' : 'h-8 w-8'} text-destructive`} aria-label={tr('resources.resource_notes.delete_note', 'Delete note')} onClick={() => removeNote(note.note_uuid)}><Trash2 size={compact ? 12 : 14} /></Button>
                 </div>
               </>
             )}
@@ -453,7 +454,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
         ))}
         {notes.length === 0 && !isDragging && (
           <div className={`${compact ? 'rounded-lg p-3 text-xs' : 'rounded-2xl p-5 text-sm'} border border-dashed border-border text-center text-muted-foreground`}>
-            Add something you will want when you return to this resource.
+            {tr('resources.resource_notes.add_something_you_will_want', 'Add something you will want when you return to this resource.')}
           </div>
         )}
       </div>
@@ -465,18 +466,18 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
           onPaste={handlePaste}
           rows={compact ? 2 : 3}
           className={compact ? 'min-h-16 resize-none text-xs' : ''}
-          placeholder="Write a note, or paste a link or image…"
+          placeholder={tr('resources.resource_notes.write_a_note_or_paste', 'Write a note, or paste a link or image…')}
         />
         {showLinkInput && (
           <div className="flex gap-2">
             <Input value={linkDraft} onChange={(event) => setLinkDraft(event.target.value)} placeholder="https://…" />
-            <Button variant="outline" onClick={() => void addLink(linkDraft)} disabled={isSaving}>Add link</Button>
+            <Button variant="outline" onClick={() => void addLink(linkDraft)} disabled={isSaving}>{tr('resources.resource_notes.add_link', 'Add link')}</Button>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={addText} disabled={!draft.trim() || isSaving}>Add note</Button>
-          <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} variant="ghost" onClick={() => setShowLinkInput((value) => !value)}><Link2 className={compact ? 'h-3.5 w-3.5' : ''} /> Add link</Button>
-          {!compact && <span className="ml-auto text-xs text-muted-foreground">Paste and drag supported</span>}
+          <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={addText} disabled={!draft.trim() || isSaving}>{tr('resources.resource_notes.add_note', 'Add note')}</Button>
+          <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} variant="ghost" onClick={() => setShowLinkInput((value) => !value)}><Link2 className={compact ? 'h-3.5 w-3.5' : ''} />{' '}{tr('resources.resource_notes.add_link', 'Add link')}</Button>
+          {!compact && <span className="ml-auto text-xs text-muted-foreground">{tr('resources.resource_notes.paste_and_drag_supported', 'Paste and drag supported')}</span>}
         </div>
       </div>
     </Card>

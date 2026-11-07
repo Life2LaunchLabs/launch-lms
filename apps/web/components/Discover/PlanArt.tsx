@@ -10,6 +10,7 @@ import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { PlanOfferCard } from '@services/goals/planJoining'
 
+import { tr } from '@/lib/tr'
 /** Tile colors behind plan art, picked per plan so a row reads as a colorful shelf; each theme sets its own shades. */
 const TILES = Array.from({ length: 7 }, (_, index) => `var(--badge-tile-${index})`)
 
@@ -73,5 +74,5 @@ export function CollectedPill({ cards }: { cards: PlanOfferCard[] }) {
   const badged = cards.filter((card) => card.badge)
   if (!badged.length) return null
   const earned = badged.filter((card) => card.state === 'earned').length
-  return <span className="rounded-full bg-raised px-2.5 py-1 text-xs font-bold text-muted-foreground">{earned} of {badged.length} badges earned</span>
+  return <span className="rounded-full bg-raised px-2.5 py-1 text-xs font-bold text-muted-foreground">{tr('discover.plan_art.earned_of_length_badges_earned', '{{earned}} of {{length}} badges earned', { earned, length: badged.length })}</span>
 }

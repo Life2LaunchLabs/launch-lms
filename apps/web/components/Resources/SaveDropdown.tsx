@@ -17,6 +17,7 @@ import NewUserResourceChannelModal from '@components/Resources/NewUserResourceCh
 import { getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 import ResourceShareModal from '@components/Resources/ResourceShareModal'
 
+import { tr } from '@/lib/tr'
 interface SaveDropdownProps {
   resourceUuid: string
   isSaved: boolean
@@ -127,7 +128,7 @@ export default function SaveDropdown({
         onSaveChange(true)
       }
     } catch {
-      toast.error(isSaved ? 'Failed to remove save' : 'Failed to save resource')
+      toast.error(isSaved ? tr('resources.save_dropdown.failed_to_remove_save', 'Failed to remove save') : tr('resources.save_dropdown.failed_to_save_resource', 'Failed to save resource'))
     } finally {
       setSavingSave(false)
     }
@@ -160,7 +161,7 @@ export default function SaveDropdown({
         }, 900)
       }
     } catch {
-      toast.error(isActive ? 'Failed to remove from channel' : 'Failed to add to channel')
+      toast.error(isActive ? tr('resources.save_dropdown.failed_to_remove_from_channel', 'Failed to remove from channel') : tr('resources.save_dropdown.failed_to_add_to_channel', 'Failed to add to channel'))
     } finally {
       setPendingChannelUuid(null)
     }
@@ -237,7 +238,7 @@ export default function SaveDropdown({
               className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Share2 size={14} className="shrink-0" />
-              <span className="flex-1 truncate text-left">Share</span>
+              <span className="flex-1 truncate text-left">{tr('resources.resource_share_modal.share', 'Share')}</span>
             </button>
           )}
           <button
@@ -249,13 +250,13 @@ export default function SaveDropdown({
             className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted disabled:cursor-wait ${isSaved ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {savingSave ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Bookmark size={14} className={`shrink-0 ${isSaved ? 'fill-current' : ''}`} />}
-            <span className="flex-1 truncate text-left">{isSaved ? 'Remove from Library' : 'Add to Library'}</span>
+            <span className="flex-1 truncate text-left">{isSaved ? tr('resources.save_dropdown.remove_from_library', 'Remove from Library') : tr('resources.save_dropdown.add_to_library', 'Add to Library')}</span>
           </button>
           <div className="my-1 border-t border-border" />
         </>
       )}
       <div className="px-3 pb-1 pt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-        Add to lists
+        {tr('resources.save_dropdown.add_to_lists', 'Add to lists')}
       </div>
       {userChannels.length > 0 ? (
         <>
@@ -291,7 +292,7 @@ export default function SaveDropdown({
           })}
         </>
       ) : (
-        <p className="px-3 py-2 text-xs text-muted-foreground">No lists yet</p>
+        <p className="px-3 py-2 text-xs text-muted-foreground">{tr('resources.save_dropdown.no_lists_yet', 'No lists yet')}</p>
       )}
       <button
         onClick={() => {
@@ -303,7 +304,7 @@ export default function SaveDropdown({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-muted text-muted-foreground">
           <Plus size={12} />
         </span>
-        <span className="flex-1 truncate text-left">New list</span>
+        <span className="flex-1 truncate text-left">{tr('resources.new_user_resource_channel_modal.new_list', 'New list')}</span>
         <Plus size={12} className="text-muted-foreground" />
       </button>
       {share && !isMenu && (
@@ -317,7 +318,7 @@ export default function SaveDropdown({
             className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
           >
             <Share2 size={14} className="shrink-0 text-muted-foreground" />
-            <span className="flex-1 truncate text-left">Share</span>
+            <span className="flex-1 truncate text-left">{tr('resources.resource_share_modal.share', 'Share')}</span>
           </button>
         </>
       )}
@@ -331,7 +332,7 @@ export default function SaveDropdown({
           onClick={handleSaveToggle}
           disabled={savingSave}
           className={saveButtonClass}
-          title={isSaved ? 'Remove from Library' : 'Add to Library'}
+          title={isSaved ? tr('resources.save_dropdown.remove_from_library', 'Remove from Library') : tr('resources.save_dropdown.add_to_library', 'Add to Library')}
         >
           {savingSave ? (
             <Loader2 size={isCard ? 15 : 14} className="animate-spin" />
@@ -345,8 +346,8 @@ export default function SaveDropdown({
         ref={menuButtonRef}
         onClick={open ? () => setOpen(false) : openDropdown}
         className={menuButtonClass}
-        title={isMenu ? 'Resource actions' : 'Add to list'}
-        aria-label={isMenu ? 'Resource actions' : 'Add to list'}
+        title={isMenu ? tr('resources.save_dropdown.resource_actions', 'Resource actions') : tr('resources.save_dropdown.add_to_list', 'Add to list')}
+        aria-label={isMenu ? tr('resources.save_dropdown.resource_actions', 'Resource actions') : tr('resources.save_dropdown.add_to_list', 'Add to list')}
       >
         {isChips ? <Plus size={13} /> : <MoreVertical size={isCard ? 15 : 16} />}
       </button>

@@ -13,6 +13,7 @@ import HubResourceLibrary from '../resources/HubResourceLibrary'
 import HubMemoryNotice from './HubMemoryNotice'
 import { MicButton } from '@components/Accessibility/ReadAloud'
 
+import { tr } from '@/lib/tr'
 const LINE_HEIGHT = 24
 const VERTICAL_PADDING = 20
 const MAX_LINES = 8
@@ -94,13 +95,13 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
     <div ref={overlayRef} className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-3 pb-3 sm:px-4 sm:pb-4">
       {memory.visible ? <HubMemoryNotice orgslug={orgslug} enabled={memory.enabled} saving={memory.saving} onSave={memory.onSave} onDismiss={() => void memory.onDismiss()} onLearnMore={(href) => { void memory.onDismiss().finally(() => window.location.assign(href)) }} /> : null}
       {reviewItems.length ? <div className="hub-edit-review-tray mb-2 flex items-center justify-between gap-3 rounded-2xl border-2 border-border bg-card px-3 py-2" role="status">
-        <div className="min-w-0"><p className="truncate text-xs font-semibold">Ready to review</p><p className="truncate text-[11px] text-muted-foreground">{reviewItems.length === 1 ? reviewItems[0].label : `${reviewItems.length} objects changed`}</p></div>
-        <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => onReview(reviewItems[0].targetId)}>Review <ArrowRight size={12} /></Button>
+        <div className="min-w-0"><p className="truncate text-xs font-semibold">{tr('coach.hub_composer.ready_to_review', 'Ready to review')}</p><p className="truncate text-[11px] text-muted-foreground">{reviewItems.length === 1 ? reviewItems[0].label : `${reviewItems.length} objects changed`}</p></div>
+        <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => onReview(reviewItems[0].targetId)}>{tr('coach.hub_composer.review', 'Review')}{' '}<ArrowRight size={12} /></Button>
       </div> : null}
       {conversationStarted ? <HubResourceTrayHandle resources={contextResources} onOpen={onOpenTray} /> : null}
       <form onSubmit={onSubmit} className="flex flex-col justify-end">
         <div className="hub-composer-shell rounded-[1.4rem] p-2">
-          <label htmlFor="hub-composer" className="sr-only">Ask a question or search Launch LMS</label>
+          <label htmlFor="hub-composer" className="sr-only">{tr('coach.hub_composer.ask_a_question_or_search', 'Ask a question or search Launch LMS')}</label>
           <div className="relative overflow-hidden rounded-xl">
             <Textarea
               ref={textareaRef}
@@ -110,7 +111,7 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
               onScroll={(event) => updateFades(event.currentTarget)}
               maxLength={2000}
               rows={1}
-              placeholder="Message Coach"
+              placeholder={tr('coach.hub_composer.message_coach', 'Message Coach')}
               disabled={loading}
               className="min-h-11 resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 shadow-none focus-visible:ring-0"
               onKeyDown={(event) => {
@@ -125,21 +126,21 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
           <div className="flex h-9 items-center justify-between gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={!accessToken || !orgId} aria-label="Add a resource to this chat"><Paperclip className="h-4 w-4" /></Button>
+                <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={!accessToken || !orgId} aria-label={tr('coach.hub_composer.add_a_resource_to_this', 'Add a resource to this chat')}><Paperclip className="h-4 w-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" className="w-56">
-                <DropdownMenuItem onSelect={() => setLibraryOpen(true)}><Bookmark /> Saved resource</DropdownMenuItem>
-                {onBrowse ? <DropdownMenuItem onSelect={onBrowse}><Compass /> Find one in Discover</DropdownMenuItem> : null}
+                <DropdownMenuItem onSelect={() => setLibraryOpen(true)}><Bookmark />{' '}{tr('coach.hub_composer.saved_resource', 'Saved resource')}</DropdownMenuItem>
+                {onBrowse ? <DropdownMenuItem onSelect={onBrowse}><Compass />{' '}{tr('coach.hub_composer.find_one_in_discover', 'Find one in Discover')}</DropdownMenuItem> : null}
               </DropdownMenuContent>
             </DropdownMenu>
             <div className="flex items-center gap-1.5">
-            <MicButton value={draft} onChange={setDraft} size="sm" label="Talk to Coach instead of typing" />
+            <MicButton value={draft} onChange={setDraft} size="sm" label={tr('coach.hub_composer.talk_to_coach_instead_of', 'Talk to Coach instead of typing')} />
             <Button
               type={sending ? 'button' : 'submit'}
               size="icon"
               className="h-9 w-9 rounded-xl"
               disabled={sending ? false : !draft.trim() || loading || !accessToken}
-              aria-label={sending ? 'Stop response' : 'Send message'}
+              aria-label={sending ? tr('coach.hub_composer.stop_response', 'Stop response') : tr('coach.hub_composer.send_message', 'Send message')}
               onClick={sending ? onStop : undefined}
             >
               {sending ? <Square className="h-3.5 w-3.5 fill-current" /> : <Send className="h-4 w-4" />}

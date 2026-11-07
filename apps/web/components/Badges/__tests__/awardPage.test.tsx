@@ -5,9 +5,10 @@ import AwardPage from '@components/Badges/AwardPage'
 import { certificateFileName } from '@components/Badges/awardSharing'
 import type { BadgeAward } from '@services/badges/badges'
 
+import { tr } from '@/lib/tr'
 const award = {
   award_uuid: 'award_1', code: 'K7M2Q9XB', template_uuid: 't1', semver: '1.0.0', source: 'plan_completion', earned_on: '2026-10-20', issued_at: '2026-10-20T12:00:00',
-  achievement: { template_uuid: 't1', name: 'Launch Ready', kind: 'Badge', image_url: '', skills: ['Teamwork'], style: 'modern', description: 'Ready to launch.', criteria_narrative: '', creator: null },
+  achievement: { template_uuid: 't1', name: 'Launch Ready', kind: 'Badge', image_url: '', skills: ['Teamwork'], style: 'modern', get description() { return tr('badges.award_page_test.ready_to_launch', 'Ready to launch.') }, criteria_narrative: '', creator: null },
   statement: '', evidence_url: '', awarded_by: null, learner: { id: 9, user_uuid: 'user_9', username: 'maya', name: 'Maya Rivera' },
   issuing_org: { id: 1, org_uuid: 'org_1', slug: 'riverside', name: 'Riverside', logo_image: null },
   status: 'active', revoked_at: null, revoked_reason: '', signed: true,

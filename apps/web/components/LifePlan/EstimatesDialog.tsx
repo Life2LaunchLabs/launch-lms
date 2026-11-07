@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { estimateQuery, lineValue, money, toMonthly } from './model'
 import { applyRows, planRows, shareSettings, type Row } from './prefill'
 
+import { tr } from '@/lib/tr'
 export type EstimatesMode = 'start' | 'change' | 'fill'
 interface Knob { share?: number; hours?: number; plan?: string }
 /** A state or national figure stands in for the city. A school's own figure (filed under the US) doesn't. */
@@ -133,7 +134,7 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
     if (householdLabel(base.household) !== householdLabel(phase.household) || JSON.stringify(base.household?.kids || []) !== JSON.stringify(phase.household?.kids || [])) chips.push({ icon: <Users size={14} />, now: householdLabel(phase.household), was: householdLabel(base.household).toLowerCase() })
   }
 
-  const amount = (v: number) => <>{money(Math.round(v), { sign: true })}<span className="ml-px text-[0.8em] font-normal text-muted-foreground">/mo</span></>
+  const amount = (v: number) => <>{money(Math.round(v), { sign: true })}<span className="ml-px text-[0.8em] font-normal text-muted-foreground">{tr('budget.estimates_dialog.mo', '/mo')}</span></>
   const section = (side: 'in' | 'out', title: string) => {
     const items = list.filter((x) => x.r.side === side)
     if (!items.length) return null
@@ -143,7 +144,7 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
         onToggle={() => setChecked({ ...checked, [x.r.id]: !isOn(x) })} onInfo={() => setInfo(info === x.r.id ? null : x.r.id)}
         onKnob={(k) => setKnobs({ ...knobs, [x.r.id]: { ...knobs[x.r.id], ...k } })} />)}
       <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto_36px] items-baseline gap-x-2.5 border-t border-border pt-1.5 text-sm text-muted-foreground">
-        <span>{start ? 'Total' : 'Change'}</span>
+        <span>{start ? tr('budget.estimates_dialog.total', 'Total') : tr('careers.career_profile.change', 'Change')}</span>
         <b className={cn('text-[15px] font-extrabold tabular-nums', side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground')}>{amount(total(side))}</b><span />
       </div>
     </div>
@@ -151,27 +152,27 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
 
   return <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
     <DialogContent className="max-h-[92dvh] max-w-[440px] overflow-y-auto p-5">
-      <DialogTitle className="text-xl font-extrabold">Estimates</DialogTitle>
-      <DialogDescription className="sr-only">{start ? 'Lines and amounts for this phase, from where you live, how you live and what you’re doing.' : 'What your change does to this phase’s budget.'}</DialogDescription>
+      <DialogTitle className="text-xl font-extrabold">{tr('budget.estimates_dialog.estimates', 'Estimates')}</DialogTitle>
+      <DialogDescription className="sr-only">{start ? tr('budget.estimates_dialog.lines_and_amounts_for_this', 'Lines and amounts for this phase, from where you live, how you live and what you’re doing.') : tr('budget.estimates_dialog.what_your_change_does_to', 'What your change does to this phase’s budget.')}</DialogDescription>
       {chips.length ? <div className="mt-3 grid gap-1.5">{chips.map((c, i) => <div key={i} className="flex flex-wrap items-center gap-2.5">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm font-semibold">{c.icon}{c.now}</span>
-        {c.was ? <span className="text-sm text-muted-foreground">was {c.was}</span> : null}
+        {c.was ? <span className="text-sm text-muted-foreground">{tr('budget.estimates_dialog.was_was', 'was {{was}}', { was: c.was })}</span> : null}
       </div>)}</div> : null}
       {!catalog || (loading && !list.length) ? <div className="mt-4 grid gap-2"><Skeleton className="h-6" /><Skeleton className="h-6" /><Skeleton className="h-6" /></div>
-        : !list.length ? <p className="mt-4 text-sm text-muted-foreground">{start ? 'Your budget already has every line we’d suggest.' : 'Nothing in your budget changes.'}</p>
+        : !list.length ? <p className="mt-4 text-sm text-muted-foreground">{start ? tr('budget.estimates_dialog.your_budget_already_has_every', 'Your budget already has every line we’d suggest.') : tr('budget.estimates_dialog.nothing_in_your_budget_changes', 'Nothing in your budget changes.')}</p>
         : <div className="mt-2 grid gap-2">
           {section('in', 'Income')}
           {section('out', 'Expenses')}
           <div className="grid grid-cols-[minmax(0,1fr)_auto_36px] items-baseline gap-x-2.5 border-t border-border pt-2.5">
-            <span className="text-base font-extrabold">{start ? 'Left over, before taxes' : 'Left over changes by'}</span>
+            <span className="text-base font-extrabold">{start ? tr('budget.estimates_dialog.left_over_before_taxes', 'Left over, before taxes') : tr('budget.estimates_dialog.left_over_changes_by', 'Left over changes by')}</span>
             <b className={cn('font-extrabold tabular-nums', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{amount(net)}</b><span />
           </div>
-          <p className="text-xs text-muted-foreground">Lines with <span className="font-bold text-amber-600 dark:text-amber-400">*</span> use a state or national figure, not one for your city. Tap <Info className="inline size-3" /> to see where a number comes from.</p>
+          <p className="text-xs text-muted-foreground">{tr('budget.estimates_dialog.lines_with', 'Lines with')}{' '}<span className="font-bold text-amber-600 dark:text-amber-400">*</span>{' '}{tr('budget.estimates_dialog.use_a_state_or_national', 'use a state or national figure, not one for your city. Tap')}{' '}<Info className="inline size-3" />{' '}{tr('budget.estimates_dialog.to_see_where_a_number', 'to see where a number comes from.')}</p>
         </div>}
-      {list.length && !start ? <label className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} className="size-4 accent-[var(--org-primary-color)]" />Don’t ask next time, just update</label> : null}
+      {list.length && !start ? <label className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} className="size-4 accent-[var(--org-primary-color)]" />{tr('budget.estimates_dialog.don_t_ask_next_time', 'Don’t ask next time, just update')}</label> : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {list.length ? <Button variant="brand" disabled={!on.length || !catalog} onClick={() => { apply(dontAsk); onClose() }}><Sparkles size={15} />{start ? `Add ${on.length} line${on.length === 1 ? '' : 's'}` : `Apply ${on.length} change${on.length === 1 ? '' : 's'}`}</Button> : null}
-        <Button variant="ghost" onClick={() => onClose()}>{list.length ? 'Not now' : 'Close'}</Button>
+        <Button variant="ghost" onClick={() => onClose()}>{list.length ? tr('budget.estimates_dialog.not_now', 'Not now') : tr('discover.resource_sheet.close', 'Close')}</Button>
       </div>
     </DialogContent>
   </Dialog>
@@ -193,18 +194,18 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
       <button type="button" role="checkbox" aria-checked={on} aria-label={`${gone ? 'Remove' : r.kind === 'add' ? 'Add' : 'Update'} ${r.title}`} onClick={onToggle}
         className={cn('grid size-5 place-items-center rounded-md border-2', on ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border')}>{on ? <Check size={13} strokeWidth={3} /> : null}</button>
       <span className={cn('min-w-0 truncate', gone && 'text-muted-foreground line-through', !on && 'text-muted-foreground')}>{r.title}</span>
-      <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{r.kind === 'change' && x.now != null ? <>{x.mine ? 'yours ' : ''}<s>{money(Math.round(x.was ?? 0))}</s> → {money(Math.round(x.now))}</> : null}</span>
+      <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{r.kind === 'change' && x.now != null ? <>{x.mine ? tr('budget.estimates_dialog.yours', 'yours ') : ''}<s>{money(Math.round(x.was ?? 0))}</s> → {money(Math.round(x.now))}</> : null}</span>
       <span className={cn('min-w-[76px] text-right font-semibold tabular-nums', (gone || !on) && 'text-muted-foreground', gone && 'line-through')}>
-        {value == null ? (loading ? '…' : <span className="text-xs font-normal text-muted-foreground">No estimate yet</span>) : amount(value)}
+        {value == null ? (loading ? '…' : <span className="text-xs font-normal text-muted-foreground">{tr('budget.estimates_dialog.no_estimate_yet', 'No estimate yet')}</span>) : amount(value)}
       </span>
       <span className="inline-flex w-9 items-center justify-end gap-px">
-        {wide ? <span className="font-bold text-amber-600 dark:text-amber-400" aria-label="Not for your city">*</span> : null}
+        {wide ? <span className="font-bold text-amber-600 dark:text-amber-400" aria-label={tr('budget.budget_table.not_for_your_city', 'Not for your city')}>*</span> : null}
         {src ? <button type="button" onClick={onInfo} aria-expanded={info} aria-label={`Where ${r.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
       </span>
     </div>
     {!gone && next && (shareSetting || planSetting || r.item === 'job') ? <div className="flex flex-wrap gap-1.5 pb-1.5 pl-[30px]">
       {shareSetting ? <label className="relative inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold hover:ring-1 hover:ring-[var(--org-primary-color)]">
-        <select aria-label="Split with" value={Number(next.settings.share || 1)} onChange={(e) => onKnob({ share: Number(e.target.value) })} className="cursor-pointer appearance-none bg-transparent pr-4 outline-none">
+        <select aria-label={tr('budget.estimates_dialog.split_with', 'Split with')} value={Number(next.settings.share || 1)} onChange={(e) => onKnob({ share: Number(e.target.value) })} className="cursor-pointer appearance-none bg-transparent pr-4 outline-none">
           {shareSetting.choices!.map(([v, t]) => <option key={String(v)} value={v}>{t}</option>)}
         </select><ChevronDown className="pointer-events-none absolute right-2 size-3" />
       </label> : null}
@@ -216,8 +217,8 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
       {r.item === 'job' ? <Hours value={next.hours ?? 40} onChange={(h) => onKnob({ hours: h })} /> : null}
     </div> : null}
     {info && src ? <p className="mb-1.5 ml-[30px] mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground">
-      {gone ? 'Was based on: ' : ''}<b className="text-foreground">{src.source.title}</b>, {src.source.publisher}. {src.label}.{src.scaled_by ? <> Local prices: <b className="text-foreground">{src.scaled_by.source.title}</b>, {src.scaled_by.source.publisher} ({src.scaled_by.place_label} {Math.round(src.scaled_by.value)}, US = 100).</> : src.place_label ? ` ${src.place_label}.` : ''}
-      {wide ? ` * Not for ${src.asked_place_label || 'your city'} itself: this is the ${src.level === 'us' ? 'national' : 'state'} figure.` : ''}
+      {gone ? tr('budget.estimates_dialog.was_based_on', 'Was based on: ') : ''}<b className="text-foreground">{src.source.title}</b>, {src.source.publisher}. {src.label}.{src.scaled_by ? <>{' '}{tr('budget.estimates_dialog.local_prices', 'Local prices:')}{' '}<b className="text-foreground">{src.scaled_by.source.title}</b>{tr('budget.estimates_dialog.publisher_place_label_round_us', ', {{publisher}} ({{place_label}} {{round}}, US = 100).', { publisher: src.scaled_by.source.publisher, place_label: src.scaled_by.place_label, round: Math.round(src.scaled_by.value) })}</> : src.place_label ? ` ${src.place_label}.` : ''}
+      {wide ? tr('budget.budget_table.not_for_value_itself_this', ' * Not for {{value}} itself: this is the {{value2}} figure.', { value: src.asked_place_label || 'your city', value2: src.level === 'us' ? 'national' : 'state' }) : ''}
     </p> : null}
   </div>
 }
@@ -225,10 +226,10 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
 /** "20 hrs/wk": tap to type a new number. */
 function Hours({ value, onChange }: { value: number; onChange: (h: number) => void }) {
   const [edit, setEdit] = React.useState(false)
-  if (!edit) return <button type="button" onClick={() => setEdit(true)} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold hover:ring-1 hover:ring-[var(--org-primary-color)]">{value} hrs/wk</button>
+  if (!edit) return <button type="button" onClick={() => setEdit(true)} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold hover:ring-1 hover:ring-[var(--org-primary-color)]">{tr('budget.estimates_dialog.value_hrs_wk', '{{value}} hrs/wk', { value })}</button>
   return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
-    <input autoFocus aria-label="Hours a week" inputMode="numeric" defaultValue={value} className="w-8 bg-transparent text-right outline-none"
+    <input autoFocus aria-label={tr('budget.add_tray.hours_a_week', 'Hours a week')} inputMode="numeric" defaultValue={value} className="w-8 bg-transparent text-right outline-none"
       onBlur={(e) => { const h = Number(e.target.value); if (Number.isFinite(h) && h > 0 && h <= 80) onChange(Math.round(h)); setEdit(false) }}
-      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEdit(false) }} /> hrs/wk
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEdit(false) }} />{' '}{tr('budget.estimates_dialog.hrs_wk', 'hrs/wk')}
   </span>
 }

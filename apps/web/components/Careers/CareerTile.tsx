@@ -6,6 +6,7 @@ import {
   HeartPulse, Medal, Palette, Scale, Scissors, Shield, ShoppingBag, SprayCan, Stethoscope, TreePine, Truck, Wrench,
 } from 'lucide-react'
 
+import { tr } from '@/lib/tr'
 // One career as a small tile: a square cover in the color of its strongest interest type, with an icon and how
 // well it matches, then its title and "$104k · 4-year degree". Shared by the interest quiz's matches and the
 // career explorer, so a career looks the same everywhere.
@@ -47,7 +48,7 @@ export function CareerTile({ career, href, onOpen, star = false }: { career: Car
       {career.match != null ? <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10.5px] font-extrabold">{matchLabel(career.match)}</span> : null}
     </span>
     <b className="mt-2 line-clamp-2 text-[14px] font-extrabold leading-snug">{career.title}</b>
-    {line ? <small className="block text-[12px] font-bold text-muted-foreground">{star ? <span className="text-amber-500" aria-label="Pay where your plan goes">★ </span> : null}{line}</small> : null}
+    {line ? <small className="block text-[12px] font-bold text-muted-foreground">{star ? <span className="text-amber-500" aria-label={tr('careers.career_tile.pay_where_your_plan_goes', 'Pay where your plan goes')}>★ </span> : null}{line}</small> : null}
   </>
   const className = 'group block w-[150px] shrink-0 snap-start text-left'
   if (href) return <a href={href} target="_blank" rel="noreferrer" className={className} aria-label={`${career.title}, ${type.name}`}>{body}</a>

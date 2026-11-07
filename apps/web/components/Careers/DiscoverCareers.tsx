@@ -13,6 +13,7 @@ import { careersApi } from '@services/life/careers'
 import { CAREER_TYPES, CareerTile, CareerIcon } from './CareerTile'
 import { BATCH, batchProgress, deckKey } from './CareerSwipe'
 
+import { tr } from '@/lib/tr'
 /**
  * Careers on Discover: the Career swipe billboard, then the careers closest to the learner's interests. Only for
  * signed-in learners in an organization that has added careers.
@@ -32,17 +33,17 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
   const starred = deck.cards.some((card) => card.my_place_pay)
 
   return <>
-    <section aria-label="Career swipe" className="relative isolate grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-[22px] bg-[var(--org-primary-color)] p-5 text-[var(--org-on-primary-color)] shadow-[0_5px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]">
+    <section aria-label={tr('careers.career_swipe.career_swipe', 'Career swipe')} className="relative isolate grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-[22px] bg-[var(--org-primary-color)] p-5 text-[var(--org-on-primary-color)] shadow-[0_5px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]">
       <span aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(90%_120%_at_100%_0%,rgba(255,255,255,.25),transparent_60%)]" />
       <div>
-        <small className="text-[11px] font-extrabold uppercase tracking-[0.08em] opacity-85">Discover tool</small>
-        <h2 className="m-0 mt-0.5 text-[22px] font-extrabold leading-tight">Career swipe</h2>
+        <small className="text-[11px] font-extrabold uppercase tracking-[0.08em] opacity-85">{tr('careers.discover_careers.discover_tool', 'Discover tool')}</small>
+        <h2 className="m-0 mt-0.5 text-[22px] font-extrabold leading-tight">{tr('careers.career_swipe.career_swipe', 'Career swipe')}</h2>
         <p className="mb-3 mt-1.5 max-w-[42ch] text-[13.5px] opacity-90">
-          {progress ? `You’re ${progress.at} of ${progress.of} in. Pick up where you left off.`
+          {progress ? tr('careers.discover_careers.you_re_at_of_of', 'You’re {{at}} of {{of}} in. Pick up where you left off.', { at: progress.at, of: progress.of })
             : `${Math.min(BATCH, deck.total)} careers picked ${deck.has_quiz ? 'for your interests' : 'to start you off'}. Save the ones that catch your eye and say why.`}
         </p>
         <Link href={swipe} className="inline-flex items-center gap-2 rounded-[14px] bg-card px-4 py-2.5 text-sm font-extrabold text-foreground no-underline shadow-[0_3px_0_rgba(0,0,0,.25)]">
-          <Play size={15} aria-hidden="true" />{progress ? 'Keep going' : 'Start'}
+          <Play size={15} aria-hidden="true" />{progress ? tr('discover.collection_page.keep_going', 'Keep going') : tr('careers.discover_careers.start', 'Start')}
         </Link>
       </div>
       <div aria-hidden="true" className="relative h-[112px] w-[96px] shrink-0 max-[420px]:h-[86px] max-[420px]:w-[70px]">
@@ -54,15 +55,15 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
         })}
       </div>
     </section>
-    <section aria-label="Careers for you" className="flex flex-col gap-3.5">
+    <section aria-label={tr('careers.discover_careers.careers_for_you', 'Careers for you')} className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <SectionTitle>Careers for you</SectionTitle>
+        <SectionTitle>{tr('careers.discover_careers.careers_for_you', 'Careers for you')}</SectionTitle>
         <p className="m-0 min-w-0 flex-1 text-sm text-muted-foreground">
-          {deck.has_quiz ? 'Closest to your interests first.' : 'Take the interest quiz to see your closest matches first.'}
-          {starred ? <> <Star size={12} className="inline fill-amber-500 align-[-1px] text-amber-500" aria-hidden="true" /> pay is where your plan goes.</> : null}
+          {deck.has_quiz ? tr('careers.discover_careers.closest_to_your_interests_first', 'Closest to your interests first.') : tr('careers.discover_careers.take_the_interest_quiz_to', 'Take the interest quiz to see your closest matches first.')}
+          {starred ? <> <Star size={12} className="inline fill-amber-500 align-[-1px] text-amber-500" aria-hidden="true" />{' '}{tr('careers.discover_careers.pay_is_where_your_plan', 'pay is where your plan goes.')}</> : null}
         </p>
       </div>
-      <Shelf label="Careers for you">
+      <Shelf label={tr('careers.discover_careers.careers_for_you', 'Careers for you')}>
         {deck.cards.map((card) => <Link key={card.code} href={href(card.resource_uuid)} scroll={false} className="text-foreground no-underline">
           <CareerTile career={{ ...card, pay: card.my_place_pay ? { yearly: card.my_place_pay.yearly } : card.pay }} star={Boolean(card.my_place_pay)} />
         </Link>)}

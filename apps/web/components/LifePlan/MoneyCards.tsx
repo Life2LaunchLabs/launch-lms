@@ -9,6 +9,7 @@ import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, uid } from './model'
 
+import { tr } from '@/lib/tr'
 const num = (s: string) => { const v = Number(String(s).replace(/[$,%\s]/g, '')); return Number.isFinite(v) ? v : 0 }
 
 function Card({ title, note, onAdd, addLabel, children, empty }: { title: string; note?: string; onAdd: () => void; addLabel: string; children: React.ReactNode; empty: boolean }) {
@@ -48,8 +49,8 @@ function Editor({ title, open, onClose, onSave, onRemove, children }: { title: s
         <form className="space-y-3 pt-2" onSubmit={(e) => { e.preventDefault(); onSave(); onClose() }}>
           {children}
           <div className="flex items-center justify-between gap-2 pt-2">
-            {onRemove ? <Button type="button" variant="ghost" className="text-destructive" onClick={() => { onRemove(); onClose() }}><Trash2 />Remove</Button> : <span />}
-            <Button type="submit" variant="brand">Save</Button>
+            {onRemove ? <Button type="button" variant="ghost" className="text-destructive" onClick={() => { onRemove(); onClose() }}><Trash2 />{tr('budget.budget_table.remove', 'Remove')}</Button> : <span />}
+            <Button type="submit" variant="brand">{tr('careers.career_take.save', 'Save')}</Button>
           </div>
         </form>
       </DialogContent>
@@ -87,22 +88,22 @@ export function OneTimeCard() {
     setIsNew(!e); setEdit(ev); setF({ title: ev.title, amount: ev.amount ? String(Math.abs(ev.amount)) : '', dir: ev.amount > 0 ? 'in' : 'out', month: ev.month })
   }
   return (
-    <Card title="One-time money" note={evs.length || loans.length ? undefined : 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.'} addLabel="Add" onAdd={() => open(null)} empty={!evs.length && !loans.length}>
+    <Card title={tr('budget.money_cards.one_time_money', 'One-time money')} note={evs.length || loans.length ? undefined : 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.'} addLabel="Add" onAdd={() => open(null)} empty={!evs.length && !loans.length}>
       {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
       {evs.map((e) => <Item key={e.id} id={`row-ev:${e.id}`} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
-      <Editor title={isNew ? 'Add one-time money' : 'One-time money'} open={!!edit} onClose={() => setEdit(null)}
+      <Editor title={isNew ? tr('budget.money_cards.add_one_time_money', 'Add one-time money') : tr('budget.money_cards.one_time_money', 'One-time money')} open={!!edit} onClose={() => setEdit(null)}
         onRemove={isNew ? undefined : () => update((d) => { d.events = d.events.filter((x) => x.id !== edit!.id) })}
         onSave={() => {
           if (!f.title.trim()) return
           const ev = { ...edit!, title: f.title.trim(), month: f.month, amount: (f.dir === 'in' ? 1 : -1) * Math.abs(num(f.amount)) }
           update((d) => { d.events = [...d.events.filter((x) => x.id !== ev.id), ev] })
         }}>
-        <Field label="What"><input className={inputCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Like &quot;Apartment deposit&quot;" autoFocus /></Field>
+        <Field label={tr('budget.money_cards.what', 'What')}><input className={inputCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder={tr('budget.money_cards.like_quot_apartment_deposit_quot', 'Like "Apartment deposit"')} autoFocus /></Field>
         <div className="flex gap-1.5">
-          {(['out', 'in'] as const).map((d) => <button key={d} type="button" aria-pressed={f.dir === d} onClick={() => setF({ ...f, dir: d })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${f.dir === d ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>{d === 'out' ? 'I pay' : 'I get'}</button>)}
+          {(['out', 'in'] as const).map((d) => <button key={d} type="button" aria-pressed={f.dir === d} onClick={() => setF({ ...f, dir: d })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${f.dir === d ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>{d === 'out' ? tr('budget.money_cards.i_pay', 'I pay') : tr('budget.money_cards.i_get', 'I get')}</button>)}
         </div>
-        <Field label="How much"><input className={inputCls} inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="$0" /></Field>
-        <Field label="When"><select className={inputCls} value={f.month} onChange={(e) => setF({ ...f, month: Number(e.target.value) })}>{Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}</select></Field>
+        <Field label={tr('budget.add_tray.how_much', 'How much')}><input className={inputCls} inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="$0" /></Field>
+        <Field label={tr('budget.money_cards.when', 'When')}><select className={inputCls} value={f.month} onChange={(e) => setF({ ...f, month: Number(e.target.value) })}>{Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}</select></Field>
       </Editor>
     </Card>
   )

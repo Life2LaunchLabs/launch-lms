@@ -3,6 +3,7 @@
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 
+import { tr } from '@/lib/tr'
 /**
  * Asks before Coach's session ends while it still has suggestions the learner hasn't reviewed.
  * Ending never removes them: they stay on the goal as suggestions.
@@ -21,7 +22,7 @@ export default function EndSessionDialog({ open, unreviewed, title = 'End Coachâ
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{unreviewed ? `${left} will stay on the goal as suggestions.` : 'You can start a new session with Coach any time.'}</DialogDescription>
+        <DialogDescription>{unreviewed ? `${left} will stay on the goal as suggestions.` : tr('coach.end_session_dialog.you_can_start_a_new', 'You can start a new session with Coach any time.')}</DialogDescription>
       </DialogHeader>
       <DialogFooter className="gap-2">
         <Button type="button" variant="ghost" onClick={onKeep}>{keepLabel}</Button>

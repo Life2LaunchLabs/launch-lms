@@ -7,6 +7,7 @@ import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, stretches } from './model'
 import type { Mark } from './model'
 
+import { tr } from '@/lib/tr'
 const ICON: Record<Mark['kind'], string> = { loan: 'landmark', buy: 'shopping-bag', sell: 'tag', once: 'receipt', start: 'flag', short: 'triangle-alert' }
 
 /** The marks that land in each month from g0 to g1 (inclusive), grouped by month. */
@@ -71,8 +72,8 @@ export function MarkCard({ g, ms, onClose, onShow, className = '' }: { g: number
     <div role="dialog" aria-label={`What happens in ${monthLabel(doc.start, g)}`} className={`w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl bg-card p-3 text-sm shadow-lg ring-1 ring-border ${className}`}
       onPointerMove={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">Why the line moves · {monthLabel(doc.start, g)}</p>
-        <button type="button" onClick={onClose} aria-label="Close" className="-mr-1 -mt-1 rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
+        <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{tr('budget.chart_events.why_the_line_moves_monthlabel', 'Why the line moves · {{monthLabel}}', { monthLabel: monthLabel(doc.start, g) })}</p>
+        <button type="button" onClick={onClose} aria-label={tr('discover.resource_sheet.close', 'Close')} className="-mr-1 -mt-1 rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
       </div>
       <ul className="mt-2 space-y-2">
         {ms.map((x, k) => {
@@ -83,17 +84,17 @@ export function MarkCard({ g, ms, onClose, onShow, className = '' }: { g: number
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2"><b className="truncate">{t.title}</b>{Math.abs(x.amount) > 0.5 && <b className={`shrink-0 tabular-nums ${x.amount > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#B9481A] dark:text-[#F08A5D]'}`}>{money(x.amount, { sign: true })}</b>}</span>
                 <span className="block text-xs text-muted-foreground">{t.why}</span>
-                {x.kind !== 'start' && <button type="button" onClick={() => show(x)} className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]">Show it<ArrowRight className="size-3" /></button>}
+                {x.kind !== 'start' && <button type="button" onClick={() => show(x)} className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]">{tr('budget.chart_events.show_it', 'Show it')}<ArrowRight className="size-3" /></button>}
               </span>
             </li>
           )
         })}
       </ul>
       <div className="mt-3 space-y-1 rounded-xl bg-muted/60 p-2.5 text-xs">
-        {!starts && Math.abs(rest) > 0.5 && <p className="flex justify-between gap-2"><span className="text-muted-foreground">The rest of the month's budget</span><b className="tabular-nums">{money(rest, { sign: true })}</b></p>}
-        <p className="flex justify-between gap-2"><span className="text-muted-foreground">Savings</span><b className="tabular-nums">{money(savBefore)} → {money(savAfter)}</b></p>
-        {Math.abs(ownAfter - ownBefore) > 0.5 && <p className="flex justify-between gap-2"><span className="text-muted-foreground">Things you own</span><b className="tabular-nums">{money(ownBefore)} → {money(ownAfter)}</b></p>}
-        {(debtBefore > 0.5 || debtAfter > 0.5) && <p className="flex justify-between gap-2"><span className="text-muted-foreground">Debt</span><b className="tabular-nums text-[#B9481A] dark:text-[#F08A5D]">{money(debtBefore)} → {money(debtAfter)}</b></p>}
+        {!starts && Math.abs(rest) > 0.5 && <p className="flex justify-between gap-2"><span className="text-muted-foreground">{tr('budget.chart_events.the_rest_of_the_month', 'The rest of the month\'s budget')}</span><b className="tabular-nums">{money(rest, { sign: true })}</b></p>}
+        <p className="flex justify-between gap-2"><span className="text-muted-foreground">{tr('budget.chart_events.savings', 'Savings')}</span><b className="tabular-nums">{money(savBefore)} → {money(savAfter)}</b></p>
+        {Math.abs(ownAfter - ownBefore) > 0.5 && <p className="flex justify-between gap-2"><span className="text-muted-foreground">{tr('budget.chart_events.things_you_own', 'Things you own')}</span><b className="tabular-nums">{money(ownBefore)} → {money(ownAfter)}</b></p>}
+        {(debtBefore > 0.5 || debtAfter > 0.5) && <p className="flex justify-between gap-2"><span className="text-muted-foreground">{tr('budget.chart_events.debt', 'Debt')}</span><b className="tabular-nums text-[#B9481A] dark:text-[#F08A5D]">{money(debtBefore)} → {money(debtAfter)}</b></p>}
       </div>
     </div>
   )
@@ -103,8 +104,8 @@ function explain(doc: ReturnType<typeof useLife>['doc'], x: Mark, cardRate: numb
   if (x.kind === 'loan') {
     const d = doc.debts.find((v) => v.id === x.ref)
     return x.amount > 0.5
-      ? { title: `${x.title} money`, why: `The loan lands in your savings, and you owe ${money(d?.balance ?? x.amount)} from now on.` }
-      : { title: `${x.title} starts`, why: `You owe ${money(d?.balance ?? 0)} from now on. The money doesn't go into your savings.` }
+      ? { title: `${x.title} money`, why: tr('budget.chart_events.the_loan_lands_in_your', 'The loan lands in your savings, and you owe {{money}} from now on.', { money: money(d?.balance ?? x.amount) }) }
+      : { title: `${x.title} starts`, why: tr('budget.chart_events.you_owe_money_from_now', 'You owe {{money}} from now on. The money doesn\'t go into your savings.', { money: money(d?.balance ?? 0) }) }
   }
   if (x.kind === 'buy') {
     const a = doc.assets.find((v) => v.id === x.ref)
@@ -115,6 +116,6 @@ function explain(doc: ReturnType<typeof useLife>['doc'], x: Mark, cardRate: numb
     return { title: `You sell ${x.title.toLowerCase()}`, why: a?.loan_id ? `What's left of the sale price after paying off its loan.` : `The sale price goes into your savings.` }
   }
   if (x.kind === 'once') return { title: x.title, why: x.amount >= 0 ? 'One-time money that comes in.' : 'A one-time cost, paid from your savings.' }
-  if (x.kind === 'start') return { title: x.title, why: 'You set your real numbers here, so they replace what the plan worked out.' }
-  return { title: 'Savings run out', why: cardRate > 0 ? `More goes out than you have, so the rest goes on a credit card at ${cardRate}% a year and shows as debt.` : `More goes out than you have, so the rest goes on a credit card and shows as debt.` }
+  if (x.kind === 'start') return { title: x.title, why: tr('budget.chart_events.you_set_your_real_numbers', 'You set your real numbers here, so they replace what the plan worked out.') }
+  return { title: tr('budget.chart_events.savings_run_out', 'Savings run out'), why: cardRate > 0 ? `More goes out than you have, so the rest goes on a credit card at ${cardRate}% a year and shows as debt.` : `More goes out than you have, so the rest goes on a credit card and shows as debt.` }
 }

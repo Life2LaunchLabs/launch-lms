@@ -22,6 +22,7 @@ import { badgeAwardKeys, badgeAwardsApi, badgeKindLabel, type AwardPerson, type 
 import { peopleApi, peopleKeys, type Directory } from '@services/school/people'
 import { swrFetcher } from '@services/utils/ts/requests'
 
+import { tr } from '@/lib/tr'
 const STEPS = ['Badge', 'Learners', 'Sign-off', 'Review'] as const
 const quiet = { revalidateOnFocus: false, keepPreviousData: true }
 const today = () => new Date().toISOString().slice(0, 10)
@@ -98,7 +99,7 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
   })
   const next = async () => {
     if (step === 2) {
-      try { setReach(await badgeAwardsApi.preview(orgId, request(), token)) } catch (error: any) { toast.error(error?.message || 'Could not check who gets it'); return }
+      try { setReach(await badgeAwardsApi.preview(orgId, request(), token)) } catch (error: any) { toast.error(error?.message || tr('badges.award_flow.could_not_check_who_gets', 'Could not check who gets it')); return }
     }
     setStep(step + 1)
   }
@@ -111,7 +112,7 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
       await onAwarded?.()
       setDone(result)
     } catch (error: any) {
-      toast.error(error?.message || 'Could not award the badge')
+      toast.error(error?.message || tr('badges.award_flow.could_not_award_the_badge', 'Could not award the badge'))
     } finally {
       setSaving(false)
     }
@@ -126,19 +127,19 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
   const eyebrow = plan ? `Award ${plan.name} · ${step + 1} of ${STEPS.length}` : 'Award a badge'
 
   const left = !plan ? null : step === 1 ? <>
-    <StepHead eyebrow={eyebrow} title="Who earned it?" lede={`Add learners${canGroups ? ' and groups' : ''} who did work equal to ${plan.title} somewhere else. Groups bring their active learners.`} />
+    <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.who_earned_it', 'Who earned it?')} lede={`Add learners${canGroups ? ' and groups' : ''} who did work equal to ${plan.title} somewhere else. Groups bring their active learners.`} />
     <WhoStep award picks={picks} setPicks={setPicks} query={query} setQuery={setQuery} groups={groups.data || []} people={learners} canGroups={canGroups} taken={taken} />
   </> : step === 2 ? <>
-    <StepHead eyebrow={eyebrow} title="Sign off" lede="What you write goes on their badge, where anyone checking it can read it." />
+    <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.sign_off', 'Sign off')} lede="What you write goes on their badge, where anyone checking it can read it." />
     <SignOff plan={plan} statement={statement} setStatement={setStatement} evidenceUrl={evidenceUrl} setEvidenceUrl={setEvidenceUrl} earnedOn={earnedOn} setEarnedOn={setEarnedOn}
       people={members} notes={notes} setNotes={setNotes} confirmed={confirmed} setConfirmed={setConfirmed} picks={picks} signer={myName} orgName={orgName} />
   </> : <>
-    <StepHead eyebrow={eyebrow} title="Review" lede="Nothing is awarded until you confirm." />
+    <StepHead eyebrow={eyebrow} title={tr('coach.hub_composer.review', 'Review')} lede="Nothing is awarded until you confirm." />
     <Review plan={plan} reach={reach} statement={statement} earnedOn={earnedOn} evidenceUrl={evidenceUrl} signer={myName} orgName={orgName} goTo={setStep} />
   </>
 
   const right = !plan ? null : step === 1 ? <WhoPreview plan={plan} picks={picks} holders={(holders.data || []).length} />
-    : <><PreviewCaption><span>Their certificate</span></PreviewCaption>
+    : <><PreviewCaption><span>{tr('badges.award_flow.their_certificate', 'Their certificate')}</span></PreviewCaption>
       <div className="overflow-hidden rounded-2xl"><Certificate badge={plan} style={plan.style} learner={members[0]?.name || 'Learner name'} awardedBy={{ name: orgName }} date={longDate(earnedOn || today())} code="PREVIEW" /></div>
       {statement.trim() ? <p className="mt-3 whitespace-pre-wrap border-l-[3px] border-border pl-3 text-[13.5px] leading-normal text-muted-foreground">{statement.trim()}</p> : null}</>
 
@@ -148,18 +149,18 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
       <Dialog.Content aria-describedby={undefined} className="fixed inset-0 flex flex-col overflow-auto bg-background pt-[env(safe-area-inset-top,0px)]" style={{ zIndex: 'var(--z-modal)' }}>
         <div className="flex items-center gap-3.5 px-6 py-3.5">
           {plan ? <BadgeMedal badge={plan} size={40} /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-muted"><Medal size={18} aria-hidden="true" /></span>}
-          <Dialog.Title className="min-w-0 flex-1 truncate text-base font-bold">{plan ? `Award ${plan.name} directly` : 'Award a badge directly'}</Dialog.Title>
-          <Dialog.Close className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card" aria-label="Close"><X size={18} /></Dialog.Close>
+          <Dialog.Title className="min-w-0 flex-1 truncate text-base font-bold">{plan ? `Award ${plan.name} directly` : tr('badges.award_flow.award_a_badge_directly', 'Award a badge directly')}</Dialog.Title>
+          <Dialog.Close className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card" aria-label={tr('onboarding.start_flow.close', 'Close')}><X size={18} /></Dialog.Close>
         </div>
         {plan && !done ? <FlowProgress step={step} steps={STEPS} /> : null}
         {done && plan ? <Done plan={plan} done={done} slug={String(org?.slug || '')} onClose={() => change(false)} />
           : !templateUuid || step === 0 ? <BadgeChooser plans={awardable} picked={templateUuid} onPick={(uuid) => { setTemplateUuid(uuid); setStep(1) }} onCancel={() => change(false)} />
-          : !left ? <div className="grid flex-1 place-items-center">{awardable && !plan ? <p className="max-w-sm text-center text-sm text-muted-foreground">This plan’s badge can’t be awarded here: it needs a live version with a badge, and your organization must own the plan or be approved to run it.</p> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}</div>
+          : !left ? <div className="grid flex-1 place-items-center">{awardable && !plan ? <p className="max-w-sm text-center text-sm text-muted-foreground">{tr('badges.award_flow.this_plan_s_badge_can', 'This plan’s badge can’t be awarded here: it needs a live version with a badge, and your organization must own the plan or be approved to run it.')}</p> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}</div>
           : <FlowStage solo={step === 3} step={step} left={left} right={right} nav={<>
-            {step > first ? <FlowButton onClick={() => setStep(step - 1)}><ArrowLeft />Back</FlowButton> : <FlowButton tone="ghost" onClick={() => change(false)}>Cancel</FlowButton>}
-            {step < 3 ? <FlowButton tone="primary" disabled={Boolean(blocked)} title={blocked || undefined} onClick={() => void next()}>Next<ArrowRight /></FlowButton>
+            {step > first ? <FlowButton onClick={() => setStep(step - 1)}><ArrowLeft />{tr('onboarding.joined_flow.back', 'Back')}</FlowButton> : <FlowButton tone="ghost" onClick={() => change(false)}>{tr('coach.hub_memory_items.cancel', 'Cancel')}</FlowButton>}
+            {step < 3 ? <FlowButton tone="primary" disabled={Boolean(blocked)} title={blocked || undefined} onClick={() => void next()}>{tr('onboarding.joined_flow.next', 'Next')}<ArrowRight /></FlowButton>
               : <FlowButton tone="brand" size="lg" disabled={saving || Boolean(blocked)} title={blocked || undefined} onClick={() => void award()}>
-                {saving ? <Loader2 className="animate-spin" /> : <Medal />}Award{count ? ` to ${plural(count, 'learner')}` : ''}</FlowButton>}
+                {saving ? <Loader2 className="animate-spin" /> : <Medal />}{tr('badges.award_flow.award', 'Award')}{count ? ` to ${plural(count, 'learner')}` : ''}</FlowButton>}
           </>} />}
       </Dialog.Content>
     </Dialog.Portal>
@@ -169,30 +170,30 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
 /** Which badge: the released plans with a badge your organization owns or is approved to run. */
 export function BadgeChooser({ plans, picked, onPick, onCancel }: { plans: AwardablePlan[] | null; picked: string; onPick: (uuid: string) => void; onCancel: () => void }) { // eslint-disable-line no-unused-vars
   return <div className="mx-auto w-full max-w-[560px] px-6 pb-10 pt-8">
-    <StepHead eyebrow={`Award a badge · 1 of ${STEPS.length}`} title="Which badge?" lede="Award a plan’s badge to learners who did the same work somewhere else. You sign off on it, and it’s marked as awarded directly." />
+    <StepHead eyebrow={`Award a badge · 1 of ${STEPS.length}`} title={tr('badges.award_flow.which_badge', 'Which badge?')} lede="Award a plan’s badge to learners who did the same work somewhere else. You sign off on it, and it’s marked as awarded directly." />
     <div className="mt-[22px] flex flex-col gap-1 rounded-[18px] border border-border bg-card p-1.5">
-      {plans === null ? <p className="px-3 py-2.5 text-[13.5px] text-muted-foreground">Loading badges…</p>
+      {plans === null ? <p className="px-3 py-2.5 text-[13.5px] text-muted-foreground">{tr('badges.award_flow.loading_badges', 'Loading badges…')}</p>
         : plans.length ? plans.map((plan) => <button key={plan.template_uuid} type="button" aria-pressed={plan.template_uuid === picked} onClick={() => onPick(plan.template_uuid)}
           className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-muted aria-pressed:bg-muted">
           <BadgeMedal badge={plan} size={44} />
           <span className="flex min-w-0 flex-col"><b className="truncate text-sm">{plan.name}</b>
-            <span className="truncate text-[12.5px] text-muted-foreground">{badgeKindLabel(plan.kind)} · {plan.owned ? 'your plan' : `${plan.owner?.name || 'another organization'}’s plan you’re approved to run`}</span></span>
-        </button>) : <p className="px-3 py-2.5 text-[13.5px] text-muted-foreground">No badges to award yet. A plan needs a live version with a badge first.</p>}
+            <span className="truncate text-[12.5px] text-muted-foreground">{badgeKindLabel(plan.kind)} · {plan.owned ? tr('badges.award_flow.your_plan', 'your plan') : tr('badges.award_flow.value_s_plan_you_re', '{{value}}’s plan you’re approved to run', { value: plan.owner?.name || 'another organization' })}</span></span>
+        </button>) : <p className="px-3 py-2.5 text-[13.5px] text-muted-foreground">{tr('badges.award_flow.no_badges_to_award_yet', 'No badges to award yet. A plan needs a live version with a badge first.')}</p>}
     </div>
-    <p className="mt-2.5 text-[12.5px] text-muted-foreground">Only plans that earn a badge, from your organization or ones you’re approved to run, are listed.</p>
-    <div className="mt-6"><FlowButton tone="ghost" onClick={onCancel}>Cancel</FlowButton></div>
+    <p className="mt-2.5 text-[12.5px] text-muted-foreground">{tr('badges.award_flow.only_plans_that_earn_a', 'Only plans that earn a badge, from your organization or ones you’re approved to run, are listed.')}</p>
+    <div className="mt-6"><FlowButton tone="ghost" onClick={onCancel}>{tr('coach.hub_memory_items.cancel', 'Cancel')}</FlowButton></div>
   </div>
 }
 
 function WhoPreview({ plan, picks, holders }: { plan: AwardablePlan; picks: Recipient[]; holders: number }) {
-  return <><PreviewCaption><span>The badge</span></PreviewCaption>
+  return <><PreviewCaption><span>{tr('badges.award_flow.the_badge', 'The badge')}</span></PreviewCaption>
     <div className="flex flex-col gap-4 rounded-[22px] border border-border bg-card p-6">
       <div className="flex items-center gap-4"><BadgeMedal badge={plan} size={72} />
         <span className="flex min-w-0 flex-col"><span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(plan.kind)}</span>
-          <b className="text-xl">{plan.name}</b><span className="text-[13px] text-muted-foreground">Equal to finishing all {plural(plan.steps, 'step')} of {plan.title}</span></span>
+          <b className="text-xl">{plan.name}</b><span className="text-[13px] text-muted-foreground">{tr('badges.award_flow.equal_to_finishing_all_plural', 'Equal to finishing all {{plural}} of {{title}}', { plural: plural(plan.steps, 'step'), title: plan.title })}</span></span>
       </div>
-      {picks.length ? <RecipientTokens picks={picks} /> : <div className="rounded-[11px] border-[1.5px] border-dashed border-border p-[18px] text-center text-[12.5px] text-muted-foreground">Everyone you add gets the badge in their portfolio</div>}
-      {holders ? <p className="text-[12.5px] text-muted-foreground">{plural(holders, 'learner')} here already {holders === 1 ? 'has' : 'have'} it; they’re skipped.</p> : null}
+      {picks.length ? <RecipientTokens picks={picks} /> : <div className="rounded-[11px] border-[1.5px] border-dashed border-border p-[18px] text-center text-[12.5px] text-muted-foreground">{tr('badges.award_flow.everyone_you_add_gets_the', 'Everyone you add gets the badge in their portfolio')}</div>}
+      {holders ? <p className="text-[12.5px] text-muted-foreground">{tr('badges.award_flow.plural_here_already', '{{plural}} here already', { plural: plural(holders, 'learner') })}{' '}{holders === 1 ? 'has' : 'have'}{' '}{tr('badges.award_flow.it_they_re_skipped', 'it; they’re skipped.')}</p> : null}
     </div></>
 }
 
@@ -205,24 +206,24 @@ export function SignOff({ plan, statement, setStatement, evidenceUrl, setEvidenc
   const who = picks.length === 1 && picks[0].kind === 'member' ? picks[0].name : 'these learners'
   return <div className="mt-[22px] flex flex-col gap-3.5">
     <p className="flex gap-2.5 rounded-xl bg-brand-soft px-3.5 py-3 text-[13.5px] leading-[1.45] text-brand-ink"><Info size={17} className="mt-px shrink-0" aria-hidden="true" />
-      <span>You’re confirming they did work equal to the {plan.title} plan outside it.</span></p>
-    <Field label="What they did"><textarea value={statement} onChange={(event) => setStatement(event.target.value)} rows={4} aria-label="What they did" placeholder="Built a portfolio in a summer internship."
+      <span>{tr('badges.award_flow.you_re_confirming_they_did', 'You’re confirming they did work equal to the {{title}} plan outside it.', { title: plan.title })}</span></p>
+    <Field label={tr('badges.award_flow.what_they_did', 'What they did')}><textarea value={statement} onChange={(event) => setStatement(event.target.value)} rows={4} aria-label={tr('badges.award_flow.what_they_did', 'What they did')} placeholder={tr('badges.award_flow.built_a_portfolio_in_a', 'Built a portfolio in a summer internship.')}
       className="min-h-[76px] resize-y rounded-[10px] border-[1.5px] border-border bg-card px-3 py-2.5 text-[15px] leading-[1.45] focus:border-brand focus:outline-none" /></Field>
     <div className="grid gap-3.5 sm:grid-cols-[minmax(0,1fr)_170px]">
-      <Field label="Evidence link" optional><input value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="A site, file or document" aria-label="Evidence link" className={input} /></Field>
-      <Field label="Date earned"><input type="date" value={earnedOn} max={today()} onChange={(event) => setEarnedOn(event.target.value)} aria-label="Date earned" className={input} /></Field>
+      <Field label={tr('badges.award_flow.evidence_link', 'Evidence link')} optional><input value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder={tr('badges.award_flow.a_site_file_or_document', 'A site, file or document')} aria-label={tr('badges.award_flow.evidence_link', 'Evidence link')} className={input} /></Field>
+      <Field label={tr('badges.award_flow.date_earned', 'Date earned')}><input type="date" value={earnedOn} max={today()} onChange={(event) => setEarnedOn(event.target.value)} aria-label={tr('badges.award_flow.date_earned', 'Date earned')} className={input} /></Field>
     </div>
     {people.length ? <details className="text-[13.5px]">
-      <summary className="cursor-pointer font-bold text-brand-ink">Add a line for one learner</summary>
+      <summary className="cursor-pointer font-bold text-brand-ink">{tr('badges.award_flow.add_a_line_for_one', 'Add a line for one learner')}</summary>
       <div className="mt-2.5 flex flex-col gap-2">{people.map((person) => <label key={recipientKey(person)} className="flex items-center gap-2.5">
         <PersonTile person={{ id: person.id, username: person.username, first_name: person.name, avatar_image: person.avatar_image }} size="sm" />
         <span className="w-28 shrink-0 truncate font-semibold">{person.name}</span>
-        <input value={notes[person.id] || ''} onChange={(event) => setNotes({ ...notes, [person.id]: event.target.value })} aria-label={`A line for ${person.name}`} placeholder="Only on their badge" className={input} />
+        <input value={notes[person.id] || ''} onChange={(event) => setNotes({ ...notes, [person.id]: event.target.value })} aria-label={`A line for ${person.name}`} placeholder={tr('badges.award_flow.only_on_their_badge', 'Only on their badge')} className={input} />
       </label>)}</div>
     </details> : null}
     <label className="flex items-start gap-3 rounded-xl bg-amber-50 px-3.5 py-3 text-[13.5px] leading-[1.45] dark:bg-amber-500/15">
       <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>I confirm {who} completed work equal to <b>{plan.title}</b>: finishing all {plural(plan.steps, 'step')} of the plan. I’m signing off as {signer} for {orgName}.</span>
+      <span>{tr('badges.award_flow.i_confirm_who_completed_work', 'I confirm {{who}} completed work equal to', { who })}{' '}<b>{plan.title}</b>{tr('badges.award_flow.finishing_all_plural_of_the', ': finishing all {{plural}} of the plan. I’m signing off as {{signer}} for {{orgName}}.', { plural: plural(plan.steps, 'step'), signer, orgName })}</span>
     </label>
   </div>
 }
@@ -237,23 +238,23 @@ export function Review({ plan, reach, statement, earnedOn, evidenceUrl, signer, 
     <div className="flex items-center gap-4 rounded-[18px] border border-border bg-card p-4">
       <BadgeMedal badge={plan} size={64} />
       <span className="flex min-w-0 flex-col gap-0.5"><span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(plan.kind)}</span>
-        <b className="text-xl">{plan.name}</b><span className="text-[13px] text-muted-foreground">Awarded directly · {longDate(earnedOn)}</span></span>
+        <b className="text-xl">{plan.name}</b><span className="text-[13px] text-muted-foreground">{tr('badges.award_flow.awarded_directly_longdate', 'Awarded directly · {{longDate}}', { longDate: longDate(earnedOn) })}</span></span>
     </div>
-    <ReviewSection title="To" onEdit={() => goTo(1)}>
-      {reach?.learners.length ? tokens(reach.learners) : <p className="text-[13.5px] text-muted-foreground">No one: everyone picked has this badge already.</p>}
-      {reach?.skipped.length ? <p className="mt-2 text-[13px] text-muted-foreground">{plural(reach.skipped.length, 'learner')} skipped, they already have it: {reach.skipped.map((person) => person.name).join(', ')}.</p> : null}
+    <ReviewSection title={tr('badges.award_flow.to', 'To')} onEdit={() => goTo(1)}>
+      {reach?.learners.length ? tokens(reach.learners) : <p className="text-[13.5px] text-muted-foreground">{tr('badges.award_flow.no_one_everyone_picked_has', 'No one: everyone picked has this badge already.')}</p>}
+      {reach?.skipped.length ? <p className="mt-2 text-[13px] text-muted-foreground">{tr('badges.award_flow.plural_skipped_they_already_have', '{{plural}} skipped, they already have it:', { plural: plural(reach.skipped.length, 'learner') })}{' '}{reach.skipped.map((person) => person.name).join(', ')}.</p> : null}
     </ReviewSection>
-    <ReviewSection title="On their badge" onEdit={() => goTo(2)}>
+    <ReviewSection title={tr('badges.award_flow.on_their_badge', 'On their badge')} onEdit={() => goTo(2)}>
       <p className="whitespace-pre-wrap border-l-[3px] border-border pl-3 text-[14.5px] leading-normal">{statement.trim()}</p>
-      {evidenceUrl.trim() ? <p className="mt-1.5 truncate text-[13px] text-muted-foreground">Evidence: {evidenceUrl.trim()}</p> : null}
-      <p className="mt-1.5 text-[13px] text-muted-foreground">Signed off by {signer} · {orgName}</p>
+      {evidenceUrl.trim() ? <p className="mt-1.5 truncate text-[13px] text-muted-foreground">{tr('badges.award_flow.evidence_trim', 'Evidence: {{trim}}', { trim: evidenceUrl.trim() })}</p> : null}
+      <p className="mt-1.5 text-[13px] text-muted-foreground">{tr('badges.award_flow.signed_off_by_signer_orgname', 'Signed off by {{signer}} · {{orgName}}', { signer, orgName })}</p>
     </ReviewSection>
     <section className="border-t border-border px-0.5 py-3.5">
-      <h3 className="mb-2 text-[13px] font-semibold uppercase tracking-[.06em] text-muted-foreground">What they get</h3>
+      <h3 className="mb-2 text-[13px] font-semibold uppercase tracking-[.06em] text-muted-foreground">{tr('badges.award_flow.what_they_get', 'What they get')}</h3>
       <ul className="flex flex-col gap-2 text-[14px]">
-        <li className="flex items-center gap-2.5"><Medal size={16} aria-hidden="true" />The badge in their portfolio, marked as awarded directly</li>
-        <li className="flex items-center gap-2.5"><Download size={16} aria-hidden="true" />A certificate and a public link they can share</li>
-        <li className="flex items-center gap-2.5"><MessageSquareText size={16} aria-hidden="true" />A message in their feed saying you awarded it</li>
+        <li className="flex items-center gap-2.5"><Medal size={16} aria-hidden="true" />{tr('badges.award_flow.the_badge_in_their_portfolio', 'The badge in their portfolio, marked as awarded directly')}</li>
+        <li className="flex items-center gap-2.5"><Download size={16} aria-hidden="true" />{tr('badges.award_flow.a_certificate_and_a_public', 'A certificate and a public link they can share')}</li>
+        <li className="flex items-center gap-2.5"><MessageSquareText size={16} aria-hidden="true" />{tr('badges.award_flow.a_message_in_their_feed', 'A message in their feed saying you awarded it')}</li>
       </ul>
     </section>
   </div>
@@ -264,17 +265,17 @@ function Done({ plan, done, slug, onClose }: { plan: AwardablePlan; done: { awar
   return <div className="mx-auto w-full max-w-[520px] px-6 py-12">
     <div className="flex items-center gap-3.5">
       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-good-soft text-good"><Check size={22} strokeWidth={3} aria-hidden="true" /></span>
-      <span className="flex min-w-0 flex-col"><b className="text-xl">{done.awarded.length ? `${plan.name} awarded to ${plural(done.awarded.length, 'learner')}` : 'Nothing awarded'}</b>
-        <span className="truncate text-sm text-muted-foreground">{names.join(', ') || 'Everyone picked has it already.'}</span></span>
+      <span className="flex min-w-0 flex-col"><b className="text-xl">{done.awarded.length ? `${plan.name} awarded to ${plural(done.awarded.length, 'learner')}` : tr('badges.award_flow.nothing_awarded', 'Nothing awarded')}</b>
+        <span className="truncate text-sm text-muted-foreground">{names.join(', ') || tr('badges.award_flow.everyone_picked_has_it_already', 'Everyone picked has it already.')}</span></span>
     </div>
-    {done.skipped.length ? <p className="mt-3 text-[13px] text-muted-foreground">Skipped, they already had it: {done.skipped.map((person) => person.name).join(', ')}.</p> : null}
+    {done.skipped.length ? <p className="mt-3 text-[13px] text-muted-foreground">{tr('badges.award_flow.skipped_they_already_had_it', 'Skipped, they already had it:')}{' '}{done.skipped.map((person) => person.name).join(', ')}.</p> : null}
     <div className="mt-6 flex flex-col gap-2.5">
       {done.awarded[0] ? <Link href={getUriWithOrg(slug, routePaths.org.badgeAward(done.awarded[0].code))} target="_blank"
         className="flex w-full items-center gap-3.5 rounded-2xl bg-primary p-4 text-left text-primary-foreground no-underline hover:brightness-110">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-foreground/15"><ArrowRight size={18} /></span>
-        <span className="flex min-w-0 flex-col"><b className="text-[15px]">{done.awarded[0].learner?.name ? `See ${done.awarded[0].learner.name}’s badge` : 'See their badge'}</b><span className="text-[13px] opacity-75">Its public page and certificate</span></span>
+        <span className="flex min-w-0 flex-col"><b className="text-[15px]">{done.awarded[0].learner?.name ? tr('badges.award_flow.see_name_s_badge', 'See {{name}}’s badge', { name: done.awarded[0].learner.name }) : tr('badges.award_flow.see_their_badge', 'See their badge')}</b><span className="text-[13px] opacity-75">{tr('badges.award_flow.its_public_page_and_certificate', 'Its public page and certificate')}</span></span>
       </Link> : null}
-      <button type="button" onClick={onClose} className="mt-1 self-center text-sm font-semibold text-muted-foreground hover:text-foreground">Done</button>
+      <button type="button" onClick={onClose} className="mt-1 self-center text-sm font-semibold text-muted-foreground hover:text-foreground">{tr('badges.award_flow.done', 'Done')}</button>
     </div>
   </div>
 }

@@ -5,6 +5,7 @@ import { ShieldCheck } from 'lucide-react'
 import { badgeKindLabel, type CertificateStyle } from '@services/badges/badges'
 import { BadgeMedal, medalColor, type MedalSource } from './BadgeMedal'
 
+import { tr } from '@/lib/tr'
 export type CertificateProps = {
   badge: MedalSource & { name: string; description?: string; kind?: string | null }
   style: CertificateStyle
@@ -63,29 +64,29 @@ export default function Certificate({ badge, style, learner, awardedBy, date, co
   useFit(ref, [badge.name, badge.description, learner, style])
   const eyebrow = <p className="cert-eyebrow">{badgeKindLabel(badge.kind)}</p>
   const body = <>
-    <p className="cert-label cert-mid">This certifies that</p>
+    <p className="cert-label cert-mid">{tr('badges.certificate.this_certifies_that', 'This certifies that')}</p>
     <p className="cert-learner" data-fit="2.6">{learner}</p>
-    <p className="cert-label cert-gap">has earned</p>
-    <p className="cert-name" data-fit="1.6">{badge.name || 'Untitled badge'}</p>
+    <p className="cert-label cert-gap">{tr('badges.certificate.has_earned', 'has earned')}</p>
+    <p className="cert-name" data-fit="1.6">{badge.name || tr('badges.certificate.untitled_badge', 'Untitled badge')}</p>
     {badge.description ? <p className="cert-description" data-fit="1.15">{badge.description}</p> : null}
   </>
   const foot = <div className="cert-foot">
     <div className="cert-col cert-who">
-      <span className="cert-label">Awarded by</span>
+      <span className="cert-label">{tr('badges.certificate.awarded_by', 'Awarded by')}</span>
       <span className="cert-org">
         {awardedBy?.logo_url ? <img src={awardedBy.logo_url} alt="" /> : <i>{(awardedBy?.name || '?').slice(0, 2).toUpperCase()}</i>}
         <b>{awardedBy?.name || ''}</b>
       </span>
     </div>
-    <div className="cert-col cert-date"><span className="cert-label">On</span><b>{date}</b></div>
+    <div className="cert-col cert-date"><span className="cert-label">{tr('badges.certificate.on', 'On')}</span><b>{date}</b></div>
     <div className="cert-qr-col">
-      <div className="cert-col"><span className="cert-label">Scan to verify</span><span className="cert-code">{code}</span></div>
-      {qr ? <img className="cert-qr" src={qr} alt="QR code to verify this badge" /> : <span className="cert-qr" />}
+      <div className="cert-col"><span className="cert-label">{tr('badges.certificate.scan_to_verify', 'Scan to verify')}</span><span className="cert-code">{code}</span></div>
+      {qr ? <img className="cert-qr" src={qr} alt={tr('badges.certificate.qr_code_to_verify_this', 'QR code to verify this badge')} /> : <span className="cert-qr" />}
     </div>
   </div>
   let inner: React.ReactNode
   if (style === 'classic') inner = <><div className="cert-frame" /><div className="cert-content"><BadgeMedal badge={badge} />{eyebrow}{body}{foot}</div></>
   else if (style === 'minimal') inner = <><div className="cert-rule" /><div className="cert-content"><div className="cert-row"><div className="min-w-0">{eyebrow}</div><BadgeMedal badge={badge} /></div>{body}{foot}</div></>
-  else inner = <><div className="cert-band"><BadgeMedal badge={badge} /><span className="cert-verified">{verified ? <><ShieldCheck aria-hidden="true" />Verified Open Badge</> : 'Open Badge'}</span></div><div className="cert-content">{eyebrow}{body}{foot}</div></>
+  else inner = <><div className="cert-band"><BadgeMedal badge={badge} /><span className="cert-verified">{verified ? <><ShieldCheck aria-hidden="true" />{tr('badges.award_page.verified_open_badge', 'Verified Open Badge')}</> : tr('badges.award_page.open_badge', 'Open Badge')}</span></div><div className="cert-content">{eyebrow}{body}{foot}</div></>
   return <div className="cert-wrap"><div ref={ref} className={`cert cert-${style}`} style={{ '--cc': medalColor(badge) } as React.CSSProperties}>{inner}</div></div>
 }

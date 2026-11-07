@@ -29,6 +29,7 @@ import TourScene from './TourScene'
 import { H1, LEDE, TOUR } from './tour'
 import { PALETTE, ROLES, ROLE_IDS, groupSuggestions, type StartRole } from './roles'
 
+import { tr } from '@/lib/tr'
 type Step = 't0' | 't1' | 't2' | 't3' | 'role' | 'reqs' | 'plans' | 'account' | 'you' | 'tier' | 'learners' | 'staff' | 'groups' | 'done'
 
 export interface StartState {
@@ -179,10 +180,10 @@ export default function StartFlow() {
   return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-foreground">
     <AdminSurface />
     <header className="flex min-h-[68px] items-center gap-4 px-6 py-3.5">
-      <span className="flex items-center gap-2.5 text-[17px] font-extrabold"><img src="/images/start/l2l.webp" alt="" className="h-[30px] w-[30px] rounded-lg" />Life2Launch</span>
+      <span className="flex items-center gap-2.5 text-[17px] font-extrabold"><img src="/images/start/l2l.webp" alt="" className="h-[30px] w-[30px] rounded-lg" />{tr('onboarding.start_flow.life2launch', 'Life2Launch')}</span>
       <span className="ml-auto text-[13px] text-muted-foreground">
-        {state.step.startsWith('t') && state.step.length === 2 ? <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => go('role')}>Skip intro</button>
-          : signedIn ? null : <>Already have a space? <Link className="font-bold text-foreground underline underline-offset-4" href={routePaths.auth.login()}>Sign in</Link></>}
+        {state.step.startsWith('t') && state.step.length === 2 ? <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => go('role')}>{tr('onboarding.joined_flow.skip_intro', 'Skip intro')}</button>
+          : signedIn ? null : <>{tr('onboarding.start_flow.already_have_a_space', 'Already have a space?')}{' '}<Link className="font-bold text-foreground underline underline-offset-4" href={routePaths.auth.login()}>{tr('onboarding.start_flow.sign_in', 'Sign in')}</Link></>}
       </span>
     </header>
     <main className="mx-auto grid w-full max-w-[1340px] flex-1 grid-cols-1 content-start gap-6 px-5 pb-24 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:content-center lg:gap-10 lg:pb-6">
@@ -205,10 +206,10 @@ export default function StartFlow() {
     if (step.startsWith('t') && step.length === 2) {
       const index = Number(step[1])
       return <><h1 className={H1}>{TOUR[index].title}</h1><p className={LEDE}>{TOUR[index].lede}</p>
-        <Nav back={index > 0 ? () => move(-1) : undefined} next={() => move(1)} label="Next" /></>
+        <Nav back={index > 0 ? () => move(-1) : undefined} next={() => move(1)} label={tr('onboarding.joined_flow.next', 'Next')} /></>
     }
-    if (step === 'role') return <><Eyebrow>About you</Eyebrow><h1 className={H1}>What’s your role?</h1><p className={LEDE}>We’ll set up your space to fit how you work.</p>
-      <div role="radiogroup" aria-label="Your role" className="mt-6 space-y-2">
+    if (step === 'role') return <><Eyebrow>{tr('onboarding.start_flow.about_you', 'About you')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.what_s_your_role', 'What’s your role?')}</h1><p className={LEDE}>{tr('onboarding.start_flow.we_ll_set_up_your', 'We’ll set up your space to fit how you work.')}</p>
+      <div role="radiogroup" aria-label={tr('onboarding.start_flow.your_role', 'Your role')} className="mt-6 space-y-2">
         {ROLE_IDS.map((id) => <button key={id} type="button" role="radio" aria-checked={state.role === id} onClick={() => patch({ role: id, picked: state.role === id ? state.picked : [], orgOn: state.role === id ? state.orgOn : !ROLES[id].solo })}
           className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white px-3.5 py-3 text-left transition', state.role === id ? 'border-[var(--rc)] ring-2 ring-[var(--rc)]/25' : 'border-border hover:border-foreground/25')}
           style={{ ['--rc' as string]: ROLES[id].color }}>
@@ -218,80 +219,80 @@ export default function StartFlow() {
         </button>)}
       </div>
       <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} /></>
-    if (step === 'reqs') return <><Eyebrow>Optional</Eyebrow><h1 className={H1}>Working toward requirements?</h1>
-      <p className={LEDE}>Pick the standards or graduation requirements you report on. We’ll track who’s met what.</p>
-      <div role="radiogroup" aria-label="Requirements to track" className="mt-6 space-y-2">{frameworks.length ? frameworks.map((item) => { const on = state.framework === item.framework_uuid; return <button key={item.framework_uuid} type="button" role="radio" aria-checked={on}
+    if (step === 'reqs') return <><Eyebrow>{tr('onboarding.start_flow.optional', 'Optional')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.working_toward_requirements', 'Working toward requirements?')}</h1>
+      <p className={LEDE}>{tr('onboarding.start_flow.pick_the_standards_or_graduation', 'Pick the standards or graduation requirements you report on. We’ll track who’s met what.')}</p>
+      <div role="radiogroup" aria-label={tr('onboarding.start_flow.requirements_to_track', 'Requirements to track')} className="mt-6 space-y-2">{frameworks.length ? frameworks.map((item) => { const on = state.framework === item.framework_uuid; return <button key={item.framework_uuid} type="button" role="radio" aria-checked={on}
         onClick={() => patch({ framework: on ? null : item.framework_uuid })}
         className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white p-2.5 text-left transition', on ? 'border-sky-600 ring-2 ring-sky-600/20' : 'border-border hover:border-foreground/25')}>
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><ListChecks size={18} /></span>
-        <span className="min-w-0 flex-1"><b className="block truncate text-sm">{item.name}</b><span className="block truncate text-[12.5px] text-muted-foreground">{item.owner_org_name || 'Life2Launch'} · {item.requirement_count} {item.requirement_count === 1 ? 'requirement' : 'requirements'}</span></span>
+        <span className="min-w-0 flex-1"><b className="block truncate text-sm">{item.name}</b><span className="block truncate text-[12.5px] text-muted-foreground">{item.owner_org_name || tr('onboarding.start_flow.life2launch', 'Life2Launch')} · {item.requirement_count} {item.requirement_count === 1 ? 'requirement' : 'requirements'}</span></span>
         <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border', on ? 'border-transparent bg-sky-600 text-white' : 'border-border')}>{on ? <Check size={12} /> : null}</span>
-      </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No shared frameworks yet. You can add your own under Requirements once you’re in.</p>}</div>
-      <Nav back={() => move(-1)} next={() => move(1)} label={framework ? 'Continue' : 'Skip for now'} /></>
-    if (step === 'plans') return <><Eyebrow>Plans</Eyebrow><h1 className={H1}>Start with a few plans</h1>
-      <p className={LEDE}>{framework ? `Picked from Discover, the ones covering the most of ${framework.name} first.` : `Picked from Discover for ${role?.audience}.`} Add as many as you like.</p>
+      </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{tr('onboarding.start_flow.no_shared_frameworks_yet_you', 'No shared frameworks yet. You can add your own under Requirements once you’re in.')}</p>}</div>
+      <Nav back={() => move(-1)} next={() => move(1)} label={framework ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
+    if (step === 'plans') return <><Eyebrow>{tr('onboarding.site_preview.plans', 'Plans')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.start_with_a_few_plans', 'Start with a few plans')}</h1>
+      <p className={LEDE}>{framework ? tr('onboarding.start_flow.picked_from_discover_the_ones', 'Picked from Discover, the ones covering the most of {{name}} first.', { name: framework.name }) : `Picked from Discover for ${role?.audience}.`}{' '}{tr('onboarding.start_flow.add_as_many_as_you', 'Add as many as you like.')}</p>
       <div className="mt-6 space-y-2">
         {plans.length ? plans.map((plan) => { const on = state.picked.includes(plan.template_uuid); return <button key={plan.template_uuid} type="button" aria-pressed={on}
           onClick={() => patch({ picked: on ? state.picked.filter((uuid) => uuid !== plan.template_uuid) : [...state.picked, plan.template_uuid] })}
           className={cn('flex w-full items-center gap-3 rounded-2xl border bg-white p-2.5 text-left transition', on ? 'border-[#2F66D6] ring-2 ring-[#2F66D6]/20' : 'border-border hover:border-foreground/25')}>
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><Layers3 size={18} /></span>
-          <span className="min-w-0 flex-1"><b className="flex items-center gap-1.5 text-[14px]"><span className="truncate">{plan.title}</span>{plan.badge ? <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"><Award size={10} />Badge</span> : null}</b>
-            <span className="block truncate text-[12.5px] text-muted-foreground">{plan.step_count} steps{plan.creator_org ? ` · ${plan.creator_org.name}` : ''}</span>
+          <span className="min-w-0 flex-1"><b className="flex items-center gap-1.5 text-[14px]"><span className="truncate">{plan.title}</span>{plan.badge ? <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"><Award size={10} />{tr('onboarding.start_flow.badge', 'Badge')}</span> : null}</b>
+            <span className="block truncate text-[12.5px] text-muted-foreground">{tr('onboarding.site_preview.step_count_steps', '{{step_count}} steps', { step_count: plan.step_count })}{plan.creator_org ? ` · ${plan.creator_org.name}` : ''}</span>
             {plan.requirement_count ? <CoverMeter covers={plan.covers || 0} of={plan.requirement_count} /> : null}</span>
           <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', on ? 'bg-[#2F66D6] text-white' : 'bg-muted')}>{on ? <Check size={14} /> : <Plus size={14} />}</span>
-        </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No shared plans yet. You can build your own once you’re in.</p>}
-        <p className="flex items-center gap-1.5 pt-1 text-[13px] text-muted-foreground"><Compass size={15} />More in <b className="text-foreground">Discover</b> once you’re in.</p>
+        </button> }) : <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{tr('onboarding.start_flow.no_shared_plans_yet_you', 'No shared plans yet. You can build your own once you’re in.')}</p>}
+        <p className="flex items-center gap-1.5 pt-1 text-[13px] text-muted-foreground"><Compass size={15} />{tr('onboarding.start_flow.more_in', 'More in')}{' '}<b className="text-foreground">{tr('onboarding.start_flow.discover', 'Discover')}</b>{' '}{tr('onboarding.start_flow.once_you_re_in', 'once you’re in.')}</p>
       </div>
-      <Nav back={() => move(-1)} next={() => move(1)} label={state.picked.length ? `Continue with ${state.picked.length}` : 'Skip for now'} /></>
+      <Nav back={() => move(-1)} next={() => move(1)} label={state.picked.length ? `Continue with ${state.picked.length}` : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     if (step === 'account') return signedIn
-      ? <><Eyebrow>Account</Eyebrow><h1 className={H1}>You’re in</h1><p className={LEDE}>Your picks are saved. Next, make it look like yours.</p>
+      ? <><Eyebrow>{tr('onboarding.start_flow.account', 'Account')}</Eyebrow><h1 className={H1}>{tr('onboarding.joined_flow.you_re_in', 'You’re in')}</h1><p className={LEDE}>{tr('onboarding.start_flow.your_picks_are_saved_next', 'Your picks are saved. Next, make it look like yours.')}</p>
         <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-white p-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={16} /></span>
-          <span className="min-w-0"><b className="block text-sm">Signed in</b><span className="block truncate text-[13px] text-muted-foreground">{user?.email}</span></span>
+          <span className="min-w-0"><b className="block text-sm">{tr('onboarding.start_flow.signed_in', 'Signed in')}</b><span className="block truncate text-[13px] text-muted-foreground">{user?.email}</span></span>
         </div>
         <Nav back={() => move(-1)} next={() => move(1)} /></>
       : <AccountForm org={org} busy={busy} setBusy={setBusy} setError={setError} signIn={signIn} back={() => move(-1)} onGoogle={() => patch({ step: 'account' })} />
-    if (step === 'you') return <><Eyebrow>Your space</Eyebrow><h1 className={H1}>Make it yours</h1><p className={LEDE}>This is what people see when you invite them.</p>
+    if (step === 'you') return <><Eyebrow>{tr('onboarding.start_flow.your_space', 'Your space')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.make_it_yours', 'Make it yours')}</h1><p className={LEDE}>{tr('onboarding.start_flow.this_is_what_people_see', 'This is what people see when you invite them.')}</p>
       <div className="mt-6 space-y-4">
-        <Field label="Your name"><input className={INPUT} autoComplete="name" placeholder="First and last" value={state.name} onChange={(event) => patch({ name: event.target.value })} /></Field>
+        <Field label={tr('onboarding.start_flow.your_name', 'Your name')}><input className={INPUT} autoComplete="name" placeholder={tr('onboarding.start_flow.first_and_last', 'First and last')} value={state.name} onChange={(event) => patch({ name: event.target.value })} /></Field>
         <button type="button" role="switch" aria-checked={state.orgOn} onClick={() => patch({ orgOn: !state.orgOn })} className="flex w-full items-center gap-3 rounded-2xl border border-border bg-white p-3 text-left">
-          <span className="min-w-0 flex-1"><b className="block text-sm">This is for an organization</b><span className="text-[13px] text-muted-foreground">A school, program or business</span></span>
+          <span className="min-w-0 flex-1"><b className="block text-sm">{tr('onboarding.start_flow.this_is_for_an_organization', 'This is for an organization')}</b><span className="text-[13px] text-muted-foreground">{tr('onboarding.start_flow.a_school_program_or_business', 'A school, program or business')}</span></span>
           <span className={cn('relative h-6 w-10 rounded-full transition', state.orgOn ? 'bg-[#2F66D6]' : 'bg-muted')}><i className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all', state.orgOn ? 'left-[18px]' : 'left-0.5')} /></span>
         </button>
         {state.orgOn ? <div className="space-y-4 rounded-2xl bg-white p-3.5 ring-1 ring-border">
-          <Field label="Organization name"><input className={INPUT} placeholder="Riverside Learning Co-op" value={state.org} onChange={(event) => patch({ org: event.target.value })} /></Field>
-          <Field label="Color"><div className="flex flex-wrap gap-2">{PALETTE.map(([name, color]) => <button key={color} type="button" aria-label={name} aria-pressed={state.color === color} onClick={() => patch({ color })}
+          <Field label={tr('onboarding.start_flow.organization_name', 'Organization name')}><input className={INPUT} placeholder={tr('onboarding.start_flow.riverside_learning_co_op', 'Riverside Learning Co-op')} value={state.org} onChange={(event) => patch({ org: event.target.value })} /></Field>
+          <Field label={tr('onboarding.start_flow.color', 'Color')}><div className="flex flex-wrap gap-2">{PALETTE.map(([name, color]) => <button key={color} type="button" aria-label={name} aria-pressed={state.color === color} onClick={() => patch({ color })}
             className={cn('h-8 w-8 rounded-full ring-offset-2 transition', state.color === color ? 'ring-2 ring-foreground' : '')} style={{ background: color }} />)}</div></Field>
-          <p className="text-[12.5px] text-muted-foreground">Add your logo from Settings once you’re in.</p>
+          <p className="text-[12.5px] text-muted-foreground">{tr('onboarding.start_flow.add_your_logo_from_settings', 'Add your logo from Settings once you’re in.')}</p>
         </div> : null}
       </div>
-      <Nav back={() => move(-1)} next={() => void setUp(false)} busy={busy} disabled={state.orgOn && !state.org.trim()} label={state.name || state.orgOn ? 'Continue' : 'Skip for now'} /></>
-    if (step === 'tier') return <><Eyebrow>Optional</Eyebrow><h1 className={H1}>{role?.solo && !state.orgOn ? 'Working with a bigger group?' : 'Running something bigger?'}</h1>
-      <p className={LEDE}>Full adds groups, more staff and bulk invites. Try it free for 30 days, or keep going on Free. You can switch anytime.</p>
+      <Nav back={() => move(-1)} next={() => void setUp(false)} busy={busy} disabled={state.orgOn && !state.org.trim()} label={state.name || state.orgOn ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
+    if (step === 'tier') return <><Eyebrow>{tr('onboarding.start_flow.optional', 'Optional')}</Eyebrow><h1 className={H1}>{role?.solo && !state.orgOn ? tr('onboarding.start_flow.working_with_a_bigger_group', 'Working with a bigger group?') : tr('onboarding.start_flow.running_something_bigger', 'Running something bigger?')}</h1>
+      <p className={LEDE}>{tr('onboarding.start_flow.full_adds_groups_more_staff', 'Full adds groups, more staff and bulk invites. Try it free for 30 days, or keep going on Free. You can switch anytime.')}</p>
       <div className="mt-7 grid grid-cols-2 gap-2.5">
-        <Button variant="outline" size="lg" className="rounded-full" disabled={busy} onClick={() => void setUp(false)}>{busy && state.trial !== true ? <Loader2 className="animate-spin" /> : null}Continue with Free</Button>
-        <Button size="lg" className="rounded-full bg-violet-600 hover:bg-violet-700" disabled={busy} onClick={() => void setUp(true)}><Sparkles />Try Full free</Button>
+        <Button variant="outline" size="lg" className="rounded-full" disabled={busy} onClick={() => void setUp(false)}>{busy && state.trial !== true ? <Loader2 className="animate-spin" /> : null}{tr('onboarding.start_flow.continue_with_free', 'Continue with Free')}</Button>
+        <Button size="lg" className="rounded-full bg-violet-600 hover:bg-violet-700" disabled={busy} onClick={() => void setUp(true)}><Sparkles />{tr('onboarding.start_flow.try_full_free', 'Try Full free')}</Button>
       </div>
-      {state.space ? <p className="mt-3 text-[12.5px] text-muted-foreground">{state.space.name} is ready. Picking again only changes the trial.</p> : null}
+      {state.space ? <p className="mt-3 text-[12.5px] text-muted-foreground">{tr('onboarding.start_flow.name_is_ready_picking_again', '{{name}} is ready. Picking again only changes the trial.', { name: state.space.name })}</p> : null}
       <Nav back={() => move(-1)} /></>
     if (step === 'learners' || step === 'staff') {
       const staff = step === 'staff'
       const list = staff ? state.staff : state.learners
-      return <><Eyebrow>{staff ? 'Your team' : 'People'}</Eyebrow><h1 className={H1}>{staff ? 'Add your staff' : `Add your first ${role?.plural || 'learners'}`}</h1>
-        <p className={LEDE}>{staff ? 'Counselors, volunteers or co-leaders. They can run assignments and review work, and you can change that per person later.' : 'Optional. Add a couple now and we’ll email them an invite.'}</p>
-        <AddList key={step} placeholder={staff ? 'colleague@school.org' : 'name@example.com'} items={list} email onChange={(items) => patch(staff ? { staff: items } : { learners: items })}
-          hint={staff ? 'Full includes 12 staff seats. You’re using 1.' : 'Rather share a link? You’ll find a join link on the People page.'} />
-        <Nav back={() => move(-1)} next={() => void finishStep(step)} busy={busy} label={list.some((item) => !state.sent.includes(`${step}:${item}`)) ? 'Send invites' : list.length ? 'Continue' : 'Skip for now'} /></>
+      return <><Eyebrow>{staff ? tr('onboarding.start_flow.your_team', 'Your team') : tr('onboarding.site_preview.people', 'People')}</Eyebrow><h1 className={H1}>{staff ? tr('onboarding.start_flow.add_your_staff', 'Add your staff') : `Add your first ${role?.plural || 'learners'}`}</h1>
+        <p className={LEDE}>{staff ? tr('onboarding.start_flow.counselors_volunteers_or_co_leaders', 'Counselors, volunteers or co-leaders. They can run assignments and review work, and you can change that per person later.') : tr('onboarding.start_flow.optional_add_a_couple_now', 'Optional. Add a couple now and we’ll email them an invite.')}</p>
+        <AddList key={step} placeholder={staff ? tr('onboarding.start_flow.colleague_school_org', 'colleague@school.org') : tr('onboarding.start_flow.name_example_com', 'name@example.com')} items={list} email onChange={(items) => patch(staff ? { staff: items } : { learners: items })}
+          hint={staff ? tr('onboarding.start_flow.full_includes_12_staff_seats', 'Full includes 12 staff seats. You’re using 1.') : tr('onboarding.start_flow.rather_share_a_link_you', 'Rather share a link? You’ll find a join link on the People page.')} />
+        <Nav back={() => move(-1)} next={() => void finishStep(step)} busy={busy} label={list.some((item) => !state.sent.includes(`${step}:${item}`)) ? tr('onboarding.start_flow.send_invites', 'Send invites') : list.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     }
     if (step === 'groups') {
       const suggestions = groupSuggestions()
-      return <><Eyebrow>Your team</Eyebrow><h1 className={H1}>Set up your groups</h1><p className={LEDE}>Cohorts, classes or teams. Hand a plan to a whole group at once. Learners can join later.</p>
-        <AddList placeholder="Name a group" items={state.groups} onChange={(groups) => patch({ groups })} chips={suggestions} />
-        <Nav back={() => move(-1)} next={() => void finishStep('groups')} busy={busy} label={state.groups.length ? 'Continue' : 'Skip for now'} /></>
+      return <><Eyebrow>{tr('onboarding.start_flow.your_team', 'Your team')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.set_up_your_groups', 'Set up your groups')}</h1><p className={LEDE}>{tr('onboarding.start_flow.cohorts_classes_or_teams_hand', 'Cohorts, classes or teams. Hand a plan to a whole group at once. Learners can join later.')}</p>
+        <AddList placeholder={tr('onboarding.start_flow.name_a_group', 'Name a group')} items={state.groups} onChange={(groups) => patch({ groups })} chips={suggestions} />
+        <Nav back={() => move(-1)} next={() => void finishStep('groups')} busy={busy} label={state.groups.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     }
-    return <><Eyebrow>All set</Eyebrow><h1 className={H1}>You’re all set{state.name.trim() ? `, ${state.name.trim().split(' ')[0]}` : ''}</h1>
-      <p className={LEDE}>{spaceName} is ready. Your Home page has what to do next.</p>
-      <Nav back={() => move(-1)} next={open} label="Let’s go" /></>
+    return <><Eyebrow>{tr('onboarding.start_flow.all_set', 'All set')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.you_re_all_set', 'You’re all set')}{state.name.trim() ? `, ${state.name.trim().split(' ')[0]}` : ''}</h1>
+      <p className={LEDE}>{tr('onboarding.start_flow.spacename_is_ready_your_home', '{{spaceName}} is ready. Your Home page has what to do next.', { spaceName })}</p>
+      <Nav back={() => move(-1)} next={open} label={tr('onboarding.start_flow.let_s_go', 'Let’s go')} /></>
   }
 }
 
@@ -305,7 +306,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 function CoverMeter({ covers, of }: { covers: number; of: number }) {
   return <span className="mt-1.5 flex items-center gap-2" data-testid="start-plan-covers">
     <span className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"><i className="block h-full rounded-full bg-sky-600" style={{ width: `${Math.round((covers / of) * 100)}%` }} /></span>
-    <span className="text-[11.5px] font-semibold text-muted-foreground">{covers ? `Covers ${covers} of ${of}` : 'Covers none yet'}</span>
+    <span className="text-[11.5px] font-semibold text-muted-foreground">{covers ? `Covers ${covers} of ${of}` : tr('onboarding.start_flow.covers_none_yet', 'Covers none yet')}</span>
   </span>
 }
 
@@ -315,7 +316,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Nav({ back, next, label = 'Continue', disabled = false, busy = false }: { back?: () => void; next?: () => void; label?: string; disabled?: boolean; busy?: boolean }) {
   return <div className="mt-8 flex items-center justify-between gap-3">
-    {back ? <Button variant="ghost" className="rounded-full" onClick={back} disabled={busy}><ArrowLeft />Back</Button> : <span />}
+    {back ? <Button variant="ghost" className="rounded-full" onClick={back} disabled={busy}><ArrowLeft />{tr('onboarding.joined_flow.back', 'Back')}</Button> : <span />}
     {next ? <Button size="lg" className="rounded-full" onClick={next} disabled={disabled || busy}>{busy ? <Loader2 className="animate-spin" /> : null}{label}<ArrowRight /></Button> : null}
   </div>
 }
@@ -342,8 +343,8 @@ function RoleStage({ role, done, spaceName }: { role: StartRole | null; done: bo
     </AnimatePresence>
     <motion.div key={`${role}-${done}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
       className="relative mt-4 max-w-sm rounded-2xl bg-white px-4 py-3 text-center text-[14px] text-muted-foreground shadow-lg ring-1 ring-black/5">
-      {done ? <><b className="block text-[15px] text-foreground">Let’s launch some futures</b>{spaceName} is live.</>
-        : config ? <><b className="block text-[15px] text-foreground">{config.say[0]}</b>{config.say[1]}</> : 'Pick the one that fits best.'}
+      {done ? <><b className="block text-[15px] text-foreground">{tr('onboarding.start_flow.let_s_launch_some_futures', 'Let’s launch some futures')}</b>{tr('onboarding.start_flow.spacename_is_live', '{{spaceName}} is live.', { spaceName })}</>
+        : config ? <><b className="block text-[15px] text-foreground">{config.say[0]}</b>{config.say[1]}</> : tr('onboarding.start_flow.pick_the_one_that_fits', 'Pick the one that fits best.')}
     </motion.div>
   </div>
 }
@@ -366,7 +367,7 @@ function AddList({ items, onChange, placeholder, email = false, hint, chips = []
   return <div className="mt-6 space-y-3">
     <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); add() }}>
       <input className={INPUT} inputMode={email ? 'email' : undefined} placeholder={placeholder} value={draft} onChange={(event) => setDraft(event.target.value)} />
-      <Button type="submit" variant="outline" className="h-11 rounded-xl">Add</Button>
+      <Button type="submit" variant="outline" className="h-11 rounded-xl">{tr('onboarding.start_flow.add', 'Add')}</Button>
     </form>
     {problem ? <p className="text-[13px] font-semibold text-red-600">{problem}</p> : null}
     {chips.length ? <div className="flex flex-wrap gap-2">{[...chips, ...items.filter((item) => !chips.includes(item))].map((chip) => { const on = items.includes(chip); return <button key={chip} type="button" onClick={() => toggle(chip)}
@@ -419,17 +420,17 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     if (result && 'error' in result && result.error) setError(result.error)
   }
 
-  return <><Eyebrow>Account</Eyebrow><h1 className={H1}>{existing ? 'Sign in to save this' : 'Save your space'}</h1>
-    <p className={LEDE}>{existing ? 'We’ll add what you’ve picked to your account.' : 'Create an account so your plans are here when you come back.'}</p>
+  return <><Eyebrow>{tr('onboarding.start_flow.account', 'Account')}</Eyebrow><h1 className={H1}>{existing ? tr('onboarding.start_flow.sign_in_to_save_this', 'Sign in to save this') : tr('onboarding.start_flow.save_your_space', 'Save your space')}</h1>
+    <p className={LEDE}>{existing ? tr('onboarding.start_flow.we_ll_add_what_you', 'We’ll add what you’ve picked to your account.') : tr('onboarding.start_flow.create_an_account_so_your', 'Create an account so your plans are here when you come back.')}</p>
     <form className="mt-6 space-y-3.5" onSubmit={(event) => void submit(event)}>
       {existing ? null : <AgeConfirm {...age.field} />}
-      {googleOn ? <><Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />Continue with Google</Button>
-      <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />or<i className="h-px flex-1 bg-border" /></div></> : null}
-      <Field label="Email"><input className={INPUT} type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
-      <Field label="Password"><input className={INPUT} type="password" autoComplete={existing ? 'current-password' : 'new-password'} placeholder={existing ? '' : 'At least 8 characters, with a number and a symbol'} value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
-      {!existing && password && !strong ? <p className="text-[12.5px] text-muted-foreground">Use at least 8 characters with upper and lower case, a number and a symbol.</p> : null}
-      <Button type="submit" size="lg" className="w-full rounded-full" disabled={!ready || busy}>{busy ? <Loader2 className="animate-spin" /> : null}{existing ? 'Sign in' : 'Create account'}</Button>
-      <p className="text-center text-[13px] text-muted-foreground">{existing ? 'New here?' : 'Already have an account?'} <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => { setExisting(!existing); setError('') }}>{existing ? 'Create one instead' : 'Sign in instead'}</button></p>
+      {googleOn ? <><Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />{tr('onboarding.start_flow.continue_with_google', 'Continue with Google')}</Button>
+      <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />{tr('onboarding.start_flow.or', 'or')}<i className="h-px flex-1 bg-border" /></div></> : null}
+      <Field label={tr('onboarding.start_flow.email', 'Email')}><input className={INPUT} type="email" autoComplete="email" placeholder={tr('onboarding.start_flow.you_example_com', 'you@example.com')} value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
+      <Field label={tr('onboarding.start_flow.password', 'Password')}><input className={INPUT} type="password" autoComplete={existing ? 'current-password' : 'new-password'} placeholder={existing ? '' : tr('onboarding.start_flow.at_least_8_characters_with', 'At least 8 characters, with a number and a symbol')} value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
+      {!existing && password && !strong ? <p className="text-[12.5px] text-muted-foreground">{tr('onboarding.start_flow.use_at_least_8_characters', 'Use at least 8 characters with upper and lower case, a number and a symbol.')}</p> : null}
+      <Button type="submit" size="lg" className="w-full rounded-full" disabled={!ready || busy}>{busy ? <Loader2 className="animate-spin" /> : null}{existing ? tr('onboarding.start_flow.sign_in', 'Sign in') : tr('onboarding.start_flow.create_account', 'Create account')}</Button>
+      <p className="text-center text-[13px] text-muted-foreground">{existing ? tr('onboarding.start_flow.new_here', 'New here?') : tr('onboarding.start_flow.already_have_an_account', 'Already have an account?')} <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => { setExisting(!existing); setError('') }}>{existing ? tr('onboarding.start_flow.create_one_instead', 'Create one instead') : tr('onboarding.start_flow.sign_in_instead', 'Sign in instead')}</button></p>
     </form>
     <Nav back={back} /></>
 }
@@ -439,13 +440,13 @@ function PreviewSheet({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false)
   return <div className="lg:hidden">
     <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white py-2 pl-2 pr-4 text-[14px] font-bold shadow-[0_10px_30px_rgba(15,23,42,0.18)] ring-1 ring-black/5">
-      <span className="h-6 w-6 rounded-full bg-[#2F66D6]" />See your space
+      <span className="h-6 w-6 rounded-full bg-[#2F66D6]" />{tr('onboarding.start_flow.see_your_space', 'See your space')}
     </button>
     <AnimatePresence>
-      {open ? <motion.div key="sheet" role="dialog" aria-modal="true" aria-label="Your space" className="fixed inset-0 z-40 flex flex-col bg-background/95 p-4 backdrop-blur"
+      {open ? <motion.div key="sheet" role="dialog" aria-modal="true" aria-label={tr('onboarding.start_flow.your_space', 'Your space')} className="fixed inset-0 z-40 flex flex-col bg-background/95 p-4 backdrop-blur"
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.25 }}>
-        <div className="mb-3 flex items-center justify-between"><b className="text-[15px]">Your space so far</b>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/5"><X size={16} /></button></div>
+        <div className="mb-3 flex items-center justify-between"><b className="text-[15px]">{tr('onboarding.start_flow.your_space_so_far', 'Your space so far')}</b>
+          <button type="button" onClick={() => setOpen(false)} aria-label={tr('onboarding.start_flow.close', 'Close')} className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/5"><X size={16} /></button></div>
         <div className="min-h-0 flex-1">{children}</div>
       </motion.div> : null}
     </AnimatePresence>

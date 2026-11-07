@@ -9,6 +9,7 @@ import { getUriWithOrg } from '@services/config/config'
 import type { DiscoverHeroSlide } from '@services/goals/planJoining'
 import { cn } from '@/lib/utils'
 
+import { tr } from '@/lib/tr'
 const DURATION_MS = 7000
 
 function HeroArtwork({ slide }: { slide: DiscoverHeroSlide }) {
@@ -50,15 +51,15 @@ export default function DiscoverHero({ slides = [], orgslug }: { slides?: Discov
   const light = slide.theme === 'light' && !slide.image_url
   const href = slide.href.startsWith('/') ? getUriWithOrg(orgslug, slide.href) : slide.href
 
-  return <section aria-roledescription="carousel" aria-label="Featured in Discover"
+  return <section aria-roledescription="carousel" aria-label={tr('discover.discover_hero.featured_in_discover', 'Featured in Discover')}
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onFocus={() => setFocused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setFocused(false) }}
     onTouchStart={(event) => { setTouching(true); touchX.current = event.touches[0].clientX }}
     onTouchEnd={(event) => { setTouching(false); const start = touchX.current; touchX.current = null; if (start === null) return; const delta = event.changedTouches[0].clientX - start; if (Math.abs(delta) > 48) go(index + (delta < 0 ? 1 : -1)) }}
     className={cn('relative flex min-h-[360px] overflow-hidden rounded-3xl md:min-h-[420px]', light ? 'bg-raised text-foreground' : slide.theme === 'blue' ? 'bg-[#2F66D6] text-white' : 'bg-shell text-white')}>
     <HeroArtwork key={slide.key} slide={slide} />
-    {count > 1 ? <div className="absolute inset-x-5 top-4 z-20 flex gap-1.5" role="group" aria-label="Choose a featured story">
-      {slides.map((item, position) => <button key={item.key} type="button" onClick={() => go(position)} aria-label={`Story ${position + 1} of ${count}: ${item.title}`} aria-current={position === index || undefined} className="flex h-6 flex-1 items-center">
+    {count > 1 ? <div className="absolute inset-x-5 top-4 z-20 flex gap-1.5" role="group" aria-label={tr('discover.discover_hero.choose_a_featured_story', 'Choose a featured story')}>
+      {slides.map((item, position) => <button key={item.key} type="button" onClick={() => go(position)} aria-label={tr('discover.discover_hero.story_value_of_count_title', 'Story {{value}} of {{count}}: {{title}}', { value: position + 1, count, title: item.title })} aria-current={position === index || undefined} className="flex h-6 flex-1 items-center">
         <span className={cn('block h-1.5 w-full overflow-hidden rounded-full', light ? 'bg-foreground/15' : 'bg-white/30')}>
           {position < index || (position === index && !autoplay) ? <span className={cn('block h-full w-full rounded-full', light ? 'bg-foreground' : 'bg-white')} /> : null}
           {position === index && autoplay ? <span key={`${item.key}-${index}`} onAnimationEnd={() => go(index + 1)} className={cn('discover-hero-timer block h-full w-full rounded-full', light ? 'bg-foreground' : 'bg-white')} style={{ '--hero-duration': `${DURATION_MS}ms`, animationPlayState: paused ? 'paused' : 'running' } as React.CSSProperties} /> : null}
@@ -69,7 +70,7 @@ export default function DiscoverHero({ slides = [], orgslug }: { slides?: Discov
       <p className="text-xs font-extrabold uppercase tracking-widest opacity-90"><Tx text={slide.eyebrow} /></p>
       <h2 className="text-3xl font-extrabold leading-tight tracking-tight md:text-4xl"><Tx text={slide.title} /></h2>
       {slide.description ? <p className="line-clamp-3 max-w-lg text-sm leading-6 opacity-90 md:text-base"><Tx text={slide.description} /></p> : null}
-      {href ? <Button asChild variant="surface" size="tall" className="mt-2 border-0 bg-white text-[#10181c] shadow-[0_4px_0_rgba(0,0,0,.35)] hover:bg-white/90"><Link href={href}>{slide.action_label || 'Learn more'}</Link></Button> : <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">Coming soon</span>}
+      {href ? <Button asChild variant="surface" size="tall" className="mt-2 border-0 bg-white text-[#10181c] shadow-[0_4px_0_rgba(0,0,0,.35)] hover:bg-white/90"><Link href={href}>{slide.action_label || tr('discover.discover_hero.learn_more', 'Learn more')}</Link></Button> : <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">{tr('discover.discover_hero.coming_soon', 'Coming soon')}</span>}
     </div>
   </section>
 }

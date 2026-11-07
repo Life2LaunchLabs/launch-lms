@@ -15,6 +15,7 @@ import { Input } from '@components/ui/input'
 import type { HubConversationSummary, HubEditRun } from '@services/hub/advisor'
 import HubConversationHistory from './HubConversationHistory'
 
+import { tr } from '@/lib/tr'
 type Panel = 'history' | 'session' | null
 
 export default function HubHeader({
@@ -114,19 +115,19 @@ export default function HubHeader({
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-[var(--z-sticky-header)]">
       <div ref={rootRef} className={`pointer-events-auto mx-auto w-full max-w-[50rem] px-3 sm:px-4`}>
-        <header className="flex h-14 items-center gap-0.5" aria-label="Coach conversation navigation">
-          <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onTuck} aria-label="Show the page">
+        <header className="flex h-14 items-center gap-0.5" aria-label={tr('coach.hub_header.coach_conversation_navigation', 'Coach conversation navigation')}>
+          <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onTuck} aria-label={tr('coach.hub_header.show_the_page', 'Show the page')}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           {renaming && conversationUuid ? (
             <form className="flex min-w-0 flex-1 items-center gap-1.5" onSubmit={submitRename}>
-              <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} maxLength={120} autoFocus aria-label="Conversation title" className="h-8 min-w-0 border-0 bg-muted/70 shadow-none focus-visible:ring-1" />
-              <Button type="submit" size="sm" className="h-8">Save</Button>
-              <Button type="button" size="sm" variant="ghost" className="h-8" onClick={() => { setRenameValue(title); setRenaming(false) }}>Cancel</Button>
+              <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} maxLength={120} autoFocus aria-label={tr('coach.hub_header.conversation_title', 'Conversation title')} className="h-8 min-w-0 border-0 bg-muted/70 shadow-none focus-visible:ring-1" />
+              <Button type="submit" size="sm" className="h-8">{tr('coach.hub_memory_items.save', 'Save')}</Button>
+              <Button type="button" size="sm" variant="ghost" className="h-8" onClick={() => { setRenameValue(title); setRenaming(false) }}>{tr('coach.hub_memory_items.cancel', 'Cancel')}</Button>
             </form>
           ) : (
             <button type="button" className="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium hover:bg-muted/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" onClick={toggleHistory} aria-expanded={panel === 'history'}>
-              <span className="truncate">{hasConversation ? title : 'Coach'}</span>
+              <span className="truncate">{hasConversation ? title : tr('coach.hub_shell.coach', 'Coach')}</span>
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'history' ? 'rotate-180' : ''}`} />
             </button>
           )}
@@ -134,27 +135,27 @@ export default function HubHeader({
           {!renaming && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={disabled} aria-label="Conversation options">
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={disabled} aria-label={tr('coach.hub_header.conversation_options', 'Conversation options')}>
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem onSelect={() => { setPanel(null); onNew() }}>
-                  <Plus /> New chat
+                  <Plus />{' '}{tr('coach.hub_header.new_chat', 'New chat')}
                 </DropdownMenuItem>
                 {conversationUuid ? <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => { setPanel(null); setRenameValue(title); setRenaming(true) }}>
-                    <Pencil /> Rename
+                    <Pencil />{' '}{tr('coach.hub_header.rename', 'Rename')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => void onArchive()}>
-                    <Archive /> Archive
+                    <Archive />{' '}{tr('coach.hub_header.archive', 'Archive')}
                   </DropdownMenuItem>
                 </> : null}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onEnd} aria-label={hasConversation ? 'End conversation' : 'Close Coach'}>
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onEnd} aria-label={hasConversation ? tr('coach.hub_header.end_conversation', 'End conversation') : tr('coach.hub_header.close_coach', 'Close Coach')}>
             <X className="h-4 w-4" />
           </Button>
         </header>
@@ -164,23 +165,23 @@ export default function HubHeader({
             <span className="min-w-0 flex-1 truncate"><span className="mr-1.5 font-semibold text-violet-700 dark:text-violet-300">{sessionModeLabel}:</span><span className="text-muted-foreground">{editRun.goal}</span></span>
             <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'session' ? 'rotate-180' : ''}`} />
           </button>
-          <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`End focused session for ${editRun.scope.label}`}>End</button>
+          <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`End focused session for ${editRun.scope.label}`}>{tr('coach.hub_header.end', 'End')}</button>
         </div> : contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
           <span>I can&apos;t read this page yet.</span>
           <TooltipProvider delayDuration={200}>
             <Tooltip>
-              <TooltipTrigger asChild><button type="button" aria-label="About Coach page awareness" className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><CircleHelp className="h-3.5 w-3.5" /></button></TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-72 text-xs leading-5">Coach can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.</TooltipContent>
+              <TooltipTrigger asChild><button type="button" aria-label={tr('coach.hub_header.about_coach_page_awareness', 'About Coach page awareness')} className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><CircleHelp className="h-3.5 w-3.5" /></button></TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-72 text-xs leading-5">{tr('coach.hub_header.coach_can_use_saved_details', 'Coach can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div> : null}
 
         {panel === 'session' && editRun?.status === 'active' ? <div className="absolute inset-x-4 top-[4.75rem] z-[var(--z-popover)] rounded-xl border border-border bg-popover p-3 shadow-lg sm:inset-x-5">
-          <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Scope</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{editRun.scope.kind === 'new_goal' ? 'A new personal goal' : `Your goal: ${editRun.scope.label}`}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{tr('coach.hub_header.scope', 'Scope')}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{editRun.scope.kind === 'new_goal' ? tr('coach.hub_header.a_new_personal_goal', 'A new personal goal') : tr('coach.hub_header.your_goal_label', 'Your goal: {{label}}', { label: editRun.scope.label })}</p></div>
           <form className="mt-3" onSubmit={async (event) => { event.preventDefault(); if (!goalValue.trim() || !onUpdateEditGoal) return; setGoalSaving(true); try { await onUpdateEditGoal(goalValue.trim()); setGoalEditing(false) } finally { setGoalSaving(false) } }}>
-            <label htmlFor="hub-session-goal" className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Goal</label>
+            <label htmlFor="hub-session-goal" className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{tr('coach.hub_header.goal', 'Goal')}</label>
             <textarea id="hub-session-goal" value={goalValue} onFocus={() => setGoalEditing(true)} onChange={(event) => setGoalValue(event.target.value)} maxLength={500} className="mt-1 min-h-16 w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-xs leading-5 outline-none transition focus:ring-2 focus:ring-ring" />
-            {goalEditing || goalValue !== editRun.goal ? <div className="mt-2 flex justify-end gap-1"><Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={goalSaving} onClick={() => { setGoalValue(editRun.goal); setGoalEditing(false) }}>Cancel</Button><Button type="submit" size="sm" className="h-7 gap-1 text-xs" disabled={goalSaving || !goalValue.trim() || goalValue.trim() === editRun.goal}>{goalSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}Save</Button></div> : null}
+            {goalEditing || goalValue !== editRun.goal ? <div className="mt-2 flex justify-end gap-1"><Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={goalSaving} onClick={() => { setGoalValue(editRun.goal); setGoalEditing(false) }}>{tr('coach.hub_memory_items.cancel', 'Cancel')}</Button><Button type="submit" size="sm" className="h-7 gap-1 text-xs" disabled={goalSaving || !goalValue.trim() || goalValue.trim() === editRun.goal}>{goalSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}{tr('coach.hub_memory_items.save', 'Save')}</Button></div> : null}
           </form>
         </div> : null}
 

@@ -13,17 +13,18 @@ import ResourceCover, { resourceSite, resourceSource } from './ResourceCover'
 import { getResourceChannels, getResources, saveResource, type Resource, type ResourceChannel, type ResourceType } from '@services/resources/resources'
 import { cn } from '@/lib/utils'
 
+import { tr } from '@/lib/tr'
 /** Resource types in the order Discover shelves them, with their shelf names. */
 export const RESOURCE_TYPES: { value: ResourceType; label: string }[] = [
-  { value: 'video', label: 'Videos' },
-  { value: 'article', label: 'Articles' },
-  { value: 'guide', label: 'Guides' },
-  { value: 'tool', label: 'Tools' },
-  { value: 'assessment', label: 'Quizzes' },
-  { value: 'course', label: 'Courses' },
-  { value: 'school', label: 'Schools' },
-  { value: 'career', label: 'Careers' },
-  { value: 'other', label: 'More resources' },
+  { value: 'video', get label() { return tr('discover.resource_shelves.videos', 'Videos') } },
+  { value: 'article', get label() { return tr('discover.resource_shelves.articles', 'Articles') } },
+  { value: 'guide', get label() { return tr('discover.resource_shelves.guides', 'Guides') } },
+  { value: 'tool', get label() { return tr('discover.resource_shelves.tools', 'Tools') } },
+  { value: 'assessment', get label() { return tr('discover.resource_shelves.quizzes', 'Quizzes') } },
+  { value: 'course', get label() { return tr('discover.resource_shelves.courses', 'Courses') } },
+  { value: 'school', get label() { return tr('discover.resource_shelves.schools', 'Schools') } },
+  { value: 'career', get label() { return tr('discover.resource_shelves.careers', 'Careers') } },
+  { value: 'other', get label() { return tr('discover.resource_shelves.more_resources', 'More resources') } },
 ]
 
 // Careers have their own place on Discover (Career swipe and Careers for you), so a long career list never
@@ -68,7 +69,7 @@ export function ResourceTile({ resource, fill = false }: { resource: Resource; o
     <Link href={href(resource.resource_uuid)} scroll={false} className="flex flex-col gap-2.5 text-foreground no-underline">
       <span className="relative block rounded-2xl shadow-[0_4px_0_hsl(var(--edge))] transition-transform duration-200 group-hover:-translate-y-[3px] motion-reduce:transition-none">
         <ResourceCover resource={resource} />
-        {resource.is_saved ? <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white" aria-label="Saved"><Bookmark size={13} className="fill-current" /></span> : null}
+        {resource.is_saved ? <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white" aria-label={tr('discover.resource_shelves.saved', 'Saved')}><Bookmark size={13} className="fill-current" /></span> : null}
       </span>
       <span className="line-clamp-2 min-h-[2.5em] px-0.5 text-[15.5px] font-extrabold leading-tight"><Tx text={resource.title} /></span>
       <span className="-mt-1.5 flex items-center gap-2 truncate px-0.5 text-xs font-semibold text-muted-foreground">

@@ -8,6 +8,7 @@ import { Button } from '@components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import type { HubSuggestedAction } from '@services/hub/advisor'
 
+import { tr } from '@/lib/tr'
 export function AssistantResponse({ content }: { content: string }) {
   return (
     <article className="max-w-none text-[15px] leading-7 text-foreground">
@@ -37,7 +38,7 @@ export function AssistantResponse({ content }: { content: string }) {
 export function HubSuggestedActions({ actions, disabled = false, onActivate }: { actions: HubSuggestedAction[]; disabled?: boolean; onActivate: (action: HubSuggestedAction, mode: 'navigate' | 'edit') => Promise<void> }) {
   const [busy, setBusy] = useState<string | null>(null)
   if (!actions.length) return null
-  return <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Suggested next actions" data-testid="hub-suggested-actions">
+  return <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label={tr('coach.hub_message_parts.suggested_next_actions', 'Suggested next actions')} data-testid="hub-suggested-actions">
     {actions.map((action) => action.primary_behavior === 'begin_edit' ? <div key={action.action_id} className="inline-flex overflow-hidden rounded-lg border border-border bg-background shadow-xs">
       <Button type="button" variant="ghost" size="sm" className="h-8 rounded-none border-0 px-3 text-xs font-semibold" disabled={disabled || busy !== null} onClick={async () => { setBusy(action.action_id); try { await onActivate(action, 'edit') } finally { setBusy(null) } }}>
         {busy === action.action_id ? <Loader2 size={13} className="animate-spin" /> : null}
@@ -46,7 +47,7 @@ export function HubSuggestedActions({ actions, disabled = false, onActivate }: {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-none border-0 border-l border-border" disabled={disabled || busy !== null} aria-label={`More options for ${action.primary_label || action.label}`}><ChevronDown size={13} /></Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => void onActivate(action, 'navigate')}>{action.alternate_label || 'Open without editing'}</DropdownMenuItem></DropdownMenuContent>
+        <DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => void onActivate(action, 'navigate')}>{action.alternate_label || tr('coach.hub_message_parts.open_without_editing', 'Open without editing')}</DropdownMenuItem></DropdownMenuContent>
       </DropdownMenu>
     </div> : <Button
       key={action.action_id}
@@ -62,7 +63,7 @@ export function HubSuggestedActions({ actions, disabled = false, onActivate }: {
     >
       {busy === action.action_id ? <Loader2 size={13} className="animate-spin" /> : null}
       {busy !== action.action_id ? <Link2 size={12} aria-hidden="true" /> : null}
-      {action.destination === 'plans' ? 'Plans page' : action.label.replace(/^View\s+/i, '')}
+      {action.destination === 'plans' ? tr('coach.hub_message_parts.plans_page', 'Plans page') : action.label.replace(/^View\s+/i, '')}
     </Button>)}
   </div>
 }

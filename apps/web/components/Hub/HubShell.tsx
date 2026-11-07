@@ -10,6 +10,7 @@ import type { Resource } from '@services/resources/resources'
 import { HubContext, type HubCoachIntent, type HubCoachState, type HubContextValue, type HubEditContinuation, type HubEditReviewItem, type HubSurface, type HubTab } from './HubContext'
 import HubConversation from './conversation/HubConversation'
 import useHubGestures from './useHubGestures'
+import { tr } from '@/lib/tr'
 import './hub.css'
 
 const PHONE = '(max-width: 767px)'
@@ -227,15 +228,15 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
   return <HubContext.Provider value={value}>
     <div ref={shellRef} className={focused ? 'min-h-dvh w-full' : 'hub-shell'} data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} data-hub-overlay={overlay || undefined} style={style}>
       {children}
-      {overlay && state === 'open' ? <button type="button" className="hub-scrim" aria-label="Back to the page" onClick={tuck} /> : null}
-      {!focused && state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label="Back to the page" onClick={tuck} /> : null}
-      {!focused && showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? 'Open Coach, new reply' : 'Open Coach'} onClick={() => open()}>
+      {overlay && state === 'open' ? <button type="button" className="hub-scrim" aria-label={tr('coach.hub_shell.back_to_the_page', 'Back to the page')} onClick={tuck} /> : null}
+      {!focused && state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label={tr('coach.hub_shell.back_to_the_page', 'Back to the page')} onClick={tuck} /> : null}
+      {!focused && showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? tr('coach.hub_shell.open_coach_new_reply', 'Open Coach, new reply') : tr('coach.hub_shell.open_coach', 'Open Coach')} onClick={() => open()}>
         <span className={`hub-edge-dot ${unread ? 'hub-edge-dot--unread' : ''}`} aria-hidden="true" />
         <Sparkle size={18} weight="fill" className="hub-edge-mark" aria-hidden="true" />
         <span className="hub-edge-grip" aria-hidden="true" />
       </button> : null}
-      {!focused && state === 'open' && !phone ? <div role="separator" aria-label="Resize Coach" aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
-      <section ref={panelRef} tabIndex={-1} className="hub-panel" style={focused ? { display: 'none' } : undefined} aria-label={threads ? (tab === 'threads' ? 'Threads' : 'Coach') : 'Coach'} aria-hidden={focused || state !== 'open' || undefined} inert={focused || state !== 'open' || undefined}>
+      {!focused && state === 'open' && !phone ? <div role="separator" aria-label={tr('coach.hub_shell.resize_coach', 'Resize Coach')} aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
+      <section ref={panelRef} tabIndex={-1} className="hub-panel" style={focused ? { display: 'none' } : undefined} aria-label={threads ? (tab === 'threads' ? tr('coach.hub_shell.threads', 'Threads') : tr('coach.hub_shell.coach', 'Coach')) : tr('coach.hub_shell.coach', 'Coach')} aria-hidden={focused || state !== 'open' || undefined} inert={focused || state !== 'open' || undefined}>
         {threads ? <>
           <PanelTabs tab={tab} onTab={(next) => next === 'coach' ? open() : openThreads()} unread={unread} />
           <div className="relative min-h-0 flex-1" hidden={tab !== 'threads'}>{threads({ active: !focused && state === 'open' && tab === 'threads', target: threadTarget, setTarget: setThreadTarget, close: tuck })}</div>
@@ -252,9 +253,9 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
 function PanelTabs({ tab, onTab, unread }: { tab: HubTab; onTab: (tab: HubTab) => void; unread: boolean }) { // eslint-disable-line no-unused-vars
   const option = (value: HubTab, label: string, icon?: ReactNode) => <button type="button" role="tab" aria-selected={tab === value} onClick={() => onTab(value)}
     className={`relative flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-bold transition-colors ${tab === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-    {icon}{label}{value === 'coach' && unread && tab !== 'coach' ? <span className="absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full bg-[#7cc4ff]" aria-label="new reply" /> : null}
+    {icon}{label}{value === 'coach' && unread && tab !== 'coach' ? <span className="absolute right-3 top-1.5 h-1.5 w-1.5 rounded-full bg-[#7cc4ff]" aria-label={tr('coach.hub_shell.new_reply', 'new reply')} /> : null}
   </button>
-  return <div role="tablist" aria-label="Panel" className="mx-3 mt-3 flex shrink-0 rounded-full bg-foreground/[0.06] p-1">
+  return <div role="tablist" aria-label={tr('coach.hub_shell.panel', 'Panel')} className="mx-3 mt-3 flex shrink-0 rounded-full bg-foreground/[0.06] p-1">
     {option('threads', 'Threads')}{option('coach', 'Coach', <Sparkle size={13} weight="fill" aria-hidden="true" />)}
   </div>
 }

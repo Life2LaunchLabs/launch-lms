@@ -28,6 +28,7 @@ import EndSessionDialog from './EndSessionDialog'
 import useHubMemory from './useHubMemory'
 import useHubEditRun from './useHubEditRun'
 
+import { tr } from '@/lib/tr'
 function advisorErrorMessage(error: any) {
   if (error?.status === 422) return 'I couldn’t send that turn. Please try again—your message is still here.'
   return error?.message || 'The advisor is temporarily unavailable. Your message has been restored.'
@@ -241,7 +242,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       const nextContext = addHubContextResource(contextResources, resource)
       setContextResources(nextContext)
       persistState(messages, nextContext)
-      toast.success('Added back to this chat')
+      toast.success(tr('coach.hub_conversation.added_back_to_this_chat', 'Added back to this chat'))
     }
     setTrayUuid(resource.resource_uuid)
   }
@@ -253,7 +254,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     setPendingResources((current) => current.filter((item) => item.resource_uuid !== resource.resource_uuid))
     setTrayUuid(nextActiveUuid)
     persistState(messages, nextContext)
-    toast((item) => <span className="flex items-center gap-3 text-sm">Removed from this chat<button type="button" className="font-semibold underline underline-offset-4" onClick={() => { toast.dismiss(item.id); setContextResources(previous); setMessages((current) => { persistState(current, previous); return current }) }}>Undo</button></span>, { duration: 5000 })
+    toast((item) => <span className="flex items-center gap-3 text-sm">{tr('coach.hub_conversation.removed_from_this_chat', 'Removed from this chat')}<button type="button" className="font-semibold underline underline-offset-4" onClick={() => { toast.dismiss(item.id); setContextResources(previous); setMessages((current) => { persistState(current, previous); return current }) }}>{tr('coach.hub_conversation.undo', 'Undo')}</button></span>, { duration: 5000 })
   }
 
   const pageSurface = () => ({
@@ -406,8 +407,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   // On a goal, Coach's notes on it show as cards: before anything else, or after the conversation.
   const noteGoal = hub?.surface?.hint.surface === 'goal' ? hub.surface.hint.entity_id : undefined
   const notes = noteGoal ? <CoachNoteCards goalUuid={noteGoal} orgslug={orgslug} token={accessToken} disabled={busy} onAsk={pick} /> : null
-  return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label="Coach conversation">
-    <h1 className="sr-only">{conversationTitle || 'Coach'}</h1>
+  return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label={tr('coach.hub_conversation.coach_conversation', 'Coach conversation')}>
+    <h1 className="sr-only">{conversationTitle || tr('coach.hub_shell.coach', 'Coach')}</h1>
     <HubHeader
       conversationUuid={conversationUuid} conversationStarted={conversationStarted} title={conversationTitle} conversations={conversations}
       loading={historyLoading} disabled={busy} onHistoryOpen={refreshHistory} onNew={() => endingSession(resetChat)} onSelect={openConversation}
@@ -423,7 +424,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>
           {!conversationStarted ? <>{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
-          {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div> : null}
+          {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.loading_conversation', 'Loading conversation…')}</div> : null}
           <HubThread
             messages={messages} timelineSlots={timelineSlots} editRun={hub?.editRun || null} editObjects={hub?.editRun?.objects || []}
             pendingReviewCount={hub?.editReviewItems.length || 0} pendingResources={pendingResources} inChat={inChat}
@@ -432,7 +433,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
             onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction} onAnswer={answerQuestions}
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
-          {sending ? <div className="text-sm text-muted-foreground" role="status">Thinking…</div> : null}
+          {sending ? <div className="text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.thinking', 'Thinking…')}</div> : null}
           {conversationStarted && !conversationLoading ? notes : null}
           {error ? <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
         </div>

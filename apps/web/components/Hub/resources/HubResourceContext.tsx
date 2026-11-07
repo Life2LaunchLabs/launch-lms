@@ -17,6 +17,7 @@ import type { HubAdvisorResource } from '@services/hub/advisor'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import { getResource, getResourceChannels, getResourceReviews, Resource, saveResource } from '@services/resources/resources'
 
+import { tr } from '@/lib/tr'
 export function resourceImage(resource: HubAdvisorResource) {
   return resource.thumbnail_image && resource.owner_org_uuid
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
@@ -71,7 +72,7 @@ function ResourceListMembership({ resourceUuid }: { resourceUuid: string }) {
       setMembershipOverride(updated.user_channel_uuids ?? nextMemberships)
       await mutate(updated, false)
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to remove from list')
+      toast.error(error?.message || tr('coach.hub_resource_context.failed_to_remove_from_list', 'Failed to remove from list'))
     } finally {
       setPendingRemoval(null)
     }
@@ -183,10 +184,10 @@ export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAd
                 type="button"
                 onClick={() => setSection('reviews')}
                 className="flex items-center gap-1 rounded hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="View resource reviews"
+                aria-label={tr('coach.hub_resource_context.view_resource_reviews', 'View resource reviews')}
               >
                 <span className="font-medium text-foreground">{headerRating.toFixed(1)}</span>
-                <span>({fullResource?.comment_count ?? reviews.length} reviews)</span>
+                <span>({fullResource?.comment_count ?? reviews.length}{' '}{tr('coach.hub_resource_context.reviews', 'reviews)')}</span>
               </button>
             </div>
             {resource.description && <p className="mt-3 line-clamp-3 text-xs leading-5 text-muted-foreground">{resource.description}</p>}
@@ -213,11 +214,11 @@ export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAd
       <div>
         <div className="flex h-11 items-end gap-6 border-b border-border/60 px-4 sm:px-5">
           <button type="button" onClick={() => setSection('notes')} className={`relative flex h-full items-center pt-1 text-xs font-medium transition-colors ${section === 'notes' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-            Notes
+            {tr('coach.hub_resource_context.notes', 'Notes')}
             {section === 'notes' && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />}
           </button>
           <button type="button" onClick={() => setSection('reviews')} className={`relative flex h-full items-center gap-1.5 pt-1 text-xs font-medium transition-colors ${section === 'reviews' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-            Reviews <span className="font-normal text-muted-foreground">{fullResource?.comment_count ?? reviews.length}</span>
+            {tr('coach.hub_resource_context.reviews_2', 'Reviews')}{' '}<span className="font-normal text-muted-foreground">{fullResource?.comment_count ?? reviews.length}</span>
             {section === 'reviews' && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />}
           </button>
         </div>
@@ -251,7 +252,7 @@ export default function HubResourceCarousel({ resources, inChat, label, onOpen }
 }) {
   if (resources.length === 0) return null
   return (
-    <section aria-label={label || 'Resources'}>
+    <section aria-label={label || tr('coach.hub_resource_context.resources', 'Resources')}>
       {label && <p className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground">{label}</p>}
       <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
         {resources.map((resource) => {
@@ -269,7 +270,7 @@ export default function HubResourceCarousel({ resources, inChat, label, onOpen }
               </span>
               <span className="min-w-0">
                 <span className="line-clamp-2 text-xs font-medium leading-4">{resource.title}</span>
-                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{present ? resource.provider_name || resource.resource_type : 'Not in this chat · tap to add back'}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{present ? resource.provider_name || resource.resource_type : tr('coach.hub_resource_context.not_in_this_chat_tap', 'Not in this chat · tap to add back')}</span>
               </span>
             </button>
           )
@@ -291,7 +292,7 @@ export function HubResourceTrayHandle({ resources, onOpen }: { resources: HubAdv
           </span>
         ))}
       </span>
-      {resources.length === 1 ? '1 resource' : `${resources.length} resources`}
+      {resources.length === 1 ? tr('coach.hub_resource_context.1_resource', '1 resource') : `${resources.length} resources`}
       <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
     </button>
   )

@@ -19,6 +19,7 @@ import {
   channelIconOptions,
 } from '@components/Resources/ResourceChannelStyle'
 
+import { tr } from '@/lib/tr'
 type PickerMode = 'icon' | 'color'
 
 function requireSuccess(result: any, fallbackMessage: string) {
@@ -108,9 +109,9 @@ export default function NewUserResourceChannelModal({
       setEditingPicker(false)
       setPickerMode('icon')
       onClose()
-      toast.success(channel ? 'List updated' : 'List created')
+      toast.success(channel ? tr('resources.new_user_resource_channel_modal.list_updated', 'List updated') : tr('resources.new_user_resource_channel_modal.list_created', 'List created'))
     } catch (error: any) {
-      toast.error(error?.message || (channel ? 'Failed to update list' : 'Failed to create list'))
+      toast.error(error?.message || (channel ? tr('resources.new_user_resource_channel_modal.failed_to_update_list', 'Failed to update list') : tr('resources.new_user_resource_channel_modal.failed_to_create_list', 'Failed to create list')))
     } finally {
       setCreating(false)
     }
@@ -120,7 +121,7 @@ export default function NewUserResourceChannelModal({
     <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-6 nice-shadow">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">{isEditing ? 'Edit list' : 'New list'}</h3>
+          <h3 className="text-lg font-semibold text-foreground">{isEditing ? tr('resources.new_user_resource_channel_modal.edit_list', 'Edit list') : tr('resources.new_user_resource_channel_modal.new_list', 'New list')}</h3>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
@@ -140,7 +141,7 @@ export default function NewUserResourceChannelModal({
                     : 'text-muted-foreground hover:bg-card hover:text-foreground'
                 }`}
               >
-                {editingPicker ? 'Done' : 'Edit'}
+                {editingPicker ? tr('discover.plan_page.done', 'Done') : tr('resources.new_user_resource_channel_modal.edit', 'Edit')}
               </button>
             </div>
             <div className="relative flex h-48 overflow-hidden">
@@ -232,23 +233,23 @@ export default function NewUserResourceChannelModal({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Title</label>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">{tr('discover.discover_settings_panel.title', 'Title')}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-gray-400"
-              placeholder="List name"
+              placeholder={tr('resources.new_user_resource_channel_modal.list_name', 'List name')}
               autoFocus
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-muted-foreground">Description</label>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">{tr('resources.new_user_resource_channel_modal.description', 'Description')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full resize-none rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-gray-400"
-              placeholder="Optional description"
+              placeholder={tr('resources.new_user_resource_channel_modal.optional_description', 'Optional description')}
               rows={3}
             />
           </div>
@@ -258,7 +259,7 @@ export default function NewUserResourceChannelModal({
             onClick={onClose}
             className="rounded-xl border border-border px-4 py-2 text-sm hover:bg-muted transition-colors"
           >
-            Cancel
+            {tr('careers.add_to_plans.cancel', 'Cancel')}
           </button>
           <button
             onClick={handleCreate}
@@ -266,7 +267,7 @@ export default function NewUserResourceChannelModal({
             className="flex items-center gap-1.5 rounded-xl bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 disabled:opacity-40 transition-colors"
           >
             {creating && <Loader2 size={13} className="animate-spin" />}
-            {isEditing ? 'Save' : 'Create'}
+            {isEditing ? tr('careers.career_take.save', 'Save') : tr('resources.new_user_resource_channel_modal.create', 'Create')}
           </button>
         </div>
       </div>

@@ -5,8 +5,9 @@ import { WhoStep } from '@components/Assignments/assign/FlowSteps'
 import { BadgeChooser, Review, SignOff } from '@components/Badges/award/AwardFlow'
 import type { AwardablePlan } from '@services/badges/badges'
 
+import { tr } from '@/lib/tr'
 const plan: AwardablePlan = {
-  template_uuid: 't1', name: 'Launch Ready', kind: 'Badge', image_url: '', skills: [], style: 'modern', description: '', title: 'Launch Ready plan',
+  template_uuid: 't1', name: 'Launch Ready', kind: 'Badge', image_url: '', skills: [], style: 'modern', description: '', get title() { return tr('badges.award_flow_test.launch_ready_plan', 'Launch Ready plan') },
   thumbnail_image: '', steps: 6, owned: true, owner: { name: 'Riverside', slug: 'riverside' },
 }
 const maya = { kind: 'member' as const, id: 9, name: 'Maya Rivera', username: 'maya' }

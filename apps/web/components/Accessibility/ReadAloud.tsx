@@ -7,6 +7,7 @@ import { useAccessibility } from './AccessibilityContext'
 import { speak, stopSpeaking, stopSpeakingIf, useSpeech, useSpeechSupported } from './speech'
 import { joinSpoken, useDictation } from './dictation'
 
+import { tr } from '@/lib/tr'
 type Size = 'sm' | 'md' | 'lg'
 const SIZES: Record<Size, { box: string; icon: number }> = {
   sm: { box: 'size-8', icon: 16 },
@@ -35,7 +36,7 @@ export function SpeakButton({ text, id, label = 'Read aloud', size = 'md', class
   if (!supported || !text.trim()) return null
   const speaking = now.id === speechId
   const { box, icon } = SIZES[size]
-  return <button type="button" aria-label={speaking ? 'Stop reading' : label} aria-pressed={speaking}
+  return <button type="button" aria-label={speaking ? tr('access.read_aloud.stop_reading', 'Stop reading') : label} aria-pressed={speaking}
     onClick={(event) => { event.stopPropagation(); if (speaking) stopSpeaking(); else speak(speechId, text, { rate: settings.rate, voice: settings.voice }) }}
     className={cn('inline-grid shrink-0 place-items-center rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--org-primary-color)]', box,
       tone === 'onDark' ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-muted text-foreground/80 hover:bg-muted/70 hover:text-foreground',
@@ -95,14 +96,14 @@ export function MicButton({ value, onChange, size = 'md', className, label = 'Ta
   if (!dictation.supported) return null
   const { box, icon } = SIZES[size]
   return <span className={cn('relative inline-flex shrink-0', className)}>
-    <button type="button" aria-label={dictation.listening ? 'Stop listening' : label} aria-pressed={dictation.listening}
+    <button type="button" aria-label={dictation.listening ? tr('access.read_aloud.stop_listening', 'Stop listening') : label} aria-pressed={dictation.listening}
       onClick={() => dictation.listening ? dictation.stop() : dictation.start()}
       className={cn('inline-grid place-items-center rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--org-primary-color)]', box,
         dictation.listening ? 'animate-pulse bg-red-500 text-white' : 'bg-muted text-foreground/80 hover:bg-muted/70 hover:text-foreground')}>
       {dictation.listening ? <Square size={icon - 3} className="fill-current" aria-hidden="true" /> : <Mic size={icon} aria-hidden="true" />}
     </button>
     <span role="status" aria-live="polite" className={cn('pointer-events-none absolute right-0 top-full z-20 mt-1.5 w-max max-w-[260px] rounded-xl bg-foreground px-3 py-1.5 text-[13px] font-semibold text-background shadow-lg', !(dictation.listening || dictation.error) && 'sr-only')}>
-      {dictation.error || (dictation.listening ? (dictation.interim || 'Listening… talk now') : '')}
+      {dictation.error || (dictation.listening ? (dictation.interim || tr('access.read_aloud.listening_talk_now', 'Listening… talk now')) : '')}
     </span>
   </span>
 }
@@ -145,7 +146,7 @@ export function ReadToMeToggle({ className }: { className?: string }) {
   const on = settings.read_to_me
   return <button type="button" role="switch" aria-checked={on} onClick={() => { void save({ read_to_me: !on }).catch(() => undefined) }}
     className={cn('inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition-colors', on ? 'bg-[var(--org-primary-color)] text-white' : 'bg-muted text-foreground', className)}>
-    <Volume2 size={17} aria-hidden="true" />Read to me
+    <Volume2 size={17} aria-hidden="true" />{tr('access.read_aloud.read_to_me', 'Read to me')}
   </button>
 }
 

@@ -9,6 +9,7 @@ import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, short } from './model'
 import { MarkCard, MarkDot, markLabel, marksBetween } from './ChartEvents'
 
+import { tr } from '@/lib/tr'
 const SAVE = '#2F7DD3', OWN = '#7A5BD0', DEBT = '#E0662E'
 
 function nice(v: number) {
@@ -20,9 +21,9 @@ function nice(v: number) {
 function Legend({ own }: { own: boolean }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-muted-foreground">
-      <span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: SAVE }} />Savings</span>
-      {own && <span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: OWN }} />Things you own</span>}
-      <span className="inline-flex items-center gap-1.5"><i className="inline-block h-[3px] w-3.5 rounded" style={{ background: DEBT }} />Debt</span>
+      <span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: SAVE }} />{tr('budget.chart_events.savings', 'Savings')}</span>
+      {own && <span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: OWN }} />{tr('budget.chart_events.things_you_own', 'Things you own')}</span>}
+      <span className="inline-flex items-center gap-1.5"><i className="inline-block h-[3px] w-3.5 rounded" style={{ background: DEBT }} />{tr('budget.chart_events.debt', 'Debt')}</span>
     </div>
   )
 }
@@ -76,20 +77,20 @@ export default function PhaseChart() {
   }
 
   return (
-    <section aria-label="Money over this phase">
+    <section aria-label={tr('budget.phase_chart.money_over_this_phase', 'Money over this phase')}>
       {phase.lines.length === 0 ? (
-        <p className="text-lg font-bold leading-snug sm:text-xl">{readOnly ? 'Nothing in this phase’s budget yet.' : <>Add what comes in and what goes out to see where {phase.title.charAt(0).toLowerCase() + phase.title.slice(1)} leaves you.</>}</p>
+        <p className="text-lg font-bold leading-snug sm:text-xl">{readOnly ? tr('budget.phase_chart.nothing_in_this_phase_s', 'Nothing in this phase’s budget yet.') : <>{tr('budget.phase_chart.add_what_comes_in_and', 'Add what comes in and what goes out to see where')}{' '}{phase.title.charAt(0).toLowerCase() + phase.title.slice(1)}{' '}{tr('budget.phase_chart.leaves_you', 'leaves you.')}</>}</p>
       ) : (<>
       <p className="text-lg font-bold leading-snug sm:text-xl">
-        During {phase.title.charAt(0).toLowerCase() + phase.title.slice(1)}, about <span className="text-emerald-600 dark:text-emerald-400">{money(inn)}</span> comes in and {money(out)} goes out a month.
+        {tr('budget.phase_chart.during', 'During')}{' '}{phase.title.charAt(0).toLowerCase() + phase.title.slice(1)}{tr('budget.phase_chart.about', ', about')}{' '}<span className="text-emerald-600 dark:text-emerald-400">{money(inn)}</span>{' '}{tr('budget.phase_chart.comes_in_and_money_goes', 'comes in and {{money}} goes out a month.', { money: money(out) })}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Savings{hasOwn ? ' and things you own' : ''} go from <b className="text-foreground">{short(stack[0])}</b> to <b className="text-foreground">{short(stack[M])}</b>.{(debt[0] > 0.5 || debt[M] > 0.5) && <> Debt goes from <b style={{ color: DEBT }}>{short(debt[0])}</b> to <b style={{ color: DEBT }}>{short(debt[M])}</b>.</>}
-        {missing > 0 && <> {missing === 1 ? 'One line has' : `${missing} lines have`} no number yet, so {missing === 1 ? "it isn't" : "they aren't"} counted.</>}
+        {tr('budget.chart_events.savings', 'Savings')}{hasOwn ? tr('budget.phase_chart.and_things_you_own', ' and things you own') : ''}{' '}{tr('budget.phase_chart.go_from', 'go from')}{' '}<b className="text-foreground">{short(stack[0])}</b>{' '}{tr('budget.budget_table.to', 'to')}{' '}<b className="text-foreground">{short(stack[M])}</b>.{(debt[0] > 0.5 || debt[M] > 0.5) && <>{' '}{tr('budget.phase_chart.debt_goes_from', 'Debt goes from')}{' '}<b style={{ color: DEBT }}>{short(debt[0])}</b>{' '}{tr('budget.budget_table.to', 'to')}{' '}<b style={{ color: DEBT }}>{short(debt[M])}</b>.</>}
+        {missing > 0 && <> {missing === 1 ? tr('budget.phase_chart.one_line_has', 'One line has') : `${missing} lines have`}{' '}{tr('budget.phase_chart.no_number_yet_so', 'no number yet, so')}{' '}{missing === 1 ? tr('budget.phase_chart.it_isn_t', 'it isn\'t') : tr('budget.phase_chart.they_aren_t', 'they aren\'t')}{' '}{tr('budget.phase_chart.counted', 'counted.')}</>}
       </p>
       </>)}
       <div className="mt-3 rounded-2xl bg-card p-3 shadow-[0_1px_0_hsl(var(--border))] sm:p-4">
-        <div className="mb-1 flex items-center justify-between gap-2"><div><Legend own={hasOwn} />{dots.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">Tap a dot to see why the line moves.</p>}</div><Button variant="ghost" size="icon" onClick={() => setBig(true)} aria-label="See every phase, full screen" title="See every phase"><Maximize2 /></Button></div>
+        <div className="mb-1 flex items-center justify-between gap-2"><div><Legend own={hasOwn} />{dots.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">{tr('budget.phase_chart.tap_a_dot_to_see', 'Tap a dot to see why the line moves.')}</p>}</div><Button variant="ghost" size="icon" onClick={() => setBig(true)} aria-label={tr('budget.phase_chart.see_every_phase_full_screen', 'See every phase, full screen')} title={tr('budget.phase_chart.see_every_phase', 'See every phase')}><Maximize2 /></Button></div>
         <div className="relative pl-10">
           <div className="pointer-events-none absolute inset-y-0 left-0 w-9">
             {[0, hi / 2, hi].map((t) => <span key={t} className="absolute right-1 -translate-y-1/2 text-[11px] font-semibold tabular-nums text-muted-foreground" style={{ top: Y(t) }}>{t ? short(t) : '$0'}</span>)}
@@ -100,7 +101,7 @@ export default function PhaseChart() {
                 className={`absolute bottom-0 top-[30px] z-[1] ${s.i === stretch.i ? 'bg-[color-mix(in_srgb,var(--org-primary-color)_11%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--org-primary-color)_6%,transparent)]'}`}
                 style={{ left: `${X(s.m0)}%`, width: `${X(s.m1 + 1) - X(s.m0)}%` }} />
             ))}
-            <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} className="pointer-events-none relative block overflow-visible" role="img" aria-label={`Savings, things you own and debt during ${phase.title}`}>
+            <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} className="pointer-events-none relative block overflow-visible" role="img" aria-label={tr('budget.phase_chart.savings_things_you_own_and', 'Savings, things you own and debt during {{title}}', { title: phase.title })}>
               {[0, hi / 2, hi].map((t) => <line key={t} x1="0" x2="100" y1={Y(t)} y2={Y(t)} stroke="hsl(var(--border))" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
               <polygon points={area(sav, zero)} fill={SAVE} opacity={0.2} />
               {hasOwn && <><polygon points={area(stack, sav)} fill={OWN} opacity={0.25} /><polyline points={pts(stack)} fill="none" stroke={OWN} strokeWidth="2.25" vectorEffect="non-scaling-stroke" /></>}
@@ -118,7 +119,7 @@ export default function PhaseChart() {
             ))}
             {dots.map((d) => (
               <span key={d.g} data-mark=""><MarkDot ms={d.ms} active={pick === d.g} onClick={() => setPick(pick === d.g ? null : d.g)} style={{ left: `${d.x}%`, top: d.y }}
-                label={`${monthLabel(doc.start, d.g)}: ${markLabel(d.ms)}. Why the line moves`} /></span>
+                label={tr('budget.phase_chart.monthlabel_marklabel_why_the_line', '{{monthLabel}}: {{markLabel}}. Why the line moves', { monthLabel: monthLabel(doc.start, d.g), markLabel: markLabel(d.ms) })} /></span>
             ))}
             {picked && (
               <div ref={pop} className="absolute z-[6]" style={{ top: Math.min(picked.y + 16, H - 20), ...(picked.x > 55 ? { right: `${100 - picked.x}%`, marginRight: -12 } : { left: `${picked.x}%`, marginLeft: -12 }) }}>
@@ -130,7 +131,7 @@ export default function PhaseChart() {
                 <span className="pointer-events-none absolute bottom-0 top-[30px] z-[2] w-px bg-muted-foreground/50" style={{ left: `${X(hover)}%` }} />
                 <span className="pointer-events-none absolute top-8 z-[4] whitespace-nowrap rounded-xl bg-foreground px-2.5 py-2 text-xs font-semibold text-background" style={X(hover) > 60 ? { right: `${100 - X(hover)}%`, marginRight: 12 } : { left: `${X(hover)}%`, marginLeft: 12 }}>
                   <b className="block">{monthLabel(doc.start, off + Math.min(hover, M - 1))}</b>
-                  Savings {short(sav[hover])}{own[hover] > 1 ? <><br />Things you own {short(own[hover])}</> : null}<br />Debt {short(debt[hover])}
+                  {tr('budget.phase_chart.savings_short', 'Savings {{short}}', { short: short(sav[hover]) })}{own[hover] > 1 ? <><br />{tr('budget.phase_chart.things_you_own_short', 'Things you own {{short}}', { short: short(own[hover]) })}</> : null}<br />{tr('budget.phase_chart.debt_short', 'Debt {{short}}', { short: short(debt[hover]) })}
                 </span>
               </>
             )}
@@ -179,8 +180,8 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-3 rounded-none p-4 sm:rounded-none">
         <div className="flex items-start justify-between gap-3 pr-10">
-          <div><DialogTitle className="text-2xl font-extrabold">Every phase</DialogTitle><div className="mt-1"><Legend own={projection.own.some((v) => v > 1)} /></div></div>
-          <div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => zoom(-1)} aria-label="Zoom out"><Minus /></Button><Button variant="ghost" size="icon" onClick={() => zoom(1)} aria-label="Zoom in"><Plus /></Button></div>
+          <div><DialogTitle className="text-2xl font-extrabold">{tr('budget.phase_chart.every_phase', 'Every phase')}</DialogTitle><div className="mt-1"><Legend own={projection.own.some((v) => v > 1)} /></div></div>
+          <div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => zoom(-1)} aria-label={tr('budget.phase_chart.zoom_out', 'Zoom out')}><Minus /></Button><Button variant="ghost" size="icon" onClick={() => zoom(1)} aria-label={tr('budget.phase_chart.zoom_in', 'Zoom in')}><Plus /></Button></div>
         </div>
         <div className="relative min-h-0 flex-1 pl-11">
           <div className="pointer-events-none absolute bottom-0 left-0 top-[30px] w-10">
@@ -198,7 +199,7 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
                   </span>
                 ))}
               </div>
-              <svg width={W} height={H} role="img" aria-label="Savings, things you own and debt across every phase">
+              <svg width={W} height={H} role="img" aria-label={tr('budget.phase_chart.savings_things_you_own_and_2', 'Savings, things you own and debt across every phase')}>
                 {[0, hi / 4, hi / 2, (3 * hi) / 4, hi].map((t) => <line key={t} x1="0" x2={W} y1={Y(t)} y2={Y(t)} stroke="hsl(var(--border))" />)}
                 {doc.phases.slice(1).map((p) => <line key={p.id} x1={X(phaseOffset(doc, p.id))} x2={X(phaseOffset(doc, p.id))} y1="0" y2={H} stroke="hsl(var(--border))" strokeDasharray="4 4" />)}
                 <polygon points={area(projection.sav, projection.sav.map(() => 0))} fill={SAVE} opacity={0.2} />
@@ -207,7 +208,7 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <polyline points={pts(projection.debt)} fill="none" stroke={DEBT} strokeWidth="2.25" />
               </svg>
               {dots.map(([g, ms]) => (
-                <MarkDot key={g} ms={ms} active={pick === g} onClick={() => setPick(pick === g ? null : g)} label={`${monthLabel(doc.start, g)}: ${markLabel(ms)}. Why the line moves`}
+                <MarkDot key={g} ms={ms} active={pick === g} onClick={() => setPick(pick === g ? null : g)} label={tr('budget.phase_chart.monthlabel_marklabel_why_the_line', '{{monthLabel}}: {{markLabel}}. Why the line moves', { monthLabel: monthLabel(doc.start, g), markLabel: markLabel(ms) })}
                   style={{ left: X(g + 0.5), top: 26 + 4 + Y((stack[g] + stack[Math.min(G, g + 1)]) / 2) }} />
               ))}
               <div className="relative h-5">{ticks.map(([g, y]) => <span key={g} className="absolute -translate-x-1/2 text-[11px] font-semibold text-muted-foreground" style={{ left: X(g) }}>{y}</span>)}</div>
@@ -215,7 +216,7 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
         </div>
         {picked ? <MarkCard g={picked[0]} ms={picked[1]} onClose={() => setPick(null)} onShow={onClose} className="self-start" />
-          : <p className="text-xs text-muted-foreground">Drag to move along; use + and − to zoom.{dots.length > 0 && ' Tap a dot to see why the line moves.'}</p>}
+          : <p className="text-xs text-muted-foreground">{tr('budget.phase_chart.drag_to_move_along_use', 'Drag to move along; use + and − to zoom.')}{dots.length > 0 && tr('budget.phase_chart.tap_a_dot_to_see_2', ' Tap a dot to see why the line moves.')}</p>}
       </DialogContent>
     </Dialog>
   )
