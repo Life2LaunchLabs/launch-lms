@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LifeDoc } from '@services/life/life'
-import { addAfter, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -176,5 +176,20 @@ describe('a plan as a map', () => {
     expect(off.phases.find((p) => p.id === loose.ids[0])!.after).toEqual([])
     for (const id of after) expect(off.phases.find((p) => p.id === id)!.after).toContain('hs')
     expect(off.phases.find((p) => p.id === loose.ids[1])!.after).toEqual([loose.ids[0]])
+  })
+
+  test('a phase dropped before an option takes its place, and the option follows it', () => {
+    const doc = map(), lifted = lift(doc, 'col', true)
+    const put = placeBefore(lifted, ['col'], 'tr')
+    const p = (id: string) => put.phases.find((x) => x.id === id)!
+    expect([p('col').after, p('tr').after, p('el').after]).toEqual([['hs'], ['col'], ['tr', 'ap']])
+    expect(p('col').starts).toBe('2027-09')
+    expect(p('tr').starts! >= '2028-09').toBe(true)
+  })
+
+  test('the bottom of the map: after the last phase, or after every option when it ends in a split', () => {
+    const doc = map()
+    expect(bottomOf(doc)).toBe(groupKey(['col', 'el']))
+    expect(bottomOf(remove(doc, 'col'))).toBe('el')
   })
 })

@@ -7,16 +7,11 @@ import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PhaseCover from './PhaseCover'
-import type { Moving } from './MoveBar'
+import type { Moving } from './dragPage'
 import { monthText, whenOf } from './graph'
 
 import { tr } from '@/lib/tr'
 export interface Env { base: LifeDoc; photos?: Record<string, PlacePhoto>; wide: boolean; moving: Moving | null; held: Set<string>; later: (p: Phase) => boolean }
-
-export function Target({ alt, onClick, children }: { alt?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" onClick={onClick}
-    className={cn('relative inline-flex items-center gap-1.5 rounded-full border-2 border-dashed bg-card px-3.5 py-1.5 text-[12.5px] font-extrabold hover:border-solid hover:bg-foreground hover:text-background', alt ? 'border-border' : 'border-muted-foreground')}>{children}</button>
-}
 
 const CARD = 'relative isolate flex h-[180px] w-full select-none flex-col justify-end overflow-hidden rounded-[22px] text-left text-white shadow-[0_18px_34px_-24px_rgb(0_0_0/0.7)]'
 const Shade = () => <span className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,transparent_30%,rgb(8_20_30/0.8))]" aria-hidden="true" />
@@ -71,13 +66,13 @@ export function useHoldDrag(enabled: boolean, onLift: (x: number, y: number) => 
  * A phase's card. Press and hold (touch) or drag it (mouse) to move it; a tap opens its details.
  * `opt` marks it as a place to drop a new option beside it while something is being moved.
  */
-export function PhaseCard({ p, env, opt, onOpen, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; opt?: string; onOpen: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
+export function PhaseCard({ p, env, opt, edges, onOpen, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; opt?: string; edges?: { before: boolean; after: boolean }; onOpen: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-title={p.title} onClick={onOpen} title={p.undated ? p.title : tr('goals.map_parts.title_from_monthtext', '{{title}} · from {{monthText}}', { title: p.title, monthText: monthText(p.starts!) })}
+  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-before={edges?.before || undefined} data-after={edges?.after || undefined} data-title={p.title} onClick={onOpen} title={p.undated ? p.title : tr('goals.map_parts.title_from_monthtext', '{{title}} · from {{monthText}}', { title: p.title, monthText: monthText(p.starts!) })}
     {...drag}
-    className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))]',
+    className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))] data-[edge=t]:shadow-[0_-8px_0_-2px_hsl(var(--foreground))] data-[edge=b]:shadow-[0_8px_0_-2px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
     <PhaseCover phase={p} photos={env.photos} past={wh === 'done'} className={cn('absolute inset-0 -z-20 h-full w-full', p.idea && 'saturate-[.45]')} />
     <Shade />

@@ -11,9 +11,9 @@ import { byId, canJoin, kids, monthText, whenOf } from './graph'
 
 import { tr } from '@/lib/tr'
 /** A phase's details: a bottom sheet on a phone, a dialog on a wider screen. */
-export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, onRename, onKeep, onRemove, onMove, onSplit, onJoin }: {
+export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, onRename, onKeep, onRemove, onSplit, onJoin }: {
   doc: LifeDoc; p: Phase; photos?: Record<string, PlacePhoto>; state: { id: string; renaming?: string; confirmRm?: boolean }; setState: (s: { id: string; renaming?: string; confirmRm?: boolean } | null) => void
-  onOpen: () => void; onRename: (t: string) => void; onKeep: () => void; onRemove: () => void; onMove: () => void; onSplit: (fromId: string) => void; onJoin: (toId: string) => void
+  onOpen: () => void; onRename: (t: string) => void; onKeep: () => void; onRemove: () => void; onSplit: (fromId: string) => void; onJoin: (toId: string) => void
 }) {
   const wh = whenOf(doc, p), fixed = wh === 'now' || wh === 'done', leaf = !kids(doc, p.id).length
   const joinTo = leaf ? doc.phases.filter((x) => canJoin(doc, p.id, x.id)) : []
@@ -48,7 +48,6 @@ export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, on
         <Button variant="brand" className="col-span-2 justify-between" onClick={onOpen}>{tr('goals.phase_sheet.open_title', 'Open {{title}}', { title: p.title })}<ChevronRight size={16} aria-hidden="true" /></Button>
         {renaming ? null : <button type="button" className={act} onClick={() => setState({ id: p.id, renaming: p.title })}>{tr('goals.phase_sheet.rename', 'Rename')}</button>}
         {p.idea ? <button type="button" className={act} onClick={onKeep}><Check size={14} className="mr-1 inline" aria-hidden="true" />{tr('goals.phase_page.make_it_real', 'Make it real')}</button> : null}
-        {!fixed ? <button type="button" className={act} onClick={onMove}>{tr('goals.phase_sheet.move', 'Move')}</button> : null}
         {(p.after?.length || 0) > 1 ? p.after!.map((id) => <button key={id} type="button" className={cn(act, 'col-span-2')} onClick={() => onSplit(id)}>{tr('goals.phase_sheet.split_off_the_title_way', 'Split off the {{title}} way', { title: byId(doc, id)?.title })}</button>) : null}
         {joinTo.length ? <label className={cn(act, 'col-span-2 flex items-center gap-2')}>{tr('goals.phase_sheet.leads_into', 'Leads into')}
           <select aria-label={tr('goals.phase_sheet.leads_into', 'Leads into')} className="min-w-0 flex-1 bg-transparent font-extrabold" value="" onChange={(e) => { if (e.target.value) onJoin(e.target.value) }}>
