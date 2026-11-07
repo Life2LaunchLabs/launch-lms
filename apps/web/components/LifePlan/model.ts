@@ -370,5 +370,5 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
 }
 
 export function newDoc(): LifeDoc {
-  return { version: 1, start: thisMonth(), phases: [], debts: [], savings: [{ id: 'save', kind: 'savings', title: 'Savings account', balance: 0, rate: 0, monthly: 0, main: true }], assets: [], events: [] }
+  return { version: 1, start: thisMonth(), phases: [], debts: [], savings: [{ id: 'save', kind: 'savings', title: tr('budget.catalog.savings', 'Savings account'), balance: 0, rate: 0, monthly: 0, main: true }], assets: [], events: [] }
 }

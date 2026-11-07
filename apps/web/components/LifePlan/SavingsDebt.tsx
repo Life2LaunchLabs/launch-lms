@@ -105,7 +105,7 @@ export function SavingsDebtCard() {
         {short > 0.5 && <ShortRow owed={short} />}
         {!debts.length && short <= 0.5 && <p className="pb-3 text-sm text-muted-foreground">{tr('budget.savings_debt.loans_and_cards_you_pay', 'Loans and cards you pay back. A loan for a car or a home is added with the thing you buy.')}</p>}
       </Section>
-      <Section id="save" title={tr('budget.chart_events.savings', 'Savings')} total={left + put >= 0 ? tr('budget.savings_debt.saving_per', 'saving {{p}}/{{per}}', { p: p(left + put), per }) : <span className="text-red-700 dark:text-red-300">{tr('budget.savings_debt.drawing_p_per', 'drawing {{p}}/{{per}}', { p: p(-(left + put)), per })}</span>}>
+      <Section id="save" title={tr('budget.chart_events.savings', 'Savings')} total={left + put >= 0 ? tr('budget.savings_debt.saving_per', 'saving {{p}}/{{per}}', { p: p(left + put), per: tr(`budget.per_short.${per}`, per) }) : <span className="text-red-700 dark:text-red-300">{tr('budget.savings_debt.drawing_p_per', 'drawing {{p}}/{{per}}', { p: p(-(left + put)), per: tr(`budget.per_short.${per}`, per) })}</span>}>
         {doc.savings.filter((s) => !s.main).map((s) => <AccountRow key={s.id} s={s} at={saves.find((x) => x.id === s.id)!} />)}
         {mainSave && <MainRow s={mainSave} at={saves.find((x) => x.id === mainSave.id)!} left={left} />}
       </Section>

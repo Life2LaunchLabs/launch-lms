@@ -4259,7 +4259,15 @@
     "employer_placeholder": "Nombre del empleador (opcional)",
     "at_employer": "En {{employer}}",
     "skip_employer": "Saltar el empleador",
-    "as_apprentice": "Como aprendiz"
+    "as_apprentice": "Como aprendiz",
+    "household": {
+      "one_kid": "1 hijo",
+      "kids": "{{n}} hijos",
+      "partner_kids": "Yo, mi pareja y {{kids}}",
+      "partner": "Yo y mi pareja",
+      "with_kids": "Yo y {{kids}}",
+      "me": "Solo yo"
+    }
   },
   "onboarding": {
     "ideas": {
@@ -7517,7 +7525,9 @@
       "what_i_m_like": "Cómo soy",
       "my_people": "Mi gente",
       "links": "Enlaces",
-      "documents": "Documentos"
+      "documents": "Documentos",
+      "in_linkedin_open_settings_then": "En LinkedIn, abre Configuración, luego Privacidad de datos, luego \"Obtener una copia de tus datos\", y sube el zip que LinkedIn te envía por correo. O abre tu perfil, elige Más, luego \"Guardar como PDF\", y sube eso.",
+      "upload_your_r_sum_as": "Sube tu currículum en PDF. Leemos sus secciones y fechas, así que revisa lo que encontramos antes de traerlo. El PDF se guarda en Mis documentos."
     },
     "quest_bar": {
       "share": "Compartir",
@@ -7631,7 +7641,8 @@
     "upload": {
       "your_resume_and_a_headshot": "Tu currículum y una foto de perfil",
       "photo": "Foto",
-      "video": "Video"
+      "video": "Video",
+      "add_a_file_first": "Agrega un archivo primero"
     },
     "event": {
       "job_shadow_at_riverside_clinic": "Observar un día de trabajo en Riverside Clinic",
@@ -7804,7 +7815,8 @@
     },
     "resource_sheet": {
       "costs_money": "Cuesta dinero",
-      "needs_an_account": "Necesita una cuenta"
+      "needs_an_account": "Necesita una cuenta",
+      "free": "Gratis"
     },
     "career_profile": {
       "more": "Más",
@@ -7886,7 +7898,8 @@
       "books_and_supplies": "Libros y útiles",
       "going_out": "Salidas",
       "phone_plan": "Plan de celular",
-      "clothes": "Ropa"
+      "clothes": "Ropa",
+      "personal_care": "Cuidado personal"
     },
     "loan_story": {
       "each_month": "Cada mes"
@@ -8213,6 +8226,15 @@
       "how_i_work": "Cómo trabajo",
       "next_up": "Lo que sigue",
       "shoutouts": "Menciones"
+    },
+    "routine_chart": {
+      "now": "Ahora"
+    },
+    "explore": {
+      "research_three_jobs_in_health": "Investiga tres trabajos en el área de la salud"
+    },
+    "award_sharing": {
+      "certificate": "Certificado"
     }
   }
 }

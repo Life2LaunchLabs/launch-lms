@@ -4253,7 +4253,15 @@
     "employer_placeholder": "Employer name (optional)",
     "at_employer": "At {{employer}}",
     "skip_employer": "Skip the employer",
-    "as_apprentice": "As an apprentice"
+    "as_apprentice": "As an apprentice",
+    "household": {
+      "one_kid": "1 kid",
+      "kids": "{{n}} kids",
+      "partner_kids": "Me, a partner and {{kids}}",
+      "partner": "Me and a partner",
+      "with_kids": "Me and {{kids}}",
+      "me": "Just me"
+    }
   },
   "onboarding": {
     "ideas": {
@@ -7505,7 +7513,9 @@
       "what_i_m_like": "What I'm like",
       "my_people": "My people",
       "links": "Links",
-      "documents": "Documents"
+      "documents": "Documents",
+      "in_linkedin_open_settings_then": "In LinkedIn, open Settings, then Data privacy, then \"Get a copy of your data\", and upload the zip LinkedIn emails you. Or open your profile, choose More, then \"Save to PDF\", and upload that.",
+      "upload_your_r_sum_as": "Upload your résumé as a PDF. We read its sections and dates, so check what we found before you bring it in. The PDF is kept in My documents."
     },
     "quest_bar": {
       "share": "Share",
@@ -7619,7 +7629,8 @@
     "upload": {
       "your_resume_and_a_headshot": "Your resume and a headshot",
       "photo": "Photo",
-      "video": "Video"
+      "video": "Video",
+      "add_a_file_first": "Add a file first"
     },
     "event": {
       "job_shadow_at_riverside_clinic": "Job shadow at Riverside Clinic",
@@ -7792,7 +7803,8 @@
     },
     "resource_sheet": {
       "costs_money": "Costs money",
-      "needs_an_account": "Needs an account"
+      "needs_an_account": "Needs an account",
+      "free": "Free"
     },
     "career_profile": {
       "more": "More",
@@ -7874,7 +7886,8 @@
       "books_and_supplies": "Books and supplies",
       "going_out": "Going out",
       "phone_plan": "Phone plan",
-      "clothes": "Clothes"
+      "clothes": "Clothes",
+      "personal_care": "Personal care"
     },
     "loan_story": {
       "each_month": "Each month"
@@ -8201,6 +8214,15 @@
       "how_i_work": "How I work",
       "next_up": "Next up",
       "shoutouts": "Shoutouts"
+    },
+    "routine_chart": {
+      "now": "Now"
+    },
+    "explore": {
+      "research_three_jobs_in_health": "Research three jobs in health care"
+    },
+    "award_sharing": {
+      "certificate": "Certificate"
     }
   }
 }
