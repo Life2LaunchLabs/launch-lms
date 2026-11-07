@@ -1,6 +1,4 @@
-/* eslint-disable no-unused-vars -- parameter names in function types */
-import type { Activity, Line, Phase } from '@services/life/life'
-import { uid } from '@components/LifePlan/model'
+import type { Activity, Phase } from '@services/life/life'
 import { tr } from '@/lib/tr'
 
 /*
@@ -80,28 +78,6 @@ export function kindFor(acts?: Activity[]): string {
   if (a.kind === 'caring') return 'family'
   if (a.kind === 'gap') return 'gap'
   return 'other'
-}
-
-/**
- * Starting budget lines from what the phase is: pay for each job (its estimate comes from BLS for the
- * place), rent or a dorm or living with family, and food. Lines already there are kept; nothing is
- * added twice.
- */
-export function seedLines(p: Phase): Line[] {
-  const lines = [...(p.lines || [])]
-  const has = (item: string, f?: (l: Line) => boolean) => lines.some((l) => l.item === item && (!f || f(l)))
-  for (const a of p.activities || []) {
-    const soc = a.career?.slice(0, 7)
-    if (a.kind === 'working' && soc && !a.apprentice && !has('job', (l) => l.settings?.soc === soc)) {
-      lines.push({ id: uid('l'), cat: 'work', item: 'job', title: a.employer ? tr('phases.lines.pay_at', 'Pay at {{employer}}', { employer: a.employer }) : tr('phases.lines.pay_as', 'Pay as {{job}}', { job: singular(a.career_title || tr('phases.lines.a_worker', 'a worker')).toLowerCase() }), side: 'in', settings: { soc }, hours: 40, start: 0 })
-    }
-  }
-  if (p.living === 'family' && !has('family_home')) lines.push({ id: uid('l'), cat: 'home', item: 'family_home', title: tr('phases.lines.family_home', 'Living with family'), side: 'out', settings: {}, start: 0, own: { unit: 'mo', value: 0 } })
-  if (p.living === 'dorm' && !has('dorm')) lines.push({ id: uid('l'), cat: 'home', item: 'dorm', title: tr('phases.lines.dorm', 'Dorm'), side: 'out', settings: {}, start: 0 })
-  if ((p.living === 'own' || p.living === 'roommates' || p.living === 'partner') && !has('rent')) {
-    lines.push({ id: uid('l'), cat: 'home', item: 'rent', title: tr('phases.lines.rent', 'Rent'), side: 'out', settings: { bedrooms: p.living === 'own' ? 1 : 2, share: p.living === 'own' ? 1 : 2 }, start: 0 })
-  }
-  return lines
 }
 
 export interface CheckItem { key: 'place' | 'living' | 'doing' | 'starts' | 'budget' | 'goals'; title: string; done: boolean }

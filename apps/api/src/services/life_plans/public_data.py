@@ -238,7 +238,17 @@ def _val(text: str | None) -> float | None:
 
 
 # The institution file has about 3,300 columns; only these are kept while reading it.
-SCORECARD_COLUMNS = ("unitid", "instnm", "city", "stabbr", "insturl", "control", "preddeg", "curroper", "ugds", "adm_rate", "c150_4", "c150_l4", "md_earn_wne_p10", "tuitionfee_in", "tuitionfee_out")
+SCORECARD_COLUMNS = ("unitid", "instnm", "city", "stabbr", "insturl", "control", "preddeg", "curroper", "ugds", "adm_rate", "c150_4", "c150_l4", "md_earn_wne_p10", "tuitionfee_in", "tuitionfee_out", "roomboard_on", "roomboard_off", "booksupply", "otherexpense_on", "otherexpense_off", "otherexpense_fam")
+
+# The school's own cost-of-attendance budget (IPEDS, via the Scorecard), yearly, full time: (metric, dims, column, label).
+COST_COLUMNS = (
+    ("room_board", {"housing": "on"}, "roomboard_on", "room and board on campus"),
+    ("room_board", {"housing": "off"}, "roomboard_off", "room and board off campus"),
+    ("books", {}, "booksupply", "books and supplies"),
+    ("other_costs", {"housing": "on"}, "otherexpense_on", "other costs, living on campus"),
+    ("other_costs", {"housing": "off"}, "otherexpense_off", "other costs, living off campus"),
+    ("other_costs", {"housing": "family"}, "otherexpense_fam", "other costs, living with family"),
+)
 
 
 def scorecard_rows(data: bytes, filename: str) -> Iterator[dict[str, str]]:
@@ -278,11 +288,11 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
         key=f"college-scorecard-institutions{('-' + release) if release else ''}",
         publisher="U.S. Department of Education",
         title="College Scorecard, most recent institution data",
-        dataset="Schools: type, size, admission and completion rates, earnings 10 years after entry, tuition and fees",
+        dataset="Schools: type, size, admission and completion rates, earnings 10 years after entry, tuition and fees, and each school's cost-of-attendance budget (room and board, books, other costs)",
         url=url,
         released=f"Data files dated {release}" if release else "Most recent cohorts (release date not in the file name)",
         license="U.S. government work, public domain",
-        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started, reported for a school and its branch campuses together. Tuition and fees are yearly published prices, before aid.",
+        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started, reported for a school and its branch campuses together. Tuition and fees are yearly published prices, before aid. Room and board, books and other costs are the school's own yearly budget for a full-time student, as reported to IPEDS.",
     )
     # Keep only the columns used, so a full-width file passed in as rows stays small.
     rows = [{k: r[k] for k in SCORECARD_COLUMNS if k in r} for r in rows]
@@ -318,6 +328,12 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
                 continue
             dims = {"school": unitid, "residency": residency}
             db.add(EstimateFact(metric="tuition", place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} tuition and fees ({'in-state' if residency == 'in' else 'out-of-state'})", value=v, period="yr", stat="published price", source_id=src.id, status="draft", creation_date=now))
+            facts += 1
+        for metric, extra, column, what in COST_COLUMNS:
+            if (v := _val(r.get(column))) is None:
+                continue
+            dims = {"school": unitid, **extra}
+            db.add(EstimateFact(metric=metric, place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} {what}", value=v, period="yr", stat="school's cost-of-attendance budget", source_id=src.id, status="draft", creation_date=now))
             facts += 1
     if not schools:
         raise CatalogProblem("No operating schools found in the file.")

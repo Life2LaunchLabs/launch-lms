@@ -5,7 +5,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Compass, Flag, Home, Map as MapIcon, MapPin, MoreHorizontal, Plus } from 'lucide-react'
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Compass, Flag, Home, Map as MapIcon, MapPin, MoreHorizontal, Plus, Sparkles } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Button } from '@components/ui/button'
@@ -29,7 +29,8 @@ import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { PhaseStatus } from './PhaseStack'
 import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, remove as removePhase, routeDoc, whenOf } from './graph'
-import { activityText, checklist, kindFor, livingLabel, seedLines, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
+import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, LivingPicker, MonthPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import PhaseInsights, { useCareers } from './PhaseInsights'
@@ -67,6 +68,10 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const [uploading, setUploading] = React.useState(false)
   const [pop, setPop] = React.useState<Pop>(null)
   const [showList, setShowList] = React.useState(false)
+  // Estimates: open to start the budget, or after a pick changed (base = the phase before). `waiting` keeps a change put off with Not now.
+  const [est, setEst] = React.useState<{ mode: EstimatesMode; base: Phase | null; auto?: boolean } | null>(null)
+  const [waiting, setWaiting] = React.useState<Phase | null>(null)
+  const applied = React.useRef(false)
   const phaseNow = doc && byId(doc, phaseId)
   const careers = useCareers(phaseNow || ({ activities: [] } as any), token)
 
@@ -86,17 +91,38 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const hrefOf = (goal: GoalSummary) => getUriWithOrg(orgslug, goal.status === 'draft' ? launchPath(goal.goal_uuid) : routePaths.org.plan(goal.goal_uuid))
   const mapHref = getUriWithOrg(orgslug, `${routePaths.org.plans()}?phase=${encodeURIComponent(phase.id)}`)
 
-  /** Change this phase in place, then save. New picks start budget lines from their estimates. */
-  const edit = (fn: (p: Phase) => void, opts: { seed?: boolean; retitle?: boolean } = {}) => change((next) => {
-    const map = normalize(next)
-    const p = byId(map, phase.id)
-    if (!p) return
-    const before = suggestTitle(p)
-    fn(p)
-    if (opts.retitle && p.title === before) p.title = suggestTitle(p)
-    if (opts.seed) { p.kind = kindFor(p.activities); p.lines = seedLines(p) }
-    Object.assign(next, map)
-  })
+  /** Change this phase in place, then save. A new place, living or activity offers the estimates it changes in the budget. */
+  const edit = async (fn: (p: Phase) => void, opts: { picks?: boolean; retitle?: boolean } = {}) => {
+    let base: Phase | null = null, auto = false
+    const saved = await change((next) => {
+      const map = normalize(next)
+      const p = byId(map, phase.id)
+      if (!p) return
+      base = structuredClone(p)
+      auto = !!map.auto_estimates
+      const before = suggestTitle(p)
+      fn(p)
+      if (opts.retitle && p.title === before) p.title = suggestTitle(p)
+      if (opts.picks) p.kind = kindFor(p.activities)
+      Object.assign(next, map)
+    })
+    const b = base as Phase | null
+    if (saved && opts.picks && b?.lines.length) { setWaiting(null); setEst({ mode: 'change', base: b, auto }) }
+    return saved
+  }
+  /** Lines from the Estimates dialog become the phase's budget; "don't ask" is kept on the plan. */
+  const applyEstimates = (lines: Phase['lines'], { dontAsk }: { dontAsk: boolean }) => {
+    setWaiting(null)
+    applied.current = true
+    void change((next) => {
+      const map = normalize(next)
+      const p = byId(map, phase.id)
+      if (!p) return
+      p.lines = lines
+      if (dontAsk) map.auto_estimates = true
+      Object.assign(next, map)
+    })
+  }
 
   const remove = async () => {
     const goals = here.length ? ` Its ${here.length === 1 ? 'goal moves' : `${here.length} goals move`} to the phase you’re in.` : ''
@@ -136,14 +162,14 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
             <MonthPicker value={phase.starts!} onChange={(v) => { void edit((p) => { p.starts = v; p.undated = false }) }} />
             <p className="text-sm text-muted-foreground">No end date: it lasts until the next phase starts.</p></> : null}
           {pop === 'place' ? <><h3 className="font-extrabold">Where</h3>
-            <PlacePicker token={token} value={phase.place || null} label={phase.place_label || ''} onPick={(pl) => { void edit((p) => { p.place = pl?.key || null; p.place_label = pl?.label || ''; p.places = [] }, { retitle: true }); setPop(null) }} /></> : null}
+            <PlacePicker token={token} value={phase.place || null} label={phase.place_label || ''} onPick={(pl) => { void edit((p) => { p.place = pl?.key || null; p.place_label = pl?.label || ''; p.places = [] }, { retitle: true, picks: true }); setPop(null) }} /></> : null}
           {pop === 'living' ? <><h3 className="font-extrabold">How you live</h3>
-            <LivingPicker value={phase.living} onPick={(key) => { void edit((p) => { p.living = key }, { seed: true, retitle: true }); setPop(null) }} /></> : null}
+            <LivingPicker value={phase.living} onPick={(key) => { void edit((p) => { p.living = key }, { picks: true, retitle: true }); setPop(null) }} /></> : null}
           {pop === 'doing' ? <><h3 className="font-extrabold">What you’re doing</h3>
             {(phase.activities || []).length ? <ul className="grid gap-1.5">{phase.activities!.map((a, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 font-bold"><span className="flex-1">{activityText(a)}</span>
-              <button type="button" className="text-sm font-bold text-muted-foreground hover:text-destructive" onClick={() => { void edit((p) => { p.activities = (p.activities || []).filter((_, j) => j !== i) }, { seed: true, retitle: true }) }}>Remove</button></li>)}</ul> : null}
+              <button type="button" className="text-sm font-bold text-muted-foreground hover:text-destructive" onClick={() => { void edit((p) => { p.activities = (p.activities || []).filter((_, j) => j !== i) }, { picks: true, retitle: true }) }}>Remove</button></li>)}</ul> : null}
             <p className="text-sm font-bold text-muted-foreground">{phase.activities?.length ? 'Add another (two jobs, school and a job: all fine)' : 'Pick one'}</p>
-            <ActivityPicker token={token} onPick={(a) => { void edit((p) => { p.activities = [...(p.activities || []), a] }, { seed: true, retitle: true }); setPop(null) }} /></> : null}
+            <ActivityPicker token={token} onPick={(a) => { void edit((p) => { p.activities = [...(p.activities || []), a] }, { picks: true, retitle: true }); setPop(null) }} /></> : null}
           <Button size="sm" variant="surface" className="w-fit" onClick={() => setPop(null)}>Done</Button>
         </div> : null}
       </div>
@@ -190,7 +216,9 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
           </div> : null}
         </section>
         <aside className="grid gap-4 md:sticky md:top-6">
-          <BudgetCard doc={line} phase={byId(line, phase.id) || phase} ends={time.ends} projection={projection} href={getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))} />
+          {waiting ? <button type="button" onClick={() => setEst({ mode: 'change', base: waiting })} className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--org-primary-color)_14%,transparent)] px-3 py-1.5 text-sm font-bold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Sparkles size={15} aria-hidden="true" />Budget changes to look at</button> : null}
+          <BudgetCard doc={line} phase={byId(line, phase.id) || phase} ends={time.ends} projection={projection} href={getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))} onStart={() => setEst({ mode: 'start', base: null })} />
+          {doc.auto_estimates ? <p className="-mt-2 px-1 text-xs text-muted-foreground">Estimate changes update your budget without asking. <button type="button" className="font-bold text-[var(--org-primary-color)] underline-offset-2 hover:underline" onClick={() => { void change((next) => { next.auto_estimates = false }) }}>Ask me next time</button></p> : null}
           <PhaseInsights phase={phase} token={token} careers={careers} />
         </aside>
       </div>
@@ -207,6 +235,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
       })()
     }} />
     {ask.dialog}
+    {est ? <EstimatesDialog open mode={est.mode} base={est.base} auto={est.auto} phase={byId(doc, phase.id) || phase} catalog={catalog} token={token}
+      onApply={applyEstimates} onClose={(empty) => { if (!empty && !applied.current && est.mode === 'change' && !est.auto && est.base) setWaiting((w) => w ?? est.base); applied.current = false; setEst(null) }} /> : null}
   </GeneralWrapperStyled>
 }
 
@@ -299,7 +329,7 @@ function GoalRow({ goal, color, href }: { goal: GoalSummary; color: string; href
 }
 
 /** The phase's money in one sentence and a small line of savings and debt, opening the full budget. */
-function BudgetCard({ doc, phase, ends, projection, href }: { doc: LifeDoc; phase: Phase; ends: string; projection: Projection | null; href: string }) {
+function BudgetCard({ doc, phase, ends, projection, href, onStart }: { doc: LifeDoc; phase: Phase; ends: string; projection: Projection | null; href: string; onStart: () => void }) {
   const off = phaseOffset(doc, phase.id)
   const empty = !phase.lines.length
   let sentence: React.ReactNode = 'Add what comes in and what goes out to see where this phase leaves you.'
@@ -324,6 +354,11 @@ function BudgetCard({ doc, phase, ends, projection, href }: { doc: LifeDoc; phas
     const endSav = sav[sav.length - 1] ?? 0, endDebt = debt[debt.length - 1] ?? 0
     if (!noCosts) after = <span className="text-xs font-semibold text-muted-foreground">By {monthName(ends)}: <b className="text-foreground">{short(endSav)}</b> saved{endDebt > 0.5 ? <>, <b className="text-foreground">{short(endDebt)}</b> owed</> : null}</span>
   }
+  if (empty) return <div className="grid gap-3 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)]">
+    <span className="flex items-center justify-between gap-2"><h2 className="text-xl font-extrabold tracking-tight">Budget</h2><Link href={href} className="text-sm font-bold text-muted-foreground hover:text-foreground">Open</Link></span>
+    <span className="text-[15px] leading-snug text-muted-foreground">We’ll suggest lines and amounts from where you live, how you live and what you’re doing.</span>
+    <Button variant="brand" size="sm" className="w-fit" onClick={onStart}><Sparkles size={15} />Start your budget</Button>
+  </div>
   return <Link href={href} className="grid gap-3 rounded-[22px] bg-card p-5 shadow-[0_1px_0_hsl(var(--border)),0_10px_28px_-24px_rgb(10_30_50/0.5)] transition-colors hover:bg-raised">
     <span className="flex items-center justify-between gap-2"><h2 className="text-xl font-extrabold tracking-tight">Budget</h2><span className="inline-flex items-center gap-0.5 text-sm font-bold text-[var(--org-primary-color)]">{empty ? 'Start it' : 'Open'}<ChevronRight size={16} aria-hidden="true" /></span></span>
     <span className="text-[15px] leading-snug text-muted-foreground">{sentence}</span>

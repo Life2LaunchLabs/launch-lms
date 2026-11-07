@@ -35,17 +35,18 @@ ITEMS = [
     # Home
     {"key": "rent", "cat": "home", "title": "Rent", "icon": "house", "metric": "rent", "settings": [BEDROOMS, SHARE]},
     {"key": "family_home", "cat": "home", "title": "Living with family", "icon": "house-heart"},
-    {"key": "dorm", "cat": "home", "title": "Dorm", "icon": "building"},
-    {"key": "utilities", "cat": "home", "title": "Utilities and internet", "icon": "plug"},
+    {"key": "dorm", "cat": "home", "title": "Dorm", "icon": "building", "metric": "room_board"},
+    {"key": "utilities", "cat": "home", "title": "Utilities and internet", "icon": "plug", "metric": "utilities", "settings": [SHARE]},
     {"key": "renters_insurance", "cat": "home", "title": "Renter's insurance", "icon": "shield"},
     {"key": "property_tax", "cat": "home", "title": "Property tax", "icon": "landmark"},
     {"key": "home_insurance", "cat": "home", "title": "Home insurance", "icon": "shield"},
     {"key": "home_upkeep", "cat": "home", "title": "Home upkeep", "icon": "wrench"},
     # Food
-    {"key": "groceries", "cat": "food", "title": "Groceries", "icon": "shopping-cart"},
+    {"key": "groceries", "cat": "food", "title": "Groceries", "icon": "shopping-cart", "metric": "groceries"},
     {"key": "eating_out", "cat": "food", "title": "Eating out", "icon": "utensils"},
     {"key": "meal_plan", "cat": "food", "title": "Meal plan", "icon": "utensils"},
     # Getting around
+    {"key": "transport", "cat": "move", "title": "Getting around", "icon": "bus", "metric": "transport"},
     {"key": "bus_pass", "cat": "move", "title": "Bus pass", "icon": "bus"},
     {"key": "gas", "cat": "move", "title": "Gas", "icon": "fuel"},
     {"key": "car_insurance", "cat": "move", "title": "Car insurance", "icon": "shield"},
@@ -53,19 +54,19 @@ ITEMS = [
     {"key": "rideshare", "cat": "move", "title": "Rides and rideshare", "icon": "car"},
     {"key": "bike", "cat": "move", "title": "Bike upkeep", "icon": "bike"},
     # School
-    {"key": "tuition", "cat": "school", "title": "Tuition and fees", "icon": "graduation-cap"},
-    {"key": "books", "cat": "school", "title": "Books and supplies", "icon": "book-open"},
+    {"key": "tuition", "cat": "school", "title": "Tuition and fees", "icon": "graduation-cap", "metric": "tuition"},
+    {"key": "books", "cat": "school", "title": "Books and supplies", "icon": "book-open", "metric": "books"},
     # Free time
     {"key": "hobby", "cat": "fun", "title": "A hobby", "icon": "palette"},
-    {"key": "going_out", "cat": "fun", "title": "Going out", "icon": "ticket"},
+    {"key": "going_out", "cat": "fun", "title": "Going out", "icon": "ticket", "metric": "going_out"},
     {"key": "streaming", "cat": "fun", "title": "Streaming and music", "icon": "music"},
     {"key": "gym", "cat": "fun", "title": "Gym", "icon": "dumbbell"},
     {"key": "travel", "cat": "fun", "title": "Trips", "icon": "plane"},
     {"key": "pet", "cat": "fun", "title": "A pet", "icon": "paw-print"},
     # Bills and personal
-    {"key": "phone", "cat": "bills", "title": "Phone plan", "icon": "smartphone"},
+    {"key": "phone", "cat": "bills", "title": "Phone plan", "icon": "smartphone", "metric": "phone"},
     {"key": "health_insurance", "cat": "bills", "title": "Health insurance", "icon": "heart-pulse"},
-    {"key": "clothes", "cat": "bills", "title": "Clothes", "icon": "shirt"},
+    {"key": "clothes", "cat": "bills", "title": "Clothes", "icon": "shirt", "metric": "clothes"},
     {"key": "personal_care", "cat": "bills", "title": "Personal care", "icon": "sparkles"},
     {"key": "subscriptions", "cat": "bills", "title": "Subscriptions", "icon": "repeat"},
 ]
@@ -76,6 +77,17 @@ METRICS = {
     "rent": {"title": "Rent", "dims": ["bedrooms"], "required": []},
     "wage": {"title": "Pay", "dims": ["soc"], "required": ["soc"]},
     "tuition": {"title": "Tuition and fees", "dims": ["school", "residency"], "required": ["school", "residency"]},
+    # A school's own cost-of-attendance budget (College Scorecard / IPEDS).
+    "room_board": {"title": "Room and board", "dims": ["school", "housing"], "required": ["school", "housing"]},
+    "books": {"title": "Books and supplies", "dims": ["school"], "required": ["school"]},
+    "other_costs": {"title": "Other school-year costs", "dims": ["school", "housing"], "required": ["school", "housing"]},
+    # Everyday costs with no breakdown yet: a place-level or national figure each, once a source is loaded.
+    "groceries": {"title": "Groceries", "dims": [], "required": []},
+    "utilities": {"title": "Utilities and internet", "dims": [], "required": []},
+    "transport": {"title": "Getting around", "dims": [], "required": []},
+    "phone": {"title": "Phone plan", "dims": [], "required": []},
+    "clothes": {"title": "Clothes", "dims": [], "required": []},
+    "going_out": {"title": "Going out", "dims": [], "required": []},
     # Outlook by occupation (Oregon Employment Department projections).
     "openings": {"title": "Openings a year", "dims": ["soc"], "required": ["soc"]},
     "growth": {"title": "Change in jobs", "dims": ["soc"], "required": ["soc"]},

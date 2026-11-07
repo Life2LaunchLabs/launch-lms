@@ -187,6 +187,8 @@ class LifePlanDocument(Doc):
     events: list[Event] = Field(default_factory=list, max_length=200)
     policies: list[Policy] = Field(default_factory=list, max_length=400)
     card_rate: float | None = Field(default=None, ge=0, le=100)
+    # The learner said "don't ask": estimate changes from a new place, living or job apply on their own.
+    auto_estimates: bool = False
 
 
 def _check_links(doc: LifePlanDocument) -> None:
