@@ -240,8 +240,7 @@ def _val(text: str | None) -> float | None:
 # The institution file has about 3,300 columns; only these are kept while reading it.
 SCORECARD_COLUMNS = ("unitid", "instnm", "city", "stabbr", "insturl", "control", "preddeg", "curroper", "ugds", "adm_rate", "c150_4", "c150_l4", "md_earn_wne_p10", "tuitionfee_in", "tuitionfee_out", "roomboard_on", "roomboard_off", "booksupply", "otherexpense_on", "otherexpense_off", "otherexpense_fam")
 
-# The school's own cost-of-attendance budget (IPEDS, via the Scorecard): yearly, for a full-time student.
-# (metric, dims, column, label)
+# The school's own cost-of-attendance budget (IPEDS, via the Scorecard), yearly, full time: (metric, dims, column, label).
 COST_COLUMNS = (
     ("room_board", {"housing": "on"}, "roomboard_on", "room and board on campus"),
     ("room_board", {"housing": "off"}, "roomboard_off", "room and board off campus"),
@@ -331,8 +330,7 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
             db.add(EstimateFact(metric="tuition", place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} tuition and fees ({'in-state' if residency == 'in' else 'out-of-state'})", value=v, period="yr", stat="published price", source_id=src.id, status="draft", creation_date=now))
             facts += 1
         for metric, extra, column, what in COST_COLUMNS:
-            v = _val(r.get(column))
-            if v is None:
+            if (v := _val(r.get(column))) is None:
                 continue
             dims = {"school": unitid, **extra}
             db.add(EstimateFact(metric=metric, place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} {what}", value=v, period="yr", stat="school's cost-of-attendance budget", source_id=src.id, status="draft", creation_date=now))
