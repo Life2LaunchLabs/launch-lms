@@ -13,7 +13,7 @@ import { gapsOf, howLong, leftAMonth, moneyAt, spanOf, waysOf, type Span } from 
 import CompareChart, { WAY_COLORS, WAY_STYLE } from './CompareChart'
 
 import { tr } from '@/lib/tr'
-const SPANS = (): [Span, string][] => ([['options', tr('lit.plan_compare.the_options', 'The options')], ['ten', '10 years'], ['all', tr('lit.plan_compare.whole_plan', 'Whole plan')]])
+const SPANS = (): [Span, string][] => ([['options', tr('lit.plan_compare.the_options', 'The options')], ['ten', tr('lit.plan_compare.ten_years', '10 years')], ['all', tr('lit.plan_compare.whole_plan', 'Whole plan')]])
 
 /** A split's options side by side: what each does to your savings and debt, over the options or long after. */
 export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc: LifeDoc; orgslug: string; token?: string; only: string[]; onBack: () => void }) {
@@ -37,7 +37,7 @@ export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc
       <Back onBack={onBack} />
       <div>
         <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('goals.plan_compare.compare', 'Compare')}</p>
-        <h2 className="text-3xl font-extrabold tracking-tight">{ways.map((w) => w.title).join(' or ')}</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight">{ways.map((w) => w.title).join(tr('goals.plan_compare.or', ' or '))}</h2>
         <p className="text-muted-foreground">{tr('goals.plan_compare.what_each_option_does_to', 'What each option does to your savings and debt.')}</p>
       </div>
       <div role="radiogroup" aria-label={tr('goals.plan_compare.how_far_to_look', 'How far to look')} className="flex w-fit flex-wrap gap-1 rounded-2xl bg-muted p-1">
@@ -46,16 +46,16 @@ export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc
       <div className="rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
         <p className="mb-3 text-sm font-bold">{tr('goals.plan_compare.monthtext_to_monthtext2', '{{monthText}} to {{monthText2}}', { monthText: monthText(a), monthText2: monthText(b) })}</p>
         <CompareChart ways={ways} projs={projs} a={a} b={b} split={split} />
-        {short_.length > 0 && <p className="mt-3 text-sm text-muted-foreground">{short_.map((w) => `${w.title} stops in ${monthText(w.last)}`).join('; ')}{tr('goals.plan_compare.add_what_comes_after_to', '. Add what comes after to see further.')}</p>}
+        {short_.length > 0 && <p className="mt-3 text-sm text-muted-foreground">{short_.map((w) => tr('goals.plan_compare.stops_in', '{{title}} stops in {{month}}', { title: w.title, month: monthText(w.last) })).join('; ')}{tr('goals.plan_compare.add_what_comes_after_to', '. Add what comes after to see further.')}</p>}
       </div>
       <div className="overflow-x-auto rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
         <table className="w-full text-sm" style={{ minWidth: ways.length > 2 ? 110 + 130 * ways.length : undefined }}>
           <thead><tr><th />{ways.map((w, i) => <th key={w.id} scope="col" className="pb-2 pr-4 text-left text-base font-extrabold"><span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: WAY_COLORS[i] }} />{w.title}</span></th>)}</tr></thead>
           <tbody>
             {row(tr('lit.plan_compare.takes', 'Takes'), '', (w) => <>{howLong(w.end - w.start)}<br /><small className="text-muted-foreground">{tr('goals.plan_compare.monthtext_to_monthtext2', '{{monthText}} to {{monthText2}}', { monthText: monthText(w.start), monthText2: monthText(w.end) })}</small></>)}
-            {row(tr('lit.plan_compare.left_a_month', 'Left a month'), 'on average, after tax', (w) => w.piece.some((p) => p.lines.length) ? <b className={leftAMonth(w, projs[w.id]) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}>{money(Math.round(leftAMonth(w, projs[w.id])), { sign: true })}</b> : <span className="text-muted-foreground">{tr('goals.plan_compare.no_budget_yet', 'No budget yet')}</span>)}
-            {row(tr('lit.plan_compare.saved', 'Saved'), `with what you own, by ${monthText(b)}`, (w) => { const v = endOf(w); return v ? <b>{short(v.saved)}</b> : '—' })}
-            {row(tr('lit.plan_compare.owed', 'Owed'), `by ${monthText(b)}`, (w) => { const v = endOf(w); return v ? (v.owed > 0.5 ? short(v.owed) : tr('lit.plan_compare.nothing', 'Nothing')) : '—' })}
+            {row(tr('lit.plan_compare.left_a_month', 'Left a month'), tr('goals.plan_compare.on_average_after_tax', 'on average, after tax'), (w) => w.piece.some((p) => p.lines.length) ? <b className={leftAMonth(w, projs[w.id]) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}>{money(Math.round(leftAMonth(w, projs[w.id])), { sign: true })}</b> : <span className="text-muted-foreground">{tr('goals.plan_compare.no_budget_yet', 'No budget yet')}</span>)}
+            {row(tr('lit.plan_compare.saved', 'Saved'), tr('goals.plan_compare.with_what_you_own_by', 'with what you own, by {{month}}', { month: monthText(b) }), (w) => { const v = endOf(w); return v ? <b>{short(v.saved)}</b> : '—' })}
+            {row(tr('lit.plan_compare.owed', 'Owed'), tr('goals.plan_compare.by_month', 'by {{month}}', { month: monthText(b) }), (w) => { const v = endOf(w); return v ? (v.owed > 0.5 ? short(v.owed) : tr('lit.plan_compare.nothing', 'Nothing')) : '—' })}
           </tbody>
         </table>
       </div>

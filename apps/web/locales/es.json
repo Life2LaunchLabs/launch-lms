@@ -5647,7 +5647,12 @@
       "add_a_start_date": "Agregar una fecha de inicio",
       "add_a_budget": "Agregar un presupuesto",
       "budgets_start_from_sourced_estimates": "Los presupuestos empiezan con estimaciones con fuente (sueldos del BLS, rentas de HUD) y tus propios números. Lo que tienes cuenta como ahorro según lo que vale, así que comprar un carro no parece dinero perdido.",
-      "map": "Mapa"
+      "map": "Mapa",
+      "or": " o ",
+      "stops_in": "{{title}} termina en {{month}}",
+      "on_average_after_tax": "en promedio, después de impuestos",
+      "with_what_you_own_by": "con lo que tienes, para {{month}}",
+      "by_month": "para {{month}}"
     },
     "use_life_plan": {
       "your_plan_changed_in_another": "Tu plan cambió en otra ventana. Cargando la versión más nueva.",
@@ -6407,6 +6412,42 @@
       "show_fully_online_programs_from": "Mostrar programas totalmente en línea de cualquier lugar",
       "that_didn_t_save_try": "Eso no se guardó. Inténtalo otra vez.",
       "save_home_base": "Guardar base"
+    },
+    "explore_home": {
+      "pay_near_you_in_place": "Sueldo cerca de ti, en {{place}}",
+      "yr": "/año",
+      "uses_used_of_your_skills": "· usa {{used}} de tus habilidades",
+      "sign_in_to_see_careers": "Inicia sesión para ver carreras que te quedan.",
+      "explore_didn_t_load_try": "Explorar no cargó. Intenta otra vez en un momento.",
+      "loading": "Cargando",
+      "your_organization_hasn_t_added": "Tu organización todavía no ha agregado carreras.",
+      "from_value": "Desde {{value}}.",
+      "finish_a_few_of_the": "Termina algunos de los pasos de arriba para ver primero las carreras más cercanas a ti.",
+      "sort_careers": "Ordenar carreras",
+      "show_fewer": "Mostrar menos",
+      "show_value_more": "Mostrar {{value}} más",
+      "saved": "Guardadas",
+      "compare": "Comparar",
+      "careers_you_save_show_up": "Las carreras que guardes aparecen aquí. Desliza carreras es una forma rápida de encontrar algunas.",
+      "career_swipe": "Desliza carreras",
+      "discover": "Descubrir",
+      "for_you": "Para ti",
+      "around_replace": " · cerca de {{replace}}",
+      "careers_that_fit_you": "Carreras que te quedan",
+      "best_fit": "Mejor coincidencia",
+      "highest_pay": "Mejor sueldo",
+      "quickest_to_start": "Más rápido para empezar"
+    },
+    "unlock_matches": {
+      "unlock_your_matches_done_of": "Desbloquea tus coincidencias · {{done}} de {{total}}",
+      "each_one_makes_explore_more": "Cada una hace que Explorar sea más sobre ti. Termina las {{total}} para que tu inicio de Explorar sea tuyo.",
+      "done_of_total_done": "{{done}} de {{total}} hechos",
+      "done": "(hecho)",
+      "go": "Ir",
+      "careers_that_fit_you_near": "carreras que te quedan, cerca de ti, con lo que pagan y cuánto dura la preparación.",
+      "your_explore_home": "Tu inicio de Explorar:",
+      "preview_it": "Verlo",
+      "your_interests_and_skills_only": "Tus intereses y habilidades solo aparecen en tu portafolio si tú los pones ahí. Tu base es la ubicación de tu portafolio."
     }
   },
   "resources": {
@@ -7696,7 +7737,8 @@
       "owed": "Debido",
       "nothing": "Nada",
       "the_options": "Las opciones",
-      "whole_plan": "Todo el plan"
+      "whole_plan": "Todo el plan",
+      "ten_years": "10 años"
     },
     "phase_insights": {
       "little_or_no_training_most": "Poca o ninguna preparación: la mayoría aprende en el trabajo",

@@ -5635,7 +5635,12 @@
       "add_a_start_date": "Add a start date",
       "add_a_budget": "Add a budget",
       "budgets_start_from_sourced_estimates": "Budgets start from sourced estimates (BLS pay, HUD rent) and your own numbers. Things you own count as savings at what they’re worth, so buying a car doesn’t look like money lost.",
-      "map": "Map"
+      "map": "Map",
+      "or": " or ",
+      "stops_in": "{{title}} stops in {{month}}",
+      "on_average_after_tax": "on average, after tax",
+      "with_what_you_own_by": "with what you own, by {{month}}",
+      "by_month": "by {{month}}"
     },
     "use_life_plan": {
       "your_plan_changed_in_another": "Your plan changed in another window. Loading the newest version.",
@@ -6395,6 +6400,42 @@
       "show_fully_online_programs_from": "Show fully online programs from anywhere",
       "that_didn_t_save_try": "That didn’t save. Try again.",
       "save_home_base": "Save home base"
+    },
+    "explore_home": {
+      "pay_near_you_in_place": "Pay near you, in {{place}}",
+      "yr": "/yr",
+      "uses_used_of_your_skills": "· uses {{used}} of your skills",
+      "sign_in_to_see_careers": "Sign in to see careers that fit you.",
+      "explore_didn_t_load_try": "Explore didn’t load. Try again in a moment.",
+      "loading": "Loading",
+      "your_organization_hasn_t_added": "Your organization hasn’t added careers yet.",
+      "from_value": "From {{value}}.",
+      "finish_a_few_of_the": "Finish a few of the steps above to see your closest matches first.",
+      "sort_careers": "Sort careers",
+      "show_fewer": "Show fewer",
+      "show_value_more": "Show {{value}} more",
+      "saved": "Saved",
+      "compare": "Compare",
+      "careers_you_save_show_up": "Careers you save show up here. Career swipe is a quick way to find some.",
+      "career_swipe": "Career swipe",
+      "discover": "Discover",
+      "for_you": "For you",
+      "around_replace": " · around {{replace}}",
+      "careers_that_fit_you": "Careers that fit you",
+      "best_fit": "Best fit",
+      "highest_pay": "Highest pay",
+      "quickest_to_start": "Quickest to start"
+    },
+    "unlock_matches": {
+      "unlock_your_matches_done_of": "Unlock your matches · {{done}} of {{total}}",
+      "each_one_makes_explore_more": "Each one makes Explore more about you. Finish all {{total}} to make your Explore home your own.",
+      "done_of_total_done": "{{done}} of {{total}} done",
+      "done": "(done)",
+      "go": "Go",
+      "careers_that_fit_you_near": "careers that fit you, near you, with what they pay and how long training takes.",
+      "your_explore_home": "Your Explore home:",
+      "preview_it": "Preview it",
+      "your_interests_and_skills_only": "Your interests and skills only show on your portfolio if you put them there. Your home base is your portfolio’s location."
     }
   },
   "resources": {
@@ -7684,7 +7725,8 @@
       "owed": "Owed",
       "nothing": "Nothing",
       "the_options": "The options",
-      "whole_plan": "Whole plan"
+      "whole_plan": "Whole plan",
+      "ten_years": "10 years"
     },
     "phase_insights": {
       "little_or_no_training_most": "Little or no training: most people learn on the job",
