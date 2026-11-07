@@ -37,7 +37,7 @@ export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, on
             <input autoFocus aria-label="Name" value={state.renaming} placeholder={p.title} onChange={(e) => setState({ ...state, renaming: e.target.value })} className="h-11 min-w-0 flex-1 rounded-xl bg-muted px-3 text-xl font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />
             <Button type="submit" variant="brand">Save</Button></form>
           : <h3 className="text-[26px] font-extrabold leading-tight tracking-tight">{p.title}</h3>}
-        <p className="text-sm text-muted-foreground">From {monthText(p.starts!)}{p.place_label ? ` · ${p.place_label}` : ''}{(p.after?.length || 0) > 1 ? ` · ${p.after!.length} ways lead here` : ''}</p>
+        <p className="text-sm text-muted-foreground">{p.undated ? 'No start date yet' : `From ${monthText(p.starts!)}`}{p.place_label ? ` · ${p.place_label}` : ''}{(p.after?.length || 0) > 1 ? ` · ${p.after!.length} ways lead here` : ''}</p>
       </div>
       {state.confirmRm ? <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 text-sm font-bold text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
         Remove {p.title}? Its budget goes too, and its goals go back to the phase you’re in.

@@ -14,8 +14,7 @@ export default function MoveBar({ doc, ids, moving, hidden, onCancel }: { doc: L
   return <div role="region" aria-label="Moving" style={{ zIndex: 'var(--z-modal)' }} className={cn('fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] mx-auto grid max-w-[560px] gap-2 rounded-[22px] bg-foreground p-3.5 text-background shadow-2xl transition-opacity', hidden && 'pointer-events-none opacity-0')}>
     <div className="flex items-center gap-2.5">
       <Move size={18} aria-hidden="true" className="shrink-0" />
-      <div className="min-w-0"><b className="block truncate text-sm">{moving.route ? `Where should ${moving.label} go?` : moving.label || `Moving ${head?.title || ''}${more ? ` and the ${more === 1 ? 'phase' : `${more} phases`} after it` : ''}`}</b>
-        <small className="text-xs opacity-75">Tap a spot on the map, or drag it there. Drop it on a phase to make it an option beside that one.</small></div>
+      <div className="min-w-0"><b className="block truncate text-sm">{moving.route ? `Where should ${moving.label} go?` : moving.label || `Moving ${head?.title || ''}${more ? ` and the ${more === 1 ? 'phase' : `${more} phases`} after it` : ''}`}</b></div>
     </div>
     <div className="flex flex-wrap items-center gap-2">
       <button type="button" onClick={onCancel} className="ml-auto rounded-full bg-background/15 px-3 py-1.5 text-xs font-extrabold">Cancel</button>

@@ -98,6 +98,8 @@ class Phase(Doc):
     # When it starts (YYYY-MM). A phase lasts until the next one after it starts; `months` is
     # only the length of a phase nothing comes after. Old plans without dates run in order.
     starts: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
+    # The learner hasn't picked when it starts yet: `starts` is only where it sits on the map for now.
+    undated: bool = False
     # The phases it comes after: none for the first, two or more where two ways join up.
     after: list[str] = Field(default_factory=list, max_length=8)
     # A dashed idea on the map: quick to add and remove, not yet part of the plan.

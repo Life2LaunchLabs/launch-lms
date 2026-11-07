@@ -133,7 +133,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
           </DropdownMenu>} />
         {pop && pop !== 'name' ? <div role="dialog" aria-label="Change this phase" className="absolute inset-x-3 top-[calc(100%-14px)] z-30 grid max-w-[460px] gap-3 rounded-[20px] bg-card p-4 text-foreground shadow-[0_0_0_2px_hsl(var(--border)),0_24px_40px_-18px_rgb(0_0_0/0.45)]">
           {pop === 'date' ? <><h3 className="font-extrabold">{time.when === 'now' || time.when === 'done' ? 'Started' : 'Might start'}</h3>
-            <MonthPicker value={phase.starts!} onChange={(v) => { void edit((p) => { p.starts = v }) }} />
+            <MonthPicker value={phase.starts!} onChange={(v) => { void edit((p) => { p.starts = v; p.undated = false }) }} />
             <p className="text-sm text-muted-foreground">No end date: it lasts until the next phase starts.</p></> : null}
           {pop === 'place' ? <><h3 className="font-extrabold">Where</h3>
             <PlacePicker token={token} value={phase.place || null} label={phase.place_label || ''} onPick={(pl) => { void edit((p) => { p.place = pl?.key || null; p.place_label = pl?.label || ''; p.places = [] }, { retitle: true }); setPop(null) }} /></> : null}
@@ -272,7 +272,7 @@ function Cover({ time, menu, photos, uploading, pop, setPop, onRename }: { time:
           className="w-[min(100%,520px)] rounded-xl bg-black/30 px-2.5 py-0.5 text-[clamp(28px,6vw,44px)] font-extrabold text-white outline outline-2 outline-white/80" />
         : <h1><button type="button" onClick={() => setPop('name')} className="rounded-xl text-left text-[clamp(30px,6vw,48px)] font-extrabold leading-[1.02] tracking-tight [text-shadow:0_2px_20px_rgb(0_0_0/0.25)] hover:outline hover:outline-2 hover:outline-offset-4 hover:outline-dashed hover:outline-white/70">{phase.title}</button></h1>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{when === 'now' || when === 'done' ? 'Since' : 'From'} {monthName(time.starts)}</button>
+        <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{phase.undated ? 'When?' : `${when === 'now' || when === 'done' ? 'Since' : 'From'} ${monthName(time.starts)}`}</button>
         <button type="button" className={chip} onClick={() => toggle('place')}><MapPin size={14} aria-hidden="true" />{phase.place_label || 'Where?'}</button>
         <button type="button" className={chip} onClick={() => toggle('living')}><Home size={14} aria-hidden="true" />{livingLabel(phase.living) || 'Living?'}</button>
       </div>

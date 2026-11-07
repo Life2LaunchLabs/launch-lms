@@ -17,7 +17,7 @@ import { PendingCard } from './PendingCard'
 import { pagePinned, scrollSpeed } from './dragPage'
 import { kindFor, seedLines, suggestTitle } from './setup'
 import {
-  byId, carryOver, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type Carried, type RouteStep,
+  byId, endOf, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep,
 } from './graph'
 
 type Change = (fn: (next: LifeDoc) => void) => Promise<LifeDoc | null>
@@ -36,6 +36,12 @@ const readShown = (): Record<string, string> => { try { return JSON.parse(localS
 const WIDE = 860
 
 /** When a new phase dropped at a spot should start: halfway to what follows in line, or with the other options. */
+/** Mark new phases as not dated yet, unless the learner already picked a date for one. */
+function undated(d: LifeDoc, ids: string[]): LifeDoc {
+  const next = structuredClone(d)
+  for (const id of ids) { const p = byId(next, id); if (p && p.undated !== false) p.undated = true }
+  return next
+}
 function freshStart(d: LifeDoc, at: string, inline: boolean): number {
   const after = (at.startsWith('g:') ? at.slice(2).split(',') : [at]).map((id) => byId(d, id)!).filter(Boolean)
   const from = after.reduce((a, b) => (mi(b.starts!) > mi(a.starts!) ? b : a))
@@ -61,8 +67,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   const [sheet, setSheet] = React.useState<{ id: string; renaming?: string; confirmRm?: boolean } | null>(null)
   const [moving, setMoving] = React.useState<Moving | null>(null)
   // A new phase, or a career's route, put on the map but not kept yet. A route shows as one card.
-  // `carried` is where you live and how, as carried over from the phase before it (see carryOver).
-  const [pending, setPending] = React.useState<{ doc: LifeDoc; id: string; name: string; ids?: string[]; carried?: Carried } | null>(null)
+  const [pending, setPending] = React.useState<{ doc: LifeDoc; id: string; name: string; ids?: string[] } | null>(null)
   // A career's route waiting beside the + button to be dragged onto the map.
   const [route, setRoute] = React.useState<{ title: string; loose: { doc: LifeDoc; ids: string[] } } | null>(null)
   const [comparing, setComparing] = React.useState<string[] | null>(null)
@@ -130,7 +135,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     if (!moving) return
     const ids = heldIds
     let lifted = moving.loose ? moving.loose.doc : lift(doc, moving.head, true)
-    if (moving.fresh) { lifted = structuredClone(lifted); byId(lifted, ids[0])!.starts = ym(freshStart(lifted, at, inline)) }
+    // A new phase sits right after where it was dropped, until the learner picks its date.
+    if (moving.fresh && byId(lifted, ids[0])!.undated !== false) { lifted = structuredClone(lifted); byId(lifted, ids[0])!.starts = ym(freshStart(lifted, at, inline)) }
     let placed = place(lifted, ids, at, inline)
     // Among a split's options it goes where it was dropped: first, last, or right after the card it went beside.
     const key = !inline && splitOf(byId(placed, ids[0])!)
@@ -145,11 +151,9 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // line before a split, the split now hangs off the piece: it keeps showing the option it showed.
     showWay(placed, ids[0], inline ? { from: at, to: heldShape(placed, ids).tail || ids[ids.length - 1] } : undefined)
     requestAnimationFrame(() => document.querySelector(`[data-card="${ids[0]}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
-    // Something new starts out living where and how the phase before it does.
-    const before = pending?.id === ids[0] ? pending : null
-    const c = moving.route || moving.fresh ? carryOver(placed, ids, at, before?.carried) : null
-    if (moving.route) { setRoute(null); setPending({ doc: c!.doc, id: ids[0], name: moving.label || '', ids, carried: c!.carried }) }
-    else if (moving.fresh) setPending({ doc: c!.doc, id: ids[0], name: before ? before.name : '', carried: c!.carried })
+    // Something new assumes nothing: its date and the rest stay blank until the learner picks them.
+    if (moving.route) { setRoute(null); setPending({ doc: undated(placed, ids), id: ids[0], name: moving.label || '', ids }) }
+    else if (moving.fresh) setPending({ doc: undated(placed, ids), id: ids[0], name: pending?.id === ids[0] ? pending.name : '' })
     else await change((next) => { Object.assign(next, placed) })
   }
   /** A new phase straight into a split, from its menu: it waits there for a name. */
@@ -157,8 +161,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const loose = loosePiece(doc, [{ title: 'New phase', years: 1 }]), id = loose.ids[0], lifted = structuredClone(loose.doc)
     byId(lifted, id)!.starts = ym(freshStart(lifted, key, false))
     setSheet(null); setMoving(null)
-    const c = carryOver(place(lifted, [id], key, false), [id], key)
-    setPending({ doc: c.doc, id, name: '', carried: c.carried })
+    setPending({ doc: undated(place(lifted, [id], key, false), [id]), id, name: '' })
     setShown(key, id)
   }
   /** Change the waiting phase (every phase of a waiting route) before it's kept. */
@@ -167,6 +170,15 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const d = structuredClone(pd.doc)
     for (const id of pd.ids || [pd.id]) { const p = byId(d, id); if (p) fn(p) }
     return { ...pd, doc: d }
+  })
+  /** Pick when the waiting phase starts; a waiting route keeps its steps' lengths. */
+  const datePending = (v: string) => setPending((pd) => {
+    if (!pd) return pd
+    const d = structuredClone(pd.doc), ids = pd.ids || [pd.id], head = byId(d, ids[0])
+    if (!head) return pd
+    const by = mi(v) - mi(head.starts!)
+    for (const id of ids) { const p = byId(d, id); if (p) { p.starts = ym(mi(p.starts!) + by); if (id === ids[0]) p.undated = false } }
+    return { ...pd, doc: normalize(d) }
   })
   const keepPending = async () => {
     if (!pending) return
@@ -192,7 +204,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
 
   // While dragging: over the middle of a phase means an option beside it, over a split's options row an
   // option in that split (hold over one to show it, and go deeper), anywhere else the nearest gap.
-  const lifting = React.useRef<{ ghost: HTMLElement; x0: number; y0: number; x: number; y: number; scroll?: number; spot: Spot | null; drill?: { id: string; timer: ReturnType<typeof setTimeout> }; flip?: { k: string; ax: number; ext: number; ay: number; dir?: number; timer?: ReturnType<typeof setInterval> } } | null>(null)
+  const lifting = React.useRef<{ ghost: HTMLElement; x0: number; y0: number; x: number; y: number; scroll?: number; spot: Spot | null; drill?: { id: string; timer: ReturnType<typeof setTimeout> }; flip?: { k: string; side: number; armed: boolean; timer?: ReturnType<typeof setTimeout> } } | null>(null)
   const moveRef = React.useRef<(x: number, y: number) => void>(() => {})
   const ghostMove = React.useCallback((x: number, y: number) => {
     const l = lifting.current
@@ -216,26 +228,22 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       const key = row!.dataset.bandKey!, id = chip.dataset.chip!
       l.drill = { id, timer: setTimeout(() => setShown(key, id), 450) }
     } else if (!chip && l.drill) { clearTimeout(l.drill.timer); l.drill = undefined }
-    // Over a split's options, a clear sideways pull flips to the next option that way, one per pull. Held
-    // at the edge of the screen it keeps flipping, slowly. Up and down never flips.
+    // Over a split's options, carrying it out of the middle half of the card toward either side flips to
+    // the option that way after a short pause, and on to the next after a longer one while it stays there.
+    // A card picked up already near a side flips nothing until it has been back over the middle.
     const tray = el?.closest<HTMLElement>('[data-tray]'), tk = tray?.dataset.tray || ''
-    const flip = (dir: number) => { if (!tray) return; const ids = tray.dataset.opts!.split(','), j = Number(tray.dataset.index) + dir; if (j >= 0 && j < ids.length) { setShown(tk, ids[j]); navigator.vibrate?.(8) } }
-    if (tk !== (l.flip?.k || '')) {
-      if (l.flip?.timer) clearInterval(l.flip.timer)
-      l.flip = tray ? { k: tk, ax: x, ext: x, ay: y } : undefined
-    } else if (l.flip) {
-      // `ax` is where the last flip happened, `ext` the farthest the finger went past it: pulling on flips
-      // again after the same distance, and so does pulling back from wherever it got to.
-      const f = l.flip, dy = y - f.ay
-      if (f.dir && (x - f.ext) * f.dir > 0) f.ext = x
-      const on = f.dir ? (x - f.ax) * f.dir : Math.abs(x - f.ax), back = f.dir ? (f.ext - x) * f.dir : 0
-      const go = (dir: number) => { flip(dir); f.dir = dir; f.ax = f.ext = x; f.ay = y }
-      if (on >= 56 && on > Math.abs(dy)) go(f.dir || Math.sign(x - f.ax))
-      else if (back >= 56 && back > Math.abs(dy)) go(-f.dir!)
-      else if (Math.abs(dy) >= 56) { f.ax = f.ext = x; f.ay = y; f.dir = undefined }
-      const edge = f.dir && (f.dir > 0 ? x > window.innerWidth - 36 : x < 36)
-      if (edge && !f.timer) { const dir = f.dir!; f.timer = setInterval(() => flip(dir), 1100) }
-      else if (!edge && f.timer) { clearInterval(f.timer); f.timer = undefined }
+    const tr = tray?.getBoundingClientRect(), quarter = tr ? tr.width / 4 : 0
+    const side = tr ? (x < tr.left + quarter ? -1 : x > tr.right - quarter ? 1 : 0) : 0
+    const flip = (dir: number) => { if (!tray) return; const ids = tray.dataset.opts!.split(','), j = Number(tray.dataset.index) + dir; if (j >= 0 && j < ids.length) { setShown(tk, ids[j]); navigator.vibrate?.(8); setTimeout(() => { if (lifting.current === l) moveRef.current(l.x, l.y) }, 330) } }
+    const f = l.flip
+    if (!tray || tk !== f?.k || side !== f.side || (side && !f.armed)) {
+      if (f?.timer) clearTimeout(f.timer)
+      const armed = !!tray && (side === 0 || (tk === f?.k && f.armed))
+      l.flip = tray ? { k: tk, side, armed } : undefined
+      if (tray && side && armed) {
+        const g = l.flip!, step = (wait: number) => { g.timer = setTimeout(() => { flip(side); step(900) }, wait) }
+        step(350)
+      }
     }
     if (!spot) {
       let best: HTMLElement | null = null, bd = Infinity
@@ -275,7 +283,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     lifting.current = null
     if (!l) return
     if (l.drill) clearTimeout(l.drill.timer)
-    if (l.flip?.timer) clearInterval(l.flip.timer)
+    if (l.flip?.timer) clearTimeout(l.flip.timer)
     if (l.scroll) cancelAnimationFrame(l.scroll)
     l.ghost.remove()
     pagePinned(false)
@@ -286,7 +294,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // The touch listeners were set up before the piece lifted, so the drop reads the latest render.
     if (l.spot?.home) setMoving(null)
     else if (l.spot) void dropRef.current(l.spot.at, l.spot.inline, l.spot)
-    else setMoving((m) => (m ? { ...m, dragging: false } : m))
+    // Let go nowhere in particular: nothing moves.
+    else setMoving(null)
   }, [])
   const ghostStart = (text: string, x: number, y: number) => {
     const ghost = document.createElement('div')
@@ -379,7 +388,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     return <div key={key} className="h-3" />
   }
   const card = (p: Phase) => {
-    if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
+    if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} onDate={datePending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
       onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
     const wh = whenOf(base, p), lp = moving ? byId(without, p.id) : undefined
     // Even the phase right after the one moving can take it as an option: worked out as if it were gone.

@@ -45,6 +45,8 @@ export interface Phase {
   lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null; starting?: Starting | null
   /** When it starts, YYYY-MM. Old plans have none and run one after another from the plan's start. */
   starts?: string | null
+  /** No start date picked yet: `starts` only keeps its place on the map until the learner picks one. */
+  undated?: boolean
   /** The phases it comes after: none for the first, two or more where two ways join up. */
   after?: string[]
   /** A dashed idea on the map: quick to add and remove. */

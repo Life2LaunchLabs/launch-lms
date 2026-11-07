@@ -1,57 +1,82 @@
 'use client'
-/* eslint-disable no-unused-vars -- parameter names in function types */
 
+/* eslint-disable no-unused-vars -- parameter names in function types */
 import React from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
-import { Button } from '@components/ui/button'
+import { ArrowLeft, CalendarBlank, Wallet } from '@phosphor-icons/react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import type { LifeDoc, Phase } from '@services/life/life'
+import type { LifeDoc } from '@services/life/life'
 import useLifeNumbers from '@components/LifePlan/useLifeNumbers'
-import { money, project } from '@components/LifePlan/model'
-import { isReal, mi, monthText, routeDoc, routeName, routes, thisMonthIndex } from './graph'
+import { money, project, short, type Projection } from '@components/LifePlan/model'
+import { monthText, routeDoc } from './graph'
+import { gapsOf, howLong, leftAMonth, moneyAt, spanOf, waysOf, type Span } from './compare'
+import CompareChart, { WAY_COLORS, WAY_STYLE } from './CompareChart'
 
-/** The ways through a split's options at one moment, side by side: where you'd be and what the money looks like. */
-export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc: LifeDoc; orgslug: string; token?: string; only?: string[]; onBack: () => void }) {
+const SPANS: [Span, string][] = [['options', 'The options'], ['ten', '10 years'], ['all', 'Whole plan']]
+
+/** A split's options side by side: what each does to your savings and debt, over the options or long after. */
+export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc: LifeDoc; orgslug: string; token?: string; only: string[]; onBack: () => void }) {
   const { valueOf } = useLifeNumbers(doc, token)
-  const [at, setAt] = React.useState(() => thisMonthIndex() + 60)
-  const all = routes(doc)
-  const cols = all.filter((r) => !only || r.some((p) => only.includes(p.id))).map((r) => {
-    let ph: Phase | null = null
-    for (const p of r) if (mi(p.starts!) <= at) ph = p
-    if (!ph) return null
-    const rd = routeDoc(doc, r[r.length - 1].id)
-    const proj = project(rd, valueOf)
-    const g = Math.min(proj.months, Math.max(0, at - mi(rd.start)))
-    const g0 = Math.min(proj.months, Math.max(0, thisMonthIndex() - mi(rd.start)))
-    const net = (proj.inn[g] ?? 0) - (proj.out[g] ?? 0)
-    const worth = (proj.sav[g] ?? 0) + (proj.own[g] ?? 0) - (proj.debt[g] ?? 0) - ((proj.sav[g0] ?? 0) + (proj.own[g0] ?? 0) - (proj.debt[g0] ?? 0))
-    return { r, ph, net, worth, real: isReal(doc, ph) }
-  }).filter(Boolean) as { r: Phase[]; ph: Phase; net: number; worth: number; real: boolean }[]
-  const seen = new Set<string>()
-  const years = Array.from({ length: 25 }, (_, i) => new Date().getFullYear() + i)
-  const row = (label: string, f: (c: typeof cols[number]) => React.ReactNode) => <tr className="border-t border-border"><th scope="row" className="py-3 pr-3 text-left text-xs font-extrabold uppercase tracking-[0.06em] text-muted-foreground">{label}</th>{cols.map((c, i) => <td key={i} className="py-3 pr-4 align-top">{f(c)}</td>)}</tr>
-  return <div className="flex flex-col gap-4">
-    <button type="button" onClick={onBack} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden="true" />Map</button>
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><p className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Compare</p><h2 className="text-3xl font-extrabold tracking-tight">{monthText(at)}</h2><p className="text-muted-foreground">Where each way through your map has you at that moment.</p></div>
-      <span className="inline-flex gap-1.5">
-        <select aria-label="Month" className="h-10 rounded-xl bg-muted px-2 font-bold" value={at % 12} onChange={(e) => setAt(Math.floor(at / 12) * 12 + Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i}>{monthText(2000 * 12 + i).slice(0, 3)}</option>)}</select>
-        <select aria-label="Year" className="h-10 rounded-xl bg-muted px-2 font-bold" value={Math.floor(at / 12)} onChange={(e) => setAt(Number(e.target.value) * 12 + (at % 12))}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
-      </span>
+  const [span, setSpan] = React.useState<Span>('options')
+  const ids = only.slice(0, WAY_COLORS.length)
+  const projs = Object.fromEntries(ids.map((id) => [id, project(routeDoc(doc, id), valueOf)])) as Record<string, Projection>
+  const ways = waysOf(doc, ids, (id) => projs[id]?.months ?? 0)
+  if (ways.length < 2) return <div className="flex flex-col gap-4"><Back onBack={onBack} /><p className="text-muted-foreground">Compare needs two options or more.</p></div>
+  const [a, b] = spanOf(ways, span), split = Math.min(...ways.map((w) => w.start))
+  const gaps = gapsOf(ways)
+  const short_ = ways.filter((w) => w.last < b && span !== 'options')
+  const open = (id: string) => getUriWithOrg(orgslug, routePaths.org.phase(id))
+  const endOf = (w: typeof ways[number]) => moneyAt(w, projs[w.id], Math.min(b, w.last))
+  const row = (label: string, note: string, f: (w: typeof ways[number], i: number) => React.ReactNode) => (
+    <tr className="border-t border-border"><th scope="row" className="py-2.5 pr-3 text-left align-top"><span className="text-xs font-extrabold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>{note && <><br /><small className="text-[11px] text-muted-foreground">{note}</small></>}</th>{ways.map((w, i) => <td key={w.id} className="py-2.5 pr-4 align-top tabular-nums">{f(w, i)}</td>)}</tr>
+  )
+  return (
+    <div className="way-colors flex flex-col gap-4">
+      <style>{WAY_STYLE}</style>
+      <Back onBack={onBack} />
+      <div>
+        <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Compare</p>
+        <h2 className="text-3xl font-extrabold tracking-tight">{ways.map((w) => w.title).join(' or ')}</h2>
+        <p className="text-muted-foreground">What each option does to your savings and debt.</p>
+      </div>
+      <div role="radiogroup" aria-label="How far to look" className="flex w-fit flex-wrap gap-1 rounded-2xl bg-muted p-1">
+        {SPANS.map(([k, label]) => <button key={k} type="button" role="radio" aria-checked={span === k} onClick={() => setSpan(k)} className={`h-9 rounded-xl px-3 text-sm font-bold ${span === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>)}
+      </div>
+      <div className="rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
+        <p className="mb-3 text-sm font-bold">{monthText(a)} to {monthText(b)}</p>
+        <CompareChart ways={ways} projs={projs} a={a} b={b} split={split} />
+        {short_.length > 0 && <p className="mt-3 text-sm text-muted-foreground">{short_.map((w) => `${w.title} stops in ${monthText(w.last)}`).join('; ')}. Add what comes after to see further.</p>}
+      </div>
+      <div className="overflow-x-auto rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
+        <table className="w-full text-sm" style={{ minWidth: ways.length > 2 ? 110 + 130 * ways.length : undefined }}>
+          <thead><tr><th />{ways.map((w, i) => <th key={w.id} scope="col" className="pb-2 pr-4 text-left text-base font-extrabold"><span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: WAY_COLORS[i] }} />{w.title}</span></th>)}</tr></thead>
+          <tbody>
+            {row('Takes', '', (w) => <>{howLong(w.end - w.start)}<br /><small className="text-muted-foreground">{monthText(w.start)} to {monthText(w.end)}</small></>)}
+            {row('Left a month', 'on average, after tax', (w) => w.piece.some((p) => p.lines.length) ? <b className={leftAMonth(w, projs[w.id]) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}>{money(Math.round(leftAMonth(w, projs[w.id])), { sign: true })}</b> : <span className="text-muted-foreground">No budget yet</span>)}
+            {row('Saved', `with what you own, by ${monthText(b)}`, (w) => { const v = endOf(w); return v ? <b>{short(v.saved)}</b> : '—' })}
+            {row('Owed', `by ${monthText(b)}`, (w) => { const v = endOf(w); return v ? (v.owed > 0.5 ? short(v.owed) : 'Nothing') : '—' })}
+          </tbody>
+        </table>
+      </div>
+      {gaps.length > 0 && (
+        <div className="rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
+          <p className="font-extrabold">Fill these in for a fairer compare</p>
+          <p className="mb-2 text-sm text-muted-foreground">A phase with no budget counts as nothing in or out, so its line stays flat.</p>
+          <ul className="flex flex-col gap-1.5">
+            {gaps.map(({ phase, what }) => (
+              <li key={phase.id}><Link href={open(phase.id)} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-sm font-bold hover:bg-muted/70">
+                {what === 'date' ? <CalendarBlank size={18} aria-hidden="true" /> : <Wallet size={18} aria-hidden="true" />}
+                <span className="flex-1">{phase.title}</span><span className="text-muted-foreground">{what === 'date' ? 'Add a start date' : 'Add a budget'}</span>
+              </Link></li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-sm text-muted-foreground">Budgets start from sourced estimates (BLS pay, HUD rent) and your own numbers. Things you own count as savings at what they’re worth, so buying a car doesn’t look like money lost.</p>
     </div>
-    <div className="overflow-x-auto rounded-[22px] bg-card p-4 shadow-[0_0_0_2px_hsl(var(--border))]">
-      <table className="w-full min-w-[520px] text-sm">
-        <thead><tr><th />{cols.map((c, i) => <th key={i} scope="col" className="pb-2 pr-4 text-left text-base font-extrabold">{routeName(c.r, all)}</th>)}</tr></thead>
-        <tbody>
-          {row('You’d be', (c) => <><b className="font-extrabold">{c.ph.title}</b>{c.ph.idea ? <span className="text-muted-foreground"> · idea</span> : null}<br /><small className="text-muted-foreground">since {monthText(c.ph.starts!)}</small></>)}
-          {row('Where', (c) => c.ph.place_label || '—')}
-          {row('Left a month', (c) => c.ph.lines.length ? <b className={c.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}>{money(c.net, { sign: true })}</b> : <span className="text-muted-foreground">No budget yet</span>)}
-          {row('Saved up by then', (c) => <><b>{money(c.worth, { sign: true })}</b><br /><small className="text-muted-foreground">from today, after tax</small></>)}
-          {row('', (c) => seen.has(c.ph.id) ? null : (seen.add(c.ph.id), <Button size="sm" variant="surface" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(c.ph.id))}>Open {c.ph.title}</Link></Button>))}
-        </tbody>
-      </table>
-    </div>
-    <p className="text-sm text-muted-foreground">Each phase’s budget starts from sourced estimates (BLS pay, HUD rent) and your own numbers. A phase with no budget yet counts as nothing in or out.</p>
-  </div>
+  )
+}
+
+function Back({ onBack }: { onBack: () => void }) {
+  return <button type="button" onClick={onBack} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden="true" />Map</button>
 }

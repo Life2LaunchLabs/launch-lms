@@ -111,7 +111,7 @@ export function checklist(p: Phase, goals: number): CheckItem[] {
     { key: 'place', title: tr('phases.check.place', 'Where'), done: Boolean(p.place || p.places?.length) },
     { key: 'living', title: tr('phases.check.living', 'How you live'), done: Boolean(p.living) },
     { key: 'doing', title: tr('phases.check.doing', 'What you’re doing'), done: Boolean(p.activities?.length) },
-    { key: 'starts', title: tr('phases.check.starts', 'When it starts'), done: Boolean(p.starts) },
+    { key: 'starts', title: tr('phases.check.starts', 'When it starts'), done: Boolean(p.starts) && !p.undated },
     { key: 'budget', title: tr('phases.check.budget', 'A budget'), done: (p.lines || []).length > 0 },
     { key: 'goals', title: tr('phases.check.goals', 'A goal'), done: goals > 0 },
   ]
