@@ -23,6 +23,7 @@ import { careerCode } from '@services/life/careers'
 import { cn } from '@/lib/utils'
 import ResourceCover, { resourceKind, resourceSite, resourceSource } from './ResourceCover'
 
+import { tr } from '@/lib/tr'
 function minutes(value: number | null) {
   if (!value) return ''
   return value < 60 ? `${value} min` : `${Math.floor(value / 60)}h${value % 60 ? ` ${value % 60}m` : ''}`
@@ -32,7 +33,7 @@ function minutes(value: number | null) {
 export function resourceMeta(resource: Resource) {
   const kind = resourceKind(resource.resource_type)
   const where = resource.resource_type === 'video' ? `Video on ${resourceSource(resource)}` : resourceSource(resource)
-  const access = resource.access_mode === 'paid' ? 'Costs money' : resource.access_mode === 'restricted' ? 'Needs an account' : 'Free'
+  const access = resource.access_mode === 'paid' ? tr('lit.resource_sheet.costs_money', 'Costs money') : resource.access_mode === 'restricted' ? tr('lit.resource_sheet.needs_an_account', 'Needs an account') : tr('lit.resource_sheet.free', 'Free')
   return { kind, line: [where, minutes(resource.estimated_time), access].filter(Boolean).join(' · ') }
 }
 
@@ -52,7 +53,7 @@ function MoreFrom({ resource, onOpen }: { resource: Resource; onOpen: Dispatch<s
     () => getResources(org.id, { channel_uuid: channel!.channel_uuid, limit: 8 }, token))
   const others = (data || []).filter((item) => item.resource_uuid !== resource.resource_uuid).slice(0, 6)
   if (!channel || !others.length) return null
-  return <Block title={`More in ${channel.name}`}>
+  return <Block title={tr('discover.resource_sheet.more_in_name', 'More in {{name}}', { name: channel.name })}>
     <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {others.map((item) => <button key={item.resource_uuid} type="button" onClick={() => onOpen(item.resource_uuid)} className="flex w-[160px] shrink-0 flex-col gap-1.5 text-left">
         <ResourceCover resource={item} className="rounded-xl" />
@@ -120,7 +121,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
       setFresh(!resource.is_saved && resource.resource_type === 'career')
       await mutate()
     } catch {
-      toast.error(resource.is_saved ? 'Couldn’t remove it. Try again.' : 'Couldn’t save it. Try again.')
+      toast.error(resource.is_saved ? tr('discover.resource_sheet.couldn_t_remove_it_try', 'Couldn’t remove it. Try again.') : tr('discover.resource_sheet.couldn_t_save_it_try', 'Couldn’t save it. Try again.'))
     } finally {
       setSaving(false)
     }
@@ -136,11 +137,11 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
     <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="resource-sheet-title"
       className="relative flex max-h-[92dvh] w-full flex-col overflow-y-auto rounded-t-[28px] bg-card pb-[env(safe-area-inset-bottom)] text-foreground shadow-[0_8px_0_hsl(var(--edge)),0_30px_80px_rgba(0,0,0,.35)] animate-in slide-in-from-bottom-6 fade-in duration-200 sm:max-h-[calc(100dvh-48px)] sm:max-w-[560px] sm:rounded-[28px] sm:slide-in-from-bottom-2">
       <span aria-hidden="true" className="mx-auto mt-2 h-1.5 w-11 shrink-0 rounded-full bg-muted sm:hidden" />
-      <button type="button" onClick={onClose} aria-label="Close" className="absolute right-6 top-6 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background">
+      <button type="button" onClick={onClose} aria-label={tr('discover.resource_sheet.close', 'Close')} className="absolute right-6 top-6 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background">
         <X size={18} />
       </button>
-      {error ? <p role="alert" className="m-6 rounded-2xl bg-muted p-6 text-sm font-medium">This resource isn’t available. It may have been removed or made private.</p>
-        : !resource || !meta || !Kind ? <div className="flex min-h-72 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading" /></div>
+      {error ? <p role="alert" className="m-6 rounded-2xl bg-muted p-6 text-sm font-medium">{tr('discover.resource_sheet.this_resource_isn_t_available', 'This resource isn’t available. It may have been removed or made private.')}</p>
+        : !resource || !meta || !Kind ? <div className="flex min-h-72 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label={tr('discover.resource_sheet.loading', 'Loading')} /></div>
         : <>
           <div className="px-[18px] pt-[18px] sm:pt-[18px]">
             <ResourceCover resource={resource} className="rounded-[20px]" />
@@ -155,32 +156,32 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
             <TranslatedNote className="-mt-2 m-0 text-xs text-muted-foreground" />
             {resource.rating_count ? <p className="-mt-2 m-0 flex items-center gap-1.5 text-[13px] font-bold text-muted-foreground">
               <Star size={14} className="fill-amber-400 text-amber-400" aria-hidden="true" />
-              <span className="text-foreground">{(resource.average_rating || 0).toFixed(1)}</span>{resource.rating_count === 1 ? '1 review' : `${resource.rating_count} reviews`}
+              <span className="text-foreground">{(resource.average_rating || 0).toFixed(1)}</span>{resource.rating_count === 1 ? tr('discover.resource_sheet.1_review', '1 review') : `${resource.rating_count} reviews`}
             </p> : null}
             <div className="flex flex-col gap-2">
               <div className="flex gap-2.5">
                 <Button ref={openButton} type="button" variant="brand" size="tall" className="flex-1" onClick={() => void open()}>
                   {meta.kind.verb} {resourceSource(resource)}<ArrowUpRight size={18} aria-hidden="true" />
                 </Button>
-                {signedIn ? <Button type="button" variant={resource.is_saved ? 'default' : 'surface'} size="tall" className="w-14 px-0" aria-pressed={resource.is_saved} aria-label={resource.is_saved ? 'Saved. Remove from your library' : 'Save to your library'} disabled={saving} onClick={() => void toggleSave()}>
+                {signedIn ? <Button type="button" variant={resource.is_saved ? 'default' : 'surface'} size="tall" className="w-14 px-0" aria-pressed={resource.is_saved} aria-label={resource.is_saved ? tr('discover.resource_sheet.saved_remove_from_your_library', 'Saved. Remove from your library') : tr('discover.resource_sheet.save_to_your_library', 'Save to your library')} disabled={saving} onClick={() => void toggleSave()}>
                   {saving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className={cn(resource.is_saved && 'fill-current')} />}
                 </Button> : null}
               </div>
-              {site ? <span className="px-1 text-[12.5px] font-semibold text-muted-foreground">Opens {site} in a new tab</span> : null}
+              {site ? <span className="px-1 text-[12.5px] font-semibold text-muted-foreground">{tr('discover.resource_sheet.opens_site_in_a_new', 'Opens {{site}} in a new tab', { site })}</span> : null}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              {hub ? <Button type="button" variant="surface" size="tall" className="flex-1" onClick={() => { hub.attach(resource); onClose() }}><Sparkles size={16} />Ask Coach about this</Button> : null}
+              {hub ? <Button type="button" variant="surface" size="tall" className="flex-1" onClick={() => { hub.attach(resource); onClose() }}><Sparkles size={16} />{tr('discover.resource_sheet.ask_coach_about_this', 'Ask Coach about this')}</Button> : null}
               {signedIn ? <SaveDropdown resourceUuid={resource.resource_uuid} isSaved={resource.is_saved} savedUserChannelUuids={resource.user_channel_uuids || []}
                 onSaveChange={() => void mutate()} onMembershipChange={() => void mutate()} variant="menu"
                 share={{ title: resource.title, description: resource.description, url: getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid)) }} /> : null}
             </div>
             {code && signedIn ? <CareerProfile code={code} token={token} onOpen={onOpen} onAddToPlans={(profile) => setPlanning(profile.career)} /> : null}
-            {code && signedIn && resource.is_saved ? <Block title="Your take">
+            {code && signedIn && resource.is_saved ? <Block title={tr('discover.resource_sheet.your_take', 'Your take')}>
               <CareerTake key={`${resource.resource_uuid}-${fresh}`} resourceUuid={resource.resource_uuid} state={resource.user_state} token={token} fresh={fresh}
                 onSaved={() => { setFresh(false); void mutate() }} />
             </Block> : null}
-            {signedIn && !code ? <Block title="Your notes"><ResourceNotes resourceUuid={resource.resource_uuid} compact onNotesChange={() => void mutate()} /></Block> : null}
-            <Block title="What others say"><ResourceComments resourceUuid={resource.resource_uuid} compact onReviewsChange={() => void mutate()} /></Block>
+            {signedIn && !code ? <Block title={tr('discover.resource_sheet.your_notes', 'Your notes')}><ResourceNotes resourceUuid={resource.resource_uuid} compact onNotesChange={() => void mutate()} /></Block> : null}
+            <Block title={tr('discover.resource_sheet.what_others_say', 'What others say')}><ResourceComments resourceUuid={resource.resource_uuid} compact onReviewsChange={() => void mutate()} /></Block>
             {/* A career lists careers like it instead. */}
             {code ? null : <MoreFrom resource={resource} onOpen={onOpen} />}
           </div>

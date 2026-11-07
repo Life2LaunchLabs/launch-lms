@@ -12,6 +12,7 @@ import type { HubQuestionAnswer } from '@services/hub/questions'
 import { AssistantResponse, HubSuggestedActions } from './HubMessageParts'
 import { HubEditActivity, HubLearnerSessionEvent, HubSessionBoundary, sessionEventLabel, type HubRunTimelineEntry } from './editRunTimeline'
 
+import { tr } from '@/lib/tr'
 export type HubConversationMessage = HubAdvisorMessage & {
   id: string
   resourceLabel?: 'You added' | 'Suggested'
@@ -56,7 +57,7 @@ export default function HubThread({ messages, timelineSlots, editRun, editObject
   const microBar = (message: HubConversationMessage, content = message.content) => accessToken && orgId
     ? <HubMessageMicroBar role={message.role === 'user' ? 'user' : 'assistant'} content={content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={orgId} accessToken={accessToken} reportableId={message.role === 'assistant' && !message.searchQuery ? message.id : undefined} />
     : null
-  const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? 'Coach suggested' : message.resourceLabel} onOpen={onOpenResource} />
+  const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? tr('coach.hub_thread.coach_suggested', 'Coach suggested') : message.resourceLabel ? tr('coach.hub_thread.you_added', 'You added') : undefined} onOpen={onOpenResource} />
 
   return <>
     {messages.map((message, index) => <div key={`timeline:${message.id}`} className="contents">
@@ -73,14 +74,14 @@ export default function HubThread({ messages, timelineSlots, editRun, editObject
           <AssistantResponse content={message.content} />
           <QuestionSet questions={message.questions || []} disabled={sending} onSubmit={(answers) => onAnswer(message.id, answers)} />
           <HubSuggestedActions actions={message.suggestedActions || []} disabled={sending} onActivate={(action, mode) => onActivateAction(message.id, action, mode)} />
-          {message.id === narratedConclusionMessageId ? <Button type="button" size="sm" className="mt-2 h-8 text-xs" onClick={onFinish}>Finish session</Button> : null}
-          {message.id === restoreOfferMessageId ? <Button type="button" size="sm" className="mt-2 h-8 gap-1.5 text-xs" onClick={onRestore}>Continue focused session<ArrowRight size={13} /></Button> : null}
+          {message.id === narratedConclusionMessageId ? <Button type="button" size="sm" className="mt-2 h-8 text-xs" onClick={onFinish}>{tr('coach.edit_run_timeline.finish_session', 'Finish session')}</Button> : null}
+          {message.id === restoreOfferMessageId ? <Button type="button" size="sm" className="mt-2 h-8 gap-1.5 text-xs" onClick={onRestore}>{tr('coach.hub_thread.continue_focused_session', 'Continue focused session')}<ArrowRight size={13} /></Button> : null}
           {microBar(message)}
           {carousel(message)}
         </>}
       </div>}
     </div>)}
     {timeline(messages.length)}
-    <HubResourceCarousel resources={pendingResources} inChat={inChat} label="You added" onOpen={onOpenResource} />
+    <HubResourceCarousel resources={pendingResources} inChat={inChat} label={tr('coach.hub_thread.you_added', 'You added')} onOpen={onOpenResource} />
   </>
 }

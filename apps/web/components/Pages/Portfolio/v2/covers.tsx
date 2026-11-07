@@ -4,6 +4,7 @@ import type { ComponentType } from 'react'
 import { Award, BookOpen, BriefcaseBusiness, GraduationCap, HandHeart, Lightbulb, Mountain, Palette, ShieldCheck, Sparkles, Trophy, Wrench } from 'lucide-react'
 import { PALETTE, type TileColor } from './parts'
 
+import { tr } from '@/lib/tr'
 // Stand-in covers until a learner adds a photo: each kind of thing gets its own picture, so experience,
 // projects and credentials never look alike and each experience type is told apart at a glance.
 
@@ -11,20 +12,20 @@ type Look = { icon: ComponentType<{ className?: string; strokeWidth?: number }>;
 
 /** Each experience type, its picture and its color. Older type names sit with the type that replaced them. */
 export const EXPERIENCE_LOOKS: Record<string, Look> = {
-  work_career: { icon: BriefcaseBusiness, color: 'teal', label: 'Work & Career' },
-  education: { icon: GraduationCap, color: 'blue', label: 'Education' },
-  leadership_service: { icon: HandHeart, color: 'orange', label: 'Leadership & Service' },
-  learning_experiences: { icon: BookOpen, color: 'violet', label: 'Learning' },
-  teams_activities: { icon: Trophy, color: 'lime', label: 'Teams & Activities' },
-  awards_recognition: { icon: Award, color: 'amber', label: 'Awards' },
-  challenges_milestones: { icon: Mountain, color: 'sky', label: 'Milestones' },
-  other: { icon: Sparkles, color: 'pink', label: 'Experience' },
+  work_career: { icon: BriefcaseBusiness, color: 'teal', get label() { return tr('portfolio.covers.work_career', 'Work & Career') } },
+  education: { icon: GraduationCap, color: 'blue', get label() { return tr('portfolio.covers.education', 'Education') } },
+  leadership_service: { icon: HandHeart, color: 'orange', get label() { return tr('portfolio.covers.leadership_service', 'Leadership & Service') } },
+  learning_experiences: { icon: BookOpen, color: 'violet', get label() { return tr('portfolio.covers.learning', 'Learning') } },
+  teams_activities: { icon: Trophy, color: 'lime', get label() { return tr('portfolio.covers.teams_activities', 'Teams & Activities') } },
+  awards_recognition: { icon: Award, color: 'amber', get label() { return tr('portfolio.covers.awards', 'Awards') } },
+  challenges_milestones: { icon: Mountain, color: 'sky', get label() { return tr('portfolio.covers.milestones', 'Milestones') } },
+  other: { icon: Sparkles, color: 'pink', get label() { return tr('portfolio.covers.experience', 'Experience') } },
 }
 const LEGACY: Record<string, string> = { employment: 'work_career', volunteering: 'leadership_service', training: 'learning_experiences', experience: 'other' }
 export const experienceLook = (type?: string) => EXPERIENCE_LOOKS[LEGACY[type || ''] || type || ''] || EXPERIENCE_LOOKS.other
 
-const PROJECT: Look = { icon: Lightbulb, color: 'pink', label: 'Project', also: [Palette, Wrench] }
-const CREDENTIAL: Look = { icon: ShieldCheck, color: 'blue', label: 'Credential' }
+const PROJECT: Look = { icon: Lightbulb, color: 'pink', get label() { return tr('portfolio.covers.project', 'Project') }, also: [Palette, Wrench] }
+const CREDENTIAL: Look = { icon: ShieldCheck, color: 'blue', get label() { return tr('portfolio.covers.credential', 'Credential') } }
 
 /** A photo when there is one; otherwise the kind's own picture. */
 export function KindCover({ url, kind, type, className = '' }: { url?: string; kind: 'experience' | 'project' | 'credential'; type?: string; className?: string }) {

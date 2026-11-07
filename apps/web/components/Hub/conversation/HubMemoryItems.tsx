@@ -12,6 +12,7 @@ import {
 } from '@components/ui/dropdown-menu'
 import { deleteHubMemory, HubMemory, updateHubMemory } from '@services/hub/advisor'
 
+import { tr } from '@/lib/tr'
 type Props = {
   memories: HubMemory[]
   orgId: number
@@ -43,7 +44,7 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
         : item))
       setEditing(null)
     } catch (requestError: any) {
-      setError(requestError?.message || 'This memory could not be updated.')
+      setError(requestError?.message || tr('lit.hub_memory_items.this_memory_could_not_be', 'This memory could not be updated.'))
     } finally {
       setBusy(null)
     }
@@ -56,7 +57,7 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
       await deleteHubMemory(orgId, memory.memory_uuid, accessToken)
       onChange(memories.filter((item) => item.memory_uuid !== memory.memory_uuid))
     } catch (requestError: any) {
-      setError(requestError?.message || 'This memory could not be deleted.')
+      setError(requestError?.message || tr('lit.hub_memory_items.this_memory_could_not_be_2', 'This memory could not be deleted.'))
     } finally {
       setBusy(null)
     }
@@ -71,8 +72,8 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
             <div className="space-y-2">
               <Input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500} autoFocus />
               <div className="flex justify-end gap-2">
-                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-                <Button type="button" size="sm" disabled={busy === memory.memory_uuid || !draft.trim()} onClick={() => void save(memory)}>Save</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)}>{tr('coach.hub_memory_items.cancel', 'Cancel')}</Button>
+                <Button type="button" size="sm" disabled={busy === memory.memory_uuid || !draft.trim()} onClick={() => void save(memory)}>{tr('coach.hub_memory_items.save', 'Save')}</Button>
               </div>
             </div>
           ) : (
@@ -84,13 +85,13 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
               {memory.editable !== false && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-muted-foreground" aria-label="Memory actions">
+                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-muted-foreground" aria-label={tr('coach.hub_memory_items.memory_actions', 'Memory actions')}>
                       <MoreVertical className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem onSelect={() => beginEdit(memory)}><Pencil />Edit</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={busy === memory.memory_uuid} onSelect={() => void remove(memory)}><Trash2 />Delete</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => beginEdit(memory)}><Pencil />{tr('coach.hub_memory_items.edit', 'Edit')}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={busy === memory.memory_uuid} onSelect={() => void remove(memory)}><Trash2 />{tr('coach.hub_memory_items.delete', 'Delete')}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

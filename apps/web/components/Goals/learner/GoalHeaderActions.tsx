@@ -19,6 +19,7 @@ import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
 import type { GoalBadge } from './GoalHeader'
 
+import { tr } from '@/lib/tr'
 const chip = 'flex min-h-10 items-center gap-2 rounded-xl bg-black/15 px-3 text-xs font-bold text-[var(--plan-deep-ink)] transition hover:bg-black/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--plan-deep-ink)]'
 
 type Person = { collaborator_uuid: string | null; user: PersonSummary | null; is_subject: boolean }
@@ -44,7 +45,7 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
   const [shareOpen, setShareOpen] = React.useState(false)
   const { data: people } = useSWR<{ collaborators: Person[] }>(token ? goalUrl(goal.goal_uuid, '/people') : null, (url: string) => swrFetcher(url, token))
   const others = (people?.collaborators || []).filter((person) => !person.is_subject)
-  const label = others.length === 1 ? `Shared with ${others[0].user?.name || '1 person'}` : others.length ? `Shared with ${others.length} people` : can(goal, 'manage_collaborators') || can(goal, 'request_collaborators') ? 'Share' : 'People with access'
+  const label = others.length === 1 ? `Shared with ${others[0].user?.name || '1 person'}` : others.length ? `Shared with ${others.length} people` : can(goal, 'manage_collaborators') || can(goal, 'request_collaborators') ? tr('lit.quest_bar.share', 'Share') : tr('lit.goal_header_actions.people_with_access', 'People with access')
   const personal = goal.ownership === 'personal'
   const finished = goal.status === 'finished' || goal.status === 'archived'
   React.useEffect(() => setShareOpen(false), [goal.goal_uuid])
@@ -52,11 +53,11 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
 
   // Finishing is the goal's last step; the menu only reopens a finished goal.
   const reopen = async () => {
-    try { await goalLifecycleApi.reopen(goal.goal_uuid, token); await refresh() } catch (error: any) { toast.error(error?.message || 'Could not reopen this goal') }
+    try { await goalLifecycleApi.reopen(goal.goal_uuid, token); await refresh() } catch (error: any) { toast.error(error?.message || tr('goals.goal_header_actions.could_not_reopen_this_goal', 'Could not reopen this goal')) }
   }
   const remove = async () => {
     if (!window.confirm(`Delete “${goal.title}” and its progress?`)) return
-    try { await goalLifecycleApi.remove(goal.goal_uuid, token); onBack(); await refresh() } catch (error: any) { toast.error(error?.message || 'Could not delete this goal') }
+    try { await goalLifecycleApi.remove(goal.goal_uuid, token); onBack(); await refresh() } catch (error: any) { toast.error(error?.message || tr('goals.goal_header_actions.could_not_delete_this_goal', 'Could not delete this goal')) }
   }
   // The learner files their own goal in a phase of their life plan.
   const session = useLHSession() as any
@@ -65,7 +66,7 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
   const phases = goal.status !== 'archived' ? lifePlan?.plan?.document.phases || [] : []
   const inPhase = phases.length ? phaseOfGoal(lifePlan?.plan?.document, goal.goal_uuid) : null
   const moveTo = async (phaseId: string) => {
-    try { await refreshLife(lifeApi.placeGoal(goal.goal_uuid, phaseId, token), { revalidate: false }) } catch (error: any) { toast.error(error?.message || 'Could not move this goal') }
+    try { await refreshLife(lifeApi.placeGoal(goal.goal_uuid, phaseId, token), { revalidate: false }) } catch (error: any) { toast.error(error?.message || tr('goals.goal_header_actions.could_not_move_this_goal', 'Could not move this goal')) }
   }
   const canReopen = finished && personal && can(goal, 'edit_plan_details')
   const canDelete = personal && can(goal, 'delete_plan')
@@ -76,23 +77,23 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
     </button>
     <GoalChatChip className={chip} />
     <span className="flex-1" />
-    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal; ones you haven’t reviewed stay after the session ends">
-      <Sparkles size={14} aria-hidden="true" className="animate-pulse motion-reduce:animate-none" />Coach is working with you
-      {onEndCoach ? <button type="button" onClick={onEndCoach} aria-label="End Coach’s session" className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg bg-black/15 hover:bg-black/25"><X size={13} aria-hidden="true" /></button> : null}
+    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title={tr('goals.goal_header_actions.coach_s_suggestions_show_on', 'Coach’s suggestions show on the goal; ones you haven’t reviewed stay after the session ends')}>
+      <Sparkles size={14} aria-hidden="true" className="animate-pulse motion-reduce:animate-none" />{tr('goals.goal_header_actions.coach_is_working_with_you', 'Coach is working with you')}
+      {onEndCoach ? <button type="button" onClick={onEndCoach} aria-label={tr('goals.goal_header_actions.end_coach_s_session', 'End Coach’s session')} className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg bg-black/15 hover:bg-black/25"><X size={13} aria-hidden="true" /></button> : null}
     </span> : null}
-    {onSettings ? <button type="button" onClick={onSettings} aria-label="Goal settings" className={chip}><Settings2 size={16} aria-hidden="true" /></button> : null}
+    {onSettings ? <button type="button" onClick={onSettings} aria-label={tr('goals.goal_header_actions.goal_settings', 'Goal settings')} className={chip}><Settings2 size={16} aria-hidden="true" /></button> : null}
     {badge || canReopen || canDelete || onPlanWithCoach || goal.status === 'finished' || phases.length > 1 ? <DropdownMenu>
-      <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><button type="button" aria-label={tr('goals.goal_header_actions.goal_actions', 'Goal actions')} className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {phases.length > 1 ? <DropdownMenuSub>
-          <DropdownMenuSubTrigger><Map size={14} className="mr-2" />Move to a phase</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>{phases.map((phase) => <DropdownMenuItem key={phase.id} disabled={phase.id === inPhase} onSelect={() => void moveTo(phase.id)}>{phase.title}{phase.id === inPhase ? ' (here now)' : ''}</DropdownMenuItem>)}</DropdownMenuSubContent>
+          <DropdownMenuSubTrigger><Map size={14} className="mr-2" />{tr('goals.goal_header_actions.move_to_a_phase', 'Move to a phase')}</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>{phases.map((phase) => <DropdownMenuItem key={phase.id} disabled={phase.id === inPhase} onSelect={() => void moveTo(phase.id)}>{phase.title}{phase.id === inPhase ? tr('goals.goal_header_actions.here_now', ' (here now)') : ''}</DropdownMenuItem>)}</DropdownMenuSubContent>
         </DropdownMenuSub> : null}
-        {onPlanWithCoach ? <DropdownMenuItem onSelect={onPlanWithCoach}><Sparkles size={14} className="mr-2" />Plan with Coach</DropdownMenuItem> : null}
-        {badge ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(badge.template_uuid))}><Award size={14} className="mr-2" />View badge</a></DropdownMenuItem> : null}
-        {goal.status === 'finished' ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)}><BookOpen size={14} className="mr-2" />Watch your story</a></DropdownMenuItem> : null}
-        {canReopen ? <DropdownMenuItem onSelect={() => void reopen()}>Reopen goal</DropdownMenuItem> : null}
-        {canDelete ? <DropdownMenuItem onSelect={() => void remove()} className="text-red-600">Delete goal</DropdownMenuItem> : null}
+        {onPlanWithCoach ? <DropdownMenuItem onSelect={onPlanWithCoach}><Sparkles size={14} className="mr-2" />{tr('goals.goal_header_actions.plan_with_coach', 'Plan with Coach')}</DropdownMenuItem> : null}
+        {badge ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, routePaths.org.discoverPlan(badge.template_uuid))}><Award size={14} className="mr-2" />{tr('goals.goal_header_actions.view_badge', 'View badge')}</a></DropdownMenuItem> : null}
+        {goal.status === 'finished' ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)}><BookOpen size={14} className="mr-2" />{tr('goals.goal_stages.watch_your_story', 'Watch your story')}</a></DropdownMenuItem> : null}
+        {canReopen ? <DropdownMenuItem onSelect={() => void reopen()}>{tr('goals.goal_header_actions.reopen_goal', 'Reopen goal')}</DropdownMenuItem> : null}
+        {canDelete ? <DropdownMenuItem onSelect={() => void remove()} className="text-red-600">{tr('goals.goal_header_actions.delete_goal', 'Delete goal')}</DropdownMenuItem> : null}
       </DropdownMenuContent>
     </DropdownMenu> : null}
     <GoalShareDialog goal={goal} token={token} open={shareOpen} setOpen={setShareOpen} onLeft={onBack} />

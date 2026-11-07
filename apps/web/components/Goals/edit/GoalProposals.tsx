@@ -16,6 +16,7 @@ import type { StepDraft } from './StepEditor'
 import { liveMode, stepInput } from './stepDrafts'
 import type { PendingGoalChange, PendingStage, PendingStageChange, PendingStep, PendingStepChange, SuggestionKind } from './useGoalProposals'
 
+import { tr } from '@/lib/tr'
 type Fields = Record<string, string | number | boolean | null>
 type ObjectStatus = 'editing' | 'cancelled' | 'saved'
 // eslint-disable-next-line no-unused-vars
@@ -28,7 +29,7 @@ export function updateRunObjectState(run: HubEditRun, saved: HubEditObjectState,
   const sequence = Math.max(0, ...run.events.map((event) => Number(event.sequence || 0))) + 1
   return { ...run, objects, events: [...run.events, {
     event_uuid: `local:${saved.object_key}:${status}`, sequence, kind: `${saved.object_type}.${status}`,
-    summary: `${status === 'saved' ? 'Saved' : 'Cancelled'} ${label}`, object_type: saved.object_type, object_uuid: saved.object_uuid,
+    summary: `${status === 'saved' ? tr('lit.plan_compare.saved', 'Saved') : tr('lit.goal_proposals.cancelled', 'Cancelled')} ${label}`, object_type: saved.object_type, object_uuid: saved.object_uuid,
     object_label: label, transient: false, payload: { object_key: saved.object_key }, created_at: new Date().toISOString(),
   }] }
 }
@@ -45,7 +46,7 @@ function useRecordDecision(runUuid: string, objectKey: string, objectType: 'goal
       revision.current = saved.revision
       hub?.setEditRun((value) => value?.run_uuid === runUuid ? updateRunObjectState(value, saved, status, label) : value)
     } catch (error: any) {
-      toast.error(error?.status === 409 ? 'This suggestion changed in another tab. Reload to see the latest.' : 'Coach couldn’t note that choice, but your goal is saved.')
+      toast.error(error?.status === 409 ? tr('goals.goal_proposals.this_suggestion_changed_in_another', 'This suggestion changed in another tab. Reload to see the latest.') : tr('goals.goal_proposals.coach_couldn_t_note_that', 'Coach couldn’t note that choice, but your goal is saved.'))
     }
   }
 }
@@ -61,7 +62,7 @@ function useReviewItem(key: string, label: string, objectType: string, targetId:
 
 const lineButton = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-current/25 transition hover:border-[var(--plan-face)] hover:bg-[var(--plan-face)] hover:text-[var(--plan-face-ink)] disabled:opacity-50'
 const dropButton = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full opacity-60 transition hover:bg-muted hover:opacity-100'
-const tag = <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider opacity-60">suggested</span>
+const tag = <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider opacity-60">{tr('goals.goal_proposals.suggested', 'suggested')}</span>
 
 function stepFields(draft: StepDraft, stageUuid: string): Fields {
   return { type: draft.type, title: draft.title, description: draft.description, due_date: draft.due_date || '', stage_uuid: stageUuid, config: JSON.stringify(draft.config) }
@@ -110,7 +111,7 @@ export function SuggestedStepLine({ goal, item, token, onSettled }: { goal: Goal
     } catch { setSaving(false) /* useGoalMutation already said what went wrong */ }
   }
 
-  return <li id={targetId} tabIndex={-1} aria-label={`Suggested step ${label}`} title={draft.description || undefined} className="group flex items-center gap-3 rounded-xl py-1 pr-2 text-sm text-muted-foreground outline-none transition hover:bg-current/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
+  return <li id={targetId} tabIndex={-1} aria-label={tr('goals.goal_proposals.suggested_step_label', 'Suggested step {{label}}', { label })} title={draft.description || undefined} className="group flex items-center gap-3 rounded-xl py-1 pr-2 text-sm text-muted-foreground outline-none transition hover:bg-current/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
     <span className="flex w-14 shrink-0 justify-center">
       <button type="button" disabled={saving} onClick={() => void keep()} aria-label={`Add ${label}`} className={lineButton}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />}</button>
     </span>
@@ -145,7 +146,7 @@ export function SuggestedStageLine({ goal, item, token, onSettled }: { goal: Goa
     } catch { setSaving(false) /* useGoalMutation already said what went wrong */ }
   }
 
-  return <div id={targetId} tabIndex={-1} role="group" aria-label={`Suggested stage ${stage.title}`} title={stage.description || undefined}
+  return <div id={targetId} tabIndex={-1} role="group" aria-label={tr('goals.goal_proposals.suggested_stage_title', 'Suggested stage {{title}}', { title: stage.title })} title={stage.description || undefined}
     className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card/40 px-4 py-2 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
     <button type="button" disabled={saving} onClick={() => void keep()} aria-label={`Add ${stage.title}`} className={lineButton}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />}</button>
     <span className="min-w-0 flex-1 truncate font-extrabold">{stage.title}{stage.timing ? <span className="ml-2 text-xs font-bold opacity-70">{stage.timing}</span> : null}</span>
@@ -164,7 +165,7 @@ export function describeChange(change: PendingStepChange['change'] | PendingStag
   if ('stage_title' in change && change.stage_title) parts.push(`Move to ${quote(change.stage_title, 40)}`)
   if ('milestone' in change && change.milestone) parts.push(`Milestone: ${quote(change.milestone)}`)
   if ('timing' in change && change.timing) parts.push(`Timing: ${quote(change.timing, 40)}`)
-  if ('description' in change && change.description) parts.push(`${noun === 'goal' ? 'Why' : 'Notes'}: ${quote(change.description)}`)
+  if ('description' in change && change.description) parts.push(`${noun === 'goal' ? tr('lit.goal_proposals.why', 'Why') : tr('lit.goal_proposals.notes', 'Notes')}: ${quote(change.description)}`)
   return parts.join(' · ')
 }
 
@@ -196,13 +197,13 @@ function ChangeLine({ id, label, summary, reason, objectType, recordKey, item, k
     } catch { setSaving(false) /* the mutation already said what went wrong */ }
   }
 
-  return <div id={targetId} tabIndex={-1} role="group" aria-label={`Coach suggests: ${summary}`}
+  return <div id={targetId} tabIndex={-1} role="group" aria-label={tr('goals.goal_proposals.coach_suggests_summary', 'Coach suggests: {{summary}}', { summary })}
     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-dashed border-[var(--plan-face)]/60 bg-[color-mix(in_srgb,var(--plan-face)_8%,transparent)] px-3 py-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
     <Sparkles size={13} aria-hidden="true" className="shrink-0 text-[var(--plan-accent)]" />
     <span className="min-w-0 flex-1"><span className="font-bold">{summary}</span>{reason ? <span className="ml-2 text-muted-foreground">{reason}</span> : null}</span>
     <span className="flex shrink-0 items-center gap-1">
-      <button type="button" disabled={saving} onClick={() => void keep()} className={cn('rounded-full px-3 py-1 font-bold transition disabled:opacity-50', 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] hover:opacity-90')}>{saving ? <Loader2 size={12} className="animate-spin" /> : 'Keep'}</button>
-      <button type="button" disabled={saving} onClick={() => void undo()} className="flex items-center gap-1 rounded-full px-2 py-1 font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"><Undo2 size={12} aria-hidden="true" />Undo</button>
+      <button type="button" disabled={saving} onClick={() => void keep()} className={cn('rounded-full px-3 py-1 font-bold transition disabled:opacity-50', 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] hover:opacity-90')}>{saving ? <Loader2 size={12} className="animate-spin" /> : tr('goals.phase_sheet.keep', 'Keep')}</button>
+      <button type="button" disabled={saving} onClick={() => void undo()} className="flex items-center gap-1 rounded-full px-2 py-1 font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"><Undo2 size={12} aria-hidden="true" />{tr('goals.routine_action.undo', 'Undo')}</button>
     </span>
   </div>
 }

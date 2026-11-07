@@ -19,6 +19,7 @@ import type { SectionType } from '@services/portfolio/records'
 import { templateOf } from './resultTemplates'
 import type { Spot } from './progress'
 
+import { tr } from '@/lib/tr'
 // The front page sections, in the prototype's order.
 
 // eslint-disable-next-line no-unused-vars
@@ -34,16 +35,16 @@ function AboutTile({ shell, setShell, owner, token, onEditLinks, spots }: TilePr
   const socials = shellSocials(shell)
   if (!owner && !shell.portfolio.short_bio && !socials.length) return null
   // As on the prototype's About page: the bio on top, then where people can find more of you.
-  return <Tile section="about" color="amber" icon={User} title="About me" wide spot={spots?.about || spots?.links}>
+  return <Tile section="about" color="amber" icon={User} title={tr('portfolio.portfolio_tiles.about_me', 'About me')} wide spot={spots?.about || spots?.links}>
     <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
     {socials.length || owner ? <div className="grid shrink-0 gap-2 border-t border-border pt-3.5">
-      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Find me</span>
-      {socials.length ? <ul className="grid gap-1.5 @md:grid-cols-2" aria-label="Links">{socials.map((social) => <li key={social.type}>
+      <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('portfolio.portfolio_tiles.find_me', 'Find me')}</span>
+      {socials.length ? <ul className="grid gap-1.5 @md:grid-cols-2" aria-label={tr('portfolio.portfolio_tiles.links', 'Links')}>{socials.map((social) => <li key={social.type}>
         <a href={/^https?:\/\//i.test(social.url) ? social.url : `https://${social.url}`} target="_blank" rel="noreferrer" className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] bg-muted px-2.5 py-2 text-[13.5px] transition hover:bg-raised">
           <Link2 className="h-4 w-4 text-muted-foreground" /><b className="truncate font-extrabold">{socialHandle(social.type, social.url) || social.url}</b><small className="text-xs font-semibold text-muted-foreground">{SOCIAL_OPTIONS.find((option) => option.type === social.type)?.label || social.type}</small>
         </a>
       </li>)}</ul> : null}
-      {owner && onEditLinks ? <button type="button" onClick={onEditLinks} className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground"><Link2 className="h-3.5 w-3.5" />{socials.length ? 'Edit links' : 'Add where people can find you'}</button> : null}
+      {owner && onEditLinks ? <button type="button" onClick={onEditLinks} className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground transition hover:bg-raised hover:text-foreground"><Link2 className="h-3.5 w-3.5" />{socials.length ? tr('portfolio.portfolio_tiles.edit_links', 'Edit links') : tr('portfolio.portfolio_tiles.add_where_people_can_find', 'Add where people can find you')}</button> : null}
     </div> : null}
   </Tile>
 }
@@ -53,16 +54,16 @@ function ExperienceTile({ spots, spotLinks, shell, owner, orgslug, username }: T
   const limit = useLimit('experience', 4)
   if (!owner && !entries.length) return null
   const href = (entry: TimelineEntry) => getUriWithOrg(orgslug, owner ? `/portfolio/timeline/${entry.timeline_uuid}` : `/user/${username}/timeline/${entry.slug}`)
-  return <Tile section="experience" color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title="Experience" count={entries.length || null} href={getUriWithOrg(orgslug, spotLinks?.experience || (owner ? '/portfolio/timeline' : `/user/${username}/timeline`))} wide>
+  return <Tile section="experience" color="teal" spot={spots?.experience} icon={BriefcaseBusiness} title={tr('portfolio.portfolio_tiles.experience', 'Experience')} count={entries.length || null} href={getUriWithOrg(orgslug, spotLinks?.experience || (owner ? '/portfolio/timeline' : `/user/${username}/timeline`))} wide>
     {entries.length ? <div data-card-grid className="grid grid-cols-2 justify-start gap-3 @lg:grid-cols-3 @2xl:grid-cols-4">{entries.slice(0, limit).map((entry) => <Link key={entry.timeline_uuid} data-item href={href(entry)} className="group/item grid min-w-0 content-start gap-1">
       <div data-cover className="relative mb-1 aspect-[4/3] overflow-hidden rounded-xl transition group-hover/item:-translate-y-0.5">
         <KindCover kind="experience" type={entry.entry_type} url={entry.cover_url ? normalizeMediaUrl(entry.cover_url) : ''} />
-        {entry.is_current ? <span className="absolute right-2 top-2 rounded-full bg-[#0B7D73] px-2 py-0.5 text-[11px] font-extrabold text-white">Now</span> : null}
+        {entry.is_current ? <span className="absolute right-2 top-2 rounded-full bg-[#0B7D73] px-2 py-0.5 text-[11px] font-extrabold text-white">{tr('portfolio.portfolio_tiles.now', 'Now')}</span> : null}
       </div>
       <b className="line-clamp-2 text-[13.5px] font-extrabold leading-tight">{entry.title}</b>
       <small className="truncate text-xs font-semibold text-muted-foreground">{entry.organization}</small>
       <small className="truncate text-xs font-semibold text-muted-foreground">{timelineDateLabel(entry)}</small>
-    </Link>)}</div> : <EmptyAdd title="Add where you are right now" hint="School, a job, a team or a club. Start with one." href={getUriWithOrg(orgslug, spotLinks?.experience || '/portfolio/timeline/new')} />}
+    </Link>)}</div> : <EmptyAdd title={tr('portfolio.portfolio_tiles.add_where_you_are_right', 'Add where you are right now')} hint={tr('portfolio.portfolio_tiles.school_a_job_a_team', 'School, a job, a team or a club. Start with one.')} href={getUriWithOrg(orgslug, spotLinks?.experience || '/portfolio/timeline/new')} />}
   </Tile>
 }
 
@@ -71,11 +72,11 @@ function ProjectsTile({ spots, spotLinks, shell, owner, orgslug, username }: Til
   const limit = useLimit('projects', 3)
   if (!owner && !projects.length) return null
   const href = (project: Project) => getUriWithOrg(orgslug, owner ? `/portfolio/projects/${project.project_uuid}` : `/user/${username}/projects/${project.slug}`)
-  return <Tile section="projects" color="pink" spot={spots?.projects} icon={FolderOpen} title="Projects" count={projects.length || null} href={getUriWithOrg(orgslug, spotLinks?.projects || (owner ? '/portfolio/projects' : `/user/${username}/projects`))}>
+  return <Tile section="projects" color="pink" spot={spots?.projects} icon={FolderOpen} title={tr('portfolio.portfolio_tiles.projects', 'Projects')} count={projects.length || null} href={getUriWithOrg(orgslug, spotLinks?.projects || (owner ? '/portfolio/projects' : `/user/${username}/projects`))}>
     {projects.length ? <div data-projects data-card-grid className="grid grid-cols-2 justify-start gap-2.5 @md:grid-cols-3 @2xl:grid-cols-4">{projects.slice(0, limit).map((project) => <Link key={project.project_uuid} data-item href={href(project)} className="group/item grid min-w-0 content-start gap-1.5">
       <div data-cover className="aspect-[4/5] overflow-hidden rounded-2xl transition group-hover/item:-translate-y-0.5"><KindCover kind="project" url={project.cover_url ? normalizeMediaUrl(project.cover_url) : ''} /></div>
       <b className="line-clamp-2 text-[12.5px] font-extrabold leading-tight">{project.title}</b>
-    </Link>)}</div> : <EmptyAdd title="Add something you made" hint="Art, video, code, a build. A photo and a line is enough." href={getUriWithOrg(orgslug, spotLinks?.projects || '/portfolio/projects/new')} />}
+    </Link>)}</div> : <EmptyAdd title={tr('portfolio.portfolio_tiles.add_something_you_made', 'Add something you made')} hint={tr('portfolio.portfolio_tiles.art_video_code_a_build', 'Art, video, code, a build. A photo and a line is enough.')} href={getUriWithOrg(orgslug, spotLinks?.projects || '/portfolio/projects/new')} />}
   </Tile>
 }
 
@@ -85,7 +86,7 @@ export function CredentialFace({ credential }: { credential: Credential }) {
   const [face, edge] = PALETTE[colorFor(credential.name)]
   const Icon = diploma ? GraduationCap : credential.kind === 'card' ? IdCard : ShieldCheck
   return <span className={`relative grid aspect-[1.586] w-full content-between overflow-hidden rounded-[10px] p-2 text-left text-[9.5px] font-extrabold ${diploma ? 'bg-[#fbf5e6] text-[#5a3d12]' : 'text-white'}`} style={diploma ? undefined : { background: `linear-gradient(135deg, ${face}, ${edge})` }}>
-    <Icon className="h-3.5 w-3.5" /><span>{diploma ? (credential.issued_on ? 'Diploma' : 'In progress') : credential.verification_status === 'photo_on_file' ? 'Photo on file' : ''}</span>
+    <Icon className="h-3.5 w-3.5" /><span>{diploma ? (credential.issued_on ? tr('portfolio.portfolio_tiles.diploma', 'Diploma') : tr('portfolio.portfolio_tiles.in_progress', 'In progress')) : credential.verification_status === 'photo_on_file' ? tr('portfolio.portfolio_tiles.photo_on_file', 'Photo on file') : ''}</span>
   </span>
 }
 
@@ -96,12 +97,12 @@ function CredentialsTile({ spots, shell, owner, orgslug, username }: TileProps) 
   if (!owner && !badges.length && !credentials.length) return null
   const items = [...credentials.filter((item) => item.featured), ...badges.map((badge) => ({ badge })), ...credentials.filter((item) => !item.featured)].slice(0, limit)
   const total = (shell.badges?.earned?.length || 0) + credentials.length
-  return <Tile section="credentials" color="blue" spot={spots?.credentials} icon={ShieldCheck} title="Credentials & badges" count={total || null} href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)}>
+  return <Tile section="credentials" color="blue" spot={spots?.credentials} icon={ShieldCheck} title={tr('portfolio.portfolio_tiles.credentials_badges', 'Credentials & badges')} count={total || null} href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)}>
     {items.length ? <div className="grid grid-cols-3 gap-x-2.5 gap-y-3 @lg:grid-cols-4 @2xl:grid-cols-6">{items.map((item) => 'badge' in item
       ? <Link key={item.badge.award_uuid} data-item href={getUriWithOrg(orgslug, routePaths.org.badgeAward(item.badge.code))} className="grid min-w-0 justify-items-center gap-1.5 text-center"><BadgeMedal badge={{ image_url: normalizeMediaUrl(item.badge.image_url || '') || '', icon: item.badge.icon, color: item.badge.color }} size={56} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.badge.name}</b></Link>
       : <div key={item.credential_uuid} data-item className="grid min-w-0 justify-items-center gap-1.5 text-center"><CredentialFace credential={item} /><b className="line-clamp-2 text-xs font-bold leading-tight">{item.name}</b></div>)}
     </div> : null}
-    {owner && !items.length ? <EmptyAdd title="Earn your first badge" hint="Finish a plan to earn one. Cards and certificates are coming soon." href={getUriWithOrg(orgslug, routePaths.org.discover())} /> : null}
+    {owner && !items.length ? <EmptyAdd title={tr('portfolio.portfolio_tiles.earn_your_first_badge', 'Earn your first badge')} hint={tr('portfolio.portfolio_tiles.finish_a_plan_to_earn', 'Finish a plan to earn one. Cards and certificates are coming soon.')} href={getUriWithOrg(orgslug, routePaths.org.discover())} /> : null}
   </Tile>
 }
 
@@ -111,16 +112,16 @@ function ResultsTile({ spots, shell, owner, orgslug, onEditResult }: TileProps) 
   const quiz = getUriWithOrg(orgslug, '/portfolio/interests')
   const tookQuiz = items.some((item) => fromInterestCheck(item.source))
   if (!owner && !items.length) return null
-  return <Tile section="results" color="violet" spot={spots?.results} icon={Sparkles} title="What I’m like" count={items.length || null} href={owner ? getUriWithOrg(orgslug, '/portfolio/results') : undefined}>
+  return <Tile section="results" color="violet" spot={spots?.results} icon={Sparkles} title={tr('portfolio.portfolio_tiles.what_i_m_like', 'What I’m like')} count={items.length || null} href={owner ? getUriWithOrg(orgslug, '/portfolio/results') : undefined}>
     {items.length ? <ul className="grid gap-2.5">{items.slice(0, limit).map((item) => <li key={item.result_uuid} data-item className={`min-w-0 ${item.visibility === 'private' ? 'opacity-55' : ''}`}>
       {owner && onEditResult ? <button type="button" onClick={() => onEditResult(item)} className="w-full rounded-xl text-left hover:bg-muted/60"><ResultLine result={item} /></button> : <ResultLine result={item} />}
     </li>)}</ul> : null}
     {owner && onEditResult ? items.length ? <span className="flex flex-wrap gap-1">
-      {!tookQuiz ? <Link href={quiz} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-[#6539D8] hover:bg-raised dark:text-[#b9a2ff]">Take the interest quiz</Link> : null}
-      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Add another</button>
+      {!tookQuiz ? <Link href={quiz} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-[#6539D8] hover:bg-raised dark:text-[#b9a2ff]">{tr('portfolio.portfolio_tiles.take_the_interest_quiz', 'Take the interest quiz')}</Link> : null}
+      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">{tr('portfolio.portfolio_tiles.add_another', 'Add another')}</button>
     </span> : <>
-      <EmptyAdd title="Take the interest quiz" hint="Questions or pictures about work you might enjoy, then careers that fit" href={quiz} />
-      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">Or add a result you already have</button>
+      <EmptyAdd title={tr('portfolio.portfolio_tiles.take_the_interest_quiz', 'Take the interest quiz')} hint={tr('portfolio.portfolio_tiles.questions_or_pictures_about_work', 'Questions or pictures about work you might enjoy, then careers that fit')} href={quiz} />
+      <button type="button" onClick={() => onEditResult()} className="w-fit rounded-lg px-2 py-1 text-sm font-bold text-muted-foreground hover:bg-raised hover:text-foreground">{tr('portfolio.portfolio_tiles.or_add_a_result_you', 'Or add a result you already have')}</button>
     </> : null}
   </Tile>
 }
@@ -130,12 +131,12 @@ function ResultLine({ result }: { result: PortfolioResult }) {
   // A type already shows its letters, so its line is the test's name instead.
   const same = result.summary === String(result.data?.type ?? '')
   // Skills and values are their chips, under the name.
-  if (templateOf(result)?.input === 'chips') return <span className="grid gap-2 px-1 py-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><ResultPicture result={result} compact /></span>
-  if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? 'Personality type' : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
+  if (templateOf(result)?.input === 'chips') return <span className="grid gap-2 px-1 py-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label={tr('portfolio.portfolio_tiles.hidden_from_visitors', 'Hidden from visitors')} /> : null}</span><ResultPicture result={result} compact /></span>
+  if (templateOf(result)) return <span className="flex min-w-0 flex-wrap items-center gap-3 px-1 py-1"><ResultPicture result={result} compact /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{same ? tr('portfolio.portfolio_tiles.personality_type', 'Personality type') : result.name}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label={tr('portfolio.portfolio_tiles.hidden_from_visitors', 'Hidden from visitors')} /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{same ? result.name : result.summary}</b></span></span>
   // A result with no line of its own (an imported skill, say) shows its kind above its name, not its name twice.
   const bare = !result.summary?.trim() || result.summary.trim().toLowerCase() === result.name.trim().toLowerCase()
   const label = bare ? RESULT_KINDS.find((kind) => kind.value === result.kind)?.label || '' : result.name
-  return <span className="block px-1 py-0.5"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label="Hidden from visitors" /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{bare ? result.name : result.summary}</b></span>
+  return <span className="block px-1 py-0.5"><span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}{result.visibility === 'private' ? <EyeOff className="h-3 w-3" aria-label={tr('portfolio.portfolio_tiles.hidden_from_visitors', 'Hidden from visitors')} /> : null}</span><b className="block text-[17px] font-extrabold leading-snug">{bare ? result.name : result.summary}</b></span>
 }
 
 function QuoteCard({ quote }: { quote: Quote }) {
@@ -150,13 +151,13 @@ function PeopleTile({ spots, shell, owner, orgslug, wide = true }: TileProps & {
   const quotes = featuredFirst(shell.quotes || []).filter((quote) => quote.body && quote.status !== 'requested').slice(0, limit)
   const people = shell.contacts || []
   if (!owner && !quotes.length) return null
-  return <Tile section="people" color="orange" spot={spots?.people} icon={Users} title={owner ? 'My people' : 'What people say'} count={owner ? people.length || null : null} href={owner ? getUriWithOrg(orgslug, '/portfolio/people') : undefined} wide={wide}>
+  return <Tile section="people" color="orange" spot={spots?.people} icon={Users} title={owner ? tr('portfolio.portfolio_tiles.my_people', 'My people') : tr('portfolio.portfolio_tiles.what_people_say', 'What people say')} count={owner ? people.length || null : null} href={owner ? getUriWithOrg(orgslug, '/portfolio/people') : undefined} wide={wide}>
     {owner && people.length ? <div className="flex items-center gap-3">
       <span className="flex">{people.slice(0, 5).map((person, index) => <span key={person.contact_uuid} className={index ? '-ml-2.5' : ''}><PersonDot name={person.name} className="h-8 w-8 border-2 border-card text-[11px]" /></span>)}</span>
-      <span><b className="block text-sm font-extrabold">{people.length} {people.length === 1 ? 'person' : 'people'} in your corner</b><small className="block text-[12.5px] font-semibold text-muted-foreground">{count((shell.quotes || []).length, 'quote')} · {count(people.filter((person) => person.is_reference).length, 'reference')}</small></span>
+      <span><b className="block text-sm font-extrabold">{people.length} {people.length === 1 ? 'person' : 'people'}{' '}{tr('portfolio.portfolio_tiles.in_your_corner', 'in your corner')}</b><small className="block text-[12.5px] font-semibold text-muted-foreground">{count((shell.quotes || []).length, 'quote')} · {count(people.filter((person) => person.is_reference).length, 'reference')}</small></span>
     </div> : null}
     {quotes.length ? <div className="grid gap-3.5 @xl:grid-cols-2">{quotes.map((quote) => <div key={quote.quote_uuid} data-item><QuoteCard quote={quote} /></div>)}</div>
-      : owner ? <EmptyAdd title="Ask someone for a quote" hint="A boss, coach or teacher. They don’t need an account." href={getUriWithOrg(orgslug, '/portfolio/people')} /> : null}
+      : owner ? <EmptyAdd title={tr('portfolio.portfolio_tiles.ask_someone_for_a_quote', 'Ask someone for a quote')} hint={tr('portfolio.portfolio_tiles.a_boss_coach_or_teacher', 'A boss, coach or teacher. They don’t need an account.')} href={getUriWithOrg(orgslug, '/portfolio/people')} /> : null}
   </Tile>
 }
 

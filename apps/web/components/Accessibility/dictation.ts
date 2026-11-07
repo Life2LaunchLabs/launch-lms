@@ -9,6 +9,7 @@
 
 import React from 'react'
 
+import { tr } from '@/lib/tr'
 /* eslint-disable no-unused-vars -- parameter names in function types */
 type Recognition = {
   lang: string; continuous: boolean; interimResults: boolean
@@ -72,8 +73,8 @@ export function useDictation(onText: (text: string) => void, lang?: string) {
     }
     r.onerror = (event: any) => {
       const code = event?.error
-      setError(code === 'not-allowed' || code === 'service-not-allowed' ? 'Allow the microphone to talk instead of typing.'
-        : code === 'no-speech' ? 'I didn’t hear anything. Try again.' : code === 'aborted' ? '' : 'Talking didn’t work this time. Try again.')
+      setError(code === 'not-allowed' || code === 'service-not-allowed' ? tr('lit.dictation.allow_the_microphone_to_talk', 'Allow the microphone to talk instead of typing.')
+        : code === 'no-speech' ? 'I didn’t hear anything. Try again.' : code === 'aborted' ? '' : tr('lit.dictation.talking_didn_t_work_this', 'Talking didn’t work this time. Try again.'))
     }
     r.onend = () => { setListening(false); setInterim(''); if (active === r) active = null }
     recognition.current = r

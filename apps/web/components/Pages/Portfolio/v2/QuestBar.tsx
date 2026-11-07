@@ -7,6 +7,7 @@ import { Button } from '@components/ui/button'
 import { QuestMark } from './parts'
 import type { Quest, QuestItem, Stage } from './progress'
 
+import { tr } from '@/lib/tr'
 // The quest pieces of the front page: the locked action in the action row (a gauge and "2/5"), the
 // banner that drops from it with the quest's list, and the gold unlock moment.
 
@@ -19,7 +20,7 @@ function Gauge({ percent, color, children, size = 'h-6 w-6' }: { percent: number
   </span>
 }
 
-const LOCKED_LABEL = { 1: 'Share', 2: 'Résumé', 3: 'Mastery' } as const
+const LOCKED_LABEL = { get 1() { return tr('lit.quest_bar.share', 'Share') }, 2: 'Résumé', get 3() { return tr('lit.quest_bar.mastery', 'Mastery') } } as const
 
 /** The action a quest unlocks, while it's locked or just unlocked. It opens and closes the quest banner. */
 export function QuestButton({ stage, open, onToggle }: { stage: Stage; open: boolean; onToggle: () => void }) {
@@ -30,23 +31,23 @@ export function QuestButton({ stage, open, onToggle }: { stage: Stage; open: boo
     {quest.n === 3 ? <Rocket className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}<span>{label}</span>
   </button>
   const color = quest.n === 3 ? AMBER : BLUE
-  return <button type="button" data-quest-button onClick={onToggle} aria-expanded={open} aria-label={`${label}: ${quest.title}, ${quest.done} of ${quest.total} done`} className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border-2 bg-card px-3 text-sm font-extrabold shadow-[0_3px_0_hsl(var(--border))] sm:flex-none sm:px-4 ${open ? 'border-foreground/40' : 'border-border'}`}>
+  return <button type="button" data-quest-button onClick={onToggle} aria-expanded={open} aria-label={tr('portfolio.quest_bar.label_title_done_of_total', '{{label}}: {{title}}, {{done}} of {{total}} done', { label, title: quest.title, done: quest.done, total: quest.total })} className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border-2 bg-card px-3 text-sm font-extrabold shadow-[0_3px_0_hsl(var(--border))] sm:flex-none sm:px-4 ${open ? 'border-foreground/40' : 'border-border'}`}>
     <Gauge percent={Math.round((quest.done / quest.total) * 100)} color={color}>{quest.n === 3 ? <Rocket /> : <Lock />}</Gauge>
     {label}<span className="hidden text-xs font-bold tabular-nums text-muted-foreground sm:inline">{quest.done}/{quest.total}</span>
   </button>
 }
 
 const UNLOCKS = {
-  1: { title: 'Sharing unlocked!', body: 'Your portfolio is private until you make it public.', action: 'Make it public' },
-  2: { title: 'Résumé unlocked!', body: 'It builds itself from everything in your portfolio.', action: 'Open my résumé' },
-  3: { title: 'You earned the mastery badge!', body: 'It shows next to your name for anyone who sees your portfolio.', action: 'Nice' },
+  1: { get title() { return tr('portfolio.quest_bar.sharing_unlocked', 'Sharing unlocked!') }, get body() { return tr('lit.quest_bar.your_portfolio_is_private_until', 'Your portfolio is private until you make it public.') }, get action() { return tr('lit.quest_bar.make_it_public', 'Make it public') } },
+  2: { get title() { return tr('portfolio.quest_bar.r_sum_unlocked', 'Résumé unlocked!') }, get body() { return tr('lit.quest_bar.it_builds_itself_from_everything', 'It builds itself from everything in your portfolio.') }, get action() { return tr('lit.quest_bar.open_my_r_sum', 'Open my résumé') } },
+  3: { get title() { return tr('portfolio.quest_bar.you_earned_the_mastery_badge', 'You earned the mastery badge!') }, get body() { return tr('lit.quest_bar.it_shows_next_to_your', 'It shows next to your name for anyone who sees your portfolio.') }, get action() { return tr('lit.quest_bar.nice', 'Nice') } },
 } as const
 
 function ItemRow({ item, onItem }: { item: QuestItem; onItem: (key: string) => void }) { // eslint-disable-line no-unused-vars
   const body = <>
     <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${item.done ? 'border-[#22c55e] bg-[#22c55e] text-white' : 'border-border'}`}>{item.done ? <Check className="h-3.5 w-3.5" /> : null}</span>
     <span className="min-w-0 flex-1"><span className={`block font-bold ${item.done ? 'text-muted-foreground line-through decoration-2' : ''}`}>{item.label}</span>{item.detail ? <small className="block text-[12.5px] font-semibold text-muted-foreground">{item.detail}</small> : null}</span>
-    {item.done ? null : item.need ? <small className="font-bold tabular-nums text-muted-foreground">{item.have} of {item.need}</small> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+    {item.done ? null : item.need ? <small className="font-bold tabular-nums text-muted-foreground">{tr('portfolio.quest_bar.have_of_need', '{{have}} of {{need}}', { have: item.have, need: item.need })}</small> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
   </>
   const className = 'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[14.5px]'
   return item.done ? <div className={className}>{body}</div> : <button type="button" onClick={() => onItem(item.key)} className={`${className} hover:bg-muted`}>{body}</button>
@@ -116,7 +117,7 @@ export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, bu
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/50">{quest.n === 3 ? <Rocket className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />}</span>
       <div className="min-w-0 flex-1"><b className="block text-[15.5px] font-extrabold">{unlock.title}</b><small className="block text-[13px] font-semibold opacity-80">{unlock.body}</small></div>
       <Button type="button" size="sm" disabled={busy} onClick={() => onUnlock(quest)} className="shrink-0 bg-[#5a3600] text-white hover:bg-[#5a3600]/90">{unlock.action}</Button>
-      <button type="button" onClick={onClose} aria-label="Dismiss" className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-white/40"><X className="h-4 w-4" /></button>
+      <button type="button" onClick={onClose} aria-label={tr('portfolio.quest_bar.dismiss', 'Dismiss')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-white/40"><X className="h-4 w-4" /></button>
     </section>
   }
   const color = quest.n === 3 ? AMBER : BLUE
@@ -126,11 +127,11 @@ export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, bu
     <div className="flex items-center gap-1">
       <button type="button" onClick={onList} aria-expanded={list} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-muted">
         <Gauge percent={Math.round((quest.done / quest.total) * 100)} color={color} size="h-10 w-10">{quest.n === 3 ? <Rocket className="!h-4 !w-4" /> : <Lock className="!h-4 !w-4" />}</Gauge>
-        <span className="min-w-0 flex-1"><b className="block text-[15px] font-extrabold">{quest.title} · {quest.done} of {quest.total}</b>
-          <small className="flex flex-wrap items-center gap-1 text-[13px] font-semibold text-muted-foreground">{quest.why} Look for <QuestMark className="h-4 w-4" /> on your portfolio.</small></span>
+        <span className="min-w-0 flex-1"><b className="block text-[15px] font-extrabold">{tr('portfolio.quest_bar.title_done_of_total', '{{title}} · {{done}} of {{total}}', { title: quest.title, done: quest.done, total: quest.total })}</b>
+          <small className="flex flex-wrap items-center gap-1 text-[13px] font-semibold text-muted-foreground">{tr('portfolio.quest_bar.why_look_for', '{{why}} Look for', { why: quest.why })}{' '}<QuestMark className="h-4 w-4" />{' '}{tr('portfolio.quest_bar.on_your_portfolio', 'on your portfolio.')}</small></span>
         {list ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
       </button>
-      <button type="button" onClick={onClose} aria-label="Hide for now" title="Hide for now" className="grid h-8 w-8 shrink-0 place-items-center self-start rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button>
+      <button type="button" onClick={onClose} aria-label={tr('portfolio.quest_bar.hide_for_now', 'Hide for now')} title={tr('portfolio.quest_bar.hide_for_now', 'Hide for now')} className="grid h-8 w-8 shrink-0 place-items-center self-start rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button>
     </div>
     {list ? <div className="mt-1 grid gap-0.5 border-t border-border px-1 pt-2">{quest.items.map((item) => <ItemRow key={item.key} item={item} onItem={onItem} />)}</div> : null}
   </section>
@@ -138,5 +139,5 @@ export function QuestBanner({ stage, list, onList, onClose, onItem, onUnlock, bu
 
 /** Our mastery badge, shown by the name once the learner earns it. */
 export function MasteryBadge() {
-  return <span role="img" aria-label="Portfolio mastery badge" title="Portfolio mastery: fully built" className="grid h-8 w-8 shrink-0 place-items-center text-white" style={{ background: AMBER, clipPath: 'polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)' }}><Rocket className="h-4 w-4" /></span>
+  return <span role="img" aria-label={tr('portfolio.quest_bar.portfolio_mastery_badge', 'Portfolio mastery badge')} title={tr('portfolio.quest_bar.portfolio_mastery_fully_built', 'Portfolio mastery: fully built')} className="grid h-8 w-8 shrink-0 place-items-center text-white" style={{ background: AMBER, clipPath: 'polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)' }}><Rocket className="h-4 w-4" /></span>
 }

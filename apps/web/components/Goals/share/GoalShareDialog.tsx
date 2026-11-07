@@ -12,6 +12,7 @@ import type { Goal } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { PersonAvatar } from './PersonAvatar'
 
+import { tr } from '@/lib/tr'
 const ownerFirst = (a: GoalCollaborator, b: GoalCollaborator) => Number(b.is_owner) - Number(a.is_owner) || Number(b.is_subject) - Number(a.is_subject)
 
 // eslint-disable-next-line no-unused-vars
@@ -50,7 +51,7 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
       await action()
       await Promise.all([refreshPeople(), canManage ? refreshRequests() : null])
       if (done) toast.success(done)
-    } catch (error: any) { toast.error(error?.message || 'That didn’t work. Try again.') } finally { setBusy(null) }
+    } catch (error: any) { toast.error(error?.message || tr('goals.goal_share_dialog.that_didn_t_work_try', 'That didn’t work. Try again.')) } finally { setBusy(null) }
   }
   const share = () => {
     const address = email.trim()
@@ -78,17 +79,17 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
   return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle={`Share “${goal.title}”`} dialogDescription={canManage ? 'Add people by @handle or email. They get a message to accept.' : canRequest ? 'Ask to add someone. The goal’s admins approve it.' : 'People who can see this goal.'} dialogContent={<div className="space-y-5 p-2">
     {canManage || canRequest ? <div className="space-y-2">
       <div className="flex gap-2">
-        <label className="min-w-0 flex-1"><span className="sr-only">Handle or email</span><input autoFocus type="text" autoCapitalize="none" autoCorrect="off" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') share() }} placeholder="@handle or email" className="h-10 w-full rounded-lg border border-border px-3 text-sm" /></label>
+        <label className="min-w-0 flex-1"><span className="sr-only">{tr('goals.goal_share_dialog.handle_or_email', 'Handle or email')}</span><input autoFocus type="text" autoCapitalize="none" autoCorrect="off" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') share() }} placeholder={tr('goals.goal_share_dialog.handle_or_email_2', '@handle or email')} className="h-10 w-full rounded-lg border border-border px-3 text-sm" /></label>
         {roleSelect(roleKey, setRoleKey, 'Access')}
-        <button type="button" disabled={busy === 'share' || !email.trim()} onClick={share} className="flex h-10 items-center gap-1.5 rounded-lg bg-foreground px-4 text-xs font-black text-background disabled:opacity-40">{busy === 'share' ? <Loader2 size={14} className="animate-spin" /> : null}{canManage ? 'Invite' : 'Ask'}</button>
+        <button type="button" disabled={busy === 'share' || !email.trim()} onClick={share} className="flex h-10 items-center gap-1.5 rounded-lg bg-foreground px-4 text-xs font-black text-background disabled:opacity-40">{busy === 'share' ? <Loader2 size={14} className="animate-spin" /> : null}{canManage ? tr('goals.goal_share_dialog.invite', 'Invite') : tr('goals.goal_share_dialog.ask', 'Ask')}</button>
       </div>
       {choices.find((choice) => choice.key === roleKey)?.hint ? <p className="text-[11px] text-muted-foreground">{choices.find((choice) => choice.key === roleKey)?.name}: {choices.find((choice) => choice.key === roleKey)?.hint}</p> : null}
     </div> : null}
 
     {waiting.length ? <section>
-      <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Asked to join</h3>
+      <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">{tr('goals.goal_share_dialog.asked_to_join', 'Asked to join')}</h3>
       <ul className="mt-2 divide-y divide-border">{waiting.map((item) => <li key={item.request_uuid} className="flex items-center gap-2.5 py-2">
-        <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{item.email}</span><span className="block truncate text-[10px] text-muted-foreground">{item.requested_by?.name ? `Asked by ${item.requested_by.name}` : 'Waiting for approval'}{item.message ? ` · ${item.message}` : ''}</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{item.email}</span><span className="block truncate text-[10px] text-muted-foreground">{item.requested_by?.name ? tr('goals.goal_share_dialog.asked_by_name', 'Asked by {{name}}', { name: item.requested_by.name }) : tr('goals.goal_share_dialog.waiting_for_approval', 'Waiting for approval')}{item.message ? ` · ${item.message}` : ''}</span></span>
         <span className="text-[11px] font-bold text-muted-foreground">{people?.roles.find((role) => role.key === item.role_key)?.name || item.role_key}</span>
         <button type="button" aria-label={`Approve ${item.email}`} disabled={busy === item.request_uuid} onClick={() => void run(item.request_uuid, () => goalSharingApi.respondCollaboratorRequest(g, item.request_uuid, true, token), `Invited ${item.email}.`)} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-green-50 hover:text-green-700"><Check size={14} /></button>
         {removeButton(`Decline ${item.email}`, busy === item.request_uuid, () => void run(item.request_uuid, () => goalSharingApi.respondCollaboratorRequest(g, item.request_uuid, false, token), 'Declined.'))}
@@ -96,15 +97,15 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
     </section> : null}
 
     <section>
-      <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">People with access</h3>
+      <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">{tr('goals.goal_share_dialog.people_with_access', 'People with access')}</h3>
       {!people ? <div className="flex justify-center py-6"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div> : <ul className="mt-2 divide-y divide-border">
         {members.map((person) => {
           const uuid = person.collaborator_uuid
           const fixed = !uuid || person.is_owner || person.is_subject || !canManage
           return <li key={uuid || `owner-${person.user?.id}`} className="flex items-center gap-2.5 py-2">
             <PersonAvatar user={person.user} />
-            <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{person.user?.name}{person.user?.id === viewerId ? ' (you)' : ''}</span>{person.user?.email ? <span className="block truncate text-[10px] text-muted-foreground">{person.user.email}</span> : null}</span>
-            {fixed ? <span className="text-[11px] font-bold text-muted-foreground">{person.is_owner ? 'Owner' : person.is_subject ? 'Their goal' : person.role.name}</span> : <>
+            <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{person.user?.name}{person.user?.id === viewerId ? tr('goals.goal_share_dialog.you', ' (you)') : ''}</span>{person.user?.email ? <span className="block truncate text-[10px] text-muted-foreground">{person.user.email}</span> : null}</span>
+            {fixed ? <span className="text-[11px] font-bold text-muted-foreground">{person.is_owner ? tr('goals.goal_share_dialog.owner', 'Owner') : person.is_subject ? tr('goals.goal_share_dialog.their_goal', 'Their goal') : person.role.name}</span> : <>
               {roleSelect(person.role.key, (key) => void run(uuid, () => goalSharingApi.updateCollaborator(g, uuid, key, token)), `Access for ${person.user?.name}`, busy === uuid, true)}
               {removeButton(`Remove ${person.user?.name}`, busy === uuid, () => { if (window.confirm(`Stop sharing with ${person.user?.name}?`)) void run(uuid, () => goalSharingApi.removeCollaborator(g, uuid, token), 'Removed.') })}
             </>}
@@ -112,20 +113,20 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
         })}
         {pending.map((invitation) => <li key={invitation.invitation_uuid} className="flex items-center gap-2.5 py-2">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Mail size={13} /></span>
-          <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{invitation.email}</span><span className="block text-[10px] text-muted-foreground">Invited, hasn’t answered yet</span></span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{invitation.email}</span><span className="block text-[10px] text-muted-foreground">{tr('goals.goal_share_dialog.invited_hasn_t_answered_yet', 'Invited, hasn’t answered yet')}</span></span>
           <span className="text-[11px] font-bold text-muted-foreground">{invitation.role?.name}</span>
           {canManage ? removeButton(`Take back the invitation to ${invitation.email}`, busy === invitation.invitation_uuid, () => void run(invitation.invitation_uuid, () => goalSharingApi.revokeInvitation(g, invitation.invitation_uuid, token), 'Invitation taken back.')) : null}
         </li>)}
       </ul>}
     </section>
 
-    {transferable.length ? <label className="block text-[11px] font-bold text-muted-foreground">Make someone else the owner
+    {transferable.length ? <label className="block text-[11px] font-bold text-muted-foreground">{tr('goals.goal_share_dialog.make_someone_else_the_owner', 'Make someone else the owner')}
       <select value="" disabled={busy === 'transfer'} onChange={(event) => { const person = transferable.find((item) => String(item.user?.id) === event.target.value); if (person?.user) transfer(person.user.id, person.user.name) }} className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs font-bold">
-        <option value="">Choose a person…</option>
+        <option value="">{tr('goals.goal_share_dialog.choose_a_person', 'Choose a person…')}</option>
         {transferable.map((person) => <option key={person.collaborator_uuid} value={String(person.user?.id)}>{person.user?.name}</option>)}
       </select>
     </label> : null}
 
-    {me && !me.is_owner && !me.is_subject ? <button type="button" disabled={busy === 'leave'} onClick={leave} className="inline-flex items-center gap-1.5 text-xs font-black text-red-700"><LogOut size={13} />Leave this goal</button> : null}
+    {me && !me.is_owner && !me.is_subject ? <button type="button" disabled={busy === 'leave'} onClick={leave} className="inline-flex items-center gap-1.5 text-xs font-black text-red-700"><LogOut size={13} />{tr('goals.goal_share_dialog.leave_this_goal', 'Leave this goal')}</button> : null}
   </div>} />
 }

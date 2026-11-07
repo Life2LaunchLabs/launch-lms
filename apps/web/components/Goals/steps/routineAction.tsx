@@ -7,6 +7,7 @@ import { Input } from '@components/ui/input'
 import type { RoutineAction, Step, StepEntry } from '@services/goals/types'
 import type { StepActions } from './registry'
 
+import { tr } from '@/lib/tr'
 type Props = {
   step: Step<'routine'>
   action: RoutineAction
@@ -53,10 +54,10 @@ function ListAction({ step, action, period, current, actions, open }: Props) {
     {items.length ? <ul className="flex flex-col gap-1.5">{items.map((entry) => <ListItem key={entry.entry_uuid} entry={entry} actions={actions} open={open} />)}</ul> : null}
     {open ? <form className="flex flex-col gap-1.5 rounded-xl border-2 border-dashed bg-background p-2" onSubmit={(event) => { event.preventDefault(); void add() }}>
       <div className="flex items-center gap-2">
-        <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={label ? `Add a ${label}` : 'Add one'} aria-label={label ? `Add a ${label}` : 'Add one'} className="border-0 bg-transparent shadow-none focus-visible:ring-0" />
-        <button type="submit" disabled={actions.busy || !title.trim()} aria-label="Add it" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--plan-face)] text-[var(--plan-face-ink)] disabled:opacity-40"><Plus size={16} /></button>
+        <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={label ? tr('goals.routine_action.add_a_label', 'Add a {{label}}', { label }) : tr('goals.routine_action.add_one', 'Add one')} aria-label={label ? tr('goals.routine_action.add_a_label', 'Add a {{label}}', { label }) : tr('goals.routine_action.add_one', 'Add one')} className="border-0 bg-transparent shadow-none focus-visible:ring-0" />
+        <button type="submit" disabled={actions.busy || !title.trim()} aria-label={tr('goals.routine_action.add_it', 'Add it')} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--plan-face)] text-[var(--plan-face-ink)] disabled:opacity-40"><Plus size={16} /></button>
       </div>
-      {title.trim() ? <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Details (optional)" aria-label="Details" className="h-8 border-0 bg-transparent text-xs shadow-none focus-visible:ring-0" /> : null}
+      {title.trim() ? <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr('goals.routine_action.details_optional', 'Details (optional)')} aria-label={tr('goals.routine_action.details', 'Details')} className="h-8 border-0 bg-transparent text-xs shadow-none focus-visible:ring-0" /> : null}
     </form> : null}
   </div>
 }
@@ -65,7 +66,7 @@ function ListItem({ entry, actions, open }: { entry: StepEntry; actions: StepAct
   return <li className="flex items-start gap-2 rounded-xl border bg-background px-3 py-2 text-sm">
     <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--plan-face)] text-[var(--plan-face-ink)]"><Check size={12} strokeWidth={3.5} aria-hidden="true" /></span>
     <div className="min-w-0 flex-1">
-      <p className="truncate font-bold">{entry.title || 'Added'}</p>
+      <p className="truncate font-bold">{entry.title || tr('goals.routine_action.added', 'Added')}</p>
       {entry.note ? <p className="whitespace-pre-wrap text-xs text-muted-foreground">{entry.note}</p> : null}
     </div>
     {open ? <button type="button" aria-label={`Remove ${entry.title || 'this'}`} disabled={actions.busy} onClick={() => actions.deleteEntry(entry.entry_uuid)} className="text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
@@ -76,7 +77,7 @@ function NumberAction({ step, action, period, current, actions, open }: Props) {
   const series = action.series?.length ? action.series : ['']
   const logged = logsFor(step, period)
   return <div className="flex flex-col gap-1.5">
-    {series.map((name) => <NumberRow key={`${period}-${name}`} name={name} label={name || action.label || 'Value'} unit={action.unit || ''}
+    {series.map((name) => <NumberRow key={`${period}-${name}`} name={name} label={name || action.label || tr('goals.routine_action.value', 'Value')} unit={action.unit || ''}
       entry={logged.find((entry) => String(entry.data?.series || '') === name)} period={period} current={current} actions={actions} open={open} />)}
   </div>
 }
@@ -103,7 +104,7 @@ function NumberRow({ name, label, unit, entry, period, current, actions, open }:
     <div className="flex items-center gap-1.5">
       <Input id={`value-${period}-${name}`} type="number" inputMode="decimal" step="any" value={value} disabled={!open} onChange={(event) => setValue(event.target.value)} onBlur={() => void save()} className="h-9 w-28 text-right" />
       {unit ? <span className="w-8 text-xs font-semibold text-muted-foreground">{unit}</span> : null}
-      {entry ? <Check size={16} className="text-[var(--plan-accent)]" aria-label="Logged" /> : <span className="w-4" />}
+      {entry ? <Check size={16} className="text-[var(--plan-accent)]" aria-label={tr('goals.routine_action.logged', 'Logged')} /> : <span className="w-4" />}
     </div>
   </form>
 }
@@ -111,10 +112,10 @@ function NumberRow({ name, label, unit, entry, period, current, actions, open }:
 function CheckAction({ step, period, current, actions, open }: Props) {
   const done = logsFor(step, period)[0]
   if (done) return <div className="flex items-center gap-2">
-    <span className="inline-flex items-center gap-1.5 rounded-xl bg-[color-mix(in_srgb,var(--plan-face)_18%,hsl(var(--card)))] px-3 py-2 text-sm font-bold"><Check size={15} aria-hidden="true" />Done</span>
-    {open ? <Button type="button" variant="ghost" size="sm" disabled={actions.busy} onClick={() => actions.deleteEntry(done.entry_uuid)}><Undo2 size={14} aria-hidden="true" />Undo</Button> : null}
+    <span className="inline-flex items-center gap-1.5 rounded-xl bg-[color-mix(in_srgb,var(--plan-face)_18%,hsl(var(--card)))] px-3 py-2 text-sm font-bold"><Check size={15} aria-hidden="true" />{tr('goals.routine_action.done', 'Done')}</span>
+    {open ? <Button type="button" variant="ghost" size="sm" disabled={actions.busy} onClick={() => actions.deleteEntry(done.entry_uuid)}><Undo2 size={14} aria-hidden="true" />{tr('goals.routine_action.undo', 'Undo')}</Button> : null}
   </div>
   return open ? <Button type="button" variant="plan" className="self-start" disabled={actions.busy} onClick={() => actions.addEntry({ kind: 'log', title: '', ...periodOf(period, current) })}>
-    <Check size={15} aria-hidden="true" />Mark done
+    <Check size={15} aria-hidden="true" />{tr('goals.shared.mark_done', 'Mark done')}
   </Button> : null
 }

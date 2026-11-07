@@ -7,6 +7,7 @@ import EditSheet from '@components/Goals/edit/EditSheet'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import type { BlindPlan } from '@services/connect/connect'
 
+import { tr } from '@/lib/tr'
 /**
  * Before a message points to your plan from elsewhere: who here should be able to see it.
  * Everyone who can't yet starts ticked; untick to share with just some of them, or send
@@ -33,16 +34,16 @@ export default function ShareSheet({ asking, onClose, onSend }: {
   const any = Object.values(picked).some((items) => items.length)
   const plans = asking?.plans || []
   return <EditSheet open={Boolean(asking)} onOpenChange={(next) => !next && onClose()} color="#7cc4ff"
-    title={plans.length === 1 ? `Share ${plans[0].title}?` : 'Share these plans?'}
-    description="It’s from outside this chat, so not everyone here can see it yet."
+    title={plans.length === 1 ? tr('connect.share_sheet.share_title', 'Share {{title}}?', { title: plans[0].title }) : tr('connect.share_sheet.share_these_plans', 'Share these plans?')}
+    description={tr('connect.share_sheet.it_s_from_outside_this', 'It’s from outside this chat, so not everyone here can see it yet.')}
     footer={<>
-      <Button variant="ghost" disabled={busy} onClick={() => go({})}>Send without sharing</Button>
-      <Button disabled={busy || !any} onClick={() => go(picked)}>Share and send</Button>
+      <Button variant="ghost" disabled={busy} onClick={() => go({})}>{tr('connect.share_sheet.send_without_sharing', 'Send without sharing')}</Button>
+      <Button disabled={busy || !any} onClick={() => go(picked)}>{tr('connect.share_sheet.share_and_send', 'Share and send')}</Button>
     </>}>
     {plans.map((plan) => <div key={plan.goal_uuid} className="space-y-2">
       {plans.length > 1 ? <h3 className="text-sm font-bold">{plan.title}</h3> : null}
       {plan.how === 'none' ? <p className="text-sm text-muted-foreground">You can&rsquo;t share this plan. They&rsquo;ll see that it&rsquo;s private.</p> : <>
-        <p className="text-sm text-muted-foreground">{plan.how === 'request' ? 'Ask the plan’s admins to let these people see it:' : 'Let these people see it:'}</p>
+        <p className="text-sm text-muted-foreground">{plan.how === 'request' ? tr('connect.share_sheet.ask_the_plan_s_admins', 'Ask the plan’s admins to let these people see it:') : tr('connect.share_sheet.let_these_people_see_it', 'Let these people see it:')}</p>
         <ul className="space-y-1.5">{plan.people.map((person) => <li key={person.user_uuid}>
           <label className="flex items-center gap-3 rounded-xl px-1 py-1">
             <Checkbox checked={(picked[plan.goal_uuid] || []).includes(person.user_uuid || '')} onCheckedChange={(value) => toggle(plan.goal_uuid, person.user_uuid || '', value === true)} />

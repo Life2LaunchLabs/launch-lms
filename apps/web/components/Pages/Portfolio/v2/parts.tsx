@@ -6,6 +6,7 @@ import { ChevronRight, GripVertical, Pencil, Plus } from 'lucide-react'
 import type { SectionType } from '@services/portfolio/records'
 import { useSection } from './stack/SectionStack'
 
+import { tr } from '@/lib/tr'
 // Pieces the new portfolio front page shares: tile colors, generated covers, the tile frame and empty prompts.
 
 /** Face, edge and soft tint for each tile color. */
@@ -60,7 +61,7 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
     <span data-tile-icon className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white" style={{ background: face, boxShadow: `0 3px 0 ${edge}` }}><Icon className="h-[17px] w-[17px]" /></span>
     <h2 data-tile-title className={`min-w-0 truncate text-[17px] font-extrabold ${renaming ? 'relative z-[2]' : ''}`}>{renaming && ctx?.rename ? <EditableTitle value={shown} onSave={ctx.rename} autoFocus onDone={() => setRenaming(false)} />
       : href ? <Link href={href} className="outline-none focus-visible:underline">{shown}</Link> : shown}</h2>
-    {editing && ctx?.rename && !renaming ? <EditButton label={`the name of ${shown}`} onClick={() => setRenaming(true)} /> : null}
+    {editing && ctx?.rename && !renaming ? <EditButton label={tr('portfolio.parts.the_name_of_shown', 'the name of {{shown}}', { shown })} onClick={() => setRenaming(true)} /> : null}
     <span className="flex-1" />
     {count ? <span data-tile-count className="text-[13px] font-bold tabular-nums text-muted-foreground">{count}</span> : null}
     {href ? arrow : null}
@@ -79,7 +80,7 @@ export function Tile({ color, icon: Icon, title, count, href, wide = false, chil
 
 /** The handle a section is moved by. Only it starts a drag, so everything else in the section keeps working. */
 export function Grip({ label, className = '-ml-1' }: { label: string; className?: string }) {
-  return <button type="button" data-grip data-sec-tool aria-label={`Move ${label}`} title="Drag to move" className={`z-[2] grid h-8 w-5 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground hover:bg-raised hover:text-foreground active:cursor-grabbing ${className}`}><GripVertical className="h-4 w-4" /></button>
+  return <button type="button" data-grip data-sec-tool aria-label={`Move ${label}`} title={tr('portfolio.parts.drag_to_move', 'Drag to move')} className={`z-[2] grid h-8 w-5 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground hover:bg-raised hover:text-foreground active:cursor-grabbing ${className}`}><GripVertical className="h-4 w-4" /></button>
 }
 
 /** The pencil beside a section's title that opens what edits it. It shows on hover (always on touch screens). */
@@ -109,7 +110,7 @@ export function EditableTitle({ value, onSave, autoFocus = false, onDone }: { va
     const range = document.createRange(); range.selectNodeContents(node)
     const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range)
   }, [autoFocus])
-  return <span ref={ref} data-edit-control contentEditable suppressContentEditableWarning spellCheck={false} role="textbox" aria-label="Section title" title="Click to rename"
+  return <span ref={ref} data-edit-control contentEditable suppressContentEditableWarning spellCheck={false} role="textbox" aria-label={tr('portfolio.parts.section_title', 'Section title')} title={tr('portfolio.parts.click_to_rename', 'Click to rename')}
     className="cursor-text rounded-md px-1 outline-none ring-[var(--org-primary-color)] decoration-dashed decoration-2 underline-offset-4 hover:underline focus:ring-2"
     onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.target as HTMLElement).blur() } else if (event.key === 'Escape') { (event.target as HTMLElement).textContent = value; (event.target as HTMLElement).blur() } }}
     onBlur={(event) => { const next = (event.target.textContent || '').trim(); if (next !== value) onSave(next); onDone?.() }}>{value}</span>

@@ -16,12 +16,13 @@ import { CAREER_TYPES, TRAINING, CareerIcon, matchLabel } from './CareerTile'
 import CareerCompare, { type CompareChoice } from './CareerCompare'
 import UnlockMatches from './UnlockMatches'
 
+import { tr } from '@/lib/tr'
 // The learner's own Explore home: careers ranked for them (interest fit, nudged by the skills a job uses), each
 // with pay near their home base and how long training takes, then the careers they saved, ready to compare.
 // Until the "Unlock your matches" quest is done, its open items sit on top and the page says what's missing.
 
 type Sort = 'fit' | 'pay' | 'quick'
-const SORTS: Array<[Sort, string]> = [['fit', 'Best fit'], ['pay', 'Highest pay'], ['quick', 'Quickest to start']]
+const SORTS = (): Array<[Sort, string]> => ([['fit', tr('careers.explore_home.best_fit', 'Best fit')], ['pay', tr('careers.explore_home.highest_pay', 'Highest pay')], ['quick', tr('careers.explore_home.quickest_to_start', 'Quickest to start')]])
 const SHOWN = 12
 
 function CareerCard({ career, href }: { career: ExploreCareer; href: string }) {
@@ -33,14 +34,14 @@ function CareerCard({ career, href }: { career: ExploreCareer; href: string }) {
       <span className="flex items-baseline justify-between gap-2">
         <span className="min-w-0 text-[16px] font-extrabold leading-tight">{career.title}</span>
         {career.pay ? <span className="flex shrink-0 items-center gap-1 text-[14px] font-extrabold">
-          {career.pay.near ? <MapPin size={13} className="text-amber-600" aria-label={`Pay near you, in ${career.pay.place}`} /> : null}{shortMoney(career.pay.yearly)}<span className="text-[12px] font-bold text-muted-foreground">/yr</span>
+          {career.pay.near ? <MapPin size={13} className="text-amber-600" aria-label={tr('careers.explore_home.pay_near_you_in_place', 'Pay near you, in {{place}}', { place: career.pay.place })} /> : null}{shortMoney(career.pay.yearly)}<span className="text-[12px] font-bold text-muted-foreground">{tr('careers.explore_home.yr', '/yr')}</span>
         </span> : null}
       </span>
       <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] font-bold text-muted-foreground">
         {career.match != null ? <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-extrabold', career.match >= 0.7 ? 'text-white' : 'text-foreground')}
           style={{ backgroundColor: career.match >= 0.7 ? color : `${color}26` }}>{matchLabel(career.match)}</span> : null}
         {career.job_zone ? <span>{TRAINING[career.job_zone]}</span> : null}
-        {used ? <span>· uses {used} of your skills</span> : null}
+        {used ? <span>{tr('careers.explore_home.uses_used_of_your_skills', '· uses {{used}} of your skills', { used })}</span> : null}
       </span>
     </span>
   </Link>
@@ -78,35 +79,35 @@ export default function ExploreHome({ orgslug }: { orgslug: string }) {
   }, [data, sort])
 
   let body: React.ReactNode
-  if (!token) body = <p className="m-0 text-[15px] text-muted-foreground">Sign in to see careers that fit you.</p>
-  else if (error) body = <p className="m-0 text-[15px] text-muted-foreground">Explore didn’t load. Try again in a moment.</p>
-  else if (!data) body = <div className="flex h-32 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading" /></div>
-  else if (!data.has_careers) body = <p className="m-0 text-[15px] text-muted-foreground">Your organization hasn’t added careers yet.</p>
+  if (!token) body = <p className="m-0 text-[15px] text-muted-foreground">{tr('careers.explore_home.sign_in_to_see_careers', 'Sign in to see careers that fit you.')}</p>
+  else if (error) body = <p className="m-0 text-[15px] text-muted-foreground">{tr('careers.explore_home.explore_didn_t_load_try', 'Explore didn’t load. Try again in a moment.')}</p>
+  else if (!data) body = <div className="flex h-32 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label={tr('careers.explore_home.loading', 'Loading')} /></div>
+  else if (!data.has_careers) body = <p className="m-0 text-[15px] text-muted-foreground">{tr('careers.explore_home.your_organization_hasn_t_added', 'Your organization hasn’t added careers yet.')}</p>
   else {
     const shown = all ? careers : careers.slice(0, SHOWN)
     const based = [data.has_quiz ? 'your interests' : '', data.has_skills ? 'the skills you picked' : '', data.home ? 'pay near home' : ''].filter(Boolean)
     body = <>
       {!data.quest.complete && org?.id ? <UnlockMatches quest={data.quest} orgslug={orgslug} orgId={org.id} token={token} compact /> : null}
       <p className="m-0 text-[14px] leading-snug text-muted-foreground">
-        {based.length ? `From ${based.length > 1 ? `${based.slice(0, -1).join(', ')} and ${based[based.length - 1]}` : based[0]}.` : 'Finish a few of the steps above to see your closest matches first.'}
+        {based.length ? tr('careers.explore_home.from_value', 'From {{value}}.', { value: based.length > 1 ? `${based.slice(0, -1).join(', ')} and ${based[based.length - 1]}` : based[0] }) : tr('careers.explore_home.finish_a_few_of_the', 'Finish a few of the steps above to see your closest matches first.')}
       </p>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Sort careers">
-        {SORTS.map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
+      <div className="flex flex-wrap gap-2" role="group" aria-label={tr('careers.explore_home.sort_careers', 'Sort careers')}>
+        {SORTS().map(([key, label]) => <button key={key} type="button" aria-pressed={sort === key} onClick={() => { setSort(key); setAll(false) }}
           className={cn('min-h-10 rounded-full border-2 px-3.5 text-[13px] font-extrabold', sort === key ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground')}>{label}</button>)}
       </div>
       <div className="flex flex-col gap-2.5">{shown.map((career) => <CareerCard key={career.code} career={career} href={hrefOf(career.resource_uuid)} />)}</div>
       {careers.length > SHOWN ? <button type="button" onClick={() => setAll(!all)} className="min-h-11 self-start text-[14px] font-extrabold text-[var(--org-primary-color)] hover:underline">
-        {all ? 'Show fewer' : `Show ${careers.length - SHOWN} more`}
+        {all ? tr('careers.explore_home.show_fewer', 'Show fewer') : tr('careers.explore_home.show_value_more', 'Show {{value}} more', { value: careers.length - SHOWN })}
       </button> : null}
 
       <section aria-labelledby="explore-saved" className="flex flex-col gap-2 rounded-[20px] border-2 border-border bg-card p-4">
-        <h2 id="explore-saved" className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Saved</h2>
+        <h2 id="explore-saved" className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('careers.explore_home.saved', 'Saved')}</h2>
         {data.saved.length ? <div className="flex flex-wrap items-center justify-between gap-2.5">
           <span className="min-w-0 text-[14.5px] font-extrabold">{data.saved.map((item) => item.title).join(', ')}</span>
           <button type="button" onClick={() => setCompare(data.saved.slice(0, 3).map((item) => ({ code: item.code, title: item.title })))}
-            className="flex min-h-10 items-center gap-1.5 rounded-xl border-2 border-border px-3 text-[13px] font-extrabold"><ArrowLeftRight size={14} aria-hidden="true" />Compare</button>
-        </div> : <p className="m-0 text-[13.5px] text-muted-foreground">Careers you save show up here. Career swipe is a quick way to find some.</p>}
-        <Link href={getUriWithOrg(orgslug, '/discover/careers')} className="flex min-h-10 items-center gap-1.5 self-start text-[14px] font-extrabold text-[var(--org-primary-color)] no-underline hover:underline"><Layers size={15} aria-hidden="true" />Career swipe</Link>
+            className="flex min-h-10 items-center gap-1.5 rounded-xl border-2 border-border px-3 text-[13px] font-extrabold"><ArrowLeftRight size={14} aria-hidden="true" />{tr('careers.explore_home.compare', 'Compare')}</button>
+        </div> : <p className="m-0 text-[13.5px] text-muted-foreground">{tr('careers.explore_home.careers_you_save_show_up', 'Careers you save show up here. Career swipe is a quick way to find some.')}</p>}
+        <Link href={getUriWithOrg(orgslug, '/discover/careers')} className="flex min-h-10 items-center gap-1.5 self-start text-[14px] font-extrabold text-[var(--org-primary-color)] no-underline hover:underline"><Layers size={15} aria-hidden="true" />{tr('careers.explore_home.career_swipe', 'Career swipe')}</Link>
       </section>
       {compare && token ? <CareerCompare start={compare} token={token} onClose={() => setCompare(null)} suggestions={data.careers.slice(0, 6).map((item) => ({ code: item.code, title: item.title }))} /> : null}
     </>
@@ -114,10 +115,10 @@ export default function ExploreHome({ orgslug }: { orgslug: string }) {
 
   return <GeneralWrapper>
     <main className="mx-auto flex w-full max-w-[640px] flex-col gap-4 pb-16 pt-2 text-foreground">
-      <Link href={getUriWithOrg(orgslug, '/discover')} className="flex min-h-10 items-center gap-1.5 self-start text-[14px] font-bold text-muted-foreground no-underline hover:text-foreground"><ArrowLeft size={16} aria-hidden="true" />Discover</Link>
+      <Link href={getUriWithOrg(orgslug, '/discover')} className="flex min-h-10 items-center gap-1.5 self-start text-[14px] font-bold text-muted-foreground no-underline hover:text-foreground"><ArrowLeft size={16} aria-hidden="true" />{tr('careers.explore_home.discover', 'Discover')}</Link>
       <div className="flex flex-col gap-1">
-        <span className="text-[13px] font-extrabold text-[var(--org-primary-color)]">For you{data?.home ? ` · around ${data.home.label.replace(/, OR$/, '')}` : ''}</span>
-        <h1 className="m-0 text-[26px] font-extrabold leading-tight">Careers that fit you</h1>
+        <span className="text-[13px] font-extrabold text-[var(--org-primary-color)]">{tr('careers.explore_home.for_you', 'For you')}{data?.home ? tr('careers.explore_home.around_replace', ' · around {{replace}}', { replace: data.home.label.replace(/, OR$/, '') }) : ''}</span>
+        <h1 className="m-0 text-[26px] font-extrabold leading-tight">{tr('careers.explore_home.careers_that_fit_you', 'Careers that fit you')}</h1>
       </div>
       {body}
       {sheet ? <ResourceSheet resourceUuid={sheet} orgslug={orgslug} onClose={() => setSheet('')} onOpen={setSheet} /> : null}

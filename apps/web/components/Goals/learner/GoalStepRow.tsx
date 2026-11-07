@@ -14,6 +14,7 @@ import { StepChatButton } from '@components/Goals/chat/GoalChat'
 import type { StepAggregate } from '@services/goals/admin'
 import { can, type Goal, type Step } from '@services/goals/types'
 
+import { tr } from '@/lib/tr'
 /** Who is looking at the path. */
 export type PathViewer = { orgslug: string; token?: string; viewerUserId?: number }
 
@@ -80,7 +81,7 @@ export function GoalStepRow({ goal, step, viewer, perspective, selected, last, o
           <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{goal.source !== 'none' ? <Tx text={step.title} /> : step.title}</span>
           {shownStatus ? <span className="text-xs font-semibold text-muted-foreground">{shownStatus}</span> : null}
         </button>
-        <span className="-mt-1 shrink-0"><StepChatButton step={step} quiet={!selected} label={perspective === 'cohort' ? 'Discuss' : undefined} /></span>
+        <span className="-mt-1 shrink-0"><StepChatButton step={step} quiet={!selected} label={perspective === 'cohort' ? tr('goals.goal_step_row.discuss', 'Discuss') : undefined} /></span>
         {/* With a mouse, a closed row's menu waits for the pointer so the path reads as a path; touch always shows it. */}
         {menu ? <span className={cn('shrink-0', selected ? '-mr-2 -mt-1' : '-mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100')}>{menu}</span> : null}
       </div>
@@ -99,7 +100,7 @@ function LockedBody({ step, onGoTo }: { step: Step; onGoTo: (stepUuid: string) =
   const text = `${lockedSentence(step)} ${step.description || ''}`.trim()
   return <>
     {text ? <p className="text-sm leading-6 text-foreground/80">{text}</p> : null}
-    {reason?.kind === 'after' ? <Button type="button" variant="surface" className="self-start" onClick={() => onGoTo(reason.step_uuid)}>Go to {reason.title}</Button> : null}
+    {reason?.kind === 'after' ? <Button type="button" variant="surface" className="self-start" onClick={() => onGoTo(reason.step_uuid)}>{tr('goals.goal_step_row.go_to_title', 'Go to {{title}}', { title: reason.title })}</Button> : null}
   </>
 }
 

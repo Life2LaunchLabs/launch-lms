@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Award, Briefcase, Check, CircleHelp, FileText, Folder, Heart, Inbox, Star, Target, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import { tr } from '@/lib/tr'
 /** When each beat of a scene lands (ms after the scene starts). The last beat holds. */
 const BEATS = [[0, 250, 650, 1000, 1350], [0, 350, 1300, 2100, 2900, 3700], [0, 500, 1300, 2000, 2800, 3500, 4300], [0, 700, 1100, 1500]]
 const PLAN_STEPS: Array<[string, string, 'done' | 'review' | 'question' | null, number]> = [
@@ -56,9 +57,9 @@ export default function TourScene({ scene }: { scene: number }) {
     {/* The cards a mentor gets while Maya works; in the next beat they become the chat. */}
     <div className="pointer-events-none absolute inset-y-0 right-3 hidden w-48 flex-col justify-center gap-3 sm:flex">
       <AnimatePresence>
-        {scene === 1 && beat >= 2 ? <Note key="n1" color="#13B3A4" icon={<Check size={14} />} title="Step completed" detail="Maya · Interest quiz" /> : null}
-        {scene === 1 && beat >= 4 ? <Note key="n2" color="#C77A0E" icon={<Inbox size={14} />} title="Waiting for your review" detail="Resume draft" /> : null}
-        {scene === 1 && beat >= 5 ? <Note key="n3" color="#6B3FE0" icon={<CircleHelp size={14} />} title="Maya asked a question" detail="Interview a nurse" /> : null}
+        {scene === 1 && beat >= 2 ? <Note key="n1" color="#13B3A4" icon={<Check size={14} />} title={tr('onboarding.tour_scene.step_completed', 'Step completed')} detail={tr('lit.tour_scene.maya_interest_quiz', 'Maya · Interest quiz')} /> : null}
+        {scene === 1 && beat >= 4 ? <Note key="n2" color="#C77A0E" icon={<Inbox size={14} />} title={tr('onboarding.tour_scene.waiting_for_your_review', 'Waiting for your review')} detail={tr('lit.tour_scene.resume_draft', 'Resume draft')} /> : null}
+        {scene === 1 && beat >= 5 ? <Note key="n3" color="#6B3FE0" icon={<CircleHelp size={14} />} title={tr('onboarding.tour_scene.maya_asked_a_question', 'Maya asked a question')} detail={tr('lit.tour_scene.interview_a_nurse_2', 'Interview a nurse')} /> : null}
       </AnimatePresence>
     </div>
     <AnimatePresence>{celebrating ? <Celebration key="cel" beat={beat} /> : null}</AnimatePresence>
@@ -93,18 +94,18 @@ function Note({ color, icon, title, detail }: { color: string; icon: React.React
 function Profile({ beat }: { beat: number }) {
   const at = (b: number) => ({ initial: { opacity: 0, y: 8 }, animate: beat >= b ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }, transition: { duration: 0.35 } })
   const plans: Array<[string, string, string, React.ReactNode, number]> = [
-    ['Career Explorer', 'Step 1 of 5', '#0B8077', <Briefcase key="b" size={15} />, 20], ['Money Basics', '4 of 9 done', '#5E9A14', <Wallet key="w" size={15} />, 44], ['My portfolio', '6 things I’ve made', '#C8327D', <Folder key="f" size={15} />, 0],
+    [tr('lit.tour_scene.career_explorer', 'Career Explorer'), tr('lit.tour_scene.step_1_of_5', 'Step 1 of 5'), '#0B8077', <Briefcase key="b" size={15} />, 20], [tr('lit.tour_scene.money_basics', 'Money Basics'), '4 of 9 done', '#5E9A14', <Wallet key="w" size={15} />, 44], [tr('lit.tour_scene.my_portfolio', 'My portfolio'), '6 things I’ve made', '#C8327D', <Folder key="f" size={15} />, 0],
   ]
   return <div className="flex h-full flex-col">
     <div className="bg-gradient-to-b from-[#2F66D6] to-[#5B8DEF] px-5 pb-5 pt-10 text-center text-white">
-      <motion.div {...at(1)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/25 text-xl font-black">MR</motion.div>
-      <motion.b {...at(2)} className="mt-2 block text-lg">Maya Rivera</motion.b>
-      <motion.span {...at(2)} className="block text-xs text-white/80">Building my launch · Class of 2027</motion.span>
+      <motion.div {...at(1)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/25 text-xl font-black">{tr('onboarding.tour_scene.mr', 'MR')}</motion.div>
+      <motion.b {...at(2)} className="mt-2 block text-lg">{tr('onboarding.tour_scene.maya_rivera', 'Maya Rivera')}</motion.b>
+      <motion.span {...at(2)} className="block text-xs text-white/80">{tr('onboarding.tour_scene.building_my_launch_class_of', 'Building my launch · Class of 2027')}</motion.span>
     </div>
     <div className="space-y-2.5 p-4">
       <motion.div {...at(3)} className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3"><Target size={18} className="text-amber-600" />
-        <span><small className="block text-[10px] font-bold uppercase text-amber-700">My goal</small><b className="text-sm">Become a registered nurse</b></span></motion.div>
-      <motion.p {...at(4)} className="pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">My plans</motion.p>
+        <span><small className="block text-[10px] font-bold uppercase text-amber-700">{tr('onboarding.tour_scene.my_goal', 'My goal')}</small><b className="text-sm">{tr('onboarding.tour_scene.become_a_registered_nurse', 'Become a registered nurse')}</b></span></motion.div>
+      <motion.p {...at(4)} className="pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{tr('onboarding.tour_scene.my_plans', 'My plans')}</motion.p>
       {plans.map(([title, sub, color, icon, pct]) => <motion.div key={title} {...at(4)} className="flex items-center gap-3 rounded-2xl border border-border p-2.5">
         <span className="flex h-8 w-8 items-center justify-center rounded-xl text-white" style={{ background: color }}>{icon}</span>
         <span className="min-w-0 flex-1"><b className="block text-[13px]">{title}</b><span className="text-[11px] text-muted-foreground">{sub}</span>
@@ -118,10 +119,10 @@ function Plan({ beat }: { beat: number }) {
   const done = PLAN_STEPS.filter(([, , kind, at]) => kind === 'done' && beat >= at).length + 1
   return <div className="flex h-full flex-col">
     <div className="bg-[#0B8077] px-5 pb-4 pt-10 text-white">
-      <small className="text-[11px] text-white/75">Maya’s plan · Stage 1</small>
-      <b className="block text-lg">Career Explorer</b>
+      <small className="text-[11px] text-white/75">{tr('onboarding.tour_scene.maya_s_plan_stage_1', 'Maya’s plan · Stage 1')}</small>
+      <b className="block text-lg">{tr('onboarding.tour_scene.career_explorer', 'Career Explorer')}</b>
       <div className="mt-2 h-1.5 rounded-full bg-white/25"><motion.i className="block h-1.5 rounded-full bg-white" animate={{ width: `${done * 20}%` }} transition={{ duration: 0.5 }} /></div>
-      <div className="mt-1 flex justify-between text-[11px] text-white/80"><span>{done} of 5</span><span>Due Fri</span></div>
+      <div className="mt-1 flex justify-between text-[11px] text-white/80"><span>{tr('onboarding.tour_scene.done_of_5', '{{done}} of 5', { done })}</span><span>{tr('onboarding.tour_scene.due_fri', 'Due Fri')}</span></div>
     </div>
     <div className="space-y-2 p-3">
       {PLAN_STEPS.map(([title, kind, flag, at], index) => {
@@ -131,7 +132,7 @@ function Plan({ beat }: { beat: number }) {
           <motion.span animate={{ scale: checked ? [1, 1.25, 1] : 1 }} className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border')}>
             {checked ? <Check size={12} strokeWidth={3} /> : null}</motion.span>
           <span className="min-w-0 flex-1"><b className="block truncate text-[12px]">{title}</b><span className="text-[10px] text-muted-foreground">{kind}</span></span>
-          {flagged ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">{flag === 'review' ? 'Needs review' : 'Question'}</span> : null}
+          {flagged ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">{flag === 'review' ? tr('onboarding.tour_scene.needs_review', 'Needs review') : tr('onboarding.tour_scene.question', 'Question')}</span> : null}
         </div>
       })}
     </div>
@@ -142,33 +143,33 @@ function Chat({ beat }: { beat: number }) {
   const show = (b: number) => beat >= b
   return <div className="flex h-full flex-col bg-[#f6f7f9]">
     <div className="flex items-center gap-2.5 border-b border-border bg-white px-4 pb-3 pt-9">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2F66D6] text-xs font-black text-white">MR</span>
-      <span className="min-w-0 flex-1"><b className="block text-[13px]">Maya Rivera</b><span className="text-[10px] text-muted-foreground">Career Explorer · Stage 1</span></span>
-      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Live</span>
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2F66D6] text-xs font-black text-white">{tr('onboarding.tour_scene.mr', 'MR')}</span>
+      <span className="min-w-0 flex-1"><b className="block text-[13px]">{tr('onboarding.tour_scene.maya_rivera', 'Maya Rivera')}</b><span className="text-[10px] text-muted-foreground">{tr('onboarding.tour_scene.career_explorer_stage_1', 'Career Explorer · Stage 1')}</span></span>
+      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{tr('onboarding.tour_scene.live', 'Live')}</span>
     </div>
     <div className="flex-1 space-y-2.5 overflow-hidden p-3 text-[12px]">
       <AnimatePresence>
-        {show(1) ? <motion.p key="sys" {...pop} className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground"><Check size={12} />Maya finished Pick three careers</motion.p> : null}
+        {show(1) ? <motion.p key="sys" {...pop} className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground"><Check size={12} />{tr('onboarding.tour_scene.maya_finished_pick_three_careers', 'Maya finished Pick three careers')}</motion.p> : null}
         {show(2) ? <motion.div key="sub" {...pop} className="rounded-2xl bg-white p-3 shadow-sm">
-          <small className="text-[10px] font-bold uppercase text-amber-700">{show(3) ? 'Approved' : 'Waiting for your review'}</small>
-          <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-muted/60 p-2"><FileText size={14} className="text-red-500" />Maya_Resume_draft.pdf</div>
-          {show(3) ? <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Check size={12} />Approved · added to her portfolio</p>
-            : <div className="mt-2 flex gap-2 text-[11px] font-bold"><span className="rounded-full border border-border px-2.5 py-1">Ask for changes</span><span className="rounded-full bg-emerald-600 px-2.5 py-1 text-white">Approve</span></div>}
+          <small className="text-[10px] font-bold uppercase text-amber-700">{show(3) ? tr('onboarding.tour_scene.approved', 'Approved') : tr('onboarding.tour_scene.waiting_for_your_review', 'Waiting for your review')}</small>
+          <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-muted/60 p-2"><FileText size={14} className="text-red-500" />{tr('onboarding.tour_scene.maya_resume_draft_pdf', 'Maya_Resume_draft.pdf')}</div>
+          {show(3) ? <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Check size={12} />{tr('onboarding.tour_scene.approved_added_to_her_portfolio', 'Approved · added to her portfolio')}</p>
+            : <div className="mt-2 flex gap-2 text-[11px] font-bold"><span className="rounded-full border border-border px-2.5 py-1">{tr('onboarding.tour_scene.ask_for_changes', 'Ask for changes')}</span><span className="rounded-full bg-emerald-600 px-2.5 py-1 text-white">{tr('onboarding.tour_scene.approve', 'Approve')}</span></div>}
         </motion.div> : null}
-        {show(4) ? <motion.div key="q" {...pop} className="max-w-[85%] rounded-2xl rounded-bl-sm bg-white p-2.5 shadow-sm">Quick question for the nurse interview, what should I ask her?</motion.div> : null}
+        {show(4) ? <motion.div key="q" {...pop} className="max-w-[85%] rounded-2xl rounded-bl-sm bg-white p-2.5 shadow-sm">{tr('onboarding.tour_scene.quick_question_for_the_nurse', 'Quick question for the nurse interview, what should I ask her?')}</motion.div> : null}
         {beat === 5 ? <motion.div key="typing" {...pop} className="ml-auto flex w-14 justify-center gap-1 rounded-2xl bg-[#2F66D6] p-2.5">{[0, 1, 2].map((dot) => <motion.i key={dot} className="h-1.5 w-1.5 rounded-full bg-white" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 0.9, repeat: Infinity, delay: dot * 0.15 }} />)}</motion.div> : null}
-        {show(6) ? <motion.div key="a" {...pop} className="relative ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-[#2F66D6] p-2.5 text-white">Ask what surprised her most about the job. You’ve got this!
+        {show(6) ? <motion.div key="a" {...pop} className="relative ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-[#2F66D6] p-2.5 text-white">{tr('onboarding.tour_scene.ask_what_surprised_her_most', 'Ask what surprised her most about the job. You’ve got this!')}
           <span className="absolute -bottom-2 left-2 flex h-5 w-5 items-center justify-center rounded-full bg-white text-rose-500 shadow"><Heart size={11} fill="currentColor" /></span></motion.div> : null}
       </AnimatePresence>
     </div>
-    <div className="m-3 rounded-full border border-border bg-white px-3 py-2 text-[11px] text-muted-foreground">Message Maya</div>
+    <div className="m-3 rounded-full border border-border bg-white px-3 py-2 text-[11px] text-muted-foreground">{tr('onboarding.tour_scene.message_maya', 'Message Maya')}</div>
   </div>
 }
 
 function Celebration({ beat }: { beat: number }) {
   const tiles: Array<[string, string, string, string]> = [
-    ['Hospital job shadow', 'Project', 'url(/images/start/neon-work.webp)', 'left-[6%] top-[12%]'], ['What I’m good at', 'Reflection', 'url(/images/start/neon-traits.webp)', 'right-[6%] top-[14%]'],
-    ['Resume', 'Upload', 'hsl(222 80% 95%)', 'left-[8%] bottom-[12%]'], ['Career Explorer', 'Badge', 'hsl(40 90% 92%)', 'right-[7%] bottom-[10%]'],
+    [tr('lit.tour_scene.hospital_job_shadow', 'Hospital job shadow'), tr('lit.feature_section.project', 'Project'), 'url(/images/start/neon-work.webp)', 'left-[6%] top-[12%]'], [tr('lit.tour_scene.what_i_m_good_at', 'What I’m good at'), tr('lit.tour_scene.reflection', 'Reflection'), 'url(/images/start/neon-traits.webp)', 'right-[6%] top-[14%]'],
+    [tr('lit.tour_scene.resume', 'Resume'), tr('lit.tour_scene.upload_2', 'Upload'), 'hsl(222 80% 95%)', 'left-[8%] bottom-[12%]'], [tr('lit.tour_scene.career_explorer', 'Career Explorer'), tr('lit.tour_scene.badge', 'Badge'), 'hsl(40 90% 92%)', 'right-[7%] bottom-[10%]'],
   ]
   return <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
     {tiles.map(([title, kind, background, place], index) => <motion.div key={title} className={cn('absolute w-32 rounded-2xl bg-white p-1.5 shadow-xl sm:w-36', place)}
@@ -179,8 +180,8 @@ function Celebration({ beat }: { beat: number }) {
     <motion.div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center text-white"
       initial={{ opacity: 0, scale: 0.5 }} animate={beat >= 1 ? { opacity: 1, scale: 1 } : {}} transition={{ type: 'spring', stiffness: 200, damping: 14 }}>
       <span className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 shadow-2xl ring-8 ring-white/30"><Award size={44} /></span>
-      <b className="mt-4 text-xl drop-shadow">Maya is Launch Ready</b>
-      <span className="text-sm text-white/85 drop-shadow">Badge earned · added to her portfolio</span>
+      <b className="mt-4 text-xl drop-shadow">{tr('onboarding.tour_scene.maya_is_launch_ready', 'Maya is Launch Ready')}</b>
+      <span className="text-sm text-white/85 drop-shadow">{tr('onboarding.tour_scene.badge_earned_added_to_her', 'Badge earned · added to her portfolio')}</span>
     </motion.div>
     {[[18, 30], [80, 26], [30, 76], [72, 70], [50, 12], [12, 56], [88, 52]].map(([x, y], index) => <motion.span key={index} className="absolute text-amber-200" style={{ left: `${x}%`, top: `${y}%` }}
       initial={{ opacity: 0 }} animate={beat >= 3 ? { opacity: [0, 1, 0], scale: [0.6, 1.2, 0.6] } : {}} transition={{ duration: 1.6, repeat: Infinity, delay: index * 0.25 }}><Star size={16} fill="currentColor" /></motion.span>)}

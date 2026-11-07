@@ -8,6 +8,7 @@ import type { HubAdvisorResource } from '@services/hub/advisor'
 import { ActiveResourceWorkspace, resourceImage } from './HubResourceContext'
 import HubSheet from './HubSheet'
 
+import { tr } from '@/lib/tr'
 // Every resource Coach suggested or the learner added to this chat, with one open in detail.
 export default function HubResourceTray({ resources, activeUuid, orgslug, onActiveChange, onRemove, onClose }: {
   resources: HubAdvisorResource[]
@@ -24,27 +25,27 @@ export default function HubResourceTray({ resources, activeUuid, orgslug, onActi
 
   return (
     <HubSheet
-      label="Resources in this chat"
-      title={<>In this chat <span className="font-normal text-muted-foreground">· {resources.length}</span></>}
+      label={tr('coach.hub_resource_tray.resources_in_this_chat', 'Resources in this chat')}
+      title={<>{tr('coach.hub_resource_tray.in_this_chat', 'In this chat')}{' '}<span className="font-normal text-muted-foreground">· {resources.length}</span></>}
       onClose={onClose}
       footer={
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => step(-1)} disabled={resources.length < 2} aria-label="Previous resource">
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => step(-1)} disabled={resources.length < 2} aria-label={tr('coach.hub_resource_tray.previous_resource', 'Previous resource')}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground">{activeIndex + 1} of {resources.length}</span>
-            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => step(1)} disabled={resources.length < 2} aria-label="Next resource">
+            <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground">{activeIndex + 1}{' '}{tr('coach.hub_resource_tray.of_length', 'of {{length}}', { length: resources.length })}</span>
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => step(1)} disabled={resources.length < 2} aria-label={tr('coach.hub_resource_tray.next_resource', 'Next resource')}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
           <Button type="button" variant="ghost" className="h-10 gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onRemove(active)}>
-            <MinusCircle className="h-4 w-4" /> Remove from chat
+            <MinusCircle className="h-4 w-4" />{' '}{tr('coach.hub_resource_tray.remove_from_chat', 'Remove from chat')}
           </Button>
         </div>
       }
     >
-      <div role="tablist" aria-label="Resources in this chat" className="flex snap-x gap-2 overflow-x-auto border-b border-border/60 px-4 pb-3 pt-1">
+      <div role="tablist" aria-label={tr('coach.hub_resource_tray.resources_in_this_chat', 'Resources in this chat')} className="flex snap-x gap-2 overflow-x-auto border-b border-border/60 px-4 pb-3 pt-1">
         {resources.map((resource) => {
           const selected = resource.resource_uuid === active.resource_uuid
           return (

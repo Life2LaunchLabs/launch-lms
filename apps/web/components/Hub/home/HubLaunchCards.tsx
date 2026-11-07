@@ -7,6 +7,7 @@ import { getAPIUrl } from '@services/config/config'
 import { FALLBACK_LAUNCH_CARDS, HUB_LAUNCH_CARDS_PATH, usableLaunchCards, type HubLaunchCard } from '@services/hub/launchCards'
 import { swrFetcher } from '@services/utils/ts/requests'
 
+import { tr } from '@/lib/tr'
 // Cards are plain text from the platform; icons are decoration chosen by position.
 const ICONS: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>[] = [Compass, Route, Hammer, GraduationCap, Sparkles]
 
@@ -25,10 +26,10 @@ export default function HubLaunchCards({
   const cards = loaded.length > 0 ? loaded : FALLBACK_LAUNCH_CARDS
 
   return (
-    <section aria-label="Ways to get started" className="pb-1">
+    <section aria-label={tr('coach.hub_launch_cards.ways_to_get_started', 'Ways to get started')} className="pb-1">
       <div className="mb-3 flex items-center gap-2 px-2">
         <Sparkles className="size-4 text-primary" aria-hidden />
-        <h2 className="text-sm font-medium text-foreground">Where do you want to start?</h2>
+        <h2 className="text-sm font-medium text-foreground">{tr('coach.hub_launch_cards.where_do_you_want_to', 'Where do you want to start?')}</h2>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2">
         {cards.map(({ label, hint, first_message: firstMessage }, index) => {

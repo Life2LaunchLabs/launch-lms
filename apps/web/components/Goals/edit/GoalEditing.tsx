@@ -16,6 +16,7 @@ import StageSheet from './StageSheet'
 import StepEditor, { draftProblem, newStepDraft, type StepDraft } from './StepEditor'
 import { liveMode, stepChanges, stepDraft, stepInput } from './stepDrafts'
 
+import { tr } from '@/lib/tr'
 type Target =
   | { kind: 'add-step'; stageUuid: string | null; type: StepTypeKey }
   | { kind: 'step'; step: Step }
@@ -82,13 +83,13 @@ function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: 
   const save = async () => {
     if (draftProblem(draft)) return
     try {
-      await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, mode), stage_uuid: stageUuid }, token), 'Step added')
+      await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, mode), stage_uuid: stageUuid }, token), tr('lit.goal_editing.step_added', 'Step added'))
       onClose()
     } catch { /* toast shown */ }
   }
-  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={`New ${stepDefinition(type).label.toLowerCase()} step`} description={stage ? `In ${stage.title}` : undefined}
-    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
-      <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Add step</Button></>}>
+  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={tr('goals.goal_editing.new_tolowercase_step', 'New {{toLowerCase}} step', { toLowerCase: stepDefinition(type).label.toLowerCase() })} description={stage ? `In ${stage.title}` : undefined}
+    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button>
+      <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{tr('goals.goal_editing.add_step', 'Add step')}</Button></>}>
     <form onSubmit={(event) => { event.preventDefault(); void save() }} className="contents">
       <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked live={{ goal, stageUuid }} orgId={goal.org_id} token={token} />
       <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
@@ -109,9 +110,9 @@ function EditStepSheet({ goal, step, token, color, onClose }: { goal: Goal; step
       onClose()
     } catch { /* toast shown */ }
   }
-  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title="Edit step" description={stepDefinition(step.type).label}
-    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
-      <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Save</Button></>}>
+  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={tr('goals.goal_editing.edit_step', 'Edit step')} description={stepDefinition(step.type).label}
+    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button>
+      <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{tr('goals.goal_stages.save', 'Save')}</Button></>}>
     <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked live={{ goal, stageUuid: step.stage_uuid, stepUuid: step.step_uuid }} orgId={goal.org_id} token={token} />
   </EditSheet>
 }
@@ -130,30 +131,30 @@ export function StepMenu({ step, className }: { step: Step; className?: string }
   const index = stageSteps.findIndex((item) => item.step_uuid === step.step_uuid)
   const quiet = (change: () => Promise<unknown>, message?: string) => void run(change, message).catch(() => undefined)
   const move = (stage: string | null, position: number) => quiet(() => goalsApi.moveStep(goal.goal_uuid, step.step_uuid, { stage_uuid: stage, position }, token))
-  const duplicate = () => quiet(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput({ ...stepDraft(step), title: `${step.title} (copy)` }, liveMode(goal)), stage_uuid: stageUuid, position: index + 1 }, token), 'Step duplicated')
+  const duplicate = () => quiet(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput({ ...stepDraft(step), title: `${step.title} (copy)` }, liveMode(goal)), stage_uuid: stageUuid, position: index + 1 }, token), tr('lit.goal_editing.step_duplicated', 'Step duplicated'))
   const remove = () => {
     const worked = step.state === 'done' || step.state === 'started' || Boolean(step.result)
     if (!window.confirm(worked ? `Delete “${step.title}”? What you've done on it goes too.` : `Delete “${step.title}”?`)) return
-    quiet(() => goalsApi.deleteStep(goal.goal_uuid, step.step_uuid, token), 'Step deleted')
+    quiet(() => goalsApi.deleteStep(goal.goal_uuid, step.step_uuid, token), tr('lit.goal_editing.step_deleted', 'Step deleted'))
   }
   const reopen = done(step) && (can(goal, 'update_progress') || can(goal, 'complete_restricted_objectives'))
   const otherStages = goal.stages.filter((stage) => stage.stage_uuid !== stageUuid)
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={`More for ${step.title}`} className={cn(menuButton, className)}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={tr('goals.goal_editing.more_for_title', 'More for {{title}}', { title: step.title })} className={cn(menuButton, className)}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
-      <DropdownMenuItem onSelect={() => editing.open({ kind: 'step', step })}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>
-      {structure ? <DropdownMenuItem onSelect={duplicate}><Copy size={14} className="mr-2" />Duplicate</DropdownMenuItem> : null}
-      {reopen ? <DropdownMenuItem onSelect={() => quiet(() => goalsApi.setStatus(goal.goal_uuid, step.step_uuid, 'in_progress', undefined, token), 'Step reopened')}><Undo2 size={14} className="mr-2" />Reopen</DropdownMenuItem> : null}
+      <DropdownMenuItem onSelect={() => editing.open({ kind: 'step', step })}><Pencil size={14} className="mr-2" />{tr('goals.shared.edit', 'Edit')}</DropdownMenuItem>
+      {structure ? <DropdownMenuItem onSelect={duplicate}><Copy size={14} className="mr-2" />{tr('goals.goal_editing.duplicate', 'Duplicate')}</DropdownMenuItem> : null}
+      {reopen ? <DropdownMenuItem onSelect={() => quiet(() => goalsApi.setStatus(goal.goal_uuid, step.step_uuid, 'in_progress', undefined, token), tr('lit.goal_editing.step_reopened', 'Step reopened'))}><Undo2 size={14} className="mr-2" />{tr('goals.shared.reopen', 'Reopen')}</DropdownMenuItem> : null}
       {structure ? <>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={index <= 0} onSelect={() => move(stageUuid, index - 1)}><ArrowUp size={14} className="mr-2" />Move up</DropdownMenuItem>
-        <DropdownMenuItem disabled={index >= stageSteps.length - 1} onSelect={() => move(stageUuid, index + 1)}><ArrowDown size={14} className="mr-2" />Move down</DropdownMenuItem>
+        <DropdownMenuItem disabled={index <= 0} onSelect={() => move(stageUuid, index - 1)}><ArrowUp size={14} className="mr-2" />{tr('goals.goal_editing.move_up', 'Move up')}</DropdownMenuItem>
+        <DropdownMenuItem disabled={index >= stageSteps.length - 1} onSelect={() => move(stageUuid, index + 1)}><ArrowDown size={14} className="mr-2" />{tr('goals.goal_editing.move_down', 'Move down')}</DropdownMenuItem>
         {otherStages.length ? <DropdownMenuSub>
-          <DropdownMenuSubTrigger><CornerDownRight size={14} className="mr-2" />Move to stage</DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger><CornerDownRight size={14} className="mr-2" />{tr('goals.goal_editing.move_to_stage', 'Move to stage')}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>{otherStages.map((stage) => <DropdownMenuItem key={stage.stage_uuid} onSelect={() => move(stage.stage_uuid, stage.steps.length)}>{stage.title}</DropdownMenuItem>)}</DropdownMenuSubContent>
         </DropdownMenuSub> : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={remove} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem>
+        <DropdownMenuItem onSelect={remove} className="text-red-600"><Trash2 size={14} className="mr-2" />{tr('goals.goal_editing.delete', 'Delete')}</DropdownMenuItem>
       </> : null}
     </DropdownMenuContent>
   </DropdownMenu>
@@ -173,19 +174,19 @@ export function StageMenu({ stage, index, onMakeCurrent }: { stage: Stage; index
   }
   const remove = () => {
     if (!window.confirm(`Delete the stage “${stage.title}”?`)) return
-    void run(() => goalsApi.deleteStage(goal.goal_uuid, stage.stage_uuid, token), 'Stage deleted').catch(() => undefined)
+    void run(() => goalsApi.deleteStage(goal.goal_uuid, stage.stage_uuid, token), tr('lit.goal_editing.stage_deleted', 'Stage deleted')).catch(() => undefined)
   }
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={`More for ${stage.title}`} className={menuButton}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={tr('goals.goal_editing.more_for_title', 'More for {{title}}', { title: stage.title })} className={menuButton}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
-      {onMakeCurrent ? <DropdownMenuItem onSelect={onMakeCurrent}><Flag size={14} className="mr-2" />Make this the current stage</DropdownMenuItem> : null}
-      <DropdownMenuItem onSelect={() => editing.open({ kind: 'stage', stage })}><Pencil size={14} className="mr-2" />Edit stage</DropdownMenuItem>
+      {onMakeCurrent ? <DropdownMenuItem onSelect={onMakeCurrent}><Flag size={14} className="mr-2" />{tr('goals.goal_editing.make_this_the_current_stage', 'Make this the current stage')}</DropdownMenuItem> : null}
+      <DropdownMenuItem onSelect={() => editing.open({ kind: 'stage', stage })}><Pencil size={14} className="mr-2" />{tr('goals.goal_editing.edit_stage', 'Edit stage')}</DropdownMenuItem>
       {structure ? <>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={index === 0} onSelect={() => move(-1)}><ArrowUp size={14} className="mr-2" />Move up</DropdownMenuItem>
-        <DropdownMenuItem disabled={index === goal.stages.length - 1} onSelect={() => move(1)}><ArrowDown size={14} className="mr-2" />Move down</DropdownMenuItem>
+        <DropdownMenuItem disabled={index === 0} onSelect={() => move(-1)}><ArrowUp size={14} className="mr-2" />{tr('goals.goal_editing.move_up', 'Move up')}</DropdownMenuItem>
+        <DropdownMenuItem disabled={index === goal.stages.length - 1} onSelect={() => move(1)}><ArrowDown size={14} className="mr-2" />{tr('goals.goal_editing.move_down', 'Move down')}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={stage.steps.length > 0} onSelect={remove} className="text-red-600"><Trash2 size={14} className="mr-2" />{stage.steps.length ? 'Delete (move its steps first)' : 'Delete stage'}</DropdownMenuItem>
+        <DropdownMenuItem disabled={stage.steps.length > 0} onSelect={remove} className="text-red-600"><Trash2 size={14} className="mr-2" />{stage.steps.length ? tr('goals.goal_editing.delete_move_its_steps_first', 'Delete (move its steps first)') : tr('goals.goal_editing.delete_stage', 'Delete stage')}</DropdownMenuItem>
       </> : null}
     </DropdownMenuContent>
   </DropdownMenu>
@@ -212,10 +213,10 @@ export function AddStepButton({ stageUuid, className }: { stageUuid: string | nu
       if (added) editing.open({ kind: 'step', step: added })
     } catch { /* toast shown */ }
   }
-  return <div role="group" aria-label={choosing ? 'Add a step' : undefined} className={cn('ml-[72px] flex flex-wrap items-center gap-1.5', className)}>
-    <button type="button" aria-expanded={choosing} aria-label={choosing ? 'Cancel adding a step' : undefined} onClick={() => setChoosing(!choosing)}
+  return <div role="group" aria-label={choosing ? tr('goals.goal_editing.add_a_step', 'Add a step') : undefined} className={cn('ml-[72px] flex flex-wrap items-center gap-1.5', className)}>
+    <button type="button" aria-expanded={choosing} aria-label={choosing ? tr('goals.goal_editing.cancel_adding_a_step', 'Cancel adding a step') : undefined} onClick={() => setChoosing(!choosing)}
       className="flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2">
-      {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : choosing ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}{choosing ? null : 'Add a step'}
+      {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : choosing ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}{choosing ? null : tr('goals.goal_editing.add_a_step', 'Add a step')}
     </button>
     {choosing ? addableKinds(goal).map((type) => {
       const definition = stepDefinition(type)
@@ -234,6 +235,6 @@ export function AddStageButton() {
   if (!editing?.structure) return null
   return <button type="button" onClick={() => editing.open({ kind: 'add-stage' })}
     className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border px-4 text-sm font-bold text-muted-foreground transition hover:border-[var(--plan-face)] hover:text-foreground focus-visible:outline focus-visible:outline-2">
-    <span aria-hidden="true" className="text-lg leading-none">+</span>Add a stage
+    <span aria-hidden="true" className="text-lg leading-none">+</span>{tr('goals.goal_editing.add_a_stage', 'Add a stage')}
   </button>
 }

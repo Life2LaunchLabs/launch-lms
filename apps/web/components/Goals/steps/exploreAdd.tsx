@@ -12,6 +12,7 @@ import { uploadMediaAsset, type MediaType } from '@services/media/library'
 import { getResourceUrlPreview, getResources, type Resource } from '@services/resources/resources'
 import type { StepActions } from './registry'
 
+import { tr } from '@/lib/tr'
 /** What a board accepts as files: photos, videos and PDFs. */
 export const BOARD_FILES = 'image/*,video/*,application/pdf'
 const mediaType = (file: File): MediaType | null => file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : file.type === 'application/pdf' ? 'document' : null
@@ -31,11 +32,11 @@ export function useBoardIngest(actions: StepActions, token?: string, viewerUserI
     if (!viewerUserId || !token) return
     for (const file of files) {
       const type = mediaType(file)
-      if (!type) { toast.error(`${file.name} isn’t a photo, video or PDF`); continue }
+      if (!type) { toast.error(tr('goals.explore_add.name_isn_t_a_photo', '{{name}} isn’t a photo, video or PDF', { name: file.name })); continue }
       try {
         const asset = await uploadMediaAsset({ type: 'user', id: viewerUserId }, type, file, token, file.name)
         await actions.addEntry({ kind: 'file', asset_uuid: asset.asset_uuid, url: asset.url, title: asset.title || file.name, data: { image: type === 'image' ? asset.url : asset.thumbnail_url || '', media_type: type } })
-      } catch (error: any) { toast.error(error?.message || `Couldn’t add ${file.name}`) }
+      } catch (error: any) { toast.error(error?.message || tr('goals.explore_add.couldn_t_add_name', 'Couldn’t add {{name}}', { name: file.name })) }
     }
   })
   /** Links and files from a drop or a paste; true when there was something to add. */
@@ -52,7 +53,7 @@ export function useBoardIngest(actions: StepActions, token?: string, viewerUserI
 
 type Kind = 'link' | 'file' | 'resource' | 'note'
 const KINDS: Array<{ kind: Kind; label: string; icon: React.ElementType }> = [
-  { kind: 'link', label: 'Link', icon: Link2 }, { kind: 'file', label: 'Files', icon: FileText }, { kind: 'resource', label: 'From the library', icon: BookOpen }, { kind: 'note', label: 'Note', icon: NotebookPen },
+  { kind: 'link', get label() { return tr('goals.event.link', 'Link') }, icon: Link2 }, { kind: 'file', get label() { return tr('goals.explore_add.files', 'Files') }, icon: FileText }, { kind: 'resource', get label() { return tr('goals.explore_add.from_the_library', 'From the library') }, icon: BookOpen }, { kind: 'note', get label() { return tr('goals.shared.note', 'Note') }, icon: NotebookPen },
 ]
 
 type AddProps = { open: boolean; onOpenChange: (open: boolean) => void; actions: StepActions; ingest: ReturnType<typeof useBoardIngest>; orgId: number | null; token?: string } // eslint-disable-line no-unused-vars
@@ -66,26 +67,26 @@ export function AddToBoard({ open, onOpenChange, actions, ingest, orgId, token }
   const done = () => { setUrl(''); setNote(''); onOpenChange(false) }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-lg">
-      <DialogHeader><DialogTitle>Add to the board</DialogTitle><DialogDescription>You can also drop or paste links and files straight onto the board.</DialogDescription></DialogHeader>
-      <div role="tablist" aria-label="What to add" className="flex flex-wrap gap-1.5">
+      <DialogHeader><DialogTitle>{tr('goals.explore_add.add_to_the_board', 'Add to the board')}</DialogTitle><DialogDescription>{tr('goals.explore_add.you_can_also_drop_or', 'You can also drop or paste links and files straight onto the board.')}</DialogDescription></DialogHeader>
+      <div role="tablist" aria-label={tr('goals.explore_add.what_to_add', 'What to add')} className="flex flex-wrap gap-1.5">
         {KINDS.filter((item) => item.kind !== 'resource' || orgId).map(({ kind: item, label, icon: Icon }) => <button key={item} type="button" role="tab" aria-selected={kind === item} onClick={() => setKind(item)}
           className={cn('flex items-center gap-1 rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold', kind === item ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))]' : 'text-muted-foreground')}><Icon size={13} aria-hidden="true" />{label}</button>)}
       </div>
       {kind === 'link' ? <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); const link = linkIn(url) || (url.trim() && `https://${url.trim()}`); if (link) { done(); await ingest.addLink(link) } }}>
-        <Input autoFocus value={url} onChange={(event) => setUrl(event.target.value)} placeholder="Paste a link" aria-label="Link" />
-        <Button type="submit" variant="plan" disabled={!url.trim()}>Add</Button>
+        <Input autoFocus value={url} onChange={(event) => setUrl(event.target.value)} placeholder={tr('goals.explore_add.paste_a_link', 'Paste a link')} aria-label={tr('goals.event.link', 'Link')} />
+        <Button type="submit" variant="plan" disabled={!url.trim()}>{tr('goals.upload.add', 'Add')}</Button>
       </form> : null}
       {kind === 'file' ? <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center"
         onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); if (ingest.take(event.dataTransfer)) done() }}>
         <Upload size={20} aria-hidden="true" className="text-[var(--plan-accent)]" />
-        <p className="text-sm font-semibold">Photos, videos or PDFs</p>
+        <p className="text-sm font-semibold">{tr('goals.explore_add.photos_videos_or_pdfs', 'Photos, videos or PDFs')}</p>
         <input ref={files} type="file" multiple accept={BOARD_FILES} hidden onChange={(event) => { const picked = Array.from(event.target.files || []); event.target.value = ''; if (picked.length) { done(); void ingest.addFiles(picked) } }} />
-        <Button type="button" variant="surface" onClick={() => files.current?.click()}>Choose files</Button>
+        <Button type="button" variant="surface" onClick={() => files.current?.click()}>{tr('goals.explore_add.choose_files', 'Choose files')}</Button>
       </div> : null}
       {kind === 'resource' && orgId ? <ResourceSearch orgId={orgId} token={token} onPick={async (resource) => { done(); await actions.addEntry({ kind: 'resource', resource_uuid: resource.resource_uuid }) }} /> : null}
       {kind === 'note' ? <form className="flex flex-col gap-2" onSubmit={async (event) => { event.preventDefault(); const text = note.trim(); if (text) { done(); await actions.addEntry({ kind: 'note', title: text.split('\n')[0].slice(0, 120), note: text }) } }}>
-        <Textarea autoFocus rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Something you heard, read or noticed" aria-label="Note" />
-        <Button type="submit" variant="plan" className="self-start" disabled={!note.trim()}>Add note</Button>
+        <Textarea autoFocus rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr('goals.explore_add.something_you_heard_read_or', 'Something you heard, read or noticed')} aria-label={tr('goals.shared.note', 'Note')} />
+        <Button type="submit" variant="plan" className="self-start" disabled={!note.trim()}>{tr('goals.explore_add.add_note', 'Add note')}</Button>
       </form> : null}
     </DialogContent>
   </Dialog>
@@ -103,7 +104,7 @@ export function ResourceSearch({ orgId, token, onPick }: { orgId: number; token?
   }, [query, orgId, token])
   return <div className="flex flex-col gap-1.5">
     <div className="relative"><Search size={15} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input autoFocus className="pl-8" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the library" aria-label="Search the library" /></div>
+      <Input autoFocus className="pl-8" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr('goals.explore_add.search_the_library', 'Search the library')} aria-label={tr('goals.explore_add.search_the_library', 'Search the library')} /></div>
     {results.map((resource) => <button key={resource.resource_uuid} type="button" onClick={() => onPick(resource)} className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2 text-left text-sm font-semibold hover:border-[var(--plan-face)]">
       <BookOpen size={15} aria-hidden="true" className="shrink-0 text-[var(--plan-accent)]" /><span className="truncate">{resource.title}</span>
     </button>)}

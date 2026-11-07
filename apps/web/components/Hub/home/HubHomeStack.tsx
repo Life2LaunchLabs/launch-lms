@@ -8,7 +8,8 @@ import { actionableHubActions, hubActionHref, HUB_NEXT_ACTIONS_PATH, type HubNex
 import { swrFetcher } from '@services/utils/ts/requests'
 import HubLaunchCards from './HubLaunchCards'
 
-const CHECK_IN = 'Can you check in with me on my goals? Help me pick the next small thing to do.'
+import { tr } from '@/lib/tr'
+const CHECK_IN = () => (tr('lit.hub_home_stack.can_you_check_in_with', 'Can you check in with me on my goals? Help me pick the next small thing to do.'))
 
 // Top of the full Coach: ranked next steps for learners with goal steps to do, launch cards for everyone else.
 // It always renders something, including while loading and when next actions cannot be fetched.
@@ -27,14 +28,14 @@ export default function HubHomeStack({
   const { data, isLoading } = useSWR<HubNextAction[]>(token ? `${getAPIUrl()}${HUB_NEXT_ACTIONS_PATH}` : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const actions = actionableHubActions(data)
 
-  if (isLoading) return <div className="h-40 animate-pulse rounded-2xl bg-muted/50 motion-reduce:animate-none" role="status" aria-label="Loading your next steps" />
+  if (isLoading) return <div className="h-40 animate-pulse rounded-2xl bg-muted/50 motion-reduce:animate-none" role="status" aria-label={tr('coach.hub_home_stack.loading_your_next_steps', 'Loading your next steps')} />
   if (actions.length === 0) return <HubLaunchCards token={token} disabled={disabled} onPick={onPick} />
 
   return (
-    <section aria-label="Your next steps" className="space-y-3 pb-1">
+    <section aria-label={tr('coach.hub_home_stack.your_next_steps', 'Your next steps')} className="space-y-3 pb-1">
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-sm font-medium text-foreground">What to do next</h2>
-        <Link href={getUriWithOrg(orgslug, routePaths.org.plans())} className="rounded text-xs text-muted-foreground hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">All goals</Link>
+        <h2 className="text-sm font-medium text-foreground">{tr('coach.hub_home_stack.what_to_do_next', 'What to do next')}</h2>
+        <Link href={getUriWithOrg(orgslug, routePaths.org.plans())} className="rounded text-xs text-muted-foreground hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">{tr('coach.hub_home_stack.all_goals', 'All goals')}</Link>
       </div>
       <ul className="grid gap-3">
         {actions.map((action, index) => (
@@ -50,9 +51,9 @@ export default function HubHomeStack({
           </li>
         ))}
       </ul>
-      <button type="button" disabled={disabled} onClick={() => onPick(CHECK_IN)} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none">
+      <button type="button" disabled={disabled} onClick={() => onPick(CHECK_IN())} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><HeartHandshake className="size-4" aria-hidden /></span>
-        <span className="text-sm font-medium text-foreground">Check in with your coach</span>
+        <span className="text-sm font-medium text-foreground">{tr('coach.hub_home_stack.check_in_with_your_coach', 'Check in with your coach')}</span>
       </button>
     </section>
   )

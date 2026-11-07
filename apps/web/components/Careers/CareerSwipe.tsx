@@ -18,6 +18,7 @@ import { CAREER_TYPES, TRAINING, CareerIcon, matchLabel } from './CareerTile'
 import CareerTake from './CareerTake'
 import { ReadAloudText, SpeakButton, useAutoRead, useSpeechId } from '@components/Accessibility/ReadAloud'
 
+import { tr } from '@/lib/tr'
 export const BATCH = 10
 export const deckKey = (orgId?: number) => ['career-deck', orgId]
 
@@ -103,24 +104,24 @@ function Card({ card, place, onDrag, onTap }: { card: SwipeCard; place: 0 | 1 | 
       <div className="absolute left-4 top-4 flex gap-1.5">{top.map((letter) => <span key={letter} className="rounded-full bg-black/25 px-2.5 py-1 text-[11.5px] font-extrabold">{CAREER_TYPES[letter]?.name}</span>)}</div>
       {card.match != null ? <span className="absolute right-4 top-4 rounded-full bg-black/55 px-2.5 py-1 text-[11.5px] font-extrabold">{matchLabel(card.match)}</span> : null}
       <CareerIcon code={card.code} className="h-24 w-24 drop-shadow-[0_4px_0_rgba(0,0,0,.18)]" />
-      <span aria-hidden="true" className="absolute left-5 top-14 -rotate-12 rounded-xl border-4 border-emerald-400 px-3 py-1 text-2xl font-black text-emerald-300" style={{ opacity: yes }}>SAVE</span>
-      <span aria-hidden="true" className="absolute right-5 top-14 rotate-12 rounded-xl border-4 border-slate-200 px-3 py-1 text-2xl font-black text-slate-100" style={{ opacity: no }}>LATER</span>
+      <span aria-hidden="true" className="absolute left-5 top-14 -rotate-12 rounded-xl border-4 border-emerald-400 px-3 py-1 text-2xl font-black text-emerald-300" style={{ opacity: yes }}>{tr('careers.career_swipe.save', 'SAVE')}</span>
+      <span aria-hidden="true" className="absolute right-5 top-14 rotate-12 rounded-xl border-4 border-slate-200 px-3 py-1 text-2xl font-black text-slate-100" style={{ opacity: no }}>{tr('careers.career_swipe.later', 'LATER')}</span>
     </div>
     <div className="flex flex-col gap-2 p-5">
       <div className="flex items-start gap-2">
         <h2 className="m-0 min-w-0 flex-1 text-balance text-[24px] font-extrabold leading-[1.12] tracking-tight"><ReadAloudText id={speechId} text={card.title} /></h2>
-        {place === 0 ? <SpeakButton id={speechId} text={spoken} label={`Hear about ${card.title}`} /> : null}
+        {place === 0 ? <SpeakButton id={speechId} text={spoken} label={tr('careers.career_swipe.hear_about_title', 'Hear about {{title}}', { title: card.title })} /> : null}
       </div>
-      {card.alt_titles?.length ? <p className="m-0 line-clamp-1 text-[13px] font-semibold text-muted-foreground">Also called {card.alt_titles.slice(0, 2).join(', ')}</p> : null}
-      {onTap ? <button type="button" onClick={onTap} className="flex items-center gap-0.5 self-start text-[14px] font-extrabold text-[var(--org-primary-color)]">What it’s like<ChevronRight size={16} aria-hidden="true" /></button> : null}
+      {card.alt_titles?.length ? <p className="m-0 line-clamp-1 text-[13px] font-semibold text-muted-foreground">{tr('careers.career_swipe.also_called_join', 'Also called {{join}}', { join: card.alt_titles.slice(0, 2).join(', ') })}</p> : null}
+      {onTap ? <button type="button" onClick={onTap} className="flex items-center gap-0.5 self-start text-[14px] font-extrabold text-[var(--org-primary-color)]">{tr('careers.career_swipe.what_it_s_like', 'What it’s like')}<ChevronRight size={16} aria-hidden="true" /></button> : null}
       <div className="mt-1 grid grid-cols-2 gap-2">
         {pay ? <div className="rounded-2xl bg-muted px-3 py-2">
           <b className="block text-[20px] font-extrabold tabular-nums">{shortMoney(pay.yearly)}</b>
-          <span className="flex items-center gap-1 text-[12px] font-bold text-muted-foreground">{card.my_place_pay ? <><Star size={12} className="fill-amber-500 text-amber-500" aria-hidden="true" />typical in {card.my_place_pay.place}</> : 'typical yearly pay in Oregon'}</span>
+          <span className="flex items-center gap-1 text-[12px] font-bold text-muted-foreground">{card.my_place_pay ? <><Star size={12} className="fill-amber-500 text-amber-500" aria-hidden="true" />{tr('careers.career_swipe.typical_in_place', 'typical in {{place}}', { place: card.my_place_pay.place })}</> : tr('careers.career_swipe.typical_yearly_pay_in_oregon', 'typical yearly pay in Oregon')}</span>
         </div> : null}
         {card.job_zone ? <div className="rounded-2xl bg-muted px-3 py-2">
           <b className="block text-[15px] font-extrabold leading-tight">{TRAINING[card.job_zone]}</b>
-          <span className="text-[12px] font-bold text-muted-foreground">usual training</span>
+          <span className="text-[12px] font-bold text-muted-foreground">{tr('careers.career_swipe.usual_training', 'usual training')}</span>
         </div> : null}
       </div>
     </div>
@@ -129,8 +130,8 @@ function Card({ card, place, onDrag, onTap }: { card: SwipeCard; place: 0 | 1 | 
 
 function Horizon({ batch }: { batch: Batch }) {
   const done = batch.at >= batch.cards.length
-  return <div className="flex flex-col gap-1.5" aria-label={done ? `All ${batch.cards.length} done` : `Career ${batch.at + 1} of ${batch.cards.length}`}>
-    <div className="flex justify-between text-[12.5px] font-bold text-muted-foreground"><span>{done ? `All ${batch.cards.length} done` : `${batch.at + 1} of ${batch.cards.length}`}</span><span>{batch.kept.length} saved</span></div>
+  return <div className="flex flex-col gap-1.5" aria-label={done ? tr('careers.career_swipe.all_length_done', 'All {{length}} done', { length: batch.cards.length }) : tr('careers.career_swipe.career_value_of_length', 'Career {{value}} of {{length}}', { value: batch.at + 1, length: batch.cards.length })}>
+    <div className="flex justify-between text-[12.5px] font-bold text-muted-foreground"><span>{done ? tr('careers.career_swipe.all_length_done', 'All {{length}} done', { length: batch.cards.length }) : `${batch.at + 1} of ${batch.cards.length}`}</span><span>{tr('careers.career_swipe.length_saved', '{{length}} saved', { length: batch.kept.length })}</span></div>
     <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${batch.cards.length}, minmax(0, 1fr))` }}>
       {batch.cards.map((card, index) => <span key={card.code} className={cn('h-2 rounded-full', index < batch.at ? (batch.kept.includes(card.code) ? 'bg-emerald-500' : 'bg-foreground/40') : index === batch.at ? 'bg-[var(--org-primary-color)]' : 'bg-muted')} />)}
     </div>
@@ -187,7 +188,7 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
           await careersApi.skip(current.code, token)
         }
       } catch {
-        toast.error('That didn’t save. Check your connection.')
+        toast.error(tr('careers.career_swipe.that_didn_t_save_check', 'That didn’t save. Check your connection.'))
       }
     }, reducedMotion() ? 0 : 240)
   }, [current, leaving, token])
@@ -202,7 +203,7 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
       if (last.kind === 'save') await unsaveResource(last.resourceUuid, token)
       else await careersApi.unskip(last.code, token)
     } catch {
-      toast.error('Couldn’t undo that. Try again.')
+      toast.error(tr('careers.career_swipe.couldn_t_undo_that_try', 'Couldn’t undo that. Try again.'))
     }
   }
 
@@ -224,33 +225,33 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
   }, [current, decide, noteFor, setSheet, sheet])
 
   const title = <div className="flex items-center gap-3">
-    <Link href={discover} aria-label="Back to Discover" className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-border bg-card"><ArrowLeft size={18} /></Link>
-    <h1 className="m-0 text-[26px] font-extrabold tracking-tight">Career swipe</h1>
+    <Link href={discover} aria-label={tr('careers.career_swipe.back_to_discover', 'Back to Discover')} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-border bg-card"><ArrowLeft size={18} /></Link>
+    <h1 className="m-0 text-[26px] font-extrabold tracking-tight">{tr('careers.career_swipe.career_swipe', 'Career swipe')}</h1>
   </div>
 
   let body: React.ReactNode
-  if (!token) body = <p className="rounded-2xl bg-card p-6 text-sm font-medium">Sign in to explore careers.</p>
-  else if (error) body = <p className="rounded-2xl bg-card p-6 text-sm font-medium">Careers couldn’t load. Refresh to try again.</p>
-  else if (!batch) body = <div className="flex h-[520px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Loading careers" /></div>
+  if (!token) body = <p className="rounded-2xl bg-card p-6 text-sm font-medium">{tr('careers.career_swipe.sign_in_to_explore_careers', 'Sign in to explore careers.')}</p>
+  else if (error) body = <p className="rounded-2xl bg-card p-6 text-sm font-medium">{tr('careers.career_swipe.careers_couldn_t_load_refresh', 'Careers couldn’t load. Refresh to try again.')}</p>
+  else if (!batch) body = <div className="flex h-[520px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label={tr('careers.career_compare.loading_careers', 'Loading careers')} /></div>
   else if (!batch.cards.length) body = <div className="flex flex-col gap-3 rounded-[28px] bg-card p-6">
-    <h2 className="m-0 text-xl font-extrabold">{deck?.has_careers ? 'You’ve seen every career here' : 'No careers here yet'}</h2>
-    <p className="m-0 text-sm text-muted-foreground">{deck?.has_careers ? 'Every career is in your library. Open one from Discover to add a note or put it on your plan.' : 'Your organization hasn’t added careers to Discover yet.'}</p>
-    <Link href={discover} className="self-start font-extrabold underline">Back to Discover</Link>
+    <h2 className="m-0 text-xl font-extrabold">{deck?.has_careers ? tr('careers.career_swipe.you_ve_seen_every_career', 'You’ve seen every career here') : tr('careers.career_swipe.no_careers_here_yet', 'No careers here yet')}</h2>
+    <p className="m-0 text-sm text-muted-foreground">{deck?.has_careers ? tr('careers.career_swipe.every_career_is_in_your', 'Every career is in your library. Open one from Discover to add a note or put it on your plan.') : tr('careers.career_swipe.your_organization_hasn_t_added', 'Your organization hasn’t added careers to Discover yet.')}</p>
+    <Link href={discover} className="self-start font-extrabold underline">{tr('careers.career_swipe.back_to_discover', 'Back to Discover')}</Link>
   </div>
   else {
     const rest = batch.cards.slice(batch.at, batch.at + 3)
     body = <>
       <Horizon batch={batch} />
       {!deck?.has_quiz && batch.at === 0 ? <p className="m-0 rounded-2xl bg-muted px-4 py-3 text-[13px] font-semibold">
-        These are in no particular order. <Link href={getUriWithOrg(orgslug, '/portfolio/interests')} className="font-extrabold underline">Take the interest quiz</Link> and the closest matches come first.
+        {tr('careers.career_swipe.these_are_in_no_particular', 'These are in no particular order.')}{' '}<Link href={getUriWithOrg(orgslug, '/portfolio/interests')} className="font-extrabold underline">{tr('careers.career_swipe.take_the_interest_quiz', 'Take the interest quiz')}</Link>{' '}{tr('careers.career_swipe.and_the_closest_matches_come', 'and the closest matches come first.')}
       </p> : null}
       <div className="relative mx-auto h-[min(520px,60dvh)] min-h-[380px] w-full max-w-[400px]" aria-live="polite">
         {rest.length ? rest.map((card, index) => <div key={card.code} className="absolute inset-0" style={index === 0 && leaving ? { transform: `translate(${leaving * 120}%, 40px) rotate(${leaving * 24}deg)`, opacity: 0, transition: 'transform .24s ease, opacity .24s ease' } : undefined}>
           <Card card={card} place={index as 0 | 1 | 2} onDrag={index === 0 ? decide : undefined} onTap={index === 0 ? () => setSheet(card.resource_uuid) : undefined} />
         </div>).reverse()
           : <div className="absolute inset-0 flex flex-col gap-3 overflow-y-auto rounded-[28px] bg-card p-6 shadow-[0_6px_0_hsl(var(--edge))]">
-            <h2 className="m-0 text-[23px] font-extrabold">{batch.kept.length ? `Nice. ${batch.kept.length} saved.` : `That was ${batch.cards.length}.`}</h2>
-            <p className="m-0 text-[14px] text-muted-foreground">{batch.kept.length ? 'They’re in your library with your notes. Open one to see more or put it on your plan.' : 'Nothing jumped out, and that’s useful too. The ones you skipped come back later, after new ones.'}</p>
+            <h2 className="m-0 text-[23px] font-extrabold">{batch.kept.length ? tr('careers.career_swipe.nice_length_saved', 'Nice. {{length}} saved.', { length: batch.kept.length }) : tr('careers.career_swipe.that_was_length', 'That was {{length}}.', { length: batch.cards.length })}</h2>
+            <p className="m-0 text-[14px] text-muted-foreground">{batch.kept.length ? tr('careers.career_swipe.they_re_in_your_library', 'They’re in your library with your notes. Open one to see more or put it on your plan.') : tr('careers.career_swipe.nothing_jumped_out_and_that', 'Nothing jumped out, and that’s useful too. The ones you skipped come back later, after new ones.')}</p>
             {batch.kept.length ? <div className="flex flex-col gap-2">{batch.kept.map((code) => {
               const card = batch.cards.find((item) => item.code === code)!
               return <button key={code} type="button" onClick={() => setSheet(card.resource_uuid)} className="flex items-center gap-3 rounded-2xl bg-muted p-2.5 text-left">
@@ -259,18 +260,18 @@ export default function CareerSwipe({ orgslug }: { orgslug: string }) {
               </button>
             })}</div> : null}
             <div className="mt-auto flex flex-wrap gap-2.5 pt-2">
-              <button type="button" onClick={() => void another()} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--org-primary-color)] px-5 text-sm font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]"><Layers size={16} />Another {BATCH}</button>
-              <Link href={discover} className="flex h-12 flex-1 items-center justify-center rounded-2xl border-2 border-border bg-card px-5 text-sm font-bold">Back to Discover</Link>
+              <button type="button" onClick={() => void another()} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--org-primary-color)] px-5 text-sm font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]"><Layers size={16} />{tr('careers.career_swipe.another_batch', 'Another {{BATCH}}', { BATCH })}</button>
+              <Link href={discover} className="flex h-12 flex-1 items-center justify-center rounded-2xl border-2 border-border bg-card px-5 text-sm font-bold">{tr('careers.career_swipe.back_to_discover', 'Back to Discover')}</Link>
             </div>
           </div>}
       </div>
       <div className="flex items-center justify-center gap-4">
-        <button type="button" onClick={() => void undo()} disabled={!history.length} aria-label="Undo" className="grid h-12 w-12 place-items-center rounded-full border-2 border-border bg-card disabled:opacity-40"><Undo2 size={18} /></button>
-        <button type="button" onClick={() => decide(-1)} disabled={!current} aria-label="Skip for now" className="grid h-16 w-16 place-items-center rounded-full border-2 border-border bg-card text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] disabled:opacity-40"><X size={26} /></button>
-        <button type="button" onClick={() => current && setSheet(current.resource_uuid)} disabled={!current} aria-label="See details" className="grid h-12 w-12 place-items-center rounded-full border-2 border-border bg-card disabled:opacity-40"><Info size={18} /></button>
-        <button type="button" onClick={() => decide(1)} disabled={!current} aria-label="Save this career" className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500 text-white shadow-[0_4px_0_#047857] disabled:opacity-40"><Heart size={26} className="fill-current" /></button>
+        <button type="button" onClick={() => void undo()} disabled={!history.length} aria-label={tr('careers.career_swipe.undo', 'Undo')} className="grid h-12 w-12 place-items-center rounded-full border-2 border-border bg-card disabled:opacity-40"><Undo2 size={18} /></button>
+        <button type="button" onClick={() => decide(-1)} disabled={!current} aria-label={tr('careers.career_swipe.skip_for_now', 'Skip for now')} className="grid h-16 w-16 place-items-center rounded-full border-2 border-border bg-card text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] disabled:opacity-40"><X size={26} /></button>
+        <button type="button" onClick={() => current && setSheet(current.resource_uuid)} disabled={!current} aria-label={tr('careers.career_swipe.see_details', 'See details')} className="grid h-12 w-12 place-items-center rounded-full border-2 border-border bg-card disabled:opacity-40"><Info size={18} /></button>
+        <button type="button" onClick={() => decide(1)} disabled={!current} aria-label={tr('careers.career_swipe.save_this_career', 'Save this career')} className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500 text-white shadow-[0_4px_0_#047857] disabled:opacity-40"><Heart size={26} className="fill-current" /></button>
       </div>
-      <p className="m-0 text-center text-[12.5px] font-semibold text-muted-foreground">Swipe right to save, left to skip for now. Arrow keys work too.</p>
+      <p className="m-0 text-center text-[12.5px] font-semibold text-muted-foreground">{tr('careers.career_swipe.swipe_right_to_save_left', 'Swipe right to save, left to skip for now. Arrow keys work too.')}</p>
     </>
   }
 
@@ -297,7 +298,7 @@ function NoteDialog({ card, token, onClose }: { card: SwipeCard; token: string; 
     <div role="dialog" aria-modal="true" aria-labelledby="career-note-title" className="relative flex max-h-[92dvh] w-full flex-col gap-4 overflow-y-auto rounded-t-[28px] bg-card p-5 pb-[max(20px,env(safe-area-inset-bottom))] sm:max-w-[480px] sm:rounded-[28px]">
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: (CAREER_TYPES[card.top_interests?.[0]] || CAREER_TYPES.E).color }}><CareerIcon code={card.code} className="h-5 w-5" /></span>
-        <div><small className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Saved</small><b id="career-note-title" className="block text-[17px] leading-tight">{card.title}</b></div>
+        <div><small className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('discover.resource_shelves.saved', 'Saved')}</small><b id="career-note-title" className="block text-[17px] leading-tight">{card.title}</b></div>
       </div>
       {data ? <CareerTake resourceUuid={card.resource_uuid} state={data.user_state} token={token} fresh onSaved={onClose} onSkip={onClose} />
         : <div className="flex h-24 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>}
