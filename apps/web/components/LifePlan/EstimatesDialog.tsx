@@ -15,7 +15,7 @@ import { estimateQuery, lineValue, money, toMonthly } from './model'
 import { applyRows, planRows, shareSettings, type Row } from './prefill'
 
 export type EstimatesMode = 'start' | 'change' | 'fill'
-interface Knob { share?: number; hours?: number }
+interface Knob { share?: number; hours?: number; plan?: string }
 /** A state or national figure stands in for the city. A school's own figure (filed under the US) doesn't. */
 export const isWide = (e?: Estimate | null) => !!e && ['state', 'us'].includes(e.level) && !e.dims?.school
 
@@ -50,9 +50,10 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
     const k = knobs[r.id]
     if (!k) return r.next
     const settings = { ...r.next.settings }
-    if (k.share != null) Object.assign(settings, r.item === 'rent' ? shareSettings(phase.living, k.share) : { share: k.share })
+    if (k.share != null) Object.assign(settings, r.item === 'rent' ? shareSettings(phase.living, k.share, phase.household) : { share: k.share })
+    if (k.plan) settings.plan = k.plan
     return { ...r.next, settings, hours: k.hours ?? r.next.hours }
-  }, [knobs, phase.living])
+  }, [knobs, phase.living, phase.household])
 
   const queries = React.useMemo(() => {
     if (!catalog) return []
@@ -180,6 +181,7 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
   const value = r.kind === 'change' ? x.effect : r.kind === 'add' ? (x.now == null ? null : (r.side === 'in' ? 1 : -1) * x.now) : (x.was == null ? null : (r.side === 'in' ? 1 : -1) * x.was)
   const wide = isWide(src)
   const shareSetting = catalog?.items.find((i) => i.key === r.item)?.settings?.find((s) => s.key === 'share')
+  const planSetting = catalog?.items.find((i) => i.key === r.item)?.settings?.find((s) => s.key === 'plan')
   const next = x.next
   return <div className="grid">
     <div className="grid grid-cols-[20px_minmax(0,1fr)_auto_auto_36px] items-center gap-x-2.5 py-1">
@@ -195,16 +197,21 @@ function RowView({ x, on, info, amount, loading, catalog, onToggle, onInfo, onKn
         {src ? <button type="button" onClick={onInfo} aria-expanded={info} aria-label={`Where ${r.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
       </span>
     </div>
-    {!gone && next && (shareSetting || r.item === 'job') ? <div className="flex flex-wrap gap-1.5 pb-1.5 pl-[30px]">
+    {!gone && next && (shareSetting || planSetting || r.item === 'job') ? <div className="flex flex-wrap gap-1.5 pb-1.5 pl-[30px]">
       {shareSetting ? <label className="relative inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold hover:ring-1 hover:ring-[var(--org-primary-color)]">
         <select aria-label="Split with" value={Number(next.settings.share || 1)} onChange={(e) => onKnob({ share: Number(e.target.value) })} className="cursor-pointer appearance-none bg-transparent pr-4 outline-none">
           {shareSetting.choices!.map(([v, t]) => <option key={String(v)} value={v}>{t}</option>)}
         </select><ChevronDown className="pointer-events-none absolute right-2 size-3" />
       </label> : null}
+      {planSetting ? <label className="relative inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold hover:ring-1 hover:ring-[var(--org-primary-color)]">
+        <select aria-label={planSetting.title} value={String(next.settings.plan || planSetting.default)} onChange={(e) => onKnob({ plan: e.target.value })} className="cursor-pointer appearance-none bg-transparent pr-4 outline-none">
+          {planSetting.choices!.map(([v, t]) => <option key={String(v)} value={v}>{t}</option>)}
+        </select><ChevronDown className="pointer-events-none absolute right-2 size-3" />
+      </label> : null}
       {r.item === 'job' ? <Hours value={next.hours ?? 40} onChange={(h) => onKnob({ hours: h })} /> : null}
     </div> : null}
     {info && src ? <p className="mb-1.5 ml-[30px] mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground">
-      {gone ? 'Was based on: ' : ''}<b className="text-foreground">{src.source.title}</b>, {src.source.publisher}. {src.label}{src.place_label ? `, ${src.place_label}` : ''}.
+      {gone ? 'Was based on: ' : ''}<b className="text-foreground">{src.source.title}</b>, {src.source.publisher}. {src.label}.{src.scaled_by ? <> Local prices: <b className="text-foreground">{src.scaled_by.source.title}</b>, {src.scaled_by.source.publisher} ({src.scaled_by.place_label} {Math.round(src.scaled_by.value)}, US = 100).</> : src.place_label ? ` ${src.place_label}.` : ''}
       {wide ? ` * Not for ${src.asked_place_label || 'your city'} itself: this is the ${src.level === 'us' ? 'national' : 'state'} figure.` : ''}
     </p> : null}
   </div>

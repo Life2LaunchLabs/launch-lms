@@ -106,6 +106,8 @@ export interface Estimate {
   level: 'city' | 'county' | 'region' | 'area' | 'state' | 'us'
   fallback: boolean
   asked_place_label: string | null
+  /** A national figure moved to local prices: the price level it was multiplied by, and its source. */
+  scaled_by?: { value: number; label: string; place_label: string; source: EstimateSource } | null
   dims: Record<string, any>
   dims_dropped: string[]
   source: EstimateSource

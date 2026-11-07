@@ -15,7 +15,7 @@ import { EmptyState, LoadingRows, StatusBadge } from './shared'
 // A file loads as drafts; learners see a release only once it is approved on its dataset's page.
 
 // Only these files load; the server tells which one it got, and its year, from the file itself.
-const ALLOWED = 'HUD county Fair Market Rents (like FY27_FMRs.xlsx), BLS OEWS all-data (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) or the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv, or the zip that holds it), as the publisher gives them'
+const ALLOWED = 'HUD county Fair Market Rents (like FY27_FMRs.xlsx), BLS OEWS all-data (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv, or the zip that holds it), BLS Consumer Expenditure by household size (cu-size-2025.xlsx), the USDA food plan history files (like usda-moderatecostplan-sept2007-sept2026.xlsx, one per plan) or BEA Regional Price Parities (SARPP, MARPP and PARPP .csv), as the publisher gives them'
 const KIND_LABEL: Record<EstimateFileKind, string> = { hud_fmr: 'HUD Fair Market Rents', bls_oews: 'BLS wages', onet: 'O*NET', scorecard: 'College Scorecard' }
 
 export function StatusCounts({ byStatus }: { byStatus: Record<string, number> }) {

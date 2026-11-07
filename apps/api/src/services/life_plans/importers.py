@@ -186,7 +186,7 @@ def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int,
 
 HUD_FMR_URL = "https://www.huduser.gov/portal/datasets/fmr.html"
 BLS_OEWS_URL = "https://www.bls.gov/oes/tables.htm"
-NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) the College Scorecard institution or field-of-study file (Most-Recent-Cohorts-Institution.csv or Most-Recent-Cohorts-Field-of-Study.csv), or the Oregon Employment Department's occupational projections or wage information workbook, as the publisher gives it."
+NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) the College Scorecard institution or field-of-study file (Most-Recent-Cohorts-Institution.csv or Most-Recent-Cohorts-Field-of-Study.csv), the Oregon Employment Department's occupational projections or wage information workbook, BLS's Consumer Expenditure table by household size (cu-size-2025.xlsx), a USDA food plan history file (like usda-moderatecostplan-sept2007-sept2026.xlsx) or a BEA price parities file (SARPP, MARPP or PARPP .csv), as the publisher gives it."
 
 
 def _zip_table_name(data: bytes) -> str:
@@ -232,6 +232,10 @@ def import_file(db: Session, data: bytes, filename: str) -> dict:
             return programs.import_programs(db, data, filename)
     except programs.ProgramProblem as exc:
         raise ImportProblem(str(exc)) from exc
+    from src.services.life_plans import spending
+
+    if kind := spending.kind_of(data, filename):
+        return spending.import_spending(db, data, filename, kind)
     try:
         if public_data.is_onet_zip(data, filename):
             return public_data.import_onet(db, data, filename)
