@@ -23,6 +23,7 @@ from src.services.life_plans import places
 from src.services.life_plans.catalog import METRICS
 
 REVIEWED = "reviewed"
+STATE_PRICED = ("price_goods", "price_services")
 
 
 def dims_key(dims: dict) -> str:
@@ -116,7 +117,9 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
                 break
         scale = METRICS.get(q.metric, {}).get("scale")
         if found and scale and found["place"] == "us":
-            found = _scaled(found, next((index[(scale, p, "")] for p in ladders[q.id] if (scale, p, "") in index), None), q.place)
+            # BEA sets goods and other-services prices for a whole state (metro rows repeat the state's), so those use the state's row and say so.
+            skip = ("area",) if scale in STATE_PRICED else ()
+            found = _scaled(found, next((index[(scale, p, "")] for p in ladders[q.id] if (scale, p, "") in index and places.level_of(p) not in skip), None), q.place)
         out[q.id] = found
     return out
 
