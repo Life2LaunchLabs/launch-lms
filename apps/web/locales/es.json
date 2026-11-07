@@ -5118,7 +5118,7 @@
     },
     "picture_sort_page": {
       "could_not_load_the_picture": "No se pudo cargar el orden de imágenes",
-      "the_picture_sort_and_its": "El orden de imágenes y sus palabras son de Life2Launch. Las fotos son de Wikimedia Commons y de fuentes del gobierno de EE. UU., con créditos en cada tarjeta. Las coincidencias usan los perfiles de intereses de O*NET; el sueldo es la mediana del BLS.",
+      "the_picture_sort_and_its": "El orden de imágenes y sus palabras son de Life2Launch. Las fotos tienen licencia abierta (Wikimedia Commons, Flickr, StockSnap y fuentes del gobierno de EE. UU.), con créditos en cada tarjeta. Las coincidencias usan los perfiles de intereses de O*NET; el sueldo es la mediana del BLS.",
       "what_work_would_you_like": "¿Qué trabajo te gustaría hacer?",
       "keep_going_resume_of_count": "Seguir ({{resume}} de {{count}})",
       "rather_read_and_answer_questions": "¿Prefieres leer y responder preguntas?",

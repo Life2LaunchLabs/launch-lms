@@ -5106,7 +5106,7 @@
     },
     "picture_sort_page": {
       "could_not_load_the_picture": "Could not load the picture sort",
-      "the_picture_sort_and_its": "The picture sort and its words are Life2Launch’s own. Photos are from Wikimedia Commons and US government sources, credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.",
+      "the_picture_sort_and_its": "The picture sort and its words are Life2Launch’s own. Photos are open-licensed (Wikimedia Commons, Flickr, StockSnap and US government sources), credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.",
       "what_work_would_you_like": "What work would you like to do?",
       "keep_going_resume_of_count": "Keep going ({{resume}} of {{count}})",
       "rather_read_and_answer_questions": "Rather read and answer questions?",
