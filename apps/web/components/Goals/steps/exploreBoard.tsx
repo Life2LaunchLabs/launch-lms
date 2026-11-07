@@ -14,9 +14,10 @@ import type { Step, StepEntry } from '@services/goals/types'
 import type { StepActions } from './registry'
 import { AddToBoard, useBoardIngest } from './exploreAdd'
 
+import { tr } from '@/lib/tr'
 export type Evidence = 'resource' | 'link' | 'file' | 'note'
 export const EVIDENCE: Evidence[] = ['resource', 'link', 'file', 'note']
-export const KIND = { resource: { icon: BookOpen, label: 'Library' }, link: { icon: Link2, label: 'Links' }, file: { icon: FileText, label: 'Files' }, note: { icon: NotebookPen, label: 'Notes' } }
+export const KIND = { resource: { icon: BookOpen, get label() { return tr('goals.explore_board.library', 'Library') } }, link: { icon: Link2, get label() { return tr('goals.explore_board.links', 'Links') } }, file: { icon: FileText, get label() { return tr('goals.explore_add.files', 'Files') } }, note: { icon: NotebookPen, get label() { return tr('goals.explore_board.notes', 'Notes') } } }
 export const evidenceOf = (step: Step<'explore'>) => step.entries.filter((entry) => (EVIDENCE as string[]).includes(entry.kind))
 export const pinned = (entry: StepEntry) => Boolean(entry.data?.pinned)
 const ratingOf = (entry: StepEntry) => Number(entry.data?.rating) || 0
@@ -25,7 +26,7 @@ const imageOf = (entry: StepEntry) => {
   if (image) return normalizeMediaUrl(image)
   return entry.kind === 'file' && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(entry.url) ? normalizeMediaUrl(entry.url) : ''
 }
-const titleOf = (entry: StepEntry) => entry.title || entry.note.split('\n')[0] || entry.url || 'Untitled'
+const titleOf = (entry: StepEntry) => entry.title || entry.note.split('\n')[0] || entry.url || tr('lit.explore_board.untitled', 'Untitled')
 
 /** Where an entry opens: library resources inside the app, everything else in a new tab. */
 function openHref(entry: StepEntry, orgslug: string) {
@@ -45,14 +46,14 @@ export function Thumb({ entry, className }: { entry: StepEntry; className?: stri
   const Icon = KIND[entry.kind as Evidence]?.icon || FileText
   return <span className={cn('relative block aspect-square shrink-0 overflow-hidden rounded-xl bg-[color-mix(in_srgb,var(--plan-face)_10%,hsl(var(--card)))]', className)}>
     {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full w-full place-items-center text-[var(--plan-accent)]"><Icon size={20} aria-hidden="true" /></span>}
-    {pinned(entry) ? <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-[var(--plan-face)] text-[var(--plan-face-ink)]" aria-label="Pinned"><Pin size={11} /></span> : null}
+    {pinned(entry) ? <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-[var(--plan-face)] text-[var(--plan-face-ink)]" aria-label={tr('goals.explore_board.pinned', 'Pinned')}><Pin size={11} /></span> : null}
   </span>
 }
 
 // eslint-disable-next-line no-unused-vars
 function Stars({ value, onChange, size = 14 }: { value: number; onChange?: (value: number) => void; size?: number }) {
   if (!onChange && !value) return null
-  return <span className="flex items-center" role={onChange ? 'radiogroup' : undefined} aria-label={onChange ? 'Rating' : `${value} of 5 stars`}>
+  return <span className="flex items-center" role={onChange ? 'radiogroup' : undefined} aria-label={onChange ? tr('goals.explore_board.rating', 'Rating') : tr('goals.explore_board.value_of_5_stars', '{{value}} of 5 stars', { value })}>
     {[1, 2, 3, 4, 5].map((star) => {
       const icon = <Star size={size} aria-hidden="true" className={star <= value ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40'} />
       return onChange ? <button key={star} type="button" role="radio" aria-checked={value === star} aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`} onClick={() => onChange(value === star ? 0 : star)} className="p-0.5">{icon}</button> : <span key={star}>{icon}</span>
@@ -75,17 +76,17 @@ function EntryEditor({ entry, actions, open, ratings, orgslug, onClose }: EntryP
     <div className="flex min-w-0 flex-1 flex-col gap-2">
       <div className="flex items-start gap-1">
         {open ? <Input value={title} onChange={(event) => setTitle(event.target.value)} onBlur={() => { if (title.trim() !== entry.title) void actions.updateEntry(entry.entry_uuid, { title: title.trim() }) }}
-          aria-label="Title" placeholder="Title" maxLength={500} className="h-9 font-bold" /> : <p className="min-w-0 flex-1 text-sm font-bold">{titleOf(entry)}</p>}
-        <button type="button" aria-label="Close" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"><X size={16} /></button>
+          aria-label={tr('goals.explore_board.title', 'Title')} placeholder={tr('goals.explore_board.title', 'Title')} maxLength={500} className="h-9 font-bold" /> : <p className="min-w-0 flex-1 text-sm font-bold">{titleOf(entry)}</p>}
+        <button type="button" aria-label={tr('goals.explore_board.close', 'Close')} onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"><X size={16} /></button>
       </div>
       {open ? <Textarea value={note} rows={3} onChange={(event) => setNote(event.target.value)} onBlur={() => { if (note !== entry.note) void actions.updateEntry(entry.entry_uuid, { note }) }}
-        aria-label="Notes" placeholder="Notes: what stood out, what it costs, what to ask" /> : entry.note ? <p className="whitespace-pre-wrap text-sm text-foreground/80">{entry.note}</p> : null}
+        aria-label={tr('goals.explore_board.notes', 'Notes')} placeholder={tr('goals.explore_board.notes_what_stood_out_what', 'Notes: what stood out, what it costs, what to ask')} /> : entry.note ? <p className="whitespace-pre-wrap text-sm text-foreground/80">{entry.note}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         {ratings ? <Stars value={ratingOf(entry)} onChange={open ? (rating) => void setData({ rating }) : undefined} size={18} /> : null}
         <span className="flex-1" />
-        {href ? <Button asChild variant="ghost" size="sm"><OpenLink href={href} {...(entry.kind === 'resource' ? {} : { target: '_blank', rel: 'noreferrer' })}><ExternalLink size={14} aria-hidden="true" />Open</OpenLink></Button> : null}
-        {open ? <Button type="button" variant="ghost" size="sm" aria-pressed={pinned(entry)} onClick={() => void setData({ pinned: !pinned(entry) })}>{pinned(entry) ? <><PinOff size={14} aria-hidden="true" />Unpin</> : <><Pin size={14} aria-hidden="true" />Pin</>}</Button> : null}
-        {open ? <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => { onClose(); void actions.deleteEntry(entry.entry_uuid) }}><Trash2 size={14} aria-hidden="true" />Remove</Button> : null}
+        {href ? <Button asChild variant="ghost" size="sm"><OpenLink href={href} {...(entry.kind === 'resource' ? {} : { target: '_blank', rel: 'noreferrer' })}><ExternalLink size={14} aria-hidden="true" />{tr('goals.upload.open', 'Open')}</OpenLink></Button> : null}
+        {open ? <Button type="button" variant="ghost" size="sm" aria-pressed={pinned(entry)} onClick={() => void setData({ pinned: !pinned(entry) })}>{pinned(entry) ? <><PinOff size={14} aria-hidden="true" />{tr('goals.explore_board.unpin', 'Unpin')}</> : <><Pin size={14} aria-hidden="true" />{tr('goals.explore_board.pin', 'Pin')}</>}</Button> : null}
+        {open ? <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => { onClose(); void actions.deleteEntry(entry.entry_uuid) }}><Trash2 size={14} aria-hidden="true" />{tr('goals.upload.remove', 'Remove')}</Button> : null}
       </div>
     </div>
   </div>
@@ -93,12 +94,12 @@ function EntryEditor({ entry, actions, open, ratings, orgslug, onClose }: EntryP
 
 /** An entry in the grid (a square with its title) or the stack (a row with its notes). */
 function Card({ entry, view, ratings, onSelect }: { entry: StepEntry; view: View; ratings: boolean; onSelect: () => void }) {
-  if (view === 'grid') return <button type="button" onClick={onSelect} className="flex min-w-0 flex-col gap-1 rounded-xl p-1 text-left hover:bg-muted" aria-label={`${titleOf(entry)}, edit`}>
+  if (view === 'grid') return <button type="button" onClick={onSelect} className="flex min-w-0 flex-col gap-1 rounded-xl p-1 text-left hover:bg-muted" aria-label={tr('goals.explore_board.titleof_edit', '{{titleOf}}, edit', { titleOf: titleOf(entry) })}>
     <Thumb entry={entry} className="w-full" />
     <span className="line-clamp-2 px-0.5 text-xs font-bold leading-snug">{titleOf(entry)}</span>
     {ratings ? <span className="px-0.5"><Stars value={ratingOf(entry)} size={11} /></span> : null}
   </button>
-  return <button type="button" onClick={onSelect} className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-2 text-left hover:border-[var(--plan-face)]" aria-label={`${titleOf(entry)}, edit`}>
+  return <button type="button" onClick={onSelect} className="flex w-full min-w-0 items-start gap-3 rounded-xl border bg-background p-2 text-left hover:border-[var(--plan-face)]" aria-label={tr('goals.explore_board.titleof_edit', '{{titleOf}}, edit', { titleOf: titleOf(entry) })}>
     <Thumb entry={entry} className="w-16" />
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="truncate text-sm font-bold">{titleOf(entry)}</span>
@@ -160,11 +161,11 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
   } : {}
 
   const viewControls = <>
-    <div role="radiogroup" aria-label="View" className="flex rounded-lg border p-0.5">
-      {([['grid', LayoutGrid, 'Grid'], ['stack', Rows3, 'Stack']] as const).map(([key, Icon, label]) => <button key={key} type="button" role="radio" aria-checked={view === key} aria-label={label} onClick={() => pickView(key)}
+    <div role="radiogroup" aria-label={tr('goals.explore_board.view', 'View')} className="flex rounded-lg border p-0.5">
+      {([['grid', LayoutGrid, tr('lit.explore_board.grid', 'Grid')], ['stack', Rows3, tr('lit.explore_board.stack', 'Stack')]] as const).map(([key, Icon, label]) => <button key={key} type="button" role="radio" aria-checked={view === key} aria-label={label} onClick={() => pickView(key)}
         className={cn('grid h-7 w-7 place-items-center rounded-md', view === key ? 'bg-muted text-foreground' : 'text-muted-foreground')}><Icon size={15} /></button>)}
     </div>
-    {full ? null : <button type="button" aria-label="Expand the board" onClick={() => setExpanded(true)} className="grid h-9 w-9 place-items-center rounded-lg border text-muted-foreground hover:text-foreground"><Maximize2 size={15} /></button>}
+    {full ? null : <button type="button" aria-label={tr('goals.explore_board.expand_the_board', 'Expand the board')} onClick={() => setExpanded(true)} className="grid h-9 w-9 place-items-center rounded-lg border text-muted-foreground hover:text-foreground"><Maximize2 size={15} /></button>}
   </>
   // A small board keeps its view controls beside Add; search, filter and sort earn a row once it holds more than a glance takes in.
   const compact = entries.length > 0 && !sorting
@@ -172,17 +173,17 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
   return <div className="flex flex-col gap-2">
     {sorting ? <div className="flex flex-wrap items-center gap-1.5">
       <div className="relative min-w-36 flex-1"><Search size={14} aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label="Search the board" className="h-9 pl-8" /></div>
-      {kinds.length > 1 ? <select aria-label="Type" value={kind} onChange={(event) => setKind(event.target.value as Evidence | '')} className={select}>
-        <option value="">All types</option>{kinds.map((item) => <option key={item} value={item}>{KIND[item].label}</option>)}
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr('goals.explore_board.search', 'Search')} aria-label={tr('goals.explore_board.search_the_board', 'Search the board')} className="h-9 pl-8" /></div>
+      {kinds.length > 1 ? <select aria-label={tr('goals.explore_board.type', 'Type')} value={kind} onChange={(event) => setKind(event.target.value as Evidence | '')} className={select}>
+        <option value="">{tr('goals.explore_board.all_types', 'All types')}</option>{kinds.map((item) => <option key={item} value={item}>{KIND[item].label}</option>)}
       </select> : null}
-      <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as Sort)} className={select}>
-        <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="title">A–Z</option>{ratings ? <option value="rating">Rating</option> : null}
+      <select aria-label={tr('goals.explore_board.sort', 'Sort')} value={sort} onChange={(event) => setSort(event.target.value as Sort)} className={select}>
+        <option value="newest">{tr('goals.explore_board.newest', 'Newest')}</option><option value="oldest">{tr('goals.explore_board.oldest', 'Oldest')}</option><option value="title">A–Z</option>{ratings ? <option value="rating">{tr('goals.explore_board.rating', 'Rating')}</option> : null}
       </select>
       {viewControls}
     </div> : null}
 
-    <div tabIndex={open ? 0 : undefined} aria-label={open ? 'Board. Drop or paste links and files here.' : 'Board'} {...drop}
+    <div tabIndex={open ? 0 : undefined} aria-label={open ? tr('goals.explore_board.board_drop_or_paste_links', 'Board. Drop or paste links and files here.') : tr('goals.explore_board.board', 'Board')} {...drop}
       className={cn('rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]', dropping && 'ring-2 ring-[var(--plan-face)] ring-offset-2')}>
       {shown.length || suggestions.length ? <div className={cn(view === 'grid' ? cn('grid gap-1.5', full ? 'grid-cols-3 sm:grid-cols-6' : 'grid-cols-3 sm:grid-cols-5') : 'flex flex-col gap-1.5')}>
         {shown.map((entry) => entry.entry_uuid === selected
@@ -191,15 +192,15 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
         {suggestions.map((item) => <button key={item.resource_uuid} type="button" onClick={() => actions.addEntry({ kind: 'resource', resource_uuid: item.resource_uuid })}
           className={cn('flex min-w-0 gap-2 rounded-xl border-2 border-dashed p-1.5 text-left opacity-75 hover:opacity-100', view === 'grid' ? 'flex-col' : 'items-center')}>
           <span className={cn('grid aspect-square shrink-0 place-items-center rounded-lg bg-muted text-[var(--plan-accent)]', view === 'grid' ? 'w-full' : 'w-16')}><BookOpen size={18} aria-hidden="true" /></span>
-          <span className="min-w-0 text-xs font-bold leading-snug"><span className="block text-[10px] font-extrabold uppercase text-muted-foreground">Suggested</span>{item.title || 'Resource'}</span>
+          <span className="min-w-0 text-xs font-bold leading-snug"><span className="block text-[10px] font-extrabold uppercase text-muted-foreground">{tr('goals.explore_board.suggested', 'Suggested')}</span>{item.title || tr('goals.explore_board.resource', 'Resource')}</span>
         </button>)}
-      </div> : entries.length ? <p className="py-4 text-center text-sm text-muted-foreground">Nothing matches.</p>
-        : open ? <p className="rounded-2xl border-2 border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Drop links, photos or PDFs here, paste a link, or tap Add.</p> : null}
+      </div> : entries.length ? <p className="py-4 text-center text-sm text-muted-foreground">{tr('goals.explore_board.nothing_matches', 'Nothing matches.')}</p>
+        : open ? <p className="rounded-2xl border-2 border-dashed px-4 py-6 text-center text-sm text-muted-foreground">{tr('goals.explore_board.drop_links_photos_or_pdfs', 'Drop links, photos or PDFs here, paste a link, or tap Add.')}</p> : null}
     </div>
 
     {open || compact ? <div className="flex flex-wrap items-center gap-2">
-      {open ? <Button type="button" variant="surface" size="sm" onClick={() => setAdding(true)}><Plus size={15} aria-hidden="true" />Add</Button> : null}
-      {ingest.adding ? <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Loader2 size={13} className="animate-spin" />Adding…</span> : null}
+      {open ? <Button type="button" variant="surface" size="sm" onClick={() => setAdding(true)}><Plus size={15} aria-hidden="true" />{tr('goals.upload.add', 'Add')}</Button> : null}
+      {ingest.adding ? <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Loader2 size={13} className="animate-spin" />{tr('goals.explore_board.adding', 'Adding…')}</span> : null}
       {compact ? <div className="ml-auto flex items-center gap-1.5">{viewControls}</div> : null}
     </div> : null}
     <AddToBoard open={adding} onOpenChange={setAdding} actions={actions} ingest={ingest} orgId={orgId} token={token} />

@@ -8,6 +8,7 @@ import type { HubContextValue } from '../HubContext'
 import { mergePendingHubEditOperations, recoverHubEditOperations, sessionEventLabel } from './editRunTimeline'
 import { continuationId } from '@components/Goals/edit/useGoalProposals'
 
+import { tr } from '@/lib/tr'
 type Message = { id: string; role: string; content: string }
 
 /** Focused editing sessions: ending, finishing, restoring, retargeting, and pointing at what changed. */
@@ -47,7 +48,7 @@ export default function useHubEditRun({ hub, orgslug, orgId, accessToken, messag
       hub.setEditReviewItems([])
       hub.clearEditContinuations(run.run_uuid)
     } catch (error: any) {
-      onError(error?.message || (status === 'cancelled' ? 'Editing could not be stopped.' : 'This editing goal could not be finished.'))
+      onError(error?.message || (status === 'cancelled' ? tr('lit.use_hub_edit_run.editing_could_not_be_stopped', 'Editing could not be stopped.') : tr('lit.use_hub_edit_run.this_editing_goal_could_not', 'This editing goal could not be finished.')))
     }
   }
 
@@ -64,7 +65,7 @@ export default function useHubEditRun({ hub, orgslug, orgId, accessToken, messag
         content: `[[hub-session-event]] You reopened the focused session\nThe learner restored the focused session “${restored.goal}”. Briefly assess its saved and unresolved state, then ask one short question about how they would like to continue. Do not make new edits before their answer.`,
       })
     } catch (error: any) {
-      onError(error?.message || 'This focused session could not be restored.')
+      onError(error?.message || tr('lit.use_hub_edit_run.this_focused_session_could_not', 'This focused session could not be restored.'))
     }
   }
 
@@ -78,7 +79,7 @@ export default function useHubEditRun({ hub, orgslug, orgId, accessToken, messag
         content: `[[hub-session-event]] You updated the session goal\nThe focused-session goal is now: ${updated.goal}. Continue within the existing scope.`,
       })
     } catch (error: any) {
-      onError(error?.message || 'The session goal could not be updated.')
+      onError(error?.message || tr('lit.use_hub_edit_run.the_session_goal_could_not', 'The session goal could not be updated.'))
       throw error
     }
   }

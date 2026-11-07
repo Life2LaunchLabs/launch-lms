@@ -10,6 +10,7 @@ import DiscoverResults from './DiscoverResults'
 import DiscoverSearchBar, { filtersApplied, type DiscoverFilters } from './DiscoverSearchBar'
 import ResourceSheet from './ResourceSheet'
 
+import { tr } from '@/lib/tr'
 /**
  * Discover: plans to join (many earn a badge) and resources to use, searchable from the top. With no search
  * or filters it's a feed; otherwise it's a results view. The URL holds both.
@@ -46,7 +47,7 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const searching = Boolean(query) || filtersApplied(filters)
   const content = <GeneralWrapper wide>
     <main className="flex flex-col gap-6 pb-16 pt-2 text-foreground">
-      <h1 className="sr-only">Discover</h1>
+      <h1 className="sr-only">{tr('discover.discover_page.discover', 'Discover')}</h1>
       <DiscoverSearchBar query={query} onQuery={onQuery} filters={filters} onFilters={onFilters} showPlans={showPlans} showResources={showResources} signedIn={Boolean(session?.data?.tokens?.access_token)} />
       {searching
         ? <DiscoverResults orgslug={orgslug} query={query} filters={filters} showPlans={showPlans} showResources={showResources} />

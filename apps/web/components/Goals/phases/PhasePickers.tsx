@@ -10,6 +10,7 @@ import { KINDS, LEVELS, LIVING } from './setup'
 import { monthName } from './graph'
 import { useTranslation } from 'react-i18next'
 
+import { tr } from '@/lib/tr'
 const KIND_ICONS: Record<Activity['kind'], React.ElementType> = { learning: BookOpen, working: Briefcase, looking: UserSearch, caring: Heart, gap: Plane, other: Sparkles }
 // A picture for every way of living, so a learner can choose by looking.
 const LIVING_ICONS: Record<string, React.ElementType> = { family: Home, own: HousePlus, roommates: Users, partner: Heart, dorm: Building2, other: Sparkles }
@@ -82,7 +83,7 @@ function SearchBox({ value, onChange, placeholder, label }: { value: string; onC
     <Search size={18} className="text-muted-foreground" aria-hidden="true" />
     { }
     <input autoFocus aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-full w-full bg-transparent text-base font-bold outline-none" />
-    <MicButton value="" onChange={(said) => onChange(said.replace(/[.!?]+$/, ''))} size="sm" label={`Say the ${label.toLowerCase()}`} />
+    <MicButton value="" onChange={(said) => onChange(said.replace(/[.!?]+$/, ''))} size="sm" label={tr('goals.phase_pickers.say_the_tolowercase', 'Say the {{toLowerCase}}', { toLowerCase: label.toLowerCase() })} />
   </label>
 }
 

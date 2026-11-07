@@ -17,6 +17,7 @@ import { ExperiencePage } from './ExperiencePage'
 import { ProjectPage } from './ProjectPage'
 import { VisitorPage } from './VisitorPage'
 
+import { tr } from '@/lib/tr'
 // The portfolio's server pages.
 
 type View = 'overview' | DetailView | 'resume'
@@ -47,17 +48,17 @@ export async function publicPortfolioPage(orgslug: string, username: string, vie
     : <PortfolioDetail view={view} initialShell={shell} orgslug={orgslug} username={username} />}</>
 }
 
-const VISITOR_DETAIL: Partial<Record<View, string>> = { timeline: 'Experience', projects: 'Projects', badges: 'Badges', resume: 'Résumé' }
+const VISITOR_DETAIL: Partial<Record<View, string>> = { get timeline() { return tr('lit.portfolio_pages.experience', 'Experience') }, get projects() { return tr('lit.portfolio_pages.projects', 'Projects') }, get badges() { return tr('lit.portfolio_pages.badges', 'Badges') }, resume: 'Résumé' }
 
 /** My people, My documents, What I'm like, imports and the interest quiz. */
 export async function ownerRecordsPage(orgslug: string, page: 'people' | 'documents' | 'import' | 'interests' | 'picture-sort' | 'results') {
   const token = await getServerAccessToken()
   if (!token) redirect(getUriWithOrg(orgslug, '/'))
   if (page === 'import') return <PortfolioImportPage orgslug={orgslug} />
-  if (page === 'interests') return <><PageTitleRegistration section="What I’m like" detail="Interest quiz" /><InterestQuizPage orgslug={orgslug} /></>
-  if (page === 'picture-sort') return <><PageTitleRegistration section="What I’m like" detail="Picture sort" /><PictureSortPage orgslug={orgslug} /></>
+  if (page === 'interests') return <><PageTitleRegistration section={tr('lit.portfolio_pages.what_i_m_like', 'What I’m like')} detail={tr('lit.portfolio_pages.interest_quiz', 'Interest quiz')} /><InterestQuizPage orgslug={orgslug} /></>
+  if (page === 'picture-sort') return <><PageTitleRegistration section={tr('lit.portfolio_pages.what_i_m_like', 'What I’m like')} detail={tr('lit.portfolio_pages.picture_sort', 'Picture sort')} /><PictureSortPage orgslug={orgslug} /></>
   const shell = await getMyPortfolio(token)
-  if (page === 'results') return <><PageTitleRegistration section="What I’m like" /><PortfolioResultsPage initialShell={shell} orgslug={orgslug} /></>
+  if (page === 'results') return <><PageTitleRegistration section={tr('lit.portfolio_pages.what_i_m_like', 'What I’m like')} /><PortfolioResultsPage initialShell={shell} orgslug={orgslug} /></>
   return page === 'people' ? <PortfolioPeoplePage initialShell={shell} orgslug={orgslug} /> : <PortfolioDocumentsPage initialShell={shell} orgslug={orgslug} />
 }
 
@@ -74,9 +75,9 @@ export async function ownerItemPage(orgslug: string, kind: 'experience' | 'proje
   if (kind === 'experience') {
     const entry = uuid ? shell.timeline.find((item: any) => item.timeline_uuid === uuid) : undefined
     if (uuid && !entry) notFound()
-    return <><PageTitleRegistration section="Experience" detail={entry?.title || 'New experience'} /><ExperiencePage key={uuid || 'new'} entry={entry} projects={shell.projects || []} orgslug={orgslug} initialType={one('type')} mark={one('mark')} quotes={(shell.quotes || []).filter((quote: any) => quote.timeline_uuid === uuid)} contacts={shell.contacts || []} portfolioUuid={shell.portfolio?.portfolio_uuid} /></>
+    return <><PageTitleRegistration section={tr('lit.portfolio_pages.experience', 'Experience')} detail={entry?.title || tr('lit.portfolio_pages.new_experience', 'New experience')} /><ExperiencePage key={uuid || 'new'} entry={entry} projects={shell.projects || []} orgslug={orgslug} initialType={one('type')} mark={one('mark')} quotes={(shell.quotes || []).filter((quote: any) => quote.timeline_uuid === uuid)} contacts={shell.contacts || []} portfolioUuid={shell.portfolio?.portfolio_uuid} /></>
   }
   const project = uuid ? shell.projects.find((item: any) => item.project_uuid === uuid) : undefined
   if (uuid && !project) notFound()
-  return <><PageTitleRegistration section="Projects" detail={project?.title || 'New project'} /><ProjectPage key={uuid || 'new'} project={project} timeline={shell.timeline || []} orgslug={orgslug} experience={one('experience')} mark={one('mark')} quotes={(shell.quotes || []).filter((quote: any) => quote.project_uuid === uuid)} contacts={shell.contacts || []} portfolioUuid={shell.portfolio?.portfolio_uuid} /></>
+  return <><PageTitleRegistration section={tr('lit.portfolio_pages.projects', 'Projects')} detail={project?.title || tr('lit.portfolio_pages.new_project', 'New project')} /><ProjectPage key={uuid || 'new'} project={project} timeline={shell.timeline || []} orgslug={orgslug} experience={one('experience')} mark={one('mark')} quotes={(shell.quotes || []).filter((quote: any) => quote.project_uuid === uuid)} contacts={shell.contacts || []} portfolioUuid={shell.portfolio?.portfolio_uuid} /></>
 }

@@ -10,6 +10,7 @@ import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
 import { MicButton } from '@components/Accessibility/ReadAloud'
 
+import { tr } from '@/lib/tr'
 const textOf = (step: Step<'write'>) => String(step.submission?.text || '')
 const words = (text: string) => text.trim() ? text.trim().split(/\s+/).length : 0
 
@@ -33,28 +34,28 @@ function WriteCard({ step, actions, canWork, staff }: StepCardProps<'write'>) {
     <Feedback step={step} />
     {open ? <>
       <div className="relative">
-        <Textarea value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { if (dirty) save() }} rows={6} placeholder="Write here, or tap the mic and talk" className="pr-14" />
+        <Textarea value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { if (dirty) save() }} rows={6} placeholder={tr('goals.write.write_here_or_tap_the', 'Write here, or tap the mic and talk')} className="pr-14" />
         <MicButton value={text} onChange={setText} className="absolute right-2 top-2" />
       </div>
-      <CardNote>{count} {count === 1 ? 'word' : 'words'}{limit ? ` of ${limit}` : ''}{dirty ? ' · not saved yet' : ''}</CardNote>
+      <CardNote>{count} {count === 1 ? 'word' : 'words'}{limit ? ` of ${limit}` : ''}{dirty ? tr('goals.write.not_saved_yet', ' · not saved yet') : ''}</CardNote>
     </> : saved ? <p className="whitespace-pre-wrap rounded-xl border bg-background p-3 text-sm leading-6">{saved}</p> : null}
     <FinishControls step={step} actions={{ ...actions, setStatus: async (status, note) => { if (dirty) await save(); return actions.setStatus(status, note) } }} canWork={canWork} staff={staff}
-      blocker={!text.trim() ? 'Write something first' : limit && count > limit ? `Keep it under ${limit} words` : null} />
+      blocker={!text.trim() ? tr('lit.write.write_something_first', 'Write something first') : limit && count > limit ? `Keep it under ${limit} words` : null} />
   </div>
 }
 
 function WriteSettings({ config, onChange }: ConfigPanelProps<'write'>) {
-  return <div className="flex flex-col gap-1"><Label htmlFor="write-limit">Word limit</Label>
-    <Input id="write-limit" type="number" min={0} className="sm:w-40" value={config.max_words || ''} onChange={(event) => onChange({ ...config, max_words: Number(event.target.value) || undefined })} placeholder="None" />
+  return <div className="flex flex-col gap-1"><Label htmlFor="write-limit">{tr('goals.write.word_limit', 'Word limit')}</Label>
+    <Input id="write-limit" type="number" min={0} className="sm:w-40" value={config.max_words || ''} onChange={(event) => onChange({ ...config, max_words: Number(event.target.value) || undefined })} placeholder={tr('goals.write.none', 'None')} />
   </div>
 }
 
 export const write: StepDefinition<'write'> = {
   type: 'write',
-  label: 'Write',
+  get label() { return tr('goals.write.write', 'Write') },
   color: '#6B3FE0',
-  hint: 'A written answer or reflection to your prompt.',
-  example: 'What surprised you on your visit?',
+  get hint() { return tr('goals.write.a_written_answer_or_reflection', 'A written answer or reflection to your prompt.') },
+  get example() { return tr('lit.write.what_surprised_you_on_your', 'What surprised you on your visit?') },
   icon: PenLine,
   RowResult: WriteRow,
   CardBody: WriteCard,

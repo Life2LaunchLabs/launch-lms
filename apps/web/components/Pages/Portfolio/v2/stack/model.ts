@@ -1,5 +1,6 @@
 import type { LookId, PortfolioLayout, SectionType, StackItem } from '@services/portfolio/records'
 
+import { tr } from '@/lib/tr'
 // The portfolio's section stack: rows of up to three sections on a grid of six. A section alone in its row is
 // full width, three share a row in thirds, and two split it 1/3 + 2/3, 1/2 + 1/2 or 2/3 + 1/3. Every look
 // has a suggested layout; once the learner changes it, their own stack goes with them to every look.
@@ -14,17 +15,17 @@ export const ALL_SECTIONS: SectionType[] = ['highlights', 'feature', 'about', 'e
 export const REQUIRED: SectionType[] = ['about', 'experience']
 /** What the "Add a section" chips call each one. */
 export const SECTION_LABELS: Record<SectionType, string> = {
-  highlights: 'Highlights', feature: 'Featured', about: 'About me', experience: 'Experience', projects: 'Projects',
-  credentials: 'Credentials & badges', results: 'What I’m like', headed: 'Where I’m headed', people: 'My people',
+  get highlights() { return tr('lit.model.highlights', 'Highlights') }, get feature() { return tr('lit.model.featured', 'Featured') }, get about() { return tr('lit.model.about_me', 'About me') }, get experience() { return tr('lit.model.experience', 'Experience') }, get projects() { return tr('lit.model.projects', 'Projects') },
+  get credentials() { return tr('lit.model.credentials_badges', 'Credentials & badges') }, get results() { return tr('lit.model.what_i_m_like', 'What I’m like') }, get headed() { return tr('lit.model.where_i_m_headed', 'Where I’m headed') }, get people() { return tr('lit.model.my_people', 'My people') },
 }
 
 /** Each look names the sections its own way; a name the learner gives one holds in every look. */
 export const LOOK_NAMES: Record<LookId, Record<SectionType, string>> = {
-  playful: { ...SECTION_LABELS },
-  gallery: { highlights: 'Numbers', feature: 'Now showing', about: 'Info', experience: 'CV', projects: 'Work', credentials: 'Certified', results: 'Character', headed: 'Next', people: 'Said about me' },
-  professional: { highlights: 'At a glance', feature: 'Featured', about: 'About', experience: 'Experience', projects: 'Projects', credentials: 'Licenses and certifications', results: 'Strengths', headed: 'Goals', people: 'Recommendations' },
-  arcade: { highlights: 'Stats', feature: 'Featured', about: 'Bio', experience: 'History', projects: 'Showcase', credentials: 'Achievements', results: 'Class', headed: 'Next quest', people: 'Squad says' },
-  volt: { highlights: 'By the numbers', feature: 'Featured', about: 'About', experience: 'Journey', projects: 'Latest work', credentials: 'Badges', results: 'How I work', headed: 'Next up', people: 'Shoutouts' },
+  get playful() { return { ...SECTION_LABELS } },
+  gallery: { get highlights() { return tr('lit.model.numbers', 'Numbers') }, get feature() { return tr('lit.model.now_showing', 'Now showing') }, get about() { return tr('lit.model.info', 'Info') }, experience: 'CV', get projects() { return tr('lit.model.work', 'Work') }, get credentials() { return tr('lit.model.certified', 'Certified') }, get results() { return tr('lit.model.character', 'Character') }, get headed() { return tr('lit.model.next', 'Next') }, get people() { return tr('lit.model.said_about_me', 'Said about me') } },
+  professional: { get highlights() { return tr('lit.model.at_a_glance', 'At a glance') }, get feature() { return tr('lit.model.featured', 'Featured') }, get about() { return tr('lit.model.about', 'About') }, get experience() { return tr('lit.model.experience', 'Experience') }, get projects() { return tr('lit.model.projects', 'Projects') }, get credentials() { return tr('lit.model.licenses_and_certifications', 'Licenses and certifications') }, get results() { return tr('lit.model.strengths', 'Strengths') }, get headed() { return tr('lit.model.goals', 'Goals') }, get people() { return tr('lit.model.recommendations', 'Recommendations') } },
+  arcade: { get highlights() { return tr('lit.model.stats', 'Stats') }, get feature() { return tr('lit.model.featured', 'Featured') }, get about() { return tr('lit.model.bio', 'Bio') }, get experience() { return tr('lit.model.history', 'History') }, get projects() { return tr('lit.model.showcase', 'Showcase') }, get credentials() { return tr('lit.model.achievements', 'Achievements') }, get results() { return tr('lit.model.class', 'Class') }, get headed() { return tr('lit.model.next_quest', 'Next quest') }, get people() { return tr('lit.model.squad_says', 'Squad says') } },
+  volt: { get highlights() { return tr('lit.model.by_the_numbers', 'By the numbers') }, get feature() { return tr('lit.model.featured', 'Featured') }, get about() { return tr('lit.model.about', 'About') }, get experience() { return tr('lit.model.journey', 'Journey') }, get projects() { return tr('lit.model.latest_work', 'Latest work') }, get credentials() { return tr('lit.model.badges', 'Badges') }, get results() { return tr('lit.model.how_i_work', 'How I work') }, get headed() { return tr('lit.model.next_up', 'Next up') }, get people() { return tr('lit.model.shoutouts', 'Shoutouts') } },
 }
 
 /**

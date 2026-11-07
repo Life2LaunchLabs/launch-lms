@@ -10,6 +10,7 @@ import { type MediaAsset } from '@services/media/library'
 import { normalizeMediaUrl } from '@services/media/media'
 import { SpotTip } from './parts'
 
+import { tr } from '@/lib/tr'
 // The pieces an item's own page uses to edit in place: the page reads like the finished thing, every line
 // is the field that sets it, what's missing waits as a dashed chip at the bottom, and one bar saves.
 
@@ -37,7 +38,7 @@ export function ItemHero({ back, backLabel, cover, onCover, children }: { back: 
     </div>
     <div className="relative aspect-[2/1] overflow-hidden rounded-[22px] sm:aspect-[16/6] border-2 border-border shadow-[0_4px_0_hsl(var(--border))]">
       {cover}
-      {onCover ? <button type="button" onClick={onCover} className="absolute bottom-3 right-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-black/55 px-3.5 text-[13px] font-bold text-white backdrop-blur hover:bg-black/70"><ImageIcon className="h-4 w-4" />Change cover</button> : null}
+      {onCover ? <button type="button" onClick={onCover} className="absolute bottom-3 right-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-black/55 px-3.5 text-[13px] font-bold text-white backdrop-blur hover:bg-black/70"><ImageIcon className="h-4 w-4" />{tr('portfolio.inplace.change_cover', 'Change cover')}</button> : null}
     </div>
   </>
 }
@@ -68,21 +69,21 @@ export function PhotoPicker({ images, setImages, cover, setCover, userId, token,
   return <>
     {images.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {images.map((image) => <div key={image.asset_uuid} className={`relative overflow-hidden rounded-2xl border-2 ${cover === image.asset_uuid ? 'border-[var(--org-primary-color)]' : 'border-transparent'}`}>
-        <button type="button" onClick={() => setCover(image.asset_uuid)} className="block aspect-square w-full"><img src={normalizeMediaUrl(image.url)} alt="" className="h-full w-full object-cover" /><span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold text-white">{cover === image.asset_uuid ? 'Cover' : 'Make cover'}</span></button>
-        <button type="button" aria-label="Remove photo" onClick={() => { const rest = images.filter((item) => item.asset_uuid !== image.asset_uuid); setImages(rest); if (cover === image.asset_uuid) setCover(rest[0]?.asset_uuid || '') }} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"><Trash2 className="h-4 w-4" /></button>
+        <button type="button" onClick={() => setCover(image.asset_uuid)} className="block aspect-square w-full"><img src={normalizeMediaUrl(image.url)} alt="" className="h-full w-full object-cover" /><span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold text-white">{cover === image.asset_uuid ? tr('portfolio.inplace.cover', 'Cover') : tr('portfolio.inplace.make_cover', 'Make cover')}</span></button>
+        <button type="button" aria-label={tr('portfolio.inplace.remove_photo', 'Remove photo')} onClick={() => { const rest = images.filter((item) => item.asset_uuid !== image.asset_uuid); setImages(rest); if (cover === image.asset_uuid) setCover(rest[0]?.asset_uuid || '') }} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"><Trash2 className="h-4 w-4" /></button>
       </div>)}
-      <button type="button" onClick={() => setOpen(true)} className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:border-[var(--org-primary-color)] hover:text-foreground"><Plus className="h-6 w-6" /><span className="sr-only">Add a photo</span></button>
+      <button type="button" onClick={() => setOpen(true)} className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:border-[var(--org-primary-color)] hover:text-foreground"><Plus className="h-6 w-6" /><span className="sr-only">{tr('portfolio.inplace.add_a_photo', 'Add a photo')}</span></button>
     </div> : null}
-    <MediaPickerDialog open={open} onOpenChange={setOpen} title={title} description="Upload a photo or choose one you've used before." owner={{ type: 'user', id: userId }} mediaType="image" accessToken={token} onSave={add} />
+    <MediaPickerDialog open={open} onOpenChange={setOpen} title={title} description={tr('portfolio.inplace.upload_a_photo_or_choose', 'Upload a photo or choose one you\'ve used before.')} owner={{ type: 'user', id: userId }} mediaType="image" accessToken={token} onSave={add} />
   </>
 }
 
 /** The bar that keeps the item: always there for a new one, and once something changes on a saved one. */
-export function SaveBar({ show, busy, label, mark, onCancel, cancelLabel = 'Cancel' }: { show: boolean; busy: boolean; label: string; mark?: string; onCancel?: () => void; cancelLabel?: string }) {
+export function SaveBar({ show, busy, label, mark, onCancel, cancelLabel = tr('lit.inplace.cancel', 'Cancel') }: { show: boolean; busy: boolean; label: string; mark?: string; onCancel?: () => void; cancelLabel?: string }) {
   if (!show) return null
   return <div className="sticky bottom-3 z-[5] mt-10 flex items-center justify-end gap-2 rounded-2xl border-2 border-border bg-card/95 p-2.5 shadow-[0_4px_0_hsl(var(--border))] backdrop-blur">
     {onCancel ? <Button type="button" variant="ghost" onClick={onCancel}>{cancelLabel}</Button> : null}
-    <Marked mark={mark}><Button type="submit" variant="brand" className="h-11" disabled={busy}>{busy ? 'Saving…' : label}</Button></Marked>
+    <Marked mark={mark}><Button type="submit" variant="brand" className="h-11" disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : label}</Button></Marked>
   </div>
 }
 

@@ -8,6 +8,7 @@ import { concludeHubEditRun, startGoalCoachSession } from '@services/hub/advisor
 import type { Goal } from '@services/goals/types'
 import { continuationId, useGoalSession } from './useGoalProposals'
 
+import { tr } from '@/lib/tr'
 /**
  * Coach's session on one goal, started by the learner from the goal page. Starting opens Coach
  * in the session's conversation and asks it to begin; an existing session is picked back up.
@@ -31,7 +32,7 @@ export default function useGoalCoachSession(goal: Pick<Goal, 'goal_uuid' | 'titl
         content: `[[hub-session-event]] You asked Coach to plan this goal with you\n${ask || `Look over my goal “${goal.title}” and suggest what would help most next. Keep it small; I'll keep what fits.`}`,
       })
     } catch (error: any) {
-      toast.error(error?.message || 'Coach couldn’t start a session on this goal.')
+      toast.error(error?.message || tr('goals.use_goal_coach_session.coach_couldn_t_start_a', 'Coach couldn’t start a session on this goal.'))
     }
   }
 
@@ -44,7 +45,7 @@ export default function useGoalCoachSession(goal: Pick<Goal, 'goal_uuid' | 'titl
       hub.setEditOperations([])
       hub.clearEditContinuations(session.run_uuid)
     } catch (error: any) {
-      toast.error(error?.message || 'Coach’s session could not be ended.')
+      toast.error(error?.message || tr('goals.use_goal_coach_session.coach_s_session_could_not', 'Coach’s session could not be ended.'))
       throw error
     }
   }

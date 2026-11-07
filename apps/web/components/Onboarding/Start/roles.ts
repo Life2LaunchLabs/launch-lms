@@ -1,6 +1,7 @@
 /** Who's setting up at /start. One place for each role's words, color and whether it's usually one person. */
 import type { StartRole } from '@services/onboarding/start'
 
+import { tr } from '@/lib/tr'
 export type { StartRole }
 
 export interface RoleConfig {
@@ -19,23 +20,23 @@ export interface RoleConfig {
 
 export const ROLES: Record<StartRole, RoleConfig> = {
   parent: {
-    label: 'Parent or guardian', blurb: 'Helping my own kid', audience: 'parents', plural: 'kids', color: '#F08A24', dark: '#B85C0A', solo: true,
+    get label() { return tr('lit.roles.parent_or_guardian', 'Parent or guardian') }, get blurb() { return tr('lit.roles.helping_my_own_kid', 'Helping my own kid') }, audience: 'parents', plural: 'kids', color: '#F08A24', dark: '#B85C0A', solo: true,
     say: ['Hand them the map', 'Pick a plan, give it to your kid, and watch each step get done. No nagging required.'],
   },
   mentor: {
-    label: 'Mentor or life coach', blurb: 'Guiding a few people one-on-one', audience: 'mentors and coaches', plural: 'mentees', color: '#13B3A4', dark: '#0B7A70', solo: true,
+    get label() { return tr('lit.roles.mentor_or_life_coach', 'Mentor or life coach') }, get blurb() { return tr('lit.roles.guiding_a_few_people_one', 'Guiding a few people one-on-one') }, audience: 'mentors and coaches', plural: 'mentees', color: '#13B3A4', dark: '#0B7A70', solo: true,
     say: ['Momentum between sessions', 'Everyone you mentor has a next step waiting, and you see what they did before you meet.'],
   },
   teacher: {
-    label: 'Teacher or counselor', blurb: 'Supporting a class or caseload', audience: 'teachers and counselors', plural: 'students', color: '#8B5CF6', dark: '#5B30C8', solo: false,
+    get label() { return tr('lit.roles.teacher_or_counselor', 'Teacher or counselor') }, get blurb() { return tr('lit.roles.supporting_a_class_or_caseload', 'Supporting a class or caseload') }, audience: 'teachers and counselors', plural: 'students', color: '#8B5CF6', dark: '#5B30C8', solo: false,
     say: ['Every student, their own path', 'Give each student a plan that fits, review their work in one place, and see who needs a nudge.'],
   },
   program: {
-    label: 'Youth program staff', blurb: 'A nonprofit, club or community program', audience: 'youth programs', plural: 'participants', color: '#EC4F9A', dark: '#B0245F', solo: false,
+    get label() { return tr('lit.roles.youth_program_staff', 'Youth program staff') }, blurb: 'A nonprofit, club or community program', audience: 'youth programs', plural: 'participants', color: '#EC4F9A', dark: '#B0245F', solo: false,
     say: ['Your curriculum, finished', 'Run your program as plans, give out badges people keep, and let volunteers help review.'],
   },
   district: {
-    label: 'School or district leader', blurb: 'Readiness across schools', audience: 'schools and districts', plural: 'students', color: '#4C8DFF', dark: '#2257C4', solo: false,
+    get label() { return tr('lit.roles.school_or_district_leader', 'School or district leader') }, get blurb() { return tr('lit.roles.readiness_across_schools', 'Readiness across schools') }, audience: 'schools and districts', plural: 'students', color: '#4C8DFF', dark: '#2257C4', solo: false,
     say: ['Readiness you can see', 'Roll out plans to whole groups, link steps to graduation requirements, and track progress across schools.'],
   },
 }
@@ -54,8 +55,8 @@ export function groupSuggestions(now = new Date()): string[] {
   const year = now.getFullYear()
   const month = now.getMonth()
   const grad = month >= 6 ? year + 1 : year
-  const season = month >= 7 ? 'Spring' : month <= 2 ? 'Summer' : 'Fall'
-  return [`Class of ${grad}`, `Class of ${grad + 1}`, `${season} workshop`, 'New hires']
+  const season = month >= 7 ? tr('lit.timeline.spring', 'Spring') : month <= 2 ? tr('lit.timeline.summer', 'Summer') : tr('lit.timeline.fall', 'Fall')
+  return [`Class of ${grad}`, `Class of ${grad + 1}`, `${season} workshop`, tr('lit.roles.new_hires', 'New hires')]
 }
 
 export const initials = (text: string) => {

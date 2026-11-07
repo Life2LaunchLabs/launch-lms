@@ -7,6 +7,7 @@ import { goalLaunchApi } from '@services/goals/launch'
 import { getUriWithOrg } from '@services/config/config'
 import { lifeApi } from '@services/life/life'
 
+import { tr } from '@/lib/tr'
 export const launchPath = (goalUuid: string) => `/plans/${encodeURIComponent(goalUuid)}/launch`
 
 /** Starts a new goal: a draft, opened in the launch flow to set it up, filed in a phase when one is given. */
@@ -23,7 +24,7 @@ export default function useStartGoal(orgslug: string, token: string | undefined)
       if (phaseId) await lifeApi.placeGoal(launch.goal.goal_uuid, phaseId, token).catch(() => undefined)
       router.push(getUriWithOrg(orgslug, launchPath(launch.goal.goal_uuid)))
     } catch (error: any) {
-      toast.error(error?.message || 'Could not start your goal. Please try again.')
+      toast.error(error?.message || tr('goals.use_start_goal.could_not_start_your_goal', 'Could not start your goal. Please try again.'))
       pending.current = false; setBusy(false)
     }
   }

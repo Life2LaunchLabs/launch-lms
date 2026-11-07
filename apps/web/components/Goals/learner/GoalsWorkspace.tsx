@@ -30,6 +30,7 @@ import { GoalPathSkeleton } from './GoalStepRow'
 import useGoalColors from './useGoalColors'
 import useStartGoal, { launchPath } from './useStartGoal'
 
+import { tr } from '@/lib/tr'
 const EMPTY: GoalSummary[] = []
 const homeKey = () => goalsUrl('/home')
 const isGroup = (goal: GoalSummary) => goal.target_kind === 'group'
@@ -100,7 +101,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   React.useEffect(() => {
     if (!setSurface) return
     if (!selectedUuid) {
-      setSurface({ path: pathname, label: 'Goals', hint: { surface: 'goals', visible_ids: stripGoals.slice(0, 8).map((goal) => goal.goal_uuid) } })
+      setSurface({ path: pathname, label: tr('goals.goals_workspace.goals', 'Goals'), hint: { surface: 'goals', visible_ids: stripGoals.slice(0, 8).map((goal) => goal.goal_uuid) } })
       return () => setSurface(null)
     }
     if (!detail || detail.goal_uuid !== selectedUuid) { setSurface(null); return }
@@ -168,7 +169,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
 
   if (!token && session?.status !== 'loading') return <SignedOut orgslug={orgslug} />
 
-  const failed = (message: string, retry: () => void) => <div className="rounded-2xl border-2 border-border bg-card p-5" role="alert"><p className="text-sm">{message}</p><Button variant="surface" className="mt-3" onClick={retry}>Try again</Button></div>
+  const failed = (message: string, retry: () => void) => <div className="rounded-2xl border-2 border-border bg-card p-5" role="alert"><p className="text-sm">{message}</p><Button variant="surface" className="mt-3" onClick={retry}>{tr('goals.goals_workspace.try_again', 'Try again')}</Button></div>
   const ready = Boolean(detail) && detail!.goal_uuid === selectedUuid
   const goal = ready ? detail! : null
   const isSubject = Boolean(goal && viewerUserId !== undefined && goal.subject?.id === viewerUserId)
@@ -194,9 +195,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     const phaseId = life && isSubject ? phaseOfGoal(life, selectedUuid) : null
     const phase = phaseId ? phaseTimes(life).find((item) => item.phase.id === phaseId) : undefined
     const phaseGoals = phase ? stripGoals.filter((item) => phaseOfGoal(life, item.goal_uuid) === phaseId) : []
-    strip = phase ? <section aria-label={`Goals for ${phase.phase.title}`} className="flex flex-col gap-3">
+    strip = phase ? <section aria-label={tr('goals.goals_workspace.goals_for_title', 'Goals for {{title}}', { title: phase.phase.title })} className="flex flex-col gap-3">
       <PhaseHeading group={{ title: phase.phase.title, when: phase.when, starts: phase.starts }}>
-        <span className="text-sm text-muted-foreground">{phaseGoals.length === 1 ? '1 goal' : `${phaseGoals.length} goals`}</span>
+        <span className="text-sm text-muted-foreground">{phaseGoals.length === 1 ? tr('goals.goals_workspace.1_goal', '1 goal') : `${phaseGoals.length} goals`}</span>
       </PhaseHeading>
       <GoalCarousel goals={phaseGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
       {phaseGoals.length < 2 ? <AddToPhase orgslug={orgslug} onCreate={() => void startGoal(phaseId)} creating={startingGoal} /> : null}
@@ -211,8 +212,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const backPhase = life && isSubject && selectedUuid ? life.phases.find((item) => item.id === phaseOfGoal(life, selectedUuid)) : undefined
 
   let content: React.ReactNode
-  if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
-  else if (detailError) content = failed('This goal could not load. It may no longer be available to you.', () => void retryDetail())
+  if (!selectedUuid) content = listError ? failed(tr('lit.goals_workspace.your_goals_could_not_load', 'Your goals could not load.'), () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
+  else if (detailError) content = failed(tr('lit.goals_workspace.this_goal_could_not_load', 'This goal could not load. It may no longer be available to you.'), () => void retryDetail())
   else {
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
     let body: React.ReactNode = null
@@ -227,8 +228,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   return <GeneralWrapperStyled>
     <main className="pb-16">
       {selectedUuid
-        ? <ContentPageHeader orgslug={orgslug} backLabel={backPhase ? backPhase.title : 'Plans'} onBack={backPhase ? () => router.push(getUriWithOrg(orgslug, routePaths.org.phase(backPhase.id))) : clear} compactBottomMargin />
-        : <h1 className="sr-only">Plans</h1>}
+        ? <ContentPageHeader orgslug={orgslug} backLabel={backPhase ? backPhase.title : tr('lit.goals_workspace.plans', 'Plans')} onBack={backPhase ? () => router.push(getUriWithOrg(orgslug, routePaths.org.phase(backPhase.id))) : clear} compactBottomMargin />
+        : <h1 className="sr-only">{tr('goals.goals_workspace.plans', 'Plans')}</h1>}
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
         <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug}>
@@ -252,11 +253,11 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
 function SignedOut({ orgslug }: { orgslug: string }) {
   const next = encodeURIComponent(getUriWithOrg(orgslug, '/plans'))
   return <GeneralWrapperStyled><div className="py-24 text-center">
-    <h1 className="text-3xl font-extrabold">Sign in to see your goals</h1>
-    <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">Use the email that received your invitation. New here? Create an account and your pending goal will be waiting.</p>
+    <h1 className="text-3xl font-extrabold">{tr('goals.goals_workspace.sign_in_to_see_your', 'Sign in to see your goals')}</h1>
+    <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{tr('goals.goals_workspace.use_the_email_that_received', 'Use the email that received your invitation. New here? Create an account and your pending goal will be waiting.')}</p>
     <div className="mt-6 flex justify-center gap-3">
-      <Button asChild variant="brand"><Link href={`/login?next=${next}`}>Sign in</Link></Button>
-      <Button asChild variant="surface"><Link href={`/signup?next=${next}`}>Create account</Link></Button>
+      <Button asChild variant="brand"><Link href={`/login?next=${next}`}>{tr('goals.goals_workspace.sign_in', 'Sign in')}</Link></Button>
+      <Button asChild variant="surface"><Link href={`/signup?next=${next}`}>{tr('goals.goals_workspace.create_account', 'Create account')}</Link></Button>
     </div>
   </div></GeneralWrapperStyled>
 }

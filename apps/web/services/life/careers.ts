@@ -117,11 +117,22 @@ export interface SwipeCard extends Omit<FullCareer, 'match'> {
 export interface CareerDeck { cards: SwipeCard[]; total: number; has_careers: boolean; has_quiz: boolean }
 
 /** The O*NET-SOC code a career resource is about, read from its O*NET OnLine link. */
+export interface QuestItem { key: 'interests' | 'skills' | 'styles' | 'home' | 'school'; title: string; unlocks: string; done: boolean; have?: number; need?: number }
+export interface MatchQuest { items: QuestItem[]; done: number; total: number; complete: boolean }
+export interface ExploreCareer extends Omit<Career, 'match'> { resource_uuid: string; match: number | null; skills_used: string[]; pay: { yearly: number; place: string; near: boolean } | null }
+/** The learner's own Explore: the "Unlock your matches" quest, careers ranked for them and their saved careers. */
+export interface ExploreHome {
+  quest: MatchQuest; careers: ExploreCareer[]; saved: Array<{ code: string; title: string; resource_uuid: string }>
+  home: HomeBase | null; has_quiz: boolean; has_skills: boolean; has_careers: boolean
+}
+export const exploreKey = (orgId?: number) => ['explore-home', orgId]
+
 export const careerCode = (url?: string | null) => (url || '').match(/(\d{2}-\d{4}\.\d{2})/)?.[1] || null
 
 export const careersApi = {
   profile: (code: string, orgId: number | undefined, token?: string) =>
     request<CareerProfile>(lifeUrl(`/careers/${encodeURIComponent(code)}/profile${orgId ? `?org_id=${orgId}` : ''}`), token),
+  explore: (orgId: number, token: string) => request<ExploreHome>(lifeUrl(`/explore?org_id=${orgId}`), token),
   deck: (orgId: number, token: string, size = 10) => request<CareerDeck>(lifeUrl(`/careers/deck?org_id=${orgId}&size=${size}`), token),
   links: (orgId: number, codes: string[], token: string) =>
     request<{ links: Record<string, string> }>(lifeUrl(`/careers/links?org_id=${orgId}&codes=${encodeURIComponent(codes.join(','))}`), token),

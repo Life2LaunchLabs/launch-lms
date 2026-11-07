@@ -5,6 +5,7 @@ import { BriefcaseBusiness, Globe, Instagram, Linkedin, MapPin, Pencil, X as XLo
 import type { LookId } from '@services/portfolio/records'
 import { EditButton, SPOT_RING, SpotTip, initials } from './parts'
 
+import { tr } from '@/lib/tr'
 // The portfolio's header, which each look builds its own way: Playful's banner with the photo over its edge,
 // Professional's profile column, Gallery's masthead with the name set huge, Volt's clean profile row
 // with no cover, and Arcade's angled splash. The pieces are the same; only how they're put together changes.
@@ -50,21 +51,21 @@ function Photo({ p, className }: { p: HeaderProps; className: string }) {
     {p.avatarUrl ? <img src={p.avatarUrl} alt="" className="h-full w-full object-cover" /> : initials(p.name)}
   </span>
   if (!p.editing) return face
-  return <button type="button" onClick={p.onProfile} aria-label="Edit your profile" className={`group/photo relative inline-block shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-foreground ${p.spots.avatar ? `border-2 ${SPOT_RING}` : ''}`}>
+  return <button type="button" onClick={p.onProfile} aria-label={tr('portfolio.portfolio_header.edit_your_profile', 'Edit your profile')} className={`group/photo relative inline-block shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-foreground ${p.spots.avatar ? `border-2 ${SPOT_RING}` : ''}`}>
     {face}
     <span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover/photo:opacity-100 group-focus-visible/photo:opacity-100"><Pencil className="h-3.5 w-3.5" /></span>
   </button>
 }
 
 function Name({ p, className, children }: { p: HeaderProps; className: string; children?: ReactNode }) {
-  return <><h1 data-pf-name className={className}>{p.editing && !p.hasName ? <button type="button" onClick={p.onProfile} className="italic text-muted-foreground hover:text-foreground">Add your name</button> : children || p.name}</h1>
+  return <><h1 data-pf-name className={className}>{p.editing && !p.hasName ? <button type="button" onClick={p.onProfile} className="italic text-muted-foreground hover:text-foreground">{tr('portfolio.portfolio_header.add_your_name', 'Add your name')}</button> : children || p.name}</h1>
     {/* The same hover pencil the sections have: it opens your name, intro, photo and the rest. */}
-    {p.editing ? <EditButton label="your details" onClick={p.onProfile} className="self-center group-hover/hdr:opacity-100" /> : null}</>
+    {p.editing ? <EditButton label={tr('portfolio.portfolio_header.your_details', 'your details')} onClick={p.onProfile} className="self-center group-hover/hdr:opacity-100" /> : null}</>
 }
 
 function Intro({ p, className = '' }: { p: HeaderProps; className?: string }) {
   if (p.headline) return <p data-pf-intro className={`line-clamp-2 max-w-[60ch] ${className}`}>{p.headline}</p>
-  return p.editing ? <button type="button" onClick={p.onProfile} className={`text-left italic text-muted-foreground hover:text-foreground ${className}`}>Add a one-line intro (optional)</button> : null
+  return p.editing ? <button type="button" onClick={p.onProfile} className={`text-left italic text-muted-foreground hover:text-foreground ${className}`}>{tr('portfolio.portfolio_header.add_a_one_line_intro', 'Add a one-line intro (optional)')}</button> : null
 }
 
 const NameSpot = ({ p, className = 'relative order-last' }: { p: HeaderProps; className?: string }) => p.spots.name ? <SpotTip label={p.spots.name} className={className} /> : null
@@ -131,7 +132,7 @@ function GalleryHeader({ p }: { p: HeaderProps }) {
   const last = words.length > 1 ? words.pop() : ''
   return <header data-pf-header="masthead" className="relative pt-1">
     <div className="flex min-h-[38px] flex-wrap items-center justify-between gap-3 border-b border-[var(--look-line)] pb-2 font-mono text-[11px] uppercase tracking-[0.14em]">
-      <span className="truncate">Portfolio{p.place ? ` — ${p.place}` : ''}</span>
+      <span className="truncate">{tr('portfolio.portfolio_header.portfolio', 'Portfolio')}{p.place ? ` — ${p.place}` : ''}</span>
       <Corner p={p} onBanner={false} className="relative" />
     </div>
     {p.spots.settings ? <SpotTip label={p.spots.settings} className="absolute right-0 top-[44px]" /> : null}
@@ -144,9 +145,9 @@ function GalleryHeader({ p }: { p: HeaderProps }) {
       <Photo p={p} className="h-16 w-16 rounded-none text-[20px]" />
       <div className="grid gap-2"><Intro p={p} className="font-['Instrument_Serif',Georgia,serif] text-[24px] leading-[1.15] tracking-[-0.01em]" /><div className="flex flex-wrap items-center gap-2">{p.marks}</div></div>
       <dl className="grid gap-1 text-muted-foreground">
-        {p.now ? <div><dt className="sr-only">Now</dt><dd>{p.now}</dd></div> : null}
-        {p.place ? <div><dt className="sr-only">Based in</dt><dd>{p.place}</dd></div> : null}
-        {p.socials.length ? <div><dt className="sr-only">Links</dt><dd className="flex flex-wrap gap-x-3">{p.socials.map((social) => <a key={social.type} href={hrefOf(social.url)} target="_blank" rel="noreferrer" className="underline decoration-1 underline-offset-4 hover:text-foreground">{social.type}</a>)}</dd></div> : null}
+        {p.now ? <div><dt className="sr-only">{tr('portfolio.portfolio_tiles.now', 'Now')}</dt><dd>{p.now}</dd></div> : null}
+        {p.place ? <div><dt className="sr-only">{tr('portfolio.portfolio_header.based_in', 'Based in')}</dt><dd>{p.place}</dd></div> : null}
+        {p.socials.length ? <div><dt className="sr-only">{tr('portfolio.portfolio_tiles.links', 'Links')}</dt><dd className="flex flex-wrap gap-x-3">{p.socials.map((social) => <a key={social.type} href={hrefOf(social.url)} target="_blank" rel="noreferrer" className="underline decoration-1 underline-offset-4 hover:text-foreground">{social.type}</a>)}</dd></div> : null}
       </dl>
     </div>
     <div className="mt-6 flex flex-wrap gap-2">{p.actions}</div>
@@ -195,8 +196,8 @@ function ArcadeHeader({ p }: { p: HeaderProps }) {
       </div>
     </div>
     {p.now || p.place ? <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2 px-1 sm:px-5" data-arcade-readout>
-      {p.now ? <div><dt>Now</dt><dd>{p.now}</dd></div> : null}
-      {p.place ? <div><dt>Location</dt><dd>{p.place}</dd></div> : null}
+      {p.now ? <div><dt>{tr('portfolio.portfolio_tiles.now', 'Now')}</dt><dd>{p.now}</dd></div> : null}
+      {p.place ? <div><dt>{tr('portfolio.portfolio_header_parts.location', 'Location')}</dt><dd>{p.place}</dd></div> : null}
     </dl> : null}
     <div className="mt-4 flex flex-wrap items-center gap-2 px-1 sm:px-5">{p.actions}<Socials socials={p.socials} className="ml-auto max-sm:ml-0" /></div>
     <div aria-hidden="true" data-arcade-rule className="mt-5" />

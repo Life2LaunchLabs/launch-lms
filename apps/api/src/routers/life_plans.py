@@ -20,6 +20,7 @@ from src.security.superadmin import require_superadmin
 from src.services.life_plans import careers as career_service
 from src.services.life_plans import catalog as catalog_service
 from src.services.life_plans import datasets as dataset_service
+from src.services.life_plans import explore as explore_service
 from src.services.life_plans import estimates as estimate_service
 from src.services.life_plans import importers
 from src.services.life_plans import places as place_service
@@ -114,6 +115,12 @@ def _signed_in(user) -> PublicUser:
     if not getattr(user, "id", None) or getattr(user, "user_uuid", "") == "user_anonymous":
         raise HTTPException(status_code=401, detail="Sign in to explore careers.")
     return user
+
+
+@router.get("/explore")
+def api_explore_home(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The learner's own Explore: the "Unlock your matches" quest, the careers that fit them best, and their saved careers."""
+    return explore_service.home(db, _signed_in(user), org_id)
 
 
 @router.get("/careers/deck")

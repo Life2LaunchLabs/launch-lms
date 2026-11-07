@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import type { Resource, ResourceType } from '@services/resources/resources'
 
+import { tr } from '@/lib/tr'
 export function resourceImage(resource: Pick<Resource, 'thumbnail_image' | 'owner_org_uuid' | 'resource_uuid' | 'cover_image_url'>) {
   return resource.thumbnail_image && resource.owner_org_uuid
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
@@ -14,15 +15,15 @@ export function resourceImage(resource: Pick<Resource, 'thumbnail_image' | 'owne
 
 /** Each type's name, icon, button words and color. The color is fixed per type, so a row scans at a glance. */
 export const RESOURCE_KIND: Record<ResourceType, { label: string; icon: LucideIcon; verb: string; color: string }> = {
-  video: { label: 'Video', icon: Play, verb: 'Watch on', color: '#e5484d' },
-  article: { label: 'Article', icon: FileText, verb: 'Read on', color: '#3b7bf0' },
-  guide: { label: 'Guide', icon: BookOpen, verb: 'Open on', color: '#1f9d63' },
-  tool: { label: 'Tool', icon: Wrench, verb: 'Open on', color: '#0e9fb2' },
-  assessment: { label: 'Quiz', icon: ClipboardCheck, verb: 'Take it on', color: '#8155ef' },
-  course: { label: 'Course', icon: GraduationCap, verb: 'Start on', color: '#ec8320' },
-  school: { label: 'School', icon: School, verb: 'Visit', color: '#d6407a' },
-  career: { label: 'Career', icon: Briefcase, verb: 'Full report on', color: '#e0a21b' },
-  other: { label: 'Link', icon: Link2, verb: 'Open on', color: '#5f6f82' },
+  video: { get label() { return tr('discover.resource_cover.video', 'Video') }, icon: Play, get verb() { return tr('lit.resource_cover.watch_on', 'Watch on') }, color: '#e5484d' },
+  article: { get label() { return tr('discover.resource_cover.article', 'Article') }, icon: FileText, get verb() { return tr('lit.resource_cover.read_on', 'Read on') }, color: '#3b7bf0' },
+  guide: { get label() { return tr('discover.resource_cover.guide', 'Guide') }, icon: BookOpen, get verb() { return tr('lit.resource_cover.open_on', 'Open on') }, color: '#1f9d63' },
+  tool: { get label() { return tr('discover.resource_cover.tool', 'Tool') }, icon: Wrench, get verb() { return tr('lit.resource_cover.open_on', 'Open on') }, color: '#0e9fb2' },
+  assessment: { get label() { return tr('discover.resource_cover.quiz', 'Quiz') }, icon: ClipboardCheck, get verb() { return tr('lit.resource_cover.take_it_on', 'Take it on') }, color: '#8155ef' },
+  course: { get label() { return tr('discover.resource_cover.course', 'Course') }, icon: GraduationCap, get verb() { return tr('lit.resource_cover.start_on', 'Start on') }, color: '#ec8320' },
+  school: { get label() { return tr('discover.resource_cover.school', 'School') }, icon: School, get verb() { return tr('lit.resource_cover.visit', 'Visit') }, color: '#d6407a' },
+  career: { get label() { return tr('discover.resource_cover.career', 'Career') }, icon: Briefcase, get verb() { return tr('lit.resource_cover.full_report_on', 'Full report on') }, color: '#e0a21b' },
+  other: { get label() { return tr('discover.resource_cover.link', 'Link') }, icon: Link2, get verb() { return tr('lit.resource_cover.open_on', 'Open on') }, color: '#5f6f82' },
 }
 
 export function resourceKind(type: ResourceType) {

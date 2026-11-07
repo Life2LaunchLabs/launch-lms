@@ -11,6 +11,7 @@ import type { PersonSummary } from '@services/goals/types'
 import { ResourcePickerModal } from '@components/Resources/admin/ResourcePicker'
 import { OptionIcon, ZWSP, chipFor, detail, ghostFor, label, optionsFor, paintDraft, resourceChip, type Draft, type Option, type TagOrg } from './composerParts'
 
+import { tr } from '@/lib/tr'
 export type { TagOrg }
 
 export type TagComposerHandle = {
@@ -249,12 +250,12 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
           <span className="block truncate text-sm font-semibold">{label(option)}</span>
           <span className="block truncate text-xs text-muted-foreground">{detail(option)}</span>
         </span>
-      </button>) : <p className="px-2 py-2 text-sm text-muted-foreground">{draft.stage === 'person' ? 'No one by that name' : 'Nothing matches'}</p>}
+      </button>) : <p className="px-2 py-2 text-sm text-muted-foreground">{draft.stage === 'person' ? tr('connect.tag_composer.no_one_by_that_name', 'No one by that name') : tr('connect.tag_composer.nothing_matches', 'Nothing matches')}</p>}
     </div> : null}
     <div className="hub-composer-shell rounded-[1.4rem] p-2">
       <div className="relative">
         {empty ? <span aria-hidden="true" className="pointer-events-none absolute left-3 right-3 top-2.5 truncate text-base leading-6 text-muted-foreground">{disabled || placeholder}</span> : null}
-        <div ref={editor} role="textbox" aria-multiline="true" aria-label="Message" contentEditable={!disabled && !sending} suppressContentEditableWarning
+        <div ref={editor} role="textbox" aria-multiline="true" aria-label={tr('connect.tag_composer.message', 'Message')} contentEditable={!disabled && !sending} suppressContentEditableWarning
           className={cn('max-h-48 min-h-11 overflow-y-auto whitespace-pre-wrap break-words px-3 py-2.5 text-base leading-6 outline-none', draft && 'caret-transparent')}
           onInput={watch}
           onBlur={() => setTimeout(() => { if (document.activeElement !== editor.current) settle() }, 120)}
@@ -278,17 +279,17 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
       <div className="flex h-9 items-center justify-between gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={Boolean(disabled)} aria-label="Tag a plan, step, person or organization"><Plus className="h-4 w-4" /></Button>
+            <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled={Boolean(disabled)} aria-label={tr('connect.tag_composer.tag_a_plan_step_person', 'Tag a plan, step, person or organization')}><Plus className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="top" className="w-60" onCloseAutoFocus={(event) => event.preventDefault()}>
-            <DropdownMenuItem onSelect={() => setTimeout(() => begin('/'), 0)}><Slash /> Tag a plan or step</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setTimeout(() => begin('@'), 0)}><AtSign /> Tag a person or organization</DropdownMenuItem>
-            {resources ? <DropdownMenuItem onSelect={() => setPicking(true)}><Library /> Share a resource</DropdownMenuItem> : null}
+            <DropdownMenuItem onSelect={() => setTimeout(() => begin('/'), 0)}><Slash />{' '}{tr('connect.tag_composer.tag_a_plan_or_step', 'Tag a plan or step')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setTimeout(() => begin('@'), 0)}><AtSign />{' '}{tr('connect.tag_composer.tag_a_person_or_organization', 'Tag a person or organization')}</DropdownMenuItem>
+            {resources ? <DropdownMenuItem onSelect={() => setPicking(true)}><Library />{' '}{tr('connect.tag_composer.share_a_resource', 'Share a resource')}</DropdownMenuItem> : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        {resources ? <ResourcePickerModal open={picking} setOpen={setPicking} title="Share a resource" action="Share" onPick={share} /> : null}
-        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground"><b className="font-semibold">/</b> plans<span className="hidden sm:inline"> and steps</span> · <b className="font-semibold">@</b> people</span>
-        <Button type="button" size="icon" className="h-9 w-9 rounded-xl" disabled={empty || sending || Boolean(disabled)} aria-label="Send message" onMouseDown={(event) => event.preventDefault()} onClick={() => void send()}>
+        {resources ? <ResourcePickerModal open={picking} setOpen={setPicking} title={tr('connect.tag_composer.share_a_resource', 'Share a resource')} action="Share" onPick={share} /> : null}
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground"><b className="font-semibold">/</b>{' '}{tr('connect.tag_composer.plans', 'plans')}<span className="hidden sm:inline">{' '}{tr('connect.tag_composer.and_steps', 'and steps')}</span> · <b className="font-semibold">@</b>{' '}{tr('connect.tag_composer.people', 'people')}</span>
+        <Button type="button" size="icon" className="h-9 w-9 rounded-xl" disabled={empty || sending || Boolean(disabled)} aria-label={tr('coach.hub_composer.send_message', 'Send message')} onMouseDown={(event) => event.preventDefault()} onClick={() => void send()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>

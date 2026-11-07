@@ -7,14 +7,15 @@ import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { lifeApi, type PlaceOption } from '@services/life/life'
 
-export const PHASE_KINDS: [string, string][] = [
-  ['school', 'In school'],
-  ['study', 'College or training'],
-  ['work', 'Working'],
-  ['gap', 'Gap or travel'],
-  ['family', 'Family or care'],
-  ['other', 'Something else'],
-]
+import { tr } from '@/lib/tr'
+export const PHASE_KINDS = (): [string, string][] => ([
+  ['school', tr('lit.phase_form.in_school', 'In school')],
+  ['study', tr('lit.phase_form.college_or_training', 'College or training')],
+  ['work', tr('lit.phase_form.working', 'Working')],
+  ['gap', tr('lit.phase_form.gap_or_travel', 'Gap or travel')],
+  ['family', tr('lit.phase_form.family_or_care', 'Family or care')],
+  ['other', tr('lit.phase_stack.something_else', 'Something else')],
+])
 
 export interface PhaseDraft { title: string; kind: string; place: string | null; placeLabel: string; months: number }
 
@@ -34,7 +35,7 @@ export function PlacePicker({ token, value, label, onPick }: { token?: string; v
     return (
       <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center gap-2 rounded-xl border border-input bg-background px-3 py-2 text-left text-sm">
         <MapPin className="size-4 text-muted-foreground" />
-        <span className={value ? 'font-semibold' : 'text-muted-foreground'}>{value ? label : 'Pick a town, county or state'}</span>
+        <span className={value ? 'font-semibold' : 'text-muted-foreground'}>{value ? label : tr('budget.phase_form.pick_a_town_county_or', 'Pick a town, county or state')}</span>
       </button>
     )
   }
@@ -42,9 +43,9 @@ export function PlacePicker({ token, value, label, onPick }: { token?: string; v
     <div className="rounded-xl border border-input bg-background">
       <div className="flex items-center gap-2 border-b border-border px-3">
         <Search className="size-4 text-muted-foreground" />
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search places" aria-label="Search places" className="h-10 w-full bg-transparent text-sm outline-none" />
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr('budget.phase_form.search_places', 'Search places')} aria-label={tr('budget.phase_form.search_places', 'Search places')} className="h-10 w-full bg-transparent text-sm outline-none" />
       </div>
-      <ul className="max-h-56 overflow-auto py-1" role="listbox" aria-label="Places">
+      <ul className="max-h-56 overflow-auto py-1" role="listbox" aria-label={tr('budget.phase_form.places', 'Places')}>
         {rows.map((r) => (
           <li key={r.key}>
             <button type="button" role="option" aria-selected={value === r.key} onClick={() => { onPick(r); setOpen(false); setQ('') }} className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted">
@@ -52,7 +53,7 @@ export function PlacePicker({ token, value, label, onPick }: { token?: string; v
             </button>
           </li>
         ))}
-        {!rows.length && <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>}
+        {!rows.length && <li className="px-3 py-2 text-sm text-muted-foreground">{tr('budget.phase_form.no_matches', 'No matches')}</li>}
       </ul>
     </div>
   )
@@ -68,32 +69,32 @@ export function PhaseForm({ token, initial, submitLabel, onSubmit, onCancel }: {
   return (
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (d.title.trim() && !tooShort) onSubmit({ ...d, title: d.title.trim() }) }}>
       <div className="space-y-1.5">
-        <Label htmlFor="phase-title">What's this phase?</Label>
-        <Input id="phase-title" value={d.title} maxLength={120} placeholder="High school in Eugene" onChange={(e) => setD({ ...d, title: e.target.value })} />
+        <Label htmlFor="phase-title">{tr('budget.phase_form.what_s_this_phase', 'What\'s this phase?')}</Label>
+        <Input id="phase-title" value={d.title} maxLength={120} placeholder={tr('budget.phase_form.high_school_in_eugene', 'High school in Eugene')} onChange={(e) => setD({ ...d, title: e.target.value })} />
       </div>
       <div className="space-y-1.5">
-        <Label>What you're mostly doing</Label>
+        <Label>{tr('budget.phase_form.what_you_re_mostly_doing', 'What you\'re mostly doing')}</Label>
         <div className="flex flex-wrap gap-2">
-          {PHASE_KINDS.map(([k, t]) => (
+          {PHASE_KINDS().map(([k, t]) => (
             <button key={k} type="button" aria-pressed={d.kind === k} onClick={() => setD({ ...d, kind: k })} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${d.kind === k ? 'border-transparent bg-foreground text-background' : 'border-border text-foreground hover:bg-muted'}`}>{t}</button>
           ))}
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label>Where</Label>
+        <Label>{tr('budget.phase_form.where', 'Where')}</Label>
         <PlacePicker token={token} value={d.place} label={d.placeLabel} onPick={(p) => setD({ ...d, place: p?.key ?? null, placeLabel: p?.label ?? '' })} />
-        <p className="text-xs text-muted-foreground">Estimates are for this place when we have them.</p>
+        <p className="text-xs text-muted-foreground">{tr('budget.phase_form.estimates_are_for_this_place', 'Estimates are for this place when we have them.')}</p>
       </div>
       <div className="space-y-1.5">
-        <Label>How long</Label>
+        <Label>{tr('budget.phase_form.how_long', 'How long')}</Label>
         <div className="flex items-center gap-2 text-sm">
-          <Input aria-label="Years" type="number" min={0} max={100} className="w-20" value={years} onChange={(e) => setDur(Number(e.target.value) || 0, months)} /> years
-          <Input aria-label="Months" type="number" min={0} max={11} className="w-20" value={months} onChange={(e) => setDur(years, Math.min(11, Number(e.target.value) || 0))} aria-invalid={tooShort} aria-describedby={tooShort ? 'phase-length-error' : undefined} /> months
+          <Input aria-label={tr('budget.phase_form.years_2', 'Years')} type="number" min={0} max={100} className="w-20" value={years} onChange={(e) => setDur(Number(e.target.value) || 0, months)} />{' '}{tr('budget.phase_form.years', 'years')}
+          <Input aria-label={tr('budget.phase_form.months_2', 'Months')} type="number" min={0} max={11} className="w-20" value={months} onChange={(e) => setDur(years, Math.min(11, Number(e.target.value) || 0))} aria-invalid={tooShort} aria-describedby={tooShort ? 'phase-length-error' : undefined} />{' '}{tr('budget.phase_form.months', 'months')}
         </div>
-        {tooShort && <p id="phase-length-error" role="alert" className="text-sm font-semibold text-destructive">A phase needs to last at least one month.</p>}
+        {tooShort && <p id="phase-length-error" role="alert" className="text-sm font-semibold text-destructive">{tr('budget.phase_form.a_phase_needs_to_last', 'A phase needs to last at least one month.')}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
-        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
+        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>{tr('careers.add_to_plans.cancel', 'Cancel')}</Button>}
         <Button type="submit" disabled={!d.title.trim() || tooShort}>{submitLabel}</Button>
       </div>
     </form>

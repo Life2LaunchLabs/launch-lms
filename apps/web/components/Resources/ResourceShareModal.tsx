@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { SiFacebook, SiReddit, SiWhatsapp, SiX } from '@icons-pack/react-simple-icons'
 import { Check, Linkedin, Link2, Share2, X } from 'lucide-react'
 
+import { tr } from '@/lib/tr'
 export default function ResourceShareModal({
   open,
   onClose,
@@ -110,7 +111,7 @@ export default function ResourceShareModal({
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted"
             >
               <Share2 size={16} />
-              Share
+              {tr('resources.resource_share_modal.share', 'Share')}
             </button>
           )}
           {shareLinks.map((link) => {
@@ -137,7 +138,7 @@ export default function ResourceShareModal({
             }`}
           >
             {copied ? <Check size={16} /> : <Link2 size={16} />}
-            {copied ? 'Copied' : 'Copy link'}
+            {copied ? tr('resources.resource_share_modal.copied', 'Copied') : tr('resources.resource_share_modal.copy_link', 'Copy link')}
           </button>
         </div>
       </div>

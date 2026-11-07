@@ -25,6 +25,7 @@ import Link from 'next/link'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
 
+import { tr } from '@/lib/tr'
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const sharedName = (person?: { username: string; name?: string } | null) => person ? (person.name?.split(' ')[0] || `@${person.username}`) : undefined
 
@@ -70,11 +71,11 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
     } catch (e: any) {
       setSaving('error')
       if (e?.status === 409) {
-        toast.error('Your life plan changed in another window. Loading the newest version.')
+        toast.error(tr('budget.life_plan_workspace.your_life_plan_changed_in', 'Your life plan changed in another window. Loading the newest version.'))
         const fresh = await mutate()
         setFull(fresh?.plan?.document ? normalize(fresh.plan.document) : null)
         revision.current = fresh?.plan?.revision ?? null
-      } else toast.error("Couldn't save your life plan. Your last change is kept on this page.")
+      } else toast.error(tr('budget.life_plan_workspace.couldn_t_save_your_life', 'Couldn\'t save your life plan. Your last change is kept on this page.'))
     }
   }, [token, mutate, of])
 
@@ -99,12 +100,12 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   if (!token || isLoading || (data && !ready)) {
     return <GeneralWrapperStyled><div className="mx-auto max-w-[860px] space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-40 w-full" /><Skeleton className="h-96 w-full" /></div></GeneralWrapperStyled>
   }
-  if (error) return <GeneralWrapperStyled><p className="text-muted-foreground">{of ? 'This plan isn’t shared with you.' : 'Couldn’t load your life plan. Try again in a moment.'}</p></GeneralWrapperStyled>
-  if (of && (!doc || !doc.phases.length)) return <GeneralWrapperStyled><p className="text-muted-foreground">{owner || 'They'} haven’t started a life plan yet.</p></GeneralWrapperStyled>
+  if (error) return <GeneralWrapperStyled><p className="text-muted-foreground">{of ? tr('budget.life_plan_workspace.this_plan_isn_t_shared', 'This plan isn’t shared with you.') : tr('budget.life_plan_workspace.couldn_t_load_your_life', 'Couldn’t load your life plan. Try again in a moment.')}</p></GeneralWrapperStyled>
+  if (of && (!doc || !doc.phases.length)) return <GeneralWrapperStyled><p className="text-muted-foreground">{owner || tr('budget.life_plan_workspace.they', 'They')}{' '}{tr('budget.life_plan_workspace.haven_t_started_a_life', 'haven’t started a life plan yet.')}</p></GeneralWrapperStyled>
   if (!doc || !doc.phases.length) {
     return <GeneralWrapperStyled><div className="py-16 text-center">
-      <p className="text-lg font-bold">Budgets belong to a phase of your plan.</p>
-      <Button variant="brand" className="mt-4" asChild><Link href={getUriWithOrg(orgslug, '/plans')}>Go to Plans</Link></Button>
+      <p className="text-lg font-bold">{tr('budget.life_plan_workspace.budgets_belong_to_a_phase', 'Budgets belong to a phase of your plan.')}</p>
+      <Button variant="brand" className="mt-4" asChild><Link href={getUriWithOrg(orgslug, '/plans')}>{tr('budget.life_plan_workspace.go_to_plans', 'Go to Plans')}</Link></Button>
     </div></GeneralWrapperStyled>
   }
 
@@ -131,15 +132,15 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   return (
     <LifeContext.Provider value={ctx}>
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
-        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? 'Back' : `Back to ${phase.title}`} />
+        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} />
         <PhaseChart />
         <div className="mb-3 mt-8 flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-extrabold tracking-tight">Budget</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">{tr('budget.context_bar.budget', 'Budget')}</h2>
           <div className="ml-auto flex items-center gap-2">
-          {of || !phase.lines.length ? null : <Button variant="ghost" size="sm" onClick={() => setEstOpen(true)}><Sparkles size={15} />Estimates</Button>}
-          <div className="flex rounded-full bg-muted p-1" role="group" aria-label="Show amounts per">
+          {of || !phase.lines.length ? null : <Button variant="ghost" size="sm" onClick={() => setEstOpen(true)}><Sparkles size={15} />{tr('budget.estimates_dialog.estimates', 'Estimates')}</Button>}
+          <div className="flex rounded-full bg-muted p-1" role="group" aria-label={tr('budget.life_plan_workspace.show_amounts_per', 'Show amounts per')}>
             {(['wk', 'mo', 'yr'] as Per[]).map((p) => (
-              <button key={p} type="button" onClick={() => setPer(p)} aria-pressed={per === p} className={`rounded-full px-3 py-1 text-sm font-semibold ${per === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>{p === 'wk' ? 'Week' : p === 'mo' ? 'Month' : 'Year'}</button>
+              <button key={p} type="button" onClick={() => setPer(p)} aria-pressed={per === p} className={`rounded-full px-3 py-1 text-sm font-semibold ${per === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>{p === 'wk' ? tr('budget.life_plan_workspace.week', 'Week') : p === 'mo' ? tr('budget.life_plan_workspace.month', 'Month') : tr('budget.life_plan_workspace.year', 'Year')}</button>
             ))}
           </div>
           </div>
@@ -152,7 +153,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
           <YouOwnCard />
         </fieldset>
         <p className="mt-6 text-xs text-muted-foreground">
-          Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Taxes are a rough estimate on pay from work, from the latest published federal and Oregon rates; open Taxes under Income to see how, or use your own rate.
+          {tr('budget.life_plan_workspace.estimates_appear_only_where_we', 'Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Taxes are a rough estimate on pay from work, from the latest published federal and Oregon rates; open Taxes under Income to see how, or use your own rate.')}
         </p>
       </div>
       {of ? null : <AddTray target={add} onClose={() => setAdd(null)} />}

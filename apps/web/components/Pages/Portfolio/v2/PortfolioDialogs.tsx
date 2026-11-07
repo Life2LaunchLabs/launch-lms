@@ -16,6 +16,7 @@ import { SOCIAL_OPTIONS, normalizeSocialInput, shellSocials, socialHandle } from
 import type { OpenChange } from './parts'
 import type { Highlight, SetShell, Shell } from '../portfolioTypes'
 
+import { tr } from '@/lib/tr'
 // The editors the new front page opens itself: who you are, the highlights band and your links.
 
 /** Your name (legal, for rosters and reports), the name you go by, a one-line intro and where you are. */
@@ -27,7 +28,7 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
     if (!token) return
     const form = new FormData(event.currentTarget)
     const text = (name: string) => String(form.get(name) || '').trim()
-    if (!text('first_name')) return toast.error('Add your first name')
+    if (!text('first_name')) return toast.error(tr('portfolio.portfolio_dialogs.add_your_first_name', 'Add your first name'))
     setBusy(true)
     try {
       const contact = { email: text('resume_email'), phone: text('resume_phone') }
@@ -37,37 +38,37 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
       const current = await getMyPortfolio(token)
       setShell(await updateMyPortfolio({ revision: current.portfolio.revision, headline: text('headline'), location_label: text('location_label') }, token))
       onOpenChange(false)
-      toast.success('Profile updated')
-    } catch (error: any) { toast.error(error?.message || 'Could not update your profile') } finally { setBusy(false) }
+      toast.success(tr('portfolio.portfolio_dialogs.profile_updated', 'Profile updated'))
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_dialogs.could_not_update_your_profile', 'Could not update your profile')) } finally { setBusy(false) }
   }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
-      <DialogHeader><DialogTitle>Your profile</DialogTitle><DialogDescription>This is you everywhere in the app. Your teachers’ rosters and reports use your legal name.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{tr('portfolio.portfolio_dialogs.your_profile', 'Your profile')}</DialogTitle><DialogDescription>{tr('portfolio.portfolio_dialogs.this_is_you_everywhere_in', 'This is you everywhere in the app. Your teachers’ rosters and reports use your legal name.')}</DialogDescription></DialogHeader>
       <form id="portfolio-profile" onSubmit={save} className="grid gap-4">
-        <button type="button" onClick={onAvatarClick} className="group relative w-fit rounded-full" aria-label="Change your photo">{avatar}<span className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-foreground text-background"><Camera className="h-4 w-4" /></span></button>
+        <button type="button" onClick={onAvatarClick} className="group relative w-fit rounded-full" aria-label={tr('portfolio.portfolio_dialogs.change_your_photo', 'Change your photo')}>{avatar}<span className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-foreground text-background"><Camera className="h-4 w-4" /></span></button>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5"><Label htmlFor="pf-first">First name</Label><Input id="pf-first" name="first_name" defaultValue={identity?.first_name || ''} maxLength={80} required autoComplete="given-name" /></div>
-          <div className="grid gap-1.5"><Label htmlFor="pf-last">Last name</Label><Input id="pf-last" name="last_name" defaultValue={identity?.last_name || ''} maxLength={80} autoComplete="family-name" /></div>
+          <div className="grid gap-1.5"><Label htmlFor="pf-first">{tr('portfolio.portfolio_dialogs.first_name', 'First name')}</Label><Input id="pf-first" name="first_name" defaultValue={identity?.first_name || ''} maxLength={80} required autoComplete="given-name" /></div>
+          <div className="grid gap-1.5"><Label htmlFor="pf-last">{tr('portfolio.portfolio_dialogs.last_name', 'Last name')}</Label><Input id="pf-last" name="last_name" defaultValue={identity?.last_name || ''} maxLength={80} autoComplete="family-name" /></div>
         </div>
-        <div className="grid gap-1.5"><Label htmlFor="pf-preferred">Name you go by <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-preferred" name="preferred_name" defaultValue={identity?.preferred_name || ''} maxLength={80} placeholder={identity?.legal_name || ''} autoComplete="nickname" /><p className="text-xs text-muted-foreground">The whole name you want people to see, like “Mya Rivera”. It’s shown on your portfolio and around the app instead of your legal name.</p></div>
-        <div className="grid gap-1.5"><Label htmlFor="pf-headline">One-line intro <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-headline" name="headline" defaultValue={shell.portfolio.headline || ''} maxLength={140} placeholder="Artist and future UX designer" /></div>
-        <div className="grid gap-1.5"><Label htmlFor="pf-location">Where you are <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="pf-location" name="location_label" defaultValue={shell.portfolio.location_label || ''} maxLength={80} placeholder="Eugene, OR" /></div>
+        <div className="grid gap-1.5"><Label htmlFor="pf-preferred">{tr('portfolio.portfolio_dialogs.name_you_go_by', 'Name you go by')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-preferred" name="preferred_name" defaultValue={identity?.preferred_name || ''} maxLength={80} placeholder={identity?.legal_name || ''} autoComplete="nickname" /><p className="text-xs text-muted-foreground">{tr('portfolio.portfolio_dialogs.the_whole_name_you_want', 'The whole name you want people to see, like “Mya Rivera”. It’s shown on your portfolio and around the app instead of your legal name.')}</p></div>
+        <div className="grid gap-1.5"><Label htmlFor="pf-headline">{tr('portfolio.portfolio_dialogs.one_line_intro', 'One-line intro')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-headline" name="headline" defaultValue={shell.portfolio.headline || ''} maxLength={140} placeholder={tr('portfolio.portfolio_dialogs.artist_and_future_ux_designer', 'Artist and future UX designer')} /></div>
+        <div className="grid gap-1.5"><Label htmlFor="pf-location">{tr('portfolio.portfolio_dialogs.where_you_are', 'Where you are')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-location" name="location_label" defaultValue={shell.portfolio.location_label || ''} maxLength={80} placeholder={tr('portfolio.portfolio_dialogs.eugene_or', 'Eugene, OR')} /></div>
         {/* Printed on the résumé so an employer can reach them; the portfolio never shows these. */}
         <fieldset className="grid gap-3 rounded-2xl border border-border p-3.5">
-          <legend className="px-1 text-sm font-bold">For your résumé</legend>
-          <p className="-mt-1 text-xs text-muted-foreground">Only printed on your résumé, so employers can reach you. Your portfolio never shows them.</p>
+          <legend className="px-1 text-sm font-bold">{tr('portfolio.portfolio_dialogs.for_your_r_sum', 'For your résumé')}</legend>
+          <p className="-mt-1 text-xs text-muted-foreground">{tr('portfolio.portfolio_dialogs.only_printed_on_your_r', 'Only printed on your résumé, so employers can reach you. Your portfolio never shows them.')}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5"><Label htmlFor="pf-resume-email">Email</Label><Input id="pf-resume-email" name="resume_email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || 'you@example.com'} autoComplete="email" autoFocus={mark === RESUME_CONTACT_ITEM} /></div>
-            <div className="grid gap-1.5"><Label htmlFor="pf-resume-phone">Phone</Label><Input id="pf-resume-phone" name="resume_phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
+            <div className="grid gap-1.5"><Label htmlFor="pf-resume-email">{tr('portfolio.resume_builder.email', 'Email')}</Label><Input id="pf-resume-email" name="resume_email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || tr('portfolio.resume_builder.you_example_com', 'you@example.com')} autoComplete="email" autoFocus={mark === RESUME_CONTACT_ITEM} /></div>
+            <div className="grid gap-1.5"><Label htmlFor="pf-resume-phone">{tr('portfolio.resume_builder.phone', 'Phone')}</Label><Input id="pf-resume-phone" name="resume_phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
           </div>
         </fieldset>
       </form>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Marked mark={mark}><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></Marked></DialogFooter>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Marked mark={mark}><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></Marked></DialogFooter>
     </DialogContent>
   </Dialog>
 }
 
-const EXAMPLES: Highlight[] = [{ value: '300+', label: 'hours worked' }, { value: '3.8', label: 'GPA' }, { value: '1st', label: 'place, regional art show' }]
+const EXAMPLES: Highlight[] = [{ value: '300+', get label() { return tr('portfolio.portfolio_dialogs.hours_worked', 'hours worked') } }, { value: '3.8', get label() { return tr('portfolio.portfolio_dialogs.gpa', 'GPA') } }, { value: '1st', get label() { return tr('portfolio.portfolio_dialogs.place_regional_art_show', 'place, regional art show') } }]
 
 /** Up to four numbers people notice first. */
 export function HighlightsDialog({ open, onOpenChange, shell, setShell, token }: { open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string }) {
@@ -77,26 +78,26 @@ export function HighlightsDialog({ open, onOpenChange, shell, setShell, token }:
   async function save() {
     if (!token) return
     const filled = rows.map((row) => ({ value: row.value.trim(), label: row.label.trim() })).filter((row) => row.value || row.label)
-    if (filled.some((row) => !row.value || !row.label)) return toast.error('Each highlight needs a number and what it means')
+    if (filled.some((row) => !row.value || !row.label)) return toast.error(tr('portfolio.portfolio_dialogs.each_highlight_needs_a_number', 'Each highlight needs a number and what it means'))
     setBusy(true)
     try {
       const saved = await updateMyHighlights(filled, token)
       setShell({ ...shell, highlights: saved.highlights })
       onOpenChange(false)
-    } catch (error: any) { toast.error(error?.message || 'Could not save your highlights') } finally { setBusy(false) }
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_dialogs.could_not_save_your_highlights', 'Could not save your highlights')) } finally { setBusy(false) }
   }
   return <Dialog open={open} onOpenChange={(next) => { if (next) setRows(shell.highlights?.length ? shell.highlights : [{ value: '', label: '' }]); onOpenChange(next) }}>
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>Highlights</DialogTitle><DialogDescription>The numbers people notice first, like hours worked, a GPA or a win. Up to four.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{tr('portfolio.portfolio_dialogs.highlights', 'Highlights')}</DialogTitle><DialogDescription>{tr('portfolio.portfolio_dialogs.the_numbers_people_notice_first', 'The numbers people notice first, like hours worked, a GPA or a win. Up to four.')}</DialogDescription></DialogHeader>
       <div className="grid gap-2.5">
         {rows.map((row, index) => <div key={index} className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-2">
-          <Input aria-label={`Highlight ${index + 1} number`} value={row.value} maxLength={24} placeholder={EXAMPLES[index % 3].value} onChange={(event) => change(index, 'value', event.target.value)} className="font-extrabold" />
-          <Input aria-label={`Highlight ${index + 1} meaning`} value={row.label} maxLength={60} placeholder={EXAMPLES[index % 3].label} onChange={(event) => change(index, 'label', event.target.value)} />
-          <Button type="button" variant="ghost" size="icon" aria-label={`Remove highlight ${index + 1}`} onClick={() => setRows((current) => current.filter((_, at) => at !== index))}><Trash2 className="h-4 w-4" /></Button>
+          <Input aria-label={tr('portfolio.portfolio_dialogs.highlight_value_number', 'Highlight {{value}} number', { value: index + 1 })} value={row.value} maxLength={24} placeholder={EXAMPLES[index % 3].value} onChange={(event) => change(index, 'value', event.target.value)} className="font-extrabold" />
+          <Input aria-label={tr('portfolio.portfolio_dialogs.highlight_value_meaning', 'Highlight {{value}} meaning', { value: index + 1 })} value={row.label} maxLength={60} placeholder={EXAMPLES[index % 3].label} onChange={(event) => change(index, 'label', event.target.value)} />
+          <Button type="button" variant="ghost" size="icon" aria-label={tr('portfolio.portfolio_dialogs.remove_highlight_value', 'Remove highlight {{value}}', { value: index + 1 })} onClick={() => setRows((current) => current.filter((_, at) => at !== index))}><Trash2 className="h-4 w-4" /></Button>
         </div>)}
-        {rows.length < 4 ? <Button type="button" variant="surface" size="sm" className="w-fit" onClick={() => setRows((current) => [...current, { value: '', label: '' }])}><Plus className="h-4 w-4" />Add a highlight</Button> : null}
+        {rows.length < 4 ? <Button type="button" variant="surface" size="sm" className="w-fit" onClick={() => setRows((current) => [...current, { value: '', label: '' }])}><Plus className="h-4 w-4" />{tr('portfolio.portfolio_dialogs.add_a_highlight', 'Add a highlight')}</Button> : null}
       </div>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }
@@ -113,16 +114,16 @@ export function LinksDialog({ open, onOpenChange, shell, setShell, token, mark }
       const socials = SOCIAL_OPTIONS.map((option) => ({ type: option.type, url: normalizeSocialInput(option.type, values[option.type] || '') })).filter((social) => social.url)
       setShell(await updateMyPortfolio({ revision: shell.portfolio.revision, socials }, token))
       onOpenChange(false)
-    } catch (error: any) { toast.error(error?.message || 'Could not save your links') } finally { setBusy(false) }
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_dialogs.could_not_save_your_links', 'Could not save your links')) } finally { setBusy(false) }
   }
   return <Dialog open={open} onOpenChange={(next) => { if (next) setValues(initial()); onOpenChange(next) }}>
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>Your links</DialogTitle><DialogDescription>A handle or a link for each. Leave one empty to take it off.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{tr('portfolio.portfolio_dialogs.your_links', 'Your links')}</DialogTitle><DialogDescription>{tr('portfolio.portfolio_dialogs.a_handle_or_a_link', 'A handle or a link for each. Leave one empty to take it off.')}</DialogDescription></DialogHeader>
       <div className="grid gap-3">{SOCIAL_OPTIONS.map((option) => <div key={option.type} className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2">
         <Label htmlFor={`ln-${option.type}`}>{option.label}</Label>
-        <Input id={`ln-${option.type}`} value={values[option.type] || ''} maxLength={300} onChange={(event) => setValues((current) => ({ ...current, [option.type]: event.target.value }))} placeholder={option.type === 'website' ? 'yourname.com' : '@handle'} />
+        <Input id={`ln-${option.type}`} value={values[option.type] || ''} maxLength={300} onChange={(event) => setValues((current) => ({ ...current, [option.type]: event.target.value }))} placeholder={option.type === 'website' ? 'yourname.com' : tr('portfolio.portfolio_dialogs.handle', '@handle')} />
       </div>)}</div>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Marked mark={mark}><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button></Marked></DialogFooter>
+      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Marked mark={mark}><Button type="button" variant="brand" onClick={save} disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></Marked></DialogFooter>
     </DialogContent>
   </Dialog>
 }

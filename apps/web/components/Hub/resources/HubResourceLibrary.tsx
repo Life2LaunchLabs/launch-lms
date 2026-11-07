@@ -26,17 +26,18 @@ import {
   UserResourceChannel,
 } from '@services/resources/resources'
 
+import { tr } from '@/lib/tr'
 const RESOURCE_TYPES: Array<{ value: 'all' | ResourceType; label: string }> = [
-  { value: 'all', label: 'All types' },
-  { value: 'article', label: 'Articles' },
-  { value: 'video', label: 'Videos' },
-  { value: 'course', label: 'Courses' },
-  { value: 'school', label: 'Schools' },
-  { value: 'career', label: 'Careers' },
-  { value: 'guide', label: 'Guides' },
-  { value: 'tool', label: 'Tools' },
-  { value: 'assessment', label: 'Assessments' },
-  { value: 'other', label: 'Other' },
+  { value: 'all', get label() { return tr('coach.hub_resource_library.all_types', 'All types') } },
+  { value: 'article', get label() { return tr('coach.hub_resource_library.articles', 'Articles') } },
+  { value: 'video', get label() { return tr('coach.hub_resource_library.videos', 'Videos') } },
+  { value: 'course', get label() { return tr('coach.hub_resource_library.courses', 'Courses') } },
+  { value: 'school', get label() { return tr('coach.hub_resource_library.schools', 'Schools') } },
+  { value: 'career', get label() { return tr('coach.hub_resource_library.careers', 'Careers') } },
+  { value: 'guide', get label() { return tr('coach.hub_resource_library.guides', 'Guides') } },
+  { value: 'tool', get label() { return tr('coach.hub_resource_library.tools', 'Tools') } },
+  { value: 'assessment', get label() { return tr('coach.hub_resource_library.assessments', 'Assessments') } },
+  { value: 'other', get label() { return tr('coach.hub_resource_library.other', 'Other') } },
 ]
 
 function requireSuccess(result: any, message: string) {
@@ -82,7 +83,7 @@ export default function HubResourceLibrary({
         setLists(channels.user_channels.filter((channel) => !channel.is_default))
         setResources(nextResources)
       })
-      .catch((error: any) => active && toast.error(error?.message || 'Failed to load your library'))
+      .catch((error: any) => active && toast.error(error?.message || tr('coach.hub_resource_library.failed_to_load_your_library', 'Failed to load your library')))
       .finally(() => active && setLoading(false))
     return () => { active = false }
   }, [accessToken, open, orgId, selectedList])
@@ -116,12 +117,12 @@ export default function HubResourceLibrary({
   const removeList = async (list: UserResourceChannel) => {
     if (!accessToken || !orgId || !window.confirm(`Delete “${list.name}”? Resources will stay in your Library.`)) return
     try {
-      requireSuccess(await deleteUserResourceChannel(orgId, list.user_channel_uuid, accessToken), 'Failed to delete list')
+      requireSuccess(await deleteUserResourceChannel(orgId, list.user_channel_uuid, accessToken), tr('lit.hub_resource_library.failed_to_delete_list', 'Failed to delete list'))
       setLists((current) => current.filter((item) => item.user_channel_uuid !== list.user_channel_uuid))
       if (selectedList === list.user_channel_uuid) setSelectedList('library')
-      toast.success('List deleted')
+      toast.success(tr('coach.hub_resource_library.list_deleted', 'List deleted'))
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete list')
+      toast.error(error?.message || tr('coach.hub_resource_library.failed_to_delete_list', 'Failed to delete list'))
     }
   }
 
@@ -130,26 +131,26 @@ export default function HubResourceLibrary({
       <div className="flex h-[min(17.5rem,calc(100dvh-11rem))] min-h-[13rem] w-full flex-col overflow-hidden rounded-xl border border-border/50 bg-background/95 shadow-sm sm:flex-row">
         <aside className="flex w-full shrink-0 flex-col border-b border-border/50 bg-muted/10 p-1.5 sm:w-[9.5rem] sm:border-b-0 sm:border-r">
           <div className="flex h-9 items-center justify-between px-2">
-            <h2 id="hub-library-title" className="text-xs font-semibold tracking-tight">Library</h2>
+            <h2 id="hub-library-title" className="text-xs font-semibold tracking-tight">{tr('coach.hub_resource_library.library', 'Library')}</h2>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="h-7 w-7"
               onClick={() => { setEditingList(null); setListModalOpen(true) }}
-              aria-label="Create list"
+              aria-label={tr('coach.hub_resource_library.create_list', 'Create list')}
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <nav className="flex min-h-0 flex-1 gap-1 overflow-x-auto sm:block sm:space-y-1 sm:overflow-x-hidden sm:overflow-y-auto" aria-label="Resource lists">
+          <nav className="flex min-h-0 flex-1 gap-1 overflow-x-auto sm:block sm:space-y-1 sm:overflow-x-hidden sm:overflow-y-auto" aria-label={tr('coach.hub_resource_library.resource_lists', 'Resource lists')}>
             <button
               type="button"
               onClick={() => chooseList('library')}
               className={`flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-left text-xs transition-colors sm:w-full ${selectedList === 'library' ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'}`}
             >
               <Library className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">All resources</span>
+              <span className="truncate">{tr('coach.hub_resource_library.all_resources', 'All resources')}</span>
             </button>
             {lists.map((list) => {
               const Icon = getChannelIcon(list.icon)
@@ -170,16 +171,16 @@ export default function HubResourceLibrary({
                   </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon" className="mr-0.5 h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100" aria-label={`Actions for ${list.name}`}>
+                      <Button type="button" variant="ghost" size="icon" className="mr-0.5 h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100" aria-label={tr('coach.hub_resource_library.actions_for_name', 'Actions for {{name}}', { name: list.name })}>
                         <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={() => { setEditingList(list); setListModalOpen(true) }}>
-                        <Pencil className="mr-2 h-4 w-4" /> Rename and edit
+                        <Pencil className="mr-2 h-4 w-4" />{' '}{tr('coach.hub_resource_library.rename_and_edit', 'Rename and edit')}
                       </DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => void removeList(list)}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete list
+                        <Trash2 className="mr-2 h-4 w-4" />{' '}{tr('coach.hub_resource_library.delete_list', 'Delete list')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -188,7 +189,7 @@ export default function HubResourceLibrary({
             })}
           </nav>
           <Button type="button" variant="ghost" size="sm" className="mt-1 hidden h-8 justify-start gap-2 px-2 text-xs text-muted-foreground sm:flex" onClick={() => { setEditingList(null); setListModalOpen(true) }}>
-            <Plus className="h-3.5 w-3.5" /> New list
+            <Plus className="h-3.5 w-3.5" />{' '}{tr('coach.hub_resource_library.new_list', 'New list')}
           </Button>
         </aside>
 
@@ -196,25 +197,25 @@ export default function HubResourceLibrary({
           <div className="flex h-10 items-center gap-1.5 border-b border-border/50 px-2">
             <div className="relative min-w-[8rem] flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-8 rounded-lg border-0 bg-muted/45 pl-8 text-xs shadow-none" placeholder={`Filter ${selectedListDetails?.name || 'resources'}`} aria-label="Filter resources" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-8 rounded-lg border-0 bg-muted/45 pl-8 text-xs shadow-none" placeholder={`Filter ${selectedListDetails?.name || 'resources'}`} aria-label={tr('coach.hub_resource_library.filter_resources', 'Filter resources')} />
             </div>
             <select
               value={resourceType}
               onChange={(event) => setResourceType(event.target.value as 'all' | ResourceType)}
               className="h-8 rounded-lg border-0 bg-muted/45 px-2 text-xs text-muted-foreground"
-              aria-label="Filter by resource type"
+              aria-label={tr('coach.hub_resource_library.filter_by_resource_type', 'Filter by resource type')}
             >
               {RESOURCE_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
           </div>
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1.5">
             {loading ? (
-              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading library…</div>
+              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />{' '}{tr('coach.hub_resource_library.loading_library', 'Loading library…')}</div>
             ) : visibleResources.length === 0 ? (
               <div className="flex h-48 flex-col items-center justify-center text-center">
                 <Library className="mb-3 h-8 w-8 text-muted-foreground/60" />
-                <p className="text-sm font-medium">No resources here yet</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">Open or save a resource to add it to your Library, then organize it into custom lists.</p>
+                <p className="text-sm font-medium">{tr('coach.hub_resource_library.no_resources_here_yet', 'No resources here yet')}</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">{tr('coach.hub_resource_library.open_or_save_a_resource', 'Open or save a resource to add it to your Library, then organize it into custom lists.')}</p>
               </div>
             ) : (
               <div className="space-y-0.5">

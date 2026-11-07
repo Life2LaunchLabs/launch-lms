@@ -20,6 +20,7 @@ import { homeUrl } from '@services/goals/home'
 import type { LifeDoc } from '@services/life/life'
 import type { GoalSummary } from '@services/goals/types'
 
+import { tr } from '@/lib/tr'
 /** The SWR key of the learner's home payload (finished goals waiting to greet them). */
 export const homeKey = () => homeUrl()
 
@@ -44,7 +45,7 @@ type GoalsHomeProps = {
   retryFinished?: () => void
 }
 
-const WHEN = { now: 'Now', next: 'Next', later: 'Later', done: 'Before' } as const
+const WHEN = { get now() { return tr('lit.routine_chart.now', 'Now') }, get next() { return tr('lit.goals_home.next', 'Next') }, get later() { return tr('lit.phase_sheet.later', 'Later') }, get done() { return tr('lit.goals_home.before', 'Before') } } as const
 const monthYear = (value?: string) => {
   if (!value) return ''
   const [year, month] = value.split('-').map(Number)
@@ -56,7 +57,7 @@ export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<
   return <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
     {group.when ? <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{WHEN[group.when]}</span> : null}
     <Tag className="text-xl font-extrabold tracking-tight">{group.title}</Tag>
-    {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">from {monthYear(group.starts)}</span> : null}
+    {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">{tr('goals.goals_home.from_monthyear', 'from {{monthYear}}', { monthYear: monthYear(group.starts) })}</span> : null}
     {children}
   </div>
 }
@@ -64,9 +65,9 @@ export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<
 /** Start a goal in a phase, or find one: one row under the phase's goals, whatever their number. */
 export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: { orgslug: string; phaseTitle?: string; empty?: boolean; onCreate: () => void; creating: boolean }) {
   return <div className="flex flex-wrap items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 pl-4">
-    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? `No goals${phaseTitle ? ` for ${phaseTitle}` : ''} yet.` : 'Add another goal here.'}</span>
-    <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? 'Starting…' : 'Create your own'}</Button>
-    <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
+    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? tr('goals.goals_home.no_goalsvalue_yet', 'No goals{{value}} yet.', { value: phaseTitle ? ` for ${phaseTitle}` : '' }) : tr('goals.goals_home.add_another_goal_here', 'Add another goal here.')}</span>
+    <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? tr('goals.phase_page.starting', 'Starting…') : tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
+    <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />{tr('goals.phase_page.discover', 'Discover')}</Link></Button>
   </div>
 }
 
@@ -89,7 +90,7 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
     return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6">
       <section aria-labelledby="plan-map" className="flex flex-col gap-3">
         <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus}
-          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">Your map</h1>} />
+          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">{tr('goals.goals_home.your_map', 'Your map')}</h1>} />
       </section>
     </div>
   }
@@ -99,9 +100,9 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
     <SharedWithYou token={token} />
     <Invitations token={token} />
     <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
-    {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
-      <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
-      <GoalTabs label="Your goals" goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
+    {open.length ? <section aria-label={tr('goals.phases.your_goals', 'Your goals')} className="flex flex-col gap-3">
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('goals.phases.your_goals', 'Your goals')}</h2>
+      <GoalTabs label={tr('goals.phases.your_goals', 'Your goals')} goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
       <AddToPhase orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
     </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
@@ -110,27 +111,27 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
 
 // eslint-disable-next-line no-unused-vars
 function FinishedGoals({ goals, getGoalColor, choose, error, retry, open = false }: { goals: GoalSummary[]; getGoalColor: (uuid?: string) => string; choose: (goal: GoalSummary) => void; error?: boolean; retry?: () => void; open?: boolean }) {
-  if (error) return retry ? <Button variant="ghost" onClick={retry} className="w-fit text-xs">Retry finished goals</Button> : null
+  if (error) return retry ? <Button variant="ghost" onClick={retry} className="w-fit text-xs">{tr('goals.goals_home.retry_finished_goals', 'Retry finished goals')}</Button> : null
   if (!goals.length) return null
   return <details className="group/done" open={open}>
     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl py-2">
-      <h2 className="text-xl font-extrabold tracking-tight">Finished</h2>
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('goals.phase_page.finished', 'Finished')}</h2>
       <span className="text-sm text-muted-foreground">{goals.length} {goals.length === 1 ? 'goal' : 'goals'}</span>
       <ChevronDown size={18} className="ml-auto text-muted-foreground transition-transform group-open/done:rotate-180" aria-hidden="true" />
     </summary>
     <ul className="mt-2 flex flex-col gap-2">{goals.map((goal) => <li key={goal.goal_uuid}><button type="button" onClick={() => choose(goal)} data-plan="" style={planVars(getGoalColor(goal.goal_uuid))} className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-card px-4 text-left hover:bg-raised">
-      <span className="h-3 w-3 rounded-full bg-[var(--plan-face)]" aria-hidden="true" /><span className="flex-1 font-bold">{goal.title}</span><span className="text-xs text-muted-foreground">Done</span>
+      <span className="h-3 w-3 rounded-full bg-[var(--plan-face)]" aria-hidden="true" /><span className="flex-1 font-bold">{goal.title}</span><span className="text-xs text-muted-foreground">{tr('goals.routine_action.done', 'Done')}</span>
     </button></li>)}</ul>
   </details>
 }
 
 function EmptyHome({ orgslug, onCreate, creating }: { orgslug: string; onCreate: () => void; creating: boolean }) {
   return <div className="rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
-    <h2 className="text-2xl font-extrabold">Then add something to work toward</h2>
-    <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Set your own goal, or pick a badge to earn and its goal shows up here.</p>
+    <h2 className="text-2xl font-extrabold">{tr('goals.goals_home.then_add_something_to_work', 'Then add something to work toward')}</h2>
+    <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{tr('goals.goals_home.set_your_own_goal_or', 'Set your own goal, or pick a badge to earn and its goal shows up here.')}</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">
-      <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Starting…' : 'Create your own'}</Button>
-      <Button type="button" variant="surface" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={16} />Find one in Discover</Link></Button>
+      <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? tr('goals.phase_page.starting', 'Starting…') : tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
+      <Button type="button" variant="surface" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={16} />{tr('goals.goals_home.find_one_in_discover', 'Find one in Discover')}</Link></Button>
     </div>
   </div>
 }

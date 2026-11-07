@@ -9,6 +9,7 @@ import type { Step } from '@services/goals/types'
 import type { StepActions } from './registry'
 import { SpeakButton, useAutoRead, useSpeechId } from '@components/Accessibility/ReadAloud'
 
+import { tr } from '@/lib/tr'
 const done = (step: Step) => step.status === 'completed' || step.status === 'excused'
 
 /** A short muted line inside a card. */
@@ -21,7 +22,7 @@ export function Feedback({ step }: { step: Step }) {
   const last = step.feedback_history[step.feedback_history.length - 1]
   if (step.status !== 'changes_requested' || !last) return null
   return <div className="rounded-xl border-l-4 border-destructive bg-destructive/5 px-3 py-2 text-sm">
-    <p className="text-xs font-extrabold text-destructive">Needs another go</p>
+    <p className="text-xs font-extrabold text-destructive">{tr('goals.shared.needs_another_go', 'Needs another go')}</p>
     <p className="mt-0.5 whitespace-pre-wrap text-foreground/80">{last.message}</p>
   </div>
 }
@@ -38,33 +39,33 @@ export function FinishControls({ step, actions, canWork, staff, finishesItself =
   if (staff) {
     if (step.status === 'submitted') {
       if (sendingBack) return <div className="flex flex-col gap-2">
-        <Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="What should they change?" rows={3} autoFocus />
+        <Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr('goals.shared.what_should_they_change', 'What should they change?')} rows={3} autoFocus />
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="plan" disabled={actions.busy || !note.trim()} onClick={async () => { await actions.setStatus('changes_requested', note.trim()); setSendingBack(false); setNote('') }}>Send back</Button>
-          <Button type="button" variant="surface" onClick={() => setSendingBack(false)}>Cancel</Button>
+          <Button type="button" variant="plan" disabled={actions.busy || !note.trim()} onClick={async () => { await actions.setStatus('changes_requested', note.trim()); setSendingBack(false); setNote('') }}>{tr('goals.shared.send_back', 'Send back')}</Button>
+          <Button type="button" variant="surface" onClick={() => setSendingBack(false)}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button>
         </div>
       </div>
       return <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="plan" disabled={actions.busy} onClick={() => actions.setStatus('completed')}><Check size={15} aria-hidden="true" />Approve</Button>
-        <Button type="button" variant="surface" disabled={actions.busy} onClick={() => setSendingBack(true)}><RotateCcw size={15} aria-hidden="true" />Send back</Button>
+        <Button type="button" variant="plan" disabled={actions.busy} onClick={() => actions.setStatus('completed')}><Check size={15} aria-hidden="true" />{tr('goals.shared.approve', 'Approve')}</Button>
+        <Button type="button" variant="surface" disabled={actions.busy} onClick={() => setSendingBack(true)}><RotateCcw size={15} aria-hidden="true" />{tr('goals.shared.send_back', 'Send back')}</Button>
       </div>
     }
-    if (done(step)) return <Button type="button" variant="surface" disabled={actions.busy} onClick={() => actions.setStatus('in_progress')}><Undo2 size={15} aria-hidden="true" />Reopen</Button>
+    if (done(step)) return <Button type="button" variant="surface" disabled={actions.busy} onClick={() => actions.setStatus('in_progress')}><Undo2 size={15} aria-hidden="true" />{tr('goals.shared.reopen', 'Reopen')}</Button>
     return <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="plan" disabled={actions.busy} onClick={() => actions.setStatus('completed')}><UserCheck size={15} aria-hidden="true" />{step.completed_by === 'staff' ? 'Mark done' : 'Mark done for them'}</Button>
-      <Button type="button" variant="surface" disabled={actions.busy} onClick={() => actions.setStatus('excused')}>Excuse</Button>
+      <Button type="button" variant="plan" disabled={actions.busy} onClick={() => actions.setStatus('completed')}><UserCheck size={15} aria-hidden="true" />{step.completed_by === 'staff' ? tr('goals.shared.mark_done', 'Mark done') : tr('goals.shared.mark_done_for_them', 'Mark done for them')}</Button>
+      <Button type="button" variant="surface" disabled={actions.busy} onClick={() => actions.setStatus('excused')}>{tr('goals.shared.excuse', 'Excuse')}</Button>
     </div>
   }
 
   const ask = actions.ask ? <span className="ml-auto"><AskCoach onAsk={actions.ask} /></span> : null
   if (done(step)) return null
-  if (step.status === 'submitted') return <CardNote icon={Clock3}>Handed in. Waiting on review.</CardNote>
-  if (step.completed_by === 'staff') return <div className="flex flex-wrap items-center gap-2"><CardNote icon={UserCheck}>Someone helping with this goal marks this done.</CardNote>{ask}</div>
+  if (step.status === 'submitted') return <CardNote icon={Clock3}>{tr('goals.shared.handed_in_waiting_on_review', 'Handed in. Waiting on review.')}</CardNote>
+  if (step.completed_by === 'staff') return <div className="flex flex-wrap items-center gap-2"><CardNote icon={UserCheck}>{tr('goals.shared.someone_helping_with_this_goal', 'Someone helping with this goal marks this done.')}</CardNote>{ask}</div>
   if (finishesItself || !canWork) return ask
   // What still stands in the way sits beside the button it holds back, not on a line of its own.
   return <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
     <Button type="button" variant="plan" disabled={actions.busy || !!blocker} onClick={() => actions.setStatus('completed')}>
-      <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : finishLabel || 'Mark done'}
+      <Check size={15} aria-hidden="true" />{step.review_required ? tr('goals.shared.hand_in', 'Hand in') : finishLabel || tr('goals.shared.mark_done', 'Mark done')}
     </Button>
     {blocker ? <CardNote>{blocker}</CardNote> : null}
     {ask}
@@ -73,7 +74,7 @@ export function FinishControls({ step, actions, canWork, staff, finishesItself =
 
 /** Asking Coach about a step: a quiet offer beside the step's main action, never competing with it. */
 export function AskCoach({ onAsk }: { onAsk: () => void }) {
-  return <Button type="button" variant="ghost" onClick={onAsk} className="h-10 rounded-xl px-3 font-bold text-muted-foreground hover:bg-muted hover:text-foreground"><Sparkles size={15} aria-hidden="true" />Ask Coach</Button>
+  return <Button type="button" variant="ghost" onClick={onAsk} className="h-10 rounded-xl px-3 font-bold text-muted-foreground hover:bg-muted hover:text-foreground"><Sparkles size={15} aria-hidden="true" />{tr('goals.shared.ask_coach', 'Ask Coach')}</Button>
 }
 
 /** The description, with the step's materials under it. */
@@ -86,11 +87,11 @@ export function StepIntro({ step }: { step: Step }) {
   const spoken = [tx(step.title), tx(prompt), tx(step.description)].map((part) => part.trim()).filter(Boolean).map((part) => /[.!?:]$/.test(part) ? part : `${part}.`).join(' ')
   const speechId = useSpeechId('step')
   useAutoRead(speechId, spoken)
-  if (!step.description && !materials.length) return <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" className="self-end" />
+  if (!step.description && !materials.length) return <SpeakButton id={speechId} text={spoken} size="sm" label={tr('goals.shared.read_this_step_aloud', 'Read this step aloud')} className="self-end" />
   return <div className="flex flex-col gap-2">
     <div className="flex items-start gap-2">
       {step.description ? <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm leading-6 text-foreground/80"><Tx text={step.description} /></p> : <span className="flex-1" />}
-      <SpeakButton id={speechId} text={spoken} size="sm" label="Read this step aloud" />
+      <SpeakButton id={speechId} text={spoken} size="sm" label={tr('goals.shared.read_this_step_aloud', 'Read this step aloud')} />
     </div>
     {materials.length ? <div className="flex flex-wrap gap-1.5">
       {materials.map((item, index) => <a key={index} href={String(item.url || '#')} target="_blank" rel="noreferrer" className="rounded-[10px] border-[1.5px] bg-background px-2.5 py-1.5 text-xs font-bold hover:border-[var(--plan-face)]">{String(item.title || item.url)}</a>)}
@@ -113,22 +114,22 @@ export function StepNote({ step, actions, canWork, prompted, onSettled }: { step
   const editable = canWork && !step.locked
   if (!editing) {
     if (saved) return <div className="flex flex-col gap-0.5 rounded-xl border-l-4 border-[var(--plan-face)] bg-background px-3 py-2">
-      <span className="flex items-center justify-between gap-2 text-xs font-extrabold text-muted-foreground">Note
-        {editable ? <button type="button" onClick={() => { setText(saved); setEditing(true) }} className="font-bold text-[var(--plan-accent)] hover:underline">Edit</button> : null}</span>
+      <span className="flex items-center justify-between gap-2 text-xs font-extrabold text-muted-foreground">{tr('goals.shared.note', 'Note')}
+        {editable ? <button type="button" onClick={() => { setText(saved); setEditing(true) }} className="font-bold text-[var(--plan-accent)] hover:underline">{tr('goals.shared.edit', 'Edit')}</button> : null}</span>
       <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/80">{saved}</p>
     </div>
     if (!editable) return null
     return <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-1.5 self-start rounded-md text-xs font-bold text-muted-foreground hover:text-foreground">
-      <NotebookPen size={13} aria-hidden="true" />Add a note
+      <NotebookPen size={13} aria-hidden="true" />{tr('goals.shared.add_a_note', 'Add a note')}
     </button>
   }
   return <form className="flex flex-col gap-2" onSubmit={async (event) => { event.preventDefault(); if (text.trim() === saved.trim() || await actions.saveNote(text)) close() }}>
-    <label htmlFor={`note-${step.step_uuid}`} className="text-sm font-bold">{prompted ? 'Anything to add?' : 'Note'}</label>
+    <label htmlFor={`note-${step.step_uuid}`} className="text-sm font-bold">{prompted ? tr('goals.shared.anything_to_add', 'Anything to add?') : tr('goals.shared.note', 'Note')}</label>
     <Textarea ref={field} id={`note-${step.step_uuid}`} rows={3} value={text} onChange={(event) => setText(event.target.value)} maxLength={10000}
-      placeholder={prompted ? 'How it went, what you noticed, what’s next' : 'Anything worth remembering about this step'} />
+      placeholder={prompted ? tr('goals.shared.how_it_went_what_you', 'How it went, what you noticed, what’s next') : tr('goals.shared.anything_worth_remembering_about_this', 'Anything worth remembering about this step')} />
     <div className="flex flex-wrap gap-2">
-      <Button type="submit" variant="plan" size="sm" disabled={actions.busy}>Save note</Button>
-      <Button type="button" variant="ghost" size="sm" onClick={close}>{prompted ? 'Not now' : 'Cancel'}</Button>
+      <Button type="submit" variant="plan" size="sm" disabled={actions.busy}>{tr('goals.shared.save_note', 'Save note')}</Button>
+      <Button type="button" variant="ghost" size="sm" onClick={close}>{prompted ? tr('goals.shared.not_now', 'Not now') : tr('goals.goal_stages.cancel', 'Cancel')}</Button>
     </div>
   </form>
 }

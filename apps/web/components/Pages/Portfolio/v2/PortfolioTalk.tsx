@@ -13,6 +13,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type PortfolioChats } from '@services/connect/connect'
 import { ItemSection } from './inplace'
 
+import { tr } from '@/lib/tr'
 // Comments on a portfolio are conversations in Connect: the direct chat between its owner and each
 // person they let see it, filtered to the portfolio or to one experience or project in it.
 
@@ -34,7 +35,7 @@ function useOpen(orgslug: string, portfolioUuid?: string, item?: Item, token?: s
       const filter = new URLSearchParams({ goal: chat.goal_uuid, ...(chat.step_uuid ? { step: chat.step_uuid } : {}) })
       router.push(`${getUriWithOrg(orgslug, routePaths.org.chat(chat.conversation_uuid))}?${filter}`)
     } catch (error: any) {
-      toast.error(error?.message || 'That chat couldn’t open')
+      toast.error(error?.message || tr('portfolio.portfolio_talk.that_chat_couldn_t_open', 'That chat couldn’t open'))
       setOpening(null)
     }
   }
@@ -49,8 +50,8 @@ export function CommentButton({ portfolioUuid, item, orgslug, token: given }: { 
   const { open, opening } = useOpen(orgslug, portfolioUuid, item, token)
   const owner = data && !data.mine ? data.people[0] : undefined
   if (!owner) return null
-  return <Button variant="surface" size="sm" onClick={() => void open()} disabled={Boolean(opening)} title={`Talk with ${owner.person.name} about ${item ? item.title : 'their portfolio'}`}>
-    {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}Comment{owner.count ? <span className="font-medium opacity-70">· {owner.count}</span> : null}
+  return <Button variant="surface" size="sm" onClick={() => void open()} disabled={Boolean(opening)} title={tr('portfolio.portfolio_talk.talk_with_name_about_value', 'Talk with {{name}} about {{value}}', { name: owner.person.name, value: item ? item.title : tr('portfolio.portfolio_talk.v_their_portfolio', 'their portfolio') })}>
+    {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}{tr('portfolio.portfolio_talk.comment', 'Comment')}{owner.count ? <span className="font-medium opacity-70">· {owner.count}</span> : null}
   </Button>
 }
 
@@ -59,18 +60,18 @@ export function ItemConversations({ portfolioUuid, item, orgslug, token }: { por
   const { data } = usePortfolioChats(portfolioUuid, item, token)
   const { open, opening } = useOpen(orgslug, portfolioUuid, item, token)
   if (!data?.mine) return null
-  return <ItemSection title="Conversations">
+  return <ItemSection title={tr('portfolio.portfolio_talk.conversations', 'Conversations')}>
     {data.people.length ? <ul className="grid gap-2">{data.people.map(({ person, count }) => <li key={person.id}>
       <button type="button" onClick={() => void open(person.user_uuid)} disabled={Boolean(opening)}
         className="flex w-full items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-left transition hover:bg-muted/60 disabled:opacity-60">
         <PersonAvatar user={person as any} />
         <span className="min-w-0 flex-1"><b className="block truncate text-sm font-extrabold">{person.name}</b>
-          <small className="block text-xs font-semibold text-muted-foreground">{count ? `${count} ${count === 1 ? 'message' : 'messages'} about this` : `Ask ${person.name.split(' ')[0]} what they think`}</small></span>
+          <small className="block text-xs font-semibold text-muted-foreground">{count ? tr('portfolio.portfolio_talk.count_value_about_this', '{{count}} {{value}} about this', { count, value: count === 1 ? tr('portfolio.portfolio_talk.v_message', 'message') : tr('portfolio.portfolio_talk.v_messages', 'messages') }) : tr('portfolio.portfolio_talk.ask_value_what_they_think', 'Ask {{value}} what they think', { value: person.name.split(' ')[0] })}</small></span>
         {opening === person.user_uuid ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </button>
     </li>)}</ul>
       : <p className="rounded-2xl border-2 border-dashed border-border p-4 text-sm font-semibold text-muted-foreground">
-        The people you let see your portfolio can comment here. <Link href={getUriWithOrg(orgslug, '/portfolio/people')} className="text-foreground underline">Choose them in My people</Link>.
+        {tr('portfolio.portfolio_talk.the_people_you_let_see', 'The people you let see your portfolio can comment here.')}{' '}<Link href={getUriWithOrg(orgslug, '/portfolio/people')} className="text-foreground underline">{tr('portfolio.portfolio_talk.choose_them_in_my_people', 'Choose them in My people')}</Link>.
       </p>}
   </ItemSection>
 }

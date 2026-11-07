@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { lifeApi, lifeUrl, type Phase, type PlacePhoto } from '@services/life/life'
 import PhaseScene from './PhaseScene'
 
+import { tr } from '@/lib/tr'
 /** Photos of places by place key, from the life plan catalog (shared with the budget's copy). */
 export function usePlacePhotos(token?: string) {
   const { data } = useSWR(token ? lifeUrl('/catalog') : null, () => lifeApi.catalog(token), { revalidateOnFocus: false })
@@ -42,9 +43,9 @@ export function PhotoCredit({ phase, photos, className }: { phase: Pick<Phase, '
       open ? 'py-1 pl-3 pr-1' : 'p-0 group-hover/credit:py-1 group-hover/credit:pl-3 group-hover/credit:pr-1 group-focus-within/credit:py-1 group-focus-within/credit:pl-3 group-focus-within/credit:pr-1')}>
       <a href={credit.source_url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}
         className={cn('truncate hover:underline', open ? 'block' : 'hidden group-hover/credit:block group-focus-within/credit:block')}>
-        Photo: {credit.author} · {credit.license} · Wikimedia Commons
+        {tr('goals.phase_cover.photo_author_license_wikimedia_commons', 'Photo: {{author}} · {{license}} · Wikimedia Commons', { author: credit.author, license: credit.license })}
       </a>
-      <button type="button" aria-label="Photo credit" aria-expanded={open} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen((value) => !value) }}
+      <button type="button" aria-label={tr('goals.phase_cover.photo_credit', 'Photo credit')} aria-expanded={open} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen((value) => !value) }}
         className="grid size-6 shrink-0 place-items-center rounded-full text-white/90 hover:text-white">
         <Info size={14} aria-hidden="true" />
       </button>

@@ -5,6 +5,7 @@ import { Check, ChevronDown } from 'lucide-react'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 
+import { tr } from '@/lib/tr'
 type EndMode = 'none' | 'current' | 'date'
 
 const inputClass = 'h-11 w-full rounded-md border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring'
@@ -25,10 +26,10 @@ function MonthYearInput({ name, value, label, precision }: { name: string; value
   return <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-2">
     <input type="hidden" name={name} value={dateValue} />
     <select aria-label={`${label} month`} value={month} onChange={(event) => setMonth(event.target.value)} className={inputClass}>
-      <option value="">Month (optional)</option>
+      <option value="">{tr('portfolio.month_date_range_field.month_optional', 'Month (optional)')}</option>
       {months.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
     </select>
-    <input aria-label={`${label} year`} inputMode="numeric" type="number" min="1900" max="2200" placeholder="Year" value={year} onChange={(event) => setYear(event.target.value)} className={inputClass} />
+    <input aria-label={`${label} year`} inputMode="numeric" type="number" min="1900" max="2200" placeholder={tr('portfolio.month_date_range_field.year', 'Year')} value={year} onChange={(event) => setYear(event.target.value)} className={inputClass} />
   </div>
 }
 
@@ -53,27 +54,27 @@ export function MonthDateRangeField({
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button type="button" className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground">
-          {change ? 'Change' : 'Add end date'}<ChevronDown className="h-3.5 w-3.5" />
+          {change ? tr('portfolio.month_date_range_field.change', 'Change') : tr('portfolio.month_date_range_field.add_end_date', 'Add end date')}<ChevronDown className="h-3.5 w-3.5" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" style={{ zIndex: 'var(--z-modal-content)' }}>
-        {change && <DropdownMenuItem onSelect={() => setEndMode('none')}>Remove</DropdownMenuItem>}
-        {endMode !== 'current' && <DropdownMenuItem onSelect={() => setEndMode('current')}>Current</DropdownMenuItem>}
-        {endMode !== 'date' && <DropdownMenuItem onSelect={() => setEndMode('date')}>Select date</DropdownMenuItem>}
+        {change && <DropdownMenuItem onSelect={() => setEndMode('none')}>{tr('portfolio.month_date_range_field.remove', 'Remove')}</DropdownMenuItem>}
+        {endMode !== 'current' && <DropdownMenuItem onSelect={() => setEndMode('current')}>{tr('portfolio.month_date_range_field.current', 'Current')}</DropdownMenuItem>}
+        {endMode !== 'date' && <DropdownMenuItem onSelect={() => setEndMode('date')}>{tr('portfolio.month_date_range_field.select_date', 'Select date')}</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   )
 
   return <div className="grid grid-cols-2 gap-4">
     <label className={`grid content-start text-sm font-semibold ${endMode === 'none' ? '' : 'gap-2'}`}>
-      {endMode === 'none' ? <span className="sr-only">Start</span> : <span>Start</span>}
-      <MonthYearInput name="start_date" value={startDate} label="Start" precision={startPrecision} />
+      {endMode === 'none' ? <span className="sr-only">{tr('portfolio.month_date_range_field.start', 'Start')}</span> : <span>{tr('portfolio.month_date_range_field.start', 'Start')}</span>}
+      <MonthYearInput name="start_date" value={startDate} label={tr('portfolio.month_date_range_field.start', 'Start')} precision={startPrecision} />
     </label>
     <div className={`grid content-start ${endMode === 'none' ? '' : 'gap-2'}`}>
-      {endMode === 'none' ? <div className="flex h-11 items-center justify-start">{menu(false)}</div> : <div className="flex min-h-5 items-center justify-between gap-2 text-sm font-semibold"><span>End</span>{menu(true)}</div>}
+      {endMode === 'none' ? <div className="flex h-11 items-center justify-start">{menu(false)}</div> : <div className="flex min-h-5 items-center justify-between gap-2 text-sm font-semibold"><span>{tr('portfolio.month_date_range_field.end', 'End')}</span>{menu(true)}</div>}
       <input type="hidden" name={currentFieldName} value={endMode === 'current' ? 'true' : 'false'} />
-      {endMode === 'date' && <MonthYearInput name="end_date" value={endDate} label="End" precision={endPrecision || startPrecision} />}
-      {endMode === 'current' && <div className="flex h-11 items-center"><span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-semibold text-foreground"><Check className="h-3.5 w-3.5" />Current</span></div>}
+      {endMode === 'date' && <MonthYearInput name="end_date" value={endDate} label={tr('portfolio.month_date_range_field.end', 'End')} precision={endPrecision || startPrecision} />}
+      {endMode === 'current' && <div className="flex h-11 items-center"><span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-semibold text-foreground"><Check className="h-3.5 w-3.5" />{tr('portfolio.month_date_range_field.current', 'Current')}</span></div>}
     </div>
   </div>
 }

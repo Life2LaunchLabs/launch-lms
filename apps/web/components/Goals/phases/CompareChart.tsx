@@ -6,6 +6,7 @@ import { short } from '@components/LifePlan/model'
 import { monthText } from './graph'
 import { moneyAt, phaseAt, type Way } from './compare'
 
+import { tr } from '@/lib/tr'
 /** One color per option, light and dark steps of the same hues (validated as a set). */
 export const WAY_COLORS = ['var(--way-1)', 'var(--way-2)', 'var(--way-3)', 'var(--way-4)']
 export const WAY_STYLE = `.way-colors{--way-1:#2a78d6;--way-2:#eb6834;--way-3:#1baf7a;--way-4:#eda100}
@@ -48,15 +49,15 @@ export default function CompareChart({ ways, projs, a, b, split }: { ways: Way[]
     <div>
       <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-muted-foreground">
         {ways.map((w, i) => <span key={w.id} className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: WAY_COLORS[i] }} />{w.title}</span>)}
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-[2px] w-4 bg-muted-foreground" />Saved, with what you own</span>
-        {owes && <span className="inline-flex items-center gap-1.5"><i className="inline-block w-4 border-t-2 border-dashed border-muted-foreground" />Owed</span>}
+        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-[2px] w-4 bg-muted-foreground" />{tr('goals.compare_chart.saved_with_what_you_own', 'Saved, with what you own')}</span>
+        {owes && <span className="inline-flex items-center gap-1.5"><i className="inline-block w-4 border-t-2 border-dashed border-muted-foreground" />{tr('goals.compare_chart.owed', 'Owed')}</span>}
       </div>
       <div className="relative pl-10">
         <div className="pointer-events-none absolute inset-y-0 left-0 w-9">
           {[0, hi / 2, hi].map((t) => <span key={t} className="absolute right-1 -translate-y-1/2 text-[11px] font-semibold tabular-nums text-muted-foreground" style={{ top: Y(t) }}>{t ? short(t) : '$0'}</span>)}
         </div>
         <div ref={plot} className="relative touch-pan-y" style={{ height: H }} onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
-          <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} className="pointer-events-none block overflow-visible" role="img" aria-label="Savings and debt for each option over time; the table below has the numbers">
+          <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} className="pointer-events-none block overflow-visible" role="img" aria-label={tr('goals.compare_chart.savings_and_debt_for_each', 'Savings and debt for each option over time; the table below has the numbers')}>
             {[0, hi / 2, hi].map((t) => <line key={t} x1="0" x2="100" y1={Y(t)} y2={Y(t)} stroke="hsl(var(--border))" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
             {s > 0 && <><line x1={X(s)} x2={X(s)} y1={top} y2={bot} stroke="hsl(var(--border))" strokeWidth="1.5" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />{stroke('owed', 'hsl(var(--muted-foreground))', 0, s, 0)}{stroke('saved', 'hsl(var(--muted-foreground))', 0, s, 0)}</>}
             {ways.map((w, i) => stroke('owed', WAY_COLORS[i], s, N, i))}
@@ -72,7 +73,7 @@ export default function CompareChart({ ways, projs, a, b, split }: { ways: Way[]
               {ways.map((w, i) => { const v = vals[i][hover], ph = phaseAt(w, a + hover); return (
                 <div key={w.id} className="flex items-start gap-1.5 py-0.5">
                   <i className="mt-1 inline-block size-2 shrink-0 rounded-sm" style={{ background: WAY_COLORS[i] }} />
-                  <span>{v ? <><b className="font-bold">{ph?.title || w.title}</b><br /><span className="tabular-nums text-muted-foreground">{short(v.saved)} saved{v.owed > 0.5 ? ` · ${short(v.owed)} owed` : ''}</span></> : <span className="text-muted-foreground">{w.title}: plan ends</span>}</span>
+                  <span>{v ? <><b className="font-bold">{ph?.title || w.title}</b><br /><span className="tabular-nums text-muted-foreground">{tr('goals.compare_chart.short_saved', '{{short}} saved', { short: short(v.saved) })}{v.owed > 0.5 ? tr('goals.compare_chart.short_owed', ' · {{short}} owed', { short: short(v.owed) }) : ''}</span></> : <span className="text-muted-foreground">{tr('goals.compare_chart.title_plan_ends', '{{title}}: plan ends', { title: w.title })}</span>}</span>
                 </div>
               ) })}
             </div>

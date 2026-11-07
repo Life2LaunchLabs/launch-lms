@@ -4,6 +4,7 @@ import React from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@components/ui/dialog'
 import { planVars } from '@components/Goals/planColors'
 
+import { tr } from '@/lib/tr'
 /**
  * One goal object edited at a time, over the goal rather than in it: a tray from the bottom
  * on phones, a centred panel on wider screens. It carries the goal's colour, since it opens
@@ -25,7 +26,7 @@ export default function EditSheet({ open, onOpenChange, color, title, descriptio
       <span className="mx-auto -mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25 sm:hidden" aria-hidden="true" />
       <div className="flex flex-col gap-1 pr-10">
         <DialogTitle className="text-lg font-extrabold tracking-tight">{title}</DialogTitle>
-        {description ? <DialogDescription>{description}</DialogDescription> : <DialogDescription className="sr-only">Changes save when you press the button below.</DialogDescription>}
+        {description ? <DialogDescription>{description}</DialogDescription> : <DialogDescription className="sr-only">{tr('goals.edit_sheet.changes_save_when_you_press', 'Changes save when you press the button below.')}</DialogDescription>}
       </div>
       {children}
       {footer ? <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2 border-t border-border/60 bg-popover px-5 py-3 sm:static sm:m-0 sm:border-0 sm:p-0 sm:pt-1">{footer}</div> : null}

@@ -15,6 +15,7 @@ import { isGoalsKey } from '@services/goals/goals'
 import { goalSuggestionsKey } from '@services/hub/advisor'
 import { swrFetcher } from '@services/utils/ts/requests'
 
+import { tr } from '@/lib/tr'
 /** Coach's open notes on one goal and its check-in schedule; only the goal's owner has any. */
 export function useGoalCoachNotes(goalUuid?: string, token?: string) {
   return useSWR<GoalCoachNotes>(goalUuid && token ? coachNotesUrl(goalUuid) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true, shouldRetryOnError: false })
@@ -68,18 +69,18 @@ export function GoalCoachBar({ goalUuid, token }: { goalUuid: string; token?: st
   const looking = useFirstLook(goalUuid, data, org?.id, token, refresh)
   if (!data) return null
   const notes = data.notes || []
-  const line = looking && !notes.length ? 'Coach is taking a first look…' : notes.length ? notes[0].title : checkInLine(data)
-  return <button type="button" onClick={() => hub?.open()} disabled={!hub} aria-label={notes.length ? `Coach has ${notes.length === 1 ? 'a note' : `${notes.length} notes`}: ${line}` : line}
+  const line = looking && !notes.length ? tr('lit.coach_notes.coach_is_taking_a_first', 'Coach is taking a first look…') : notes.length ? notes[0].title : checkInLine(data)
+  return <button type="button" onClick={() => hub?.open()} disabled={!hub} aria-label={notes.length ? tr('goals.coach_notes.coach_has_value_line', 'Coach has {{value}}: {{line}}', { value: notes.length === 1 ? 'a note' : `${notes.length} notes`, line }) : line}
     className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-2xl border border-border/70 bg-card px-4 py-2.5 text-left text-xs text-muted-foreground shadow-xs transition hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
     <Sparkles size={14} aria-hidden="true" className={notes.length ? 'text-foreground' : undefined} />
     <span className={notes.length ? 'min-w-0 flex-1 truncate font-semibold text-foreground' : 'min-w-0 flex-1 truncate'}>{line}</span>
-    {notes.length ? <span className="flex shrink-0 items-center gap-1 font-semibold">{notes.length === 1 ? '1 note' : `${notes.length} notes`}<ArrowRight size={13} aria-hidden="true" /></span> : null}
+    {notes.length ? <span className="flex shrink-0 items-center gap-1 font-semibold">{notes.length === 1 ? tr('goals.coach_notes.1_note', '1 note') : `${notes.length} notes`}<ArrowRight size={13} aria-hidden="true" /></span> : null}
   </button>
 }
 
 function NoteCard({ note, busy, onAct }: { note: CoachNote; busy: boolean; onAct: (action: CoachNoteAction) => void }) { // eslint-disable-line no-unused-vars
   const [main, ...rest] = note.actions
-  return <article aria-label={`Coach’s note: ${note.title}`} className="space-y-2 rounded-2xl border border-border/70 bg-card/40 px-4 py-3">
+  return <article aria-label={tr('goals.coach_notes.coach_s_note_title', 'Coach’s note: {{title}}', { title: note.title })} className="space-y-2 rounded-2xl border border-border/70 bg-card/40 px-4 py-3">
     <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><Sparkles size={12} aria-hidden="true" />{note.goal_title}</p>
     <h3 className="text-sm font-semibold">{note.title}</h3>
     {note.body ? <p className="text-sm text-muted-foreground">{note.body}</p> : null}
@@ -119,13 +120,13 @@ export function CoachNoteCards({ goalUuid, orgslug, token, disabled = false, onA
         if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck()
       }
     } catch (error: any) {
-      toast.error(error?.message || 'That note couldn’t be updated.')
+      toast.error(error?.message || tr('goals.coach_notes.that_note_couldn_t_be', 'That note couldn’t be updated.'))
     } finally {
       setBusy(false)
     }
   }
 
-  return <section aria-label="Coach’s notes" className="space-y-3">
+  return <section aria-label={tr('goals.coach_notes.coach_s_notes', 'Coach’s notes')} className="space-y-3">
     {notes.map((note) => <NoteCard key={note.note_uuid} note={note} busy={busy || disabled} onAct={(action) => void run(note, action)} />)}
   </section>
 }

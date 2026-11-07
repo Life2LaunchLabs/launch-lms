@@ -2,6 +2,7 @@ import type { StepAggregate } from '@services/goals/admin'
 import type { NodeState, Step } from '@services/goals/types'
 import { stepDefinition } from '../steps'
 
+import { tr } from '@/lib/tr'
 const DAY = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
 const DAY_YEAR = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -20,7 +21,7 @@ export function lockedSentence(step: Step) {
   if (reason.kind === 'closed') return `This closed on ${shortDate(reason.date)}. Message your staff if you still need to hand it in.`
   if (reason.kind === 'after') return `Finish ${reason.title} first, then this opens.`
   if (reason.kind === 'stage') return reason.date ? `This opens when ${reason.title} starts on ${shortDate(reason.date)}.` : `This opens when the goal moves on to ${reason.title}.`
-  return 'Someone helping with this goal has put this step on hold.'
+  return tr('lit.step_text.someone_helping_with_this_goal', 'Someone helping with this goal has put this step on hold.')
 }
 
 /** One short line under a step's title: why it's closed, where it stands, or when it's due; empty when none applies. */
@@ -31,11 +32,11 @@ export function statusLine(step: Step) {
     if (reason?.kind === 'closed') return `Closed ${shortDate(reason.date)}`
     if (reason?.kind === 'after') return `After ${reason.title}`
     if (reason?.kind === 'stage') return reason.date ? `Opens ${shortDate(reason.date)}` : `Opens with ${reason.title}`
-    return reason?.kind === 'held' ? 'On hold for now' : 'Not open yet'
+    return reason?.kind === 'held' ? tr('lit.step_text.on_hold_for_now', 'On hold for now') : tr('lit.step_text.not_open_yet', 'Not open yet')
   }
-  if (step.state === 'done') return step.status === 'excused' ? 'Excused' : step.completed_at ? `Done ${shortDate(step.completed_at)}` : 'Done'
-  if (step.state === 'waiting') return 'Waiting on review'
-  if (step.state === 'retry') return 'Needs another go'
+  if (step.state === 'done') return step.status === 'excused' ? tr('lit.step_text.excused', 'Excused') : step.completed_at ? `Done ${shortDate(step.completed_at)}` : tr('lit.goal_story_player.done', 'Done')
+  if (step.state === 'waiting') return tr('lit.step_text.waiting_on_review', 'Waiting on review')
+  if (step.state === 'retry') return tr('lit.step_text.needs_another_go', 'Needs another go')
   const own = stepDefinition(step.type).statusLine?.(step as never)
   const due = step.due_date ? `Closes ${shortDate(step.due_date)}` : ''
   if (own) return due ? `${own} · ${due.toLowerCase()}` : own
