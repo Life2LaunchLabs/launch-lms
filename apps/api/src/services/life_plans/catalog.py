@@ -22,6 +22,8 @@ CATEGORIES = [
 ]
 
 BEDROOMS = {"key": "bedrooms", "title": "Size", "kind": "choice", "default": 1, "choices": [[0, "Studio"], [1, "1 bedroom"], [2, "2 bedrooms"], [3, "3 bedrooms"], [4, "4 bedrooms"]]}
+# How you eat: the four USDA food plans, cheapest to most generous. Moderate is closest to what people actually spend.
+FOOD_PLAN = {"key": "plan", "title": "How you eat", "kind": "choice", "default": "moderate", "choices": [["thrifty", "Thrifty"], ["low", "Low-cost"], ["moderate", "Moderate"], ["liberal", "Liberal"]]}
 SHARE = {"key": "share", "title": "Split with", "kind": "choice", "default": 1, "choices": [[1, "Just me"], [2, "1 roommate"], [3, "2 roommates"], [4, "3 roommates"]]}
 
 ITEMS = [
@@ -42,7 +44,7 @@ ITEMS = [
     {"key": "home_insurance", "cat": "home", "title": "Home insurance", "icon": "shield"},
     {"key": "home_upkeep", "cat": "home", "title": "Home upkeep", "icon": "wrench"},
     # Food
-    {"key": "groceries", "cat": "food", "title": "Groceries", "icon": "shopping-cart", "metric": "groceries"},
+    {"key": "groceries", "cat": "food", "title": "Groceries", "icon": "shopping-cart", "metric": "groceries", "settings": [FOOD_PLAN]},
     {"key": "eating_out", "cat": "food", "title": "Eating out", "icon": "utensils"},
     {"key": "meal_plan", "cat": "food", "title": "Meal plan", "icon": "utensils"},
     # Getting around
@@ -67,7 +69,7 @@ ITEMS = [
     {"key": "phone", "cat": "bills", "title": "Phone plan", "icon": "smartphone", "metric": "phone"},
     {"key": "health_insurance", "cat": "bills", "title": "Health insurance", "icon": "heart-pulse"},
     {"key": "clothes", "cat": "bills", "title": "Clothes", "icon": "shirt", "metric": "clothes"},
-    {"key": "personal_care", "cat": "bills", "title": "Personal care", "icon": "sparkles"},
+    {"key": "personal_care", "cat": "bills", "title": "Personal care", "icon": "sparkles", "metric": "personal_care"},
     {"key": "subscriptions", "cat": "bills", "title": "Subscriptions", "icon": "repeat"},
 ]
 
@@ -82,12 +84,18 @@ METRICS = {
     "books": {"title": "Books and supplies", "dims": ["school"], "required": ["school"]},
     "other_costs": {"title": "Other school-year costs", "dims": ["school", "housing"], "required": ["school", "housing"]},
     # Everyday costs with no breakdown yet: a place-level or national figure each, once a source is loaded.
-    "groceries": {"title": "Groceries", "dims": [], "required": []},
+    # Groceries add up USDA's per-person food plan costs for the household, at local prices for goods.
+    "groceries": {"title": "Groceries", "dims": ["plan", "adults", "kids"], "required": [], "compose": "food_plan", "scale": "price_goods"},
     "utilities": {"title": "Utilities and internet", "dims": [], "required": []},
-    "transport": {"title": "Getting around", "dims": [], "required": []},
-    "phone": {"title": "Phone plan", "dims": [], "required": []},
-    "clothes": {"title": "Clothes", "dims": [], "required": []},
-    "going_out": {"title": "Going out", "dims": [], "required": []},
+    # What households of your size spend (BLS), at local prices.
+    "transport": {"title": "Getting around", "dims": ["size"], "required": [], "scale": "price_all"},
+    "phone": {"title": "Phone plan", "dims": ["size"], "required": []},
+    "clothes": {"title": "Clothes", "dims": ["size"], "required": [], "scale": "price_goods"},
+    "going_out": {"title": "Going out", "dims": ["size"], "required": [], "scale": "price_services"},
+    "personal_care": {"title": "Personal care", "dims": ["size"], "required": [], "scale": "price_all"},
+    # Inputs, not budget lines: USDA's cost per person, and BEA's price levels (US = 100).
+    "food_plan": {"title": "Food plan cost per person", "dims": ["plan", "group"], "required": ["plan", "group"]},
+    **{m: {"title": f"Price level, {t}", "dims": [], "required": []} for m, t in (("price_all", "all items"), ("price_goods", "goods"), ("price_rents", "rents"), ("price_utilities", "utilities"), ("price_services", "other services"))},
     # Outlook by occupation (Oregon Employment Department projections).
     "openings": {"title": "Openings a year", "dims": ["soc"], "required": ["soc"]},
     "growth": {"title": "Change in jobs", "dims": ["soc"], "required": ["soc"]},

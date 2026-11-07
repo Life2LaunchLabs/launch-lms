@@ -187,7 +187,7 @@ function Row({ line }: { line: Line }) {
           {onEst && !open ? <button type="button" onClick={() => setSrc(!src)} aria-expanded={src} aria-label={`Where ${line.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Info className="size-4" /></button> : null}
         </span>
       </div>
-      {src && onEst && !open ? <p className="mb-2 ml-11 mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground"><b className="text-foreground">{est!.source.title}</b>, {est!.source.publisher}. {est!.label}{est!.place_label ? `, ${est!.place_label}` : ''}.{wide ? ` * Not for ${est!.asked_place_label || 'your city'} itself: this is the ${est!.level === 'us' ? 'national' : 'state'} figure.` : ''}</p> : null}
+      {src && onEst && !open ? <p className="mb-2 ml-11 mr-9 rounded-lg bg-muted/70 px-2.5 py-1.5 text-xs text-muted-foreground"><b className="text-foreground">{est!.source.title}</b>, {est!.source.publisher}. {est!.label}.{est!.scaled_by ? ` Local prices: ${est!.scaled_by.source.title}, ${est!.scaled_by.source.publisher} (${est!.scaled_by.place_label} ${Math.round(est!.scaled_by.value)}, US = 100).` : est!.place_label ? ` ${est!.place_label}.` : ''}{wide ? ` * Not for ${est!.asked_place_label || 'your city'} itself: this is the ${est!.level === 'us' ? 'national' : 'state'} figure.` : ''}</p> : null}
       {open && <RowEditor line={line} est={est ?? null} hasMetric={!!item?.metric} />}
     </div>
   )
@@ -224,6 +224,7 @@ function RowEditor({ line, est, hasMetric }: { line: Line; est: Estimate | null;
           {showSrc && est && (
             <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
               <p><b className="text-foreground">{est.source.title}</b>, {est.source.publisher}{est.source.released ? ` (${est.source.released})` : ''}. {est.source.dataset}.</p>
+              {est.scaled_by ? <p>At local prices: <b className="text-foreground">{est.scaled_by.source.title}</b>, {est.scaled_by.source.publisher}. {est.scaled_by.label}: {est.scaled_by.value.toFixed(1)}.</p> : null}
               {est.source.notes && <p className="mt-1">{est.source.notes}</p>}
               {est.source.url && <a className="mt-1 inline-block font-semibold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)] underline" href={est.source.url} target="_blank" rel="noreferrer">See the source</a>}
             </div>

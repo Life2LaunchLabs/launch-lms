@@ -4,6 +4,10 @@ The resolver walks the place ladder (city, county, wage area, state, US) and, at
 place, tries the full breakdown first and then drops optional dimensions from the end.
 The first reviewed fact wins, and the answer says which level it landed on and which
 source it came from. No fact means no estimate.
+
+A metric with a `scale` (a price-level metric, like BEA's Regional Price Parities) turns a
+national figure into a local one: national value x the most specific price level on the
+ladder / 100. The answer names both sources, and the level is the price level's.
 """
 
 from __future__ import annotations
@@ -82,6 +86,7 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
     if not queries:
         return {}
     metrics = {q.metric for q in queries}
+    metrics |= {METRICS[m][k] for m in list(metrics) for k in ("scale", "compose") if METRICS.get(m, {}).get(k)}
     ladders = {q.id: places.ladder(q.place) for q in queries}
     keys = {k for ls in ladders.values() for k in ls}
     rows = db.exec(
@@ -99,7 +104,9 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
     out: dict[str, dict | None] = {}
     for q in queries:
         found = None
-        for place in ladders[q.id]:
+        if METRICS.get(q.metric, {}).get("compose") == "food_plan":
+            found = _food(q, index)
+        for place in ([] if found else ladders[q.id]):
             for dims in _dim_ladder(q.metric, q.dims):
                 hit = index.get((q.metric, place, dims_key(dims)))
                 if hit:
@@ -107,16 +114,74 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
                     break
             if found:
                 break
+        scale = METRICS.get(q.metric, {}).get("scale")
+        if found and scale and found["place"] == "us":
+            found = _scaled(found, next((index[(scale, p, "")] for p in ladders[q.id] if (scale, p, "") in index), None), q.place)
         out[q.id] = found
     return out
+
+
+# USDA's household-size adjustment to its per-person costs (people in the household -> factor).
+FOOD_SIZE = {1: 1.2, 2: 1.1, 3: 1.05, 4: 1.0, 5: 0.95, 6: 0.95}
+FOOD_KID_GROUPS = ((1, "1"), (3, "2-3"), (5, "4-5"), (8, "6-8"), (11, "9-11"), (13, "12-13"), (17, "14-18"))
+
+
+def _food(q: EstimateQuery, index: dict) -> dict | None:
+    """Groceries for the household: USDA's cost for each person (adults and teens averaged over women
+    and men, since we don't ask), added up, times USDA's household-size adjustment."""
+    plan = q.dims.get("plan") or "moderate"
+    adults = max(1, min(2, int(q.dims.get("adults") or 1)))
+    kids = [int(a) for a in (q.dims.get("kids") or [])]
+
+    def cost(group: str) -> tuple[EstimateFact, EstimateSource] | None:
+        return index.get(("food_plan", "us", dims_key({"group": group, "plan": plan})))
+
+    def person(groups: list[str]) -> float | None:
+        hits = [cost(g) for g in groups]
+        return sum(h[0].value for h in hits) / len(hits) if all(hits) else None
+
+    parts = [person(["adultf", "adultm"])] * adults
+    for age in kids:
+        band = next(g for top, g in FOOD_KID_GROUPS if max(age, 1) <= top)
+        parts.append(person([band]) if age < 12 else person([band + "f", band + "m"]))
+    if any(p is None for p in parts):
+        return None
+    n = len(parts)
+    factor = FOOD_SIZE.get(n, 0.9)
+    fact, src = cost("adultf")  # type: ignore[misc]
+    who = "you" if n == 1 else f"{n} people"
+    view = _fact_view(fact, src, asked_place=q.place, asked_dims={})
+    return {**view, "metric": q.metric, "value": round(sum(parts) * factor, 2), "dims": {"plan": plan, "adults": adults, "kids": kids},
+            "label": f"{fact.label} for {who}" + ("" if factor == 1 else f", {'+' if factor > 1 else ''}{round((factor - 1) * 100)}% for a household of {n} (USDA's adjustment)"),
+            "stat": "our sum of USDA per-person costs", "fallback": False}
+
+
+def _scaled(found: dict, price: tuple[EstimateFact, EstimateSource] | None, asked_place: str | None) -> dict:
+    """A national figure moved to the place's price level (no price level: the national figure as is)."""
+    if not price or price[0].place == "us":
+        return found
+    fact, src = price
+    level = places.level_of(fact.place)
+    return {
+        **found,
+        "value": round(found["value"] * fact.value / 100, 2),
+        "percentiles": None,
+        "label": f"{found['label']}, at {places.label(fact.place)} prices",
+        "place": fact.place,
+        "place_label": places.label(fact.place),
+        "level": level,
+        "fallback": level != (places.level_of(asked_place) if asked_place else "us"),
+        "scaled_by": {"value": fact.value, "label": fact.label, "place_label": places.label(fact.place), "source": _source_view(src)},
+    }
 
 
 def available_metrics(db: Session, place: str | None) -> list[str]:
     """Metrics with at least one reviewed fact somewhere on this place's ladder, so the app only
     promises an estimate it can give."""
     keys = places.ladder(place)
-    rows = db.exec(select(EstimateFact.metric).where(col(EstimateFact.place).in_(keys), EstimateFact.status == REVIEWED).distinct()).all()
-    return sorted(set(rows))
+    have = set(db.exec(select(EstimateFact.metric).where(col(EstimateFact.place).in_(keys), EstimateFact.status == REVIEWED).distinct()).all())
+    have |= {m for m, spec in METRICS.items() if spec.get("compose") in have}
+    return sorted(have)
 
 
 def occupations(db: Session, query: str = "", limit: int = 20) -> list[dict]:

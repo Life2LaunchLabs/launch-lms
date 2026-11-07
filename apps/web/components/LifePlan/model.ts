@@ -65,6 +65,12 @@ export function estimateQuery(catalog: Catalog | undefined, phase: Phase, line: 
     const v = line.settings?.[d] ?? s?.default
     if (v !== undefined && v !== null && v !== '') dims[d] = v
   }
+  // Who the phase provides for: household size for spending surveys, and the people for food plans.
+  const h = phase.household
+  const want = catalog!.metrics[item.metric]?.dims || []
+  if (want.includes('size')) dims.size = Math.min(5, 1 + (h?.partner ? 1 : 0) + (h?.kids?.length || 0))
+  if (want.includes('adults')) dims.adults = h?.partner ? 2 : 1
+  if (want.includes('kids') && h?.kids?.length) dims.kids = [...h.kids].sort((x, y) => x - y)
   return { id: `${phase.id}:${line.id}`, metric: item.metric, place: phase.place || null, dims }
 }
 

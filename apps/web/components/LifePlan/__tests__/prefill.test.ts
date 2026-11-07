@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import type { Catalog, Line, Phase } from '@services/life/life'
 import { applyRows, planRows, shareSettings, suggestLines } from '../prefill'
 
-const items = ['job', 'rent', 'utilities', 'dorm', 'groceries', 'transport', 'tuition', 'books', 'going_out', 'phone', 'clothes', 'hobby']
+const items = ['job', 'rent', 'utilities', 'dorm', 'groceries', 'transport', 'tuition', 'books', 'going_out', 'phone', 'clothes', 'personal_care', 'hobby']
 const catalog = { items: items.map((key) => ({ key, cat: 'x', title: key, icon: 'x', metric: key === 'hobby' ? undefined : key, settings: key === 'rent' || key === 'utilities' ? [{ key: 'share', title: 'Split with', kind: 'choice', choices: [[1, 'Just me'], [2, '1 roommate']] }] : [] })), categories: [], metrics: {} } as unknown as Catalog
 const phase = (extra: Partial<Phase> = {}): Phase => ({ id: 'p', title: 'College', kind: 'study', months: 12, lines: [], place: 'city:OR:bend', place_label: 'Bend, OR', living: 'roommates', activities: [{ kind: 'learning', level: 'cc', school_id: '208646' }, { kind: 'working', career: '35-3023.01', career_title: 'Baristas' }], ...extra })
 const line = (item: string, extra: Partial<Line> = {}): Line => ({ id: `l-${item}`, cat: 'x', item, title: item, side: 'out', settings: {}, start: 0, ...extra })
@@ -10,7 +10,7 @@ const line = (item: string, extra: Partial<Line> = {}): Line => ({ id: `l-${item
 describe('budget pre-fill', () => {
   test('picks suggest pay, the home, school costs and everyday lines', () => {
     const s = suggestLines(phase(), catalog)
-    expect(s.map((x) => x.item)).toEqual(['job', 'rent', 'utilities', 'groceries', 'transport', 'tuition', 'books', 'going_out', 'phone', 'clothes'])
+    expect(s.map((x) => x.item)).toEqual(['job', 'rent', 'utilities', 'groceries', 'transport', 'tuition', 'books', 'going_out', 'phone', 'clothes', 'personal_care'])
     expect([s[0].side, s[0].settings.soc, s[0].hours]).toEqual(['in', '35-3023', 20])
     expect(s.find((x) => x.item === 'rent')!.settings).toEqual({ share: 2, bedrooms: 2 })
     expect(s.find((x) => x.item === 'tuition')!.settings).toEqual({ school: '208646', residency: 'in' })

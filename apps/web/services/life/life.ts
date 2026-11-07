@@ -38,6 +38,8 @@ export interface PhaseTax { filing?: 'single' | 'joint'; rate?: number | null }
 export interface Starting { savings?: Record<string, number>; debts?: Record<string, number> }
 /** What a learner does in a phase. `career` is an O*NET code; `schools` are ones still being weighed. */
 export interface Activity { kind: 'learning' | 'working' | 'looking' | 'caring' | 'gap' | 'other'; level?: string | null; school?: string | null; school_id?: string | null; schools?: string[]; field?: string | null; career?: string | null; career_title?: string | null; employer?: string | null; apprentice?: boolean }
+/** A partner, and kids by age (0-17). */
+export interface Household { partner?: boolean; kids?: number[] }
 export interface Phase {
   id: string; title: string; kind: string; place?: string | null; place_label?: string
   /** Only the length of a phase nothing comes after; otherwise it runs until the next one starts. */
@@ -53,6 +55,8 @@ export interface Phase {
   idea?: boolean
   activities?: Activity[]
   living?: string | null
+  /** Who the budget provides for besides the learner; none is just the learner. */
+  household?: Household | null
   /** Place keys still being weighed; `place` is the one picked. */
   places?: string[]
   /** Where it sits among the options after the same phase: 0 is the learner's first choice. */
@@ -102,6 +106,8 @@ export interface Estimate {
   level: 'city' | 'county' | 'region' | 'area' | 'state' | 'us'
   fallback: boolean
   asked_place_label: string | null
+  /** A national figure moved to local prices: the price level it was multiplied by, and its source. */
+  scaled_by?: { value: number; label: string; place_label: string; source: EstimateSource } | null
   dims: Record<string, any>
   dims_dropped: string[]
   source: EstimateSource

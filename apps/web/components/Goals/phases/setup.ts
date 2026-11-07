@@ -1,4 +1,4 @@
-import type { Activity, Phase } from '@services/life/life'
+import type { Activity, Household, Phase } from '@services/life/life'
 import { tr } from '@/lib/tr'
 
 /*
@@ -21,6 +21,19 @@ export const LIVING: [string, string][] = LIVING_EN.map(([key, en]) => {
   return row
 })
 export const livingLabel = (key?: string | null) => LIVING.find(([k]) => k === key)?.[1] || ''
+
+/** How many people the budget provides for, the learner included. */
+export const householdSize = (h?: Household | null) => 1 + (h?.partner ? 1 : 0) + (h?.kids?.length || 0)
+
+/** "Just me", "Me and a partner", "Me and 2 kids", "Me, a partner and 1 kid". */
+export function householdLabel(h?: Household | null) {
+  const kids = h?.kids?.length || 0
+  const k = kids === 1 ? tr('phases.household.one_kid', '1 kid') : tr('phases.household.kids', '{{n}} kids', { n: kids })
+  if (h?.partner && kids) return tr('phases.household.partner_kids', 'Me, a partner and {{kids}}', { kids: k })
+  if (h?.partner) return tr('phases.household.partner', 'Me and a partner')
+  if (kids) return tr('phases.household.with_kids', 'Me and {{kids}}', { kids: k })
+  return tr('phases.household.me', 'Just me')
+}
 
 export const KINDS: { key: Activity['kind']; title: string; hint: string }[] = [
   { key: 'learning', get title() { return tr('phases.kinds.learning', 'Learning') }, get hint() { return tr('phases.kinds.learning_hint', 'School, college, training') } },
