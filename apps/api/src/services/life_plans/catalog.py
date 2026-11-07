@@ -76,6 +76,10 @@ METRICS = {
     "rent": {"title": "Rent", "dims": ["bedrooms"], "required": []},
     "wage": {"title": "Pay", "dims": ["soc"], "required": ["soc"]},
     "tuition": {"title": "Tuition and fees", "dims": ["school", "residency"], "required": ["school", "residency"]},
+    # A school's own cost-of-attendance budget (College Scorecard / IPEDS).
+    "room_board": {"title": "Room and board", "dims": ["school", "housing"], "required": ["school", "housing"]},
+    "books": {"title": "Books and supplies", "dims": ["school"], "required": ["school"]},
+    "other_costs": {"title": "Other school-year costs", "dims": ["school", "housing"], "required": ["school", "housing"]},
     # Outlook by occupation (Oregon Employment Department projections).
     "openings": {"title": "Openings a year", "dims": ["soc"], "required": ["soc"]},
     "growth": {"title": "Change in jobs", "dims": ["soc"], "required": ["soc"]},

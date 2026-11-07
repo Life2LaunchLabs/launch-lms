@@ -217,6 +217,19 @@ def test_scorecard_loads_operating_schools_and_tuition_facts():
     assert hit["value"] == 13000 and hit["period"] == "yr"
 
 
+def test_scorecard_loads_each_schools_cost_of_attendance_budget():
+    db = _session()
+    csv = b"UNITID,INSTNM,STABBR,CURROPER,PREDDEG,TUITIONFEE_IN,ROOMBOARD_ON,ROOMBOARD_OFF,BOOKSUPPLY,OTHEREXPENSE_ON,OTHEREXPENSE_OFF,OTHEREXPENSE_FAM\n209551,University of Oregon,OR,1,3,15000,14000,13000,1200,2500,3000,NULL\n"
+    result = importers.import_file(db, csv, "Most-Recent-Cohorts-Institution_10032025.csv")
+    assert result["facts"] == 6
+    _review_all(db)
+    q = estimates.EstimateQuery
+    hits = estimates.resolve_many(db, [q(id="dorm", metric="room_board", dims={"school": "209551", "housing": "on"}), q(id="books", metric="books", dims={"school": "209551"}), q(id="fam", metric="other_costs", dims={"school": "209551", "housing": "family"})])
+    assert hits["dorm"]["value"] == 14000 and hits["dorm"]["period"] == "yr"
+    assert hits["books"]["value"] == 1200
+    assert hits["fam"] is None
+
+
 def test_scorecard_zip_uses_the_most_recent_institution_file():
     db = _session()
     out = io.BytesIO()
