@@ -110,7 +110,7 @@ export function PictureSortPage({ orgslug }: { orgslug: string }) {
         : mode === 'done' && taken ? <Results quiz={sort} taken={taken} orgslug={orgslug} onRetake={() => start(true)} other={{ label: 'Answer questions instead', href: getUriWithOrg(orgslug, '/portfolio/interests?start=1') }} />
         : <Sorting sort={sort} card={cards[Math.max(0, at)]} done={done} saving={mode === 'saving'} onAnswer={answer} onBack={back} />}
       <p className="mt-8 px-1 text-[11.5px] font-semibold leading-relaxed text-muted-foreground">
-        The picture sort and its words are Life2Launch’s own. Photos are from Wikimedia Commons and US government sources, credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.
+        The picture sort and its words are Life2Launch’s own. Photos are open-licensed (Wikimedia Commons, Flickr, StockSnap and US government sources), credited on each card. Career matches use O*NET interest profiles; pay is the BLS median.
       </p>
     </div>
   </main>

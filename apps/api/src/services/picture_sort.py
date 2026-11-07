@@ -3,7 +3,7 @@
 Our own 36 activity cards, six for each of the six interest types (RIASEC), each a photo of someone doing it.
 The learner taps a face (no, not sure, yes) or swipes, and every card can be read aloud. Scores land on the same
 six types as the interest quiz, so the result shows in "What I'm like" and drives career matches and Career swipe.
-The words and the card list are ours; the photos are open-licensed (Wikimedia Commons, US government), credited
+The words and the card list are ours; the photos are open-licensed (Wikimedia Commons, Flickr, StockSnap, US government), credited
 on each card.
 """
 
