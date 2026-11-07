@@ -3,13 +3,13 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { Check, ChevronDown, Home, Info, MapPin, Sparkles, Briefcase } from 'lucide-react'
+import { Check, ChevronDown, Home, Info, MapPin, Sparkles, Briefcase, Users } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@components/ui/dialog'
 import { Button } from '@components/ui/button'
 import { Skeleton } from '@components/ui/skeleton'
 import { lifeApi, type Catalog, type Estimate, type Line, type Phase } from '@services/life/life'
-import { activityText, livingLabel } from '@components/Goals/phases/setup'
+import { activityText, householdLabel, livingLabel } from '@components/Goals/phases/setup'
 import { cn } from '@/lib/utils'
 import { estimateQuery, lineValue, money, toMonthly } from './model'
 import { applyRows, planRows, shareSettings, type Row } from './prefill'
@@ -119,10 +119,12 @@ export default function EstimatesDialog({ open, mode, base, phase, catalog, toke
     if (phase.place_label) chips.push({ icon: <MapPin size={14} />, now: phase.place_label })
     if (phase.living) chips.push({ icon: <Home size={14} />, now: livingLabel(phase.living) })
     if (phase.activities?.length) chips.push({ icon: <Briefcase size={14} />, now: doing(phase) })
+    chips.push({ icon: <Users size={14} />, now: householdLabel(phase.household) })
   } else if (base) {
     if ((base.place || '') !== (phase.place || '')) chips.push({ icon: <MapPin size={14} />, now: place(phase), was: place(base) })
     if ((base.living || '') !== (phase.living || '')) chips.push({ icon: <Home size={14} />, now: livingLabel(phase.living) || 'Not picked', was: (livingLabel(base.living) || 'not picked').toLowerCase() })
     if (doing(base) !== doing(phase)) chips.push({ icon: <Briefcase size={14} />, now: doing(phase), was: doing(base) })
+    if (householdLabel(base.household) !== householdLabel(phase.household) || JSON.stringify(base.household?.kids || []) !== JSON.stringify(phase.household?.kids || [])) chips.push({ icon: <Users size={14} />, now: householdLabel(phase.household), was: householdLabel(base.household).toLowerCase() })
   }
 
   const amount = (v: number) => <>{money(Math.round(v), { sign: true })}<span className="ml-px text-[0.8em] font-normal text-muted-foreground">/mo</span></>

@@ -5,7 +5,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Compass, Flag, Home, Map as MapIcon, MapPin, MoreHorizontal, Plus, Sparkles } from 'lucide-react'
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Compass, Flag, Home, Map as MapIcon, MapPin, MoreHorizontal, Plus, Sparkles, Users } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Button } from '@components/ui/button'
@@ -29,9 +29,9 @@ import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { PhaseStatus } from './PhaseStack'
 import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, remove as removePhase, routeDoc, whenOf } from './graph'
-import { activityText, checklist, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
-import { ActivityPicker, LivingPicker, MonthPicker } from './PhasePickers'
+import { ActivityPicker, HouseholdPicker, LivingPicker, MonthPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import PhaseInsights, { useCareers } from './PhaseInsights'
 import useLifePlan from './useLifePlan'
@@ -42,7 +42,7 @@ const EMPTY: GoalSummary[] = []
 const lower = (title: string) => title.charAt(0).toLowerCase() + title.slice(1)
 const due = (date?: string | null) => (date ? new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '')
 
-type Pop = 'name' | 'date' | 'place' | 'living' | 'doing' | null
+type Pop = 'name' | 'date' | 'place' | 'living' | 'household' | 'doing' | null
 
 /**
  * One phase: back and next cards with the map between them, its picture (click the name, date, place,
@@ -165,6 +165,9 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
             <PlacePicker token={token} value={phase.place || null} label={phase.place_label || ''} onPick={(pl) => { void edit((p) => { p.place = pl?.key || null; p.place_label = pl?.label || ''; p.places = [] }, { retitle: true, picks: true }); setPop(null) }} /></> : null}
           {pop === 'living' ? <><h3 className="font-extrabold">How you live</h3>
             <LivingPicker value={phase.living} onPick={(key) => { void edit((p) => { p.living = key }, { picks: true, retitle: true }); setPop(null) }} /></> : null}
+          {pop === 'household' ? <><h3 className="font-extrabold">Who you’re providing for</h3>
+            <p className="text-sm font-bold text-muted-foreground">People whose costs this budget covers. Roommates you split with go under how you live.</p>
+            <HouseholdPicker value={phase.household} onPick={(h) => { void edit((p) => { p.household = h }, { picks: true }); setPop(null) }} /></> : null}
           {pop === 'doing' ? <><h3 className="font-extrabold">What you’re doing</h3>
             {(phase.activities || []).length ? <ul className="grid gap-1.5">{phase.activities!.map((a, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 font-bold"><span className="flex-1">{activityText(a)}</span>
               <button type="button" className="text-sm font-bold text-muted-foreground hover:text-destructive" onClick={() => { void edit((p) => { p.activities = (p.activities || []).filter((_, j) => j !== i) }, { picks: true, retitle: true }) }}>Remove</button></li>)}</ul> : null}
@@ -305,6 +308,7 @@ function Cover({ time, menu, photos, uploading, pop, setPop, onRename }: { time:
         <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{phase.undated ? 'When?' : `${when === 'now' || when === 'done' ? 'Since' : 'From'} ${monthName(time.starts)}`}</button>
         <button type="button" className={chip} onClick={() => toggle('place')}><MapPin size={14} aria-hidden="true" />{phase.place_label || 'Where?'}</button>
         <button type="button" className={chip} onClick={() => toggle('living')}><Home size={14} aria-hidden="true" />{livingLabel(phase.living) || 'Living?'}</button>
+        <button type="button" className={chip} onClick={() => toggle('household')}><Users size={14} aria-hidden="true" />{householdLabel(phase.household)}</button>
       </div>
     </div>
     <PhotoCredit phase={phase} photos={photos} className="bottom-3 right-3" />

@@ -4,6 +4,10 @@ The resolver walks the place ladder (city, county, wage area, state, US) and, at
 place, tries the full breakdown first and then drops optional dimensions from the end.
 The first reviewed fact wins, and the answer says which level it landed on and which
 source it came from. No fact means no estimate.
+
+A metric with a `scale` (a price-level metric, like BEA's Regional Price Parities) turns a
+national figure into a local one: national value x the most specific price level on the
+ladder / 100. The answer names both sources, and the level is the price level's.
 """
 
 from __future__ import annotations
@@ -82,6 +86,7 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
     if not queries:
         return {}
     metrics = {q.metric for q in queries}
+    metrics |= {METRICS[m]["scale"] for m in list(metrics) if METRICS.get(m, {}).get("scale")}
     ladders = {q.id: places.ladder(q.place) for q in queries}
     keys = {k for ls in ladders.values() for k in ls}
     rows = db.exec(
@@ -107,8 +112,30 @@ def resolve_many(db: Session, queries: Iterable[EstimateQuery]) -> dict[str, dic
                     break
             if found:
                 break
+        scale = METRICS.get(q.metric, {}).get("scale")
+        if found and scale and found["place"] == "us":
+            found = _scaled(found, next((index[(scale, p, "")] for p in ladders[q.id] if (scale, p, "") in index), None), q.place)
         out[q.id] = found
     return out
+
+
+def _scaled(found: dict, price: tuple[EstimateFact, EstimateSource] | None, asked_place: str | None) -> dict:
+    """A national figure moved to the place's price level (no price level: the national figure as is)."""
+    if not price or price[0].place == "us":
+        return found
+    fact, src = price
+    level = places.level_of(fact.place)
+    return {
+        **found,
+        "value": round(found["value"] * fact.value / 100, 2),
+        "percentiles": None,
+        "label": f"{found['label']}, at {places.label(fact.place)} prices",
+        "place": fact.place,
+        "place_label": places.label(fact.place),
+        "level": level,
+        "fallback": level != (places.level_of(asked_place) if asked_place else "us"),
+        "scaled_by": {"value": fact.value, "label": fact.label, "place_label": places.label(fact.place), "source": _source_view(src)},
+    }
 
 
 def available_metrics(db: Session, place: str | None) -> list[str]:

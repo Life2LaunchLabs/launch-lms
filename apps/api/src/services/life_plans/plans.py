@@ -12,7 +12,7 @@ from typing import Literal
 from uuid import uuid4
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlmodel import Session, select
 
 from src.db.life_plans import LifePlan
@@ -62,6 +62,19 @@ class Tax(Doc):
     rate: float | None = Field(default=None, ge=0, le=100)
 
 
+class Household(Doc):
+    """Who the phase's budget provides for besides the learner: a partner, and kids by age (0-17)."""
+    partner: bool = False
+    kids: list[int] = Field(default_factory=list, max_length=8)
+
+    @field_validator("kids")
+    @classmethod
+    def _ages(cls, v: list[int]) -> list[int]:
+        if any(a < 0 or a > 17 for a in v):
+            raise ValueError("Kids' ages are 0 to 17.")
+        return v
+
+
 class Activity(Doc):
     """What the learner does in a phase: learning somewhere, working as something, and so on."""
     kind: Literal["learning", "working", "looking", "caring", "gap", "other"] = "other"
@@ -106,6 +119,8 @@ class Phase(Doc):
     idea: bool = False
     activities: list[Activity] = Field(default_factory=list, max_length=8)
     living: str | None = Field(default=None, max_length=20)
+    # Who the budget provides for; None is just the learner.
+    household: Household | None = None
     # Places still being weighed (place keys); `place` is the one picked.
     places: list[str] = Field(default_factory=list, max_length=12)
     # Where it sits among the options after the same phase: 0 is the learner's first choice.

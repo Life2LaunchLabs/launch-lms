@@ -1,4 +1,4 @@
-import type { Catalog, Line, Phase, Side } from '@services/life/life'
+import type { Catalog, Household, Line, Phase, Side } from '@services/life/life'
 import { levelOf } from '@components/Goals/phases/setup'
 import { tr } from '@/lib/tr'
 import { DEFAULT_HOURS, uid } from './model'
@@ -15,10 +15,12 @@ export interface Suggestion { item: string; cat: string; side: Side; title: stri
 const singular = (t: string) => t.split(/,| and /)[0].trim().replace(/s$/, '')
 const SHARED = ['own', 'roommates', 'partner']
 
-/** The knobs a split line starts with: how many share it, and the bedrooms that takes. */
-export function shareSettings(living: string | null | undefined, share?: number) {
+/** The knobs a split line starts with: how many share it, and the bedrooms that takes. Kids you provide
+ *  for add a bedroom for every two (HUD's usual two people to a bedroom). */
+export function shareSettings(living: string | null | undefined, share?: number, household?: Household | null) {
   const n = share ?? (living === 'roommates' ? 2 : living === 'partner' ? 2 : 1)
-  return { share: n, bedrooms: living === 'partner' ? 1 : Math.max(1, n) }
+  const kids = household?.kids?.length || 0
+  return { share: n, bedrooms: (living === 'partner' ? 1 : Math.max(1, n)) + Math.ceil(kids / 2) }
 }
 
 /** Every line the phase's picks suggest, in budget order. */
@@ -36,7 +38,7 @@ export function suggestLines(p: Phase, catalog?: Catalog): Suggestion[] {
   }
   const living = p.living
   if (living && SHARED.includes(living)) {
-    out.push({ item: 'rent', cat: 'home', side: 'out', title: title('rent', 'Rent'), settings: shareSettings(living) })
+    out.push({ item: 'rent', cat: 'home', side: 'out', title: title('rent', 'Rent'), settings: shareSettings(living, undefined, p.household) })
     out.push({ item: 'utilities', cat: 'home', side: 'out', title: title('utilities', 'Utilities and internet'), settings: { share: shareSettings(living).share } })
   }
   const college = acts.find((a) => a.kind === 'learning' && levelOf(a.level)?.college)
@@ -93,7 +95,8 @@ export function planRows(base: Phase | null, now: Phase, catalog?: Catalog): Row
     if (!catalog?.items.find((i) => i.key === l.item)?.metric) continue
     const picked: Record<string, any> = s ? Object.fromEntries(PICKED.filter((k) => k in s.settings).map((k) => [k, s.settings[k]])) : {}
     // A new way of living (roommates to your own place) starts the split over; otherwise the split is the learner's.
-    if (s && base && base.living !== now.living) for (const k of ['share', 'bedrooms']) if (k in s.settings) picked[k] = s.settings[k]
+    const moved = base && (base.living !== now.living || JSON.stringify(base.household || null) !== JSON.stringify(now.household || null))
+    if (s && moved) for (const k of ['share', 'bedrooms']) if (k in s.settings) picked[k] = s.settings[k]
     rows.push({ id: `ch:${l.id}`, kind: 'change', item: l.item, cat: l.cat, side: l.side, title: l.title, line: l, next: { ...l, settings: { ...l.settings, ...picked } } })
   }
   return rows
