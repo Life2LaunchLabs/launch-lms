@@ -23,9 +23,12 @@ export function points(est: Pick<Estimate, 'percentiles' | 'value' | 'period'> |
   return out.length >= 3 ? out : null
 }
 
-/** A figure from one unit to another, full time for hours. */
+/** A figure from one unit to another, full time for hours. Hourly and yearly convert at BLS's 2,080 hours, not 12 four-week months. */
 export function convert(v: number, from: Unit, to: Unit): number {
-  return from === to ? v : fromMonthly(toMonthly(v, from, FULL_TIME), to, FULL_TIME)
+  if (from === to) return v
+  if (from === 'hr' && to === 'yr') return v * FULL_TIME * 52
+  if (from === 'yr' && to === 'hr') return v / (FULL_TIME * 52)
+  return fromMonthly(toMonthly(v, from, FULL_TIME), to, FULL_TIME)
 }
 
 /** Where `v` falls, as a percentile within the published range (clamped to its ends). */
