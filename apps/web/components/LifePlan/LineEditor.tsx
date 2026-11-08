@@ -17,6 +17,15 @@ const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')
 const fmt = (v: number, cents = false) => v.toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 })
 const PER_SHORT: Record<Unit, string> = { hr: 'hr', wk: 'wk', mo: 'mo', yr: 'yr' }
 
+/** A line's name: a job is named after its occupation until the learner renames it. */
+export const lineTitle = (line: Line) => (!line.settings?.named && line.settings?.soc_title) || line.title
+
+/** When a line starts or stops inside its phase, for its subtitle: "from Sep 2027", "until Jun 2028", "Sep 2027 to Jun 2028". */
+export function datesText(line: Line, start: string, off: number): string {
+  const a = line.start ? monthLabel(start, off + line.start) : null, b = line.end != null ? monthLabel(start, off + line.end) : null
+  return a && b ? tr('budget.line.a_to_b', '{{a}} to {{b}}', { a, b }) : a ? tr('budget.line.from_a', 'from {{a}}', { a }) : b ? tr('budget.line.until_b', 'until {{b}}', { b }) : ''
+}
+
 /** How pay is entered: by the hour or as a yearly salary. */
 export type PayMode = 'hr' | 'yr'
 export const payMode = (line: Line): PayMode => (line.settings?.pay === 'yr' || line.settings?.pay === 'hr' ? line.settings.pay : line.own?.unit === 'yr' ? 'yr' : 'hr')
@@ -130,7 +139,7 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
             <div className="grid min-w-0 gap-1">
               <span className="text-[11px] font-semibold text-muted-foreground">{tr('budget.line.occupation', 'Occupation')}</span>
               <OccupationPop token={token} value={line.settings?.soc} label={line.settings?.soc_title || (line.settings?.soc ? line.title : undefined)}
-                onPick={(o) => set((l) => { l.settings = { ...(l.settings || {}), soc: o.soc, soc_title: o.title }; if (l.title === 'A job' || !l.title || l.title === line.settings?.soc_title) l.title = o.title })} />
+                onPick={(o) => set((l) => { l.settings = { ...(l.settings || {}), soc: o.soc, soc_title: o.title }; if (!line.settings?.named) l.title = o.title })} />
             </div>
           )}
           {pay && (

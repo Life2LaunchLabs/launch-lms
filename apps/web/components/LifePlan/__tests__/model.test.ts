@@ -112,3 +112,23 @@ describe('loan story', () => {
     expect(schedule(10000, 12, 100).months).toBe(null)
   })
 })
+
+describe('what is left each month', () => {
+  test('goes to savings by default, and to debt (highest rate first) when the learner says so', () => {
+    const debts = [loan({ id: 'a', rate: 5, balance: 5000 }), loan({ id: 'b', rate: 20, balance: 500 })]
+    const save = run(plan(debts))
+    expect(save.extra[0]).toBe(0)
+    expect(save.left[0]).toBe(2800)
+
+    const doc = { ...plan(debts), policies: [{ id: 'p', target: 'left', phase: 'p1', month: 0, to: 'debt' as const }] }
+    const p = run(doc)
+    expect(p.left[0]).toBe(2800)
+    expect(Math.round(p.extra[0])).toBe(2800)
+    const [a, b] = p.debtsAt(1)
+    expect(b.state).toBe('paid')
+    expect(a.balance < 5000 - 100 - 2000).toBe(true)
+    // Nothing went to savings that month; once the debts are gone, savings get it again.
+    expect(p.historyOf('save')[1]).toBe(0)
+    expect(p.historyOf('save')[24] > 0).toBe(true)
+  })
+})

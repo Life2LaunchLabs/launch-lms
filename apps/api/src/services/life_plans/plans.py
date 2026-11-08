@@ -164,6 +164,8 @@ class Policy(Doc):
     full: bool | None = None
     put: float | None = Field(default=None, ge=0, le=10_000_000)
     pct: float | None = Field(default=None, ge=0, le=100)
+    # For the target "left": where what is left each month goes.
+    to: Literal["save", "debt"] | None = None
 
 
 class Sale(Doc):
