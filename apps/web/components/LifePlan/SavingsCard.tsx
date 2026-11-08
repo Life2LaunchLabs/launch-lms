@@ -44,17 +44,18 @@ export function LeftOverCard() {
     : target ? (target.paidOffAt != null ? tr('budget.left.debt_until', 'Extra on {{t}} until it’s paid off in {{a}}. The stretch after that gets its own choice.', { t: target.debt.title.toLowerCase(), a: monthLabel(doc.start, target.paidOffAt) }) : tr('budget.left.debt_on', 'Extra on {{t}}, on top of what you pay.', { t: target.debt.title.toLowerCase() }))
     : live !== 'save' ? tr('budget.left.account', 'Into {{t}}, on top of what you put in.', { t: accounts.find((x) => x.id === live)?.title || '' })
     : gone ? tr('budget.left.gone', '{{t}} is paid off, so it goes to your savings account. Pick what it goes to next.', { t: gone.title })
-    : tr('budget.left.save_story', 'Into your savings account.')
+    : ''
   return (
-    <section aria-label={tr('budget.summary.left_over', 'Left over')} className={`${cardCls} py-2.5 ${shortNow ? 'bg-red-500/10 dark:bg-red-500/[0.13]' : ''}`}>
-      <div className="flex items-end gap-3">
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className={`block text-[11px] font-semibold ${shortNow ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>{shortNow ? tr('budget.summary.gap', 'Gap') : tr('budget.summary.left_over', 'Left over')}</span>
-          <b className={`text-lg font-extrabold ${shortNow ? 'text-red-600 dark:text-red-400' : ''}`}><Monthly value={left} sign={left > 0.5} /></b>
-        </span>
-        {!shortNow && !readOnly && <SelectField label={tr('budget.left.goes_to', 'Goes to')} value={live} options={options} onChange={pick} className="w-52 shrink-0" />}
-      </div>
-      <p className="mt-1.5 text-[11px] text-muted-foreground">{story}</p>
+    <section aria-label={tr('budget.summary.left_over', 'Left over')}>
+      <SectionHead title={shortNow ? tr('budget.summary.gap', 'Gap') : tr('budget.summary.left_over', 'Left over')}>
+        <span className={shortNow ? 'text-red-600 dark:text-red-400' : ''}><Monthly value={left} sign={left > 0.5} /></span>
+      </SectionHead>
+      {(!shortNow && !readOnly) || story ? (
+        <div className={`${cardCls} space-y-1.5 py-2.5`}>
+          {!shortNow && !readOnly && <SelectField label={tr('budget.left.goes_to', 'Goes to')} value={live} options={options} onChange={pick} />}
+          {story && <p className="text-[11px] text-muted-foreground">{story}</p>}
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -97,7 +98,7 @@ function MainRow({ s, at, flow, first }: { s: Saving; at: SavingAt; flow: number
   const { endBal, endLabel } = useEndBalance(s.id)
   const [sheet, setSheet] = React.useState<'name' | 'details' | null>(null)
   const down = flow < -0.5
-  const sub = [down ? tr('budget.save.covers_the_gap', 'covers the gap') : flow > 0.5 ? tr('budget.save.gets_left_over', 'gets what’s left') : '', s.rate ? `${s.rate}% interest` : ''].filter(Boolean).join(' · ')
+  const sub = s.rate ? `${s.rate}% interest` : ''
   const startLabel = monthLabel(doc.start, stretch.g0)
   return (
     <MoneyRow id={`m:${s.id}`} icon="piggy-bank" title={s.title} first={first} sub={sub} under={tr('budget.save.by_end', '{{m}} by end', { m: money(endBal) })}

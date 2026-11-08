@@ -35,6 +35,7 @@ export function SectionHead({ title, label, children, onAdd, addLabel }: { title
       <span className="flex min-w-0 items-baseline gap-2">
         {label && <span className="truncate text-xs font-semibold text-muted-foreground">{label}</span>}
         {children && <b className="text-lg font-extrabold">{children}</b>}
+        {!readOnly && !onAdd && <span className="w-8 shrink-0" aria-hidden="true" />}
         {!readOnly && onAdd && <Button variant="secondary" size="icon" className="size-8 self-center rounded-full [&_svg]:size-4" onClick={onAdd} aria-label={addLabel} title={addLabel}><Plus /></Button>}
       </span>
     </div>
