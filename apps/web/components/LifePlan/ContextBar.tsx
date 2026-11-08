@@ -3,7 +3,7 @@
 import React from 'react'
 import { Check, ChevronLeft, ChevronRight, Map as MapIcon, MoreHorizontal, Sparkles } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@components/ui/dialog'
+import Sheet from './Sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import type { LifeDoc, Phase } from '@services/life/life'
 import { byId, kids, monthText, parents } from '@components/Goals/phases/graph'
@@ -48,7 +48,7 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
   const photos = catalog?.place_photos
   const arrow = (side: 'left' | 'right') => {
     const list = side === 'left' ? before : after
-    if (!list.length) return <span />
+    if (!list.length) return null
     const name = list.length > 1 ? (side === 'left' ? tr('budget.context_bar.choose_an_earlier_phase', 'Choose an earlier phase') : tr('budget.context_bar.choose_the_next_phase', 'Choose the next phase'))
       : side === 'left' ? tr('budget.context_bar.earlier_phase_title', 'Earlier phase: {{title}}', { title: list[0].title }) : tr('budget.context_bar.next_phase_title', 'Next phase: {{title}}', { title: list[0].title })
     return <Button variant="ghost" size="icon" onClick={() => go(side)} aria-label={name} title={name} aria-haspopup={list.length > 1 ? 'dialog' : undefined}>
@@ -58,11 +58,11 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
   const options = sheet === 'left' ? before : sheet === 'right' ? after : []
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 mb-4 bg-background/90 px-4 pb-3 pt-3 backdrop-blur sm:-mx-6 sm:px-6">
+    <div className="sticky top-0 z-20 -mx-4 mb-3 bg-background/90 px-4 pb-2 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
           <Button variant="ghost" size="icon" onClick={onBack} aria-label={backLabel} title={backLabel}><ChevronLeft /></Button>
-          <h1 className="truncate text-2xl font-extrabold tracking-tight">{owner ? tr('budget.context_bar.owner_s_budget', '{{owner}}’s budget', { owner }) : tr('budget.context_bar.budget', 'Budget')}</h1>
+          <h1 className="truncate text-xl font-extrabold tracking-tight">{owner ? tr('budget.context_bar.owner_s_budget', '{{owner}}’s budget', { owner }) : tr('budget.context_bar.budget', 'Budget')}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {owner ? <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">{tr('budget.context_bar.shared_with_you_view_only', 'Shared with you · view only')}</span>
@@ -80,12 +80,12 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <div className="grid min-w-0 flex-1 grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-1 rounded-2xl bg-card p-1.5 shadow-[0_1px_0_hsl(var(--border))]">
+        <div className={`flex min-w-0 flex-1 items-center gap-1 rounded-2xl bg-card py-1.5 shadow-[0_1px_0_hsl(var(--border))] ${before.length ? 'pl-1' : 'pl-2'} ${after.length ? 'pr-1' : 'pr-2'}`}>
           {arrow('left')}
-          <div className="flex min-w-0 items-center gap-2.5">
-            <PhaseCover phase={phase} photos={photos} className="h-11 w-12 shrink-0 overflow-hidden rounded-lg sm:w-16" />
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <PhaseCover phase={phase} photos={photos} className="h-10 w-14 shrink-0 overflow-hidden rounded-lg" />
             <div className="min-w-0 leading-tight">
-              <div className="truncate font-bold">{phase.title}</div>
+              <div className="truncate text-[15px] font-bold">{phase.title}</div>
               <div className="truncate text-xs text-muted-foreground">
                 {tr('budget.context_bar.monthlabel_to_monthlabel2', '{{monthLabel}} to {{monthLabel2}}', { monthLabel: monthLabel(doc.start, off), monthLabel2: monthLabel(doc.start, off + phase.months - 1) })}{phase.place_label ? ` · ${phase.place_label}` : ''}
               </div>
@@ -93,7 +93,7 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
           </div>
           {arrow('right')}
         </div>
-        {onMap ? <Button variant="secondary" size="icon" className="size-[58px] shrink-0 rounded-2xl bg-card shadow-[0_1px_0_hsl(var(--border))]" onClick={onMap} aria-label={tr('budget.context_bar.see_the_map', 'See the map')} title={tr('budget.context_bar.see_the_map', 'See the map')}><MapIcon /></Button> : null}
+        {onMap ? <Button variant="secondary" size="icon" className="size-[52px] shrink-0 rounded-2xl bg-card shadow-[0_1px_0_hsl(var(--border))] [&_svg]:size-6" onClick={onMap} aria-label={tr('budget.context_bar.see_the_map', 'See the map')} title={tr('budget.context_bar.see_the_map', 'See the map')}><MapIcon /></Button> : null}
       </div>
       {stretchesOf.length > 1 && (
         <div ref={chips} className="relative mt-2 flex items-center gap-2 overflow-x-auto px-0.5 py-1 [scrollbar-width:none]" role="group" aria-label={tr('budget.context_bar.stretches_in_this_phase', 'Stretches in this phase')}>
@@ -110,10 +110,8 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
           })}
         </div>
       )}
-      <Dialog open={!!sheet} onOpenChange={(o) => !o && setSheet(null)}>
-        <DialogContent className="bottom-0 left-0 top-auto max-w-none translate-x-0 translate-y-0 gap-3 rounded-b-none rounded-t-3xl border-x-0 border-b-0 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border">
-          <DialogTitle className="text-lg font-extrabold">{sheet === 'left' ? tr('budget.context_bar.which_way_in', 'Which phase before this one?') : tr('budget.context_bar.which_way_next', 'Which phase next?')}</DialogTitle>
-          <DialogDescription className="-mt-2 text-sm">{tr('budget.context_bar.your_map_has_options', 'Your map has {{n}} ways here. Pick one to see its budget.', { n: options.length })}</DialogDescription>
+      <Sheet open={!!sheet} onClose={() => setSheet(null)} title={sheet === 'left' ? tr('budget.context_bar.which_way_in', 'Which phase before this one?') : tr('budget.context_bar.which_way_next', 'Which phase next?')}
+        description={tr('budget.context_bar.your_map_has_options', 'Your map has {{n}} ways here. Pick one to see its budget.', { n: options.length })}>
           <ul className="space-y-2">
             {options.map((p, i) => (
               <li key={p.id}>
@@ -128,8 +126,7 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
               </li>
             ))}
           </ul>
-        </DialogContent>
-      </Dialog>
+      </Sheet>
     </div>
   )
 }

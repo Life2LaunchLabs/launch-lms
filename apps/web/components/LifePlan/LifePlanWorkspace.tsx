@@ -135,10 +135,10 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
         <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} full={full}
           onMap={of ? undefined : () => router.push(getUriWithOrg(orgslug, '/plans'))} />
         <BudgetSummary />
-        <div className="mt-3"><PhaseChart /></div>
-        <div className="mt-8" />
+        <div className="mt-2"><PhaseChart /></div>
+        <div className="mt-5" />
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
-        <fieldset disabled={Boolean(of)} className="min-w-0 space-y-6">
+        <fieldset disabled={Boolean(of)} className="min-w-0 space-y-5">
           <BudgetTable />
           <SavingsDebtCard />
           <OneTimeCard />

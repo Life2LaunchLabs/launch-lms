@@ -10,7 +10,7 @@ import { monthIndex, monthLabel, phaseOffset, short } from './model'
 import { MarkCard, MarkDot, markLabel, marksBetween } from './ChartEvents'
 
 import { tr } from '@/lib/tr'
-const SAVE = '#2F7DD3', OWN = '#7A5BD0', DEBT = '#E0662E'
+const SAVE = '#10B981', OWN = '#7A5BD0', DEBT = 'hsl(var(--foreground))'
 
 function nice(v: number) {
   if (v <= 1000) return 1000
@@ -22,8 +22,8 @@ function nice(v: number) {
 function Fills() {
   return (
     <defs>
-      {([['save', SAVE, 0.32], ['own', OWN, 0.32], ['debt', DEBT, 0.28]] as const).map(([k, c, o]) => (
-        <linearGradient key={k} id={`fill-${k}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c} stopOpacity={o} /><stop offset="100%" stopColor={c} stopOpacity={0.02} /></linearGradient>
+      {([['save', SAVE, 0.32], ['own', OWN, 0.32], ['debt', DEBT, 0.16]] as const).map(([k, c, o]) => (
+        <linearGradient key={k} id={`fill-${k}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style={{ stopColor: c, stopOpacity: o }} /><stop offset="100%" style={{ stopColor: c, stopOpacity: 0.02 }} /></linearGradient>
       ))}
     </defs>
   )
@@ -58,8 +58,9 @@ export default function PhaseChart() {
   const off = phaseOffset(doc, phase.id), M = Math.max(1, phase.months)
   const sav = projection.sav.slice(off, off + M + 1), own = projection.own.slice(off, off + M + 1), debt = projection.debt.slice(off, off + M + 1)
   const stack = sav.map((v, i) => v + own[i]), hasOwn = own.some((v) => v > 1)
-  const H = 190, top = 34, bot = H - 4
-  const hi = nice(Math.max(1000, ...stack, ...debt) * 1.05)
+  const marks = stretchesOf.length > 1
+  const H = marks ? 132 : 104, top = marks ? 36 : 10, bot = H - 4
+  const hi = Math.max(1000, ...stack, ...debt) * 1.08
   const X = (m: number) => (m / M) * 100, Y = (v: number) => top + (1 - Math.max(0, v) / hi) * (bot - top)
   const pts = (a: number[]) => a.map((v, m) => `${X(m).toFixed(3)},${Y(v).toFixed(1)}`).join(' ')
   const area = (up: number[], dn: number[]) => `${pts(up)} ${dn.map((v, m) => `${X(m).toFixed(3)},${Y(v).toFixed(1)}`).reverse().join(' ')}`
@@ -70,10 +71,13 @@ export default function PhaseChart() {
     return { g, ms, x: X(m + 0.5), y: Y((stack[m] + stack[Math.min(M, m + 1)]) / 2) }
   })
   const picked = dots.find((d) => d.g === pick) || null
-
-  const years: [number, string][] = []
-  for (let m = 0; m < M; m++) { const l = monthLabel(doc.start, off + m); if (monthIndex(doc.start, off + m) === 0) years.push([m, l.slice(l.lastIndexOf(' ') + 1)]) }
-  const every = Math.max(1, Math.ceil(years.length / 6))
+  // Start and end values beside the lines, nudged apart when they'd overlap.
+  const showDebt = debt[0] > 0.5 || debt[M] > 0.5
+  const ends = (i: number) => {
+    let a = Y(stack[i]), b = Y(debt[i])
+    if (showDebt && Math.abs(a - b) < 14) { const mid = (a + b) / 2, up = stack[i] >= debt[i] ? -1 : 1; a = mid + up * 7; b = mid - up * 7 }
+    return [{ y: a, v: stack[i], c: SAVE, k: 's' }, ...(showDebt ? [{ y: b, v: debt[i], c: DEBT, k: 'd' }] : [])]
+  }
 
   const onMove = (e: React.PointerEvent) => {
     const r = plot.current?.getBoundingClientRect(); if (!r) return
@@ -82,20 +86,21 @@ export default function PhaseChart() {
 
   return (
     <section aria-label={tr('budget.phase_chart.money_over_this_phase', 'Money over this phase')}>
-      <div className="mt-3 rounded-2xl bg-card p-3 shadow-[0_1px_0_hsl(var(--border))] sm:p-4">
-        <div className="mb-1 flex items-center justify-between gap-2"><div><Legend own={hasOwn} />{dots.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">{tr('budget.phase_chart.tap_a_dot_to_see', 'Tap a dot to see why the line moves.')}</p>}</div><Button variant="ghost" size="icon" onClick={() => setBig(true)} aria-label={tr('budget.phase_chart.see_every_phase_full_screen', 'See every phase, full screen')} title={tr('budget.phase_chart.see_every_phase', 'See every phase')}><Maximize2 /></Button></div>
-        <div className="relative pl-10">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-9">
-            {[0, hi / 2, hi].map((t) => <span key={t} className="absolute right-1 -translate-y-1/2 text-[11px] font-semibold tabular-nums text-muted-foreground" style={{ top: Y(t) }}>{t ? short(t) : '$0'}</span>)}
-          </div>
+      <div className="relative rounded-2xl bg-card px-2 pb-1.5 pt-2 shadow-[0_1px_0_hsl(var(--border))]">
+        <Button variant="ghost" size="icon" className="absolute bottom-0.5 right-1.5 z-[5] size-6 text-muted-foreground [&_svg]:size-3.5" onClick={() => setBig(true)} aria-label={tr('budget.phase_chart.see_every_phase_full_screen', 'See every phase, full screen')} title={tr('budget.phase_chart.see_every_phase', 'See every phase')}><Maximize2 /></Button>
+        <div className="relative px-11">
+          {[0, M].map((i) => (
+            <div key={i} className={`pointer-events-none absolute inset-y-0 w-10 ${i ? 'right-0' : 'left-0'}`}>
+              {ends(i).map((e) => <span key={e.k} className={`absolute -translate-y-1/2 text-[11px] font-bold tabular-nums ${i ? 'left-1' : 'right-1'}`} style={{ top: e.y, color: e.c }}>{short(e.v)}</span>)}
+            </div>
+          ))}
           <div ref={plot} className="relative touch-pan-y" style={{ height: H }} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
             {stretchesOf.length > 1 && stretchesOf.map((s) => (
               <button key={s.i} type="button" aria-label={`Show ${s.i === 0 ? 'the start' : s.why.join(', ')}`} onClick={() => selectStretch(phase.id, s.i)}
-                className={`absolute bottom-0 top-[30px] z-[1] ${s.i === stretch.i ? 'bg-[color-mix(in_srgb,var(--org-primary-color)_11%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--org-primary-color)_6%,transparent)]'}`}
+                className={`absolute bottom-0 top-[32px] z-[1] ${s.i === stretch.i ? 'bg-[color-mix(in_srgb,var(--org-primary-color)_11%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--org-primary-color)_6%,transparent)]'}`}
                 style={{ left: `${X(s.m0)}%`, width: `${X(s.m1 + 1) - X(s.m0)}%` }} />
             ))}
             <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} className="pointer-events-none relative block overflow-visible" role="img" aria-label={tr('budget.phase_chart.savings_things_you_own_and', 'Savings, things you own and debt during {{title}}', { title: phase.title })}>
-              {[0, hi / 2, hi].map((t) => <line key={t} x1="0" x2="100" y1={Y(t)} y2={Y(t)} stroke="hsl(var(--border))" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
               <Fills />
               <polygon points={area(debt, zero)} fill="url(#fill-debt)" />
               <polygon points={area(sav, zero)} fill="url(#fill-save)" />
@@ -105,7 +110,7 @@ export default function PhaseChart() {
             </svg>
             {stretchesOf.slice(1).map((s) => (
               <React.Fragment key={s.i}>
-                <span className={`pointer-events-none absolute bottom-0 top-[30px] z-[2] w-0 border-l-[1.5px] ${s.i === stretch.i ? 'border-solid border-[var(--org-primary-color)]' : 'border-dashed border-muted-foreground/50'}`} style={{ left: `${X(s.m0)}%` }} />
+                <span className={`pointer-events-none absolute bottom-0 top-[32px] z-[2] w-0 border-l-[1.5px] ${s.i === stretch.i ? 'border-solid border-[var(--org-primary-color)]' : 'border-dashed border-muted-foreground/50'}`} style={{ left: `${X(s.m0)}%` }} />
                 <button type="button" onClick={() => selectStretch(phase.id, s.i)} title={`${s.why.join(', ')} · ${monthLabel(doc.start, s.g0)}`} aria-label={s.why.join(', ')}
                   className={`absolute top-0.5 z-[3] grid size-[26px] -translate-x-1/2 place-items-center rounded-full ${s.i === stretch.i ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]' : 'bg-card text-foreground ring-2 ring-border'}`} style={{ left: `${X(s.m0)}%` }}>
                   <LifeIcon name={s.icon} className="size-3.5" />
@@ -123,7 +128,7 @@ export default function PhaseChart() {
             )}
             {hover !== null && pick === null && (
               <>
-                <span className="pointer-events-none absolute bottom-0 top-[30px] z-[2] w-px bg-muted-foreground/50" style={{ left: `${X(hover)}%` }} />
+                <span className="pointer-events-none absolute bottom-0 top-[32px] z-[2] w-px bg-muted-foreground/50" style={{ left: `${X(hover)}%` }} />
                 <span className="pointer-events-none absolute top-8 z-[4] whitespace-nowrap rounded-xl bg-foreground px-2.5 py-2 text-xs font-semibold text-background" style={X(hover) > 60 ? { right: `${100 - X(hover)}%`, marginRight: 12 } : { left: `${X(hover)}%`, marginLeft: 12 }}>
                   <b className="block">{monthLabel(doc.start, off + Math.min(hover, M - 1))}</b>
                   {tr('budget.phase_chart.savings_short', 'Savings {{short}}', { short: short(sav[hover]) })}{own[hover] > 1 ? <><br />{tr('budget.phase_chart.things_you_own_short', 'Things you own {{short}}', { short: short(own[hover]) })}</> : null}<br />{tr('budget.phase_chart.debt_short', 'Debt {{short}}', { short: short(debt[hover]) })}
@@ -131,9 +136,7 @@ export default function PhaseChart() {
               </>
             )}
           </div>
-          <div className="relative mt-1 h-4">
-            {years.filter((_, i) => i % every === 0).map(([m, y]) => <span key={m} className="absolute -translate-x-1/2 text-[11px] font-semibold text-muted-foreground" style={{ left: `${X(m)}%` }}>{y}</span>)}
-          </div>
+          <div className="mt-0.5 flex justify-between text-[11px] font-semibold text-muted-foreground"><span>{monthLabel(doc.start, off)}</span><span>{monthLabel(doc.start, off + M - 1)}</span></div>
         </div>
       </div>
       <FullChart open={big} onClose={() => setBig(false)} />

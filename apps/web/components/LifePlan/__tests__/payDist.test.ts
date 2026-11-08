@@ -31,3 +31,14 @@ describe('pay distribution', () => {
     expect(['1st', '2nd', '3rd', '11th', '12th', '21st', '70th'].join()).toBe([1, 2, 3, 11, 12, 21, 70].map(ordinal).join())
   })
 })
+
+describe('pay chart range', () => {
+  test('covers both tails and stretches to an extreme number', async () => {
+    const { domain } = await import('../payDist')
+    const pts = points(est, 'yr')!
+    const [lo, hi] = domain(pts)
+    expect(lo < pts[0][1] && hi > pts[4][1]).toBe(true)
+    expect(domain(pts, 50)[0]).toBe(50)
+    expect(domain(pts, 50)[1]).toBe(hi)
+  })
+})

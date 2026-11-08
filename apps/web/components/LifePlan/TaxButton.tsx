@@ -1,11 +1,10 @@
 'use client'
 
 import React from 'react'
-import { ChevronDown, ChevronRight, Info, RotateCcw } from 'lucide-react'
+import { ChevronDown, Info, RotateCcw } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { useLife } from './LifeContext'
-import { LifeIcon } from './icons'
-import { PerTag } from './BudgetSummary'
+import Sheet from './Sheet'
 import { estimateTax, stateName, stateOf, type Filing } from './tax'
 import { PER_WORD, fromMonthly, money } from './model'
 
@@ -14,8 +13,8 @@ import { tr } from '@/lib/tr'
 const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')); return Number.isFinite(v) && v >= 0 ? v : null }
 const pct = (r: number) => `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`
 
-/** Taxes on pay from work, as the last line of Income, opening into how they're worked out. */
-export default function TaxRow({ pay, tax }: { pay: number; tax: number }) {
+/** "after 16% tax" beside the Income total, opening a sheet with how the tax on pay from work is worked out. */
+export default function TaxButton({ pay, tax }: { pay: number; tax: number }) {
   const { phase, per, updatePhase, readOnly } = useLife()
   const [open, setOpen] = React.useState(false)
   const [src, setSrc] = React.useState<string | null>(null)
@@ -25,18 +24,13 @@ export default function TaxRow({ pay, tax }: { pay: number; tax: number }) {
   const rate = pay > 0 ? tax / pay : 0
   const setTax = (patch: { filing?: Filing; rate?: number | null }) => updatePhase((p) => { p.tax = { filing, rate: own, ...p.tax, ...patch } })
   return (
-    <div className="border-t border-border/70">
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 py-3 text-left">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><LifeIcon name="landmark" /></span>
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className={`block truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{tr('budget.tax.taxes', 'Taxes')}</span>
-          <small className="block truncate text-xs text-muted-foreground">{tr('budget.tax.on_pay', '{{pct}} of {{money}} pay', { pct: pct(rate), money: money(fromMonthly(pay, per)) })}{own == null ? '' : tr('budget.budget_table.your_rate', ' (your rate)')}</small>
-        </span>
-        <span className="font-semibold tabular-nums text-muted-foreground">{tax > 0.5 ? '−' : ''}{money(fromMonthly(tax, per))}<PerTag per={per} /></span>
-        {open ? <ChevronDown className="size-4 shrink-0 rotate-180 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+    <>
+      <button type="button" aria-haspopup="dialog" onClick={() => setOpen(true)} className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+        {own === 0 ? tr('budget.tax.already_after_tax', 'already after tax') : tr('budget.tax.after_pct_tax', 'after {{pct}} tax', { pct: pct(rate) })}<ChevronDown className="size-3.5" />
       </button>
-      {open && (
-        <div className="space-y-3 pb-4">
+      <Sheet open={open} onClose={() => setOpen(false)} title={tr('budget.tax.taxes', 'Taxes')}
+        description={tr('budget.tax.summary', '{{tax}} a {{per}} on {{pay}} of pay, {{pct}}{{yours}}.', { tax: money(fromMonthly(tax, per)), per: PER_WORD[per], pay: money(fromMonthly(pay, per)), pct: pct(rate), yours: own == null ? '' : tr('budget.budget_table.your_rate', ' (your rate)') })}>
+        <div className="space-y-3">
           <div className={`rounded-xl bg-muted/60 p-3 ${own != null ? 'opacity-75' : ''}`}>
             <div className="flex items-baseline justify-between text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
               <span>{tr('budget.budget_table.estimate', 'Estimate')}</span><span className="tabular-nums normal-case tracking-normal">{pct(est.rate)} · {money(fromMonthly(est.annual / 12, per))} a {PER_WORD[per]}</span>
@@ -76,7 +70,7 @@ export default function TaxRow({ pay, tax }: { pay: number; tax: number }) {
             </label>
           </div>
         </div>
-      )}
-    </div>
+      </Sheet>
+    </>
   )
 }

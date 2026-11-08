@@ -28,25 +28,24 @@ export function PerTag({ per }: { per: string }) {
 
 /** Three numbers at the top: income after tax, expenses, and what's left over (or short). */
 export default function BudgetSummary() {
-  const { per, phase, projection } = useLife()
+  const { per } = useLife()
   const { inn, out, left, debtPay, saving, pay } = useTotals()
-  const missing = projection.missing.filter((x) => x.phase === phase.id).length
   const short = left < -0.5
-  const tile = 'min-w-0 rounded-2xl bg-card px-2.5 py-2.5 shadow-[0_1px_0_hsl(var(--border))] sm:px-4 sm:py-3'
-  const big = 'block truncate text-base font-extrabold tabular-nums tracking-tight sm:text-2xl'
+  const tile = 'min-w-0 rounded-xl bg-card px-2.5 py-1.5 shadow-[0_1px_0_hsl(var(--border))] sm:px-3.5 sm:py-2'
+  const big = 'block truncate text-base font-extrabold tabular-nums tracking-tight sm:text-xl'
   return (
     <section aria-label={tr('budget.summary.this_stretch', 'This stretch in numbers')}>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className={tile}>
-          <span className="block truncate text-xs font-semibold text-muted-foreground sm:text-sm" title={pay > 0 ? tr('budget.budget_table.after_tax', 'after tax') : undefined}>{tr('lit.budget_table.income', 'Income')}</span>
+          <span className="block truncate text-[11px] font-semibold text-muted-foreground sm:text-xs" title={pay > 0 ? tr('budget.budget_table.after_tax', 'after tax') : undefined}>{tr('lit.budget_table.income', 'Income')}</span>
           <b className={`${big} text-emerald-600 dark:text-emerald-400`}>{money(fromMonthly(inn, per))}<PerTag per={per} /></b>
         </div>
         <div className={tile}>
-          <span className="block truncate text-xs font-semibold text-muted-foreground sm:text-sm">{tr('lit.budget_table.expenses', 'Expenses')}</span>
+          <span className="block truncate text-[11px] font-semibold text-muted-foreground sm:text-xs">{tr('lit.budget_table.expenses', 'Expenses')}</span>
           <b className={big}>{money(fromMonthly(out, per))}<PerTag per={per} /></b>
         </div>
-        <div className={`${tile} ${short ? 'bg-red-50 dark:bg-red-950/50' : ''}`}>
-          <span className={`flex items-center gap-1 text-xs font-semibold sm:text-sm ${short ? 'text-red-600 dark:text-red-300' : 'text-muted-foreground'}`}>
+        <div className={`${tile} ${short ? 'bg-red-500/10 dark:bg-red-500/[0.13]' : ''}`}>
+          <span className={`flex items-center gap-1 text-[11px] font-semibold sm:text-xs ${short ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
             <span className="truncate">{short ? tr('budget.summary.gap', 'Gap') : tr('budget.summary.left_over', 'Left over')}</span>
             {(debtPay > 0 || saving > 0) && (
               <Popover>
@@ -58,10 +57,9 @@ export default function BudgetSummary() {
               </Popover>
             )}
           </span>
-          <b className={`${big} ${short ? 'text-red-600 dark:text-red-300' : ''}`}>{left > 0.5 ? '+' : ''}{money(fromMonthly(left, per))}<PerTag per={per} /></b>
+          <b className={`${big} ${short ? 'text-red-600 dark:text-red-400' : ''}`}>{left > 0.5 ? '+' : ''}{money(fromMonthly(left, per))}<PerTag per={per} /></b>
         </div>
       </div>
-      {missing > 0 && <p className="mt-2 text-xs text-muted-foreground">{missing === 1 ? tr('budget.phase_chart.one_line_has', 'One line has') : tr('budget.phase_chart.missing_lines_have', '{{missing}} lines have', { missing })}{' '}{tr('budget.phase_chart.no_number_yet_so', 'no number yet, so')}{' '}{missing === 1 ? tr('budget.phase_chart.it_isn_t', 'it isn\'t') : tr('budget.phase_chart.they_aren_t', 'they aren\'t')}{' '}{tr('budget.phase_chart.counted', 'counted.')}</p>}
     </section>
   )
 }

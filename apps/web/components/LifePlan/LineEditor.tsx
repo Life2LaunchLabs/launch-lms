@@ -1,12 +1,13 @@
 'use client'
 
 import React from 'react'
-import { ChevronDown, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, RotateCcw, Search } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import { lifeApi, type CatalogItem, type Estimate, type Line, type Occupation, type Unit } from '@services/life/life'
 import { useLife } from './LifeContext'
 import PayChart from './PayChart'
 import SourceInfo from './SourceInfo'
+import Sheet from './Sheet'
 import { points } from './payDist'
 import { DEFAULT_HOURS, PER_WORD, WEEKS_PER_MONTH, fromMonthly, money, monthLabel, phaseOffset, toMonthly, type LineValue, type Per } from './model'
 
@@ -48,8 +49,8 @@ export function subtitle(line: Line, item: CatalogItem | undefined, v: LineValue
 function Field({ label, children, hot = false, className = '' }: { label: string; children: React.ReactNode; hot?: boolean; className?: string }) {
   return (
     <label className={`grid min-w-0 gap-1 ${className}`}>
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      <span className={`flex h-10 min-w-0 items-center gap-0.5 rounded-xl border bg-background px-2.5 font-semibold tabular-nums focus-within:border-[var(--org-primary-color)] ${hot ? 'border-[var(--org-primary-color)] ring-1 ring-[var(--org-primary-color)]' : 'border-border'}`}>{children}</span>
+      <span className="truncate text-[11px] font-semibold text-muted-foreground">{label}</span>
+      <span className={`flex h-9 min-w-0 items-center gap-0.5 rounded-lg border bg-background px-2.5 text-[15px] font-semibold tabular-nums focus-within:border-[var(--org-primary-color)] ${hot ? 'border-[var(--org-primary-color)] ring-1 ring-[var(--org-primary-color)]' : 'border-border'}`}>{children}</span>
     </label>
   )
 }
@@ -62,14 +63,13 @@ function Num({ value, cents, onSet, label, suffix, prefix = '$' }: { value: numb
       className="w-full min-w-0 bg-transparent outline-none placeholder:font-normal"
       onBlur={(e) => { const n = parse(e.target.value); if (n != null && (value == null || Math.abs(n - value) > (cents ? 0.004 : 0.5))) onSet(n) }}
       onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
-    {suffix && <span className="shrink-0 text-sm font-normal text-muted-foreground">{suffix}</span>}
+    {suffix && <span className="shrink-0 text-xs font-normal text-muted-foreground">{suffix}</span>}
   </>
 }
 
 /** An open budget line: its settings, then its amount (and how it's worked out), then the estimate. */
 export default function LineEditor({ line, est, item }: { line: Line; est: Estimate | null; item?: CatalogItem }) {
-  const { doc, phase, valueOf, per, updatePhase, setOpenLine, estimatesLoading, token } = useLife()
-  const off = phaseOffset(doc, phase.id)
+  const { phase, valueOf, per, updatePhase, estimatesLoading, token } = useLife()
   const v = valueOf(phase, line)
   // eslint-disable-next-line no-unused-vars -- parameter names in a function type
   const set = (fn: (l: Line) => void) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (l) fn(l) })
@@ -79,7 +79,6 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
   const hours = hoursOf(line)
   const shown = v.monthly == null ? null : fromMonthly(v.monthly, per)
   const [calc, setCalc] = React.useState(!pay && !!line.own && line.own.unit !== per)
-  const months = Array.from({ length: phase.months }, (_, m) => m)
   const choices = (item?.settings || []).filter((s) => s.kind === 'choice')
   const occupation = item?.settings?.find((s) => s.kind === 'occupation')
 
@@ -109,29 +108,29 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
   const diff = line.own && v.monthly != null && v.estMonthly ? (v.monthly - v.estMonthly) / v.estMonthly : null
 
   return (
-    <div className="space-y-4 border-t border-border/70 pb-4 pt-3">
+    <div className="space-y-3 border-t border-border/70 pb-3 pt-2.5">
       {(occupation || pay || choices.length > 0) && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {occupation && (
             <div className="grid min-w-0 gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">{tr('budget.line.occupation', 'Occupation')}</span>
+              <span className="text-[11px] font-semibold text-muted-foreground">{tr('budget.line.occupation', 'Occupation')}</span>
               <OccupationPop token={token} value={line.settings?.soc} label={line.settings?.soc_title || (line.settings?.soc ? line.title : undefined)}
                 onPick={(o) => set((l) => { l.settings = { ...(l.settings || {}), soc: o.soc, soc_title: o.title }; if (l.title === 'A job' || !l.title || l.title === line.settings?.soc_title) l.title = o.title })} />
             </div>
           )}
           {pay && (
             <div className="grid min-w-0 gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">{tr('budget.line.input', 'Input')}</span>
-              <div className="grid h-10 grid-cols-2 rounded-xl bg-muted p-1" role="group" aria-label={tr('budget.line.enter_pay_as', 'Enter pay as')}>
-                {(['hr', 'yr'] as PayMode[]).map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => switchMode(m)} className={`rounded-lg text-sm font-semibold ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{m === 'hr' ? tr('budget.line.hourly', 'Hourly') : tr('budget.line.salary', 'Salary')}</button>)}
+              <span className="text-[11px] font-semibold text-muted-foreground">{tr('budget.line.input', 'Input')}</span>
+              <div className="grid h-9 grid-cols-2 rounded-lg bg-muted p-0.5" role="group" aria-label={tr('budget.line.enter_pay_as', 'Enter pay as')}>
+                {(['hr', 'yr'] as PayMode[]).map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => switchMode(m)} className={`rounded-md text-sm font-semibold ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{m === 'hr' ? tr('budget.line.hourly', 'Hourly') : tr('budget.line.salary', 'Salary')}</button>)}
               </div>
             </div>
           )}
           {choices.map((s) => (
             <label key={s.key} className="grid min-w-0 gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">{s.title}</span>
+              <span className="text-[11px] font-semibold text-muted-foreground">{s.title}</span>
               <span className="relative">
-                <select className="h-10 w-full appearance-none rounded-xl border border-border bg-background pl-3 pr-8 text-sm font-semibold" value={String(line.settings?.[s.key] ?? s.default)}
+                <select className="h-9 w-full appearance-none rounded-lg border border-border bg-background pl-2.5 pr-8 text-sm font-semibold" value={String(line.settings?.[s.key] ?? s.default)}
                   onChange={(e) => { const c = s.choices!.find(([k]) => String(k) === e.target.value); if (c) setSetting(s.key, c[0]) }}>
                   {s.choices!.map(([k, t]) => <option key={String(k)} value={String(k)}>{t}</option>)}
                 </select>
@@ -143,10 +142,10 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
       )}
 
       {pay ? (
-        <div className={`grid gap-2.5 ${mode === 'hr' ? 'grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,1.35fr)]' : 'grid-cols-2'}`}>
+        <div className={`grid gap-2.5 ${mode === 'hr' ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {mode === 'hr' ? <>
             <Field label={tr('budget.line.hourly_rate', 'Hourly rate')}><Num label={tr('budget.line.hourly_rate', 'Hourly rate')} cents value={v.monthly == null ? null : rateOf(line, v.monthly)} onSet={(n) => setPay(n * hours * WEEKS_PER_MONTH)} /></Field>
-            <Field label={tr('budget.line.hours_per_week', 'Hours per week')}><Num label={tr('budget.line.hours_per_week', 'Hours per week')} prefix="" value={hours} onSet={(h) => { if (h > 0 && h <= 100) setHours(h) }} /></Field>
+            <Field label={tr('budget.line.hrs_per_week', 'Hrs per week')}><Num label={tr('budget.line.hours_per_week', 'Hours per week')} prefix="" value={hours} onSet={(h) => { if (h > 0 && h <= 100) setHours(h) }} /></Field>
           </> : <Field label={tr('budget.line.yearly_salary', 'Yearly salary')}><Num label={tr('budget.line.yearly_salary', 'Yearly salary')} value={v.monthly == null ? null : Math.round(v.monthly * 12)} onSet={(n) => setPay(n / 12)} /></Field>}
           <Field label={tr('budget.add_tray.amount', 'Amount')} hot><Num label={`${line.title} a ${PER_WORD[per]}`} value={shown == null ? null : Math.round(shown)} onSet={amountTo} suffix={`/${PER_SHORT[per]}`} /></Field>
         </div>
@@ -171,7 +170,20 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
           </div>
         ))}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+    </div>
+  )
+}
+
+/** When a line starts and stops within the phase, in a sheet from the line's menu. */
+export function DatesSheet({ line, open, onClose }: { line: Line; open: boolean; onClose: () => void }) {
+  const { doc, phase, updatePhase } = useLife()
+  const off = phaseOffset(doc, phase.id)
+  const months = Array.from({ length: phase.months }, (_, m) => m)
+  // eslint-disable-next-line no-unused-vars -- parameter names in a function type
+  const set = (fn: (l: Line) => void) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (l) fn(l) })
+  return (
+    <Sheet open={open} onClose={onClose} title={tr('budget.line.adjust_dates', 'Adjust dates')} description={tr('budget.line.dates_help', 'When {{title}} starts and stops during {{phase}}.', { title: line.title, phase: phase.title })}>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
           {tr('budget.budget_table.from', 'From')}
           <select aria-label={tr('budget.add_tray.starts', 'Starts')} className="rounded-md bg-muted px-1.5 py-1 font-semibold text-foreground" value={line.start || 0} onChange={(e) => set((l) => { l.start = Number(e.target.value); if (l.end != null && l.end <= l.start) l.end = null })}>
@@ -183,10 +195,9 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
             {months.filter((m) => m > (line.start || 0)).map((m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}
           </select>
         </span>
-        <button type="button" className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-destructive" aria-label={tr('budget.budget_table.remove', 'Remove')} title={tr('budget.budget_table.remove', 'Remove')}
-          onClick={() => { updatePhase((p) => { p.lines = p.lines.filter((l) => l.id !== line.id) }); setOpenLine(null) }}><Trash2 className="size-4" /></button>
       </div>
-    </div>
+      <button type="button" onClick={onClose} className="mt-1 h-10 rounded-xl bg-[var(--org-primary-color)] text-sm font-bold text-[var(--org-on-primary-color)]">{tr('budget.line.done', 'Done')}</button>
+    </Sheet>
   )
 }
 
@@ -196,12 +207,12 @@ function Calc({ line, v, per, set }: { line: Line; v: LineValue; per: Per; set: 
   const unit: Unit = line.own?.unit && line.own.unit !== 'hr' ? line.own.unit : per
   const raw = line.own && line.own.unit === unit ? line.own.value : v.monthly != null ? fromMonthly(v.monthly, unit) : null
   return (
-    <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
+    <div className="grid min-w-0 flex-1 grid-cols-2 gap-2.5">
       <Field label={tr('budget.line.how_much', 'How much')}><Num label={tr('budget.line.how_much', 'How much')} value={raw == null ? null : Math.round(raw * 100) / 100} cents={!!raw && raw % 1 > 0} onSet={(n) => set((l) => { l.own = { unit, value: n, hours: null } })} /></Field>
       <label className="grid min-w-0 gap-1">
-        <span className="text-xs font-semibold text-muted-foreground">{tr('budget.line.every', 'Every')}</span>
+        <span className="text-[11px] font-semibold text-muted-foreground">{tr('budget.line.every', 'Every')}</span>
         <span className="relative">
-          <select aria-label={tr('budget.add_tray.per', 'Per')} className="h-10 w-full appearance-none rounded-xl border border-border bg-background pl-3 pr-8 text-sm font-semibold" value={unit}
+          <select aria-label={tr('budget.add_tray.per', 'Per')} className="h-9 w-full appearance-none rounded-lg border border-border bg-background pl-2.5 pr-8 text-sm font-semibold" value={unit}
             onChange={(e) => { const u = e.target.value as Unit; if (v.monthly != null) set((l) => { l.own = { unit: u, value: Math.round(fromMonthly(v.monthly!, u) * 100) / 100, hours: null } }) }}>
             {(['wk', 'mo', 'yr'] as Unit[]).map((u) => <option key={u} value={u}>{u === 'wk' ? tr('budget.per.week', 'week') : u === 'mo' ? tr('budget.per.month', 'month') : tr('budget.per.year', 'year')}</option>)}
           </select>
@@ -218,7 +229,7 @@ function OccupationPop({ token, value, label, onPick }: { token?: string; value?
   const [open, setOpen] = React.useState(false)
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger type="button" className="flex h-10 min-w-0 items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 text-left text-sm font-semibold">
+      <PopoverTrigger type="button" className="flex h-9 min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-background px-2.5 text-left text-sm font-semibold">
         <span className={`truncate ${label || value ? '' : 'font-normal text-muted-foreground'}`}>{label || value || tr('budget.line.pick_a_job', 'Pick a job')}</span><ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">

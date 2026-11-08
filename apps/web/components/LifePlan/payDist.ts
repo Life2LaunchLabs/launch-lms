@@ -51,20 +51,27 @@ export function valueAt(q: number, pts: Pt[]): number {
 /** The nearest step of 5 inside the published range. */
 export const snap = (q: number, pts: Pt[]) => Math.max(pts[0][0], Math.min(pts[pts.length - 1][0], Math.round(q / 5) * 5))
 
-/** The drawing range: a little past the lowest and highest published values. */
-export function domain(pts: Pt[]): [number, number] {
-  const lo = pts[0][1], hi = pts[pts.length - 1][1], mid = valueAt(50, pts)
-  return [Math.max(0, lo - (mid - lo) * 0.35), hi + (hi - mid) * 0.35]
+/** A log-normal fitted to the median and the outer published percentiles: [mu, sigma]. */
+function fit(pts: Pt[]): [number, number] {
+  const a = pts[0], b = pts[pts.length - 1]
+  // z of a percentile (10th and 90th are ±1.2816), by the Abramowitz and Stegun approximation.
+  const z = (q: number) => { const t = Math.sqrt(-2 * Math.log(Math.min(q, 100 - q) / 100)); const r = t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t); return q < 50 ? -r : r }
+  return [Math.log(valueAt(50, pts)), Math.max(0.05, (Math.log(b[1]) - Math.log(a[1])) / (z(b[0]) - z(a[0])))]
 }
 
-/** `n` points of a log-normal density across the domain, x and y both 0 to 1. */
-export function curve(pts: Pt[], n = 48): Pt[] {
-  const [lo, hi] = domain(pts)
-  const mu = Math.log(valueAt(50, pts))
-  const a = pts[0], b = pts[pts.length - 1]
-  // z of the outer published percentiles (10th and 90th are ±1.2816).
-  const z = (q: number) => { const t = Math.sqrt(-2 * Math.log(Math.min(q, 100 - q) / 100)); const r = t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t); return q < 50 ? -r : r }
-  const sigma = Math.max(0.05, (Math.log(b[1]) - Math.log(a[1])) / (z(b[0]) - z(a[0])))
+/** The drawing range: both tails of the curve (about the 1st to 99th percentile), never narrower than the
+ *  published values, and stretched to take in `also` (the learner's number, however far out it is). */
+export function domain(pts: Pt[], also?: number | null): [number, number] {
+  const [mu, sigma] = fit(pts)
+  let lo = Math.min(pts[0][1], Math.exp(mu - 2.33 * sigma)), hi = Math.max(pts[pts.length - 1][1], Math.exp(mu + 2.33 * sigma))
+  if (also != null && Number.isFinite(also)) { lo = Math.min(lo, also); hi = Math.max(hi, also) }
+  return [Math.max(0, lo), hi]
+}
+
+/** `n` points of the fitted density across `dom`, x and y both 0 to 1. */
+export function curve(pts: Pt[], n = 64, dom: [number, number] = domain(pts)): Pt[] {
+  const [lo, hi] = dom
+  const [mu, sigma] = fit(pts)
   const ys: number[] = [], xs: number[] = []
   for (let i = 0; i < n; i++) {
     const v = lo + ((hi - lo) * i) / (n - 1)
