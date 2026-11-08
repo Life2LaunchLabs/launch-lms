@@ -14,13 +14,13 @@ import useLifeNumbers from './useLifeNumbers'
 import { mergeRoute, normalize, routeDoc } from '@components/Goals/phases/graph'
 import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
+import BudgetSummary from './BudgetSummary'
 import BudgetTable from './BudgetTable'
 import { OneTimeCard } from './MoneyCards'
 import { YouOwnCard } from './YouOwn'
 import { SavingsDebtCard } from './SavingsDebt'
 import AddTray, { type AddTarget } from './AddTray'
 import EstimatesDialog from './EstimatesDialog'
-import { Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
@@ -132,21 +132,13 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   return (
     <LifeContext.Provider value={ctx}>
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
-        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} />
-        <PhaseChart />
-        <div className="mb-3 mt-8 flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-extrabold tracking-tight">{tr('budget.context_bar.budget', 'Budget')}</h2>
-          <div className="ml-auto flex items-center gap-2">
-          {of || !phase.lines.length ? null : <Button variant="ghost" size="sm" onClick={() => setEstOpen(true)}><Sparkles size={15} />{tr('budget.estimates_dialog.estimates', 'Estimates')}</Button>}
-          <div className="flex rounded-full bg-muted p-1" role="group" aria-label={tr('budget.life_plan_workspace.show_amounts_per', 'Show amounts per')}>
-            {(['wk', 'mo', 'yr'] as Per[]).map((p) => (
-              <button key={p} type="button" onClick={() => setPer(p)} aria-pressed={per === p} className={`rounded-full px-3 py-1 text-sm font-semibold ${per === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>{p === 'wk' ? tr('budget.life_plan_workspace.week', 'Week') : p === 'mo' ? tr('budget.life_plan_workspace.month', 'Month') : tr('budget.life_plan_workspace.year', 'Year')}</button>
-            ))}
-          </div>
-          </div>
-        </div>
+        <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} full={full}
+          onMap={of ? undefined : () => router.push(getUriWithOrg(orgslug, '/plans'))} />
+        <BudgetSummary />
+        <div className="mt-3"><PhaseChart /></div>
+        <div className="mt-8" />
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
-        <fieldset disabled={Boolean(of)} className="min-w-0 space-y-4">
+        <fieldset disabled={Boolean(of)} className="min-w-0 space-y-6">
           <BudgetTable />
           <SavingsDebtCard />
           <OneTimeCard />

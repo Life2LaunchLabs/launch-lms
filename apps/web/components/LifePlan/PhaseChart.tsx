@@ -6,7 +6,7 @@ import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@components/ui/dialog'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
-import { money, monthIndex, monthLabel, phaseOffset, short } from './model'
+import { monthIndex, monthLabel, phaseOffset, short } from './model'
 import { MarkCard, MarkDot, markLabel, marksBetween } from './ChartEvents'
 
 import { tr } from '@/lib/tr'
@@ -18,19 +18,30 @@ function nice(v: number) {
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p
 }
 
+/** Fills that fade from each line down to nothing. */
+function Fills() {
+  return (
+    <defs>
+      {([['save', SAVE, 0.32], ['own', OWN, 0.32], ['debt', DEBT, 0.28]] as const).map(([k, c, o]) => (
+        <linearGradient key={k} id={`fill-${k}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c} stopOpacity={o} /><stop offset="100%" stopColor={c} stopOpacity={0.02} /></linearGradient>
+      ))}
+    </defs>
+  )
+}
+
 function Legend({ own }: { own: boolean }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-muted-foreground">
-      <span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: SAVE }} />{tr('budget.chart_events.savings', 'Savings')}</span>
-      {own && <span className="inline-flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: OWN }} />{tr('budget.chart_events.things_you_own', 'Things you own')}</span>}
-      <span className="inline-flex items-center gap-1.5"><i className="inline-block h-[3px] w-3.5 rounded" style={{ background: DEBT }} />{tr('budget.chart_events.debt', 'Debt')}</span>
+      <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-3.5 rounded-full" style={{ background: SAVE }} />{tr('budget.chart_events.savings', 'Savings')}</span>
+      {own && <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-3.5 rounded-full" style={{ background: OWN }} />{tr('budget.chart_events.things_you_own', 'Things you own')}</span>}
+      <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-3.5 rounded-full" style={{ background: DEBT }} />{tr('budget.chart_events.debt', 'Debt')}</span>
     </div>
   )
 }
 
 /** The phase's savings, things owned (stacked on savings) and debt, with its stretches to pick. */
 export default function PhaseChart() {
-  const { doc, phase, stretch, stretchesOf, selectStretch, projection, valueOf, readOnly } = useLife()
+  const { doc, phase, stretch, stretchesOf, selectStretch, projection } = useLife()
   const [hover, setHover] = React.useState<number | null>(null)
   const [big, setBig] = React.useState(false)
   const [pick, setPick] = React.useState<number | null>(null)
@@ -60,13 +71,6 @@ export default function PhaseChart() {
   })
   const picked = dots.find((d) => d.g === pick) || null
 
-  // The phase in a sentence: average money in and out across its months.
-  let inn = 0, out = 0
-  for (let m = 0; m < M; m++) { inn += projection.inn[off + m] || 0; out += projection.out[off + m] || 0 }
-  inn /= M; out /= M
-  const missing = projection.missing.filter((x) => x.phase === phase.id).length
-  void valueOf
-
   const years: [number, string][] = []
   for (let m = 0; m < M; m++) { const l = monthLabel(doc.start, off + m); if (monthIndex(doc.start, off + m) === 0) years.push([m, l.slice(l.lastIndexOf(' ') + 1)]) }
   const every = Math.max(1, Math.ceil(years.length / 6))
@@ -78,17 +82,6 @@ export default function PhaseChart() {
 
   return (
     <section aria-label={tr('budget.phase_chart.money_over_this_phase', 'Money over this phase')}>
-      {phase.lines.length === 0 ? (
-        <p className="text-lg font-bold leading-snug sm:text-xl">{readOnly ? tr('budget.phase_chart.nothing_in_this_phase_s', 'Nothing in this phase’s budget yet.') : <>{tr('budget.phase_chart.add_what_comes_in_and', 'Add what comes in and what goes out to see where')}{' '}{phase.title.charAt(0).toLowerCase() + phase.title.slice(1)}{' '}{tr('budget.phase_chart.leaves_you', 'leaves you.')}</>}</p>
-      ) : (<>
-      <p className="text-lg font-bold leading-snug sm:text-xl">
-        {tr('budget.phase_chart.during', 'During')}{' '}{phase.title.charAt(0).toLowerCase() + phase.title.slice(1)}{tr('budget.phase_chart.about', ', about')}{' '}<span className="text-emerald-600 dark:text-emerald-400">{money(inn)}</span>{' '}{tr('budget.phase_chart.comes_in_and_money_goes', 'comes in and {{money}} goes out a month.', { money: money(out) })}
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {tr('budget.chart_events.savings', 'Savings')}{hasOwn ? tr('budget.phase_chart.and_things_you_own', ' and things you own') : ''}{' '}{tr('budget.phase_chart.go_from', 'go from')}{' '}<b className="text-foreground">{short(stack[0])}</b>{' '}{tr('budget.budget_table.to', 'to')}{' '}<b className="text-foreground">{short(stack[M])}</b>.{(debt[0] > 0.5 || debt[M] > 0.5) && <>{' '}{tr('budget.phase_chart.debt_goes_from', 'Debt goes from')}{' '}<b style={{ color: DEBT }}>{short(debt[0])}</b>{' '}{tr('budget.budget_table.to', 'to')}{' '}<b style={{ color: DEBT }}>{short(debt[M])}</b>.</>}
-        {missing > 0 && <> {missing === 1 ? tr('budget.phase_chart.one_line_has', 'One line has') : tr('budget.phase_chart.missing_lines_have', '{{missing}} lines have', { missing })}{' '}{tr('budget.phase_chart.no_number_yet_so', 'no number yet, so')}{' '}{missing === 1 ? tr('budget.phase_chart.it_isn_t', 'it isn\'t') : tr('budget.phase_chart.they_aren_t', 'they aren\'t')}{' '}{tr('budget.phase_chart.counted', 'counted.')}</>}
-      </p>
-      </>)}
       <div className="mt-3 rounded-2xl bg-card p-3 shadow-[0_1px_0_hsl(var(--border))] sm:p-4">
         <div className="mb-1 flex items-center justify-between gap-2"><div><Legend own={hasOwn} />{dots.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">{tr('budget.phase_chart.tap_a_dot_to_see', 'Tap a dot to see why the line moves.')}</p>}</div><Button variant="ghost" size="icon" onClick={() => setBig(true)} aria-label={tr('budget.phase_chart.see_every_phase_full_screen', 'See every phase, full screen')} title={tr('budget.phase_chart.see_every_phase', 'See every phase')}><Maximize2 /></Button></div>
         <div className="relative pl-10">
@@ -103,8 +96,10 @@ export default function PhaseChart() {
             ))}
             <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} className="pointer-events-none relative block overflow-visible" role="img" aria-label={tr('budget.phase_chart.savings_things_you_own_and', 'Savings, things you own and debt during {{title}}', { title: phase.title })}>
               {[0, hi / 2, hi].map((t) => <line key={t} x1="0" x2="100" y1={Y(t)} y2={Y(t)} stroke="hsl(var(--border))" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
-              <polygon points={area(sav, zero)} fill={SAVE} opacity={0.2} />
-              {hasOwn && <><polygon points={area(stack, sav)} fill={OWN} opacity={0.25} /><polyline points={pts(stack)} fill="none" stroke={OWN} strokeWidth="2.25" vectorEffect="non-scaling-stroke" /></>}
+              <Fills />
+              <polygon points={area(debt, zero)} fill="url(#fill-debt)" />
+              <polygon points={area(sav, zero)} fill="url(#fill-save)" />
+              {hasOwn && <><polygon points={area(stack, sav)} fill="url(#fill-own)" /><polyline points={pts(stack)} fill="none" stroke={OWN} strokeWidth="2.25" vectorEffect="non-scaling-stroke" /></>}
               <polyline points={pts(sav)} fill="none" stroke={SAVE} strokeWidth="2.25" vectorEffect="non-scaling-stroke" />
               <polyline points={pts(debt)} fill="none" stroke={DEBT} strokeWidth="2.25" vectorEffect="non-scaling-stroke" />
             </svg>
@@ -202,8 +197,10 @@ function FullChart({ open, onClose }: { open: boolean; onClose: () => void }) {
               <svg width={W} height={H} role="img" aria-label={tr('budget.phase_chart.savings_things_you_own_and_2', 'Savings, things you own and debt across every phase')}>
                 {[0, hi / 4, hi / 2, (3 * hi) / 4, hi].map((t) => <line key={t} x1="0" x2={W} y1={Y(t)} y2={Y(t)} stroke="hsl(var(--border))" />)}
                 {doc.phases.slice(1).map((p) => <line key={p.id} x1={X(phaseOffset(doc, p.id))} x2={X(phaseOffset(doc, p.id))} y1="0" y2={H} stroke="hsl(var(--border))" strokeDasharray="4 4" />)}
-                <polygon points={area(projection.sav, projection.sav.map(() => 0))} fill={SAVE} opacity={0.2} />
-                <polygon points={area(stack, projection.sav)} fill={OWN} opacity={0.25} />
+                <Fills />
+                <polygon points={area(projection.debt, projection.debt.map(() => 0))} fill="url(#fill-debt)" />
+                <polygon points={area(projection.sav, projection.sav.map(() => 0))} fill="url(#fill-save)" />
+                <polygon points={area(stack, projection.sav)} fill="url(#fill-own)" />
                 <polyline points={pts(projection.sav)} fill="none" stroke={SAVE} strokeWidth="2.25" />
                 <polyline points={pts(projection.debt)} fill="none" stroke={DEBT} strokeWidth="2.25" />
               </svg>
