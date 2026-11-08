@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Debt, LifeDoc, Phase } from '@services/life/life'
-import { lineValue, newDoc, project, stretches } from '../model'
+import { fromMonthly, lineValue, newDoc, project, stretches, toMonthly } from '../model'
 
 const phase = (id: string, months: number, pay = 3000): Phase => ({
   id, title: id, kind: 'other', place: null, place_label: '', months, goals: [],
@@ -142,5 +142,14 @@ describe('what is left each month', () => {
     const q = run(later)
     expect(q.extraDebt[1]).toBe(0)
     expect(q.leftTo(1).to).toBe('save')
+  })
+})
+
+describe('a month is 4 weeks', () => {
+  test('hourly and weekly amounts times 4, salary does not depend on hours', () => {
+    expect(toMonthly(20, 'hr', 40)).toBe(3200)
+    expect(toMonthly(100, 'wk')).toBe(400)
+    expect(toMonthly(60000, 'yr', 10)).toBe(5000)
+    expect(fromMonthly(3200, 'hr', 40)).toBe(20)
   })
 })

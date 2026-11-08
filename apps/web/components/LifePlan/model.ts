@@ -10,7 +10,8 @@ import { tr, trLocale } from '@/lib/tr'
 export type Per = 'wk' | 'mo' | 'yr'
 export const PER_WORD: Record<Per, string> = { get wk() { return tr('budget.per.week', 'week') }, get mo() { return tr('budget.per.month', 'month') }, get yr() { return tr('budget.per.year', 'year') } }
 export const UNIT_WORD: Record<Unit, string> = { hr: 'an hour', wk: 'a week', mo: 'a month', yr: 'a year' }
-export const WEEKS_PER_MONTH = 52 / 12
+/** A month counts as 4 weeks: hourly and weekly amounts × 4. Yearly amounts ÷ 12. */
+export const WEEKS_PER_MONTH = 4
 export const DEFAULT_HOURS = 20
 
 export const uid = (p = 'x') => `${p}${Math.random().toString(36).slice(2, 9)}`
