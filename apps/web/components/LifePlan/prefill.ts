@@ -12,7 +12,7 @@ import { DEFAULT_HOURS, uid } from './model'
 /** A line the picks suggest, before it is in the budget. */
 export interface Suggestion { item: string; cat: string; side: Side; title: string; settings: Record<string, any>; hours?: number | null }
 
-const singular = (t: string) => t.split(/,| and /)[0].trim().replace(/s$/, '')
+const singular = (t: string) => t.split(/,| and | or /)[0].trim().replace(/([^s])s$/, '$1')
 const SHARED = ['own', 'roommates', 'partner']
 
 /** The knobs a split line starts with: how many share it, and the bedrooms that takes. Kids you provide

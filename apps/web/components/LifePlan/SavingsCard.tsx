@@ -8,44 +8,53 @@ import { useLife } from './LifeContext'
 import Sheet from './Sheet'
 import { usePhaseEnd } from './DebtCard'
 import { MoneyTray, SAVE_ICON, fieldCls, isK401, setPolicy } from './SavingsDebt'
-import { cardCls, Field, Monthly, MoneyRow, NumIn, Outlook, RenameSheet, SectionHead } from './MoneyParts'
-import { LEFT, fromMonthly, leftTo, money, monthLabel, policyAt, toMonthly, type SavingAt } from './model'
+import { cardCls, Field, Monthly, MoneyRow, NumIn, Outlook, RenameSheet, SectionHead, SelectField } from './MoneyParts'
+import { LEFT, fromMonthly, money, monthLabel, policyAt, toMonthly, type SavingAt } from './model'
 
 import { tr } from '@/lib/tr'
 const num = (s: string) => { const v = Number(String(s).replace(/[$,%\s]/g, '')); return Number.isFinite(v) && v >= 0 ? v : 0 }
 
-/** What is left each month once the budget, debt payments and accounts are paid, and where it goes. */
+/**
+ * What is left each month once the budget, debt payments and accounts are paid, and the one thing it goes to:
+ * the savings account, a debt or another account. Paying a debt off splits the phase there, and the stretch
+ * after it gets its own choice, which follows the payoff wherever it lands.
+ */
 export function LeftOverCard() {
   const { doc, phase, stretch, projection, update, readOnly } = useLife()
   const g = stretch.g0
   const left = projection.left[g] ?? 0
-  const to = leftTo(doc, g)
-  const owing = projection.debtsAt(g).some((d) => d.state === 'owing')
+  const debts = projection.debtsAt(g)
+  const owing = debts.filter((d) => d.state === 'owing')
+  const accounts = doc.savings.filter((x) => !x.main)
+  const main = doc.savings.find((x) => x.main)
+  const { to } = projection.leftTo(g)
+  const live = to === 'save' || owing.some((d) => d.debt.id === to) || accounts.some((x) => x.id === to) ? to : 'save'
+  const gone = to !== live ? doc.debts.find((d) => d.id === to) : null
+  // The debt whose payoff starts this stretch: a choice made here follows that payoff.
+  const opened = debts.find((d) => d.paidOffAt != null && d.paidOffAt + 1 === g)?.debt.id ?? null
   const shortNow = left < -0.5
-  const pick = (v: 'save' | 'debt') => update((d) => setPolicy(d, LEFT, phase.id, stretch.m0, { to: v }))
-  const opt = (v: 'save' | 'debt', label: string) => (
-    <button type="button" aria-pressed={to === v} disabled={readOnly} onClick={() => pick(v)}
-      className={`rounded-md text-sm font-semibold ${to === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
-  )
+  const target = owing.find((d) => d.debt.id === live)
+  const pick = (v: string) => update((d) => setPolicy(d, LEFT, phase.id, stretch.m0, { to: v, after: opened }))
+  const options: [string, string][] = [
+    ['save', main?.title || tr('budget.catalog.savings', 'Savings account')],
+    ...owing.map((d) => [d.debt.id, d.debt.title] as [string, string]),
+    ...accounts.map((x) => [x.id, x.title] as [string, string]),
+  ]
+  const story = shortNow ? tr('budget.left.gap_story', 'More goes out than comes in, so the gap comes out of your savings account. If that runs out, it goes on a card.')
+    : target ? (target.paidOffAt != null ? tr('budget.left.debt_until', 'Extra on {{t}} until it’s paid off in {{a}}. The stretch after that gets its own choice.', { t: target.debt.title.toLowerCase(), a: monthLabel(doc.start, target.paidOffAt) }) : tr('budget.left.debt_on', 'Extra on {{t}}, on top of what you pay.', { t: target.debt.title.toLowerCase() }))
+    : live !== 'save' ? tr('budget.left.account', 'Into {{t}}, on top of what you put in.', { t: accounts.find((x) => x.id === live)?.title || '' })
+    : gone ? tr('budget.left.gone', '{{t}} is paid off, so it goes to your savings account. Pick what it goes to next.', { t: gone.title })
+    : tr('budget.left.save_story', 'Into your savings account.')
   return (
     <section aria-label={tr('budget.summary.left_over', 'Left over')} className={`${cardCls} py-2.5 ${shortNow ? 'bg-red-500/10 dark:bg-red-500/[0.13]' : ''}`}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-end gap-3">
         <span className="min-w-0 flex-1 leading-tight">
-          <span className={`block text-[11px] font-semibold ${shortNow ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>{shortNow ? tr('budget.left.gap_from_savings', 'Gap, from savings') : tr('budget.left.left_over_goes_to', 'Left over goes to')}</span>
-          <b className={`text-[15px] font-extrabold ${shortNow ? 'text-red-600 dark:text-red-400' : ''}`}><Monthly value={left} sign={left > 0.5} /></b>
+          <span className={`block text-[11px] font-semibold ${shortNow ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>{shortNow ? tr('budget.summary.gap', 'Gap') : tr('budget.summary.left_over', 'Left over')}</span>
+          <b className={`text-lg font-extrabold ${shortNow ? 'text-red-600 dark:text-red-400' : ''}`}><Monthly value={left} sign={left > 0.5} /></b>
         </span>
-        {!shortNow && (
-          <div className="grid h-9 w-44 shrink-0 grid-cols-2 rounded-lg bg-muted p-0.5" role="group" aria-label={tr('budget.left.where_it_goes', 'Where what’s left goes')}>
-            {opt('save', tr('budget.chart_events.savings', 'Savings'))}
-            {opt('debt', tr('budget.chart_events.debt', 'Debt'))}
-          </div>
-        )}
+        {!shortNow && !readOnly && <SelectField label={tr('budget.left.goes_to', 'Goes to')} value={live} options={options} onChange={pick} className="w-52 shrink-0" />}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">{shortNow
-        ? tr('budget.left.gap_story', 'More goes out than comes in, so the gap comes out of your savings account. If that runs out, it goes on a card.')
-        : to === 'debt'
-          ? owing ? tr('budget.left.debt_story', 'Extra on your debt, highest interest first. Once it’s paid off, the rest goes to savings.') : tr('budget.left.no_debt_story', 'You have no debt to pay here, so it goes to savings.')
-          : tr('budget.left.save_story', 'Into your savings account, from {{a}} on.', { a: monthLabel(doc.start, g) })}</p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">{story}</p>
     </section>
   )
 }
@@ -56,8 +65,8 @@ export function SavingsCard() {
   const [adding, setAdding] = React.useState(false)
   const g = stretch.g0
   const saves = projection.savingsAt(g)
-  const toMain = (projection.left[g] ?? 0) - (projection.extra[g] ?? 0)
-  const putting = (projection.put[g] ?? 0) + toMain
+  const toMain = (projection.left[g] ?? 0) - (projection.extraDebt[g] ?? 0) - (projection.extraSave[g] ?? 0)
+  const putting = (projection.put[g] ?? 0) + (projection.extraSave[g] ?? 0) + toMain
   const main = doc.savings.find((s) => s.main)
   const others = doc.savings.filter((s) => !s.main)
   const addLabel = tr('lit.savings_debt.add_an_account', 'Add an account')
@@ -88,8 +97,8 @@ function MainRow({ s, at, flow, first }: { s: Saving; at: SavingAt; flow: number
   const { endBal, endLabel } = useEndBalance(s.id)
   const [sheet, setSheet] = React.useState<'name' | 'details' | null>(null)
   const down = flow < -0.5
-  const to = leftTo(doc, stretch.g0)
-  const sub = [down ? tr('budget.save.covers_the_gap', 'covers the gap') : to === 'debt' && flow < 0.5 ? tr('budget.save.left_over_to_debt', 'left over goes to debt') : tr('budget.save.gets_left_over', 'gets what’s left'), s.rate ? `${s.rate}% interest` : ''].filter(Boolean).join(' · ')
+  const sub = [down ? tr('budget.save.covers_the_gap', 'covers the gap') : flow > 0.5 ? tr('budget.save.gets_left_over', 'gets what’s left') : '', s.rate ? `${s.rate}% interest` : ''].filter(Boolean).join(' · ')
+  const startLabel = monthLabel(doc.start, stretch.g0)
   return (
     <MoneyRow id={`m:${s.id}`} icon="piggy-bank" title={s.title} first={first} sub={sub} under={tr('budget.save.by_end', '{{m}} by end', { m: money(endBal) })}
       amount={<span className={down ? 'text-red-700 dark:text-red-300' : ''}><Monthly value={flow} sign={flow > 0.5} /></span>}
@@ -97,7 +106,7 @@ function MainRow({ s, at, flow, first }: { s: Saving; at: SavingAt; flow: number
       <div className="grid grid-cols-2 gap-2.5">
         <Field label={tr('lit.savings_debt.interest', 'Interest')}><NumIn label={tr('budget.savings_debt.interest_a_year', 'Interest (% a year)')} prefix="" suffix="% a year" value={s.rate} onSet={(v) => update((d) => { const x = d.savings.find((y) => y.id === s.id); if (x) x.rate = Math.min(100, v) })} /></Field>
       </div>
-      <Outlook>{tr('budget.save.in_it_now', '{{m}} in it now and {{e}} by {{a}}.', { m: money(at.balance), e: money(endBal), a: endLabel })}{' '}
+      <Outlook>{tr('budget.save.in_it_from', '{{m}} in it in {{s}}, {{e}} by {{a}}.', { m: money(at.balance), s: startLabel, e: money(endBal), a: endLabel })}{' '}
         {down ? tr('lit.savings_debt.your_budget_debt_and_accounts', 'Your budget, debt and accounts take more than comes in, so this comes out of savings. If it runs out, the rest goes on a card.') : tr('budget.save.main_story', 'Whatever is left after your budget, debt payments and other accounts goes here, unless you send it to debt.')}</Outlook>
       <RenameSheet open={sheet === 'name'} value={s.title} onClose={() => setSheet(null)} onSave={(t) => t && update((d) => { const x = d.savings.find((y) => y.id === s.id); if (x) x.title = t })} />
       <BalancesSheet open={sheet === 'details'} s={s} onClose={() => setSheet(null)} />
@@ -115,10 +124,10 @@ function AccountRow({ s, at, first }: { s: Saving; at: SavingAt; first: boolean 
   const edit = (fn: (x: Saving) => void) => update((doc2) => { const x = doc2.savings.find((y) => y.id === s.id); if (x) fn(x) })
   const setPut = (patch: { put?: number; pct?: number }) => update((doc2) => setPolicy(doc2, s.id, phase.id, stretch.m0, patch))
   const perShort = `/${tr(`budget.per_short.${per}`, per)}`
-  const sub = [k ? tr('budget.save.pct_of_pay', '{{n}}% of pay', { n: pct ?? 0 }) : '', at.match > 0.5 ? tr('budget.save.plus_match', '+{{m}} from work', { m: money(fromMonthly(at.match, per)) }) : '', s.rate ? `${s.rate}% growth` : ''].filter(Boolean).join(' · ')
+  const sub = [k ? tr('budget.save.pct_of_pay', '{{n}}% of pay', { n: pct ?? 0 }) : '', at.extra > 0.5 ? tr('budget.save.plus_left_over', '+{{m}} left over', { m: money(fromMonthly(at.extra, per)) }) : '', at.match > 0.5 ? tr('budget.save.plus_match', '+{{m}} from work', { m: money(fromMonthly(at.match, per)) }) : '', s.rate ? `${s.rate}% growth` : ''].filter(Boolean).join(' · ')
   return (
     <MoneyRow id={`m:${s.id}`} icon={SAVE_ICON[s.kind] || 'piggy-bank'} title={s.title} first={first} sub={sub} under={tr('budget.save.by_end', '{{m}} by end', { m: money(endBal) })}
-      amount={at.put > 0.5 ? <Monthly value={at.put} /> : <span className="text-sm text-muted-foreground">{tr('budget.save.nothing_in', 'Nothing in')}</span>}
+      amount={at.put + at.extra > 0.5 ? <Monthly value={at.put + at.extra} /> : <span className="text-sm text-muted-foreground">{tr('budget.save.nothing_in', 'Nothing in')}</span>}
       menu={[
         { icon: <Pencil />, label: tr('budget.line.rename', 'Rename'), onSelect: () => setSheet('name') },
         { icon: <Wallet />, label: tr('budget.save.balances', 'Balances'), onSelect: () => setSheet('details') },
@@ -135,7 +144,7 @@ function AccountRow({ s, at, first }: { s: Saving; at: SavingAt; first: boolean 
           ? <Field label={tr('budget.save.you_put_in', 'You put in')} hot className="w-40 shrink-0"><NumIn label={tr('budget.savings_debt.percent_of_pay_into_title', 'Percent of pay into {{title}}', { title: s.title })} prefix="" suffix="% of pay" value={pct ?? 0} onSet={(v) => setPut({ pct: Math.min(100, v) })} /></Field>
           : <Field label={tr('budget.save.you_put_in', 'You put in')} hot className="w-40 shrink-0"><NumIn label={tr('budget.savings_debt.what_you_put_into_title', 'What you put into {{title}} each {{value}}', { title: s.title, value: per })} suffix={perShort} value={fromMonthly(at.put, per)} onSet={(v) => setPut({ put: toMonthly(v, per) })} /></Field>}
       </div>
-      <Outlook>{tr('budget.save.in_it_now', '{{m}} in it now and {{e}} by {{a}}.', { m: money(at.balance), e: money(endBal), a: endLabel })}
+      <Outlook>{tr('budget.save.in_it_from', '{{m}} in it in {{s}}, {{e}} by {{a}}.', { m: money(at.balance), s: monthLabel(doc.start, stretch.g0), e: money(endBal), a: endLabel })}
         {k && pct && at.put < 0.5 ? ` ${tr('budget.save.k401_no_job', 'A 401(k) comes out of pay from work, so nothing goes in without a job.')}` : ''}</Outlook>
       <RenameSheet open={sheet === 'name'} value={s.title} onClose={() => setSheet(null)} onSave={(t) => t && edit((x) => { x.title = t })} />
       <BalancesSheet open={sheet === 'details'} s={s} onClose={() => setSheet(null)} />

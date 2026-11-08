@@ -129,7 +129,7 @@ function AssetRow({ a, value, first }: { a: Asset; value: number; first: boolean
       <Outlook>
         {a.bought && later ? <>{tr('budget.own.buy_story', 'You buy it in {{a}}', { a: when(a.bought) })}{loan ? tr('budget.own.buy_loan', ', {{m}} down from savings and a loan for the rest.', { m: money(a.down ?? 0) }) : tr('budget.own.buy_cash', ', {{m}} out of savings.', { m: money(a.value) })}</>
           : gone ? tr('budget.own.sold_story', 'Sold in {{a}} for {{m}}.', { a: when(a.sold!), m: money(a.sold!.price) })
-          : <>{tr('budget.own.worth_now', 'Worth {{m}} now', { m: money(value) })}{endVal > 0.5 ? tr('budget.own.worth_end', ' and {{m}} by {{a}}.', { m: money(endVal), a: endLabel }) : '.'}</>}
+          : <>{tr('budget.own.worth_from', 'Worth {{m}} in {{s}}', { m: money(value), s: monthLabel(doc.start, stretch.g0) })}{endVal > 0.5 ? tr('budget.own.worth_end', ' and {{m}} by {{a}}.', { m: money(endVal), a: endLabel }) : '.'}</>}
         {a.sold && loan && !gone ? ` ${tr('budget.you_own.whatever_is_left_on_the', 'Whatever is left on the loan is paid off from the sale.')}` : ''}
       </Outlook>
       <RenameSheet open={sheet === 'name'} value={a.title} onClose={() => setSheet(null)} onSave={(t) => t && edit((x) => { x.title = t })} />

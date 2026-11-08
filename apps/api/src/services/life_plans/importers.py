@@ -25,6 +25,7 @@ from sqlmodel import Session, delete, select
 from src.db.life_plans import EstimateFact, EstimateSource
 from src.services.life_plans import places
 from src.services.life_plans.estimates import dims_key
+from src.services.life_plans.titles import singular_title
 
 
 class ImportProblem(ValueError):
@@ -325,7 +326,7 @@ def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: 
         else:
             continue
         kept_areas.add(place)
-        facts.append(EstimateFact(metric="wage", place=place, dims={"soc": r["occ_code"]}, label=r["occ_title"], value=pct["p50"], percentiles={k: v for k, v in pct.items() if v is not None}, period=period, stat="median", dollar_year=year, status="draft"))
+        facts.append(EstimateFact(metric="wage", place=place, dims={"soc": r["occ_code"]}, label=singular_title(r["occ_title"]), value=pct["p50"], percentiles={k: v for k, v in pct.items() if v is not None}, period=period, stat="median", dollar_year=year, status="draft"))
     if not facts:
         raise ImportProblem("No national, state or Oregon area rows found in the file.")
     kinds = sorted({places.level_of(p) for p in kept_areas})

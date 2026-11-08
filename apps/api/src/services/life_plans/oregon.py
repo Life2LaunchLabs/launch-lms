@@ -22,6 +22,7 @@ from sqlmodel import Session, delete
 from src.db.life_plans import EstimateFact
 from src.services.life_plans import places
 from src.services.life_plans.estimates import dims_key
+from src.services.life_plans.titles import singular_title
 
 QUALITYINFO_URL = "https://www.qualityinfo.org/data"
 LICENSE = "Public information from the State of Oregon. Cite the Oregon Employment Department, qualityinfo.org."
@@ -191,7 +192,7 @@ def import_wages(db: Session, data: bytes, filename: str) -> dict:
             continue
         period = "yr" if pct["p50"] >= 1000 else "hr"
         dims = {"soc": soc}
-        db.add(EstimateFact(metric="wage", place=place, dims=dims, dims_key=dims_key(dims), label=str(r.get("occupation title") or "").strip(),
+        db.add(EstimateFact(metric="wage", place=place, dims=dims, dims_key=dims_key(dims), label=singular_title(str(r.get("occupation title") or "")),
                             value=pct["p50"], percentiles={k: v for k, v in pct.items() if v is not None}, period=period, stat="median",
                             dollar_year=year, source_id=src.id, status="draft", creation_date=now))
         n += 1

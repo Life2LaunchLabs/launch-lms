@@ -3,8 +3,7 @@
 Facts are numbers; catalog entries are things a learner can pick (a career, a school).
 Both load the same way: a superadmin uploads the publisher's file as released, every
 entry lands as a draft tied to its source, and nothing shows until the source is
-reviewed. Numbers that come with an entry (a school's tuition) load as facts, so the
-budget resolves them like rent and pay.
+reviewed. Numbers that come with an entry (a school's tuition) load as facts. Career titles load singular.
 
 - O*NET database, text edition (db_31_0_text.zip): Occupation Data, interests (RIASEC,
   the OI scale), Job Zones and other titles. Release 31.0 renamed Interests.txt to
@@ -29,6 +28,7 @@ from sqlmodel import Session, col, delete, select
 from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
 from src.services.life_plans.estimates import REVIEWED, dims_key
 from src.services.life_plans.skill_words import career_skills
+from src.services.life_plans.titles import singular_title
 
 RIASEC = "RIASEC"
 INTEREST_NAMES = {"realistic": "R", "investigative": "I", "artistic": "A", "social": "S", "enterprising": "E", "conventional": "C"}
@@ -211,7 +211,7 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         code = r[code_col]
         if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
             continue
-        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []),
+        db.add(CareerEntry(code=code, soc=code[:7], title=singular_title(r["title"]), description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []),
                                education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), skills=skills.get(code, []), source_id=src.id, status="draft", creation_date=now))
         n += 1
     if not n:

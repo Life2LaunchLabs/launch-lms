@@ -24,7 +24,7 @@ export const isK401 = (s: Saving) => s.kind === 'k401' || (s.kind === 'retiremen
 export function setPolicy(doc: LifeDoc, target: string, phase: string, month: number, patch: Partial<Policy>) {
   const list = doc.policies || []
   const at = list.find((p) => p.target === target && p.phase === phase && p.month === month)
-  const next: Policy = { id: at?.id || uid('p'), target, phase, month, ...(at ? { pay: at.pay, full: at.full, put: at.put, pct: at.pct, to: at.to } : {}), ...patch }
+  const next: Policy = { id: at?.id || uid('p'), target, phase, month, ...(at ? { pay: at.pay, full: at.full, put: at.put, pct: at.pct, to: at.to, after: at.after } : {}), ...patch }
   doc.policies = [...list.filter((p) => p !== at), next]
 }
 

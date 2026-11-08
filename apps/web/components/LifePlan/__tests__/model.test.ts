@@ -114,21 +114,33 @@ describe('loan story', () => {
 })
 
 describe('what is left each month', () => {
-  test('goes to savings by default, and to debt (highest rate first) when the learner says so', () => {
-    const debts = [loan({ id: 'a', rate: 5, balance: 5000 }), loan({ id: 'b', rate: 20, balance: 500 })]
-    const save = run(plan(debts))
-    expect(save.extra[0]).toBe(0)
-    expect(save.left[0]).toBe(2800)
-
-    const doc = { ...plan(debts), policies: [{ id: 'p', target: 'left', phase: 'p1', month: 0, to: 'debt' as const }] }
-    const p = run(doc)
+  const debts = [loan({ id: 'a', rate: 5, balance: 5000 }), loan({ id: 'b', rate: 20, balance: 500 })]
+  test('goes to savings by default', () => {
+    const p = run(plan(debts))
+    expect(p.extraDebt[0]).toBe(0)
     expect(p.left[0]).toBe(2800)
-    expect(Math.round(p.extra[0])).toBe(2800)
-    const [a, b] = p.debtsAt(1)
-    expect(b.state).toBe('paid')
-    expect(a.balance < 5000 - 100 - 2000).toBe(true)
-    // Nothing went to savings that month; once the debts are gone, savings get it again.
-    expect(p.historyOf('save')[1]).toBe(0)
-    expect(p.historyOf('save')[24] > 0).toBe(true)
+  })
+
+  test('goes to the debt picked until it is paid off, which starts a new stretch, then to savings', () => {
+    const doc = { ...plan(debts), policies: [{ id: 'p', target: 'left', phase: 'p1', month: 0, to: 'b' }] }
+    const p = run(doc)
+    expect(Math.round(p.extraDebt[0])).toBe(408)
+    const b = p.debtsAt(0).find((d) => d.debt.id === 'b')!
+    expect(b.paidOffAt).toBe(0)
+    expect(p.leftTo(1).to).toBe('b')
+    expect(p.extraDebt[1]).toBe(0)
+    expect(stretches(doc, doc.phases[0], p).map((s) => s.m0)).toEqual([0, 1])
+  })
+
+  test('a choice made after a payoff follows the payoff', () => {
+    const pol = (to: string, after: string | null, month: number) => ({ id: `${to}${month}`, target: 'left', phase: 'p1', month, to, after })
+    const doc = { ...plan(debts), policies: [pol('b', null, 0), pol('a', 'b', 1)] }
+    const p = run(doc)
+    expect(Math.round(p.extraDebt[1])).toBe(2900)
+    // Pay the card off later (send what is left to savings first): the follow-up waits for the payoff.
+    const later = { ...doc, policies: [pol('a', 'b', 1)] }
+    const q = run(later)
+    expect(q.extraDebt[1]).toBe(0)
+    expect(q.leftTo(1).to).toBe('save')
   })
 })

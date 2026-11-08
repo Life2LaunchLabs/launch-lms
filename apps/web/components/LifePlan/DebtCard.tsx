@@ -28,7 +28,7 @@ export function DebtCard() {
   const g = stretch.g0
   const debts = projection.debtsAt(g)
   const short = projection.short[g] || 0
-  const paying = (projection.paid[g] ?? 0) + (projection.extra[g] ?? 0)
+  const paying = (projection.paid[g] ?? 0) + (projection.extraDebt[g] ?? 0)
   const owing = debts.some((d) => d.state === 'owing') || short > 0.5
   const addLabel = tr('lit.savings_debt.add_a_debt', 'Add a debt')
   return (
@@ -97,7 +97,7 @@ function DebtRow({ at, first }: { at: DebtAt; first: boolean }) {
         {state === 'later'
           ? <>{tr('budget.debt.later_story', 'You borrow {{m}} in {{a}}.', { m: money(d.balance), a: monthLabel(doc.start, startsAt!) })}{' '}{lands(doc, d) ? tr('budget.debt.lands', 'The money goes into your savings.') : linked ? tr('budget.savings_debt.this_loan_pays_for_tolowercase', 'This loan pays for {{toLowerCase}}.', { toLowerCase: linked.title.toLowerCase() }) : ''}</>
           : state === 'paid' ? tr('budget.debt.paid_story', 'Nothing left to pay.')
-          : <>{tr('budget.debt.owe_now', 'You owe {{m}} now', { m: money(balance) })}{endOwed > 0.5 ? tr('budget.debt.owe_end', ' and {{m}} by {{a}}, the end of {{p}}', { m: money(endOwed), a: endLabel, p: phase.title }) : tr('budget.debt.gone_end', ', paid off before {{p}} ends', { p: phase.title })}.{' '}
+          : <>{tr('budget.debt.owe_from', 'You owe {{m}} in {{s}}', { m: money(balance), s: monthLabel(doc.start, stretch.g0) })}{endOwed > 0.5 ? tr('budget.debt.owe_end', ' and {{m}} by {{a}}, the end of {{p}}', { m: money(endOwed), a: endLabel, p: phase.title }) : tr('budget.debt.gone_end', ', paid off before {{p}} ends', { p: phase.title })}.{' '}
             {offLabel ? tr('budget.debt.off_on', 'At this rate it’s paid off in {{a}}.', { a: offLabel }) : tr('budget.debt.never', 'This doesn’t cover the interest, so what you owe keeps growing.')}
             {extra > 0.5 ? ` ${tr('budget.debt.extra_note', '{{m}} of it is your left over money.', { m: money(fromMonthly(extra, per)) })}` : ''}</>}
       </Outlook>
@@ -140,7 +140,7 @@ function ShortRow({ owed, first }: { owed: number; first: boolean }) {
   const { doc, projection, update } = useLife()
   return (
     <MoneyRow id="m:short" icon="receipt" title={tr('budget.savings_debt.card_for_money_you_re', 'Card for money you\'re short')} first={first}
-      amount={<span className="text-sm text-red-700 dark:text-red-300">{tr('budget.debt.from_left_over', 'from left over')}</span>} sub={`${projection.cardRate}%`} under={tr('budget.debt.owed_now', '{{m}} owed now', { m: money(owed) })}>
+      amount={<span className="text-sm text-red-700 dark:text-red-300">{tr('budget.debt.from_left_over', 'from left over')}</span>} sub={`${projection.cardRate}%`} under={tr('budget.debt.owed_total', '{{m}} owed', { m: money(owed) })}>
       <div className="grid grid-cols-2 gap-2.5">
         <Field label={tr('budget.savings_debt.card_rate', 'Card rate')}><NumIn label={tr('budget.savings_debt.card_rate_percent_a_year', 'Card rate, percent a year')} prefix="" suffix="% a year" value={projection.cardRate} onSet={(v) => update((d) => { d.card_rate = Math.min(100, v) })} /></Field>
       </div>

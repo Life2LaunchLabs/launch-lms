@@ -62,7 +62,7 @@ export function MarkCard({ g, ms, onClose, onShow, className = '' }: { g: number
     // Show the budget as it is that month, then open the row.
     let left = g
     const p = doc.phases.find((ph) => { const o = phaseOffset(doc, ph.id); if (g >= o && g < o + ph.months) { left = g - o; return true } return false })
-    if (p) { const s = stretches(doc, p).find((st) => left >= st.m0 && left <= st.m1); if (s) selectStretch(p.id, s.i) }
+    if (p) { const s = stretches(doc, p, projection).find((st) => left >= st.m0 && left <= st.m1); if (s) selectStretch(p.id, s.i) }
     onShow?.()
     if (!id) return
     if (!id.startsWith('ev:')) setOpenLine(id)
