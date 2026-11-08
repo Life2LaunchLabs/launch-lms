@@ -87,3 +87,12 @@ export function ordinal(n: number): string {
   const r = Math.round(n), t = r % 100
   return `${r}${t >= 11 && t <= 13 ? 'th' : r % 10 === 1 ? 'st' : r % 10 === 2 ? 'nd' : r % 10 === 3 ? 'rd' : 'th'}`
 }
+
+/** A percentile as people say it: "Top 20%" for the 80th, "Bottom 15%" for the 15th, "Median" at 50. */
+export function rankText(q: number, pts: Pt[], v?: number): string {
+  const first = pts[0], last = pts[pts.length - 1]
+  if (v != null && v < first[1] - 1e-9) return `Bottom ${first[0]}%`
+  if (v != null && v > last[1] + 1e-9) return `Top ${100 - last[0]}%`
+  const r = Math.round(q)
+  return r === 50 ? 'Median' : r > 50 ? `Top ${100 - r}%` : `Bottom ${r}%`
+}

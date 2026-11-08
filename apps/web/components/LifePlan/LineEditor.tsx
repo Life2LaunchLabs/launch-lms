@@ -8,7 +8,7 @@ import { useLife } from './LifeContext'
 import PayChart from './PayChart'
 import SourceInfo from './SourceInfo'
 import Sheet from './Sheet'
-import { points } from './payDist'
+import { pctOf, points, rankText } from './payDist'
 import { DEFAULT_HOURS, PER_WORD, WEEKS_PER_MONTH, fromMonthly, money, monthLabel, phaseOffset, toMonthly, type LineValue, type Per } from './model'
 
 import { tr } from '@/lib/tr'
@@ -43,6 +43,21 @@ export function subtitle(line: Line, item: CatalogItem | undefined, v: LineValue
   if (line.own && line.own.unit !== 'mo') parts.push(`${money(line.own.value)}/${PER_SHORT[line.own.unit]}`)
   const s = parts.join(' · ')
   return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/** How your own number compares, under the amount: "Top 20%" against a distribution, "21% above estimate" against one figure. */
+export function standing(line: Line, item: CatalogItem | undefined, est: Estimate | null, v: LineValue): string {
+  if (!line.own || v.monthly == null || !est) return ''
+  if (item?.hourly) {
+    const mode = payMode(line), pts = points(est, mode)
+    if (pts) { const val = mode === 'yr' ? v.monthly * 12 : rateOf(line, v.monthly); return rankText(pctOf(val, pts), pts, val) }
+  } else {
+    const unit: Unit = line.own.unit === 'hr' ? 'mo' : line.own.unit, pts = points(est, unit)
+    if (pts) { const val = fromMonthly(v.monthly, unit); return rankText(pctOf(val, pts), pts, val) }
+  }
+  if (!v.estMonthly) return ''
+  const d = (v.monthly - v.estMonthly) / v.estMonthly
+  return Math.abs(d) < 0.05 ? '' : d > 0 ? tr('budget.line.pct_above', '{{n}}% above estimate', { n: Math.round(d * 100) }) : tr('budget.line.pct_below', '{{n}}% below estimate', { n: Math.round(-d * 100) })
 }
 
 /** A labelled box: the label above, the field inside. */

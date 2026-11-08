@@ -4,7 +4,7 @@ import React from 'react'
 import { RotateCcw } from 'lucide-react'
 import type { Estimate, Unit } from '@services/life/life'
 import SourceInfo from './SourceInfo'
-import { curve, domain, ordinal, pctOf, snap, valueAt, type Pt } from './payDist'
+import { curve, domain, ordinal, pctOf, rankText, snap, valueAt, type Pt } from './payDist'
 import { money, short } from './model'
 
 import { tr } from '@/lib/tr'
@@ -31,7 +31,7 @@ export default function PayChart({ title, pts, unit, value, est, own, onPick, on
   const H = 60, top = 6
   const line = curve(pts, 64, [lo, hi]).map(([x, y]) => `${(x * 100).toFixed(2)},${(top + (1 - y) * (H - top)).toFixed(1)}`).join(' ')
   const x = shown == null ? null : X(shown) * 100
-  const where = shown == null || q == null ? null : shown < first[1] - 1e-9 ? tr('budget.pay_chart.below_the_pct', 'Below the {{n}} percentile', { n: ordinal(first[0]) }) : shown > last[1] + 1e-9 ? tr('budget.pay_chart.above_the_pct', 'Above the {{n}} percentile', { n: ordinal(last[0]) }) : tr('budget.pay_chart.pct', '{{n}} percentile', { n: ordinal(q) })
+  const where = shown == null || q == null ? null : rankText(q, pts, shown)
   const at = (clientX: number, dom: [number, number]) => {
     const r = plot.current?.getBoundingClientRect(); if (!r) return null
     const v = dom[0] + Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * (dom[1] - dom[0])

@@ -1,15 +1,14 @@
 'use client'
 
 import React from 'react'
-import { AlertTriangle, CalendarRange, ChevronRight, MoreVertical, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { CalendarRange, ChevronRight, MoreVertical, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { Button } from '@components/ui/button'
 import type { Line } from '@services/life/life'
 import { useLife } from './LifeContext'
-import { isWide } from './EstimatesDialog'
 import { LifeIcon } from './icons'
 import { PerTag, useTotals } from './BudgetSummary'
-import LineEditor, { DatesSheet, subtitle } from './LineEditor'
+import LineEditor, { DatesSheet, standing, subtitle } from './LineEditor'
 import TaxButton from './TaxButton'
 import { fromMonthly, money } from './model'
 
@@ -67,22 +66,21 @@ function Row({ line, first }: { line: Line; first: boolean }) {
   const open = openLine === line.id
   const est = estimates[`${phase.id}:${line.id}`] ?? null
   const value = v.monthly == null ? null : fromMonthly(v.monthly, per)
-  const wide = !line.own && isWide(est)
-  // Your own number far from ours: say so on the line.
-  const far = line.own && v.monthly != null && v.estMonthly != null && Math.abs(v.monthly - v.estMonthly) > Math.max(25, v.estMonthly * 0.15)
   const sub = subtitle(line, item, v)
+  const vs = open ? '' : standing(line, item, est, v)
   return (
     <div id={`row-${line.id}`} className={`relative ${first ? '' : 'border-t border-border/70'}`}>
       <button type="button" aria-expanded={open} onClick={() => setOpenLine(open ? null : line.id)} className="flex w-full items-center gap-2.5 py-2 text-left text-[15px]">
         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} className="size-[15px]" /></span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className={`block truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
-          {far && !open ? <small className="flex items-center gap-1 truncate text-[11px] font-semibold text-amber-600 dark:text-amber-400"><AlertTriangle className="size-3 shrink-0" aria-hidden="true" />{v.monthly! < v.estMonthly! ? tr('budget.line.pct_below', '{{n}}% below estimate', { n: Math.round((1 - v.monthly! / v.estMonthly!) * 100) }) : tr('budget.line.pct_above', '{{n}}% above estimate', { n: Math.round((v.monthly! / v.estMonthly! - 1) * 100) })}</small>
-            : sub ? <small className="block truncate text-[11px] text-muted-foreground">{sub}</small> : null}
+          <span className="flex items-baseline gap-2">
+            <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
+            {value == null
+              ? <span className="shrink-0 text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : tr('budget.budget_table.add_your_number', 'Add your number')}</span>
+              : <span className={`shrink-0 font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{money(value)}<PerTag per={per} /></span>}
+          </span>
+          {(sub || vs) && <span className="mt-0.5 flex items-baseline gap-2 text-[11px] text-muted-foreground"><span className="min-w-0 flex-1 truncate">{sub}</span>{vs && <span className="shrink-0">{vs}</span>}</span>}
         </span>
-        {value == null
-          ? <span className="text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : tr('budget.budget_table.add_your_number', 'Add your number')}</span>
-          : <span className={`font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{money(value)}<PerTag per={per} />{wide ? <sup className="ml-0.5 font-bold text-amber-600 dark:text-amber-400" title={tr('budget.budget_table.not_for_your_city', 'Not for your city')}>*</sup> : null}</span>}
         {open ? <span className="w-8 shrink-0" aria-hidden="true" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
       </button>
       {open && !readOnly && (

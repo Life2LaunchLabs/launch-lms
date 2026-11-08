@@ -88,6 +88,10 @@ export default function PhaseChart() {
     <section aria-label={tr('budget.phase_chart.money_over_this_phase', 'Money over this phase')}>
       <div className="relative rounded-2xl bg-card px-2 pb-1.5 pt-2 shadow-[0_1px_0_hsl(var(--border))]">
         <Button variant="ghost" size="icon" className="absolute bottom-0.5 right-1.5 z-[5] size-6 text-muted-foreground [&_svg]:size-3.5" onClick={() => setBig(true)} aria-label={tr('budget.phase_chart.see_every_phase_full_screen', 'See every phase, full screen')} title={tr('budget.phase_chart.see_every_phase', 'See every phase')}><Maximize2 /></Button>
+        <div className="mb-0.5 flex gap-3 pl-11 text-[11px] font-semibold text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><i className="inline-block h-1.5 w-3 rounded-full" style={{ background: SAVE }} />{hasOwn ? tr('budget.phase_chart.savings_and_things', 'Savings + things you own') : tr('budget.chart_events.savings', 'Savings')}</span>
+          {showDebt && <span className="inline-flex items-center gap-1"><i className="inline-block h-1.5 w-3 rounded-full" style={{ background: DEBT }} />{tr('budget.chart_events.debt', 'Debt')}</span>}
+        </div>
         <div className="relative px-11">
           {[0, M].map((i) => (
             <div key={i} className={`pointer-events-none absolute inset-y-0 w-10 ${i ? 'right-0' : 'left-0'}`}>
