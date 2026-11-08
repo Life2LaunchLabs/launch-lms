@@ -1,3 +1,4 @@
+import type { LifeDoc } from '@services/life/life'
 /** The page while something on the plans map is being dragged: what scrolls it, and what can't. */
 
 const holdStill = (e: TouchEvent) => { if (e.cancelable) e.preventDefault() }
@@ -18,3 +19,6 @@ export function scrollSpeed({ y, y0 }: { y: number; y0: number }) {
   if (bottom > 0 && y > y0 + 12) return Math.max(2, Math.round(bottom / zone * 12))
   return 0
 }
+
+/** A piece being moved: a phase on the map (and what follows it in its option), or a new route waiting to be placed. */
+export type Moving = { head: string; only: boolean; label?: string; loose?: { doc: LifeDoc; ids: string[] }; dragging?: boolean; fresh?: boolean; route?: boolean }

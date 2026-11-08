@@ -5773,7 +5773,12 @@
       "new_option_after_title": "New option after {{title}}",
       "rank": "Rank",
       "add_a_phase": "Add a phase",
-      "more_for_tolowercase": "More for {{toLowerCase}}"
+      "more_for_tolowercase": "More for {{toLowerCase}}",
+      "title_drag_or_tap_end": "{{title}}: drag it into your map, or tap to add it at the end",
+      "new_phase_drag_or_tap_end": "New phase: drag it into your map, or tap to add it at the end",
+      "drag_or_tap_end": "Drag it into your map, or tap to add it at the end",
+      "before_title": "Before {{title}}",
+      "right_after_title": "Right after {{title}}"
     },
     "phase_stack": {
       "you_are_here": "You are here",

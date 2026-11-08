@@ -5785,7 +5785,12 @@
       "new_option_after_title": "Nueva opción después de {{title}}",
       "rank": "Ordenar",
       "add_a_phase": "Agregar una fase",
-      "more_for_tolowercase": "Más opciones para {{toLowerCase}}"
+      "more_for_tolowercase": "Más opciones para {{toLowerCase}}",
+      "title_drag_or_tap_end": "{{title}}: arrástralo a tu mapa o tócalo para añadirlo al final",
+      "new_phase_drag_or_tap_end": "Nueva fase: arrástrala a tu mapa o tócala para añadirla al final",
+      "drag_or_tap_end": "Arrástralo a tu mapa o tócalo para añadirlo al final",
+      "before_title": "Antes de {{title}}",
+      "right_after_title": "Justo después de {{title}}"
     },
     "phase_stack": {
       "you_are_here": "Estás aquí",

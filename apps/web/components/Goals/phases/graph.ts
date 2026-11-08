@@ -372,6 +372,43 @@ export function place(lifted: LifeDoc, ids: string[], at: string, inline: boolea
   head.after = after
   return normalize(next)
 }
+/**
+ * The bottom of the map, where something added without a place goes: after the last phase, or after
+ * every option when the map ends in a split. Null when the map is empty.
+ */
+export function bottomOf(doc: LifeDoc): string | null {
+  let p: Phase | undefined = roots(doc)[0]
+  const seen = new Set<string>()
+  while (p && !seen.has(p.id)) {
+    seen.add(p.id)
+    const k = kids(doc, p.id)
+    if (!k.length) return p.id
+    if (k.length === 1) { p = k[0]; continue }
+    const meet = rejoinOf(doc, k)
+    if (!meet) return endsKey(doc, p.id)
+    p = meet
+  }
+  return p?.id ?? null
+}
+/**
+ * Put a lifted line of phases right before `id`, in its place: it takes over `id`'s way in (and its spot
+ * among a split's options), and `id` follows its last phase. `id` and what comes after it move later
+ * when the piece needs the room.
+ */
+export function placeBefore(lifted: LifeDoc, ids: string[], id: string): LifeDoc {
+  const next = clone(lifted), head = byId(next, ids[0]), before = byId(next, id)
+  const shape = heldShape(next, ids)
+  if (!head || !before || !shape.tail) return lifted
+  const tail = byId(next, shape.tail)!
+  const shiftAll = (list: Phase[], by: number) => list.forEach((p) => { p.starts = ym(starts(p) + by) })
+  shiftAll(ids.map((x) => byId(next, x)!), starts(before) - starts(head))
+  const late = starts(tail) + Math.max(1, tail.months || 12) - starts(before)
+  if (late > 0) shiftAll([before, ...[...below(next, before.id)].map((x) => byId(next, x)!)].filter((p) => !ids.includes(p.id)), late)
+  head.after = before.after || []
+  head.rank = before.rank
+  before.after = [tail.id]
+  return normalize(next)
+}
 /** A new piece (say, a career's route) that isn't on the map yet: its steps one after another, ready to place. */
 export function loosePiece(doc: LifeDoc, steps: RouteStep[], start = thisMonthIndex() + 12): { doc: LifeDoc; ids: string[] } {
   const next = clone(doc), ids: string[] = []
