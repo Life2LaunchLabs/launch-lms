@@ -11,8 +11,7 @@ import { LifeIcon } from './icons'
 import { LinkedTerms, LoanStory } from './LoanStory'
 import { Pick, WhenPick, fieldCls } from './SavingsDebt'
 import Sheet from './Sheet'
-import { usePhaseEnd } from './DebtCard'
-import { cardCls, Field, Monthly, MoneyRow, NumIn, Outlook, RenameSheet, SectionHead } from './MoneyParts'
+import { Field, NumIn, ObjectCard, ObjectSection, Outlook, RenameSheet, SheetActions, usePhaseEnd } from './MoneyParts'
 import { fromMonthly, money, monthLabel, phaseOffset, uid } from './model'
 
 import { tr } from '@/lib/tr'
@@ -49,61 +48,69 @@ function endCosts(doc: LifeDoc, a: Asset) {
   })
 }
 
-/** Things you own: how much value each gains or loses a month, and what it's worth by the end of the phase. */
-export function YouOwnCard() {
-  const { doc, stretch, projection, readOnly } = useLife()
-  const [adding, setAdding] = React.useState(false)
+/** Things you own, as things you have: what each is worth, how its value moves, and what it's worth when the phase ends. */
+export function AssetsSection() {
+  const { doc, stretch, projection } = useLife()
+  if (!doc.assets.length) return null
   const at = projection.assetsAt(stretch.g0)
-  const change = at.reduce((s, x) => s + monthlyChange(x.asset, x.value), 0)
-  const addLabel = tr('budget.you_own.add_something_you_own', 'Add something you own')
+  const worth = at.reduce((s, x) => s + x.value, 0)
   return (
-    <section aria-label={tr('budget.you_own.you_own', 'You own')}>
-      <SectionHead title={tr('budget.you_own.you_own', 'You own')} label={at.length ? (change < -0.5 ? tr('budget.own.losing', 'losing value') : change > 0.5 ? tr('budget.own.gaining', 'gaining value') : undefined) : undefined} onAdd={() => setAdding(true)} addLabel={addLabel}>
-        {at.length > 0 && Math.abs(change) > 0.5 && <Monthly value={Math.abs(change)} />}
-      </SectionHead>
-      <div className={cardCls}>
-        {doc.assets.map((a, i) => <AssetRow key={a.id} a={a} value={at.find((x) => x.asset.id === a.id)?.value ?? 0} first={i === 0} />)}
-        {!doc.assets.length && <p className="py-4 text-sm text-muted-foreground">{tr('budget.you_own.nothing_big_yet_like_a', 'Nothing big yet, like a car or a home. What it\'s worth counts on top of your savings.')}</p>}
-      </div>
-      {adding && !readOnly && <OwnTray onClose={() => setAdding(false)} />}
-    </section>
+    <ObjectSection title={tr('budget.assets.assets', 'Assets')} label={tr('budget.assets.worth_in', 'worth in {{a}}', { a: monthLabel(doc.start, stretch.g0) })} figure={money(worth)}>
+      {doc.assets.map((a) => <AssetObject key={a.id} a={a} value={at.find((x) => x.asset.id === a.id)?.value ?? 0} />)}
+    </ObjectSection>
   )
 }
 
 /** Value gained (+) or lost (−) in a month at the thing's yearly rate. */
 const monthlyChange = (a: Asset, value: number) => value * (Math.pow(1 + a.change / 100, 1 / 12) - 1)
 
-function AssetRow({ a, value, first }: { a: Asset; value: number; first: boolean }) {
-  const { doc, phase, stretch, per, projection, update, setOpenLine } = useLife()
+function useAsset(a: Asset, value: number) {
+  const { doc, stretch, projection } = useLife()
   const { end, endLabel } = usePhaseEnd()
-  const [sheet, setSheet] = React.useState<'name' | 'dates' | null>(null)
-  const loan = doc.debts.find((d) => d.id === a.loan_id)
-  const loanAt = loan ? projection.debtsAt(stretch.g0).find((x) => x.debt.id === loan.id) : null
-  const costs = doc.phases.find((p) => p.id === phase.id)?.lines.filter((l) => l.asset === a.id) || []
   const later = !!a.bought && stretch.g0 < gOf(doc, a.bought)
   const gone = !!a.sold && stretch.g0 >= gOf(doc, a.sold)
   const hist = projection.historyOf(a.id)
   const endVal = hist[Math.min(end, hist.length - 1)] ?? 0
   const change = later || gone ? 0 : monthlyChange(a, value)
-  const edit = (fn: (x: Asset, d: LifeDoc) => void) => update((d) => { const x = d.assets.find((y) => y.id === a.id); if (x) fn(x, d) })
-  const go = (id: string) => { setOpenLine(id); requestAnimationFrame(() => document.getElementById(`row-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })) }
-  const sellAt = (): When => { const m = Math.min(phase.months - 1, stretch.m0 + 12); return { phase: phase.id, month: m } }
   const when = (w: When) => monthLabel(doc.start, gOf(doc, w))
-  const sub = [
+  return { later, gone, endVal, endLabel, change, when }
+}
+
+function AssetObject({ a, value }: { a: Asset; value: number }) {
+  const { doc, per } = useLife()
+  const [open, setOpen] = React.useState(false)
+  const { later, gone, endVal, change, when } = useAsset(a, value)
+  const chip = [
     a.bought ? (later ? tr('budget.own.get_it_a', 'get it {{a}}', { a: when(a.bought) }) : tr('budget.own.bought_a', 'bought {{a}}', { a: when(a.bought) })) : '',
     a.sold ? (gone ? tr('budget.own.sold_a', 'sold {{a}}', { a: when(a.sold) }) : tr('budget.own.sell_a', 'sell {{a}}', { a: when(a.sold) })) : '',
-    `${a.change > 0 ? '+' : ''}${a.change}%/yr`,
-    loan ? tr('budget.own.with_loan', 'with a loan') : '',
+    Math.abs(change) >= 0.5 ? `${money(fromMonthly(change, per), { sign: true })}/${tr(`budget.per_short.${per}`, per)}` : `${a.change > 0 ? '+' : ''}${a.change}%/yr`,
+    doc.debts.some((d) => d.id === a.loan_id) ? tr('budget.own.with_loan', 'with a loan') : '',
   ].filter(Boolean).join(' · ')
-  const under = gone ? '' : endVal > 0.5 ? tr('budget.own.worth_by_end', 'worth {{m}} by end', { m: money(endVal) }) : ''
-  const amount = later || gone ? <span className="text-sm text-muted-foreground">{gone ? tr('budget.you_own.sold', 'Sold') : tr('budget.debt.not_yet', 'Not yet')}</span>
-    : Math.abs(change) < 0.5 ? <span className="text-sm text-muted-foreground">{money(value)}</span> : <span className={change < 0 ? '' : 'text-emerald-600 dark:text-emerald-400'}><Monthly value={change} sign /></span>
-  const remove = () => update((d) => {
+  return <>
+    <ObjectCard id={`own:${a.id}`} tone="asset" icon={kindOf(a.kind).icon} title={a.title} onOpen={() => setOpen(true)} muted={later || gone}
+      value={gone ? tr('budget.you_own.sold', 'Sold') : money(later ? a.value : value)} label={later ? tr('budget.assets.to_buy', 'to buy') : gone ? '' : tr('budget.assets.worth', 'worth')}
+      chip={chip} foot={gone ? '' : endVal > 0.5 ? tr('budget.own.worth_by_end', 'worth {{m}} by end', { m: money(endVal) }) : ''} />
+    <AssetSheet open={open} a={a} value={value} onClose={() => setOpen(false)} />
+  </>
+}
+
+/** Something you own, in detail: its price and value, its loan and running costs, its story, and what you can do with it. */
+function AssetSheet({ open, a, value, onClose }: { open: boolean; a: Asset; value: number; onClose: () => void }) {
+  const { doc, phase, stretch, per, projection, update, setOpenLine, readOnly } = useLife()
+  const { later, gone, endVal, endLabel, when } = useAsset(a, value)
+  const [sheet, setSheet] = React.useState<'name' | 'dates' | null>(null)
+  const loan = doc.debts.find((d) => d.id === a.loan_id)
+  const loanAt = loan ? projection.debtsAt(stretch.g0).find((x) => x.debt.id === loan.id) : null
+  const costs = doc.phases.find((p) => p.id === phase.id)?.lines.filter((l) => l.asset === a.id) || []
+  const edit = (fn: (x: Asset, d: LifeDoc) => void) => update((d) => { const x = d.assets.find((y) => y.id === a.id); if (x) fn(x, d) })
+  const go = (id: string, line: boolean) => { onClose(); if (line) setOpenLine(id); requestAnimationFrame(() => document.getElementById(line ? `row-${id}` : id)?.scrollIntoView({ block: 'center', behavior: 'smooth' })) }
+  const sellAt = (): When => { const m = Math.min(phase.months - 1, stretch.m0 + 12); return { phase: phase.id, month: m } }
+  const remove = () => { onClose(); update((d) => {
     d.assets = d.assets.filter((x) => x.id !== a.id)
     if (a.loan_id) { d.debts = d.debts.filter((x) => x.id !== a.loan_id); d.policies = (d.policies || []).filter((p) => p.target !== a.loan_id) }
     d.phases.forEach((p) => { p.lines = p.lines.filter((l) => l.asset !== a.id) })
-  })
-  const menu = [
+  }) }
+  const actions = [
     { icon: <Pencil />, label: tr('budget.line.rename', 'Rename'), onSelect: () => setSheet('name') },
     ...(a.bought || a.sold ? [{ icon: <CalendarRange />, label: tr('budget.line.adjust_dates', 'Adjust dates'), onSelect: () => setSheet('dates') }] : []),
     a.sold ? { icon: <Undo2 />, label: tr('budget.you_own.keep_it', 'Keep it'), onSelect: () => edit((x, d) => { x.sold = null; endCosts(d, x) }) }
@@ -112,33 +119,36 @@ function AssetRow({ a, value, first }: { a: Asset; value: number; first: boolean
   ]
   const priceSet = (v: number) => edit((x, d) => { x.value = v; const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.balance = Math.max(0, v - (x.down ?? 0)) })
   return (
-    <MoneyRow id={`own:${a.id}`} icon={kindOf(a.kind).icon} title={a.title} amount={amount} sub={sub} under={under} first={first} menu={menu}>
-      <div className="grid grid-cols-2 gap-2.5">
-        <Field label={a.bought ? tr('budget.you_own.price', 'Price') : tr('budget.you_own.what_it_s_worth', 'What it\'s worth')}><NumIn label={tr('budget.you_own.price_of_title', 'Price of {{title}}', { title: a.title })} value={a.value} onSet={priceSet} /></Field>
-        <Field label={tr('budget.own.value_change', 'Value each year')}><NumIn label={tr('budget.you_own.value_change_percent_a_year', 'Value change, percent a year')} prefix="" suffix="%" value={a.change} onSet={(v) => edit((x) => { x.change = Math.max(-100, Math.min(100, v)) })} /></Field>
-        {a.bought && loan && <Field label={tr('budget.you_own.down_payment', 'Down payment')}><NumIn label={tr('budget.you_own.down_payment', 'Down payment')} value={a.down ?? 0} onSet={(v) => edit((x, d) => { x.down = Math.min(x.value, v); const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.balance = Math.max(0, x.value - x.down) })} /></Field>}
-        {a.sold && <Field label={tr('budget.you_own.sale_price', 'Sale price')}><NumIn label={tr('budget.you_own.sale_price', 'Sale price')} value={a.sold.price} onSet={(v) => edit((x) => { x.sold = { ...x.sold!, price: v } })} /></Field>}
-      </div>
-      {(loan || costs.length > 0) && (
-        <div className="grid gap-1.5">
-          {loan && <LinkRow icon="landmark" title={loan.title} sub={loanAt?.state === 'owing' ? tr('budget.you_own.money_left_at_rate', '{{money}} left at {{rate}}%', { money: money(loanAt.balance), rate: loan.rate }) : loanAt?.state === 'later' ? tr('budget.you_own.money_at_rate_starts_with', '{{money}} at {{rate}}%, starts with the purchase', { money: money(loan.balance), rate: loan.rate }) : tr('budget.you_own.paid_off', 'Paid off')}
-            value={loanAt && loanAt.payment > 0.5 ? `${money(fromMonthly(loanAt.payment, per))}/${tr(`budget.per_short.${per}`, per)}` : undefined} onClick={() => go(`m:${loan.id}`)} />}
-          {costs.length > 0 && <LinkRow icon="receipt" title={tr('budget.you_own.running_costs', 'Running costs')} sub={`${costs.map((l) => l.title).join(', ')} ${tr('budget.you_own.in_your_budget', '· in your budget')}`} onClick={() => go(costs[0].id)} />}
+    <Sheet open={open} onClose={onClose} title={a.title}>
+      <fieldset disabled={readOnly} className="grid min-w-0 gap-3 text-sm">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field label={a.bought ? tr('budget.you_own.price', 'Price') : tr('budget.you_own.what_it_s_worth', 'What it\'s worth')}><NumIn label={tr('budget.you_own.price_of_title', 'Price of {{title}}', { title: a.title })} value={a.value} onSet={priceSet} /></Field>
+          <Field label={tr('budget.own.value_change', 'Value each year')}><NumIn label={tr('budget.you_own.value_change_percent_a_year', 'Value change, percent a year')} prefix="" suffix="%" value={a.change} onSet={(v) => edit((x) => { x.change = Math.max(-100, Math.min(100, v)) })} /></Field>
+          {a.bought && loan && <Field label={tr('budget.you_own.down_payment', 'Down payment')}><NumIn label={tr('budget.you_own.down_payment', 'Down payment')} value={a.down ?? 0} onSet={(v) => edit((x, d) => { x.down = Math.min(x.value, v); const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.balance = Math.max(0, x.value - x.down) })} /></Field>}
+          {a.sold && <Field label={tr('budget.you_own.sale_price', 'Sale price')}><NumIn label={tr('budget.you_own.sale_price', 'Sale price')} value={a.sold.price} onSet={(v) => edit((x) => { x.sold = { ...x.sold!, price: v } })} /></Field>}
         </div>
-      )}
-      <Outlook>
-        {a.bought && later ? <>{tr('budget.own.buy_story', 'You buy it in {{a}}', { a: when(a.bought) })}{loan ? tr('budget.own.buy_loan', ', {{m}} down from savings and a loan for the rest.', { m: money(a.down ?? 0) }) : tr('budget.own.buy_cash', ', {{m}} out of savings.', { m: money(a.value) })}</>
-          : gone ? tr('budget.own.sold_story', 'Sold in {{a}} for {{m}}.', { a: when(a.sold!), m: money(a.sold!.price) })
-          : <>{tr('budget.own.worth_from', 'Worth {{m}} in {{s}}', { m: money(value), s: monthLabel(doc.start, stretch.g0) })}{endVal > 0.5 ? tr('budget.own.worth_end', ' and {{m}} by {{a}}.', { m: money(endVal), a: endLabel }) : '.'}</>}
-        {a.sold && loan && !gone ? ` ${tr('budget.you_own.whatever_is_left_on_the', 'Whatever is left on the loan is paid off from the sale.')}` : ''}
-      </Outlook>
+        {(loan || costs.length > 0) && (
+          <div className="grid gap-1.5">
+            {loan && <LinkRow icon="landmark" title={loan.title} sub={loanAt?.state === 'owing' ? tr('budget.you_own.money_left_at_rate', '{{money}} left at {{rate}}%', { money: money(loanAt.balance), rate: loan.rate }) : loanAt?.state === 'later' ? tr('budget.you_own.money_at_rate_starts_with', '{{money}} at {{rate}}%, starts with the purchase', { money: money(loan.balance), rate: loan.rate }) : tr('budget.you_own.paid_off', 'Paid off')}
+              value={loanAt && loanAt.payment > 0.5 ? `${money(fromMonthly(loanAt.payment, per))}/${tr(`budget.per_short.${per}`, per)}` : undefined} onClick={() => go(`m:${loan.id}`, false)} />}
+            {costs.length > 0 && <LinkRow icon="receipt" title={tr('budget.you_own.running_costs', 'Running costs')} sub={`${costs.map((l) => l.title).join(', ')} ${tr('budget.you_own.in_your_budget', '· in your budget')}`} onClick={() => go(costs[0].id, true)} />}
+          </div>
+        )}
+        <Outlook>
+          {a.bought && later ? <>{tr('budget.own.buy_story', 'You buy it in {{a}}', { a: when(a.bought) })}{loan ? tr('budget.own.buy_loan', ', {{m}} down from savings and a loan for the rest.', { m: money(a.down ?? 0) }) : tr('budget.own.buy_cash', ', {{m}} out of savings.', { m: money(a.value) })}</>
+            : gone ? tr('budget.own.sold_story', 'Sold in {{a}} for {{m}}.', { a: when(a.sold!), m: money(a.sold!.price) })
+            : <>{tr('budget.own.worth_from', 'Worth {{m}} in {{s}}', { m: money(value), s: monthLabel(doc.start, stretch.g0) })}{endVal > 0.5 ? tr('budget.own.worth_end', ' and {{m}} by {{a}}.', { m: money(endVal), a: endLabel }) : '.'}</>}
+          {a.sold && loan && !gone ? ` ${tr('budget.you_own.whatever_is_left_on_the', 'Whatever is left on the loan is paid off from the sale.')}` : ''}
+        </Outlook>
+        {!readOnly && <SheetActions items={actions} />}
+      </fieldset>
       <RenameSheet open={sheet === 'name'} value={a.title} onClose={() => setSheet(null)} onSave={(t) => t && edit((x) => { x.title = t })} />
       <Sheet open={sheet === 'dates'} onClose={() => setSheet(null)} title={tr('budget.line.adjust_dates', 'Adjust dates')}>
         {a.bought && <label className="grid gap-1 text-sm font-semibold">{tr('budget.you_own.when_you_buy_it', 'When you buy it')}<WhenPick value={a.bought} onChange={(w) => edit((x, d) => { x.bought = w; if (x.loan_id) { const l = d.debts.find((y) => y.id === x.loan_id); if (l) l.start = w } })} /></label>}
         {a.sold && <label className="grid gap-1 text-sm font-semibold">{tr('budget.own.when_you_sell', 'When you sell it')}<WhenPick value={a.sold} onChange={(w) => edit((x, d) => { x.sold = { ...w, price: x.sold!.price }; endCosts(d, x) })} /></label>}
         <button type="button" onClick={() => setSheet(null)} className="h-10 rounded-xl bg-[var(--org-primary-color)] text-sm font-bold text-[var(--org-on-primary-color)]">{tr('budget.line.done', 'Done')}</button>
       </Sheet>
-    </MoneyRow>
+    </Sheet>
   )
 }
 
@@ -152,7 +162,7 @@ function LinkRow({ icon, title, sub, value, onClick }: { icon: string; title: st
 }
 
 /** A car, a home or something else; then how it comes into your life; then its numbers, all editable before it goes in. */
-function OwnTray({ onClose }: { onClose: () => void }) {
+export function OwnTray({ onClose }: { onClose: () => void }) {
   const [kind, setKind] = React.useState<string | null>(null)
   const [how, setHow] = React.useState<How | null>(null)
   const k = kind ? kindOf(kind) : null
@@ -160,7 +170,7 @@ function OwnTray({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-        <DialogHeader><DialogTitle className="flex items-center gap-1">{back && <Button variant="ghost" size="icon" onClick={back} aria-label={tr('budget.add_tray.back', 'Back')} className="-ml-2"><ChevronLeft /></Button>}{k ? k.title : tr('budget.you_own.add_something_you_own', 'Add something you own')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-1">{back && <Button variant="ghost" size="icon" onClick={back} aria-label={tr('budget.add_tray.back', 'Back')} className="-ml-2"><ChevronLeft /></Button>}{k ? k.title : tr('budget.assets.add_an_asset', 'Add an asset')}</DialogTitle></DialogHeader>
         {!k && <ul className="grid gap-1 pt-2">{KINDS.map((x) => <Pick key={x.key} icon={x.icon} label={x.title} onClick={() => setKind(x.key)} />)}</ul>}
         {k && !how && <ul className="grid gap-1 pt-2">
           <Pick icon="flag" label={tr('budget.you_own.i_already_own_it', 'I already own it')} note={tr('lit.you_own.it_s_yours_when_your', 'It\'s yours when your plan starts. No money changes hands.')} onClick={() => setHow('have')} />
@@ -174,7 +184,7 @@ function OwnTray({ onClose }: { onClose: () => void }) {
 }
 
 function OwnForm({ kind, how, onDone }: { kind: string; how: How; onDone: () => void }) {
-  const { doc, phase, stretch, catalog, update, setOpenLine } = useLife()
+  const { doc, phase, stretch, catalog, update } = useLife()
   const k = kindOf(kind)
   const n = doc.assets.filter((x) => x.kind === kind).length
   const base = kind === 'car' ? tr('lit.you_own.car', 'Car') : kind === 'home' ? 'Home' : ''
@@ -193,7 +203,6 @@ function OwnForm({ kind, how, onDone }: { kind: string; how: How; onDone: () => 
       d.assets.push(a)
       addCosts(d, a, costs, catalog?.items || [])
     })
-    setOpenLine(`own:${a.id}`)
     onDone()
   }
   const items = k.costs.map((c) => catalog?.items.find((i) => i.key === c)).filter(Boolean) as { key: string; title: string; icon: string }[]

@@ -67,8 +67,9 @@ export interface PlacePhoto { url: string; width?: number; height?: number; titl
 export interface When { phase: string; month: number }
 /** A debt: what is owed, its rate and the minimum a month. Taking it later (start) can land the money in savings. */
 export interface Debt { id: string; kind: string; title: string; balance: number; rate: number; payment: number; start?: When | null; received?: boolean | null }
-/** An account. A 401(k) puts in pct of pay, and the employer matches up to match percent of pay. */
-export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean; pct?: number | null; match?: number | null }
+/** An account. A 401(k) puts in pct of pay, and the employer matches up to match percent of pay.
+ *  `start` is the month the learner opens it (balance lands then); none means they have it when the plan starts. */
+export interface Saving { id: string; kind: string; title: string; balance: number; rate: number; monthly: number; main: boolean; pct?: number | null; match?: number | null; start?: When | null }
 /** From a month on, until the next one: what you pay on a debt (at least its minimum, or all of it), or put into an account. */
 export interface Policy { id: string; target: string; phase: string; month: number; pay?: number | null; full?: boolean | null; put?: number | null; pct?: number | null; to?: string | null; after?: string | null }
 export interface Asset { id: string; kind: string; title: string; value: number; change: number; bought?: When | null; down?: number | null; loan_id?: string | null; sold?: (When & { price: number }) | null }

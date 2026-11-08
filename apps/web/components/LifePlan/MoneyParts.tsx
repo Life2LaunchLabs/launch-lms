@@ -10,6 +10,7 @@ import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { PerTag } from './BudgetSummary'
 import { fromMonthly, money, monthLabel, phaseOffset } from './model'
+import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
 
@@ -18,6 +19,13 @@ export function useMonthOf() {
   const { doc, phase } = useLife()
   const off = phaseOffset(doc, phase.id)
   return (m: number) => monthLabel(doc.start, off + m)
+}
+
+/** Where the phase in view ends, as an index into a balance history (the balance after its last month). */
+export function usePhaseEnd() {
+  const { doc, phase } = useLife()
+  const end = phaseOffset(doc, phase.id) + phase.months
+  return { end, endLabel: monthLabel(doc.start, end - 1) }
 }
 
 /** A monthly amount with its muted "/mo", in the period the learner reads in. */
@@ -136,5 +144,63 @@ export function RenameSheet({ open, value, onClose, onSave }: { open: boolean; v
         <button type="submit" className="h-10 rounded-xl bg-[var(--org-primary-color)] text-sm font-bold text-[var(--org-on-primary-color)]">{tr('budget.line.done', 'Done')}</button>
       </form>
     </Sheet>
+  )
+}
+
+/** The colors of a kind of object card: debts in rose, assets in sky. */
+export const TONE = {
+  debt: { card: 'bg-rose-500/[0.07] ring-rose-500/20 hover:bg-rose-500/[0.11]', icon: 'bg-rose-500/15 text-rose-600 dark:text-rose-300', bar: 'bg-rose-500' },
+  asset: { card: 'bg-sky-500/[0.07] ring-sky-500/20 hover:bg-sky-500/[0.11]', icon: 'bg-sky-500/15 text-sky-600 dark:text-sky-300', bar: 'bg-sky-500' },
+} as const
+
+/**
+ * A thing you have, rather than money that moves each month: a loan or something you own. A bigger, tinted card
+ * with its big number (owed, or worth), a line under it and an optional progress bar; it opens its details.
+ */
+export function ObjectCard({ id, tone, icon, title, value, label, chip, foot, progress, muted, onOpen }: { id: string; tone: keyof typeof TONE; icon: string; title: string; value: string; label: string; chip?: string; foot?: string; progress?: number | null; muted?: boolean; onOpen: () => void }) {
+  const t = TONE[tone]
+  return (
+    <button id={id} type="button" onClick={onOpen} className={cn('flex min-w-0 flex-col gap-2 rounded-2xl p-3.5 text-left ring-1 transition-colors', t.card, muted && 'opacity-70')}>
+      <span className="flex items-center gap-2">
+        <span className={cn('grid size-9 shrink-0 place-items-center rounded-xl', t.icon)}><LifeIcon name={icon} className="size-[18px]" /></span>
+        <span className="min-w-0 flex-1 truncate text-[15px] font-bold">{title}</span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+      </span>
+      <span className="leading-none"><b className="text-2xl font-extrabold tabular-nums tracking-tight">{value}</b> <span className="text-xs font-semibold text-muted-foreground">{label}</span></span>
+      {progress != null && <span className="h-1.5 overflow-hidden rounded-full bg-foreground/10"><span className={cn('block h-full rounded-full', t.bar)} style={{ width: `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` }} /></span>}
+      {(chip || foot) && <span className="flex items-baseline gap-2 text-[11px] text-muted-foreground"><span className="min-w-0 flex-1 truncate">{chip}</span>{foot && <span className="shrink-0">{foot}</span>}</span>}
+    </button>
+  )
+}
+
+/** A section of object cards: a heading, then the cards two across on wider screens. */
+export function ObjectSection({ title, label, figure, children }: { title: string; label?: string; figure?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section aria-label={title}>
+      <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+        <h2 className="text-lg font-extrabold tracking-tight">{title}</h2>
+        {figure != null && <span className="flex min-w-0 items-baseline gap-2">{label && <span className="truncate text-xs font-semibold text-muted-foreground">{label}</span>}<b className="text-lg font-extrabold tabular-nums">{figure}</b></span>}
+      </div>
+      <div className="grid gap-2.5 sm:grid-cols-2">{children}</div>
+    </section>
+  )
+}
+
+/** The actions at the bottom of an object's details sheet. */
+export function SheetActions({ items }: { items: MenuItem[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5 border-t border-border/70 pt-3">
+      {items.map((m) => <button key={m.label} type="button" onClick={m.onSelect} className={cn('flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold ring-1 ring-border hover:bg-muted [&_svg]:size-4', m.danger && 'text-destructive')}>{m.icon}{m.label}</button>)}
+    </div>
+  )
+}
+
+/** Small buttons to add what isn't there yet: a debt, something you own, money that moves once. */
+export function AddRow({ items }: { items: { label: string; onClick: () => void }[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-1">
+      <span className="text-xs font-semibold text-muted-foreground">{tr('lit.people_access.add', 'Add')}</span>
+      {items.map((x) => <button key={x.label} type="button" onClick={x.onClick} className="flex h-9 items-center gap-1.5 rounded-full bg-card px-3.5 text-sm font-semibold shadow-[0_1px_0_hsl(var(--border))] hover:bg-muted [&_svg]:size-4"><Plus />{x.label}</button>)}
+    </div>
   )
 }

@@ -62,7 +62,7 @@ export function MoneyTray({ onClose, start = null }: { onClose: () => void; star
         </ul>}
         {side && !kind && <ul className="grid gap-1 pt-2">
           {kinds.map((k) => <Pick key={k.key} icon={k.icon} label={k.title} onClick={() => setKind(k.key)} />)}
-          {side === 'debt' && <li className="px-2 pt-2 text-xs text-muted-foreground">{tr('budget.savings_debt.a_loan_for_a_car', 'A loan for a car or a home is added with the thing you buy, under You own.')}</li>}
+          {side === 'debt' && <li className="px-2 pt-2 text-xs text-muted-foreground">{tr('budget.savings_debt.a_loan_for_a_car_2', 'A loan for a car or a home is added with the thing you buy, under Assets.')}</li>}
         </ul>}
         {side === 'debt' && kind && <DebtForm kind={kind} title={kinds.find((k) => k.key === kind)?.title || tr('budget.savings_debt.loan', 'Loan')} onDone={onClose} />}
         {side === 'save' && kind && <AccountForm kind={kind} title={kinds.find((k) => k.key === kind)?.title || tr('budget.savings_debt.account', 'Account')} onDone={onClose} />}
@@ -125,20 +125,34 @@ function DebtForm({ kind, title, onDone }: { kind: string; title: string; onDone
 }
 
 function AccountForm({ kind, title, onDone }: { kind: string; title: string; onDone: () => void }) {
-  const { update, setOpenLine } = useLife()
+  const { doc, phase, stretch, update, setOpenLine } = useLife()
   const k = kind === 'k401'
-  const [f, setF] = React.useState({ title: k ? '401(k)' : kind === 'ira' ? 'IRA' : tr('lit.savings_debt.savings', 'Savings'), balance: '', monthly: '', pct: '', match: '', rate: '' })
+  // An account starts in the stretch it's added from (a 401(k) comes with a job), unless the learner already has it.
+  const [f, setF] = React.useState({ title: k ? '401(k)' : kind === 'ira' ? 'IRA' : tr('lit.savings_debt.savings', 'Savings'), balance: '', monthly: '', pct: '', match: '', rate: '', later: true, when: { phase: phase.id, month: stretch.m0 } as When })
   const add = () => {
-    const s: Saving = { id: uid('s'), kind, title: f.title.trim() || title, balance: num(f.balance), rate: num(f.rate), monthly: k ? 0 : num(f.monthly), main: false, pct: k ? Math.min(100, num(f.pct)) : null, match: k && f.match.trim() ? Math.min(100, num(f.match)) : null }
-    update((doc) => { doc.savings.push(s) })
+    const s: Saving = { id: uid('s'), kind, title: f.title.trim() || title, balance: num(f.balance), rate: num(f.rate), monthly: k ? 0 : num(f.monthly), main: false, pct: k ? Math.min(100, num(f.pct)) : null, match: k && f.match.trim() ? Math.min(100, num(f.match)) : null, start: f.later ? f.when : null }
+    update((d) => { d.savings.push(s) })
     setOpenLine(`m:${s.id}`)
     onDone()
   }
+  const choice = (later: boolean, label: string, sub: string) => (
+    <button type="button" aria-pressed={f.later === later} onClick={() => setF({ ...f, later })}
+      className={`rounded-xl px-3 py-2 text-left ring-1 ${f.later === later ? 'bg-[color-mix(in_srgb,var(--org-primary-color)_14%,transparent)] ring-[var(--org-primary-color)]' : 'ring-border hover:bg-muted'}`}>
+      <b className="block text-sm">{label}</b><small className="block text-xs text-muted-foreground">{sub}</small>
+    </button>
+  )
   return (
     <form className="space-y-4 pt-2" onSubmit={(e) => { e.preventDefault(); add() }}>
       <label className="grid gap-1 text-sm font-semibold">{tr('budget.add_tray.name', 'Name')}<input className={fieldCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
+      <div className="grid gap-1.5 text-sm font-semibold">{tr('budget.save.when_open', 'When do you open it?')}
+        <div className="grid grid-cols-2 gap-2">
+          {choice(true, tr('budget.save.i_open_it', 'I open it'), tr('budget.save.i_open_it_sub', 'On a date in your plan, like when a job starts. Nothing goes in before then.'))}
+          {choice(false, tr('budget.save.already_have', 'I already have it'), tr('budget.save.already_have_sub', 'There from the start of your plan, {{a}}.', { a: monthLabel(doc.start, 0) }))}
+        </div>
+      </div>
+      {f.later && <label className="grid gap-1 text-sm font-semibold">{tr('budget.save.date_open', 'Date you open it')}<WhenPick value={f.when} onChange={(w) => setF({ ...f, when: w })} /></label>}
       <div className="grid grid-cols-2 gap-3">
-        <label className="grid gap-1 text-sm font-semibold">{tr('budget.savings_debt.in_it_now', 'In it now')}<input className={fieldCls} inputMode="decimal" value={f.balance} onChange={(e) => setF({ ...f, balance: e.target.value })} placeholder="$0" autoFocus /></label>
+        <label className="grid gap-1 text-sm font-semibold">{f.later ? tr('budget.save.in_it_to_start', 'In it to start') : tr('budget.savings_debt.in_it_now', 'In it now')}<input className={fieldCls} inputMode="decimal" value={f.balance} onChange={(e) => setF({ ...f, balance: e.target.value })} placeholder="$0" autoFocus /></label>
         {k ? <>
           <label className="grid gap-1 text-sm font-semibold">{tr('budget.savings_debt.you_put_in_of_pay', 'You put in (% of pay)')}<input className={fieldCls} inputMode="decimal" value={f.pct} onChange={(e) => setF({ ...f, pct: e.target.value })} placeholder="0" /></label>
           <label className="grid gap-1 text-sm font-semibold">{tr('budget.savings_debt.employer_matches_up_to_of', 'Employer matches up to (% of pay)')}<input className={fieldCls} inputMode="decimal" value={f.match} onChange={(e) => setF({ ...f, match: e.target.value })} placeholder="0" /></label>
