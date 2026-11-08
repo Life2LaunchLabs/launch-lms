@@ -18,7 +18,8 @@ import BudgetSummary from './BudgetSummary'
 import BudgetTable from './BudgetTable'
 import { OneTimeCard } from './MoneyCards'
 import { YouOwnCard } from './YouOwn'
-import { SavingsDebtCard } from './SavingsDebt'
+import { DebtCard } from './DebtCard'
+import { LeftOverCard, SavingsCard } from './SavingsCard'
 import AddTray, { type AddTarget } from './AddTray'
 import EstimatesDialog from './EstimatesDialog'
 import Link from 'next/link'
@@ -110,9 +111,9 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   }
 
   const phase: Phase = doc.phases.find((p) => p.id === sel?.phase) || doc.phases[0]
-  const stretchesOf = stretches(doc, phase)
-  const stretch = stretchesOf[Math.min(sel?.phase === phase.id ? sel.i : 0, stretchesOf.length - 1)]
   const projection = proj!
+  const stretchesOf = stretches(doc, phase, projection)
+  const stretch = stretchesOf[Math.min(sel?.phase === phase.id ? sel.i : 0, stretchesOf.length - 1)]
 
   const ctx: LifeCtx = {
     token, doc, catalog, estimates, estimatesLoading: estLoading, per, setPer, phase, stretch, stretchesOf,
@@ -140,9 +141,11 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
         <fieldset disabled={Boolean(of)} className="min-w-0 space-y-5">
           <BudgetTable />
-          <SavingsDebtCard />
-          <OneTimeCard />
+          <DebtCard />
+          <SavingsCard />
+          <LeftOverCard />
           <YouOwnCard />
+          <OneTimeCard />
         </fieldset>
         <p className="mt-6 text-xs text-muted-foreground">
           {tr('budget.life_plan_workspace.estimates_appear_only_where_we', 'Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Taxes are a rough estimate on pay from work, from the latest published federal and Oregon rates; open Taxes under Income to see how, or use your own rate.')}

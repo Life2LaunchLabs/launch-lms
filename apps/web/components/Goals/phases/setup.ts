@@ -54,7 +54,7 @@ export const LEVELS: { key: string; title: string; short: string; college?: bool
 ]
 export const levelOf = (key?: string | null) => LEVELS.find((l) => l.key === key)
 
-const singular = (t: string) => t.split(/,| and /)[0].trim().replace(/s$/, '')
+const singular = (t: string) => t.split(/,| and | or /)[0].trim().replace(/([^s])s$/, '$1')
 
 /** "Learning at Sheldon High School", "Electrician at Northwest Electric". */
 export function activityText(a?: Activity | null): string {

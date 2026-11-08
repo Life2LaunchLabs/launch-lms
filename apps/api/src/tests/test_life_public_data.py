@@ -140,7 +140,7 @@ def test_career_search_finds_other_titles_and_detail_names_the_license():
     db = _session()
     importers.import_file(db, *_onet_zip())
     _review_all(db)
-    assert [c["title"] for c in public_data.search_careers(db, "vet tech")] == ["Veterinary Technologists and Technicians"]
+    assert [c["title"] for c in public_data.search_careers(db, "vet tech")] == ["Veterinary Technologist or Technician"]
     career = public_data.get_career(db, "15-1252.00")
     assert career["top_interests"] == "ICR" and career["source"]["title"] == "O*NET 30.0 Database"
     assert public_data.get_career(db, "00-0000.00") is None

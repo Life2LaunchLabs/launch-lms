@@ -1,16 +1,17 @@
 'use client'
 
 import React from 'react'
-import { CalendarRange, ChevronRight, MoreVertical, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { CalendarRange, ChevronRight, MoreVertical, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { Button } from '@components/ui/button'
 import type { Line } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { PerTag, useTotals } from './BudgetSummary'
-import LineEditor, { DatesSheet, standing, subtitle } from './LineEditor'
+import LineEditor, { DatesSheet, datesText, lineTitle, standing, subtitle } from './LineEditor'
+import { RenameSheet } from './MoneyParts'
 import TaxButton from './TaxButton'
-import { fromMonthly, money } from './model'
+import { fromMonthly, money, phaseOffset } from './model'
 
 import { tr } from '@/lib/tr'
 
@@ -58,15 +59,17 @@ export default function BudgetTable() {
 
 /** One budget line: icon, name with what its settings are set to, and its amount. Opens in place. */
 function Row({ line, first }: { line: Line; first: boolean }) {
-  const { phase, catalog, valueOf, per, openLine, setOpenLine, estimates, estimatesLoading, updatePhase, readOnly } = useLife()
+  const { doc, phase, catalog, valueOf, per, openLine, setOpenLine, estimates, estimatesLoading, updatePhase, readOnly } = useLife()
   const [dates, setDates] = React.useState(false)
+  const [naming, setNaming] = React.useState(false)
+  const title = lineTitle(line)
   const item = catalog?.items.find((i) => i.key === line.item)
   const cat = catalog?.categories.find((c) => c.key === line.cat)
   const v = valueOf(phase, line)
   const open = openLine === line.id
   const est = estimates[`${phase.id}:${line.id}`] ?? null
   const value = v.monthly == null ? null : fromMonthly(v.monthly, per)
-  const sub = subtitle(line, item, v)
+  const sub = [subtitle(line, item, v), datesText(line, doc.start, phaseOffset(doc, phase.id))].filter(Boolean).join(' · ')
   const vs = open ? '' : standing(line, item, est, v)
   return (
     <div id={`row-${line.id}`} className={`relative ${first ? '' : 'border-t border-border/70'}`}>
@@ -74,7 +77,7 @@ function Row({ line, first }: { line: Line; first: boolean }) {
         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} className="size-[15px]" /></span>
         <span className="min-w-0 flex-1 leading-tight">
           <span className="flex items-baseline gap-2">
-            <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
+            <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{title}</span>
             {value == null
               ? <span className="shrink-0 text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : tr('budget.budget_table.add_your_number', 'Add your number')}</span>
               : <span className={`shrink-0 font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{money(value)}<PerTag per={per} /></span>}
@@ -85,8 +88,9 @@ function Row({ line, first }: { line: Line; first: boolean }) {
       </button>
       {open && !readOnly && (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><button type="button" className="absolute right-0 top-2 grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={tr('budget.line.line_options', 'Options for {{title}}', { title: line.title })}><MoreVertical className="size-4" /></button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><button type="button" className="absolute right-0 top-2 grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={tr('budget.line.line_options', 'Options for {{title}}', { title })}><MoreVertical className="size-4" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onSelect={() => setNaming(true)}><Pencil className="mr-2 size-4" />{tr('budget.line.rename', 'Rename')}</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setDates(true)}><CalendarRange className="mr-2 size-4" />{tr('budget.line.adjust_dates', 'Adjust dates')}</DropdownMenuItem>
             <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => { updatePhase((p) => { p.lines = p.lines.filter((l) => l.id !== line.id) }); setOpenLine(null) }}><Trash2 className="mr-2 size-4" />{tr('budget.budget_table.remove', 'Remove')}</DropdownMenuItem>
           </DropdownMenuContent>
@@ -94,6 +98,8 @@ function Row({ line, first }: { line: Line; first: boolean }) {
       )}
       {open && <LineEditor line={line} est={est} item={item} />}
       {dates && <DatesSheet line={line} open onClose={() => setDates(false)} />}
+      <RenameSheet open={naming} value={title} onClose={() => setNaming(false)}
+        onSave={(t) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (!l) return; const auto = l.settings?.soc_title || item?.title || l.title; l.title = t || auto; l.settings = { ...(l.settings || {}), named: !!t && t !== auto } })} />
     </div>
   )
 }

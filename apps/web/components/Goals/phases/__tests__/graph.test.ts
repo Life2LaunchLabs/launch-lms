@@ -86,6 +86,15 @@ describe('a plan as a map', () => {
     expect(back.phases.length).toBe(6)
   })
 
+  test('what a route pays, puts in or does with what is left goes back into the map, and other routes keep theirs', () => {
+    const doc = { ...map(), policies: [{ id: 'x', target: 'left', phase: 'ap', month: 0, to: 'debt' as const }] }
+    const r = routeDoc(doc, 'tr')
+    expect(r.policies).toEqual([])
+    r.policies = [{ id: 'y', target: 'left', phase: 'tr', month: 2, to: 'debt' }]
+    const back = mergeRoute(doc, r)
+    expect(back.policies!.map((p) => p.id).sort()).toEqual(['x', 'y'])
+  })
+
   test('careers add their usual route as ideas, ending in the career', () => {
     const emt = routesFor({ code: '29-2042.00', title: 'Emergency Medical Technicians', job_zone: 3 })
     expect(emt.map((r) => r.steps.map((s) => s.title))).toEqual([['Certificate program', 'Emergency Medical Technician'], ['2-year degree', 'Emergency Medical Technician'], ['Entry job', 'Emergency Medical Technician']])

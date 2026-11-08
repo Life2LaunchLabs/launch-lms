@@ -142,6 +142,7 @@ export function routeDoc(doc: LifeDoc, id: string): LifeDoc {
     events: doc.events.filter((e) => on.has(e.phase)).map(clone),
     debts: doc.debts.filter((d) => keep(d.start)).map(clone),
     assets: doc.assets.filter((a) => keep(a.bought) && keep(a.sold)).map(clone),
+    policies: (doc.policies || []).filter((x) => on.has(x.phase)).map(clone),
   }
 }
 /** Put a changed route back into the whole plan. Dates and links stay the map's. */
@@ -164,6 +165,9 @@ export function mergeRoute(doc: LifeDoc, route: LifeDoc): LifeDoc {
   next.debts = [...doc.debts.filter((d) => offRoute(d.start)), ...route.debts]
   next.assets = [...doc.assets.filter((a) => offRoute(a.bought) || offRoute(a.sold)), ...route.assets]
   next.savings = route.savings
+  // What is paid, put in or done with what's left, from a month of a phase on: the route's for its phases.
+  next.policies = [...(doc.policies || []).filter((x) => !on.has(x.phase)), ...(route.policies || [])]
+  next.card_rate = route.card_rate
   return normalize(next)
 }
 

@@ -164,6 +164,10 @@ class Policy(Doc):
     full: bool | None = None
     put: float | None = Field(default=None, ge=0, le=10_000_000)
     pct: float | None = Field(default=None, ge=0, le=100)
+    # For the target "left": where what is left each month goes ("save" or a debt or account id), and
+    # optionally the debt whose payoff it follows (it holds from the month after that debt is paid off).
+    to: str | None = Field(default=None, max_length=40)
+    after: str | None = Field(default=None, max_length=40)
 
 
 class Sale(Doc):

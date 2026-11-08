@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Trash2 } from 'lucide-react'
+import { SectionHead, cardCls } from './MoneyParts'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import type { LifeEvent, When } from '@services/life/life'
@@ -13,25 +14,25 @@ import { tr } from '@/lib/tr'
 const num = (s: string) => { const v = Number(String(s).replace(/[$,%\s]/g, '')); return Number.isFinite(v) ? v : 0 }
 
 function Card({ title, note, onAdd, addLabel, children, empty }: { title: string; note?: string; onAdd: () => void; addLabel: string; children: React.ReactNode; empty: boolean }) {
-  const { readOnly } = useLife()
   return (
-    <section className="rounded-2xl bg-card p-4 shadow-[0_1px_0_hsl(var(--border))] sm:p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-lg font-extrabold">{title}</h3>
-        {readOnly ? null : <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Plus className="size-4" />{addLabel}</button>}
+    <section aria-label={title}>
+      <SectionHead title={title} onAdd={onAdd} addLabel={addLabel} />
+      <div className={cardCls}>
+        {empty && note ? <p className="py-4 text-sm text-muted-foreground">{note}</p> : children}
       </div>
-      {note && <p className="mt-0.5 text-sm text-muted-foreground">{note}</p>}
-      <div className={empty ? 'contents' : 'mt-2'}>{children}</div>
     </section>
   )
 }
 
 function Item({ id, icon, title, sub, value, tone, onClick }: { id?: string; icon: string; title: string; sub?: string; value: string; tone?: 'in' | 'out'; onClick: () => void }) {
   return (
-    <button id={id} type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-lg border-b border-border/70 py-3 text-left last:border-b-0">
-      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted"><LifeIcon name={icon} /></span>
-      <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{title}</span>{sub && <span className="block truncate text-xs text-muted-foreground">{sub}</span>}</span>
-      <span className={`font-semibold tabular-nums ${tone === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{value}</span>
+    <button id={id} type="button" onClick={onClick} className="flex w-full items-center gap-2.5 border-t border-border/70 py-2 text-left text-[15px] first:border-t-0">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground"><LifeIcon name={icon} className="size-[15px]" /></span>
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="flex items-baseline gap-2"><span className="min-w-0 flex-1 truncate font-semibold">{title}</span><span className={`shrink-0 font-semibold tabular-nums ${tone === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{value}</span></span>
+        {sub && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{sub}</span>}
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
     </button>
   )
 }
@@ -88,7 +89,7 @@ export function OneTimeCard() {
     setIsNew(!e); setEdit(ev); setF({ title: ev.title, amount: ev.amount ? String(Math.abs(ev.amount)) : '', dir: ev.amount > 0 ? 'in' : 'out', month: ev.month })
   }
   return (
-    <Card title={tr('budget.money_cards.one_time_money', 'One-time money')} note={evs.length || loans.length ? undefined : tr('lit.money_cards.big_costs_or_money_that', 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.')} addLabel={tr('lit.people_access.add', 'Add')} onAdd={() => open(null)} empty={!evs.length && !loans.length}>
+    <Card title={tr('budget.money_cards.one_time_money', 'One-time money')} note={evs.length || loans.length ? undefined : tr('lit.money_cards.big_costs_or_money_that', 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.')} addLabel={tr('budget.money_cards.add_one_time_money', 'Add one-time money')} onAdd={() => open(null)} empty={!evs.length && !loans.length}>
       {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
       {evs.map((e) => <Item key={e.id} id={`row-ev:${e.id}`} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
       <Editor title={isNew ? tr('budget.money_cards.add_one_time_money', 'Add one-time money') : tr('budget.money_cards.one_time_money', 'One-time money')} open={!!edit} onClose={() => setEdit(null)}
