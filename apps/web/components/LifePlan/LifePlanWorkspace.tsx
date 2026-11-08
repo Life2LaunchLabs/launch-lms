@@ -16,10 +16,12 @@ import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
 import BudgetSummary from './BudgetSummary'
 import BudgetTable from './BudgetTable'
-import { OneTimeCard } from './MoneyCards'
-import { YouOwnCard } from './YouOwn'
-import { DebtCard } from './DebtCard'
-import { LeftOverCard, SavingsCard } from './SavingsCard'
+import { TransferDialog, TransfersSection } from './MoneyCards'
+import { AssetsSection, OwnTray } from './Assets'
+import { DebtsSection } from './Debts'
+import { SavingsCard } from './SavingsCard'
+import { MoneyTray } from './SavingsDebt'
+import { AddRow } from './MoneyParts'
 import AddTray, { type AddTarget } from './AddTray'
 import EstimatesDialog from './EstimatesDialog'
 import Link from 'next/link'
@@ -50,6 +52,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
   const [openLine, setOpenLine] = React.useState<string | null>(null)
   const [add, setAdd] = React.useState<AddTarget | null>(null)
   const [estOpen, setEstOpen] = React.useState(false)
+  const [adding, setAdding] = React.useState<'debt' | 'asset' | 'transfer' | null>(null)
 
   React.useEffect(() => {
     if (!data || ready) return
@@ -134,19 +137,27 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
     <LifeContext.Provider value={ctx}>
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
         <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} full={full}
-          onMap={of ? undefined : () => router.push(getUriWithOrg(orgslug, '/plans'))} />
+          onMap={of ? undefined : () => router.push(getUriWithOrg(orgslug, `/plans?phase=${encodeURIComponent(phase.id)}`))} />
         <BudgetSummary />
         <div className="mt-2"><PhaseChart /></div>
         <div className="mt-5" />
         {/* A shared plan reads like yours, with every control that would change it turned off. */}
         <fieldset disabled={Boolean(of)} className="min-w-0 space-y-5">
           <BudgetTable />
-          <DebtCard />
           <SavingsCard />
-          <LeftOverCard />
-          <YouOwnCard />
-          <OneTimeCard />
+          {/* Things you have, rather than money each month: each section shows once there's something in it. */}
+          <DebtsSection />
+          <AssetsSection />
+          <TransfersSection />
+          {of ? null : <AddRow items={[
+            { label: tr('budget.add_row.debt', 'Debt'), onClick: () => setAdding('debt') },
+            { label: tr('budget.add_row.asset', 'Asset'), onClick: () => setAdding('asset') },
+            { label: tr('budget.add_row.transfer', 'Transfer'), onClick: () => setAdding('transfer') },
+          ]} />}
         </fieldset>
+        {adding === 'debt' && <MoneyTray start="debt" onClose={() => setAdding(null)} />}
+        {adding === 'asset' && <OwnTray onClose={() => setAdding(null)} />}
+        {adding === 'transfer' && <TransferDialog event={null} onClose={() => setAdding(null)} />}
         <p className="mt-6 text-xs text-muted-foreground">
           {tr('budget.life_plan_workspace.estimates_appear_only_where_we', 'Estimates appear only where we have a published source for them, and each one says where it comes from. Lines without an estimate use your own number. Taxes are a rough estimate on pay from work, from the latest published federal and Oregon rates; open Taxes under Income to see how, or use your own rate.')}
         </p>

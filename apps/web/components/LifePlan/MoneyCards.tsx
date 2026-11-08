@@ -5,24 +5,13 @@ import { ChevronRight, Trash2 } from 'lucide-react'
 import { SectionHead, cardCls } from './MoneyParts'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
-import type { LifeEvent, When } from '@services/life/life'
+import type { LifeEvent } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
 import { money, monthLabel, phaseOffset, uid } from './model'
 
 import { tr } from '@/lib/tr'
 const num = (s: string) => { const v = Number(String(s).replace(/[$,%\s]/g, '')); return Number.isFinite(v) ? v : 0 }
-
-function Card({ title, note, onAdd, addLabel, children, empty }: { title: string; note?: string; onAdd: () => void; addLabel: string; children: React.ReactNode; empty: boolean }) {
-  return (
-    <section aria-label={title}>
-      <SectionHead title={title} onAdd={onAdd} addLabel={addLabel} />
-      <div className={cardCls}>
-        {empty && note ? <p className="py-4 text-sm text-muted-foreground">{note}</p> : children}
-      </div>
-    </section>
-  )
-}
 
 function Item({ id, icon, title, sub, value, tone, onClick }: { id?: string; icon: string; title: string; sub?: string; value: string; tone?: 'in' | 'out'; onClick: () => void }) {
   return (
@@ -59,53 +48,48 @@ function Editor({ title, open, onClose, onSave, onRemove, children }: { title: s
   )
 }
 
-/** A month in the phase in view; "already" means before the plan starts. */
-// eslint-disable-next-line no-unused-vars -- parameter names in a function type
-function WhenSelect({ value, onChange, already }: { value: When | null; onChange: (w: When | null) => void; already?: string }) {
-  const { doc, phase } = useLife()
-  const off = phaseOffset(doc, phase.id)
-  const v = value ? `${value.phase}|${value.month}` : ''
-  return (
-    <select className={inputCls} value={v} onChange={(e) => { const [p, m] = e.target.value.split('|'); onChange(e.target.value ? { phase: p, month: Number(m) } : null) }}>
-      {already && <option value="">{already}</option>}
-      {value && value.phase !== phase.id && <option value={v}>{monthLabel(doc.start, phaseOffset(doc, value.phase) + value.month)}</option>}
-      {Array.from({ length: phase.months }, (_, m) => <option key={m} value={`${phase.id}|${m}`}>{monthLabel(doc.start, off + m)}</option>)}
-    </select>
-  )
-}
-
-export function OneTimeCard() {
-  const { doc, phase, stretch, update, projection, setOpenLine } = useLife()
+/** Money that moves once in the phase in view: things you pay or get, and loan money landing. Shown once there is any. */
+export function TransfersSection() {
+  const { doc, phase, projection, setOpenLine } = useLife()
   const [edit, setEdit] = React.useState<LifeEvent | null>(null)
-  const [isNew, setIsNew] = React.useState(false)
-  const [f, setF] = React.useState({ title: '', amount: '', dir: 'out' as 'in' | 'out', month: 0 })
   const evs = doc.events.filter((e) => e.phase === phase.id).sort((a, b) => a.month - b.month)
   const off = phaseOffset(doc, phase.id)
   // Loan money lands here too, so a short month sits next to the money that covers it.
   const loans = projection.marks.filter((x) => x.kind === 'loan' && x.amount > 0.5 && x.g >= off && x.g < off + phase.months)
-  const goTo = (id: string | null) => { if (!id) return; setOpenLine(`m:${id}`); requestAnimationFrame(() => document.getElementById(`row-m:${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })) }
-  const open = (e: LifeEvent | null) => {
-    const ev = e || { id: uid('e'), phase: phase.id, month: stretch.m0, title: '', amount: 0 }
-    setIsNew(!e); setEdit(ev); setF({ title: ev.title, amount: ev.amount ? String(Math.abs(ev.amount)) : '', dir: ev.amount > 0 ? 'in' : 'out', month: ev.month })
-  }
+  if (!evs.length && !loans.length) return null
+  const goTo = (id: string | null) => { if (!id) return; requestAnimationFrame(() => document.getElementById(`m:${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })); setOpenLine(null) }
   return (
-    <Card title={tr('budget.money_cards.one_time_money', 'One-time money')} note={evs.length || loans.length ? undefined : tr('lit.money_cards.big_costs_or_money_that', 'Big costs or money that comes once, like a deposit, a laptop, or a graduation gift.')} addLabel={tr('budget.money_cards.add_one_time_money', 'Add one-time money')} onAdd={() => open(null)} empty={!evs.length && !loans.length}>
-      {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
-      {evs.map((e) => <Item key={e.id} id={`row-ev:${e.id}`} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => open(e)} />)}
-      <Editor title={isNew ? tr('budget.money_cards.add_one_time_money', 'Add one-time money') : tr('budget.money_cards.one_time_money', 'One-time money')} open={!!edit} onClose={() => setEdit(null)}
-        onRemove={isNew ? undefined : () => update((d) => { d.events = d.events.filter((x) => x.id !== edit!.id) })}
-        onSave={() => {
-          if (!f.title.trim()) return
-          const ev = { ...edit!, title: f.title.trim(), month: f.month, amount: (f.dir === 'in' ? 1 : -1) * Math.abs(num(f.amount)) }
-          update((d) => { d.events = [...d.events.filter((x) => x.id !== ev.id), ev] })
-        }}>
-        <Field label={tr('budget.money_cards.what', 'What')}><input className={inputCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder={tr('budget.money_cards.like_quot_apartment_deposit_quot', 'Like "Apartment deposit"')} autoFocus /></Field>
-        <div className="flex gap-1.5">
-          {(['out', 'in'] as const).map((d) => <button key={d} type="button" aria-pressed={f.dir === d} onClick={() => setF({ ...f, dir: d })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${f.dir === d ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>{d === 'out' ? tr('budget.money_cards.i_pay', 'I pay') : tr('budget.money_cards.i_get', 'I get')}</button>)}
-        </div>
-        <Field label={tr('budget.add_tray.how_much', 'How much')}><input className={inputCls} inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="$0" /></Field>
-        <Field label={tr('budget.money_cards.when', 'When')}><select className={inputCls} value={f.month} onChange={(e) => setF({ ...f, month: Number(e.target.value) })}>{Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}</select></Field>
-      </Editor>
-    </Card>
+    <section aria-label={tr('budget.transfers.transfers', 'Transfers')}>
+      <SectionHead title={tr('budget.transfers.transfers', 'Transfers')} />
+      <div className={cardCls}>
+        {loans.map((x) => <Item key={`loan-${x.ref}`} icon="landmark" title={`${x.title} money`} sub={`${monthLabel(doc.start, x.g)} · from your loan`} value={money(x.amount, { sign: true })} tone="in" onClick={() => goTo(x.ref)} />)}
+        {evs.map((e) => <Item key={e.id} id={`row-ev:${e.id}`} icon={e.amount >= 0 ? 'arrow-down-left' : 'arrow-up-right'} title={e.title} sub={monthLabel(doc.start, off + e.month)} value={money(e.amount, { sign: true })} tone={e.amount > 0 ? 'in' : 'out'} onClick={() => setEdit(e)} />)}
+      </div>
+      {edit && <TransferDialog event={edit} onClose={() => setEdit(null)} />}
+    </section>
+  )
+}
+
+/** Add or change money that moves once: what, which way, how much and when. `event` null adds a new one. */
+export function TransferDialog({ event, onClose }: { event: LifeEvent | null; onClose: () => void }) {
+  const { doc, phase, stretch, update } = useLife()
+  const off = phaseOffset(doc, phase.id)
+  const ev = React.useMemo(() => event || { id: uid('e'), phase: phase.id, month: stretch.m0, title: '', amount: 0 }, [event, phase.id, stretch.m0])
+  const [f, setF] = React.useState({ title: ev.title, amount: ev.amount ? String(Math.abs(ev.amount)) : '', dir: (ev.amount > 0 ? 'in' : 'out') as 'in' | 'out', month: ev.month })
+  return (
+    <Editor title={event ? tr('budget.transfers.transfer', 'Transfer') : tr('budget.transfers.add_a_transfer', 'Add a transfer')} open onClose={onClose}
+      onRemove={event ? () => update((d) => { d.events = d.events.filter((x) => x.id !== ev.id) }) : undefined}
+      onSave={() => {
+        if (!f.title.trim()) return
+        const next = { ...ev, title: f.title.trim(), month: f.month, amount: (f.dir === 'in' ? 1 : -1) * Math.abs(num(f.amount)) }
+        update((d) => { d.events = [...d.events.filter((x) => x.id !== next.id), next] })
+      }}>
+      <Field label={tr('budget.money_cards.what', 'What')}><input className={inputCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder={tr('budget.money_cards.like_quot_apartment_deposit_quot', 'Like "Apartment deposit"')} autoFocus /></Field>
+      <div className="flex gap-1.5">
+        {(['out', 'in'] as const).map((d) => <button key={d} type="button" aria-pressed={f.dir === d} onClick={() => setF({ ...f, dir: d })} className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${f.dir === d ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] ring-transparent' : 'ring-border'}`}>{d === 'out' ? tr('budget.money_cards.i_pay', 'I pay') : tr('budget.money_cards.i_get', 'I get')}</button>)}
+      </div>
+      <Field label={tr('budget.add_tray.how_much', 'How much')}><input className={inputCls} inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="$0" /></Field>
+      <Field label={tr('budget.money_cards.when', 'When')}><select className={inputCls} value={f.month} onChange={(e) => setF({ ...f, month: Number(e.target.value) })}>{Array.from({ length: phase.months }, (_, m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}</select></Field>
+    </Editor>
   )
 }
