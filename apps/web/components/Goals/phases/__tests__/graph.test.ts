@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LifeDoc } from '@services/life/life'
-import { addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { mi, endOf, setLength, setStart, canMakeOptional, makeOptional, isSkip, detours, fillSkip, removeSkip, addSkip, skipTarget, showWayTo, addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -34,10 +34,11 @@ describe('a plan as a map', () => {
 
   test('routes end where they end, and two ways into one phase are told apart', () => {
     const doc = map(), all = routes(doc)
-    expect(all.map((r) => routeName(r, all))).toEqual(['Electrician via Electrician apprentice', 'College', 'Electrician via Trade school'])
+    expect(all.map((r) => routeName(r, all)).sort()).toEqual(['College', 'Electrician via Electrician apprentice', 'Electrician via Trade school'])
     expect(endsOf(doc, 'hs').map((p) => p.id).sort()).toEqual(['col', 'el'])
-    // A phase lasts until the first phase after it starts.
+    // An old plan's phase lasts until the first phase after it started, and its options all start when it ends.
     expect(doc.phases.find((p) => p.id === 'hs')!.months).toBe(46)
+    expect(kids(doc, 'hs').map((p) => p.starts)).toEqual(['2027-07', '2027-07', '2027-07'])
   })
 
   test('adding: after, as another option, before, and in between', () => {
@@ -67,7 +68,8 @@ describe('a plan as a map', () => {
 
   test('removing a phase links what came after it to what came before', () => {
     const doc = remove(map(), 'tr')
-    expect(doc.phases.find((p) => p.id === 'el')!.after).toEqual(['hs', 'ap'])
+    // Trade school was the only phase in its option, so the option goes: no skip from High school is left behind.
+    expect(doc.phases.find((p) => p.id === 'el')!.after).toEqual(['ap'])
     expect(doc.events).toEqual([])
   })
 
@@ -75,14 +77,15 @@ describe('a plan as a map', () => {
     const doc = map()
     const r = routeDoc(doc, 'tr')
     expect(r.phases.map((p) => p.id)).toEqual(['ms', 'hs', 'tr', 'el'])
-    expect(r.phases.map((p) => p.months)).toEqual([36, 48, 34, 36])
+    expect(r.phases.map((p) => p.months)).toEqual([36, 46, 34, 36])
     expect(r.events.map((e) => e.id)).toEqual(['e1'])
     expect(routeDoc(doc, 'ap').events).toEqual([])
     r.phases.find((p) => p.id === 'tr')!.lines.push({ id: 'l1', cat: 'food', title: 'Food', side: 'out', settings: {}, start: 0 })
     r.phases.find((p) => p.id === 'tr')!.months = 99
     const back = mergeRoute(doc, r)
     expect(back.phases.find((p) => p.id === 'tr')!.lines.length).toBe(1)
-    expect(back.phases.find((p) => p.id === 'tr')!.months).toBe(34)
+    // The budget can change how long a phase lasts.
+    expect(back.phases.find((p) => p.id === 'tr')!.months).toBe(99)
     expect(back.phases.length).toBe(6)
   })
 
@@ -136,9 +139,12 @@ describe('a plan as a map', () => {
     expect(col.after).toEqual(['ap'])
     expect(moved.phases.find((p) => p.id === 'el')!.after).toEqual(['tr', nurse.id])
     expect(kids(moved, 'hs').map((p) => p.id).sort()).toEqual(['ap', 'tr'])
-    // Dates stay in order.
-    expect(col.starts! > moved.phases.find((p) => p.id === 'ap')!.starts!).toBe(true)
-    expect(moved.phases.find((p) => p.id === 'el')!.starts! > nurse.starts!).toBe(true)
+    // Dates follow the way being looked at: Electrician starts when Nurse ends on the apprenticeship's way.
+    const viaAp = normalize(moved, { hs: 'ap' })
+    const at = (d: LifeDoc, id: string) => mi(d.phases.find((p) => p.id === id)!.starts!)
+    expect(at(viaAp, 'col')).toBe(at(viaAp, 'ap') + 36)
+    expect(at(viaAp, 'el')).toBe(at(viaAp, nurse.id) + 12)
+    expect(at(normalize(moved, { hs: 'tr' }), 'el')).toBe(at(viaAp, 'tr') + 34)
     // Just this one: what followed it now follows what came before.
     const alone = lift(withEnd, 'col', true)
     expect(alone.phases.find((p) => p.id === ids[1])!.after).toEqual(['hs'])
@@ -183,13 +189,94 @@ describe('a plan as a map', () => {
     const put = placeBefore(lifted, ['col'], 'tr')
     const p = (id: string) => put.phases.find((x) => x.id === id)!
     expect([p('col').after, p('tr').after, p('el').after]).toEqual([['hs'], ['col'], ['tr', 'ap']])
-    expect(p('col').starts).toBe('2027-09')
-    expect(p('tr').starts! >= '2028-09').toBe(true)
+    expect(p('col').starts).toBe('2027-07')
+    expect(p('tr').starts).toBe('2028-07')
   })
 
   test('the bottom of the map: after the last phase, or after every option when it ends in a split', () => {
     const doc = map()
     expect(bottomOf(doc)).toBe(groupKey(['col', 'el']))
     expect(bottomOf(remove(doc, 'col'))).toBe('el')
+  })
+})
+
+describe('time: phases have lengths, dates follow the way being looked at', () => {
+  const L = (id: string, title: string, months: number, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months, lines: [], goals: [], after, ...extra })
+  // High school, then a gap year or straight on, then an apprenticeship (2 years) or a program (1 year), then electrician.
+  const plan = (): LifeDoc => ({
+    version: 1, start: '2023-09', lengths: true, debts: [], savings: [], assets: [], events: [],
+    phases: [
+      L('hs', 'High school', 45, [], { starts: '2023-09' }),
+      L('gap', 'Gap year', 15, ['hs']),
+      L('ap', 'Apprenticeship', 24, ['gap']),
+      L('pr', 'Electrical program', 12, ['gap']),
+      L('el', 'Electrician', 36, ['ap', 'pr']),
+    ] as any,
+  })
+  const at = (d: LifeDoc, id: string) => d.phases.find((p) => p.id === id)!.starts
+
+  test('each phase starts when the one before it ends, and a branch moves what comes after it', () => {
+    const first = normalize(plan(), {})
+    expect(['hs', 'gap', 'ap', 'el'].map((id) => at(first, id))).toEqual(['2023-09', '2027-06', '2028-09', '2030-09'])
+    expect(at(normalize(plan(), { gap: 'pr' }), 'el')).toBe('2029-09')
+    expect(endOf(first, first.phases.find((p) => p.id === 'hs')!)).toBe(mi('2027-06'))
+  })
+
+  test('changing an end moves everything after it; changing a start moves the end before it', () => {
+    const later = setLength(normalize(plan(), {}), 'gap', 27)
+    expect(at(normalize(later, {}), 'el')).toBe('2031-09')
+    const { doc, changed } = setStart(normalize(plan(), {}), 'gap', mi('2027-08'))
+    expect(changed?.id).toBe('hs')
+    expect(doc.phases.find((p) => p.id === 'hs')!.months).toBe(47)
+    expect(at(normalize(doc, {}), 'ap')).toBe('2028-11')
+  })
+
+  test('a length not picked yet takes no time', () => {
+    const d = plan(); d.phases.find((p) => p.id === 'gap')!.undated = true
+    expect(at(normalize(d, {}), 'ap')).toBe('2027-06')
+  })
+
+  test('old plans keep their dates when they turn into lengths', () => {
+    const old = normalize({ version: 1, start: '2023-09', debts: [], savings: [], assets: [], events: [], phases: [L('a', 'A', 12, [], { starts: '2023-09' }), L('b', 'B', 12, ['a'], { starts: '2027-06', undated: true }), L('c', 'C', 12, ['b'], { starts: '2028-09' })] as any }, {})
+    expect(old.lengths).toBe(true)
+    expect(old.phases.map((p) => [p.starts, p.months])).toEqual([['2023-09', 45], ['2027-06', 15], ['2028-09', 12]])
+  })
+
+  test('a skip: make a phase optional, look at the skip, fill it, take it out', () => {
+    const d = normalize(plan(), {})
+    expect(canMakeOptional(d, 'gap')).toBe(false) // Gap year is followed by a split: there's no one phase to skip to
+    const line = normalize({ ...plan(), phases: plan().phases.filter((p) => p.id !== 'pr') }, {})
+    expect(canMakeOptional(line, 'gap')).toBe(true)
+    const opt = makeOptional(line, 'gap')
+    const options = kids(opt, 'hs')
+    expect(options.map((p) => p.id)).toEqual(['gap', 'ap'])
+    expect(isSkip(opt, options[1], options)).toBe(true)
+    expect(at(normalize(opt, { hs: 'ap' }), 'ap')).toBe('2027-06')
+    expect(detours(opt, { hs: 'ap' })).toEqual([{ key: 'hs', title: 'Skip Gap year' }])
+    expect(detours(opt, {})).toEqual([])
+    // Taking Gap year out leaves no empty option behind.
+    expect(remove(opt, 'gap').phases.find((p) => p.id === 'ap')!.after).toEqual(['hs'])
+    // A phase dropped on the skip becomes that option.
+    const loose = loosePiece(opt, [{ title: 'Travel', years: 1 }])
+    const filled = fillSkip(loose.doc, loose.ids, 'hs', 'ap')
+    expect(filled.phases.find((p) => p.id === 'ap')!.after!.sort()).toEqual(['gap', loose.ids[0]].sort())
+    expect(kids(filled, 'hs').length).toBe(2)
+    expect(removeSkip(opt, 'hs', 'ap').phases.find((p) => p.id === 'ap')!.after).toEqual(['gap'])
+  })
+
+  test('a skip someone made stays when another option loses its last phase', () => {
+    const d = normalize(plan(), {})
+    expect(skipTarget(d, 'gap')?.id).toBe('el')
+    const withSkip = addSkip(d, 'gap')
+    expect(kids(withSkip, 'gap').map((p) => p.id)).toEqual(['ap', 'pr', 'el'])
+    expect(skipTarget(withSkip, 'gap')).toBe(null)
+    expect(remove(withSkip, 'pr').phases.find((p) => p.id === 'el')!.after).toEqual(['ap', 'gap'])
+    expect(remove(d, 'pr').phases.find((p) => p.id === 'el')!.after).toEqual(['ap'])
+  })
+
+  test('opening a phase shows the way to it', () => {
+    const d = normalize(plan(), {})
+    expect(showWayTo(d, 'pr', {})).toEqual({ gap: 'pr' })
+    expect(showWayTo(d, 'ap', {})).toEqual({})
   })
 })

@@ -42,12 +42,12 @@ export interface Activity { kind: 'learning' | 'working' | 'looking' | 'caring' 
 export interface Household { partner?: boolean; kids?: number[] }
 export interface Phase {
   id: string; title: string; kind: string; place?: string | null; place_label?: string
-  /** Only the length of a phase nothing comes after; otherwise it runs until the next one starts. */
+  /** How long it lasts. Its start is when the phase before it ends, so this moves everything after it. */
   months: number
   lines: Line[]; goals?: string[]; cover?: PhaseCover | null; tax?: PhaseTax | null; starting?: Starting | null
-  /** When it starts, YYYY-MM. Old plans have none and run one after another from the plan's start. */
+  /** When it starts, YYYY-MM. Kept for a first phase; worked out for every other one from the lengths before it. */
   starts?: string | null
-  /** No start date picked yet: `starts` only keeps its place on the map until the learner picks one. */
+  /** How long it lasts isn't picked yet: it takes no time until it is. */
   undated?: boolean
   /** The phases it comes after: none for the first, two or more where two ways join up. */
   after?: string[]
@@ -78,6 +78,8 @@ export interface LifeDoc {
   version: number
   /** The month the plan starts, YYYY-MM. */
   start: string
+  /** Phases store how long they last and get their dates from that (true); older plans stored start dates. */
+  lengths?: boolean
   phases: Phase[]
   debts: Debt[]
   savings: Saving[]

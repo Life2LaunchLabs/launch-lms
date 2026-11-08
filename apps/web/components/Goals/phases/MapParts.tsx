@@ -8,7 +8,8 @@ import { Button } from '@components/ui/button'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PhaseCover from './PhaseCover'
 import type { Moving } from './dragPage'
-import { monthText, whenOf } from './graph'
+import { lenOf, monthText, whenOf } from './graph'
+import { lengthText, spanText } from './PhaseTime'
 
 import { tr } from '@/lib/tr'
 export interface Env { base: LifeDoc; photos?: Record<string, PlacePhoto>; wide: boolean; moving: Moving | null; held: Set<string>; later: (p: Phase) => boolean }
@@ -70,7 +71,7 @@ export function PhaseCard({ p, env, opt, edges, onOpen, onLift, onLiftMove, onLi
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-before={edges?.before || undefined} data-after={edges?.after || undefined} data-title={p.title} onClick={onOpen} title={p.undated ? p.title : tr('goals.map_parts.title_from_monthtext', '{{title}} · from {{monthText}}', { title: p.title, monthText: monthText(p.starts!) })}
+  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-before={edges?.before || undefined} data-after={edges?.after || undefined} data-title={p.title} onClick={onOpen} title={`${p.title} · ${spanText(env.base, p)}`}
     {...drag}
     className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))] data-[edge=t]:shadow-[0_-8px_0_-2px_hsl(var(--foreground))] data-[edge=b]:shadow-[0_8px_0_-2px_hsl(var(--foreground))]',
       holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
@@ -82,7 +83,7 @@ export function PhaseCard({ p, env, opt, edges, onOpen, onLift, onLiftMove, onLi
     <span className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-black/35 backdrop-blur" aria-hidden="true"><MoreHorizontal size={16} /></span>
     <span className="grid min-w-0 gap-0.5 px-4 pb-3.5">
       <b className="truncate text-[clamp(22px,3vw,27px)] font-extrabold leading-tight tracking-tight">{p.title}</b>
-      <small className="truncate text-[12.5px] font-bold opacity-90">{[p.undated ? '' : monthText(p.starts!), p.place_label?.split(',')[0]].filter(Boolean).join(' · ')}</small>
+      <small className="truncate text-[12.5px] font-bold opacity-90">{[p.undated ? monthText(p.starts!) : `${monthText(p.starts!)} · ${lengthText(lenOf(p))}`, p.place_label?.split(',')[0]].filter(Boolean).join(' · ')}</small>
     </span>
   </button>
 }

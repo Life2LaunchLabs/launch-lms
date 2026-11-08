@@ -6,9 +6,10 @@ import { Briefcase, CalendarDays, Check, Home, MapPin, Plus, X } from 'lucide-re
 import { cn } from '@/lib/utils'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import type { Phase } from '@services/life/life'
-import { ActivityPicker, LivingPicker, MonthPicker } from './PhasePickers'
+import { ActivityPicker, LivingPicker } from './PhasePickers'
 import { activityText, livingLabel } from './setup'
-import { monthText } from './graph'
+import { mi } from './graph'
+import { LengthPicker, lengthText } from './PhaseTime'
 import { useHoldDrag, type Env } from './MapParts'
 
 import { tr } from '@/lib/tr'
@@ -22,12 +23,13 @@ function Detail({ icon: Icon, set, onClick, children }: { icon: typeof Plus; set
 }
 
 /**
- * A new phase (or a career's route) on the map, waiting to be kept. Nothing is assumed: when it starts,
+ * A new phase (or a career's route) on the map, waiting to be kept. It starts when the phase before it
+ * ends. Nothing is assumed: how long it lasts (it takes no time until picked),
  * what you'd be doing, where and how you'd live are all blank (a career's route brings its steps) and
  * optional, there to fill in before keeping it. Hold it to move it somewhere else.
  */
-export function PendingCard({ p, env, token, name, steps, onName, onEdit, onDate, onKeep, onCancel, onLift, onLiftMove, onLiftEnd }: {
-  p: Phase; env: Env; token?: string; name: string; steps?: string[]; onName: (v: string) => void; onEdit: (fn: (p: Phase) => void) => void; onDate: (v: string) => void
+export function PendingCard({ p, env, token, name, steps, onName, onEdit, onLength, onKeep, onCancel, onLift, onLiftMove, onLiftEnd }: {
+  p: Phase; env: Env; token?: string; name: string; steps?: string[]; onName: (v: string) => void; onEdit: (fn: (p: Phase) => void) => void; onLength: (months: number) => void
   onKeep: () => void; onCancel: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void
 }) {
   const { holding, ...drag } = useHoldDrag(!env.moving, onLift, onLiftMove, onLiftEnd)
@@ -43,13 +45,13 @@ export function PendingCard({ p, env, token, name, steps, onName, onEdit, onDate
     </span> : <input autoFocus aria-label={tr('goals.pending_card.name_of_the_new_phase', 'Name of the new phase')} value={name} onChange={(e) => onName(e.target.value)} placeholder={tr('goals.pending_card.gap_year_trade_school_move', 'Gap year, trade school, move to Portland…')}
       className="h-12 w-full rounded-2xl bg-muted px-3 text-lg font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />}
     <div data-no-drag className="flex flex-wrap gap-1.5">
-      <Detail icon={CalendarDays} set={!p.undated} onClick={() => toggle('date')}>{p.undated ? tr('goals.pending_card.add_start_date', 'Add start date') : `From ${monthText(p.starts!)}`}</Detail>
+      {steps ? null : <Detail icon={CalendarDays} set={!p.undated} onClick={() => toggle('date')}>{p.undated ? tr('goals.pending_card.how_long', 'How long?') : lengthText(p.months)}</Detail>}
       {steps ? null : <Detail icon={Briefcase} set={acts.length > 0} onClick={() => toggle('doing')}>{acts.length ? acts.map(activityText).join(' + ') : tr('goals.pending_card.add_activity', 'Add activity')}</Detail>}
       <Detail icon={MapPin} set={!!p.place_label} onClick={() => toggle('place')}>{p.place_label ? p.place_label.split(',')[0] : tr('goals.pending_card.add_location', 'Add location')}</Detail>
       <Detail icon={Home} set={!!p.living} onClick={() => toggle('living')}>{livingLabel(p.living) || tr('goals.pending_card.add_living_situation', 'Add living situation')}</Detail>
     </div>
     {open ? <div data-no-drag className="grid gap-2 rounded-2xl bg-muted/50 p-3">
-      {open === 'date' ? <MonthPicker value={p.starts!} onChange={onDate} /> : null}
+      {open === 'date' ? <LengthPicker start={mi(p.starts!)} months={p.months || 12} picked={!p.undated} onPick={onLength} /> : null}
       {open === 'doing' ? <>
         {acts.length ? <ul className="grid gap-1.5">{acts.map((a, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-card px-3 py-2 text-sm font-bold"><span className="flex-1">{activityText(a)}</span>
           <button type="button" className="text-muted-foreground hover:text-destructive" onClick={() => onEdit((q) => { q.activities = (q.activities || []).filter((_, j) => j !== i) })}>{tr('goals.upload.remove', 'Remove')}</button></li>)}</ul> : null}

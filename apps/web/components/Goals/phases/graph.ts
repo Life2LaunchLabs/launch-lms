@@ -2,6 +2,7 @@ import type { Activity, LifeDoc, Phase } from '@services/life/life'
 import { trLocale } from '@/lib/tr'
 
 import { tr } from '@/lib/tr'
+import { getShown, type Shown } from './way'
 /*
  * A plan is a map of phases. Each phase starts on a month and lasts until the next one after it
  * starts. A phase can lead to several (a branch: options you're weighing) and follow several (two
@@ -29,40 +30,66 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 let n = 0
 export const phaseId = () => `p${Date.now().toString(36)}${(n++).toString(36)}${Math.random().toString(36).slice(2, 5)}`
 
-/** Every phase gets a start date and its links, and a phase something comes after gets its length from that. */
-export function normalize(doc: LifeDoc): LifeDoc {
-  const next = clone(doc)
-  if (!next.phases.length) return next
+/** How long a phase lasts. One whose length isn't picked yet takes no time, so it moves nothing after it. */
+export const lenOf = (p: Phase) => (p.undated ? 0 : Math.max(1, p.months || 12))
+
+/** Plans saved before phases had lengths: each phase's length is the time until the next one after it starts. */
+function fromStarts(next: LifeDoc) {
   if (!next.phases.some((p) => p.starts)) {
     let m = mi(next.start || ym(thisMonthIndex()))
     next.phases.forEach((p, i) => { p.starts = ym(m); p.after = i ? [next.phases[i - 1].id] : []; m += Math.max(1, p.months || 1) })
   } else {
-    // A phase added without a date starts when the one before it would end.
     next.phases.forEach((p, i) => {
-      p.after = (p.after || []).filter((id) => id !== p.id && next.phases.some((x) => x.id === id))
       if (!p.starts) { const prev = next.phases.find((x) => x.id === p.after?.[0]) || next.phases[i - 1]; p.starts = prev?.starts ? ym(mi(prev.starts) + Math.max(1, prev.months || 12)) : (next.start || ym(thisMonthIndex())) }
     })
   }
-  next.phases.sort((a, b) => mi(a.starts!) - mi(b.starts!))
   for (const p of next.phases) {
     const follow = next.phases.filter((k) => k.after?.includes(p.id)).map((k) => mi(k.starts!))
-    if (follow.length) p.months = Math.max(1, Math.min(...follow) - mi(p.starts!))
+    if (follow.length) { p.months = Math.max(1, Math.min(...follow) - mi(p.starts!)); p.undated = false }
     else p.months = Math.max(1, p.months || 12)
   }
-  next.start = next.phases[0].starts!
+}
+
+/**
+ * Every phase gets its dates. A phase stores how long it lasts; only a first phase stores when it
+ * starts. Each other phase starts when the one before it ends, on the way being looked at (`shown`):
+ * a phase after two ways in starts when the way showing ends, so a 2-year apprenticeship and a
+ * 1-year program give the job after them two different starts. Phases are never apart or overlapping.
+ */
+export function normalize(doc: LifeDoc, shown: Shown = getShown()): LifeDoc {
+  const next = clone(doc)
+  if (!next.phases.length) return next
+  next.phases.forEach((p) => { p.after = (p.after || []).filter((id, i, all) => id !== p.id && all.indexOf(id) === i && next.phases.some((x) => x.id === id)) })
+  if (!next.lengths) { fromStarts(next); next.lengths = true }
+  const on = wayOf(next, shown)
+  const at = new Map<string, number>()
+  const startOf = (p: Phase, depth = 0): number => {
+    const known = at.get(p.id)
+    if (known != null) return known
+    const ps = parents(next, p)
+    let v: number
+    if (!ps.length || depth > 200) v = p.starts ? mi(p.starts) : mi(next.start || ym(thisMonthIndex()))
+    else { const from = ps.find((x) => on.has(x.id)) || ps[0]; v = startOf(from, depth + 1) + lenOf(from) }
+    at.set(p.id, v)
+    return v
+  }
+  next.phases.forEach((p) => startOf(p))
+  next.phases.forEach((p) => { p.starts = ym(at.get(p.id)!) })
+  next.phases.sort((a, b) => mi(a.starts!) - mi(b.starts!))
+  next.start = roots(next)[0]?.starts || next.phases[0].starts!
   return next
 }
 
 export const byId = (doc: LifeDoc, id: string | null | undefined) => doc.phases.find((p) => p.id === id)
-const starts = (p: Phase) => mi(p.starts!)
+const starts = (p: Phase) => (p.starts ? mi(p.starts) : 0)
 /** What comes straight after a phase: earliest first, real phases before ideas at the same month. */
 /** Options in the learner's order (rank, their first choice first), then by when they start. */
 const byChoice = (a: Phase, b: Phase) => (a.rank ?? 99) - (b.rank ?? 99) || starts(a) - starts(b) || Number(!!a.idea) - Number(!!b.idea)
 export const kids = (doc: LifeDoc, id: string) => doc.phases.filter((p) => p.after?.includes(id)).sort(byChoice)
 export const parents = (doc: LifeDoc, p: Phase) => (p.after || []).map((id) => byId(doc, id)).filter(Boolean) as Phase[]
 export const roots = (doc: LifeDoc) => doc.phases.filter((p) => !p.after?.length).sort((a, b) => starts(a) - starts(b))
-/** When a phase ends: when the first phase after it starts, or its own length when nothing does. */
-export const endOf = (doc: LifeDoc, p: Phase) => { const k = kids(doc, p.id); return k.length ? Math.min(...k.map(starts)) : starts(p) + Math.max(1, p.months || 1) }
+/** When a phase ends: its start plus its length (the month the next one starts). */
+export const endOf = (_doc: LifeDoc, p: Phase) => starts(p) + lenOf(p)
 
 export function ancestors(doc: LifeDoc, id: string): Phase[] {
   const out = new Map<string, Phase>()
@@ -110,18 +137,99 @@ export function whenOf(doc: LifeDoc, p: Phase, today = new Date()): When {
   return (c ? p.after?.includes(c.id) : !p.after?.length) ? 'next' : 'later'
 }
 
-/** The route a phase is shown on: back through its first way in, forward through its first way out. */
+/** The route a phase is shown on: back the way being looked at (or its first way in), forward the same way (or the first choice). */
 export function routeThrough(doc: LifeDoc, id: string): Phase[] {
   const p = byId(doc, id)
   if (!p) return []
+  const on = wayOf(doc)
   const back: Phase[] = []
   let x: Phase | undefined = p
   const seen = new Set<string>()
-  while (x && !seen.has(x.id)) { seen.add(x.id); back.unshift(x); x = parents(doc, x).sort((a, b) => Number(!isReal(doc, a)) - Number(!isReal(doc, b)))[0] }
+  while (x && !seen.has(x.id)) { seen.add(x.id); back.unshift(x); const ps = parents(doc, x); x = ps.find((q) => on.has(q.id)) || ps.sort((a, b) => Number(!isReal(doc, a)) - Number(!isReal(doc, b)))[0] }
   const fwd: Phase[] = []
-  let y = kids(doc, p.id)[0]
-  while (y && !seen.has(y.id)) { seen.add(y.id); fwd.push(y); y = kids(doc, y.id)[0] }
+  const pick = (from: Phase) => { const k = kids(doc, from.id); return k.find((q) => on.has(q.id)) || k[0] }
+  let y = pick(p)
+  while (y && !seen.has(y.id)) { seen.add(y.id); fwd.push(y); y = pick(y) }
   return [...back, ...fwd]
+}
+
+/* ---------- the way being looked at ---------- */
+
+/** The key of the split a phase's next phases make: the phase itself, or a group when they all follow the same few phases. */
+function keyAfter(from: Phase, ks: Phase[]): string {
+  const keys = new Set(ks.map((k) => splitOf(k)))
+  return keys.size === 1 ? [...keys][0]! : from.id
+}
+/** The phases on the way being looked at: from the first phase, the option each split shows (its first choice unless picked). */
+export function wayOf(doc: LifeDoc, shown: Shown = getShown()): Set<string> {
+  const on = new Set<string>()
+  let p: Phase | undefined = roots(doc)[0]
+  while (p && !on.has(p.id)) {
+    on.add(p.id)
+    const ks = kids(doc, p.id)
+    if (!ks.length) break
+    const key = keyAfter(p, ks)
+    p = ks.find((k) => k.id === shown[key]) || ks[0]
+  }
+  return on
+}
+/** Is this option a skip: no phase of its own, straight on to where the other options lead? */
+export function isSkip(doc: LifeDoc, q: Phase, options: Phase[]): boolean {
+  return options.length > 1 && options.some((o) => o.id !== q.id && below(doc, o.id).has(q.id))
+}
+/** Where the way being looked at leaves the learner's first choices: each split showing another option. */
+export function detours(doc: LifeDoc, shown: Shown = getShown()): { key: string; title: string }[] {
+  const out: { key: string; title: string }[] = []
+  const seen = new Set<string>()
+  let p: Phase | undefined = roots(doc)[0]
+  while (p && !seen.has(p.id)) {
+    seen.add(p.id)
+    const ks = kids(doc, p.id)
+    if (!ks.length) break
+    const key = keyAfter(p, ks), pick = ks.find((k) => k.id === shown[key]) || ks[0]
+    if (pick !== ks[0]) out.push({ key, title: isSkip(doc, pick, ks) ? tr('goals.way.skip_title', 'Skip {{title}}', { title: ks[0].title }) : pick.title })
+    p = pick
+  }
+  return out
+}
+/** Show the way to a phase: the options it takes to get there, keeping everything else as it was. */
+export function showWayTo(doc: LifeDoc, id: string, shown: Shown = getShown()): Shown {
+  const on = wayOf(doc, shown), next = { ...shown }
+  let x = byId(doc, id)
+  const seen = new Set<string>()
+  while (x && !on.has(x.id) && !seen.has(x.id)) {
+    seen.add(x.id)
+    const ps = parents(doc, x), from = ps.find((q) => on.has(q.id)) || ps[0]
+    if (!from) break
+    const ks = kids(doc, from.id)
+    if (ks.length > 1) next[keyAfter(from, ks)] = x.id
+    x = from
+  }
+  return next
+}
+
+/* ---------- lengths and dates ---------- */
+
+/** How long a phase lasts, in months. Everything after it moves with its end. */
+export function setLength(doc: LifeDoc, id: string, months: number): LifeDoc {
+  const next = clone(doc), p = byId(next, id)
+  if (!p) return doc
+  p.months = Math.max(1, Math.min(1200, Math.round(months)))
+  p.undated = false
+  return normalize(next)
+}
+/**
+ * When a phase starts. It starts the month the phase before it (on the way being looked at) ends, so
+ * this changes that phase's end. A first phase just starts then.
+ */
+export function setStart(doc: LifeDoc, id: string, month: number): { doc: LifeDoc; changed: Phase | null } {
+  const next = normalize(doc), p = byId(next, id)
+  if (!p) return { doc, changed: null }
+  const on = wayOf(next), ps = parents(next, p), from = ps.find((q) => on.has(q.id)) || ps[0]
+  if (!from) { p.starts = ym(month); return { doc: normalize(next), changed: null } }
+  from.months = Math.max(1, Math.min(1200, month - starts(from)))
+  from.undated = false
+  return { doc: normalize(next), changed: from }
 }
 
 /**
@@ -133,7 +241,7 @@ export function routeDoc(doc: LifeDoc, id: string): LifeDoc {
   const route = routeThrough(doc, id)
   if (!route.length) return clone(doc)
   const on = new Set(route.map((p) => p.id))
-  const phases = route.map((p, i) => ({ ...clone(p), months: i < route.length - 1 ? Math.max(1, starts(route[i + 1]) - starts(p)) : Math.max(1, p.months || 12) }))
+  const phases = route.map((p) => ({ ...clone(p), months: Math.max(1, lenOf(p)) }))
   const keep = (w?: { phase: string } | null) => !w || on.has(w.phase)
   return {
     ...clone(doc),
@@ -152,13 +260,14 @@ export function mergeRoute(doc: LifeDoc, route: LifeDoc): LifeDoc {
   next.phases = next.phases.map((p) => {
     const r = route.phases.find((x) => x.id === p.id)
     if (!r) return p
-    const leaf = !next.phases.some((k) => k.after?.includes(p.id))
-    return { ...clone(r), starts: p.starts, after: p.after, months: leaf ? r.months : p.months }
+    // The budget can change how long a phase lasts; a length not picked yet stays unpicked unless it did.
+    const changed = r.months !== Math.max(1, lenOf(p))
+    return { ...clone(r), starts: p.starts, after: p.after, months: changed ? r.months : p.months, undated: changed ? false : p.undated }
   })
   // Phases added while looking at the route join the map after the one before them.
   route.phases.filter((r) => !next.phases.some((p) => p.id === r.id)).forEach((r) => {
     const i = route.phases.indexOf(r), prev = route.phases[i - 1]
-    next.phases.push({ ...clone(r), after: prev ? [prev.id] : [], starts: prev ? ym(mi(next.phases.find((p) => p.id === prev.id)?.starts || route.start) + Math.max(1, prev.months)) : route.start })
+    next.phases.push({ ...clone(r), after: prev ? [prev.id] : [], starts: prev ? null : route.start })
   })
   const offRoute = (w?: { phase: string } | null) => !!w && !on.has(w.phase)
   next.events = [...doc.events.filter((e) => !on.has(e.phase)), ...route.events]
@@ -196,7 +305,7 @@ export function addAfter(doc: LifeDoc, fromId: string, x: NewPhase, start?: numb
 /** Before the first phase: the learner's backstory. */
 export function addBefore(doc: LifeDoc, firstId: string, x: NewPhase): { doc: LifeDoc; id: string } {
   const next = clone(doc), first = byId(next, firstId)!
-  const p = make(first, x, [], starts(first) - 36)
+  const p = make(first, { months: 36, ...x }, [], starts(first) - 36)
   next.phases.push(p); first.after = [p.id]
   return { doc: normalize(next), id: p.id }
 }
@@ -209,10 +318,10 @@ export function addBetween(doc: LifeDoc, fromId: string, toId: string, x: NewPha
   to.after = (to.after || []).map((id) => (id === fromId ? p.id : id))
   return { doc: normalize(next), id: p.id }
 }
-/** Can the end phase `fromId` lead into `toId`? Only forward in time, and never in a loop. */
+/** Can the end phase `fromId` lead into `toId`? Never back into what led to it (a loop). */
 export function canJoin(doc: LifeDoc, fromId: string, toId: string): boolean {
   const f = byId(doc, fromId), t = byId(doc, toId)
-  return !!f && !!t && f !== t && starts(t) > starts(f) && !t.after?.includes(f.id) && !ancestors(doc, f.id).includes(t) && !kids(doc, f.id).length
+  return !!f && !!t && f !== t && !t.after?.includes(f.id) && !ancestors(doc, f.id).includes(t) && !kids(doc, f.id).length
 }
 export function join(doc: LifeDoc, fromId: string, toId: string): LifeDoc {
   if (!canJoin(doc, fromId, toId)) return doc
@@ -235,11 +344,22 @@ export function split(doc: LifeDoc, id: string, fromId: string): { doc: LifeDoc;
   const c = copy(p, [fromId])
   return { doc: normalize(next), id: c.id }
 }
+/**
+ * `gone` leaves k's ways in: what came before it takes its place, except a phase another way in already
+ * comes after (that would make a skip nobody asked for). Taking the last phase out of an option removes
+ * the option.
+ */
+function relink(doc: LifeDoc, k: Phase, gone: string, before: string[]) {
+  if (!k.after?.includes(gone)) return
+  const rest = k.after.filter((a) => a !== gone)
+  const add = before.filter((b) => !rest.includes(b) && !rest.some((r) => ancestors(doc, r).some((x) => x.id === b)))
+  k.after = [...new Set(k.after.flatMap((a) => (a === gone ? add : [a])))]
+}
 /** Take a phase off the map. What came after it now follows what came before it. */
 export function remove(doc: LifeDoc, id: string): LifeDoc {
   const next = clone(doc), p = byId(next, id)
   if (!p) return doc
-  for (const k of next.phases) if (k.after?.includes(id)) k.after = [...new Set(k.after.flatMap((x) => (x === id ? p.after || [] : [x])))]
+  for (const k of next.phases) relink(next, k, id, p.after || [])
   next.phases = next.phases.filter((x) => x.id !== id)
   next.events = next.events.filter((e) => e.phase !== id)
   next.assets = next.assets.filter((a) => a.bought?.phase !== id)
@@ -329,7 +449,7 @@ export function lift(doc: LifeDoc, id: string, only = false): LifeDoc {
   const next = clone(doc), head = byId(next, id)
   if (!head) return next
   const ids = new Set(pieceOf(next, id, only))
-  if (only) for (const k of next.phases) if (k.after?.includes(id)) k.after = [...new Set(k.after.flatMap((a) => (a === id ? head.after || [] : [a])))]
+  if (only) for (const k of next.phases) relink(next, k, id, head.after || [])
   for (const p of next.phases) if (!ids.has(p.id)) p.after = (p.after || []).filter((a) => !ids.has(a))
   head.after = []
   return next
@@ -339,7 +459,7 @@ export function liftLine(doc: LifeDoc, ids: string[]): LifeDoc {
   const next = clone(doc), set = new Set(ids), head = byId(next, ids[0]), tail = ids[ids.length - 1]
   if (!head) return next
   const before = head.after || []
-  for (const k of next.phases) if (!set.has(k.id) && k.after?.includes(tail)) k.after = [...new Set(k.after.flatMap((a) => (a === tail ? before : [a])))]
+  for (const k of next.phases) if (!set.has(k.id)) relink(next, k, tail, before)
   for (const p of next.phases) if (!set.has(p.id)) p.after = (p.after || []).filter((a) => !set.has(a))
   head.after = []
   return next
@@ -423,6 +543,50 @@ export function rank(doc: LifeDoc, order: string[]): LifeDoc {
   const next = clone(doc)
   order.forEach((id, i) => { const p = byId(next, id); if (p) p.rank = i })
   return next
+}
+
+/* ---------- skips: an option with no phase of its own ---------- */
+
+/** Where a split's options lead, when a skip could go straight there; null when there's nowhere or it already can. */
+export function skipTarget(doc: LifeDoc, key: string): Phase | null {
+  if (key.startsWith('g:')) return null
+  const options = kids(doc, key)
+  if (!options.length) return null
+  const meet = options.length > 1 ? rejoinOf(doc, options) : (kids(doc, options[0].id).length === 1 ? kids(doc, options[0].id)[0] : undefined)
+  if (!meet || options.some((o) => o.id === meet.id) || meet.after?.includes(key)) return null
+  return meet
+}
+/** Add a skip to the options after `key`: straight on to where they lead, as the last choice. */
+export function addSkip(doc: LifeDoc, key: string): LifeDoc {
+  const meet = skipTarget(doc, key)
+  if (!meet) return doc
+  const order = kids(doc, key).map((q) => q.id)
+  const next = rank(doc, order), m = byId(next, meet.id)!
+  m.after = [...(m.after || []), key]
+  m.rank = order.length
+  return normalize(next)
+}
+/** "Make it optional": the phase becomes one option and a skip past it the other. */
+export const canMakeOptional = (doc: LifeDoc, id: string) => { const p = byId(doc, id); return !!p && p.after?.length === 1 && !!skipTarget(doc, p.after[0]) }
+export function makeOptional(doc: LifeDoc, id: string): LifeDoc {
+  const p = byId(doc, id)
+  return p && canMakeOptional(doc, id) ? addSkip(doc, p.after![0]) : doc
+}
+/** Take the skip out of the options after `key`. */
+export function removeSkip(doc: LifeDoc, key: string, id: string): LifeDoc {
+  const next = clone(doc), q = byId(next, id)
+  if (!q) return doc
+  q.after = (q.after || []).filter((a) => a !== key)
+  return normalize(next)
+}
+/** A lifted line of phases dropped onto a skip: it becomes that option, between `fromId` and `toId`. */
+export function fillSkip(lifted: LifeDoc, ids: string[], fromId: string, toId: string): LifeDoc {
+  const next = clone(lifted), head = byId(next, ids[0]), to = byId(next, toId), shape = heldShape(next, ids)
+  if (!head || !to || !shape.tail || !to.after?.includes(fromId)) return lifted
+  head.after = [fromId]
+  head.rank = to.rank
+  to.after = [...new Set(to.after.map((a) => (a === fromId ? shape.tail! : a)))]
+  return normalize(next)
 }
 
 /* ---------- careers: the usual ways in, added as ideas ---------- */

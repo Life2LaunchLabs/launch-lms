@@ -406,9 +406,9 @@ def test_a_plan_drawn_as_a_map_branches_merges_and_never_loops():
     assert by["el"].after == ["tr", "ap"]
     assert by["ap"].activities[0].career == "47-2111.00"
 
-    with pytest.raises(HTTPException):  # comes after a phase that starts later
-        plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "starts": "2030-01"}, b={"id": "b", "title": "B", "starts": "2029-01", "after": ["a"]}))
-    with pytest.raises(HTTPException):  # a loop, with no dates to catch it
+    # A skip: the phase after a fork also follows the phase before it, and starts the month that one ends.
+    plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "starts": "2030-01"}, g={"id": "g", "title": "Gap", "starts": "2031-01", "after": ["a"]}, b={"id": "b", "title": "B", "starts": "2031-01", "after": ["g", "a"]}))
+    with pytest.raises(HTTPException):  # a loop
         plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "after": ["b"]}, b={"id": "b", "title": "B", "after": ["a"]}))
 
 

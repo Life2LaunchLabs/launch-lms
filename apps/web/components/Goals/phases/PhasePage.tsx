@@ -28,10 +28,12 @@ import { uploadMediaAsset } from '@services/media/library'
 import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { PhaseStatus } from './PhaseStack'
-import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, remove as removePhase, routeDoc, whenOf } from './graph'
+import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, remove as removePhase, routeDoc, setLength, setStart, showWayTo, whenOf } from './graph'
+import { TimeEditor, WayBar, spanText } from './PhaseTime'
+import { getShown, setShown } from './way'
 import { activityText, checklist, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
-import { ActivityPicker, HouseholdPicker, LivingPicker, MonthPicker } from './PhasePickers'
+import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import PhaseInsights, { useCareers } from './PhaseInsights'
 import useLifePlan from './useLifePlan'
@@ -75,6 +77,13 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const applied = React.useRef(false)
   const phaseNow = doc && byId(doc, phaseId)
   const careers = useCareers(phaseNow || ({ activities: [] } as any), token)
+  // Opening a phase shows the way to it, so its dates (and the budget's) are the dates on that way.
+  const hasPhase = !!phaseNow
+  React.useEffect(() => {
+    if (!doc || !hasPhase) return
+    const now = getShown(), next = showWayTo(doc, phaseId, now)
+    if (JSON.stringify(next) !== JSON.stringify(now)) setShown(next)
+  }, [phaseId, hasPhase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!token || isLoading) return <GeneralWrapperStyled><div className="space-y-6"><Skeleton className="h-8 w-24" /><Skeleton className="h-72 w-full rounded-[28px]" /><Skeleton className="h-64 w-full" /></div></GeneralWrapperStyled>
   const time = phaseTimes(doc).find((item) => item.phase.id === phaseId)
@@ -125,6 +134,10 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
     })
   }
 
+  /** How long it lasts, or when it starts (which is when the phase before it ends). */
+  const lengthTo = (months: number) => change((next) => { Object.assign(next, setLength(normalize(next), phase.id, months)) })
+  const startAt = (month: number) => change((next) => { Object.assign(next, setStart(normalize(next), phase.id, month).doc) })
+
   const remove = async () => {
     const goals = here.length ? ` Its ${here.length === 1 ? 'goal moves' : `${here.length} goals move`} to the phase you’re in.` : ''
     if (!phase.idea && !(await ask.confirm({ title: tr('goals.phase_page.remove_title', 'Remove "{{title}}"?', { title: phase.title }), body: `Its budget and the one-time money in it go too.${goals}`, action: tr('lit.phase_page.remove_phase', 'Remove phase'), danger: true }))) return
@@ -145,8 +158,9 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   return <GeneralWrapperStyled>
     <main className="flex flex-col gap-4 pb-16">
       <PhaseNav doc={doc} phase={phase} orgslug={orgslug} mapHref={mapHref} />
+      <WayBar doc={doc} />
       <div className="relative">
-        <Cover time={time} photos={photos} uploading={uploading} pop={pop} setPop={setPop}
+        <Cover time={time} span={spanText(doc, phase)} photos={photos} uploading={uploading} pop={pop} setPop={setPop}
           onRename={(title) => { void edit((p) => { p.title = title.trim() || p.title }) }}
           menu={<DropdownMenu>
             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={tr('goals.phase_page.phase_options', 'Phase options')} className="bg-white/85 text-[#15232c] backdrop-blur hover:bg-white"><MoreHorizontal /></Button></DropdownMenuTrigger>
@@ -159,9 +173,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
             </DropdownMenuContent>
           </DropdownMenu>} />
         {pop && pop !== 'name' ? <div role="dialog" aria-label={tr('goals.phase_page.change_this_phase', 'Change this phase')} className="absolute inset-x-3 top-[calc(100%-14px)] z-30 grid max-w-[460px] gap-3 rounded-[20px] bg-card p-4 text-foreground shadow-[0_0_0_2px_hsl(var(--border)),0_24px_40px_-18px_rgb(0_0_0/0.45)]">
-          {pop === 'date' ? <><h3 className="font-extrabold">{time.when === 'now' || time.when === 'done' ? tr('goals.phase_page.started', 'Started') : tr('goals.phase_page.might_start', 'Might start')}</h3>
-            <MonthPicker value={phase.starts!} onChange={(v) => { void edit((p) => { p.starts = v; p.undated = false }) }} />
-            <p className="text-sm text-muted-foreground">{tr('goals.phase_page.no_end_date_it_lasts', 'No end date: it lasts until the next phase starts.')}</p></> : null}
+          {pop === 'date' ? <><h3 className="font-extrabold">{tr('goals.phase_page.when', 'When?')}</h3>
+            <TimeEditor doc={doc} phase={phase} fixed={time.when === 'done' ? 'all' : time.when === 'now' ? 'start' : null} onLength={(m) => { void lengthTo(m) }} onStart={(m) => { void startAt(m) }} /></> : null}
           {pop === 'place' ? <><h3 className="font-extrabold">{tr('goals.phase_insights.where', 'Where')}</h3>
             <PlacePicker token={token} value={phase.place || null} label={phase.place_label || ''} onPick={(pl) => { void edit((p) => { p.place = pl?.key || null; p.place_label = pl?.label || ''; p.places = [] }, { retitle: true, picks: true }); setPop(null) }} /></> : null}
           {pop === 'living' ? <><h3 className="font-extrabold">{tr('goals.phase_page.how_you_live', 'How you live')}</h3>
@@ -285,7 +298,7 @@ function PhaseNav({ doc, phase, orgslug, mapHref }: { doc: LifeDoc; phase: Phase
   </nav>
 }
 
-function Cover({ time, menu, photos, uploading, pop, setPop, onRename }: { time: PhaseTime; menu: React.ReactNode; photos?: Record<string, PlacePhoto>; uploading?: boolean; pop: Pop; setPop: (p: Pop) => void; onRename: (title: string) => void }) {
+function Cover({ time, span, menu, photos, uploading, pop, setPop, onRename }: { time: PhaseTime; span: string; menu: React.ReactNode; photos?: Record<string, PlacePhoto>; uploading?: boolean; pop: Pop; setPop: (p: Pop) => void; onRename: (title: string) => void }) {
   const { phase, when } = time
   const [title, setTitle] = React.useState(phase.title)
   React.useEffect(() => setTitle(phase.title), [phase.title])
@@ -306,7 +319,7 @@ function Cover({ time, menu, photos, uploading, pop, setPop, onRename }: { time:
           className="w-[min(100%,520px)] rounded-xl bg-black/30 px-2.5 py-0.5 text-[clamp(28px,6vw,44px)] font-extrabold text-white outline outline-2 outline-white/80" />
         : <h1><button type="button" onClick={() => setPop('name')} className="rounded-xl text-left text-[clamp(30px,6vw,48px)] font-extrabold leading-[1.02] tracking-tight [text-shadow:0_2px_20px_rgb(0_0_0/0.25)] hover:outline hover:outline-2 hover:outline-offset-4 hover:outline-dashed hover:outline-white/70">{phase.title}</button></h1>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{phase.undated ? tr('goals.phase_page.when', 'When?') : `${when === 'now' || when === 'done' ? tr('lit.phase_page.since', 'Since') : tr('lit.phase_page.from', 'From')} ${monthName(time.starts)}`}</button>
+        <button type="button" className={chip} onClick={() => toggle('date')}><CalendarDays size={14} aria-hidden="true" />{span}</button>
         <button type="button" className={chip} onClick={() => toggle('place')}><MapPin size={14} aria-hidden="true" />{phase.place_label || tr('goals.phase_page.where', 'Where?')}</button>
         <button type="button" className={chip} onClick={() => toggle('living')}><Home size={14} aria-hidden="true" />{livingLabel(phase.living) || tr('goals.phase_page.living', 'Living?')}</button>
         <button type="button" className={chip} onClick={() => toggle('household')}><Users size={14} aria-hidden="true" />{householdLabel(phase.household)}</button>

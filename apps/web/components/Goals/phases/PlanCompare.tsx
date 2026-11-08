@@ -67,7 +67,7 @@ export default function PlanCompare({ doc, orgslug, token, only, onBack }: { doc
             {gaps.map(({ phase, what }) => (
               <li key={phase.id}><Link href={open(phase.id)} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-sm font-bold hover:bg-muted/70">
                 {what === 'date' ? <CalendarBlank size={18} aria-hidden="true" /> : <Wallet size={18} aria-hidden="true" />}
-                <span className="flex-1">{phase.title}</span><span className="text-muted-foreground">{what === 'date' ? tr('goals.plan_compare.add_a_start_date', 'Add a start date') : tr('goals.plan_compare.add_a_budget', 'Add a budget')}</span>
+                <span className="flex-1">{phase.title}</span><span className="text-muted-foreground">{what === 'date' ? tr('goals.plan_compare.pick_how_long', 'Pick how long it lasts') : tr('goals.plan_compare.add_a_budget', 'Add a budget')}</span>
               </Link></li>
             ))}
           </ul>

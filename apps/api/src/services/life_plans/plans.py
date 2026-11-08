@@ -108,10 +108,10 @@ class Phase(Doc):
     # The learner's own cover photo; without one, the place's photo (or a drawing) shows.
     cover: Cover | None = None
     tax: Tax | None = None
-    # When it starts (YYYY-MM). A phase lasts until the next one after it starts; `months` is
-    # only the length of a phase nothing comes after. Old plans without dates run in order.
+    # How long it lasts is `months`; when it starts (YYYY-MM) is kept for a first phase and worked out
+    # by the app for the others, from the lengths before them. Old plans without dates run in order.
     starts: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
-    # The learner hasn't picked when it starts yet: `starts` is only where it sits on the map for now.
+    # The learner hasn't picked how long it lasts yet: it takes no time until they do.
     undated: bool = False
     # The phases it comes after: none for the first, two or more where two ways join up.
     after: list[str] = Field(default_factory=list, max_length=8)
@@ -199,6 +199,8 @@ class Event(Doc):
 class LifePlanDocument(Doc):
     version: int = 1
     start: str = Field(pattern=r"^\d{4}-\d{2}$")
+    # Phases store how long they last and the app works out their dates (older plans stored start dates).
+    lengths: bool = False
     phases: list[Phase] = Field(default_factory=list, max_length=40)
     debts: list[Debt] = Field(default_factory=list, max_length=40)
     savings: list[Saving] = Field(default_factory=list, max_length=20)
@@ -215,12 +217,10 @@ def _check_links(doc: LifePlanDocument) -> None:
     ids = {phase.id for phase in doc.phases}
     if len(ids) != len(doc.phases):
         raise HTTPException(status_code=422, detail={"message": "Two phases share an id."})
-    starts = {phase.id: phase.starts for phase in doc.phases}
+    # Dates come from lengths now, so a phase after two ways in (or after a skip) can start the same
+    # month as one of them: only loops are refused.
     for phase in doc.phases:
         phase.after = [pid for pid in dict.fromkeys(phase.after) if pid in ids and pid != phase.id]
-        for pid in phase.after:
-            if phase.starts and starts[pid] and starts[pid] >= phase.starts:
-                raise HTTPException(status_code=422, detail={"message": f"{phase.title} starts before a phase it comes after."})
     parents = {phase.id: phase.after for phase in doc.phases}
     seen: dict[str, int] = {}
 

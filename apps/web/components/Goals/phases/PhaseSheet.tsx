@@ -7,13 +7,14 @@ import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PhaseCover from './PhaseCover'
-import { byId, canJoin, kids, monthText, whenOf } from './graph'
+import { byId, canJoin, canMakeOptional, kids, whenOf } from './graph'
+import { spanText } from './PhaseTime'
 
 import { tr } from '@/lib/tr'
 /** A phase's details: a bottom sheet on a phone, a dialog on a wider screen. */
-export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, onRename, onKeep, onRemove, onSplit, onJoin }: {
+export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, onRename, onKeep, onRemove, onSplit, onJoin, onOptional }: {
   doc: LifeDoc; p: Phase; photos?: Record<string, PlacePhoto>; state: { id: string; renaming?: string; confirmRm?: boolean }; setState: (s: { id: string; renaming?: string; confirmRm?: boolean } | null) => void
-  onOpen: () => void; onRename: (t: string) => void; onKeep: () => void; onRemove: () => void; onSplit: (fromId: string) => void; onJoin: (toId: string) => void
+  onOpen: () => void; onRename: (t: string) => void; onKeep: () => void; onRemove: () => void; onSplit: (fromId: string) => void; onJoin: (toId: string) => void; onOptional: () => void
 }) {
   const wh = whenOf(doc, p), fixed = wh === 'now' || wh === 'done', leaf = !kids(doc, p.id).length
   const joinTo = leaf ? doc.phases.filter((x) => canJoin(doc, p.id, x.id)) : []
@@ -38,7 +39,7 @@ export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, on
             <input autoFocus aria-label={tr('goals.phase_sheet.name', 'Name')} value={state.renaming} placeholder={p.title} onChange={(e) => setState({ ...state, renaming: e.target.value })} className="h-11 min-w-0 flex-1 rounded-xl bg-muted px-3 text-xl font-extrabold outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />
             <Button type="submit" variant="brand">{tr('goals.goal_stages.save', 'Save')}</Button></form>
           : <h3 className="text-[26px] font-extrabold leading-tight tracking-tight">{p.title}</h3>}
-        <p className="text-sm text-muted-foreground">{p.undated ? tr('goals.phase_sheet.no_start_date_yet', 'No start date yet') : `From ${monthText(p.starts!)}`}{p.place_label ? ` · ${p.place_label}` : ''}{(p.after?.length || 0) > 1 ? tr('goals.phase_sheet.length_ways_lead_here', ' · {{length}} ways lead here', { length: p.after!.length }) : ''}</p>
+        <p className="text-sm text-muted-foreground">{spanText(doc, p)}{p.place_label ? ` · ${p.place_label}` : ''}{(p.after?.length || 0) > 1 ? tr('goals.phase_sheet.length_ways_lead_here', ' · {{length}} ways lead here', { length: p.after!.length }) : ''}</p>
       </div>
       {state.confirmRm ? <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 text-sm font-bold text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
         {tr('goals.phase_sheet.remove_title_its_budget_goes', 'Remove {{title}}? Its budget goes too, and its goals go back to the phase you’re in.', { title: p.title })}
@@ -48,6 +49,7 @@ export default function PhaseSheet({ doc, p, photos, state, setState, onOpen, on
         <Button variant="brand" className="col-span-2 justify-between" onClick={onOpen}>{tr('goals.phase_sheet.open_title', 'Open {{title}}', { title: p.title })}<ChevronRight size={16} aria-hidden="true" /></Button>
         {renaming ? null : <button type="button" className={act} onClick={() => setState({ id: p.id, renaming: p.title })}>{tr('goals.phase_sheet.rename', 'Rename')}</button>}
         {p.idea ? <button type="button" className={act} onClick={onKeep}><Check size={14} className="mr-1 inline" aria-hidden="true" />{tr('goals.phase_page.make_it_real', 'Make it real')}</button> : null}
+        {!fixed && canMakeOptional(doc, p.id) ? <button type="button" className={cn(act, 'col-span-2')} onClick={onOptional}>{tr('goals.phase_sheet.make_it_optional', 'Make it optional (or skip it)')}</button> : null}
         {(p.after?.length || 0) > 1 ? p.after!.map((id) => <button key={id} type="button" className={cn(act, 'col-span-2')} onClick={() => onSplit(id)}>{tr('goals.phase_sheet.split_off_the_title_way', 'Split off the {{title}} way', { title: byId(doc, id)?.title })}</button>) : null}
         {joinTo.length ? <label className={cn(act, 'col-span-2 flex items-center gap-2')}>{tr('goals.phase_sheet.leads_into', 'Leads into')}
           <select aria-label={tr('goals.phase_sheet.leads_into', 'Leads into')} className="min-w-0 flex-1 bg-transparent font-extrabold" value="" onChange={(e) => { if (e.target.value) onJoin(e.target.value) }}>
