@@ -11,13 +11,13 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PlanCompare from './PlanCompare'
 import PhaseSheet from './PhaseSheet'
-import { PhaseCard, RankSheet, Tray, type Env } from './MapParts'
+import { freshStart, HOLD_KEY, PhaseCard, RankSheet, SkipPane, Tray, undated, type Env } from './MapParts'
 import { PendingCard } from './PendingCard'
 import { pagePinned, scrollSpeed, type Moving } from './dragPage'
 import { kindFor, suggestTitle } from './setup'
-import {
-  addSkip, bottomOf, canAddSkip, byId, endOf, endsKey, fillSkip, heldShape, isSkip, join, liftLine, kids, lift, loosePiece, makeOptional, mi, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, showWayTo, split, splitOf, whenOf, ym, type RouteStep,
-} from './graph'
+import { addSkip, canAddSkip, fillSkip, makeOptional } from './skips'
+import { bottomOf, byId, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep } from './graph'
+import { isSkip, showWayTo } from './dates'
 import { WayBar } from './PhaseTime'
 import { getShown, setShown as setShownStore, showOption, useShown } from './way'
 
@@ -30,25 +30,7 @@ type Change = (fn: (next: LifeDoc) => void) => Promise<LifeDoc | null>
  */
 type Spot = { at: string; inline: boolean; text: string; el: HTMLElement; slot?: boolean; home?: boolean; index?: number; beside?: string; before?: string; edge?: 't' | 'b'; skipTo?: string }
 
-const HOLD_KEY = 'plans-map-hold'
-/** Careers hand the map a route to place: it waits here while the map opens with it picked up. */
-export function holdRoute(title: string, steps: RouteStep[]) { try { sessionStorage.setItem(HOLD_KEY, JSON.stringify({ title, steps })) } catch { /* private mode: the map opens without it */ } }
 const WIDE = 860
-
-/** When a new phase dropped at a spot should start: halfway to what follows in line, or with the other options. */
-/** Mark new phases as not dated yet, unless the learner already picked a date for one. */
-function undated(d: LifeDoc, ids: string[]): LifeDoc {
-  const next = structuredClone(d)
-  for (const id of ids) { const p = byId(next, id); if (p && p.undated !== false) p.undated = true }
-  return next
-}
-function freshStart(d: LifeDoc, at: string, inline: boolean): number {
-  const after = (at.startsWith('g:') ? at.slice(2).split(',') : [at]).map((id) => byId(d, id)!).filter(Boolean)
-  const from = after.reduce((a, b) => (mi(b.starts!) > mi(a.starts!) ? b : a))
-  if (inline) return Math.max(mi(from.starts!) + 1, Math.floor((mi(from.starts!) + endOf(d, from)) / 2))
-  const sib = optionsOf(d, at)[0]
-  return sib ? mi(sib.starts!) : endOf(d, from)
-}
 
 /**
  * The plan as a stack of phases, top to bottom, all one size: order matters here, not length. Where
@@ -508,14 +490,5 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       onSplit={async (fromId) => { let id = ''; await apply((d) => { const r = split(d, sheetPhase.id, fromId); id = r.id; return r.doc }); if (id) setSheet({ id }) }}
       onJoin={async (toId) => { setSheet(null); await apply((d) => join(d, sheetPhase.id, toId)) }} /> : null}
     </>, document.body) : null}
-  </div>
-}
-
-/** A skip in a split: no phase of its own, it takes no time. Drop a phase on it to make it a real option. */
-function SkipPane({ skip, next, moving }: { skip: Phase; next: Phase[]; moving: boolean }) {
-  const to = next.length > 3 ? tr('goals.plan_map.the_options_after', 'the options after it') : next.map((q) => q.title).join(tr('goals.plan_map.or', ' or '))
-  return <div data-skip-to={skip.id} className={cn('grid min-h-[120px] content-center gap-1 rounded-[22px] border-[3px] border-dashed border-border p-4 text-muted-foreground transition-colors data-[hot]:border-foreground data-[hot]:text-foreground', moving && 'border-foreground/40')}>
-    <b className="text-lg font-extrabold text-foreground">{to ? tr('goals.plan_map.skip_straight_to', 'Skip, straight to {{title}}', { title: to }) : tr('goals.plan_map.skip', 'Skip')}</b>
-    <small className="text-sm font-bold">{tr('goals.plan_map.skip_takes_no_time', 'Takes no time. Drag a phase here to make it a real option.')}</small>
   </div>
 }

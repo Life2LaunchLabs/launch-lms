@@ -8,7 +8,7 @@ import { Button } from '@components/ui/button'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PhaseCover from './PhaseCover'
 import type { Moving } from './dragPage'
-import { lenOf, monthText, whenOf } from './graph'
+import { byId, endOf, lenOf, mi, monthText, optionsOf, whenOf, type RouteStep } from './graph'
 import { lengthText, spanText } from './PhaseTime'
 
 import { tr } from '@/lib/tr'
@@ -181,5 +181,35 @@ export function RankSheet({ options, onSave, onClose }: { options: Phase[]; onSa
       </li>)}</ol>
       <div className="flex justify-end gap-2"><Button variant="ghost" onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button><Button variant="brand" onClick={() => onSave(order.map((q) => q.id))}>{tr('goals.goal_stages.save', 'Save')}</Button></div>
     </div>
+  </div>
+}
+
+/* ---------- for the map: a route waiting from careers, new phases' dates, a skip ---------- */
+
+export const HOLD_KEY = 'plans-map-hold'
+/** Careers hand the map a route to place: it waits here while the map opens with it picked up. */
+export function holdRoute(title: string, steps: RouteStep[]) { try { sessionStorage.setItem(HOLD_KEY, JSON.stringify({ title, steps })) } catch { /* private mode: the map opens without it */ } }
+
+/** Mark new phases as not dated yet, unless the learner already picked a date for one. */
+export function undated(d: LifeDoc, ids: string[]): LifeDoc {
+  const next = structuredClone(d)
+  for (const id of ids) { const p = byId(next, id); if (p && p.undated !== false) p.undated = true }
+  return next
+}
+/** When a new phase dropped at a spot should start: halfway to what follows in line, or with the other options. */
+export function freshStart(d: LifeDoc, at: string, inline: boolean): number {
+  const after = (at.startsWith('g:') ? at.slice(2).split(',') : [at]).map((id) => byId(d, id)!).filter(Boolean)
+  const from = after.reduce((a, b) => (mi(b.starts!) > mi(a.starts!) ? b : a))
+  if (inline) return Math.max(mi(from.starts!) + 1, Math.floor((mi(from.starts!) + endOf(d, from)) / 2))
+  const sib = optionsOf(d, at)[0]
+  return sib ? mi(sib.starts!) : endOf(d, from)
+}
+
+/** A skip in a split: no phase of its own, it takes no time. Drop a phase on it to make it a real option. */
+export function SkipPane({ skip, next, moving }: { skip: Phase; next: Phase[]; moving: boolean }) {
+  const to = next.length > 3 ? tr('goals.plan_map.the_options_after', 'the options after it') : next.map((q) => q.title).join(tr('goals.plan_map.or', ' or '))
+  return <div data-skip-to={skip.id} className={cn('grid min-h-[120px] content-center gap-1 rounded-[22px] border-[3px] border-dashed border-border p-4 text-muted-foreground transition-colors data-[hot]:border-foreground data-[hot]:text-foreground', moving && 'border-foreground/40')}>
+    <b className="text-lg font-extrabold text-foreground">{to ? tr('goals.plan_map.skip_straight_to', 'Skip, straight to {{title}}', { title: to }) : tr('goals.plan_map.skip', 'Skip')}</b>
+    <small className="text-sm font-bold">{tr('goals.plan_map.skip_takes_no_time', 'Takes no time. Drag a phase here to make it a real option.')}</small>
   </div>
 }

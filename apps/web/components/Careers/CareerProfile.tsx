@@ -7,7 +7,7 @@ import { ArrowLeftRight, Check, ChevronDown, ChevronRight, GitBranch, Globe, Loa
 import { SpeakButton } from '@components/Accessibility/ReadAloud'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { PORTFOLIO_STRENGTHS } from '@components/Portfolio/traitOptions'
-import { routesFor } from '@components/Goals/phases/graph'
+import { routesFor } from '@components/Goals/phases/careers'
 import { getUriWithOrg } from '@services/config/config'
 import {
   careersApi, fullMoney, hourlyMoney, type CareerOutlook, type CareerPaths, type CareerProgram, type CareerProfile as Profile, type CareerWages, type EducationShare, type PlaceWage,

@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { setShown } from '../way'
 import type { LifeDoc } from '@services/life/life'
-import { mi, endOf, setLength, setStart, canMakeOptional, makeOptional, isSkip, detours, fillSkip, addSkip, canAddSkip, showWayTo, addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { mi, endOf, addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeName, routes, split, splitOf, whenOf } from '../graph'
+import { setLength, setStart, isSkip, detours, showWayTo, mergeRoute, routeDoc } from '../dates'
+import { canMakeOptional, makeOptional, fillSkip, addSkip, canAddSkip } from '../skips'
+import { addRoute, routesFor } from '../careers'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)

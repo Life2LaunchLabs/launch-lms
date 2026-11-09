@@ -187,7 +187,7 @@ export function routeThrough(doc: LifeDoc, id: string): Phase[] {
 /* ---------- the way being looked at ---------- */
 
 /** The key of the split a phase's next phases make: the phase itself, or a group when they all follow the same few phases. */
-function keyAfter(from: Phase, ks: Phase[]): string {
+export function keyAfter(from: Phase, ks: Phase[]): string {
   const keys = new Set(ks.map((k) => splitOf(k)))
   return keys.size === 1 ? [...keys][0]! : from.id
 }
@@ -204,118 +204,10 @@ export function wayOf(doc: LifeDoc, shown: Shown = getShown()): Set<string> {
   }
   return on
 }
-/** Is this a skip: an option with no phase of its own, that takes no time? */
-export const isSkip = (q: Phase) => !!q.pass
-/** Where the way being looked at leaves the learner's first choices: each split showing another option. */
-export function detours(doc: LifeDoc, shown: Shown = getShown()): { key: string; title: string }[] {
-  const out: { key: string; title: string }[] = []
-  const seen = new Set<string>()
-  let p: Phase | undefined = roots(doc)[0]
-  while (p && !seen.has(p.id)) {
-    seen.add(p.id)
-    const ks = kids(doc, p.id)
-    if (!ks.length) break
-    const key = keyAfter(p, ks), pick = ks.find((k) => k.id === shown[key]) || ks[0]
-    if (pick !== ks[0]) out.push({ key, title: isSkip(pick) ? tr('goals.way.skip_title', 'Skip {{title}}', { title: ks[0].title }) : pick.title })
-    p = pick
-  }
-  return out
-}
-/** Show the way to a phase: the options it takes to get there, keeping everything else as it was. */
-export function showWayTo(doc: LifeDoc, id: string, shown: Shown = getShown()): Shown {
-  const on = wayOf(doc, shown), next = { ...shown }
-  let x = byId(doc, id)
-  const seen = new Set<string>()
-  while (x && !on.has(x.id) && !seen.has(x.id)) {
-    seen.add(x.id)
-    const ps = parents(doc, x), from = ps.find((q) => on.has(q.id)) || ps[0]
-    if (!from) break
-    const ks = kids(doc, from.id)
-    if (ks.length > 1) next[keyAfter(from, ks)] = x.id
-    x = from
-  }
-  return next
-}
-
-/* ---------- lengths and dates ---------- */
-
-/** How long a phase lasts, in months. Everything after it moves with its end. */
-export function setLength(doc: LifeDoc, id: string, months: number): LifeDoc {
-  const next = clone(doc), p = byId(next, id)
-  if (!p) return doc
-  p.months = Math.max(1, Math.min(1200, Math.round(months)))
-  p.undated = false
-  return normalize(next)
-}
-/**
- * When a phase starts. It starts the month the phase before it (on the way being looked at) ends, so
- * this changes that phase's end. A first phase just starts then.
- */
-export function setStart(doc: LifeDoc, id: string, month: number): { doc: LifeDoc; changed: Phase | null } {
-  const next = normalize(doc), p = byId(next, id)
-  if (!p) return { doc, changed: null }
-  const on = wayOf(next), back = (x: Phase) => { const ps = parents(next, x); return ps.find((q) => on.has(q.id)) || ps[0] }
-  // Skips take no time: the phase that ends is the one before them.
-  let from = back(p)
-  for (let n = 0; from?.pass && n < 50; n++) from = back(from)
-  if (!from) { const root = roots(next).find((r) => r.id === p.id || below(next, r.id).has(p.id)) || p; root.starts = ym(month); return { doc: normalize(next), changed: null } }
-  from.months = Math.max(1, Math.min(1200, month - starts(from)))
-  from.undated = false
-  return { doc: normalize(next), changed: from }
-}
-
-/**
- * The plan as one line of phases, the way the budget and its chart read it: the phases on the route
- * through `id`, each as long as it lasts on that route. Money things tied to phases off the route
- * are left out. Change it, then put it back with `mergeRoute`.
- */
-export function routeDoc(doc: LifeDoc, id: string): LifeDoc {
-  // A skip takes no time and has no budget: the budget's line leaves it out.
-  const route = routeThrough(doc, id).filter((p) => !p.pass)
-  if (!route.length) return clone(doc)
-  const on = new Set(route.map((p) => p.id))
-  const phases = route.map((p) => ({ ...clone(p), months: Math.max(1, lenOf(p)) }))
-  const keep = (w?: { phase: string } | null) => !w || on.has(w.phase)
-  return {
-    ...clone(doc),
-    start: route[0].starts!,
-    phases,
-    events: doc.events.filter((e) => on.has(e.phase)).map(clone),
-    debts: doc.debts.filter((d) => keep(d.start)).map(clone),
-    savings: doc.savings.filter((x) => keep(x.start)).map(clone),
-    assets: doc.assets.filter((a) => keep(a.bought) && keep(a.sold)).map(clone),
-    policies: (doc.policies || []).filter((x) => on.has(x.phase)).map(clone),
-  }
-}
-/** Put a changed route back into the whole plan. Dates and links stay the map's. */
-export function mergeRoute(doc: LifeDoc, route: LifeDoc): LifeDoc {
-  const next = clone(doc)
-  const on = new Set(route.phases.map((p) => p.id))
-  next.phases = next.phases.map((p) => {
-    const r = route.phases.find((x) => x.id === p.id)
-    if (!r) return p
-    // The budget can change how long a phase lasts; a length not picked yet stays unpicked unless it did.
-    const changed = r.months !== Math.max(1, lenOf(p))
-    return { ...clone(r), starts: p.starts, after: p.after, months: changed ? r.months : p.months, undated: changed ? false : p.undated }
-  })
-  // Phases added while looking at the route join the map after the one before them.
-  route.phases.filter((r) => !next.phases.some((p) => p.id === r.id)).forEach((r) => {
-    const i = route.phases.indexOf(r), prev = route.phases[i - 1]
-    next.phases.push({ ...clone(r), after: prev ? [prev.id] : [], starts: prev ? null : route.start })
-  })
-  const offRoute = (w?: { phase: string } | null) => !!w && !on.has(w.phase)
-  next.events = [...doc.events.filter((e) => !on.has(e.phase)), ...route.events]
-  next.debts = [...doc.debts.filter((d) => offRoute(d.start)), ...route.debts]
-  next.assets = [...doc.assets.filter((a) => offRoute(a.bought) || offRoute(a.sold)), ...route.assets]
-  next.savings = [...doc.savings.filter((x) => offRoute(x.start)), ...route.savings]
-  // What is paid, put in or done with what's left, from a month of a phase on: the route's for its phases.
-  next.policies = [...(doc.policies || []).filter((x) => !on.has(x.phase)), ...(route.policies || [])]
-  next.card_rate = route.card_rate
-  return normalize(next)
-}
 
 /* ---------- changing the map ---------- */
 
+export interface RouteStep { title: string; years?: number; activities?: Activity[]; living?: string | null }
 export interface NewPhase { title: string; idea?: boolean; activities?: Activity[]; living?: string | null; place?: string | null; place_label?: string; kind?: string; months?: number }
 function make(base: Phase | undefined, x: NewPhase, after: string[], start: number): Phase {
   return {
@@ -578,103 +470,4 @@ export function rank(doc: LifeDoc, order: string[]): LifeDoc {
   const next = clone(doc)
   order.forEach((id, i) => { const p = byId(next, id); if (p) p.rank = i })
   return next
-}
-
-/* ---------- skips: an option with no phase of its own ---------- */
-
-/*
- * A skip is a phase that takes no time (`pass`): one option beside the others, leading on to whatever
- * they lead to, which can be one phase, a group of options, or nothing yet. It never shows as a phase
- * in lists, the budget, or now and next.
- */
-
-/** Can the options after `key` get a skip? Not when they already have one. */
-export const canAddSkip = (doc: LifeDoc, key: string | null) => !!key && !optionsOf(doc, key).some((q) => q.pass)
-/** Add a skip to the options after `key`, as the last choice. With one option, that phase becomes optional. */
-export function addSkip(doc: LifeDoc, key: string): { doc: LifeDoc; id: string } {
-  if (!canAddSkip(doc, key)) return { doc, id: '' }
-  const options = optionsOf(doc, key), after = key.startsWith('g:') ? key.slice(2).split(',') : [key]
-  const next = rank(doc, options.map((q) => q.id))
-  // Where it leads: where the options meet again (a phase, or a group of options), or what follows a lone option.
-  const meet = options.length > 1 ? rejoinOf(next, options) : undefined
-  const onto = options.length === 1 ? kids(next, options[0].id) : meet ? (meet.after!.length > 1 ? optionsOf(next, splitOf(meet)!) : [meet]) : []
-  const id = phaseId()
-  next.phases.push({ id, title: tr('goals.plan_map.skip', 'Skip'), kind: 'other', pass: true, months: 1, lines: [], goals: [], after, rank: options.length, starts: options[0]?.starts })
-  for (const k of onto) { const x = byId(next, k.id)!; x.after = [...(x.after || []), id] }
-  return { doc: normalize(next), id }
-}
-/** "Make it optional": the phase becomes one option and a skip past it another. */
-export const canMakeOptional = (doc: LifeDoc, id: string) => { const p = byId(doc, id); return !!p && !p.pass && !!p.after?.length && canAddSkip(doc, splitOf(p)) }
-export function makeOptional(doc: LifeDoc, id: string): LifeDoc {
-  const p = byId(doc, id)
-  return p && canMakeOptional(doc, id) ? addSkip(doc, splitOf(p)!).doc : doc
-}
-/** A lifted line of phases dropped onto a skip: it takes the skip's place and becomes that option. */
-export function fillSkip(lifted: LifeDoc, ids: string[], skipId: string): LifeDoc {
-  const next = clone(lifted), head = byId(next, ids[0]), sk = byId(next, skipId), shape = heldShape(next, ids)
-  if (!head || !sk?.pass || !shape.tail) return lifted
-  head.after = sk.after || []
-  head.rank = sk.rank
-  for (const k of next.phases) if (k.after?.includes(skipId)) k.after = [...new Set(k.after.map((a) => (a === skipId ? shape.tail! : a)))]
-  next.phases = next.phases.filter((x) => x.id !== skipId)
-  return normalize(next)
-}
-
-/* ---------- careers: the usual ways in, added as ideas ---------- */
-
-export interface CareerLike { code: string; title: string; job_zone?: number | null }
-export interface RouteStep { title: string; years?: number; activities?: Activity[]; living?: string | null }
-export interface CareerRoute { common?: boolean; why?: string; steps: RouteStep[] }
-
-const plural = (t: string) => t.replace(/s$/, '')
-/** "Electrician" from O*NET's "Electricians"; drops "and ..." tails so names stay short. */
-export const careerName = (title: string) => plural(title.split(/,| and /)[0].trim())
-
-/**
- * The routes people usually take into a career, from its O*NET job zone. The trades (SOC 47, 49 and
- * 51) start with an apprenticeship. The last step is working in the career, linked to it by code.
- * Shared with the career explorer, so both offer the same routes.
- */
-export function routesFor(career: CareerLike): CareerRoute[] {
-  const name = careerName(career.title), jz = career.job_zone || 3
-  const job: RouteStep = { title: name, years: 3, activities: [{ kind: 'working', career: career.code, career_title: career.title }], living: 'roommates' }
-  const school = (title: string, years: number, level: string): RouteStep => ({ title, years, living: level === 'uni' || level === 'grad' ? 'dorm' : 'family', activities: [{ kind: 'learning', level, schools: [] }] })
-  if (jz >= 5) return [{ common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), school(tr('lit.graph.graduate_school', 'Graduate school'), 2, 'grad'), job] }]
-  if (jz === 4) return [
-    { common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), job] },
-    { why: tr('goals.graph.cheaper_first_two_years_then', 'Cheaper first two years, then transfer'), steps: [school(tr('lit.graph.community_college', 'Community college'), 2, 'cc'), school(tr('lit.graph.university', 'University'), 2, 'uni'), job] },
-  ]
-  if (jz === 3) {
-    if (/^(47|49|51)/.test(career.code)) return [
-      { common: true, steps: [{ title: `${name} apprentice`, years: 4, living: 'family', activities: [{ kind: 'working', career: career.code, career_title: career.title, apprentice: true }] }, job] },
-      { steps: [school(tr('lit.graph.trade_school', 'Trade school'), 1, 'trade'), job] },
-    ]
-    return [
-      { common: true, why: tr('goals.graph.a_short_program_at_a', 'A short program at a community college or training center'), steps: [school(tr('lit.graph.certificate_program', 'Certificate program'), 1, 'trade'), job] },
-      { why: tr('goals.graph.an_associate_degree_which_can', 'An associate degree, which can also count toward a 4-year degree later'), steps: [school('2-year degree', 2, 'cc'), job] },
-      { why: tr('goals.graph.some_people_start_in_a', 'Some people start in a related job'), steps: [{ title: tr('goals.graph.entry_job', 'Entry job'), years: 2, living: 'roommates', activities: [{ kind: 'working' }] }, job] },
-    ]
-  }
-  return [
-    { common: true, why: tr('goals.graph.most_learn_on_the_job', 'Most learn on the job'), steps: [job] },
-    { steps: [school(tr('lit.graph.short_training_program', 'Short training program'), 1, 'trade'), job] },
-  ]
-}
-
-/**
- * Add a route's steps after a phase as dashed ideas, one after another. If something already comes
- * after that phase, the route is a new option beside it.
- */
-export function addRoute(doc: LifeDoc, afterId: string, steps: RouteStep[], start?: number): { doc: LifeDoc; ids: string[] } {
-  let next = doc, from = afterId
-  const ids: string[] = []
-  const after = byId(doc, afterId)
-  const k = after ? kids(doc, afterId) : []
-  let at = start ?? (after ? (k.length ? starts(k[0]) : Math.max(thisMonthIndex() + 1, starts(after) + Math.max(1, after.months || 12))) : thisMonthIndex() + 1)
-  for (const s of steps) {
-    const r = addAfter(next, from, { title: s.title, activities: s.activities, living: s.living, months: Math.round((s.years || 3) * 12) }, at)
-    next = r.doc; from = r.id; ids.push(r.id)
-    at += Math.round((s.years || 3) * 12)
-  }
-  return { doc: next, ids }
 }
