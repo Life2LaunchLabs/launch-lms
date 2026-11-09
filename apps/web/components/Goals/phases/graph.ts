@@ -282,6 +282,7 @@ export function routeDoc(doc: LifeDoc, id: string): LifeDoc {
     phases,
     events: doc.events.filter((e) => on.has(e.phase)).map(clone),
     debts: doc.debts.filter((d) => keep(d.start)).map(clone),
+    savings: doc.savings.filter((x) => keep(x.start)).map(clone),
     assets: doc.assets.filter((a) => keep(a.bought) && keep(a.sold)).map(clone),
     policies: (doc.policies || []).filter((x) => on.has(x.phase)).map(clone),
   }
@@ -306,7 +307,7 @@ export function mergeRoute(doc: LifeDoc, route: LifeDoc): LifeDoc {
   next.events = [...doc.events.filter((e) => !on.has(e.phase)), ...route.events]
   next.debts = [...doc.debts.filter((d) => offRoute(d.start)), ...route.debts]
   next.assets = [...doc.assets.filter((a) => offRoute(a.bought) || offRoute(a.sold)), ...route.assets]
-  next.savings = route.savings
+  next.savings = [...doc.savings.filter((x) => offRoute(x.start)), ...route.savings]
   // What is paid, put in or done with what's left, from a month of a phase on: the route's for its phases.
   next.policies = [...(doc.policies || []).filter((x) => !on.has(x.phase)), ...(route.policies || [])]
   next.card_rate = route.card_rate
@@ -397,6 +398,7 @@ export function remove(doc: LifeDoc, id: string): LifeDoc {
   next.events = next.events.filter((e) => e.phase !== id)
   next.assets = next.assets.filter((a) => a.bought?.phase !== id)
   next.debts = next.debts.filter((d) => d.start?.phase !== id)
+  next.savings = next.savings.filter((x) => x.start?.phase !== id)
   return normalize(next)
 }
 

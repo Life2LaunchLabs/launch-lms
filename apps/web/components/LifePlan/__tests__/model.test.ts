@@ -114,34 +114,24 @@ describe('loan story', () => {
 })
 
 describe('what is left each month', () => {
-  const debts = [loan({ id: 'a', rate: 5, balance: 5000 }), loan({ id: 'b', rate: 20, balance: 500 })]
-  test('goes to savings by default', () => {
-    const p = run(plan(debts))
-    expect(p.extraDebt[0]).toBe(0)
-    expect(p.left[0]).toBe(2800)
+  test('stays in the savings account', () => {
+    const p = run(plan([loan({ id: 'b', rate: 20, balance: 500 })]))
+    expect(p.left[0]).toBe(2900)
   })
 
-  test('goes to the debt picked until it is paid off, which starts a new stretch, then to savings', () => {
-    const doc = { ...plan(debts), policies: [{ id: 'p', target: 'left', phase: 'p1', month: 0, to: 'b' }] }
+  test('an account opened later takes nothing and does not show until its month, which starts a stretch', () => {
+    const doc = plan([])
+    doc.savings.push({ id: 'k', kind: 'savings', title: 'IRA', balance: 50, rate: 0, monthly: 100, main: false, start: { phase: 'p2', month: 6 } })
     const p = run(doc)
-    expect(Math.round(p.extraDebt[0])).toBe(408)
-    const b = p.debtsAt(0).find((d) => d.debt.id === 'b')!
-    expect(b.paidOffAt).toBe(0)
-    expect(p.leftTo(1).to).toBe('b')
-    expect(p.extraDebt[1]).toBe(0)
-    expect(stretches(doc, doc.phases[0], p).map((s) => s.m0)).toEqual([0, 1])
-  })
-
-  test('a choice made after a payoff follows the payoff', () => {
-    const pol = (to: string, after: string | null, month: number) => ({ id: `${to}${month}`, target: 'left', phase: 'p1', month, to, after })
-    const doc = { ...plan(debts), policies: [pol('b', null, 0), pol('a', 'b', 1)] }
-    const p = run(doc)
-    expect(Math.round(p.extraDebt[1])).toBe(2900)
-    // Pay the card off later (send what is left to savings first): the follow-up waits for the payoff.
-    const later = { ...doc, policies: [pol('a', 'b', 1)] }
-    const q = run(later)
-    expect(q.extraDebt[1]).toBe(0)
-    expect(q.leftTo(1).to).toBe('save')
+    const before = p.savingsAt(12 + 5).find((x) => x.id === 'k')!
+    expect(before.open).toBe(false)
+    expect(p.put[12 + 5]).toBe(0)
+    const after = p.savingsAt(12 + 6).find((x) => x.id === 'k')!
+    expect(after.open).toBe(true)
+    expect(after.balance).toBe(50)
+    expect(p.put[12 + 6]).toBe(100)
+    expect(p.savingsAt(0).find((x) => x.id === 'k')!.open).toBe(false)
+    expect(stretches(doc, doc.phases[1], p).map((x) => x.m0)).toEqual([0, 6])
   })
 })
 

@@ -154,6 +154,8 @@ class Saving(Doc):
     # A 401(k): percent of pay put in, and the employer match up to this percent of pay.
     pct: float | None = Field(default=None, ge=0, le=100)
     match: float | None = Field(default=None, ge=0, le=100)
+    # The month it is opened (its balance lands then); None means it's there when the plan starts.
+    start: When | None = None
 
 
 class Policy(Doc):

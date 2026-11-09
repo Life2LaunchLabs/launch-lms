@@ -26,11 +26,12 @@ export function PerTag({ per }: { per: string }) {
   return <span className="ml-px text-[0.62em] font-semibold text-muted-foreground">/{tr(`budget.per_short.${per}`, per)}</span>
 }
 
-/** Three numbers at the top: income after tax, expenses, and what's left over (or short). */
+/** Three numbers at the top: income after tax, expenses (loan payments included), and what goes into savings (or the gap). */
 export default function BudgetSummary() {
   const { per } = useLife()
   const { inn, out, left, debtPay, saving, pay } = useTotals()
   const short = left < -0.5
+  const saved = saving + left
   const tile = 'min-w-0 rounded-xl bg-card px-2.5 py-1.5 shadow-[0_1px_0_hsl(var(--border))] sm:px-3.5 sm:py-2'
   const big = 'block truncate text-base font-extrabold tabular-nums tracking-tight sm:text-xl'
   return (
@@ -42,22 +43,23 @@ export default function BudgetSummary() {
         </div>
         <div className={tile}>
           <span className="block truncate text-[11px] font-semibold text-muted-foreground sm:text-xs">{tr('lit.budget_table.expenses', 'Expenses')}</span>
-          <b className={big}>{money(fromMonthly(out, per))}<PerTag per={per} /></b>
+          <b className={big}>{money(fromMonthly(out + debtPay, per))}<PerTag per={per} /></b>
         </div>
         <div className={`${tile} ${short ? 'bg-red-500/10 dark:bg-red-500/[0.13]' : ''}`}>
           <span className={`flex items-center gap-1 text-[11px] font-semibold sm:text-xs ${short ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-            <span className="truncate">{short ? tr('budget.summary.gap', 'Gap') : tr('budget.summary.left_over', 'Left over')}</span>
-            {(debtPay > 0 || saving > 0) && (
+            <span className="truncate">{short ? tr('budget.summary.gap', 'Gap') : tr('budget.summary.saving', 'Saving')}</span>
+            {saving > 0.5 && (
               <Popover>
                 <PopoverTrigger className="rounded-full p-0.5 hover:bg-muted" aria-label={tr('budget.summary.how_this_adds_up', 'How this adds up')}><Info className="size-3.5" /></PopoverTrigger>
                 <PopoverContent side="bottom" align="end" className="w-64 p-3 text-xs text-muted-foreground">
-                  {tr('budget.budget_table.after', 'After')}{' '}{[debtPay > 0 && tr('budget.summary.to_debt', '{{money}} to debt', { money: money(fromMonthly(debtPay, per)) }), saving > 0 && tr('budget.summary.into_savings', '{{money}} into savings', { money: money(fromMonthly(saving, per)) })].filter(Boolean).join(tr('budget.summary.and', ' and '))}.{' '}
-                  {short ? tr('budget.summary.short_comes_from', 'The gap comes out of savings, then goes on a card.') : tr('budget.budget_table.what_s_left_goes_into', 'What\'s left goes into your savings account.')}
+                  {short
+                    ? tr('budget.summary.gap_after', 'After {{m}} into your accounts, more goes out than comes in. The gap comes out of your savings account, then goes on a card.', { m: money(fromMonthly(saving, per)) })
+                    : tr('budget.summary.saving_split', '{{a}} into your accounts and {{b}} left in your savings account.', { a: money(fromMonthly(saving, per)), b: money(fromMonthly(left, per)) })}
                 </PopoverContent>
               </Popover>
             )}
           </span>
-          <b className={`${big} ${short ? 'text-red-600 dark:text-red-400' : ''}`}>{left > 0.5 ? '+' : ''}{money(fromMonthly(left, per))}<PerTag per={per} /></b>
+          <b className={`${big} ${short ? 'text-red-600 dark:text-red-400' : ''}`}>{short ? money(fromMonthly(left, per)) : `${saved > 0.5 ? '+' : ''}${money(fromMonthly(saved, per))}`}<PerTag per={per} /></b>
         </div>
       </div>
     </section>

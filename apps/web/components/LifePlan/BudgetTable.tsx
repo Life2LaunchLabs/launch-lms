@@ -11,6 +11,7 @@ import { PerTag, useTotals } from './BudgetSummary'
 import LineEditor, { DatesSheet, datesText, lineTitle, standing, subtitle } from './LineEditor'
 import { RenameSheet } from './MoneyParts'
 import TaxButton from './TaxButton'
+import { DebtPayRow } from './Debts'
 import { fromMonthly, money, phaseOffset } from './model'
 
 import { tr } from '@/lib/tr'
@@ -19,8 +20,10 @@ export { OccupationPicker } from './LineEditor'
 
 /** Income and expenses for the stretch in view, each its own card with its total and an add button above it. */
 export default function BudgetTable() {
-  const { phase, catalog, per, openAdd, openEstimates, readOnly } = useLife()
-  const { lines, pay, tax, inn, out } = useTotals()
+  const { phase, stretch, catalog, per, projection, openAdd, openEstimates, readOnly } = useLife()
+  const { lines, pay, tax, inn, out, debtPay } = useTotals()
+  // Loan payments are expenses too; the loans themselves are cards further down.
+  const paying = projection.debtsAt(stretch.g0).filter((d) => d.state === 'owing' && d.payment > 0.005)
   const order = (catalog?.categories || []).map((c) => c.key)
   const rank = (l: Line) => { const i = order.indexOf(l.cat); return i < 0 ? order.length : i }
 
@@ -39,7 +42,8 @@ export default function BudgetTable() {
         </div>
         <div className="rounded-2xl bg-card px-3 shadow-[0_1px_0_hsl(var(--border))] sm:px-4">
           {rows.map((l, i) => <Row key={l.id} line={l} first={i === 0} />)}
-          {!rows.length && <p className="py-4 text-sm text-muted-foreground">{side === 'in' ? tr('budget.budget_table.nothing_coming_in_yet', 'Nothing coming in yet.') : tr('budget.budget_table.nothing_going_out_yet', 'Nothing going out yet.')}</p>}
+          {side === 'out' && paying.map((d, i) => <DebtPayRow key={d.debt.id} at={d} first={!rows.length && i === 0} />)}
+          {!rows.length && (side === 'in' || !paying.length) && <p className="py-4 text-sm text-muted-foreground">{side === 'in' ? tr('budget.budget_table.nothing_coming_in_yet', 'Nothing coming in yet.') : tr('budget.budget_table.nothing_going_out_yet', 'Nothing going out yet.')}</p>}
         </div>
       </section>
     )
@@ -52,7 +56,7 @@ export default function BudgetTable() {
         <Button variant="brand" size="sm" onClick={openEstimates}><Sparkles size={15} />{tr('budget.budget_table.see_estimates', 'See estimates')}</Button>
       </div> : null}
       {section('in', tr('lit.budget_table.income', 'Income'), inn)}
-      {section('out', tr('lit.budget_table.expenses', 'Expenses'), out)}
+      {section('out', tr('lit.budget_table.expenses', 'Expenses'), out + debtPay)}
     </div>
   )
 }
