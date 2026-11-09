@@ -257,3 +257,11 @@ def test_purge_deletes_only_the_cohort_and_keeps_its_mail(db):
     assert cohorts.serialize(db, cohorts.get_cohort(db, cohort["cohort_uuid"]))["status"] == "purged"
     with pytest.raises(HTTPException):
         cleanup.purge(db, cohort["cohort_uuid"], dry_run=False)
+
+
+def test_main_org_insights_leave_personas_out_for_real_viewers(db):
+    from src.services.insights.context import _learner_memberships
+
+    maya = _persona(db, _cohort(db))
+    assert maya["user_id"] not in {row.user_id for row in _learner_memberships(db, 1, 1)}
+    assert maya["user_id"] in {row.user_id for row in _learner_memberships(db, 1, maya["user_id"])}
