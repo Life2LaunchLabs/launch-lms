@@ -38,6 +38,10 @@ def issue_handoff(request: Request, body: HandoffRequest, response: Response,
     email = payload.get("sub") if payload else None
     if not email or not db_session.exec(select(User).where(User.email == email)).first():
         raise HTTPException(status_code=401, detail="Authentication required")
+    from src.services.user_tests.sessions import is_test_session
+    if is_test_session(payload):
+        # A handoff mints an ordinary login, which test personas never get.
+        raise HTTPException(status_code=403, detail="Test personas can't switch sites. Open them from User tests.")
     try:
         ticket = issue_ticket(email, body.target_host, body.state, body.return_path)
     except ValueError as error:

@@ -10,6 +10,16 @@ from src.services.demo.access import visitor_credentials
 def refresh_demo(
     request: Request, response: Response, payload: dict, set_cookies, expiry_ms
 ) -> dict | None:
+    from src.services.user_tests.sessions import is_test_session
+
+    if is_test_session(payload):
+        # Test personas keep their test claims; the cohort and the admin are rechecked first.
+        from src.services.user_tests.sessions import refresh as refresh_test_session
+
+        with Session(engine) as control:
+            access = refresh_test_session(control, payload)
+        set_cookies(response, access, request.cookies.get("refresh_token_cookie", ""), request)
+        return {"access_token": access, "expiry": expiry_ms()}
     if payload.get("demo_session"):
         with Session(engine) as control:
             credentials = visitor_credentials(control, payload["demo_session"])

@@ -54,6 +54,7 @@ from src.routers import (
 from src.routers import life_plans as life_plans_router_module
 from src.routers import data_export as data_export_router_module
 from src.routers import user_language as user_language_router_module
+from src.routers import user_tests as user_tests_router_module
 from src.routers import content_translation as content_translation_router_module
 from src.routers import learning as learning_router_module
 from src.routers import badges as badges_router_module
@@ -86,6 +87,7 @@ from src.services.dev.dev import isDevModeEnabledOrRaise
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(demo.router, prefix="/demo", tags=["demo"])
 v1_router.include_router(demo_guide.router, prefix="/demo", tags=["demo"])
+v1_router.include_router(user_tests_router_module.router, prefix="/user_tests", tags=["user_tests"])
 
 # Helper dependency to reject API token access
 async def get_non_api_token_user(user = Depends(get_current_user)):

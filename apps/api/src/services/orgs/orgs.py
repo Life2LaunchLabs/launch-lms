@@ -164,7 +164,9 @@ async def create_org(
 
     db_session.add(user_org)
     db_session.commit()
-    db_session.refresh(user_org)
+
+    from src.services.user_tests.personas import record_org  # a persona's org joins its test cohort
+    record_org(db_session, current_user.id, org.id, getattr(current_user, "email", None))
 
     # Invalidate session cache so the new org role is picked up immediately
     from src.routers.users import _invalidate_session_cache
@@ -187,10 +189,7 @@ async def create_org(
     db_session.refresh(org_settings)
 
     # Get org config
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    result = db_session.exec(statement)
-
-    org_config = result.first()
+    org_config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)).first()
 
     if org_config is None:
         logging.error(f"Organization {org.id} has no config")

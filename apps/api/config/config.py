@@ -33,6 +33,8 @@ class GeneralConfig(BaseModel):
     require_email_verification: bool
     auth_oauth_enabled: bool
     env: str
+    # Platform › User tests: test personas, captured test mail and admin login links. Off by default.
+    user_tests_enabled: bool = False
 
     @property
     def email_verification_required(self) -> bool:
@@ -165,6 +167,8 @@ def get_launchlms_config() -> LaunchLMSConfig:
         if env_require_email_verification != "None"
         else yaml_config.get("general", {}).get("require_email_verification", False)
     )
+
+    user_tests_enabled = os.environ.get("LAUNCHLMS_USER_TESTS_ENABLED", "").lower() in ("true", "1", "yes")
 
     # OAuth sign-in/sign-up is globally disabled by default.
     env_auth_oauth_enabled = os.environ.get("LAUNCHLMS_AUTH_OAUTH_ENABLED", "None")
@@ -402,6 +406,7 @@ def get_launchlms_config() -> LaunchLMSConfig:
             require_email_verification=bool(require_email_verification),
             auth_oauth_enabled=bool(auth_oauth_enabled),
             env=launchlms_env,
+            user_tests_enabled=user_tests_enabled,
         ),
         hosting_config=hosting_config,
         database_config=database_config,
