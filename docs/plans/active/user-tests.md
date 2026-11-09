@@ -37,8 +37,9 @@ way for a test to email, impersonate or change a real person.
 - [x] Phase 1: cohorts, personas, test mail, login links, console, banner, tests.
 - [x] Turn on for unstable (`LAUNCHLMS_USER_TESTS_ENABLED=true` in the infra repo).
 - [x] Phase 2: cohort seal, blocked persona actions, search filters, leak audit, purge.
-- [ ] Phase 2 follow-ups: Test badge and filter in Platform › Users and Organizations; personas
-  left out of main-org insights and plan join counts.
+- [x] Personas left out of Insights for real viewers (`insights/context.py` population).
+- [ ] Maybe later: a Test badge in Platform › Users and Organizations (persona emails on the
+  test domain already show who they are; both tables are over the size limit).
 - [ ] Phase 3: stories, stages, run board, connector tools, checkpoints per stage.
 - [ ] Phase 4: demos from story checkpoints.
 - [ ] Phase 5: replays and scale to 30.

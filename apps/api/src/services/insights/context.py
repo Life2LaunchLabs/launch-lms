@@ -113,8 +113,10 @@ class Population:
         return {user_id for user_id, status in self.status.items() if status in statuses}
 
 
-def _learner_memberships(db: Session, org_id: int) -> list[UserOrganization]:
-    rows = db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id)).all()
+def _learner_memberships(db: Session, org_id: int, viewer_id: int | None = None) -> list[UserOrganization]:
+    from src.services.user_tests.visibility import visible_people  # test personas never count for real viewers
+
+    rows = db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, visible_people(db, viewer_id, UserOrganization.user_id))).all()
     roles = {int(role.id): role for role in db.exec(select(Role).where(col(Role.id).in_({row.role_id for row in rows}))).all()} if rows else {}  # type: ignore[arg-type]
     return [row for row in rows if not is_staff_role(roles.get(row.role_id))]
 
@@ -135,7 +137,7 @@ def population(db: Session, viewer: PublicUser, org_id: int) -> Population:
     """Who this viewer may count in ``org_id``. Learners can't use Insights."""
     require_org_admin(viewer.id, org_id, db)
     see_reports = is_org_admin(viewer.id, org_id, db, "see_reports")
-    memberships = _learner_memberships(db, org_id)
+    memberships = _learner_memberships(db, org_id, viewer.id)
     status = {int(row.user_id): (row.status or "active") for row in memberships}
     if not see_reports:
         visible = staff_learners(db, org_id, viewer.id)
