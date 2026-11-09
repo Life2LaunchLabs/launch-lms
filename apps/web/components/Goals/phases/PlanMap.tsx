@@ -11,9 +11,10 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PlanCompare from './PlanCompare'
 import PhaseSheet from './PhaseSheet'
-import { freshStart, HOLD_KEY, PhaseCard, RankSheet, SkipPane, Tray, undated, type Env } from './MapParts'
+import { freshStart, HOLD_KEY, PhaseCard, RankSheet, SkipPane, undated, type Env } from './MapParts'
+import { Carousel, lit, RAIL, RailRow } from './Rail'
 import { PendingCard } from './PendingCard'
-import { pagePinned, scrollSpeed, type Moving } from './dragPage'
+import { pagePinned, scrollSpeed, toMiddle, type Moving } from './dragPage'
 import { kindFor, suggestTitle } from './setup'
 import { addSkip, canAddSkip, fillSkip, makeOptional } from './skips'
 import { bottomOf, byId, endsKey, heldShape, join, liftLine, kids, lift, loosePiece, mi, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, split, splitOf, whenOf, ym, type RouteStep } from './graph'
@@ -81,7 +82,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   // Which option each split shows is remembered on this device. Opening on a phase shows the way to it.
   React.useEffect(() => {
     if (focus && byId(doc, focus)) { const now = getShown(), next = showWayTo(doc, focus, now); if (JSON.stringify(next) !== JSON.stringify(now)) setShownStore(next) }
-    if (focus) requestAnimationFrame(() => document.querySelector(`[data-card="${focus}"]`)?.scrollIntoView({ block: 'center' }))
+    if (focus) requestAnimationFrame(() => toMiddle(focus, 'auto'))
   }, [focus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // A career's route waiting to be placed.
@@ -138,7 +139,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // Show the way to where it landed, so it never seems to vanish into an option that isn't showing. In
     // line before a split, the split now hangs off the piece: it keeps showing the option it showed.
     showWay(placed, ids[0], inline ? { from: at, to: heldShape(placed, ids).tail || ids[ids.length - 1] } : undefined)
-    requestAnimationFrame(() => document.querySelector(`[data-card="${ids[0]}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+    requestAnimationFrame(() => toMiddle(ids[0], 'smooth'))
     // Something new assumes nothing: its date and the rest stay blank until the learner picks them.
     // A career's route keeps its steps' usual lengths; a new phase takes no time until its length is picked.
     if (moving.route) { setRoute(null); setPending({ doc: placed, id: ids[0], name: moving.label || '', ids }) }
@@ -369,40 +370,45 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   /* ---------- the stack ---------- */
   // The gap between two cards; while something is picked up, a place to drop it. `at` can be a split's
   // ends (after every option).
-  const gapAt = (key: string, a?: Phase, b?: Phase, at?: string, title?: string) => {
+  const gapAt = (key: string, a?: Phase, b?: Phase, at?: string, title?: string, depth = 0, litOn = !!a && whenOf(base, a) === 'done') => {
     const spot = at || a?.id
+    let node = <div key={key} className="h-3" />
     if (moving && spot && !(a && held.has(a.id)) && !(b && held.has(b.id)) && !(a && whenOf(base, a) === 'done')) {
       const name = title || a!.title, mode = b ? 'in' : 'after'
       // A gap keeps exactly its size (the map never moves under your finger); the one you're over lights up.
-      return <div key={key} data-slot={spot} data-modes={mode} data-title={name} className="group flex h-3 items-center">
+      node = <div key={key} data-slot={spot} data-modes={mode} data-title={name} className="group flex h-3 items-center">
         <span className="h-1 w-full rounded-full transition-[background-color,transform] group-data-[hot]:scale-y-[2.5] group-data-[hot]:bg-foreground" />
       </div>
     }
-    return <div key={key} className="h-3" />
+    return depth ? node : <RailRow key={key} top={litOn} bottom={litOn}>{node}</RailRow>
   }
-  const card = (p: Phase) => {
-    if (p.pass) return <SkipPane key={`c-${p.id}`} skip={p} next={kids(base, p.id)} moving={!!moving} />
-    if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} onLength={lengthPending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
-      onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
-    const wh = whenOf(base, p), lp = moving ? byId(without, p.id) : undefined
+  const card = (p: Phase, depth: number, first: boolean, last: boolean) => {
+    const wh = whenOf(base, p)
+    const rail = (node: React.ReactNode, mark?: 'dot') => depth ? node : <RailRow key={`c-${p.id}`} top={first ? null : lit(wh)} bottom={last ? null : wh === 'done'} mark={mark} when={wh}>{node}</RailRow>
+    if (p.pass) return rail(<SkipPane key={`c-${p.id}`} skip={p} next={kids(base, p.id)} moving={!!moving} />)
+    if (pending?.id === p.id) return rail(<PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} onLength={lengthPending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
+      onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />, 'dot')
+    const lp = moving ? byId(without, p.id) : undefined
     // Even the phase right after the one moving can take it as an option: worked out as if it were gone.
     const key = lp && splitOf(lp)
     const opt = moving && key && wh !== 'done' && wh !== 'now' && !held.has(p.id) ? key : undefined
     const edges = moving && !held.has(p.id) ? { before: linear && later(p), after: wh !== 'done' } : undefined
-    return <PhaseCard key={`c-${p.id}`} p={p} env={env} opt={opt} edges={edges} onOpen={() => setSheet({ id: p.id })} onLift={(x, y) => liftCard(p, x, y)} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
+    return rail(<PhaseCard key={`c-${p.id}`} p={p} env={env} opt={opt} edges={edges} onOpen={() => router.push(getUriWithOrg(orgslug, routePaths.org.phase(p.id)))} onMenu={() => setSheet({ id: p.id })} onLift={(x, y) => liftCard(p, x, y)} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />, 'dot')
   }
 
-  // A way down from p. `stop` holds the phases where an outer split's options meet again.
-  const chain = (p: Phase, stop: Set<string>, depth: number): React.ReactNode[] => {
+  // A way down from p. `stop` holds the phases where an outer split's options meet again. Only the top
+  // level draws the timeline beside it; inside a split, the split's own bars do.
+  const chain = (p: Phase, stop: Set<string>, depth: number, top = true): React.ReactNode[] => {
     if (stop.has(p.id)) return []
-    const out: React.ReactNode[] = [card(p)]
     // A route not kept yet is one card: the way on is from its last phase.
     const end = (pending?.ids && pending.id === p.id && byId(base, pending.ids[pending.ids.length - 1])) || p
     const all = kids(base, end.id), k = all.filter((x) => !stop.has(x.id))
-    if (!all.length) return moving ? [...out, gapAt(`l-${end.id}`, end)] : out
-    if (!k.length) return moving ? [...out, gapAt(`l-${end.id}`, end, all[0])] : out
-    if (k.length === 1) return [...out, gapAt(`l-${end.id}`, end, k[0]), ...chain(k[0], stop, depth)]
-    return [...out, gapAt(`l-${end.id}`, end, k[0]), ...band(end.id, end.title, k, stop, depth)]
+    const last = !k.length && !(moving && depth === 0)
+    const out: React.ReactNode[] = [card(p, depth, top, last)]
+    if (!all.length) return moving ? [...out, gapAt(`l-${end.id}`, end, undefined, undefined, undefined, depth)] : out
+    if (!k.length) return moving ? [...out, gapAt(`l-${end.id}`, end, all[0], undefined, undefined, depth)] : out
+    if (k.length === 1) return [...out, gapAt(`l-${end.id}`, end, k[0], undefined, undefined, depth), ...chain(k[0], stop, depth, false)]
+    return [...out, gapAt(`l-${end.id}`, end, k[0], undefined, undefined, depth), ...band(end.id, end.title, k, stop, depth)]
   }
   const band = (key: string, after: string, options: Phase[], stop: Set<string>, depth: number): React.ReactNode[] => {
     const sel = picked(key, options), i = options.indexOf(sel)
@@ -410,42 +416,41 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const group = meet ? (meet.after!.length > 1 ? optionsOf(base, splitOf(meet)!) : [meet]) : []
     const inner = new Set([...stop, ...group.map((x) => x.id)])
     const label = `Options after ${after}`
+    const begun = (key.startsWith('g:') ? key.slice(2).split(',') : [key]).some((id) => { const x = byId(base, id); return !!x && whenOf(base, x) === 'done' })
     // A skip is an option with no phase of its own: straight on to where the other options lead.
     const skipOf = (q: Phase) => isSkip(q)
     const skip = options.find(skipOf), canSkip = !moving && canAddSkip(base, key)
-    const out: React.ReactNode[] = [<section key={`b-${key}`} aria-label={label} className="grid min-w-0 grid-cols-[minmax(0,1fr)]" style={wide ? undefined : { marginLeft: -gut.l, marginRight: -gut.r }}>
-      <div data-band-key={key} className={cn('flex items-center gap-2 rounded-full py-1.5 transition-colors data-[hot]:bg-foreground/10', wide && 'mx-auto w-full max-w-[620px]')} style={pad}>
-        <span className="shrink-0 text-[13px] font-extrabold text-muted-foreground">{tr('goals.decision.options', 'Options')}</span>
-        <div role="tablist" aria-label={label} className="-my-0.5 flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none]">
-          {options.map((q) => <button key={q.id} type="button" role="tab" data-chip={q.id} data-held={held.has(q.id) || undefined} aria-selected={q === sel} onClick={() => setShown(key, q.id)}
-            className={cn('shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-extrabold data-[ins=l]:!shadow-[-7px_0_0_-3px_hsl(var(--foreground))] data-[ins=r]:!shadow-[7px_0_0_-3px_hsl(var(--foreground))] shadow-[0_0_0_1.5px_hsl(var(--border))]', q === sel ? 'bg-foreground text-background shadow-none' : 'bg-card', (q.idea || skipOf(q)) && q !== sel && 'border-2 border-dashed border-border shadow-none')}>{skipOf(q) ? tr('goals.plan_map.skip', 'Skip') : q.title}</button>)}
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><button type="button" aria-label={tr('goals.plan_map.more_for_tolowercase', 'More for {{toLowerCase}}', { toLowerCase: label.toLowerCase() })} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {canSkip ? <DropdownMenuItem onSelect={() => { void addSkipTo(key) }}><CornerRightDown size={15} aria-hidden="true" />{tr('goals.plan_map.add_a_skip', 'Add a skip')}</DropdownMenuItem> : null}
-            <DropdownMenuItem onSelect={() => newOption(key)}><Plus size={15} aria-hidden="true" />{tr('goals.decision.add_an_option', 'Add an option')}</DropdownMenuItem>
-            {skip ? <DropdownMenuItem onSelect={() => { void apply((d) => remove(d, skip.id)) }}><X size={15} aria-hidden="true" />{tr('goals.plan_map.remove_the_skip', 'Remove the skip')}</DropdownMenuItem> : null}
-            <DropdownMenuItem onSelect={() => setComparing(options.map((q) => q.id))}><Scale size={15} aria-hidden="true" />{tr('goals.plan_compare.compare', 'Compare')}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setRanking({ key, options })}><ArrowUpDown size={15} aria-hidden="true" />{tr('goals.plan_map.rank', 'Rank')}</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    const side = depth || wide ? 0 : gut.l
+    const chips = <div data-band-key={key} className="flex items-center gap-2 rounded-full py-1.5 transition-colors data-[hot]:bg-foreground/10">
+      <div role="tablist" aria-label={label} className="-my-0.5 flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none]" ref={(el) => { const c = el?.querySelector<HTMLElement>('[aria-selected="true"]'); if (el && c && (c.offsetLeft < el.scrollLeft || c.offsetLeft + c.offsetWidth > el.scrollLeft + el.clientWidth)) el.scrollTo({ left: c.offsetLeft - 8, behavior: 'smooth' }) }}>
+        {options.map((q) => <button key={q.id} type="button" role="tab" data-chip={q.id} data-held={held.has(q.id) || undefined} aria-selected={q === sel} onClick={() => setShown(key, q.id)}
+          className={cn('shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-extrabold transition-colors data-[ins=l]:!shadow-[-7px_0_0_-3px_hsl(var(--foreground))] data-[ins=r]:!shadow-[7px_0_0_-3px_hsl(var(--foreground))] shadow-[0_0_0_1.5px_hsl(var(--border))]', q === sel ? 'bg-foreground text-background shadow-none' : 'bg-transparent', skipOf(q) && q !== sel && 'border-2 border-dashed border-border shadow-none')}>{skipOf(q) ? tr('goals.plan_map.skip', 'Skip') : q.title}</button>)}
       </div>
-      <div className={cn('border-y-[1.5px] border-border py-3', depth % 2 ? 'bg-card' : 'bg-muted/40')}>
-        <div className={cn(wide && 'mx-auto w-full max-w-[620px]')}>
-          <Tray env={env} trayKey={key} wide={wide} index={i} onIndex={(j) => setShown(key, options[j].id)}
-            panes={options.map((q) => ({ id: q.id, phase: q, node: <div style={pad}>{chain(q, inner, depth + 1)}</div> }))} />
-        </div>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><button type="button" aria-label={tr('goals.plan_map.more_for_tolowercase', 'More for {{toLowerCase}}', { toLowerCase: label.toLowerCase() })} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {canSkip ? <DropdownMenuItem onSelect={() => { void addSkipTo(key) }}><CornerRightDown size={15} aria-hidden="true" />{tr('goals.plan_map.add_a_skip', 'Add a skip')}</DropdownMenuItem> : null}
+          <DropdownMenuItem onSelect={() => newOption(key)}><Plus size={15} aria-hidden="true" />{tr('goals.decision.add_an_option', 'Add an option')}</DropdownMenuItem>
+          {skip ? <DropdownMenuItem onSelect={() => { void apply((d) => remove(d, skip.id)) }}><X size={15} aria-hidden="true" />{tr('goals.plan_map.remove_the_skip', 'Remove the skip')}</DropdownMenuItem> : null}
+          <DropdownMenuItem onSelect={() => setComparing(options.map((q) => q.id))}><Scale size={15} aria-hidden="true" />{tr('goals.plan_compare.compare', 'Compare')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setRanking({ key, options })}><ArrowUpDown size={15} aria-hidden="true" />{tr('goals.plan_map.rank', 'Rank')}</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+    const paneStyle = { paddingRight: depth || wide ? 0 : gut.r }
+    const out: React.ReactNode[] = [<section key={`b-${key}`} aria-label={label} className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)]', wide && !depth && 'mx-auto w-full max-w-[620px]')} style={side ? { marginLeft: -gut.l, marginRight: -gut.r } : undefined}>
+      <div style={side ? { paddingLeft: gut.l, paddingRight: gut.r } : undefined}>{depth ? chips : <RailRow top={begun} bottom={begun} mark="diamond">{chips}</RailRow>}</div>
+      <Carousel trayKey={key} index={i} onIndex={(j) => setShown(key, options[j].id)} rejoin={!!meet} gutter={side} inset={side + (depth ? 0 : RAIL)} moving={!!moving} rail={!depth}
+        panes={options.map((q) => ({ id: q.id, node: <div style={paneStyle}>{chain(q, inner, depth + 1)}</div> }))} />
     </section>]
     if (meet && !group.every((x) => stop.has(x.id))) {
-      out.push(gapAt(`j-${key}`))
-      out.push(...(group.length > 1 ? band(splitOf(meet)!, group.map((g) => byId(base, g.after![0])?.title).join(' or '), group, stop, depth) : chain(meet, stop, depth)))
+      out.push(gapAt(`j-${key}`, undefined, undefined, undefined, undefined, depth, lit(whenOf(base, meet))))
+      out.push(...(group.length > 1 ? band(splitOf(meet)!, group.map((g) => byId(base, g.after![0])?.title).join(' or '), group, stop, depth) : chain(meet, stop, depth, false)))
     } else if (!meet) {
       // After every option: something they all lead to.
       // Worked out without the phase being moved, so an option's last phase can still go after them all.
       const ends = endsKey(without, key)
-      if (ends && !ends.split(/[:,]/).some((id) => held.has(id))) out.push(gapAt(`j-${key}`, undefined, undefined, ends, `all ${options.length} options`))
+      if (ends && !ends.split(/[:,]/).some((id) => held.has(id))) out.push(gapAt(`j-${key}`, undefined, undefined, ends, `all ${options.length} options`, depth, false))
     }
     return out
   }
@@ -454,7 +459,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   const sheetPhase = sheet ? byId(doc, sheet.id) : undefined
 
   return <div className="flex flex-col gap-4">
-    <div className={cn('grid gap-3', wide && 'mx-auto w-full max-w-[620px]')}>{title}<WayBar doc={doc} /></div>
+    <div className={cn('grid gap-3', wide && 'mx-auto w-full max-w-[620px]')}>{title}{/* Floats, so showing another option never moves the map under a swipe or a carried phase. */}<div className="pointer-events-none sticky top-3 z-30 h-0"><div className="pointer-events-auto rounded-2xl bg-background shadow-lg empty:hidden"><WayBar doc={doc} /></div></div></div>
     <div ref={wrap} className={cn('flex flex-col pb-28', wide && '[&>:not(section)]:mx-auto [&>:not(section)]:w-full [&>:not(section)]:max-w-[620px]', moving && 'pb-40')}>
       {first ? chain(first, new Set(), 0) : null}
     </div>
