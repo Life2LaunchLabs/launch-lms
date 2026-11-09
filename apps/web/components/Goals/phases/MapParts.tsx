@@ -14,7 +14,7 @@ import { lengthText, spanText } from './PhaseTime'
 import { tr } from '@/lib/tr'
 export interface Env { base: LifeDoc; photos?: Record<string, PlacePhoto>; wide: boolean; moving: Moving | null; held: Set<string>; later: (p: Phase) => boolean }
 
-const CARD = 'relative isolate flex h-[180px] w-full select-none flex-col justify-end overflow-hidden rounded-[22px] text-left text-white shadow-[0_18px_34px_-24px_rgb(0_0_0/0.7)]'
+const CARD = 'relative isolate flex h-[140px] w-full select-none flex-col justify-end overflow-hidden rounded-[22px] text-left text-white shadow-[0_18px_34px_-24px_rgb(0_0_0/0.7)]'
 const Shade = () => <span className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,transparent_30%,rgb(8_20_30/0.8))]" aria-hidden="true" />
 
 /**
@@ -64,105 +64,29 @@ export function useHoldDrag(enabled: boolean, onLift: (x: number, y: number) => 
 }
 
 /**
- * A phase's card. Press and hold (touch) or drag it (mouse) to move it; a tap opens its details.
- * `opt` marks it as a place to drop a new option beside it while something is being moved.
+ * A phase's card. Tap it to open the phase; the dots open its menu. Press and hold (touch) or drag it
+ * (mouse) to move it. `opt` marks it as a place to drop a new option beside it while something moves.
  */
-export function PhaseCard({ p, env, opt, edges, onOpen, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; opt?: string; edges?: { before: boolean; after: boolean }; onOpen: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
+export function PhaseCard({ p, env, opt, edges, onOpen, onMenu, onLift, onLiftMove, onLiftEnd }: { p: Phase; env: Env; opt?: string; edges?: { before: boolean; after: boolean }; onOpen: () => void; onMenu: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void }) {
   const wh = whenOf(env.base, p)
   const { holding, ...drag } = useHoldDrag(env.later(p) && !env.moving, onLift, onLiftMove, onLiftEnd)
 
-  return <button type="button" data-card={p.id} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-before={edges?.before || undefined} data-after={edges?.after || undefined} data-title={p.title} onClick={onOpen} title={`${p.title} · ${spanText(env.base, p)}`}
-    {...drag}
-    className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))] data-[edge=t]:shadow-[0_-8px_0_-2px_hsl(var(--foreground))] data-[edge=b]:shadow-[0_8px_0_-2px_hsl(var(--foreground))]',
-      holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
-    <PhaseCover phase={p} photos={env.photos} past={wh === 'done'} className={cn('absolute inset-0 -z-20 h-full w-full', p.idea && 'saturate-[.45]')} />
-    <Shade />
-    {p.idea ? <span className="pointer-events-none absolute inset-0 z-10 rounded-[22px] border-[3px] border-dashed border-white/85" aria-hidden="true" /> : null}
-    {wh === 'now' ? <span className="absolute left-3.5 top-3 rounded-full bg-[var(--org-primary-color)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-on-primary-color,#fff)]">{tr('goals.map_parts.you_re_here', 'You’re here')}</span>
-      : p.idea ? <span className="absolute left-3.5 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900">{tr('goals.phase_page.idea', 'Idea')}</span> : null}
-    <span className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-black/35 backdrop-blur" aria-hidden="true"><MoreHorizontal size={16} /></span>
-    <span className="grid min-w-0 gap-0.5 px-4 pb-3.5">
-      <b className="truncate text-[clamp(22px,3vw,27px)] font-extrabold leading-tight tracking-tight">{p.title}</b>
-      <small className="truncate text-[12.5px] font-bold opacity-90">{[p.undated ? monthText(p.starts!) : `${monthText(p.starts!)} · ${lengthText(lenOf(p))}`, p.place_label?.split(',')[0]].filter(Boolean).join(' · ')}</small>
-    </span>
-  </button>
-}
-
-/**
- * A split's options: one shows, the others are a swipe away. On desktop (`wide`) the options either
- * side peek out from behind the shown one, muted; click one to bring it forward.
- */
-export function Tray({ env, trayKey, panes, index, onIndex, wide }: { env: Env; trayKey: string; panes: { id: string; phase: Phase; node: React.ReactNode }[]; index: number; onIndex: (j: number) => void; wide?: boolean }) {
-  const [dragging, setDragging] = React.useState(false)
-  const tray = React.useRef<HTMLDivElement>(null), track = React.useRef<HTMLDivElement>(null), label = React.useRef<HTMLSpanElement>(null)
-  const d = React.useRef<{ x: number; y: number; on: boolean; dx: number; w: number; id: number } | null>(null)
-  const n = panes.length, i = Math.min(index, n - 1)
-  // While something is dragged, holding it near either edge flips to the next option (see PlanMap).
-  const marks = { 'data-tray': trayKey, 'data-opts': panes.map((q) => q.id).join(','), 'data-index': i }
-  const tf = (at: number, dx = 0) => `translateX(calc(${-at * 100}% + ${dx}px))`
-  React.useLayoutEffect(() => { if (track.current && !wide) track.current.style.transform = tf(i) })
-
-  if (wide) {
-    const peek = (j: number, side: -1 | 1) => {
-      const q = panes[j]?.phase
-      if (!q) return null
-      return <button key={`peek-${q.id}`} type="button" onClick={() => onIndex(j)} aria-label={`Show ${q.title}`} title={q.title}
-        className={cn(CARD, 'absolute inset-x-0 top-0 z-0 opacity-50 transition hover:opacity-70')} style={{ transform: `translateX(${side * 84}px) scale(.88)` }}>
-        <PhaseCover phase={q} photos={env.photos} className="absolute inset-0 -z-20 h-full w-full saturate-[.4]" /><Shade />
-      </button>
-    }
-    return <div className="relative" {...marks}>
-      {peek(i - 1, -1)}{peek(i + 1, 1)}
-      <div key={panes[i].id} className="relative z-10 animate-in fade-in duration-300">{panes[i].node}</div>
-    </div>
-  }
-
-  const down = (e: React.PointerEvent) => {
-    const ne = e.nativeEvent as PointerEvent & { trayTaken?: boolean }
-    if (ne.trayTaken || env.moving || e.button > 0) return
-    ne.trayTaken = true
-    d.current = { x: e.clientX, y: e.clientY, on: false, dx: 0, w: tray.current?.offsetWidth || 300, id: e.pointerId }
-  }
-  const reset = () => { setDragging(false); if (tray.current) tray.current.style.height = ''; if (track.current) track.current.style.transition = '' }
-  const move = (e: React.PointerEvent) => {
-    const g = d.current
-    if (!g) return
-    // A phase picked up to move takes over the finger: put the tray back.
-    if (env.moving) { d.current = null; if (g.on) { reset(); if (track.current) track.current.style.transform = tf(i) } return }
-    const dx = e.clientX - g.x, dy = e.clientY - g.y
-    if (!g.on) {
-      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { d.current = null; return }
-      if (Math.abs(dx) < 10) return
-      g.on = true
-      const on = track.current?.children[i] as HTMLElement | undefined
-      if (tray.current && on) tray.current.style.height = `${on.offsetHeight}px`
-      tray.current?.setPointerCapture(g.id)
-      setDragging(true)
-    }
-    const to = i + (dx < 0 ? 1 : -1), there = to >= 0 && to < n
-    g.dx = there ? dx : dx / 4
-    if (track.current) { track.current.style.transition = 'none'; track.current.style.transform = tf(i, g.dx) }
-    if (label.current) label.current.textContent = there ? `Swap in ${panes[to].phase.title}` : tr('lit.map_parts.nothing_that_way', 'Nothing that way')
-  }
-  const up = () => {
-    const g = d.current
-    d.current = null
-    if (!g?.on) return
-    const stop = (ev: MouseEvent) => { ev.stopPropagation(); ev.preventDefault() }
-    window.addEventListener('click', stop, { capture: true, once: true })
-    setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50)
-    reset()
-    const j = i + (g.dx < 0 ? 1 : -1)
-    const to = Math.abs(g.dx) > g.w * 0.22 && j >= 0 && j < n ? j : i
-    if (track.current) track.current.style.transform = tf(to)
-    if (to !== i) onIndex(to)
-  }
-  return <div ref={tray} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} className="relative touch-pan-y overflow-hidden" {...marks}>
-    <span ref={label} aria-hidden="true" className={cn('pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full bg-foreground px-3 py-1 text-xs font-extrabold text-background transition-opacity', dragging ? 'opacity-100' : 'opacity-0')} />
-    <div ref={track} className="flex items-start transition-transform duration-300 ease-out" style={{ transform: tf(i) }}>
-      {panes.map((pane, j) => <div key={pane.id} aria-hidden={j !== i || undefined}
-        className={cn('w-full min-w-0 shrink-0', j !== i && !dragging && 'invisible h-0 overflow-hidden')}>{pane.node}</div>)}
-    </div>
+  return <div className="relative">
+    <button type="button" data-card={p.id} data-when={wh} data-held={(env.held.has(p.id) && !env.moving?.loose) || undefined} data-opt={opt} data-before={edges?.before || undefined} data-after={edges?.after || undefined} data-title={p.title} onClick={onOpen} title={`${p.title} · ${spanText(env.base, p)}`}
+      {...drag}
+      className={cn(CARD, '[-webkit-touch-callout:none] transition-[transform,opacity,box-shadow] duration-200 data-[hot]:scale-[.96] data-[hot]:shadow-[0_0_0_4px_hsl(var(--foreground))] data-[edge=t]:shadow-[0_-8px_0_-2px_hsl(var(--foreground))] data-[edge=b]:shadow-[0_8px_0_-2px_hsl(var(--foreground))]',
+        holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
+      <PhaseCover phase={p} photos={env.photos} past={wh === 'done'} className="absolute inset-0 -z-20 h-full w-full" />
+      <Shade />
+      {wh === 'now' ? <span className="absolute left-3.5 top-3 rounded-full bg-[var(--org-primary-color)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-[var(--org-on-primary-color,#fff)]">{tr('goals.map_parts.you_re_here', 'You’re here')}</span>
+        : p.idea ? <span className="absolute left-3.5 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900">{tr('goals.phase_page.idea', 'Idea')}</span> : null}
+      <span className="grid min-w-0 gap-0.5 px-4 pb-3">
+        <b className="truncate text-[clamp(21px,3vw,25px)] font-extrabold leading-tight tracking-tight">{p.title}</b>
+        <small className="truncate text-[12.5px] font-bold opacity-90">{[p.undated ? monthText(p.starts!) : `${monthText(p.starts!)} · ${lengthText(lenOf(p))}`, p.place_label?.split(',')[0]].filter(Boolean).join(' · ')}</small>
+      </span>
+    </button>
+    {env.moving ? null : <button type="button" onClick={onMenu} aria-label={tr('goals.map_parts.more_for_title', 'More for {{title}}', { title: p.title })}
+      className="absolute right-2 top-2 grid size-10 place-items-center rounded-full text-white"><span className="grid size-8 place-items-center rounded-full bg-black/35 backdrop-blur"><MoreHorizontal size={16} aria-hidden="true" /></span></button>}
   </div>
 }
 

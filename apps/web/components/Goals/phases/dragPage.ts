@@ -22,3 +22,6 @@ export function scrollSpeed({ y, y0 }: { y: number; y0: number }) {
 
 /** A piece being moved: a phase on the map (and what follows it in its option), or a new route waiting to be placed. */
 export type Moving = { head: string; only: boolean; label?: string; loose?: { doc: LifeDoc; ids: string[] }; dragging?: boolean; fresh?: boolean; route?: boolean }
+
+/** Scrolls the page (never a split's options sideways, which would change the one showing) to bring a card to the middle. */
+export const toMiddle = (id: string, behavior: ScrollBehavior) => { const r = document.querySelector(`[data-card="${id}"]`)?.getBoundingClientRect(); if (r) window.scrollBy({ top: r.top + r.height / 2 - innerHeight / 2, behavior }) }
