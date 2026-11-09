@@ -12,7 +12,8 @@ function TestEntryInner() {
   const [failure, setError] = useState('')
   const ended = searchParams.get('ended') === '1'
   const error = ticket || failure ? failure
-    : ended ? 'This test session could not move to that site. Open the persona again from User tests.'
+    : searchParams.get('closed') === '1' ? 'This test run has ended, so the persona is signed out.'
+      : ended ? 'This test session could not move to that site. Open the persona again from User tests.'
       : 'This login link is incomplete. Make a new one in User tests.'
   const started = useRef(false)
 

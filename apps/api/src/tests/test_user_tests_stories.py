@@ -104,6 +104,11 @@ def test_a_persona_sees_its_own_stages_and_mail_but_no_briefs(db):
     db.commit()
     view = stories.persona_view(db, db.get(TestPersona, maya["user_id"]), db.get(User, maya["user_id"]))
     assert view["unread_mail"] == 1 and view["persona"]["name"] == "Maya"
+    # An admin reading it in Test mail leaves it unread for Maya.
+    from src.services.user_tests import mail as test_mail
+
+    test_mail.read_mail(db, db.exec(select(TestMail.id)).first(), as_persona=False)
+    assert stories.persona_view(db, db.get(TestPersona, maya["user_id"]), db.get(User, maya["user_id"]))["unread_mail"] == 1
     assert [stage["status"] for stage in view["stages"]] == ["not_started", "waiting"]
     assert "brief" not in str(view) and "Counselor" not in str(view)
 

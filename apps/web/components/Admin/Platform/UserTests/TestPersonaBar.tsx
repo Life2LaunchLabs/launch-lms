@@ -1,9 +1,10 @@
 'use client'
 import { useState, useSyncExternalStore } from 'react'
 import dynamic from 'next/dynamic'
+import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { signOut } from '@components/Contexts/AuthContext'
-import { readTestPersonaCookie } from '@services/userTests/userTests'
+import { fetchMyRun, readTestPersonaCookie } from '@services/userTests/userTests'
 
 const PersonaPanel = dynamic(() => import('./PersonaPanel'), { ssr: false })
 
@@ -25,11 +26,22 @@ export default function TestPersonaBar() {
   const [panel, setPanel] = useState(false)
 
   const userId = session?.data?.user?.id
+  const active = Boolean(marker && userId && marker.userId === userId)
+  // Shared with the panel. A 401 means the run closed (or the session ended): sign out, never show broken pages.
+  const { data: run } = useSWR(active ? 'user_tests/me' : null, fetchMyRun, {
+    refreshInterval: 30000,
+    shouldRetryOnError: false,
+    onError: (error: { status?: number }) => {
+      if (error?.status !== 401) return
+      clearMarker()
+      void signOut({ callbackUrl: '/auth/test-entry?closed=1' })
+    },
+  })
   if (!marker || !userId) return null
   if (marker.userId !== userId) { clearMarker(); return null }
   return <div role="status" className="sticky top-0 z-[60] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-300 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
     <span>Test persona: {marker.name || 'unnamed'}{marker.cohort ? ` · ${marker.cohort}` : ''}</span>
-    <button type="button" className="underline underline-offset-2" aria-expanded={panel} onClick={() => setPanel(!panel)}>My test run</button>
+    <button type="button" className="underline underline-offset-2" aria-expanded={panel} onClick={() => setPanel(!panel)}>My test run{run?.unread_mail ? ` (${run.unread_mail} new email)` : ''}</button>
     <button type="button" className="underline underline-offset-2" onClick={() => { clearMarker(); void signOut({ callbackUrl: '/auth/login' }) }}>Sign out</button>
     {panel ? <PersonaPanel onClose={() => setPanel(false)} /> : null}
   </div>

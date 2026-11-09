@@ -177,7 +177,7 @@ def list_mail(
 
 @router.get("/mail/{mail_id}")
 def read_mail(mail_id: int, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
-    return mail.read_mail(db, mail_id)
+    return mail.read_mail(db, mail_id, as_persona=False)
 
 
 @router.post("/personas/{user_id}/login-link")
