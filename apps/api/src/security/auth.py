@@ -201,7 +201,7 @@ async def get_current_user(
     if is_test_session(payload):
         # Test personas: opened only by a platform admin's login link, rechecked every request.
         from src.services.user_tests.sessions import enter as enter_test_session
-        enter_test_session(db_session, payload)
+        enter_test_session(db_session, payload, request)
 
     # Step 1: Check for API token (Bearer lh_...)
     auth_header = request.headers.get("Authorization", "").strip()

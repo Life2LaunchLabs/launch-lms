@@ -3,7 +3,7 @@ import { RequestBody, errorHandling } from '@services/utils/ts/requests'
 
 /* Platform › User tests: /api/v1/user_tests. Platform admins only, except redeemLoginLink. */
 
-export type TestCohortStatus = 'open' | 'closed' | 'expired'
+export type TestCohortStatus = 'open' | 'closed' | 'expired' | 'purged'
 
 export type TestCohort = {
   cohort_uuid: string
@@ -65,6 +65,12 @@ export const closeCohort = (cohortUuid: string) => call<TestCohort>(`cohorts/${c
 export const addPersonas = (cohortUuid: string, personas: NewPersona[]) =>
   call<{ personas: TestPersona[] }>(`cohorts/${cohortUuid}/personas`, 'POST', { personas })
 export const readTestMail = (mailId: number) => call<TestMail>(`mail/${mailId}`)
+
+export type TestLeak = { table: string; key: Record<string, number | string>; worlds: string[] }
+export type TestAudit = { clean: boolean; count: number; leaks: TestLeak[]; checked_at: string }
+export type TestPurge = { dry_run: boolean; counts: { personas: number; orgs: number; mail_kept: number }; audit: TestAudit; status?: 'purged' }
+export const auditCohort = (cohortUuid: string) => call<TestAudit>(`cohorts/${cohortUuid}/audit`)
+export const purgeCohort = (cohortUuid: string, dryRun: boolean) => call<TestPurge>(`cohorts/${cohortUuid}/purge?dry_run=${dryRun}`, 'POST')
 export const createLoginLink = (userId: number, targetPath = '/') =>
   call<LoginLink>(`personas/${userId}/login-link`, 'POST', { target_path: targetPath })
 /** Through the web's own route, which sets this browser's cookies for the persona. */

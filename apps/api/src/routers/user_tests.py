@@ -12,7 +12,7 @@ from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
-from src.services.user_tests import cohorts, mail, personas, tickets
+from src.services.user_tests import cleanup, cohorts, mail, personas, tickets
 from src.services.user_tests.sessions import current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
@@ -66,6 +66,18 @@ def get_cohort(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session 
 @router.post("/cohorts/{cohort_uuid}/close")
 def close_cohort(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
     return cohorts.close_cohort(db, cohort_uuid)
+
+
+@router.get("/cohorts/{cohort_uuid}/audit")
+def audit_cohort(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    """Anything tying the cohort to a real person or org. Zero is the target."""
+    return cleanup.audit(db, cohort_uuid)
+
+
+@router.post("/cohorts/{cohort_uuid}/purge")
+def purge_cohort(cohort_uuid: str, dry_run: bool = True, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    """Delete a closed cohort's personas and orgs. A dry run (the default) only counts."""
+    return cleanup.purge(db, cohort_uuid, dry_run=dry_run)
 
 
 @router.post("/cohorts/{cohort_uuid}/personas", status_code=201)

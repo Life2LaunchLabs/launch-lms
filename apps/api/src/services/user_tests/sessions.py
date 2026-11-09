@@ -5,6 +5,7 @@ platform admin who opened it) and ``test_cohort``. Any token for a test address 
 them is refused, so a persona can never hold an ordinary login.
 """
 
+import re
 from contextvars import ContextVar
 from datetime import datetime, timedelta
 
@@ -65,9 +66,30 @@ def validate(db: Session, payload: dict) -> tuple[User, TestPersona, TestCohort]
     return user, persona, cohort
 
 
-def enter(db: Session, payload: dict) -> TestPersona:
+# What a persona session never does, whatever a page offers: these reach past the cohort, bill, or
+# hand out a way in. The cohort seal also refuses changes to a persona's address and password.
+WRITES = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+BLOCKED = (
+    (WRITES, re.compile(r"/api/v1/users/change_password/")),
+    (frozenset({"DELETE"}), re.compile(r"/api/v1/users/user_id/")),
+    (WRITES | {"GET"}, re.compile(r"/api/v1/orgs/[^/]+/api-tokens")),
+    (WRITES, re.compile(r"/api/v1/payments/")),
+    (WRITES, re.compile(r"/api/v1/auth/(google|sso)/")),
+    (WRITES, re.compile(r"/api/v1/oauth/")),
+)
+
+
+def refuse_blocked(method: str, path: str) -> None:
+    for methods, pattern in BLOCKED:
+        if method.upper() in methods and pattern.match(path):
+            raise HTTPException(403, {"code": "test_persona_blocked", "message": "Test personas can't do this."})
+
+
+def enter(db: Session, payload: dict, request=None) -> TestPersona:
     """Called by authentication for every request that carries a test session."""
     user, persona, _ = validate(db, payload)
+    if request is not None:
+        refuse_blocked(request.method, request.url.path)
     current_test_persona.set(user.id)
     now = datetime.utcnow()
     if not persona.last_active_at or now - persona.last_active_at > timedelta(minutes=1):

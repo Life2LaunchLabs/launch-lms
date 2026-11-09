@@ -35,8 +35,10 @@ way for a test to email, impersonate or change a real person.
 ## Progress
 
 - [x] Phase 1: cohorts, personas, test mail, login links, console, banner, tests.
-- [ ] Turn on for unstable (`LAUNCHLMS_USER_TESTS_ENABLED=true` in the infra repo).
-- [ ] Phase 2: cohort boundary guard, discovery filters, leak audit, purge.
+- [x] Turn on for unstable (`LAUNCHLMS_USER_TESTS_ENABLED=true` in the infra repo).
+- [x] Phase 2: cohort seal, blocked persona actions, search filters, leak audit, purge.
+- [ ] Phase 2 follow-ups: Test badge and filter in Platform › Users and Organizations; personas
+  left out of main-org insights and plan join counts.
 - [ ] Phase 3: stories, stages, run board, connector tools, checkpoints per stage.
 - [ ] Phase 4: demos from story checkpoints.
 - [ ] Phase 5: replays and scale to 30.
@@ -49,8 +51,23 @@ way for a test to email, impersonate or change a real person.
   the email domain.
 - The test tables are FORBIDDEN in demo checkpoints, so they never reach a visitor copy.
 - Login tickets live in the database, not Redis, so redeeming is one atomic update.
-- Until phase 2 a persona can still reach real members of the main org (for example by
-  messaging them). Run phase 1 on unstable only.
+- The cohort boundary is a data-layer seal (`services/user_tests/seal.py`), not a check per
+  router. After every flush it looks at new rows, and changed people columns, and refuses any
+  row that names people or orgs from two worlds (the real world or one cohort). It follows a
+  row into the conversation, goal, portfolio or resource comment it belongs to, and reads
+  invited addresses. The main org is shared and never counts on its own, except for resource
+  comments, which real learners read. Test worlds can't write listings, plan requests,
+  payments, API tokens, OAuth grants or SSO, and a persona can't change its email, password
+  or platform role. Rows naming only real people never match, so real traffic pays two indexed
+  lookups per flush.
+- What the seal can't see (a main-org group or conversation whose members mix worlds), the
+  leak audit finds. Purge runs only on a closed cohort with a clean audit, so cascading deletes
+  never reach a real person's rows.
+- A persona session is refused password changes, account deletion, API tokens, payments,
+  Google and SSO sign-in, and OAuth grants (`sessions.BLOCKED`).
+- Real users never see personas or test orgs in search or Connect people search
+  (`services/user_tests/visibility.py`). Platform admins still see them in Threads and the
+  platform lists.
 
 ## Verification
 
@@ -60,3 +77,9 @@ way for a test to email, impersonate or change a real person.
   for personas refused by authentication, refresh keeping claims, mail captured (to a
   test address, from a persona to an outside address, and when saving fails) and real
   mail still delivered.
+- `apps/api/src/tests/test_user_tests_seal.py`: the seal refusing persona joins of real orgs,
+  real joins of test orgs, mixed conversations and messages, cross-cohort links, invitations
+  across worlds, persona email and password changes, test-org plan requests, persona comments
+  on main-org resources and staff inbox messages to personas; blocked persona paths; hidden
+  personas and test orgs; the audit finding a mixed group and blocking purge; purge deleting
+  only the cohort and keeping its mail.

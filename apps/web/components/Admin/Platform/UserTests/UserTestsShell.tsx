@@ -18,7 +18,7 @@ export function formatWhen(iso: string | null | undefined) {
 
 export function StatusPill({ status }: { status: string }) {
   const tone = status === 'open' ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground'
-  const label = status === 'open' ? 'Open' : status === 'expired' ? 'Expired' : 'Closed'
+  const label = status === 'open' ? 'Open' : status === 'expired' ? 'Expired' : status === 'purged' ? 'Purged' : 'Closed'
   return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${tone}`}>{label}</span>
 }
 

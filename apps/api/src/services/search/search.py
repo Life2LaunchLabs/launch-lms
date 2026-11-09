@@ -9,6 +9,7 @@ from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannelRead
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
+from src.services.user_tests.visibility import visible_orgs, visible_people
 from src.security.access.access import owner_org_id
 from src.security.org_auth import is_org_member
 from src.services.orgs.orgs import _build_discover_org_read
@@ -125,6 +126,11 @@ async def search_across_org(
         )
         .params(pattern=f"%{search_query}%")
     )
+
+    # Test personas and test orgs never show up for real users (services/user_tests/visibility.py).
+    viewer_id = None if isinstance(current_user, (AnonymousUser, APITokenUser)) else current_user.id
+    organizations_query = organizations_query.where(visible_orgs(db_session, viewer_id, Organization.id))
+    users_query = users_query.where(visible_people(db_session, viewer_id, User.id))
 
     owner_id = owner_org_id(db_session)
     if isinstance(current_user, AnonymousUser):
