@@ -4,6 +4,7 @@ import { getConfig } from '@services/config/config'
 import { getDomainFromRequest, REFRESH_TOKEN_COOKIE } from '@services/auth/cookies'
 import { isManagedHost, safeHandoffPath } from '@services/routing/handoff'
 import { buildPublicRequestUrl } from '@services/routing/context'
+import { TEST_PERSONA_COOKIE } from '@services/userTests/marker'
 
 export const runtime = 'nodejs'
 
@@ -46,7 +47,11 @@ export async function GET(request: NextRequest) {
       body: JSON.stringify({ target_host: target, state, return_path: returnPath }),
       cache: 'no-store', signal: AbortSignal.timeout(5000),
     })
-    if (!result.ok) return NextResponse.redirect(loginUrl)
+    if (!result.ok) {
+      // A test persona has no password: never send it to a sign-in page.
+      if (request.cookies.get(TEST_PERSONA_COOKIE)) return NextResponse.redirect(new URL('/auth/test-entry?ended=1', targetOrigin))
+      return NextResponse.redirect(loginUrl)
+    }
     const body = await result.json()
     if (typeof body.ticket !== 'string' || !/^[A-Za-z0-9_-]{40,64}$/.test(body.ticket)) {
       throw new Error('Invalid handoff ticket')

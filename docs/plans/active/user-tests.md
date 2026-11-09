@@ -40,7 +40,8 @@ way for a test to email, impersonate or change a real person.
 - [x] Personas left out of Insights for real viewers (`insights/context.py` population).
 - [ ] Maybe later: a Test badge in Platform › Users and Organizations (persona emails on the
   test domain already show who they are; both tables are over the size limit).
-- [ ] Phase 3: stories, stages, run board, connector tools, checkpoints per stage.
+- [x] Phase 3: stories, stages, run board, persona panel, findings report, connector tools.
+- [ ] Checkpoints per stage (moved to phase 4 with demos).
 - [ ] Phase 4: demos from story checkpoints.
 - [ ] Phase 5: replays and scale to 30.
 
@@ -70,6 +71,20 @@ way for a test to email, impersonate or change a real person.
   (`services/user_tests/visibility.py`). Platform admins still see them in Threads and the
   platform lists.
 
+- A cohort's stages live on `test_cohort.stages`; each persona's place in them on
+  `test_persona.stage_state`. A stage can wait for one persona to finish another stage, and the
+  board derives "waiting" instead of storing it. Progress, findings and refused actions go to
+  `test_event`, so the report is one query. A refused action is written on its own connection,
+  because the request that was refused rolls back.
+- A persona's own session reaches `/user_tests/me*` (its stages, its mail, progress and
+  findings) and never sees briefs. The connector tools (`user_tests:read`/`user_tests:write`,
+  platform admins only) let a testing thread do the same for a persona it drives in a browser,
+  and record its progress as `by: tester`. Existing connections reconnect to get the scopes.
+- With host-only cookies, a persona moving to another org's host (her own test org) goes
+  through the normal session handoff, and the ticket carries her test claims: the new host gets
+  a persona session that ends when the first one does, plus the banner cookie. A persona whose
+  handoff fails lands on the test entry page, never a password page.
+
 ## Verification
 
 - `apps/api/src/tests/test_user_tests.py`: real accounts refused by the switch, non-admin
@@ -84,3 +99,10 @@ way for a test to email, impersonate or change a real person.
   on main-org resources and staff inbox messages to personas; blocked persona paths; hidden
   personas and test orgs; the audit finding a mixed group and blocking purge; purge deleting
   only the cohort and keeping its mail.
+- `apps/api/src/tests/test_user_tests_stories.py`: stages waiting on another persona, stuck
+  personas first, stage validation, findings and refused actions in the report, the persona view
+  hiding briefs, and the persona-only routes refusing operators.
+- `apps/api/src/tests/test_user_tests_mcp.py`: a connector creating a cohort, adding personas,
+  setting stages, making a login link, reading mail as text (and not another persona's),
+  reporting progress and findings, reading the report, and purge refusing an open cohort; the
+  tools refused without platform admin, the scope or the flag, and hidden from non-admins.

@@ -1,8 +1,11 @@
 'use client'
-import { useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import dynamic from 'next/dynamic'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { signOut } from '@components/Contexts/AuthContext'
 import { readTestPersonaCookie } from '@services/userTests/userTests'
+
+const PersonaPanel = dynamic(() => import('./PersonaPanel'), { ssr: false })
 
 function clearMarker() {
   const expire = 'launchlms_test_persona=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
@@ -19,12 +22,15 @@ export default function TestPersonaBar() {
   // Cookies have no change event; the session refreshing re-renders this often enough.
   const cookie = useSyncExternalStore(() => () => {}, () => document.cookie, () => '')
   const marker = readTestPersonaCookie(cookie)
+  const [panel, setPanel] = useState(false)
 
   const userId = session?.data?.user?.id
   if (!marker || !userId) return null
   if (marker.userId !== userId) { clearMarker(); return null }
   return <div role="status" className="sticky top-0 z-[60] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-300 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
     <span>Test persona: {marker.name || 'unnamed'}{marker.cohort ? ` · ${marker.cohort}` : ''}</span>
+    <button type="button" className="underline underline-offset-2" aria-expanded={panel} onClick={() => setPanel(!panel)}>My test run</button>
     <button type="button" className="underline underline-offset-2" onClick={() => { clearMarker(); void signOut({ callbackUrl: '/auth/login' }) }}>Sign out</button>
+    {panel ? <PersonaPanel onClose={() => setPanel(false)} /> : null}
   </div>
 }

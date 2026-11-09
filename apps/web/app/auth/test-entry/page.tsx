@@ -10,7 +10,10 @@ function TestEntryInner() {
   // Read once: the address bar is cleared below, which updates the search params.
   const [ticket] = useState(() => searchParams.get('t'))
   const [failure, setError] = useState('')
-  const error = ticket || failure ? failure : 'This login link is incomplete. Make a new one in User tests.'
+  const ended = searchParams.get('ended') === '1'
+  const error = ticket || failure ? failure
+    : ended ? 'This test session could not move to that site. Open the persona again from User tests.'
+      : 'This login link is incomplete. Make a new one in User tests.'
   const started = useRef(false)
 
   useEffect(() => {

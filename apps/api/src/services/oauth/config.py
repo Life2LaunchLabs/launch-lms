@@ -19,6 +19,8 @@ SCOPES = {
     "resources:write": "Add, change and remove resources and resource channels",
     "coach:read": "Platform admins: see the Coach policy",
     "coach:write": "Platform admins: edit the Coach draft (a person releases it)",
+    "user_tests:read": "Platform admins: see user test runs, their board, report and test email",
+    "user_tests:write": "Platform admins: run user tests with test personas",
 }
 DEFAULT_SCOPE = " ".join(SCOPES)
 CODE_TTL_SECONDS = 600
