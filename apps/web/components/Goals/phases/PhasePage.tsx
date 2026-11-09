@@ -28,7 +28,7 @@ import { uploadMediaAsset } from '@services/media/library'
 import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { PhaseStatus } from './PhaseStack'
-import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, remove as removePhase, routeDoc, setLength, setStart, showWayTo, whenOf } from './graph'
+import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAfter, stepsBefore, remove as removePhase, routeDoc, setLength, setStart, showWayTo, whenOf } from './graph'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
 import { activityText, checklist, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
@@ -287,7 +287,7 @@ function Ring({ done, total }: { done: number; total: number }) {
 
 /** Back and next: one small card per way in or out, with the map between them. A next card says where its way ends. */
 function PhaseNav({ doc, phase, orgslug, mapHref }: { doc: LifeDoc; phase: Phase; orgslug: string; mapHref: string }) {
-  const prev = parents(doc, phase), next = kids(doc, phase.id)
+  const prev = stepsBefore(doc, phase), next = stepsAfter(doc, phase.id)
   const endName = (k: Phase) => { const e = endsOf(doc, k.id); return e.length === 1 && e[0].id !== k.id ? ` (${e[0].title})` : e.length > 1 ? ` (${e.length} ways)` : '' }
   const card = 'inline-flex max-w-[260px] shrink-0 items-center gap-2 rounded-2xl bg-card px-3 py-2 text-left text-[13.5px] font-extrabold shadow-[0_0_0_1.5px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]'
   return <nav aria-label={tr('goals.phase_page.phases_before_and_after', 'Phases before and after')} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">

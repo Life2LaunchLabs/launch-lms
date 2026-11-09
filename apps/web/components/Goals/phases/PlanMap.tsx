@@ -16,7 +16,7 @@ import { PendingCard } from './PendingCard'
 import { pagePinned, scrollSpeed, type Moving } from './dragPage'
 import { kindFor, suggestTitle } from './setup'
 import {
-  addSkip, bottomOf, byId, endOf, endsKey, fillSkip, heldShape, isSkip, join, liftLine, kids, lift, loosePiece, makeOptional, mi, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, removeSkip, showWayTo, skipTarget, split, splitOf, whenOf, ym, type RouteStep,
+  addSkip, bottomOf, canAddSkip, byId, endOf, endsKey, fillSkip, heldShape, isSkip, join, liftLine, kids, lift, loosePiece, makeOptional, mi, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, showWayTo, split, splitOf, whenOf, ym, type RouteStep,
 } from './graph'
 import { WayBar } from './PhaseTime'
 import { getShown, setShown as setShownStore, showOption, useShown } from './way'
@@ -143,7 +143,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // A new phase sits right after where it was dropped, until the learner picks its date.
     if (moving.fresh && !where.before && byId(lifted, ids[0])!.undated !== false) { lifted = structuredClone(lifted); byId(lifted, ids[0])!.starts = ym(freshStart(lifted, at, inline)) }
     // Dropped on a skip: it becomes that option, in the skip's place.
-    let placed = where.skipTo ? fillSkip(lifted, ids, at, where.skipTo) : where.before ? placeBefore(lifted, ids, where.before) : place(lifted, ids, at, inline)
+    let placed = where.skipTo ? fillSkip(lifted, ids, where.skipTo) : where.before ? placeBefore(lifted, ids, where.before) : place(lifted, ids, at, inline)
     // Among a split's options it goes where it was dropped: first, last, or right after the card it went beside.
     const key = !inline && !where.before && !where.skipTo && splitOf(byId(placed, ids[0])!)
     if (key && (where.index != null || where.beside)) {
@@ -162,6 +162,12 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     if (moving.route) { setRoute(null); setPending({ doc: placed, id: ids[0], name: moving.label || '', ids }) }
     else if (moving.fresh) setPending({ doc: undated(placed, ids), id: ids[0], name: pending?.id === ids[0] ? pending.name : '' })
     else await change((next) => { Object.assign(next, placed) })
+  }
+  /** A skip in a split, from its menu: shown right away, so its dates are the ones on screen. */
+  const addSkipTo = async (key: string) => {
+    let id = ''
+    await apply((d) => { const r = addSkip(d, key); id = r.id; return r.doc })
+    if (id) setShown(key, id)
   }
   /** A new phase straight into a split, from its menu: it waits there for a name. */
   const newOption = (key: string) => {
@@ -223,7 +229,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     // Still over where it came from: it goes back there.
     const skip = el?.closest<HTMLElement>('[data-skip-to]')
     if (home) spot = { at: '', inline: false, home: true, text: tr('lit.plan_map.put_it_back', 'Put it back'), el: home }
-    else if (skip) spot = { at: skip.dataset.skipFrom!, inline: false, skipTo: skip.dataset.skipTo!, el: skip, text: tr('goals.plan_map.instead_of_skipping', 'Here, instead of skipping') }
+    else if (skip) spot = { at: skip.dataset.skipTo!, inline: false, skipTo: skip.dataset.skipTo!, el: skip, text: tr('goals.plan_map.instead_of_skipping', 'Here, instead of skipping') }
     else if (row) {
       // Among the options, where the finger is: before the first, between two, or after the last.
       const chips = [...row.querySelectorAll<HTMLElement>('[data-chip]:not([data-held])')]
@@ -393,6 +399,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     return <div key={key} className="h-3" />
   }
   const card = (p: Phase) => {
+    if (p.pass) return <SkipPane key={`c-${p.id}`} skip={p} next={kids(base, p.id)} moving={!!moving} />
     if (pending?.id === p.id) return <PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} onLength={lengthPending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
       onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />
     const wh = whenOf(base, p), lp = moving ? byId(without, p.id) : undefined
@@ -422,8 +429,8 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const inner = new Set([...stop, ...group.map((x) => x.id)])
     const label = `Options after ${after}`
     // A skip is an option with no phase of its own: straight on to where the other options lead.
-    const skipOf = (q: Phase) => !key.startsWith('g:') && isSkip(base, q, options)
-    const skip = options.find(skipOf), canSkip = !skip && !moving && skipTarget(base, key)
+    const skipOf = (q: Phase) => isSkip(q)
+    const skip = options.find(skipOf), canSkip = !moving && canAddSkip(base, key)
     const out: React.ReactNode[] = [<section key={`b-${key}`} aria-label={label} className="grid min-w-0 grid-cols-[minmax(0,1fr)]" style={wide ? undefined : { marginLeft: -gut.l, marginRight: -gut.r }}>
       <div data-band-key={key} className={cn('flex items-center gap-2 rounded-full py-1.5 transition-colors data-[hot]:bg-foreground/10', wide && 'mx-auto w-full max-w-[620px]')} style={pad}>
         <span className="shrink-0 text-[13px] font-extrabold text-muted-foreground">{tr('goals.decision.options', 'Options')}</span>
@@ -434,9 +441,9 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button type="button" aria-label={tr('goals.plan_map.more_for_tolowercase', 'More for {{toLowerCase}}', { toLowerCase: label.toLowerCase() })} className="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><MoreVertical size={18} aria-hidden="true" /></button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {canSkip ? <DropdownMenuItem onSelect={() => { setShown(key, canSkip.id); void apply((d) => addSkip(d, key)) }}><CornerRightDown size={15} aria-hidden="true" />{tr('goals.plan_map.add_a_skip', 'Add a skip (straight to {{title}})', { title: canSkip.title })}</DropdownMenuItem> : null}
+            {canSkip ? <DropdownMenuItem onSelect={() => { void addSkipTo(key) }}><CornerRightDown size={15} aria-hidden="true" />{tr('goals.plan_map.add_a_skip', 'Add a skip')}</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={() => newOption(key)}><Plus size={15} aria-hidden="true" />{tr('goals.decision.add_an_option', 'Add an option')}</DropdownMenuItem>
-            {skip ? <DropdownMenuItem onSelect={() => { void apply((d) => removeSkip(d, key, skip.id)) }}><X size={15} aria-hidden="true" />{tr('goals.plan_map.remove_the_skip', 'Remove the skip')}</DropdownMenuItem> : null}
+            {skip ? <DropdownMenuItem onSelect={() => { void apply((d) => remove(d, skip.id)) }}><X size={15} aria-hidden="true" />{tr('goals.plan_map.remove_the_skip', 'Remove the skip')}</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={() => setComparing(options.map((q) => q.id))}><Scale size={15} aria-hidden="true" />{tr('goals.plan_compare.compare', 'Compare')}</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setRanking({ key, options })}><ArrowUpDown size={15} aria-hidden="true" />{tr('goals.plan_map.rank', 'Rank')}</DropdownMenuItem>
           </DropdownMenuContent>
@@ -445,7 +452,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
       <div className={cn('border-y-[1.5px] border-border py-3', depth % 2 ? 'bg-card' : 'bg-muted/40')}>
         <div className={cn(wide && 'mx-auto w-full max-w-[620px]')}>
           <Tray env={env} trayKey={key} wide={wide} index={i} onIndex={(j) => setShown(key, options[j].id)}
-            panes={options.map((q) => ({ id: q.id, phase: q, node: <div style={pad}>{skipOf(q) ? <SkipPane from={key} to={q} moving={!!moving} /> : chain(q, inner, depth + 1)}</div> }))} />
+            panes={options.map((q) => ({ id: q.id, phase: q, node: <div style={pad}>{chain(q, inner, depth + 1)}</div> }))} />
         </div>
       </div>
     </section>]
@@ -504,10 +511,11 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
   </div>
 }
 
-/** A skip in a split: no phase of its own. Drop a phase on it to make it a real option. */
-function SkipPane({ from, to, moving }: { from: string; to: Phase; moving: boolean }) {
-  return <div data-skip-from={from} data-skip-to={to.id} className={cn('grid min-h-[120px] content-center gap-1 rounded-[22px] border-[3px] border-dashed border-border p-4 text-muted-foreground transition-colors data-[hot]:border-foreground data-[hot]:text-foreground', moving && 'border-foreground/40')}>
-    <b className="text-lg font-extrabold text-foreground">{tr('goals.plan_map.skip_straight_to', 'Skip, straight to {{title}}', { title: to.title })}</b>
+/** A skip in a split: no phase of its own, it takes no time. Drop a phase on it to make it a real option. */
+function SkipPane({ skip, next, moving }: { skip: Phase; next: Phase[]; moving: boolean }) {
+  const to = next.length > 3 ? tr('goals.plan_map.the_options_after', 'the options after it') : next.map((q) => q.title).join(tr('goals.plan_map.or', ' or '))
+  return <div data-skip-to={skip.id} className={cn('grid min-h-[120px] content-center gap-1 rounded-[22px] border-[3px] border-dashed border-border p-4 text-muted-foreground transition-colors data-[hot]:border-foreground data-[hot]:text-foreground', moving && 'border-foreground/40')}>
+    <b className="text-lg font-extrabold text-foreground">{to ? tr('goals.plan_map.skip_straight_to', 'Skip, straight to {{title}}', { title: to }) : tr('goals.plan_map.skip', 'Skip')}</b>
     <small className="text-sm font-bold">{tr('goals.plan_map.skip_takes_no_time', 'Takes no time. Drag a phase here to make it a real option.')}</small>
   </div>
 }

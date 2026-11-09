@@ -51,6 +51,8 @@ export interface Phase {
   undated?: boolean
   /** The phases it comes after: none for the first, two or more where two ways join up. */
   after?: string[]
+  /** A skip: an option with no phase of its own, taking no time. Never shown as a phase. */
+  pass?: boolean
   /** A dashed idea on the map: quick to add and remove. */
   idea?: boolean
   activities?: Activity[]

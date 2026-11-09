@@ -6,7 +6,7 @@ import { Button } from '@components/ui/button'
 import Sheet from './Sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import type { LifeDoc, Phase } from '@services/life/life'
-import { byId, kids, monthText, parents } from '@components/Goals/phases/graph'
+import { byId, monthText, stepsAfter, stepsBefore } from '@components/Goals/phases/graph'
 import PhaseCover from '@components/Goals/phases/PhaseCover'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
@@ -41,8 +41,8 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
   }, [stretch.i, phase.id])
   // The ways out of this phase on the whole map, not only the route the budget reads.
   const here = full ? byId(full, phase.id) : undefined
-  const before: Phase[] = here ? parents(full!, here) : doc.phases.filter((_, i) => doc.phases[i + 1]?.id === phase.id)
-  const after: Phase[] = here ? kids(full!, phase.id) : doc.phases.filter((_, i) => doc.phases[i - 1]?.id === phase.id)
+  const before: Phase[] = here ? stepsBefore(full!, here) : doc.phases.filter((_, i) => doc.phases[i + 1]?.id === phase.id)
+  const after: Phase[] = here ? stepsAfter(full!, phase.id) : doc.phases.filter((_, i) => doc.phases[i - 1]?.id === phase.id)
   const go = (side: 'left' | 'right') => { const list = side === 'left' ? before : after; if (list.length > 1) setSheet(side); else if (list[0]) selectStretch(list[0].id, 0) }
   const label = (i: number) => (i === 0 ? tr('lit.context_bar.start', 'Start') : stretchesOf[i].why.join(', '))
   const photos = catalog?.place_photos

@@ -70,7 +70,9 @@ export function LengthPicker({ start, months, picked, disabled, onPick }: { star
 export function TimeEditor({ doc, phase, fixed, onLength, onStart }: { doc: LifeDoc; phase: Phase; fixed: 'start' | 'all' | null; onLength: (months: number) => void; onStart: (month: number) => void }) {
   useTranslation()
   const start = mi(phase.starts!), on = wayOf(doc)
-  const before = parents(doc, phase).find((q) => on.has(q.id)) || parents(doc, phase)[0]
+  const back = (x: Phase) => parents(doc, x).find((q) => on.has(q.id)) || parents(doc, x)[0]
+  let before = back(phase)
+  for (let n = 0; before?.pass && n < 50; n++) before = back(before)
   const after = [...below(doc, phase.id)].map((id) => byId(doc, id)).filter((q) => q && on.has(q.id)).length
   const months = lenOf(phase) || Math.max(1, phase.months || 12)
   return <div className="grid gap-4">

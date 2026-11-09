@@ -14,7 +14,7 @@ export type PhaseTime = { phase: NonNullable<LifeDoc['phases']>[number]; index: 
 export function phaseTimes(doc: LifeDoc | null | undefined, today = new Date()): PhaseTime[] {
   if (!doc?.phases?.length || !doc.start) return []
   const map = normalize(doc)
-  return map.phases.map((phase, index) => ({ phase, index, when: whenOf(map, phase, today), starts: phase.starts!, ends: ym(endOf(map, phase) - 1) }))
+  return map.phases.filter((phase) => !phase.pass).map((phase, index) => ({ phase, index, when: whenOf(map, phase, today), starts: phase.starts!, ends: ym(endOf(map, phase) - 1) }))
 }
 
 /** Where goals without a phase go: the phase now, or the first one still to come. */

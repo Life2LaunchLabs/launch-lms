@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { setShown } from '../way'
 import type { LifeDoc } from '@services/life/life'
-import { mi, endOf, setLength, setStart, canMakeOptional, makeOptional, isSkip, detours, fillSkip, removeSkip, addSkip, skipTarget, showWayTo, addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
+import { mi, endOf, setLength, setStart, canMakeOptional, makeOptional, isSkip, detours, fillSkip, addSkip, canAddSkip, showWayTo, addAfter, bottomOf, addBefore, addBetween, addOption, addRejoin, addRoute, canJoin, current, endsOf, groupKey, heldShape, join, kids, lift, liftLine, loosePiece, mergeRoute, normalize, optionsOf, pieceOf, place, placeBefore, rank, rejoinOf, remove, routeDoc, routeName, routes, routesFor, split, splitOf, whenOf } from '../graph'
 
 const ph = (id: string, title: string, starts: string | null, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
 const today = new Date(2026, 10, 4)
@@ -242,36 +243,62 @@ describe('time: phases have lengths, dates follow the way being looked at', () =
     expect(old.phases.map((p) => [p.starts, p.months])).toEqual([['2023-09', 45], ['2027-06', 15], ['2028-09', 12]])
   })
 
-  test('a skip: make a phase optional, look at the skip, fill it, take it out', () => {
+  test('a skip is a phase that takes no time: any phase can be made optional, even one before a split', () => {
     const d = normalize(plan(), {})
-    expect(canMakeOptional(d, 'gap')).toBe(false) // Gap year is followed by a split: there's no one phase to skip to
-    const line = normalize({ ...plan(), phases: plan().phases.filter((p) => p.id !== 'pr') }, {})
-    expect(canMakeOptional(line, 'gap')).toBe(true)
-    const opt = makeOptional(line, 'gap')
-    const options = kids(opt, 'hs')
-    expect(options.map((p) => p.id)).toEqual(['gap', 'ap'])
-    expect(isSkip(opt, options[1], options)).toBe(true)
-    expect(at(normalize(opt, { hs: 'ap' }), 'ap')).toBe('2027-06')
-    expect(detours(opt, { hs: 'ap' })).toEqual([{ key: 'hs', title: 'Skip Gap year' }])
+    expect(canMakeOptional(d, 'gap')).toBe(true)
+    const opt = makeOptional(d, 'gap')
+    const options = kids(opt, 'hs'), sk = options[1]
+    expect(options.map((p) => p.id)[0]).toBe('gap')
+    expect(isSkip(sk)).toBe(true)
+    // The skip leads into the same options Gap year does.
+    expect(kids(opt, sk.id).map((p) => p.id).sort()).toEqual(['ap', 'pr'])
+    expect(at(normalize(opt, { hs: sk.id }), 'ap')).toBe('2027-06')
+    expect(at(normalize(opt, { hs: sk.id, [groupKey(['gap', sk.id])]: 'pr' }), 'el')).toBe('2028-06')
+    expect(detours(opt, { hs: sk.id })).toEqual([{ key: 'hs', title: 'Skip Gap year' }])
     expect(detours(opt, {})).toEqual([])
-    // Taking Gap year out leaves no empty option behind.
-    expect(remove(opt, 'gap').phases.find((p) => p.id === 'ap')!.after).toEqual(['hs'])
+    // Skips never show as phases: not now, not in the budget's line.
+    setShown({ hs: sk.id })
+    expect(routeDoc(normalize(opt), 'ap').phases.map((p) => p.id)).toEqual(['hs', 'ap', 'el'])
+    setShown({})
+    expect(canAddSkip(opt, 'hs')).toBe(false)
+    // Taking Gap year out leaves no lone skip behind.
+    const gone = remove(opt, 'gap')
+    expect(gone.phases.some((p) => p.pass)).toBe(false)
+    expect(gone.phases.find((p) => p.id === 'ap')!.after).toEqual(['hs'])
     // A phase dropped on the skip becomes that option.
     const loose = loosePiece(opt, [{ title: 'Travel', years: 1 }])
-    const filled = fillSkip(loose.doc, loose.ids, 'hs', 'ap')
-    expect(filled.phases.find((p) => p.id === 'ap')!.after!.sort()).toEqual(['gap', loose.ids[0]].sort())
-    expect(kids(filled, 'hs').length).toBe(2)
-    expect(removeSkip(opt, 'hs', 'ap').phases.find((p) => p.id === 'ap')!.after).toEqual(['gap'])
+    const filled = fillSkip(loose.doc, loose.ids, sk.id)
+    expect(filled.phases.some((p) => p.pass)).toBe(false)
+    expect(kids(filled, 'hs').map((p) => p.id).sort()).toEqual(['gap', loose.ids[0]].sort())
+    expect(kids(filled, loose.ids[0]).map((p) => p.id).sort()).toEqual(['ap', 'pr'])
+    // Removing the skip puts the split back as it was.
+    expect(kids(remove(opt, sk.id), 'hs').map((p) => p.id)).toEqual(['gap'])
   })
 
-  test('a skip someone made stays when another option loses its last phase', () => {
+  test('a skip beside options leads to where they meet; one at the end of the plan leads nowhere', () => {
     const d = normalize(plan(), {})
-    expect(skipTarget(d, 'gap')?.id).toBe('el')
-    const withSkip = addSkip(d, 'gap')
-    expect(kids(withSkip, 'gap').map((p) => p.id)).toEqual(['ap', 'pr', 'el'])
-    expect(skipTarget(withSkip, 'gap')).toBe(null)
-    expect(remove(withSkip, 'pr').phases.find((p) => p.id === 'el')!.after).toEqual(['ap', 'gap'])
+    const r = addSkip(d, 'gap')
+    expect(kids(r.doc, 'gap').map((p) => p.id)).toEqual(['ap', 'pr', r.id])
+    expect(kids(r.doc, r.id).map((p) => p.id)).toEqual(['el'])
+    // A skip someone made stays when another option loses its last phase.
+    expect(remove(r.doc, 'pr').phases.find((p) => p.id === 'el')!.after).toEqual(['ap', r.id])
     expect(remove(d, 'pr').phases.find((p) => p.id === 'el')!.after).toEqual(['ap'])
+    const end = makeOptional(d, 'el')
+    // Electrician follows two ways in: it and its skip are options after that group.
+    expect(optionsOf(end, groupKey(['ap', 'pr'])).map((p) => p.id)[0]).toBe('el')
+    expect(optionsOf(end, groupKey(['ap', 'pr'])).length).toBe(2)
+    const sk = end.phases.find((p) => p.pass)!
+    expect(kids(end, sk.id)).toEqual([])
+    expect(sk.after!.sort()).toEqual(['ap', 'pr'])
+  })
+
+  test('changing the start of a phase after a skip moves the end of the phase before the skip', () => {
+    const opt = makeOptional(normalize(plan(), {}), 'gap'), sk = opt.phases.find((p) => p.pass)!
+    setShown({ hs: sk.id })
+    const { doc, changed } = setStart(normalize(opt), 'ap', mi('2027-09'))
+    setShown({})
+    expect(changed?.id).toBe('hs')
+    expect(doc.phases.find((p) => p.id === 'hs')!.months).toBe(48)
   })
 
   test('opening a phase shows the way to it', () => {

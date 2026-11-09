@@ -63,7 +63,7 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
   const session = useLHSession() as any
   const mine = goal.subject?.id !== undefined && String(goal.subject.id) === String(session?.data?.user?.id)
   const { data: lifePlan, mutate: refreshLife } = useSWR(token && mine ? lifeUrl('/plan') : null, () => lifeApi.get(token))
-  const phases = goal.status !== 'archived' ? lifePlan?.plan?.document.phases || [] : []
+  const phases = goal.status !== 'archived' ? lifePlan?.plan?.document.phases.filter((p) => !p.pass) || [] : []
   const inPhase = phases.length ? phaseOfGoal(lifePlan?.plan?.document, goal.goal_uuid) : null
   const moveTo = async (phaseId: string) => {
     try { await refreshLife(lifeApi.placeGoal(goal.goal_uuid, phaseId, token), { revalidate: false }) } catch (error: any) { toast.error(error?.message || tr('goals.goal_header_actions.could_not_move_this_goal', 'Could not move this goal')) }
