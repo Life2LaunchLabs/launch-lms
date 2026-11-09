@@ -6,6 +6,7 @@ import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
 import { addPersonas, closeCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestPersona } from '@services/userTests/userTests'
+import CohortCleanup from './CohortCleanup'
 import LoginLinkPanel, { useLoginLink } from './LoginLinkPanel'
 import UserTestsInbox from './UserTestsInbox'
 import UserTestsShell, { StatusPill, formatWhen, useUserTestsHref } from './UserTestsShell'
@@ -60,7 +61,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight">{data.name}</h1>
         <StatusPill status={data.status} />
-        <span className="text-xs text-muted-foreground">{isOpen ? `Closes ${formatWhen(data.expires_at)}` : 'Personas are signed out'}</span>
+        <span className="text-xs text-muted-foreground">{isOpen ? `Closes ${formatWhen(data.expires_at)}` : data.status === 'purged' ? 'Personas and test orgs are deleted; mail is kept' : 'Personas are signed out'}</span>
       </div>
       {data.notes ? <p className="text-sm text-muted-foreground">{data.notes}</p> : null}
       {closeError ? <p role="alert" className="text-sm text-destructive">{closeError}</p> : null}
@@ -79,6 +80,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
         </table></div> : <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">No personas yet.</div>}
       </section>
       {isOpen ? <AddPersonasForm cohort={data} onAdded={() => void mutate()} /> : null}
+      {!isOpen && data.status !== 'purged' ? <CohortCleanup cohortUuid={cohortUuid} cohortName={data.name} onPurged={() => void mutate()} /> : null}
       <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} onOpenAs={({ persona, path }) => { if (isOpen) openAs(persona, path) }} />
     </> : null}
   </UserTestsShell>

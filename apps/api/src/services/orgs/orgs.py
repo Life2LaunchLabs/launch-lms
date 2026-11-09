@@ -152,6 +152,8 @@ async def create_org(
     db_session.add(org)
     db_session.commit()
     db_session.refresh(org)
+    from src.services.user_tests.personas import record_org  # a persona's org joins its test cohort
+    record_org(db_session, current_user.id, org.id, getattr(current_user, "email", None))
 
     # Link user to org
     user_org = UserOrganization(
@@ -164,9 +166,6 @@ async def create_org(
 
     db_session.add(user_org)
     db_session.commit()
-
-    from src.services.user_tests.personas import record_org  # a persona's org joins its test cohort
-    record_org(db_session, current_user.id, org.id, getattr(current_user, "email", None))
 
     # Invalidate session cache so the new org role is picked up immediately
     from src.routers.users import _invalidate_session_cache

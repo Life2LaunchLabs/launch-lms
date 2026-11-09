@@ -75,10 +75,10 @@ def create_cohort(db: Session, actor_id: int, body: CreateCohort) -> dict:
 def close_cohort(db: Session, cohort_uuid: str) -> dict:
     """Ends every session in it on their next request; personas and mail stay for review."""
     cohort = get_cohort(db, cohort_uuid)
-    cohort.status = "closed"
-    cohort.update_date = datetime.utcnow()
-    db.add(cohort)
-    db.commit()
+    if cohort.status == "open":
+        cohort.status, cohort.update_date = "closed", datetime.utcnow()
+        db.add(cohort)
+        db.commit()
     return serialize(db, cohort)
 
 

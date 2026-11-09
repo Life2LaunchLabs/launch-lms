@@ -45,6 +45,11 @@ def import_all_models():
 # Import all models before creating engine
 import_all_models()
 
+# Test personas and test orgs stay sealed off from real people and orgs on every session.
+from src.services.user_tests.seal import install as install_cohort_seal  # noqa: E402
+
+install_cohort_seal()
+
 launchlms_config = get_launchlms_config()
 
 # Check if we're in test mode
