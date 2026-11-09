@@ -121,6 +121,7 @@ def serialize(db: Session, cohort: TestCohort, *, detail: bool = False) -> dict:
         "expires_at": cohort.expires_at.isoformat() + "Z",
         "creation_date": cohort.creation_date.isoformat() + "Z",
         "persona_count": count,
+        "stages": cohort.stages or [],
         "max_personas": MAX_PERSONAS,
     }
     if detail:

@@ -295,3 +295,39 @@ def test_the_refresh_endpoint_keeps_persona_sessions_and_refuses_closed_ones(db)
     cohorts.close_cohort(db, cohort["cohort_uuid"])
     with pytest.raises(HTTPException):
         refresh_demo(request, Response(), payload, lambda *args: None, lambda: 0)
+
+
+def test_a_persona_moves_to_another_org_host_as_the_same_persona(db):
+    """Host-only cookies: picking her own test org hands Dana's persona session to that host."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from fastapi import Response
+    from src.routers.auth_handoff import HandoffRequest, RedemptionRequest, issue_handoff, redeem_handoff
+    from src.security.auth import JWT_REFRESH_COOKIE_NAME, decode_jwt
+    from src.services.auth import handoff
+    from src.tests.security.test_handoff import OneUseRedis
+
+    cohort = _cohort(db)
+    persona = _persona(db, cohort["cohort_uuid"], "Dana")
+    link = tickets.mint(db, 1, persona["user_id"], "/")
+    refresh = tickets.redeem(db, link["path"].split("t=", 1)[1])["tokens"]["refresh_token"]
+    started = decode_jwt(refresh)
+    config = SimpleNamespace(hosting_config=SimpleNamespace(frontend_domain="unstable.life2launch.app", cookie_config=SimpleNamespace(scope="host-only")))
+    body = HandoffRequest(target_host="dana-s-test-org.unstable.life2launch.app", state="s" * 43, return_path="/admin")
+    with patch.object(handoff, "_redis", return_value=OneUseRedis()), patch.object(handoff, "get_launchlms_config", return_value=config):
+        issued = issue_handoff(SimpleNamespace(cookies={JWT_REFRESH_COOKIE_NAME: refresh}), body, Response(), db)
+        redeemed = redeem_handoff(RedemptionRequest(**body.model_dump(), ticket=issued["ticket"]), Response(), db)
+        moved = decode_jwt(redeemed["refresh_token"])
+        assert (moved["test_operator"], moved["test_cohort"]) == (1, cohort["cohort_uuid"])
+        assert moved["exp"] <= started["exp"] + 1  # never outlives the session it came from
+        assert redeemed["test_persona"]["user_id"] == persona["user_id"] and redeemed["test_persona"]["cohort"] == "Riverside onboarding"
+
+        # A closed cohort can't hand a session on.
+        issued = issue_handoff(SimpleNamespace(cookies={JWT_REFRESH_COOKIE_NAME: refresh}), body, Response(), db)
+        cohorts.close_cohort(db, cohort["cohort_uuid"])
+        with pytest.raises(HTTPException) as closed:
+            redeem_handoff(RedemptionRequest(**body.model_dump(), ticket=issued["ticket"]), Response(), db)
+        assert closed.value.status_code == 401
+        with pytest.raises(HTTPException):
+            issue_handoff(SimpleNamespace(cookies={JWT_REFRESH_COOKIE_NAME: refresh}), body, Response(), db)

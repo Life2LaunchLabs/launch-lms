@@ -6,6 +6,7 @@ import {
   REFRESH_TOKEN_MAX_AGE, getCookieOptions, getDomainFromRequest,
 } from '@services/auth/cookies'
 import { isManagedHost, safeHandoffPath } from '@services/routing/handoff'
+import { TEST_PERSONA_COOKIE, encodeTestPersonaMarker } from '@services/userTests/marker'
 import { buildPublicRequestUrl } from '@services/routing/context'
 
 export const runtime = 'nodejs'
@@ -48,11 +49,21 @@ export async function POST(request: NextRequest) {
     }
     const response = NextResponse.redirect(new URL(returnPath, publicUrl), { status: 303 })
     const cookieOptions = { ...getCookieOptions(request), secure: publicUrl.protocol === 'https:' }
-    response.cookies.set(ACCESS_TOKEN_COOKIE, tokens.access_token, { ...cookieOptions, maxAge: ACCESS_TOKEN_MAX_AGE })
-    response.cookies.set(REFRESH_TOKEN_COOKIE, tokens.refresh_token, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAX_AGE })
+    // A test persona keeps its own session length, and its banner, on the new host.
+    const persona = tokens.test_persona
+    const accessAge = persona ? persona.seconds : ACCESS_TOKEN_MAX_AGE
+    const refreshAge = persona ? persona.seconds : REFRESH_TOKEN_MAX_AGE
+    response.cookies.set(ACCESS_TOKEN_COOKIE, tokens.access_token, { ...cookieOptions, maxAge: accessAge })
+    response.cookies.set(REFRESH_TOKEN_COOKIE, tokens.refresh_token, { ...cookieOptions, maxAge: refreshAge })
     response.cookies.set('launchlms_has_session', '1', {
-      ...cookieOptions, httpOnly: false, maxAge: REFRESH_TOKEN_MAX_AGE,
+      ...cookieOptions, httpOnly: false, maxAge: refreshAge,
     })
+    if (persona) {
+      const marker = encodeTestPersonaMarker({ userId: persona.user_id, name: persona.name, cohort: persona.cohort })
+      response.cookies.set(TEST_PERSONA_COOKIE, marker, { ...cookieOptions, httpOnly: false, maxAge: persona.seconds })
+    } else {
+      response.cookies.set(TEST_PERSONA_COOKIE, '', { ...cookieOptions, httpOnly: false, maxAge: 0 })
+    }
     response.cookies.set(stateCookie, '', {
       httpOnly: true, secure: publicUrl.protocol === 'https:', sameSite: 'lax',
       path: '/', maxAge: 0,

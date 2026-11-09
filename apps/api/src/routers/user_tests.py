@@ -12,7 +12,9 @@ from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
-from src.services.user_tests import cleanup, cohorts, mail, personas, tickets
+from src.db.user_tests import TestMail, TestPersona
+from src.db.users import User
+from src.services.user_tests import cleanup, cohorts, mail, personas, stories, tickets
 from src.services.user_tests.sessions import current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
@@ -29,6 +31,21 @@ def operator(
     if not is_platform_admin(current_user.id, db):
         raise HTTPException(403, "Platform admin access is required to manage user tests.")
     return current_user
+
+
+def persona_session(
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db: Session = Depends(get_db_session),
+) -> tuple[TestPersona, User]:
+    """A test persona's own session: what a blind tester can reach from inside the app."""
+    require_enabled()
+    persona_id = current_test_persona.get()
+    if not persona_id or not isinstance(current_user, PublicUser) or current_user.id != persona_id:
+        raise HTTPException(403, "Only a test persona's own session can use this.")
+    persona, user = db.get(TestPersona, persona_id), db.get(User, persona_id)
+    if not persona or not user:
+        raise HTTPException(403, "This account is not a test persona.")
+    return persona, user
 
 
 class LoginLinkRequest(BaseModel):
@@ -80,6 +97,63 @@ def purge_cohort(cohort_uuid: str, dry_run: bool = True, _: PublicUser = Depends
     return cleanup.purge(db, cohort_uuid, dry_run=dry_run)
 
 
+@router.put("/cohorts/{cohort_uuid}/stages")
+def set_stages(cohort_uuid: str, body: stories.SetStages, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    return stories.set_stages(db, cohort_uuid, body)
+
+
+@router.get("/cohorts/{cohort_uuid}/board")
+def board(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    return stories.board(db, cohort_uuid)
+
+
+@router.get("/cohorts/{cohort_uuid}/events")
+def events(cohort_uuid: str, kind: str | None = None, persona: int | None = None, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    return {"events": stories.events(db, cohort_uuid, kind, persona)}
+
+
+@router.get("/cohorts/{cohort_uuid}/report")
+def report(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    return {"markdown": stories.report(db, cohort_uuid)}
+
+
+@router.post("/personas/{user_id}/progress")
+def set_progress(user_id: int, body: stories.Progress, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    """Move a persona on the board by hand, for example to reopen a stage after a fix."""
+    persona = db.get(TestPersona, user_id)
+    if not persona:
+        raise HTTPException(404, "That persona no longer exists.")
+    return stories.report_progress(db, persona, body, by="operator")
+
+
+@router.get("/me")
+def my_run(me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    return stories.persona_view(db, *me)
+
+
+@router.get("/me/mail")
+def my_mail(me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    return {"mail": mail.list_mail(db, me[0].cohort_id, int(me[1].id))}  # type: ignore[arg-type]
+
+
+@router.get("/me/mail/{mail_id}")
+def read_my_mail(mail_id: int, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    found = db.get(TestMail, mail_id)
+    if not found or found.to_user_id != me[1].id:
+        raise HTTPException(404, "That email isn't in your inbox.")
+    return mail.read_mail(db, mail_id)
+
+
+@router.post("/me/progress")
+def my_progress(body: stories.Progress, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    return stories.report_progress(db, me[0], body)
+
+
+@router.post("/me/findings", status_code=201)
+def my_finding(body: stories.Finding, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    return stories.log_finding(db, me[0], body)
+
+
 @router.post("/cohorts/{cohort_uuid}/personas", status_code=201)
 async def add_personas(
     cohort_uuid: str,
@@ -103,7 +177,7 @@ def list_mail(
 
 @router.get("/mail/{mail_id}")
 def read_mail(mail_id: int, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
-    return mail.read_mail(db, mail_id)
+    return mail.read_mail(db, mail_id, as_persona=False)
 
 
 @router.post("/personas/{user_id}/login-link")

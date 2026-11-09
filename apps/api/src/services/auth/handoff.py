@@ -59,18 +59,24 @@ def _redis() -> redis.Redis:
     return redis.Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
 
 
-def issue_ticket(email: str, target_host: str, state: str, return_path: str) -> str:
+def issue_ticket(email: str, target_host: str, state: str, return_path: str, test: dict | None = None) -> str:
+    """``test`` carries a test persona's session claims, so the other host gets a persona session too."""
     target = managed_host(target_host)
     valid_state(state)
     safe_return_path(return_path)
     ticket = secrets.token_urlsafe(32)
-    value = json.dumps({"email": email, "target": target, "state": state, "return": return_path})
+    value = json.dumps({"email": email, "target": target, "state": state, "return": return_path, "test": test})
     if not _redis().set(f"auth:handoff:{ticket}", value, ex=TICKET_TTL_SECONDS, nx=True):
         raise RuntimeError("Could not issue unique handoff ticket")
     return ticket
 
 
 def redeem_ticket(ticket: str, target_host: str, state: str, return_path: str) -> str | None:
+    payload = redeem_ticket_payload(ticket, target_host, state, return_path)
+    return payload.get("email") if payload else None
+
+
+def redeem_ticket_payload(ticket: str, target_host: str, state: str, return_path: str) -> dict | None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{40,64}", ticket):
         return None
     try:
@@ -87,4 +93,4 @@ def redeem_ticket(ticket: str, target_host: str, state: str, return_path: str) -
             not secrets.compare_digest(payload.get("state", ""), state) or
             payload.get("return") != return_path):
         return None
-    return payload.get("email")
+    return payload

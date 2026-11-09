@@ -778,3 +778,18 @@ test('request policy redirects non-entitled org subdomains back to the main host
   assert.equal(decision.action, 'redirect')
   assert.equal(decision.destination, 'https://launchlms.test/badges')
 })
+
+test('request policy lets a signed-in visitor open an invitation link instead of sending them home', () => {
+  const input = {
+    requestUrl: 'https://acme.launchlms.test/signup?invitation=abc',
+    pathname: '/signup',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  }
+  assert.equal(resolveRequestRouting({ ...input, search: '?invitation=abc' }).action, 'rewrite')
+  assert.equal(resolveRequestRouting({ ...input, search: '?inviteCode=XYZ' }).action, 'rewrite')
+  assert.equal(resolveRequestRouting({ ...input, search: '' }).action, 'redirect')
+})

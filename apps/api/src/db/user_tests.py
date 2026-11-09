@@ -25,6 +25,8 @@ class TestCohort(SQLModel, table=True):
     created_by: int
     expires_at: datetime
     notes: str = ""
+    # The story's script: [{key, title, goal, after: {persona, stage} | None}], in order.
+    stages: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     creation_date: datetime = Field(default_factory=datetime.utcnow)
     update_date: datetime = Field(default_factory=datetime.utcnow)
 
@@ -45,6 +47,8 @@ class TestPersona(SQLModel, table=True):
     # Who they are: role, goals, tech comfort, starting situation.
     brief: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
     start_state: str = "has_account"  # has_account | org_owner
+    # Where the persona is in each stage: {stage_key: {status, note, updated_at}}.
+    stage_state: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     last_active_at: datetime | None = None
     creation_date: datetime = Field(default_factory=datetime.utcnow)
 
@@ -98,3 +102,18 @@ class TestLoginTicket(SQLModel, table=True):
     expires_at: datetime
     used_at: datetime | None = None
     creation_date: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TestEvent(SQLModel, table=True):
+    """Something a run reported: a stage's progress, a finding, or an action the cohort seal refused."""
+
+    __tablename__ = "test_event"
+    __test__ = False
+
+    id: int | None = Field(default=None, primary_key=True)
+    cohort_id: int = Field(index=True)
+    persona_user_id: int | None = Field(default=None, index=True)
+    kind: str  # progress | finding | blocked
+    stage_key: str | None = None
+    payload: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)

@@ -8,6 +8,8 @@ import { Textarea } from '@components/ui/textarea'
 import { addPersonas, closeCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestPersona } from '@services/userTests/userTests'
 import CohortCleanup from './CohortCleanup'
 import LoginLinkPanel, { useLoginLink } from './LoginLinkPanel'
+import RunBoard from './RunBoard'
+import { useAsk } from '@components/ui/ask-dialog'
 import UserTestsInbox from './UserTestsInbox'
 import UserTestsShell, { StatusPill, formatWhen, useUserTestsHref } from './UserTestsShell'
 
@@ -43,10 +45,11 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
   const login = useLoginLink()
   const [closing, setClosing] = useState(false)
   const [closeError, setCloseError] = useState('')
+  const ask = useAsk()
   const isOpen = data?.status === 'open'
 
   async function close() {
-    if (!window.confirm('Close this cohort? Every persona in it is signed out, and no new login links can be made. Personas and mail stay for review.')) return
+    if (!await ask.confirm({ title: 'Close this cohort?', body: 'Every persona in it is signed out, and no new login links can be made. Personas and mail stay for review.', action: 'Close cohort', danger: true })) return
     setClosing(true); setCloseError('')
     try { await closeCohort(cohortUuid); await mutate() } catch (failure) { setCloseError((failure as Error).message) }
     finally { setClosing(false) }
@@ -54,6 +57,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
   const openAs = (persona: TestPersona, path = '/') => void login.make(persona.user_id, personaName(persona), path)
 
   return <UserTestsShell actions={isOpen ? <Button size="sm" variant="outline" onClick={close} disabled={closing}>{closing ? 'Closing…' : 'Close cohort'}</Button> : null}>
+    {ask.dialog}
     <Link href={href()} className="text-sm text-muted-foreground hover:text-foreground">← All cohorts</Link>
     {error ? <p role="alert" className="text-sm text-destructive">{(error as Error).message}</p> : null}
     {!data && !error ? <p role="status" className="text-sm text-muted-foreground">Loading cohort…</p> : null}
@@ -80,6 +84,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
         </table></div> : <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">No personas yet.</div>}
       </section>
       {isOpen ? <AddPersonasForm cohort={data} onAdded={() => void mutate()} /> : null}
+      <RunBoard cohortUuid={cohortUuid} personas={data.personas} stages={data.stages} isOpen={isOpen} onChanged={() => void mutate()} />
       {!isOpen && data.status !== 'purged' ? <CohortCleanup cohortUuid={cohortUuid} cohortName={data.name} onPurged={() => void mutate()} /> : null}
       <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} onOpenAs={({ persona, path }) => { if (isOpen) openAs(persona, path) }} />
     </> : null}

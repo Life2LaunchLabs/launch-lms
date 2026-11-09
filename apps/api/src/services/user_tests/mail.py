@@ -122,11 +122,12 @@ def list_mail(db: Session, cohort_id: int, persona_user_id: int | None = None, l
     return [serialize(mail) for mail in db.exec(statement).all()]
 
 
-def read_mail(db: Session, mail_id: int) -> dict:
+def read_mail(db: Session, mail_id: int, *, as_persona: bool = True) -> dict:
+    """``as_persona`` False is an admin looking: the persona's copy stays unread."""
     mail = db.get(TestMail, mail_id)
     if not mail:
         raise HTTPException(404, "That test email no longer exists.")
-    if not mail.opened_at:
+    if as_persona and not mail.opened_at:
         mail.opened_at = datetime.utcnow()
         db.add(mail)
         db.commit()

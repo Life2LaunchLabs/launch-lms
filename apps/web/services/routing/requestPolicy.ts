@@ -141,7 +141,8 @@ export function resolveRequestRouting(
     if (
       input.hasSession &&
       isAuthenticatedAuthRedirectPath(pathname) &&
-      !new URLSearchParams(search).has('next')
+      // An invitation link still opens for someone signed in: signup shows the join screen.
+      !['next', 'invitation', 'inviteCode'].some((param) => new URLSearchParams(search).has(param))
     ) {
       return {
         action: 'redirect',

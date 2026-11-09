@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getConfig } from '@services/config/config'
 import { buildPublicRequestUrl } from '@services/routing/context'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getCookieOptions } from '@services/auth/cookies'
+import { TEST_PERSONA_COOKIE, encodeTestPersonaMarker } from '@services/userTests/marker'
 
 const BACKEND_URL = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
 // Persona sessions last four hours; the cookies never outlive them.
@@ -39,8 +40,8 @@ export async function POST(request: NextRequest) {
     response.cookies.set(REFRESH_TOKEN_COOKIE, data.tokens.refresh_token, { ...options, maxAge: SESSION_SECONDS })
     response.cookies.set('launchlms_has_session', '1', { ...options, httpOnly: false, maxAge: SESSION_SECONDS })
     // Read by the persona banner, which shows only while this persona is the one signed in.
-    const marker = [data.persona.user_id, encodeURIComponent(data.persona.name || ''), encodeURIComponent(data.cohort.name || '')].join(':')
-    response.cookies.set('launchlms_test_persona', marker, { ...options, httpOnly: false, maxAge: SESSION_SECONDS })
+    const marker = encodeTestPersonaMarker({ userId: data.persona.user_id, name: data.persona.name, cohort: data.cohort.name })
+    response.cookies.set(TEST_PERSONA_COOKIE, marker, { ...options, httpOnly: false, maxAge: SESSION_SECONDS })
     return response
   } catch {
     return NextResponse.json({ detail: 'User tests are unavailable right now. Try again shortly.' }, { status: 503 })

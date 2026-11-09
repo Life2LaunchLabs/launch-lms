@@ -82,15 +82,18 @@ BLOCKED = (
 def refuse_blocked(method: str, path: str) -> None:
     for methods, pattern in BLOCKED:
         if method.upper() in methods and pattern.match(path):
+            from src.services.user_tests.stories import record_blocked
+
+            record_blocked("Test personas can't do this.", {"request": f"{method.upper()} {path}"})
             raise HTTPException(403, {"code": "test_persona_blocked", "message": "Test personas can't do this."})
 
 
 def enter(db: Session, payload: dict, request=None) -> TestPersona:
     """Called by authentication for every request that carries a test session."""
     user, persona, _ = validate(db, payload)
+    current_test_persona.set(user.id)
     if request is not None:
         refuse_blocked(request.method, request.url.path)
-    current_test_persona.set(user.id)
     now = datetime.utcnow()
     if not persona.last_active_at or now - persona.last_active_at > timedelta(minutes=1):
         persona.last_active_at = now
@@ -110,6 +113,24 @@ def tokens(user: User, operator_id: int, cohort: TestCohort) -> dict:
     return {
         "access_token": create_access_token(data, SESSION_LENGTH),
         "refresh_token": create_refresh_token(data, SESSION_LENGTH),
+    }
+
+
+def handoff_tokens(db: Session, payload: dict) -> dict:
+    """A persona session for another host, ending when the one it came from ends."""
+    from src.security.auth import create_access_token, create_refresh_token
+
+    user, _, cohort = validate(db, payload)
+    remaining = datetime.fromtimestamp(int(payload["exp"])) - datetime.now()
+    if remaining.total_seconds() <= 0:
+        raise HTTPException(401, "This test session has ended. Open the persona again from User tests.")
+    length = min(SESSION_LENGTH, remaining)
+    data = claims(user, int(payload["test_operator"]), cohort)
+    return {
+        "access_token": create_access_token(data, length),
+        "refresh_token": create_refresh_token(data, length),
+        "test_persona": {"user_id": user.id, "name": f"{user.first_name} {user.last_name}".strip(), "cohort": cohort.name,
+                         "seconds": int(length.total_seconds())},
     }
 
 

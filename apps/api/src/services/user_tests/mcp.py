@@ -1,0 +1,137 @@
+"""User test tools for the Launch LMS MCP server: a platform admin's connector runs a test cohort.
+
+The same rules as Platform › User tests: platform admins only, off unless user tests are enabled,
+and a login link is only ever made for a test persona. A thread testing as a persona uses these to
+read the persona's mail and to log progress and findings while it works in the browser.
+"""
+
+from __future__ import annotations
+
+import html as html_lib
+import re
+
+from fastapi import HTTPException, Request
+from sqlmodel import Session
+
+from src.db.user_tests import TestMail, TestPersona
+from src.services.oauth.config import frontend_url
+from src.services.oauth.server import AccessContext
+from src.services.user_tests import cleanup, cohorts, mail, personas, stories, tickets
+from src.services.user_tests.sessions import current_test_persona, is_platform_admin
+from src.services.user_tests.settings import email_domain, require_enabled
+
+GUIDE = (
+    "A cohort is one test run: personas (fresh accounts on the test email domain, sealed off from real people and orgs) "
+    "and stages (goals written for the persona, which can wait for another persona to finish a stage). To test as a "
+    "persona, open the link from open_as_test_persona in a fresh browser session, work through its stages as that person "
+    "would, read the email the site sends it with read_test_mail, and note progress and findings as you go. Everything "
+    "the seal refuses shows up in the report on its own."
+)
+
+
+def _require_operator(db: Session, ctx: AccessContext) -> None:
+    require_enabled()
+    if current_test_persona.get() or not is_platform_admin(ctx.user.id, db):
+        raise HTTPException(403, "Only platform admins can run user tests.")
+
+
+def _console_url(db: Session, ctx: AccessContext, cohort_uuid: str = "") -> str:
+    from src.services import learning
+
+    org = learning._get_org(db, ctx.default_org_id or ctx.org_id)
+    return f"{frontend_url()}/orgs/{org.slug}/admin/platform/user-tests" + (f"/{cohort_uuid}" if cohort_uuid else "")
+
+
+def _persona(db: Session, user_id) -> TestPersona:
+    persona = db.get(TestPersona, int(user_id))
+    if not persona:
+        raise HTTPException(404, "There is no test persona with that user_id.")
+    return persona
+
+
+def _text(body: str | None) -> str:
+    """An email's HTML as plain text, for a model to read."""
+    body = re.sub(r"(?is)<(script|style|head)\b.*?</\1>", " ", body or "")
+    body = re.sub(r"(?i)<br\s*/?>|</(p|div|tr|h[1-6]|li)>", "\n", body)
+    body = html_lib.unescape(re.sub(r"<[^>]+>", " ", body))
+    return "\n".join(line for line in (re.sub(r"[ \t]+", " ", raw).strip() for raw in body.splitlines()) if line)
+
+
+async def list_test_cohorts(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    return {"guide": GUIDE, "email_domain": email_domain(), "cohorts": cohorts.list_cohorts(db), "console_url": _console_url(db, ctx)}
+
+
+async def get_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    cohort = cohorts.get_cohort(db, str(args["cohort_uuid"]))
+    return {**cohorts.serialize(db, cohort, detail=True), "board": stories.board(db, cohort.cohort_uuid), "console_url": _console_url(db, ctx, cohort.cohort_uuid)}
+
+
+async def create_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    cohort = cohorts.create_cohort(db, int(ctx.user.id), cohorts.CreateCohort(**args))  # type: ignore[arg-type]
+    return {**cohort, "console_url": _console_url(db, ctx, cohort["cohort_uuid"])}
+
+
+async def add_test_personas(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    made = await personas.create_personas(db, str(args["cohort_uuid"]), personas.CreatePersonas(personas=args["personas"]))
+    return {"personas": made}
+
+
+async def set_test_stages(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    return stories.set_stages(db, str(args["cohort_uuid"]), stories.SetStages(stages=args["stages"]))
+
+
+async def get_test_board(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    return stories.board(db, str(args["cohort_uuid"]))
+
+
+async def open_as_test_persona(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), str(args.get("target_path") or "/"))  # type: ignore[arg-type]
+    return {"url": f"{frontend_url()}{link['path']}", "expires_at": link["expires_at"],
+            "note": "Works once. Open it in a fresh browser session (no other sign-in), since it signs that browser in as the persona."}
+
+
+async def read_test_mail(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    if args.get("mail_id"):
+        found = db.get(TestMail, int(args["mail_id"]))
+        if not found or (args.get("user_id") and found.to_user_id != int(args["user_id"])):
+            raise HTTPException(404, "That email isn't in this persona's inbox.")
+        read = mail.read_mail(db, int(found.id))  # type: ignore[arg-type]
+        return {**{key: value for key, value in read.items() if key != "html"}, "text": _text(read.get("html"))}
+    persona = _persona(db, args["user_id"])
+    return {"mail": mail.list_mail(db, persona.cohort_id, persona.user_id, limit=int(args.get("limit") or 20))}
+
+
+async def report_test_progress(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    persona = _persona(db, args.pop("user_id"))
+    return stories.report_progress(db, persona, stories.Progress(**args), by="tester")
+
+
+async def log_test_finding(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    persona = _persona(db, args.pop("user_id"))
+    return stories.log_finding(db, persona, stories.Finding(**args))
+
+
+async def get_test_report(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    uuid = str(args["cohort_uuid"])
+    return {"markdown": stories.report(db, uuid), "counts": stories.board(db, uuid)["counts"], "console_url": _console_url(db, ctx, uuid)}
+
+
+async def close_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    return cohorts.close_cohort(db, str(args["cohort_uuid"]))
+
+
+async def purge_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    return cleanup.purge(db, str(args["cohort_uuid"]), dry_run=args.get("dry_run", True) is not False)

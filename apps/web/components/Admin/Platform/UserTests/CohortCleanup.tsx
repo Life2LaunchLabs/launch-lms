@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button } from '@components/ui/button'
+import { useAsk } from '@components/ui/ask-dialog'
 import { auditCohort, purgeCohort, type TestAudit, type TestPurge } from '@services/userTests/userTests'
 import { formatWhen } from './UserTestsShell'
 
@@ -28,6 +29,7 @@ export default function CohortCleanup({ cohortUuid, cohortName, onPurged }: { co
   const [preview, setPreview] = useState<TestPurge | null>(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const ask = useAsk()
 
   async function run(step: string, work: () => Promise<void>) {
     setBusy(step); setError('')
@@ -39,21 +41,22 @@ export default function CohortCleanup({ cohortUuid, cohortName, onPurged }: { co
   }
   const check = () => run('audit', async () => { setAudit(await auditCohort(cohortUuid)); setPreview(null) })
   const dryRun = () => run('preview', async () => { const result = await purgeCohort(cohortUuid, true); setPreview(result); setAudit(result.audit) })
-  const purge = () => {
-    if (!window.confirm(`Purge "${cohortName}"? Its personas and test orgs are deleted for good. Captured mail stays.`)) return
+  const purge = async () => {
+    if (!await ask.confirm({ title: `Purge "${cohortName}"?`, body: 'Its personas and test orgs are deleted for good. Captured mail stays.', action: 'Purge', danger: true })) return
     void run('purge', async () => { await purgeCohort(cohortUuid, false); onPurged() })
   }
 
   return <section className="space-y-3 rounded-xl border bg-card p-5" aria-labelledby="cleanup-heading">
     <div><h2 id="cleanup-heading" className="text-lg font-semibold">Leak audit and purge</h2>
       <p className="text-sm text-muted-foreground">The audit looks for anything tying this cohort to a real person or org. Purge deletes the personas and test orgs, and only runs when the audit is clean.</p></div>
+    {ask.dialog}
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     {audit ? <AuditResult audit={audit} /> : null}
     {preview && preview.audit.clean ? <p className="text-sm">Purge will delete <b>{preview.counts.personas}</b> persona{preview.counts.personas === 1 ? '' : 's'} and <b>{preview.counts.orgs}</b> test org{preview.counts.orgs === 1 ? '' : 's'}, with everything they made. {preview.counts.mail_kept} captured email{preview.counts.mail_kept === 1 ? '' : 's'} stay.</p> : null}
     <div className="flex flex-wrap gap-2">
       <Button type="button" size="sm" variant="outline" onClick={() => void check()} disabled={!!busy}>{busy === 'audit' ? 'Checking…' : 'Run leak audit'}</Button>
       {preview && preview.audit.clean
-        ? <Button type="button" size="sm" variant="destructive" onClick={purge} disabled={!!busy}>{busy === 'purge' ? 'Purging…' : 'Purge cohort'}</Button>
+        ? <Button type="button" size="sm" variant="destructive" onClick={() => void purge()} disabled={!!busy}>{busy === 'purge' ? 'Purging…' : 'Purge cohort'}</Button>
         : <Button type="button" size="sm" variant="outline" onClick={() => void dryRun()} disabled={!!busy}>{busy === 'preview' ? 'Counting…' : 'Preview purge'}</Button>}
     </div>
   </section>

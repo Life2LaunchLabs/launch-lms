@@ -7,6 +7,7 @@ from src.services.goals import mcp_library as goal_library
 from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
 from src.services.mcp.coach_tools import COACH_TOOLS
+from src.services.mcp.user_test_tools import USER_TEST_TOOLS
 from src.services.mcp.insights_tools import INSIGHTS_TOOLS
 from src.services.mcp.media_tools import MEDIA_TOOLS
 from src.services.mcp.resource_tools import RESOURCE_TOOLS
@@ -339,5 +340,6 @@ TOOLS = [
     *RESOURCE_TOOLS,
     *INSIGHTS_TOOLS,
     *COACH_TOOLS,
+    *USER_TEST_TOOLS,
 ]
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
