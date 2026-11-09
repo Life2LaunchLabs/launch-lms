@@ -25,6 +25,7 @@ from sqlmodel import Session, delete, select
 from src.db.life_plans import EstimateFact, EstimateSource
 from src.services.life_plans import places
 from src.services.life_plans.estimates import dims_key
+from src.services.life_plans.titles import singular_title
 
 
 class ImportProblem(ValueError):
@@ -186,7 +187,7 @@ def import_hud_fmr(db: Session, data: bytes, filename: str, *, fiscal_year: int,
 
 HUD_FMR_URL = "https://www.huduser.gov/portal/datasets/fmr.html"
 BLS_OEWS_URL = "https://www.bls.gov/oes/tables.htm"
-NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) the College Scorecard institution file (Most-Recent-Cohorts-Institution.csv), or the Oregon Employment Department's occupational projections or wage information workbook, as the publisher gives it."
+NOT_ALLOWED = "We can't load that file. Upload HUD's county Fair Market Rents file (like FY27_FMRs.xlsx), BLS's OEWS all-data file (like oesm25all.zip), the O*NET text database (like db_31_0_text.zip) the College Scorecard institution or field-of-study file (Most-Recent-Cohorts-Institution.csv or Most-Recent-Cohorts-Field-of-Study.csv), the Oregon Employment Department's occupational projections or wage information workbook, BLS's Consumer Expenditure table by household size (cu-size-2025.xlsx), a USDA food plan history file (like usda-moderatecostplan-sept2007-sept2026.xlsx) or a BEA price parities file (SARPP, MARPP or PARPP .csv), as the publisher gives it."
 
 
 def _zip_table_name(data: bytes) -> str:
@@ -225,6 +226,17 @@ def import_file(db: Session, data: bytes, filename: str) -> dict:
             return oregon.import_wages(db, data, filename)
     except oregon.OregonProblem as exc:
         raise ImportProblem(str(exc)) from exc
+    from src.services.life_plans import programs
+
+    try:
+        if programs.is_programs_file(data, filename):
+            return programs.import_programs(db, data, filename)
+    except programs.ProgramProblem as exc:
+        raise ImportProblem(str(exc)) from exc
+    from src.services.life_plans import spending
+
+    if kind := spending.kind_of(data, filename):
+        return spending.import_spending(db, data, filename, kind)
     try:
         if public_data.is_onet_zip(data, filename):
             return public_data.import_onet(db, data, filename)
@@ -314,7 +326,7 @@ def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: 
         else:
             continue
         kept_areas.add(place)
-        facts.append(EstimateFact(metric="wage", place=place, dims={"soc": r["occ_code"]}, label=r["occ_title"], value=pct["p50"], percentiles={k: v for k, v in pct.items() if v is not None}, period=period, stat="median", dollar_year=year, status="draft"))
+        facts.append(EstimateFact(metric="wage", place=place, dims={"soc": r["occ_code"]}, label=singular_title(r["occ_title"]), value=pct["p50"], percentiles={k: v for k, v in pct.items() if v is not None}, period=period, stat="median", dollar_year=year, status="draft"))
     if not facts:
         raise ImportProblem("No national, state or Oregon area rows found in the file.")
     kinds = sorted({places.level_of(p) for p in kept_areas})

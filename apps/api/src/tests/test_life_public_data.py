@@ -10,7 +10,7 @@ import zipfile
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, ProgramEntry, SchoolEntry
 from src.db.users import User
 from src.services.life_plans import estimates, importers, public_data
 
@@ -40,6 +40,28 @@ RATINGS = ("O*NET-SOC Code\tTitle\tTask ID\tTask\tScale ID\tCategory\tData Value
            "15-1252.00\tSoftware Developers\t1\tWrite code.\tIM\tn/a\t4.1\n"
            "15-1252.00\tSoftware Developers\t2\tFix bugs.\tIM\tn/a\t4.6\n"
            "15-1252.00\tSoftware Developers\t3\tGo to meetings.\tIM\tn/a\t4.9\n")
+EDUCATION = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tCategory\tData Value\tN\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t1\t0.00\t28\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t6\t71.40\t28\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t5\t8.30\t28\n"
+             "15-1252.00\t2.D.1\tRequired Level of Education\tRL\t8\t20.30\t28\n"
+             "15-1252.00\t2.D.3\tRelated Work Experience\tRW\t2\t40.00\t28\n")
+RELATED = ("O*NET-SOC Code\tRelated O*NET-SOC Code\tRelatedness Tier\tIndex\n"
+           "15-1252.00\t27-1024.00\tPrimary-Long\t2\n15-1252.00\t29-2056.00\tPrimary-Short\t1\n")
+SKILLS = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tData Value\tN\tStandard Error\tLower CI Bound\tUpper CI Bound\tRecommend Suppress\tNot Relevant\tDate\tDomain Source\n"
+          "15-1252.00\t2.A.2.a\tCritical Thinking\tIM\t3.75\t8\t0.1\t3\t4\tN\tn/a\t08/2023\tAnalyst\n"
+          "15-1252.00\t2.A.2.a\tCritical Thinking\tLV\t4.50\t8\t0.1\t3\t4\tN\tN\t08/2023\tAnalyst\n"
+          "15-1252.00\t2.A.1.d\tSpeaking\tIM\t3.00\t8\t0.1\t3\t4\tN\tn/a\t08/2023\tAnalyst\n")
+TRANSFERABLE = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tData Value\tN\tStandard Error\tLower CI Bound\tUpper CI Bound\tRecommend Suppress\tNot Relevant\tDate\tDomain Source\n"
+                "15-1252.00\t2.B.3.e\tProgramming\tIM\t4.62\t8\t0.1\t3\t4\tN\tn/a\t08/2023\tAnalyst\n"
+                "15-1252.00\t2.B.3.l\tRepairing\tIM\t3.90\t8\t0.1\t3\t4\tY\tn/a\t08/2023\tAnalyst\n")
+STYLES = ("O*NET-SOC Code\tElement ID\tElement Name\tScale ID\tData Value\tDate\tDomain Source\n"
+          "15-1252.00\t1.D.3.b\tAttention to Detail\tDR\t9.00\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.3.b\tAttention to Detail\tWI\t2.80\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.1.c\tIntellectual Curiosity\tDR\t10.00\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.2.c\tEmpathy\tDR\t0.00\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.3.c\tDependability\tWI\t2.70\t12/2025\tAI/Expert\n"
+          "15-1252.00\t1.D.3.c\tDependability\tDR\t0.00\t12/2025\tAI/Expert\n")
 REPORTED = "O*NET-SOC Code\tReported Job Title\tShown in My Next Move\n15-1252.00\tSoftware Engineer\tN\n15-1252.00\tDeveloper\tY\n15-1252.00\tCoder\tN\n"
 
 
@@ -48,7 +70,8 @@ def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[byte
         files = (("Occupation Data.txt", OCCUPATIONS), ("Interests.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Alternate Titles.txt", ALTS))
     else:
         files = (("Occupation Data.txt", OCCUPATIONS), ("Career Interest Types.txt", INTERESTS), ("Job Zones.txt", ZONES), ("Job Titles.txt", JOB_TITLES), ("Sample of Reported Titles.txt", REPORTED),
-                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS))
+                 ("Task Statements.txt", TASKS), ("Task Ratings.txt", RATINGS), ("Education, Training, and Experience.txt", EDUCATION), ("Related Occupations.txt", RELATED),
+                 ("Essential Skills.txt", SKILLS), ("Transferable Skills.txt", TRANSFERABLE), ("Work Styles.txt", STYLES))
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as zf:
         for fname, text in (*files, ("Read Me.txt", "readme")):
@@ -58,7 +81,7 @@ def _onet_zip(name: str = "db_30_0_text.zip", layout: str = "old") -> tuple[byte
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     db = Session(engine)
     db.add(User(id=1, user_uuid="user_1", username="u1", email="u1@example.com", first_name="U", last_name="1"))
     db.commit()
@@ -97,6 +120,12 @@ def test_onet_31_layout_loads_career_interest_types_and_job_titles():
     assert dev.alt_titles == ["Developer", "Software Engineer", "Coder", "Application Programmer"]
     # Core tasks first, the most important first; supplemental ones after.
     assert dev.tasks == ["Fix bugs.", "Write code.", "Go to meetings."]
+    # What workers say it takes (levels nobody picked left out), and O*NET's related careers in its order.
+    assert dev.education == [{"level": 5, "pct": 8.3}, {"level": 6, "pct": 71.4}, {"level": 8, "pct": 20.3}]
+    assert dev.related == ["29-2056.00", "27-1024.00"]
+    # Skills rated 3.5 or more (a suppressed rating left out), most important first, then the key work styles.
+    # (Dependability isn't distinctive for the job, but its impact is high.)
+    assert dev.skills == ["2.B.3.e", "2.A.2.a", "1.D.1.c", "1.D.3.b", "1.D.3.c"]
 
 
 def test_onet_zip_without_interests_is_refused():
@@ -111,7 +140,7 @@ def test_career_search_finds_other_titles_and_detail_names_the_license():
     db = _session()
     importers.import_file(db, *_onet_zip())
     _review_all(db)
-    assert [c["title"] for c in public_data.search_careers(db, "vet tech")] == ["Veterinary Technologists and Technicians"]
+    assert [c["title"] for c in public_data.search_careers(db, "vet tech")] == ["Veterinary Technologist or Technician"]
     career = public_data.get_career(db, "15-1252.00")
     assert career["top_interests"] == "ICR" and career["source"]["title"] == "O*NET 30.0 Database"
     assert public_data.get_career(db, "00-0000.00") is None
@@ -186,6 +215,19 @@ def test_scorecard_loads_operating_schools_and_tuition_facts():
     assert public_data.get_school(db, "209551")["tuition"] == {"in": 15000.0, "out": 42000.0}
     hit = estimates.resolve_many(db, [estimates.EstimateQuery(id="t", metric="tuition", dims={"school": "208646", "residency": "out"})])["t"]
     assert hit["value"] == 13000 and hit["period"] == "yr"
+
+
+def test_scorecard_loads_each_schools_cost_of_attendance_budget():
+    db = _session()
+    csv = b"UNITID,INSTNM,STABBR,CURROPER,PREDDEG,TUITIONFEE_IN,ROOMBOARD_ON,ROOMBOARD_OFF,BOOKSUPPLY,OTHEREXPENSE_ON,OTHEREXPENSE_OFF,OTHEREXPENSE_FAM\n209551,University of Oregon,OR,1,3,15000,14000,13000,1200,2500,3000,NULL\n"
+    result = importers.import_file(db, csv, "Most-Recent-Cohorts-Institution_10032025.csv")
+    assert result["facts"] == 6
+    _review_all(db)
+    q = estimates.EstimateQuery
+    hits = estimates.resolve_many(db, [q(id="dorm", metric="room_board", dims={"school": "209551", "housing": "on"}), q(id="books", metric="books", dims={"school": "209551"}), q(id="fam", metric="other_costs", dims={"school": "209551", "housing": "family"})])
+    assert hits["dorm"]["value"] == 14000 and hits["dorm"]["period"] == "yr"
+    assert hits["books"]["value"] == 1200
+    assert hits["fam"] is None
 
 
 def test_scorecard_zip_uses_the_most_recent_institution_file():

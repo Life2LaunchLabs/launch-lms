@@ -1,6 +1,7 @@
 import type { Shell } from '../portfolioTypes'
 import { skillsOf } from './resultTemplates'
 
+import { tr } from '@/lib/tr'
 // Progress on the portfolio is three quests, each unlocking a real action: sharing, then the résumé,
 // then the mastery badge by the learner's name. Everything is worked out from the portfolio itself;
 // the API only keeps which unlocks the learner has seen, so an unlock never goes away again.
@@ -15,8 +16,8 @@ export type Stage = { kind: 'working' | 'unlocked'; quest: Quest } | { kind: 'ma
 /** The quest item for the résumé's email or phone, done in the profile dialog. */
 export const RESUME_CONTACT_ITEM = 'Add an email or phone for your résumé'
 
-const TITLES = { 1: 'Unlock sharing', 2: 'Unlock your résumé', 3: 'Portfolio mastery' } as const
-const WHY = { 1: 'Finish these to share your portfolio.', 2: 'Finish these to turn your portfolio into a résumé.', 3: 'Round it out to earn the mastery badge by your name.' } as const
+const TITLES = { get 1() { return tr('lit.progress.unlock_sharing', 'Unlock sharing') }, get 2() { return tr('lit.progress.unlock_your_r_sum', 'Unlock your résumé') }, get 3() { return tr('lit.progress.portfolio_mastery', 'Portfolio mastery') } } as const
+const WHY = { get 1() { return tr('lit.progress.finish_these_to_share_your', 'Finish these to share your portfolio.') }, get 2() { return tr('lit.progress.finish_these_to_turn_your', 'Finish these to turn your portfolio into a résumé.') }, get 3() { return tr('lit.progress.round_it_out_to_earn', 'Round it out to earn the mastery badge by your name.') } } as const
 
 const words = (text: string | undefined) => String(text || '').trim().split(/\s+/).filter(Boolean).length
 const count = (key: string, label: string, have: number, need: number, spot: Spot, detail?: string): QuestItem => ({ key, label, detail, have: Math.min(have, need), need, done: have >= need, spot })
@@ -34,27 +35,27 @@ export function quests(shell: Shell): Quest[] {
   return [
     quest(1, [
       // Asked at sign-up, so it's usually ticked already.
-      { key: 'name', label: 'Add your first and last name', done: Boolean(shell.identity?.first_name?.trim() && shell.identity?.last_name?.trim()), spot: 'name' },
-      { key: 'photo', label: 'Add a profile photo', done: Boolean(shell.portfolio.avatar_image), spot: 'avatar' },
-      { key: 'bio', label: 'Write a short bio', done: Boolean(String(shell.portfolio.short_bio || '').trim()), spot: 'about' },
-      { key: 'now', label: 'Add where you are right now', done: timeline.length >= 1, spot: 'experience' },
-      { key: 'made', label: 'Add something you made', done: projects.length >= 1, spot: 'projects' },
-      { key: 'look', label: 'Pick your look', done: Boolean(shell.layout?.look), spot: 'settings' },
+      { key: 'name', label: tr('portfolio.progress.add_your_first_and_last', 'Add your first and last name'), done: Boolean(shell.identity?.first_name?.trim() && shell.identity?.last_name?.trim()), spot: 'name' },
+      { key: 'photo', label: tr('portfolio.progress.add_a_profile_photo', 'Add a profile photo'), done: Boolean(shell.portfolio.avatar_image), spot: 'avatar' },
+      { key: 'bio', label: tr('portfolio.progress.write_a_short_bio', 'Write a short bio'), done: Boolean(String(shell.portfolio.short_bio || '').trim()), spot: 'about' },
+      { key: 'now', label: tr('portfolio.progress.add_where_you_are_right', 'Add where you are right now'), done: timeline.length >= 1, spot: 'experience' },
+      { key: 'made', label: tr('portfolio.progress.add_something_you_made', 'Add something you made'), done: projects.length >= 1, spot: 'projects' },
+      { key: 'look', label: tr('portfolio.progress.pick_your_look', 'Pick your look'), done: Boolean(shell.layout?.look), spot: 'settings' },
     ]),
     quest(2, [
-      count('xp3', 'Add 3 experiences', timeline.length, 3, 'experience'),
-      { key: 'school', label: 'Add your school', done: timeline.some((entry) => entry.entry_type === 'education'), spot: 'experience' },
+      count('xp3', tr('lit.progress.add_3_experiences', 'Add 3 experiences'), timeline.length, 3, 'experience'),
+      { key: 'school', label: tr('portfolio.progress.add_your_school', 'Add your school'), done: timeline.some((entry) => entry.entry_type === 'education'), spot: 'experience' },
       // A résumé needs a way to reach you, not a social link; the email and phone stay off the portfolio.
       { key: 'contact', label: RESUME_CONTACT_ITEM, done: Boolean(shell.resume_contact?.email?.trim() || shell.resume_contact?.phone?.trim()), spot: 'name' },
-      count('skills', 'Name 3 skills', skills.size, 3, 'results'),
+      count('skills', tr('lit.progress.name_3_skills', 'Name 3 skills'), skills.size, 3, 'results'),
     ]),
     quest(3, [
-      count('work', 'Show your work', projects.filter((item) => item.cover_url).length, 3, 'projects', '3 projects with a real photo'),
-      count('stories', 'Tell your stories', timeline.filter((entry) => words(entry.summary) >= 25).length, 2, 'experience', '2 experiences told in a few sentences'),
-      count('vouched', 'Get vouched for', (shell.quotes || []).filter((item) => item.confirmed).length, 2, 'people', '2 quotes confirmed by a boss, coach or teacher'),
+      count('work', tr('lit.progress.show_your_work', 'Show your work'), projects.filter((item) => item.cover_url).length, 3, 'projects', '3 projects with a real photo'),
+      count('stories', tr('lit.progress.tell_your_stories', 'Tell your stories'), timeline.filter((entry) => words(entry.summary) >= 25).length, 2, 'experience', '2 experiences told in a few sentences'),
+      count('vouched', tr('lit.progress.get_vouched_for', 'Get vouched for'), (shell.quotes || []).filter((item) => item.confirmed).length, 2, 'people', '2 quotes confirmed by a boss, coach or teacher'),
       // Only what can be backed up counts: a badge earned here. Uploaded cards wait until they can be checked.
-      count('proven', 'Prove it', (shell.badges?.earned || []).length, 1, 'credentials', 'Earn a badge by finishing a plan'),
-      count('like', 'Show what you’re like', (shell.results || []).filter((item) => item.kind !== 'skills' || (item.data?.values || []).length).length, 1, 'results', 'Your interests, strengths or values'),
+      count('proven', tr('lit.progress.prove_it', 'Prove it'), (shell.badges?.earned || []).length, 1, 'credentials', tr('lit.progress.earn_a_badge_by_finishing', 'Earn a badge by finishing a plan')),
+      count('like', tr('lit.progress.show_what_you_re_like', 'Show what you’re like'), (shell.results || []).filter((item) => item.kind !== 'skills' || (item.data?.values || []).length).length, 1, 'results', tr('lit.progress.your_interests_strengths_or_values', 'Your interests, strengths or values')),
     ]),
   ]
 }

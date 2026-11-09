@@ -4,6 +4,7 @@ import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@components/ui/dialog'
 import type { OpenChange } from './parts'
 
+import { tr } from '@/lib/tr'
 // Example portfolios in each look, made up. Shown the first time a learner opens their portfolio.
 const EXAMPLES = [
   { name: 'Aiyana Begay', line: 'Future nurse · Bend', initials: 'AB', look: 'Playful', bg: '#f5f8f9', fg: '#0e1a21', a: '#4C8DFF', b: '#EC4F9A', chip: '#e6eefb', highlights: ['220 hrs', 'CNA'] },
@@ -14,7 +15,7 @@ const EXAMPLES = [
 
 function Example({ example }: { example: (typeof EXAMPLES)[number] }) {
   const { bg, fg, a, b, chip } = example
-  return <div className="relative w-[210px] shrink-0 snap-center overflow-hidden rounded-[20px] border border-black/10 p-2.5 pb-3 shadow-sm" style={{ background: bg, color: fg }} aria-label={`${example.name}, ${example.look} look`}>
+  return <div className="relative w-[210px] shrink-0 snap-center overflow-hidden rounded-[20px] border border-black/10 p-2.5 pb-3 shadow-sm" style={{ background: bg, color: fg }} aria-label={tr('portfolio.welcome_dialog.name_look_look', '{{name}}, {{look}} look', { name: example.name, look: example.look })}>
     <div className="h-[52px] rounded-xl" style={{ background: `linear-gradient(120deg, ${a}, ${b})` }} />
     <div className="-mt-6 ml-2 grid h-12 w-12 place-items-center rounded-full text-sm font-extrabold text-white" style={{ background: `linear-gradient(140deg, ${b}, ${a})`, border: `3px solid ${bg}` }}>{example.initials}</div>
     <b className="mt-1.5 block px-1 text-[14px] font-extrabold leading-tight">{example.name}</b>
@@ -23,7 +24,7 @@ function Example({ example }: { example: (typeof EXAMPLES)[number] }) {
     <div className="mt-2 grid grid-cols-3 gap-1.5 px-1" aria-hidden="true">
       <span className="h-10 rounded-lg" style={{ background: a, opacity: 0.85 }} /><span className="h-10 rounded-lg" style={{ background: b, opacity: 0.75 }} /><span className="h-10 rounded-lg" style={{ background: chip }} />
     </div>
-    <span className="mt-2 block px-1 text-[11px] font-bold uppercase tracking-[0.08em] opacity-60">{example.look} look</span>
+    <span className="mt-2 block px-1 text-[11px] font-bold uppercase tracking-[0.08em] opacity-60">{tr('portfolio.welcome_dialog.look_look', '{{look}} look', { look: example.look })}</span>
   </div>
 }
 
@@ -32,13 +33,13 @@ export function WelcomeDialog({ open, onOpenChange, onStart }: { open: boolean; 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-2xl gap-5 overflow-hidden">
       <div className="grid gap-2 pr-6">
-        <DialogTitle className="text-[clamp(28px,5vw,40px)] font-black leading-none tracking-[-0.03em]">Build your brand.</DialogTitle>
-        <DialogDescription className="max-w-[52ch] text-[15px] leading-relaxed">One place for everything you’ve done, made and earned. Make it look like you, then share it with employers and schools when you’re ready.</DialogDescription>
+        <DialogTitle className="text-[clamp(28px,5vw,40px)] font-black leading-none tracking-[-0.03em]">{tr('portfolio.welcome_dialog.build_your_brand', 'Build your brand.')}</DialogTitle>
+        <DialogDescription className="max-w-[52ch] text-[15px] leading-relaxed">{tr('portfolio.welcome_dialog.one_place_for_everything_you', 'One place for everything you’ve done, made and earned. Make it look like you, then share it with employers and schools when you’re ready.')}</DialogDescription>
       </div>
-      <div className="-mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none]" aria-label="Example portfolios">
+      <div className="-mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none]" aria-label={tr('portfolio.welcome_dialog.example_portfolios', 'Example portfolios')}>
         {EXAMPLES.map((example) => <Example key={example.name} example={example} />)}
       </div>
-      <Button type="button" variant="brand" size="cta" className="w-full" onClick={onStart}>Let’s go</Button>
+      <Button type="button" variant="brand" size="cta" className="w-full" onClick={onStart}>{tr('portfolio.welcome_dialog.let_s_go', 'Let’s go')}</Button>
     </DialogContent>
   </Dialog>
 }

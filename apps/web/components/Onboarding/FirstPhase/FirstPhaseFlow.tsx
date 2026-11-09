@@ -13,7 +13,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import PhaseCover, { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { ActivityPicker, LivingPicker, MonthPicker, chip } from '@components/Goals/phases/PhasePickers'
-import { activityText, kindFor, seedLines, suggestTitle } from '@components/Goals/phases/setup'
+import { activityText, kindFor, suggestTitle } from '@components/Goals/phases/setup'
 import { monthText, normalize, phaseId } from '@components/Goals/phases/graph'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi } from '@services/goals/goals'
@@ -89,7 +89,6 @@ export default function FirstPhaseFlow() {
     setBusy(true)
     const id = phaseId()
     const phase: Phase = { ...preview, id, title: title.trim() || t('onboarding.now'), starts: d.starts, after: [], idea: false, activities: d.activities, living: d.living, places: [], goals: [] }
-    phase.lines = seedLines(phase)
     const saved = await change((plan) => {
       Object.assign(plan, normalize({ ...plan, start: d.starts, phases: [...(plan.phases || []), phase] }))
     })

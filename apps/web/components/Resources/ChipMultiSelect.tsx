@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Search, X } from 'lucide-react'
 
+import { tr } from '@/lib/tr'
 export interface ChipMultiSelectOption {
   value: string
   label: string
@@ -24,9 +25,9 @@ export default function ChipMultiSelect({
   options,
   selectedValues,
   onChange,
-  placeholder = 'Select options',
-  searchPlaceholder = 'Search options',
-  emptyMessage = 'No options yet.',
+  placeholder = tr('lit.chip_multi_select.select_options', 'Select options'),
+  searchPlaceholder = tr('lit.chip_multi_select.search_options', 'Search options'),
+  emptyMessage = tr('lit.chip_multi_select.no_options_yet', 'No options yet.'),
   disabled = false,
   displayMode = 'inline-chips',
 }: ChipMultiSelectProps) {
@@ -159,7 +160,7 @@ export default function ChipMultiSelect({
             if (!open) searchInputRef.current?.focus()
           }}
           className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground"
-          aria-label={open ? 'Close options' : 'Open options'}
+          aria-label={open ? tr('resources.chip_multi_select.close_options', 'Close options') : tr('resources.chip_multi_select.open_options', 'Open options')}
         >
           <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
         </button>

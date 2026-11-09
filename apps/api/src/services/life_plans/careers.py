@@ -17,12 +17,14 @@ from datetime import UTC, datetime
 
 from sqlmodel import Session, col, select
 
-from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, LifePlan
+from src.db.life_plans import CareerEntry, CareerSkip, EstimateFact, EstimateSource, LifePlan
 from src.db.portfolio import Portfolio
 from src.db.portfolio_records import PortfolioResult
 from src.db.resources import Resource, UserSavedResource
 from src.db.users import PublicUser
 from src.services.life_plans import places as place_service
+from src.services.life_plans import programs as program_service
+from src.services.life_plans import skill_words
 from src.services.life_plans.estimates import REVIEWED, dims_key
 from src.services.life_plans.public_data import RIASEC, _career_view, _correlation, get_career, live_careers
 
@@ -81,6 +83,77 @@ def my_places(db: Session, user_id: int) -> list[dict]:
     return found
 
 
+# How far a learner would go for school or work, as the farthest nearness a program may have (programs.paths ranks
+# 0 same town, 1 county, 2 region, 3 state, 4 farther); "anywhere" also lists schools in other states.
+REACHES = {"close": 1, "region": 2, "state": 3, "anywhere": 4}
+DEFAULT_REACH = "state"
+
+
+def _settings(portfolio: Portfolio | None) -> dict:
+    saved = (portfolio.location_settings if portfolio else None) or {}
+    reach = saved.get("reach") if saved.get("reach") in REACHES else DEFAULT_REACH
+    return {"reach": reach, "online": saved.get("online") is not False}
+
+
+def home_base(db: Session, user_id: int) -> dict | None:
+    """Where the learner lives, as a place key: the portfolio's location if we can place it, else the first place on
+    their life plan. Pay and openings near them follow it, and programs follow its reach and online settings."""
+    portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
+    found = resolve_place(portfolio.location_label if portfolio else "")
+    if found:
+        return {**found, "from": "portfolio", **_settings(portfolio)}
+    places = my_places(db, user_id)
+    if places:
+        return {"key": places[0]["key"], "label": places[0]["label"], "from": "plan", **_settings(portfolio)}
+    return None
+
+
+def area_of(key: str | None) -> str:
+    """The county and wider Oregon region a place sits in, for "Douglas County · Southwestern Oregon"."""
+    ladder = place_service.ladder(key)
+    county = next((place_service.label(k).removesuffix(", OR") for k in ladder if k.startswith("county:")), "")
+    regions = [place_service.label(k) for k in ladder if k.startswith("region:")]
+    wider = next((name for name in reversed(regions) if name != county), "")
+    return " · ".join(part for part in (county, wider) if part)
+
+
+def home_settings(db: Session, user_id: int, text: str | None = None) -> dict:
+    """The home base sheet: the portfolio's location as typed, where we place it, and its settings. With `text`,
+    where we'd place that instead (a preview while typing)."""
+    portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
+    label = text if text is not None else (portfolio.location_label if portfolio else "")
+    place = resolve_place(label)
+    return {"label": label, "place": place, "area": area_of(place["key"]) if place else "", **_settings(portfolio)}
+
+
+def save_home(db: Session, user: PublicUser, label: str, reach: str, online: bool) -> dict:
+    """Set the portfolio's location and its home base settings."""
+    from src.services.portfolio import _save, get_or_create_portfolio
+
+    portfolio = get_or_create_portfolio(user, db)
+    portfolio.location_label = label.strip()[:120]
+    portfolio.location_settings = {"reach": reach if reach in REACHES else DEFAULT_REACH, "online": bool(online)}
+    _save(portfolio, db)
+    return home_settings(db, user.id)
+
+
+def resolve_place(text: str | None) -> dict | None:
+    """A typed location ("Roseburg, OR", "Douglas County", "Idaho") as a place key we know, or None."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    first = re.split(r"[,(]", text)[0].strip().lower().removesuffix(" county").strip()
+    for row in place_service.search(first, limit=40):
+        name = row["label"].split(",")[0].strip().lower().removesuffix(" county").strip()
+        if name == first and row["level"] in ("city", "county", "state"):
+            return {"key": row["key"], "label": row["label"]}
+    rest = [part.strip().lower() for part in text.split(",")[1:]]
+    for code, name in place_service.STATES.items():
+        if any(part in (code.lower(), name.lower()) for part in rest):
+            return {"key": f"state:{code}", "label": name}
+    return None
+
+
 # ---------------------------------------------------------------- pay
 
 def _yearly(fact: EstimateFact, value: float | None) -> int | None:
@@ -89,11 +162,26 @@ def _yearly(fact: EstimateFact, value: float | None) -> int | None:
     return int(round(value * HOURS_A_YEAR if fact.period == "hr" else value, -2))
 
 
+def _newest(facts) -> dict[str, EstimateFact]:
+    """One wage per place: the newest year when two datasets cover it (BLS May 2025 and OED 2026 both cover Oregon)."""
+    out: dict[str, EstimateFact] = {}
+    for fact in sorted(facts, key=lambda item: (item.dollar_year or 0, item.id or 0)):
+        out[fact.place] = fact
+    return out
+
+
+def _pay_source(db: Session, fact: EstimateFact | None) -> str:
+    source = db.get(EstimateSource, fact.source_id) if fact else None
+    if source and source.publisher and "bureau of labor" not in source.publisher.lower():
+        return ", ".join(part for part in (source.publisher, source.title) if part)
+    return f"BLS Occupational Employment and Wage Statistics, May {fact.dollar_year}" if fact and fact.dollar_year else "BLS Occupational Employment and Wage Statistics"
+
+
 def pay(db: Session, soc: str) -> dict:
-    """BLS pay for a job: Oregon (or the U.S. when Oregon has none) with its middle half, and each Oregon wage area."""
+    """Pay for a job: Oregon (or the U.S. when Oregon has none) with its middle half, and each Oregon wage area."""
     facts = db.exec(select(EstimateFact).where(EstimateFact.metric == "wage", EstimateFact.status == REVIEWED,
                                                EstimateFact.dims_key == dims_key({"soc": soc}))).all()
-    by_place = {fact.place: fact for fact in facts}
+    by_place = _newest(facts)
     main = by_place.get("state:OR") or by_place.get("us")
     overall = None
     if main and main.value is not None:
@@ -101,8 +189,99 @@ def pay(db: Session, soc: str) -> dict:
         overall = {"place": "Oregon" if main.place == "state:OR" else "the U.S.", "median": _yearly(main, main.value),
                    "p25": _yearly(main, pct.get("p25")), "p75": _yearly(main, pct.get("p75")), "year": main.dollar_year}
     areas = sorted(({"area": fact.place, "label": place_service.label(fact.place), "median": _yearly(fact, fact.value)}
-                    for fact in facts if fact.place.startswith("area:") and fact.value is not None), key=lambda row: -row["median"])
-    return {"overall": overall, "areas": areas, "source": f"BLS Occupational Employment and Wage Statistics, May {main.dollar_year}" if main and main.dollar_year else "BLS Occupational Employment and Wage Statistics"}
+                    for fact in by_place.values() if fact.place.startswith("area:") and fact.value is not None), key=lambda row: -row["median"])
+    return {"overall": overall, "areas": areas, "source": _pay_source(db, main)}
+
+
+def _hourly(fact: EstimateFact, value: float | None) -> float | None:
+    if value is None:
+        return None
+    return round(value if fact.period == "hr" else value / HOURS_A_YEAR, 2)
+
+
+PLACE_ORDER = {"region": 0, "area": 1, "state": 2, "us": 3}
+
+
+def wages(db: Session, soc: str, home: str | None = None) -> dict:
+    """Pay for a job in every place we have it, each with its 10th to 90th percentiles, hourly and yearly, from the
+    newest release for that place; which place is nearest the learner; and the typical pay in Oregon and the US
+    over the years we have."""
+    facts = db.exec(select(EstimateFact).where(EstimateFact.metric == "wage", EstimateFact.status == REVIEWED,
+                                               EstimateFact.dims_key == dims_key({"soc": soc}))).all()
+    sources = {src.id: src for src in db.exec(select(EstimateSource).where(col(EstimateSource.id).in_({fact.source_id for fact in facts}))).all()} if facts else {}
+    # Oregon and its areas, the US, and the learner's own state when they live outside Oregon.
+    home_state = next((key for key in place_service.ladder(home) if key.startswith("state:")), None) if home else None
+    rows = []
+    for fact in _newest(facts).values():
+        if fact.value is None or (fact.place.startswith("state:") and fact.place not in ("state:OR", home_state)):
+            continue
+        pct = {**(fact.percentiles or {}), "p50": fact.value}
+        level = place_service.level_of(fact.place)
+        rows.append({
+            "place": fact.place, "label": "Oregon" if fact.place == "state:OR" else place_service.label(fact.place), "level": level,
+            "hourly": {key: _hourly(fact, pct.get(key)) for key in ("p10", "p25", "p50", "p75", "p90") if pct.get(key) is not None},
+            "yearly": {key: _yearly(fact, pct.get(key)) for key in ("p10", "p25", "p50", "p75", "p90") if pct.get(key) is not None},
+            "year": fact.dollar_year, "source": _pay_source(db, fact), "publisher": (sources.get(fact.source_id).publisher if sources.get(fact.source_id) else "") or "",
+        })
+    rows.sort(key=lambda row: (PLACE_ORDER.get(row["level"], 9), -(row["yearly"].get("p50") or 0)))
+    have = {row["place"] for row in rows}
+    here = next((key for key in place_service.ladder(home) if key in have), None) if home else None
+    here = here or ("state:OR" if "state:OR" in have else "us" if "us" in have else None)
+
+    # Typical pay over time: one figure a year, preferring BLS's own survey so the line is one method.
+    history: dict[str, list[dict]] = {}
+    for place in ("state:OR", "us"):
+        by_year: dict[int, EstimateFact] = {}
+        for fact in sorted((f for f in facts if f.place == place and f.dollar_year and f.value is not None), key=lambda f: f.id or 0):
+            src = sources.get(fact.source_id)
+            bls = bool(src and src.key.startswith("bls-"))
+            kept = by_year.get(fact.dollar_year)
+            kept_bls = bool(kept and sources.get(kept.source_id) and sources[kept.source_id].key.startswith("bls-"))
+            if kept is None or bls or not kept_bls:
+                by_year[fact.dollar_year] = fact
+        history[place] = [{"year": year, "hourly": _hourly(fact, fact.value), "yearly": _yearly(fact, fact.value)} for year, fact in sorted(by_year.items())]
+    return {"places": rows, "here": here, "history": history}
+
+
+OUTLOOK_METRICS = ("employment", "employment_projected", "growth", "openings")
+ENTRY = re.compile(r"typical entry:\s*([^;]+)(?:;\s*competitive:\s*(.+))?", re.I)
+
+
+def outlook(db: Session, soc: str, home: str | None = None) -> dict | None:
+    """Jobs now and in ten years, and openings a year, for Oregon and each of its regions, from the newest reviewed
+    projections; which region is nearest the learner; and the education OED says people usually start with."""
+    facts = db.exec(select(EstimateFact).where(col(EstimateFact.metric).in_(OUTLOOK_METRICS), EstimateFact.status == REVIEWED,
+                                               EstimateFact.dims_key == dims_key({"soc": soc}))).all()
+    if not facts:
+        return None
+    sources = {src.id: src for src in db.exec(select(EstimateSource).where(col(EstimateSource.id).in_({fact.source_id for fact in facts}))).all()}
+    newest = max(sources.values(), key=lambda src: (src.key, src.id or 0))
+    by_place: dict[str, dict] = {}
+    for fact in facts:
+        if fact.source_id != newest.id:
+            continue
+        row = by_place.setdefault(fact.place, {"place": fact.place, "label": "Oregon" if fact.place == "state:OR" else place_service.label(fact.place)})
+        row[fact.metric] = fact.value
+        if fact.metric == "openings" and fact.note:
+            row["note"] = fact.note
+    years = re.search(r"(20\d{2})\D+(20\d{2})", newest.key) or re.search(r"(20\d{2})\D+(20\d{2})", newest.title or "")
+    rows = []
+    for row in by_place.values():
+        jobs, later = row.get("employment"), row.get("employment_projected")
+        growth = (later - jobs) / jobs if jobs and later is not None else row.get("growth")
+        rows.append({"place": row["place"], "label": row["label"], "jobs": int(jobs) if jobs is not None else None,
+                     "jobs_later": int(later) if later is not None else None, "growth": round(growth, 4) if growth is not None else None,
+                     "openings": int(round(row["openings"])) if row.get("openings") is not None else None})
+    rows.sort(key=lambda row: (row["place"] != "state:OR", -(row["openings"] or 0)))
+    have = {row["place"] for row in rows if row["openings"] is not None}
+    here = next((key for key in place_service.ladder(home) if key in have and key != "state:OR"), None) if home else None
+    entry = ENTRY.search((by_place.get("state:OR") or {}).get("note", ""))
+    return {
+        "places": rows, "here": here,
+        "start": int(years.group(1)) if years else None, "end": int(years.group(2)) if years else None,
+        "entry": {"typical": entry.group(1).strip(), "competitive": (entry.group(2) or "").strip() or None} if entry else None,
+        "source": ", ".join(part for part in (newest.publisher, newest.title) if part),
+    }
 
 
 def median_pay(db: Session, socs: list[str]) -> dict[str, int]:
@@ -113,6 +292,7 @@ def median_pay(db: Session, socs: list[str]) -> dict[str, int]:
     rows = db.exec(select(EstimateFact).where(EstimateFact.metric == "wage", EstimateFact.status == REVIEWED, col(EstimateFact.place).in_(["state:OR", "us"]),
                                               col(EstimateFact.dims_key).in_(list(keys)))).all()
     out: dict[str, int] = {}
+    rows = sorted(rows, key=lambda item: (-(item.dollar_year or 0), -(item.id or 0)))
     for place in ("state:OR", "us"):
         for fact in rows:
             soc = keys[fact.dims_key]
@@ -138,6 +318,25 @@ def career_resources(db: Session, user, org_id: int) -> dict[str, Resource]:
     return out
 
 
+def school_links(db: Session, user, org_id: int) -> dict[str, str]:
+    """The school resources this organization's people may open (resource_uuid), by website, lower-cased and without a trailing slash."""
+    from src.services.resources import _org_resource_ids
+
+    ids = _org_resource_ids(org_id, db, user)
+    if not ids:
+        return {}
+    rows = db.exec(select(Resource).where(Resource.resource_type == "school", col(Resource.id).in_(ids)).order_by(Resource.id)).all()
+    out: dict[str, str] = {}
+    for resource in rows:
+        out.setdefault(_site(resource.external_url), resource.resource_uuid)
+    return out
+
+
+def _site(url: str | None) -> str:
+    url = (url or "").strip().lower().rstrip("/")
+    return url.split("://", 1)[1] if "://" in url else url
+
+
 def links(db: Session, user, org_id: int, codes: list[str]) -> dict[str, str]:
     """For each code, the career resource to open (its resource_uuid), where the organization has one."""
     found = career_resources(db, user, org_id)
@@ -153,26 +352,53 @@ def profile(db: Session, user: PublicUser, code: str, org_id: int | None = None)
         return None
     scores = quiz_scores(db, user.id)
     places = my_places(db, user.id)
+    home = home_base(db, user.id)
     money = pay(db, career["soc"])
     mine = {place["area"]: place["label"] for place in places if place["area"]}
     areas = [{**row, "mine": row["area"] in mine, "my_place": mine.get(row["area"])} for row in money["areas"]]
     areas.sort(key=lambda row: (not row["mine"], -row["median"]))
     resources = career_resources(db, user, org_id) if org_id else {}
 
-    others = [c for c in db.exec(live_careers().where(CareerEntry.code != code)).all() if len(c.interests) == 6]
-    similar = sorted(((_correlation(career["interests"], c.interests) or -1, c) for c in others), key=lambda t: (-t[0], t[1].title))[:6] if len(career["interests"]) == 6 else []
+    # Similar careers: the ones O*NET says are related, else the closest interest profiles.
+    related = career.get("related") or []
+    live = {c.code: c for c in db.exec(live_careers().where(col(CareerEntry.code).in_(related))).all()} if related else {}
+    similar = [(None, live[other]) for other in related if other in live and other != code][:6]
+    if not similar and len(career["interests"]) == 6:
+        others = [c for c in db.exec(live_careers().where(CareerEntry.code != code)).all() if len(c.interests) == 6]
+        similar = sorted(((_correlation(career["interests"], c.interests) or -1, c) for c in others), key=lambda t: (-t[0], t[1].title))[:6]
     similar_pay = median_pay(db, [c.soc for _, c in similar])
     return {
         "career": career,
         "match": round(_correlation(scores, career["interests"]), 3) if scores and len(career["interests"]) == 6 and _correlation(scores, career["interests"]) is not None else None,
         "scores": scores,
+        "skills": _skills(db, user.id, career),
         "pay": {**money, "areas": areas},
         "my_places": places,
+        "home": home,
+        "wages": wages(db, career["soc"], home["key"] if home else None),
+        "outlook": outlook(db, career["soc"], home["key"] if home else None),
+        "paths": _paths(db, user, code, home, org_id),
         "resource_uuid": resources[code].resource_uuid if code in resources else None,
         "similar": [{**_career_view(c), "pay": {"yearly": similar_pay[c.soc]} if c.soc in similar_pay else None,
                      "resource_uuid": resources[c.code].resource_uuid if c.code in resources else None} for _, c in similar],
         "link": onet_link(code),
     }
+
+
+def _skills(db: Session, user_id: int, career: dict) -> dict:
+    """The learner's picked skill chips (None before they pick any) and the ones this career uses."""
+    mine = skill_words.my_chips(db, user_id)
+    return {"mine": mine, "used": skill_words.used(mine or [], career.get("skills") or [])}
+
+
+def _paths(db: Session, user, code: str, home: dict | None, org_id: int | None) -> dict:
+    """Programs that train for the career, each school opening as the organization's school resource where it has one."""
+    out = program_service.paths(db, code, home["key"] if home else None, reach=REACHES[home["reach"]] if home else REACHES[DEFAULT_REACH],
+                                online=home["online"] if home else True)
+    sites = school_links(db, user, org_id) if org_id and out["programs"] else {}
+    for program in out["programs"]:
+        program["resource_uuid"] = sites.get(_site(program.pop("url", "")))
+    return out
 
 
 # ---------------------------------------------------------------- Career swipe

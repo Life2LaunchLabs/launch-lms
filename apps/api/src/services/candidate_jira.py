@@ -11,13 +11,13 @@ import base64
 import json
 import os
 import re
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from fastapi import HTTPException
+from src.core.build_info import build_info
 from src.services.feedback_configuration import environment_settings, stored_settings
 
 FEEDBACK_PROPERTY = "launchlms.feedback"
@@ -27,7 +27,6 @@ TESTER_COMMENT_PREFIX = "[Launch LMS tester comment]"
 ANNOUNCEMENTS_PROPERTY = "launchlms.candidate-announcements"
 MAX_ATTACHMENTS = 3
 MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
-BUILD_INFO_PATH = Path("/app/build-info.json")
 
 
 def _adf(text: str) -> dict:
@@ -51,10 +50,8 @@ def _adf_text(value) -> str:
 
 
 def current_revision() -> str:
-    try:
-        value = json.loads(BUILD_INFO_PATH.read_text()).get("commit_sha", "unknown")
-    except OSError, json.JSONDecodeError:
-        value = os.getenv("LAUNCHLMS_BUILD_REVISION", "unknown")
+    info = build_info()
+    value = info.get("commit_sha", "unknown") if info else os.getenv("LAUNCHLMS_BUILD_REVISION", "unknown")
     return str(value or "unknown").lower()
 
 

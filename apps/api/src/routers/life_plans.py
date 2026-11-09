@@ -20,6 +20,7 @@ from src.security.superadmin import require_superadmin
 from src.services.life_plans import careers as career_service
 from src.services.life_plans import catalog as catalog_service
 from src.services.life_plans import datasets as dataset_service
+from src.services.life_plans import explore as explore_service
 from src.services.life_plans import estimates as estimate_service
 from src.services.life_plans import importers
 from src.services.life_plans import places as place_service
@@ -116,6 +117,12 @@ def _signed_in(user) -> PublicUser:
     return user
 
 
+@router.get("/explore")
+def api_explore_home(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The learner's own Explore: the "Unlock your matches" quest, the careers that fit them best, and their saved careers."""
+    return explore_service.home(db, _signed_in(user), org_id)
+
+
 @router.get("/careers/deck")
 def api_career_deck(org_id: int, size: int = 10, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Career swipe's next careers: the organization's career resources the learner hasn't saved, closest to their
@@ -128,6 +135,27 @@ def api_career_links(org_id: int, codes: str = "", db: Session = Depends(get_db_
     """The career resource to open for each O*NET-SOC code, where the organization has one."""
     wanted = [code.strip() for code in codes.split(",") if code.strip()][:100]
     return {"links": career_service.links(db, user, org_id, wanted)}
+
+
+class HomeBase(BaseModel):
+    label: str = Field(default="", max_length=120)
+    reach: str = "state"
+    online: bool = True
+
+
+@router.get("/home")
+def api_home_base(q: str | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The learner's home base for Explore: the portfolio's location, where we place it, how far they'd go and
+    whether online is OK. With `q`, where we'd place that text instead (a preview while typing)."""
+    return career_service.home_settings(db, _signed_in(user).id, q[:120] if q is not None else None)
+
+
+@router.put("/home")
+def api_save_home_base(body: HomeBase, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Set the portfolio's location and the home base settings under it."""
+    if body.reach not in career_service.REACHES:
+        raise HTTPException(status_code=400, detail="Reach is close, region, state or anywhere.")
+    return career_service.save_home(db, _signed_in(user), body.label, body.reach, body.online)
 
 
 @router.get("/careers/{code}/profile")

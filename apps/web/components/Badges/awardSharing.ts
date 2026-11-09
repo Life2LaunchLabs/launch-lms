@@ -1,10 +1,11 @@
 import type { BadgeAward } from '@services/badges/badges'
 
+import { tr } from '@/lib/tr'
 /** The PDF's file name: the badge and who earned it, safe on every system. */
 export function certificateFileName(award: BadgeAward): string {
   const learner = award.learner?.name || award.learner?.username || ''
   const base = [award.achievement.name, learner].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim()
-  return `${base || 'Certificate'}.pdf`
+  return `${base || tr('lit.award_sharing.certificate', 'Certificate')}.pdf`
 }
 
 // US Letter, landscape, in points: the certificate's own 11 x 8.5 shape.

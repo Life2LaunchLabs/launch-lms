@@ -18,12 +18,13 @@ import { canMoveStages, FinishSection, MoveOnLine, ScheduleNotes, useMoveToStage
 import type { GoalBadge } from './GoalHeader'
 import { GoalStepRow, type PathPerspective, type PathViewer } from './GoalStepRow'
 
+import { tr } from '@/lib/tr'
 type Section = { key: string; title: string; stage?: Stage; index: number; steps: Step[] }
 
 /** The goal's stages as sections; an empty stage stays when it can be planned from here. */
 function sectionsOf(goal: Goal, keepEmpty: boolean): Section[] {
   const sections: Section[] = goal.stages.map((stage, index) => ({ key: stage.stage_uuid, title: stage.title, stage, index, steps: stage.steps }))
-  if (goal.unstaged_steps.length) sections.push({ key: 'loose', title: sections.length ? 'More steps' : 'Steps', index: sections.length, steps: goal.unstaged_steps })
+  if (goal.unstaged_steps.length) sections.push({ key: 'loose', title: sections.length ? tr('lit.goal_path.more_steps', 'More steps') : tr('lit.goal_path.steps', 'Steps'), index: sections.length, steps: goal.unstaged_steps })
   return sections.filter((section) => section.steps.length || (keepEmpty && section.stage))
 }
 
@@ -109,7 +110,7 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
 
   const goTo = (stepUuid: string) => { onSelect(stepUuid); document.getElementById(`step-${stepUuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
   const openActivity = onOpenActivity || ((step: Step) => router.push(getUriWithOrg(viewer.orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/steps/${encodeURIComponent(step.step_uuid)}/activity`)))
-  const ask = hub && learner ? (step: Step) => hub.open({ prompt: `Help me with “${step.title}” in my goal “${goal.title}”.` }) : undefined
+  const ask = hub && learner ? (step: Step) => hub.open({ prompt: tr('goals.goal_path.help_me_with_title_in', 'Help me with “{{title}}” in my goal “{{title2}}”.', { title: step.title, title2: goal.title }) }) : undefined
   const looseSuggestions = proposals.steps.filter((item) => !item.stageUuid)
 
   const currentIndex = goal.stages.findIndex((stage) => stage.stage_uuid === current)
@@ -123,7 +124,7 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
       const suggested = section.stage ? proposals.steps.filter((item) => item.stageUuid === section.stage!.stage_uuid) : looseSuggestions
       // A stage the goal hasn't reached says once why its steps are closed, instead of every row saying it.
       const waiting = !cohort && Boolean(section.stage) && section.steps.length > 0 && section.steps.every((step) => step.state === 'locked' && step.locked_reason?.kind === 'stage')
-      const when = stageDate(goal, section, place) || (waiting ? 'Opens when the goal moves on to it' : '')
+      const when = stageDate(goal, section, place) || (waiting ? tr('lit.goal_path.opens_when_the_goal_moves', 'Opens when the goal moves on to it') : '')
       const titled = sections.length > 1 || (section.title !== 'Steps' && section.title !== goal.title) || Boolean(editing?.structure)
       // The stage the goal is on sits on a quiet surface of the goal's colour; every stage keeps the same inset so the path lines up.
       return <section key={section.key} id={section.stage ? `goal-stage-${section.stage.stage_uuid}` : undefined} aria-label={section.title} aria-current={active && sections.length > 1 ? 'step' : undefined}
@@ -135,7 +136,7 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
             {!cohort ? <ScheduleNotes goal={goal} stageUuid={section.stage?.stage_uuid} className="mt-1" /> : null}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {section.steps.length && !cohort ? <span className="text-xs font-bold text-muted-foreground">{sectionDone} of {section.steps.length}</span> : null}
+            {section.steps.length && !cohort ? <span className="text-xs font-bold text-muted-foreground">{tr('goals.goal_path.sectiondone_of_length', '{{sectionDone}} of {{length}}', { sectionDone, length: section.steps.length })}</span> : null}
             {section.stage ? <StageMenu stage={section.stage} index={section.index} onMakeCurrent={movable && !active ? () => mover.ask(section.stage!) : undefined} /> : null}
           </div>
         </div> : null}
@@ -145,19 +146,19 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
             onSelect={() => onSelect(step.step_uuid)} onGoTo={goTo} onOpenActivity={() => openActivity(step)} onAsk={ask ? () => ask(step) : undefined}
             menu={<StepMenu step={step} />} aggregate={aggregates?.[step.step_uuid]} body={stepBody?.(step)} stageSaysWhy={waiting && titled}
             after={<>{!cohort ? <ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" /> : null}{proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <StepChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}{rowExtra?.(step, { selected: step.step_uuid === selected })}</>} />)}
-        </ol> : <p className="ml-[72px] text-sm text-muted-foreground">No steps here yet.</p>}
+        </ol> : <p className="ml-[72px] text-sm text-muted-foreground">{tr('goals.goal_path.no_steps_here_yet', 'No steps here yet.')}</p>}
         {active && movable ? <MoveOnLine stage={section.stage!} next={goal.stages[section.index + 1]} onMove={() => mover.ask(goal.stages[section.index + 1])} /> : null}
-        {suggested.length ? <ul aria-label="Suggested steps" className="flex flex-col">
+        {suggested.length ? <ul aria-label={tr('goals.goal_path.suggested_steps', 'Suggested steps')} className="flex flex-col">
           {suggested.map((item) => <SuggestedStepLine key={item.step.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}
         </ul> : null}
         <div className="flex flex-wrap items-center gap-1">
           <AddStepButton stageUuid={section.stage?.stage_uuid ?? null} />
           {editing?.structure && own && coach.available && !coach.session && !section.steps.length && !suggested.length && section.stage ? <button type="button" onClick={() => void coach.start(`Suggest a few steps for the stage “${section.title}”.`)}
-            className="flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground"><Sparkles size={14} aria-hidden="true" />Plan with Coach</button> : null}
+            className="flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground"><Sparkles size={14} aria-hidden="true" />{tr('goals.goal_header_actions.plan_with_coach', 'Plan with Coach')}</button> : null}
         </div>
       </section>
     }) : <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border px-6 py-10 text-center">
-      <p className="font-bold">No steps yet</p>
+      <p className="font-bold">{tr('goals.goal_path.no_steps_yet', 'No steps yet')}</p>
       <AddStepButton stageUuid={null} className="ml-0 justify-center" />
     </div>}
     {proposals.stages.map((item) => <SuggestedStageLine key={item.stage.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}

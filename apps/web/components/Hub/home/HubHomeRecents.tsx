@@ -7,6 +7,7 @@ import type { HubConversationSummary } from '@services/hub/advisor'
 import { hubTimestampLabel } from '@services/hub/timestamp'
 import HubConversationHistory from '../conversation/HubConversationHistory'
 
+import { tr } from '@/lib/tr'
 export default function HubHomeRecents({
   conversations,
   loading,
@@ -36,11 +37,11 @@ export default function HubHomeRecents({
   }
 
   return (
-    <section className="border-t border-border pt-5 pb-2" aria-label="Recent Coach conversations">
-      <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">Recent conversations</p>
+    <section className="border-t border-border pt-5 pb-2" aria-label={tr('coach.hub_home_recents.recent_coach_conversations', 'Recent Coach conversations')}>
+      <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">{tr('coach.hub_home_recents.recent_conversations', 'Recent conversations')}</p>
       <div aria-busy={loading}>
         {loading && recent.length === 0 ? (
-          <p className="px-2 py-3 text-sm text-muted-foreground" role="status">Loading conversations…</p>
+          <p className="px-2 py-3 text-sm text-muted-foreground" role="status">{tr('coach.hub_home_recents.loading_conversations', 'Loading conversations…')}</p>
         ) : recent.map((conversation) => (
           <div
             key={conversation.conversation_uuid}
@@ -63,7 +64,7 @@ export default function HubHomeRecents({
                 className="h-8 shrink-0 gap-1.5 px-2 text-muted-foreground"
                 disabled={disabled}
                 onClick={() => onOpenResources(conversation.conversation_uuid)}
-                aria-label={`Open ${conversation.title} resources (${conversation.resource_count})`}
+                aria-label={tr('coach.hub_home_recents.open_title_resources_resource_count', 'Open {{title}} resources ({{resource_count}})', { title: conversation.title, resource_count: conversation.resource_count })}
               >
                 <LibraryBig className="h-3.5 w-3.5" />
                 <span className="text-xs tabular-nums">{conversation.resource_count}</span>
@@ -78,7 +79,7 @@ export default function HubHomeRecents({
         onClick={toggleHistory}
         aria-expanded={open}
       >
-        {open ? 'Show less' : 'All conversations'}
+        {open ? tr('coach.hub_home_recents.show_less', 'Show less') : tr('coach.hub_home_recents.all_conversations', 'All conversations')}
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (

@@ -2,14 +2,15 @@
 /* eslint-disable no-unused-vars -- parameter names in function types */
 
 import React from 'react'
-import { ArrowLeft, BookOpen, Briefcase, Building2, Heart, Home, HousePlus, Plane, Search, Sparkles, UserSearch, Users } from 'lucide-react'
+import { ArrowLeft, Baby, BookOpen, Briefcase, Building2, Heart, Home, HousePlus, Plane, Search, Sparkles, User, UserSearch, Users, X } from 'lucide-react'
 import { MicButton } from '@components/Accessibility/ReadAloud'
 import { cn } from '@/lib/utils'
-import { lifeApi, type Activity, type Career, type School } from '@services/life/life'
+import { lifeApi, type Activity, type Career, type Household, type School } from '@services/life/life'
 import { KINDS, LEVELS, LIVING } from './setup'
 import { monthName } from './graph'
 import { useTranslation } from 'react-i18next'
 
+import { tr } from '@/lib/tr'
 const KIND_ICONS: Record<Activity['kind'], React.ElementType> = { learning: BookOpen, working: Briefcase, looking: UserSearch, caring: Heart, gap: Plane, other: Sparkles }
 // A picture for every way of living, so a learner can choose by looking.
 const LIVING_ICONS: Record<string, React.ElementType> = { family: Home, own: HousePlus, roommates: Users, partner: Heart, dorm: Building2, other: Sparkles }
@@ -40,6 +41,30 @@ export function LivingPicker({ value, onPick }: { value?: string | null; onPick:
   })}</div>
 }
 
+/** Who the budget provides for: the learner, maybe a partner, and kids by age. Picked, then used once. */
+export function HouseholdPicker({ value, onPick }: { value?: Household | null; onPick: (h: Household | null) => void }) {
+  const { t } = useTranslation()
+  const [partner, setPartner] = React.useState(Boolean(value?.partner))
+  const [kids, setKids] = React.useState<number[]>(value?.kids || [])
+  const ages = Array.from({ length: 18 }, (_, i) => i)
+  return <div className="grid gap-3">
+    <div className="grid grid-cols-2 gap-2">
+      <button type="button" aria-pressed={!partner} onClick={() => setPartner(false)} className={cn(tile, 'flex-col justify-center py-4 text-center', !partner && 'shadow-[0_0_0_3px_var(--org-primary-color)]')}>
+        <span className="grid size-12 place-items-center rounded-2xl bg-muted"><User size={24} aria-hidden="true" /></span>{t('phases.household.just_me_tile', 'Just me')}</button>
+      <button type="button" aria-pressed={partner} onClick={() => setPartner(true)} className={cn(tile, 'flex-col justify-center py-4 text-center', partner && 'shadow-[0_0_0_3px_var(--org-primary-color)]')}>
+        <span className="grid size-12 place-items-center rounded-2xl bg-muted"><Users size={24} aria-hidden="true" /></span>{t('phases.household.partner_tile', 'Me and a partner')}</button>
+    </div>
+    {kids.length ? <ul className="grid gap-1.5">{kids.map((age, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 font-bold">
+      <Baby size={18} aria-hidden="true" /><span className="flex-1">{t('phases.household.kid_n', 'Kid {{n}}', { n: i + 1 })}</span>
+      <label className="flex items-center gap-1.5 text-sm">{t('phases.household.age', 'Age')}
+        <select className="h-9 rounded-xl bg-card px-2 font-bold" value={age} onChange={(e) => setKids(kids.map((a, j) => (j === i ? Number(e.target.value) : a)))}>{ages.map((a) => <option key={a} value={a}>{a}</option>)}</select></label>
+      <button type="button" aria-label={t('phases.household.remove_kid', 'Remove kid {{n}}', { n: i + 1 })} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-destructive" onClick={() => setKids(kids.filter((_, j) => j !== i))}><X size={16} aria-hidden="true" /></button>
+    </li>)}</ul> : null}
+    {kids.length < 8 ? <button type="button" className="w-fit rounded-full bg-muted px-3.5 py-2 text-sm font-extrabold hover:bg-raised" onClick={() => setKids([...kids, 5])}>+ {t('phases.household.add_kid', 'A kid')}</button> : null}
+    <button type="button" className="w-fit rounded-full bg-foreground px-4 py-2 text-sm font-extrabold text-background" onClick={() => onPick(partner || kids.length ? { partner, kids } : null)}>{t('phases.household.use', 'Use this')}</button>
+  </div>
+}
+
 function useSearch<T>(q: string, run: (q: string) => Promise<T[]>, enabled = true) {
   const [rows, setRows] = React.useState<T[]>([])
   const runRef = React.useRef(run)
@@ -58,7 +83,7 @@ function SearchBox({ value, onChange, placeholder, label }: { value: string; onC
     <Search size={18} className="text-muted-foreground" aria-hidden="true" />
     { }
     <input autoFocus aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-full w-full bg-transparent text-base font-bold outline-none" />
-    <MicButton value="" onChange={(said) => onChange(said.replace(/[.!?]+$/, ''))} size="sm" label={`Say the ${label.toLowerCase()}`} />
+    <MicButton value="" onChange={(said) => onChange(said.replace(/[.!?]+$/, ''))} size="sm" label={tr('goals.phase_pickers.say_the_tolowercase', 'Say the {{toLowerCase}}', { toLowerCase: label.toLowerCase() })} />
   </label>
 }
 

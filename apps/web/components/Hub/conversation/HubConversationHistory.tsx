@@ -7,6 +7,7 @@ import { Input } from '@components/ui/input'
 import type { HubConversationSummary } from '@services/hub/advisor'
 import { hubTimestampLabel } from '@services/hub/timestamp'
 
+import { tr } from '@/lib/tr'
 export default function HubConversationHistory({
   conversations,
   activeConversationUuid,
@@ -47,20 +48,20 @@ export default function HubConversationHistory({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search conversations…"
-          aria-label="Search conversations"
+          placeholder={tr('coach.hub_conversation_history.search_conversations', 'Search conversations…')}
+          aria-label={tr('coach.hub_conversation_history.search_conversations_2', 'Search conversations')}
           className="h-9 border-0 bg-muted/70 pl-9 shadow-none focus-visible:ring-1"
           autoFocus={!inline}
         />
       </div>
       <div className="max-h-[min(29rem,calc(100dvh-9rem))] overflow-y-auto px-1.5 pb-2" aria-busy={loading}>
         {loading ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground" role="status">Loading conversations…</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground" role="status">{tr('coach.hub_home_recents.loading_conversations', 'Loading conversations…')}</p>
         ) : visible.length === 0 ? (
           <div className="px-5 py-9 text-center">
             <MessageSquare className="mx-auto h-5 w-5 text-muted-foreground" />
-            <p className="mt-2 text-sm font-medium">{query ? 'No matching conversations' : 'No saved conversations yet'}</p>
-            {!query && <p className="mt-1 text-xs text-muted-foreground">Your first message will start one.</p>}
+            <p className="mt-2 text-sm font-medium">{query ? tr('coach.hub_conversation_history.no_matching_conversations', 'No matching conversations') : tr('coach.hub_conversation_history.no_saved_conversations_yet', 'No saved conversations yet')}</p>
+            {!query && <p className="mt-1 text-xs text-muted-foreground">{tr('coach.hub_conversation_history.your_first_message_will_start', 'Your first message will start one.')}</p>}
           </div>
         ) : visible.map((conversation) => (
           <div
@@ -94,7 +95,7 @@ export default function HubConversationHistory({
                 className="h-8 shrink-0 gap-1.5 px-2 text-muted-foreground"
                 disabled={disabled}
                 onClick={() => onOpenResources(conversation.conversation_uuid)}
-                aria-label={`Open ${conversation.title} resources (${conversation.resource_count})`}
+                aria-label={tr('coach.hub_home_recents.open_title_resources_resource_count', 'Open {{title}} resources ({{resource_count}})', { title: conversation.title, resource_count: conversation.resource_count })}
               >
                 <LibraryBig className="h-3.5 w-3.5" />
                 <span className="text-xs tabular-nums">{conversation.resource_count}</span>

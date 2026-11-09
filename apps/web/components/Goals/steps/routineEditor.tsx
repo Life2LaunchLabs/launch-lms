@@ -9,13 +9,14 @@ import type { RoutineAction, RoutineActionKind, RoutineCadence, RoutineConfig } 
 import { actionText, cadenceText, ordinal, WEEKDAYS } from '@services/goals/routine'
 import type { ConfigPanelProps } from './registry'
 
+import { tr } from '@/lib/tr'
 const chip = (on: boolean) => cn('rounded-full border-[1.5px] px-3 py-1 text-xs font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))]' : 'text-muted-foreground hover:border-[var(--plan-face)]')
-const CADENCES: Array<[RoutineCadence, string]> = [['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']]
-const KINDS: Array<[RoutineActionKind, string, string]> = [
-  ['list', 'Add items', 'A few named things each time, like job openings'],
-  ['number', 'Enter a number', 'A value each time, like a weight; a line on the chart'],
-  ['check', 'Check it off', 'Just do it, and tick it'],
-]
+const CADENCES = (): Array<[RoutineCadence, string]> => ([['daily', tr('lit.routine_editor.daily', 'Daily')], ['weekly', tr('lit.routine_editor.weekly', 'Weekly')], ['monthly', tr('lit.routine_editor.monthly', 'Monthly')]])
+const KINDS = (): Array<[RoutineActionKind, string, string]> => ([
+  ['list', tr('lit.routine_editor.add_items', 'Add items'), tr('lit.routine_editor.a_few_named_things_each', 'A few named things each time, like job openings')],
+  ['number', tr('lit.routine_editor.enter_a_number', 'Enter a number'), tr('lit.routine_editor.a_value_each_time_like', 'A value each time, like a weight; a line on the chart')],
+  ['check', tr('lit.routine_editor.check_it_off', 'Check it off'), tr('lit.routine_editor.just_do_it_and_tick', 'Just do it, and tick it')],
+])
 
 export const DEFAULT_ROUTINE: RoutineConfig = { cadence: 'weekly', days: [0], action: { kind: 'list', target: 1, label: '' } }
 
@@ -27,7 +28,7 @@ export function routineConfig(config: Partial<RoutineConfig> | null | undefined)
 }
 
 export function routineProblem(config: RoutineConfig) {
-  if (config.cadence !== 'daily' && !config.days.length) return config.cadence === 'weekly' ? 'Pick at least one day of the week' : 'Pick at least one day of the month'
+  if (config.cadence !== 'daily' && !config.days.length) return config.cadence === 'weekly' ? tr('lit.routine_editor.pick_at_least_one_day', 'Pick at least one day of the week') : tr('lit.routine_editor.pick_at_least_one_day_2', 'Pick at least one day of the month')
   return null
 }
 
@@ -51,27 +52,27 @@ export function RoutineConfigPanel({ config: raw, onChange }: ConfigPanelProps<'
   }
   return <div className="flex flex-col gap-4">
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-2 text-sm font-bold">Repeats</legend>
-      <div className="flex flex-wrap gap-1.5">{CADENCES.map(([key, label]) => <button key={key} type="button" aria-pressed={config.cadence === key} className={chip(config.cadence === key)} onClick={() => setCadence(key)}>{label}</button>)}</div>
+      <legend className="mb-2 text-sm font-bold">{tr('goals.routine_editor.repeats', 'Repeats')}</legend>
+      <div className="flex flex-wrap gap-1.5">{CADENCES().map(([key, label]) => <button key={key} type="button" aria-pressed={config.cadence === key} className={chip(config.cadence === key)} onClick={() => setCadence(key)}>{label}</button>)}</div>
       {config.cadence === 'weekly' ? <WeekdayPicker days={config.days} onChange={(days) => set({ days })} /> : null}
       {config.cadence === 'monthly' ? <MonthDayPicker days={config.days} onChange={(days) => set({ days })} /> : null}
       <p className="text-xs font-semibold text-muted-foreground">{cadenceText(config)}</p>
     </fieldset>
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-2 text-sm font-bold">Each time</legend>
-      <div className="flex flex-wrap gap-1.5">{KINDS.map(([key, label, hint]) => <button key={key} type="button" title={hint} aria-pressed={config.action.kind === key} className={chip(config.action.kind === key)} onClick={() => { if (key !== config.action.kind) setAction({ kind: key, label: '', unit: '', series: [] }) }}>{label}</button>)}</div>
+      <legend className="mb-2 text-sm font-bold">{tr('goals.routine_editor.each_time', 'Each time')}</legend>
+      <div className="flex flex-wrap gap-1.5">{KINDS().map(([key, label, hint]) => <button key={key} type="button" title={hint} aria-pressed={config.action.kind === key} className={chip(config.action.kind === key)} onClick={() => { if (key !== config.action.kind) setAction({ kind: key, label: '', unit: '', series: [] }) }}>{label}</button>)}</div>
       {config.action.kind === 'list' ? <div className="grid gap-2 sm:grid-cols-[7rem_1fr]">
-        <div className="flex flex-col gap-1"><Label htmlFor="routine-target">How many</Label><Input id="routine-target" type="number" min={1} max={50} value={config.action.target || 1} onChange={(event) => setAction({ target: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })} /></div>
-        <div className="flex flex-col gap-1"><Label htmlFor="routine-label">Each one is a</Label><Input id="routine-label" value={config.action.label || ''} maxLength={60} onChange={(event) => setAction({ label: event.target.value })} placeholder="job opening" /></div>
+        <div className="flex flex-col gap-1"><Label htmlFor="routine-target">{tr('goals.routine_editor.how_many', 'How many')}</Label><Input id="routine-target" type="number" min={1} max={50} value={config.action.target || 1} onChange={(event) => setAction({ target: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })} /></div>
+        <div className="flex flex-col gap-1"><Label htmlFor="routine-label">{tr('goals.routine_editor.each_one_is_a', 'Each one is a')}</Label><Input id="routine-label" value={config.action.label || ''} maxLength={60} onChange={(event) => setAction({ label: event.target.value })} placeholder={tr('goals.routine_editor.job_opening', 'job opening')} /></div>
       </div> : null}
       {config.action.kind === 'number' ? <>
         <div className="grid gap-2 sm:grid-cols-[1fr_7rem]">
-          <div className="flex flex-col gap-1"><Label htmlFor="routine-label">What it measures</Label><Input id="routine-label" value={config.action.label || ''} maxLength={60} onChange={(event) => setAction({ label: event.target.value })} placeholder="Weight" /></div>
-          <div className="flex flex-col gap-1"><Label htmlFor="routine-unit">Unit</Label><Input id="routine-unit" value={config.action.unit || ''} maxLength={20} onChange={(event) => setAction({ unit: event.target.value })} placeholder="lb" /></div>
+          <div className="flex flex-col gap-1"><Label htmlFor="routine-label">{tr('goals.routine_editor.what_it_measures', 'What it measures')}</Label><Input id="routine-label" value={config.action.label || ''} maxLength={60} onChange={(event) => setAction({ label: event.target.value })} placeholder={tr('goals.routine_editor.weight', 'Weight')} /></div>
+          <div className="flex flex-col gap-1"><Label htmlFor="routine-unit">{tr('goals.routine_editor.unit', 'Unit')}</Label><Input id="routine-unit" value={config.action.unit || ''} maxLength={20} onChange={(event) => setAction({ unit: event.target.value })} placeholder="lb" /></div>
         </div>
         <SeriesPicker series={config.action.series || []} onChange={(series) => setAction({ series })} />
       </> : null}
-      {config.action.kind === 'check' ? <div className="flex flex-col gap-1"><Label htmlFor="routine-label">What to do (optional)</Label><Input id="routine-label" value={config.action.label || ''} maxLength={60} onChange={(event) => setAction({ label: event.target.value })} placeholder="Stretch for ten minutes" /></div> : null}
+      {config.action.kind === 'check' ? <div className="flex flex-col gap-1"><Label htmlFor="routine-label">{tr('goals.routine_editor.what_to_do_optional', 'What to do (optional)')}</Label><Input id="routine-label" value={config.action.label || ''} maxLength={60} onChange={(event) => setAction({ label: event.target.value })} placeholder={tr('goals.routine_editor.stretch_for_ten_minutes', 'Stretch for ten minutes')} /></div> : null}
       <p className="text-xs font-semibold text-muted-foreground">{actionText(config.action)}</p>
     </fieldset>
   </div>
@@ -84,7 +85,7 @@ function WeekdayPicker({ days, onChange }: { days: number[]; onChange: (days: nu
     const next = days.includes(day) ? days.filter((item) => item !== day) : [...days, day].sort((a, b) => a - b)
     if (next.length) onChange(next)
   }
-  return <div className="inline-flex self-start overflow-hidden rounded-full border-[1.5px]" role="group" aria-label="Days of the week">
+  return <div className="inline-flex self-start overflow-hidden rounded-full border-[1.5px]" role="group" aria-label={tr('goals.routine_editor.days_of_the_week', 'Days of the week')}>
     {WEEKDAYS.map((name, day) => {
       const on = days.includes(day)
       return <button key={name} type="button" aria-pressed={on} aria-label={name} onClick={() => toggle(day)}
@@ -106,19 +107,19 @@ function MonthDayPicker({ days, onChange }: { days: number[]; onChange: (days: n
   return <div className="flex flex-col gap-2">
     <div className="flex flex-wrap items-center gap-1.5">
       {days.map((day, index) => <span key={day} className={cn(chip(true), 'inline-flex items-center gap-1 pr-1.5', editing === index && 'ring-2 ring-[var(--plan-face)]/50')}>
-        <button type="button" onClick={() => setEditing(editing === index ? null : index)} aria-label={`The ${ordinal(day)}, change it`}>The {ordinal(day)}</button>
-        {days.length > 1 ? <button type="button" aria-label={`Remove the ${ordinal(day)}`} onClick={() => onChange(days.filter((item) => item !== day))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button> : null}
+        <button type="button" onClick={() => setEditing(editing === index ? null : index)} aria-label={tr('goals.routine_editor.the_ordinal_change_it', 'The {{ordinal}}, change it', { ordinal: ordinal(day) })}>{tr('goals.routine_editor.the_ordinal', 'The {{ordinal}}', { ordinal: ordinal(day) })}</button>
+        {days.length > 1 ? <button type="button" aria-label={tr('goals.routine_editor.remove_the_ordinal', 'Remove the {{ordinal}}', { ordinal: ordinal(day) })} onClick={() => onChange(days.filter((item) => item !== day))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button> : null}
       </span>)}
-      <button type="button" className={cn(chip(editing === days.length), 'inline-flex items-center gap-1')} onClick={add} aria-label="Add a day of the month"><Plus size={12} aria-hidden="true" />Day</button>
+      <button type="button" className={cn(chip(editing === days.length), 'inline-flex items-center gap-1')} onClick={add} aria-label={tr('goals.routine_editor.add_a_day_of_the', 'Add a day of the month')}><Plus size={12} aria-hidden="true" />{tr('goals.routine_editor.day', 'Day')}</button>
     </div>
-    {editing !== null ? <div className="grid w-full max-w-xs grid-cols-7 gap-1 rounded-xl border bg-background p-2" role="group" aria-label="Day of the month">
+    {editing !== null ? <div className="grid w-full max-w-xs grid-cols-7 gap-1 rounded-xl border bg-background p-2" role="group" aria-label={tr('goals.routine_editor.day_of_the_month', 'Day of the month')}>
       {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => {
         const taken = days.includes(day) && days[editing] !== day
         return <button key={day} type="button" disabled={taken} onClick={() => pick(day)} aria-pressed={days[editing] === day}
           className={cn('h-8 rounded-lg text-xs font-bold disabled:opacity-30', days[editing] === day ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)]' : 'hover:bg-muted')}>{day}</button>
       })}
     </div> : null}
-    {days.some((day) => day > 28) ? <p className="text-xs text-muted-foreground">In shorter months, a day past the end falls on the last day.</p> : null}
+    {days.some((day) => day > 28) ? <p className="text-xs text-muted-foreground">{tr('goals.routine_editor.in_shorter_months_a_day', 'In shorter months, a day past the end falls on the last day.')}</p> : null}
   </div>
 }
 
@@ -132,13 +133,13 @@ function SeriesPicker({ series, onChange }: { series: string[]; onChange: (serie
     setDraft('')
   }
   return <div className="flex flex-col gap-1">
-    <Label htmlFor="routine-series">Separate lines (optional)</Label>
+    <Label htmlFor="routine-series">{tr('goals.routine_editor.separate_lines_optional', 'Separate lines (optional)')}</Label>
     <div className="flex flex-wrap items-center gap-1.5">
       {series.map((name) => <span key={name} className={cn(chip(true), 'inline-flex items-center gap-1 pr-1.5')}>{name}
         <button type="button" aria-label={`Remove ${name}`} onClick={() => onChange(series.filter((item) => item !== name))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button>
       </span>)}
       {series.length < 6 ? <Input id="routine-series" value={draft} maxLength={40} onChange={(event) => setDraft(event.target.value)} onBlur={add}
-        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add() } }} placeholder={series.length ? 'Another' : 'Me, my dog…'} className="h-8 w-36 text-xs" /> : null}
+        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add() } }} placeholder={series.length ? tr('goals.routine_editor.another', 'Another') : tr('goals.routine_editor.me_my_dog', 'Me, my dog…')} className="h-8 w-36 text-xs" /> : null}
     </div>
   </div>
 }

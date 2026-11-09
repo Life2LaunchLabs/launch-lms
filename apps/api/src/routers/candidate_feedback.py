@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import os
 import json
-from pathlib import Path
 import re
 from uuid import uuid4
 from typing import Literal
@@ -10,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from src.core.build_info import build_info
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser, User
 from src.security.auth import get_current_user
@@ -239,14 +239,7 @@ def feedback_configuration():
     client = CandidateJira()
     channel = os.getenv("LAUNCHLMS_RELEASE_CHANNEL", "").casefold()
     if not channel:
-        try:
-            channel = str(
-                json.loads(Path("/app/build-info.json").read_text()).get(
-                    "source_branch", ""
-                )
-            ).casefold()
-        except OSError, json.JSONDecodeError:
-            channel = ""
+        channel = str((build_info() or {}).get("source_branch", "")).casefold()
     return {
         "feedback_configured": client.configured,
         "revision": current_revision(),

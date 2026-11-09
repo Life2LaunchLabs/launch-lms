@@ -3,7 +3,7 @@
 Our own 36 activity cards, six for each of the six interest types (RIASEC), each a photo of someone doing it.
 The learner taps a face (no, not sure, yes) or swipes, and every card can be read aloud. Scores land on the same
 six types as the interest quiz, so the result shows in "What I'm like" and drives career matches and Career swipe.
-The words and the card list are ours; the photos are open-licensed (Wikimedia Commons, US government), credited
+The words and the card list are ours; the photos are open-licensed (Wikimedia Commons, Flickr, StockSnap, US government), credited
 on each card.
 """
 
@@ -12,17 +12,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session
 
-from src.db.portfolio_records import PortfolioResult, ResultWrite
+from src.db.portfolio_records import ResultWrite
 from src.db.users import PublicUser
 from src.services import interest_quiz, portfolio_results
-from src.services import portfolio as portfolio_service
 from src.services.picture_sort_cards import CARDS
 
 SOURCE = "picture_sort"
 REFERENCE = "l2l-picture-sort"
-NAME = "Picture sort (RIASEC)"
+NAME = interest_quiz.NAME
 ANSWERS = ["No", "Not sure", "Yes"]
 MAX = 2 * sum(1 for card in CARDS if card["type"] == "R")
 PHOTO_PATH = "/images/picture-sort/"
@@ -52,22 +51,18 @@ def score(answers: dict[str, int]) -> dict[str, int]:
     return totals
 
 
-def _mine(current_user: PublicUser, db: Session) -> PortfolioResult | None:
-    portfolio = portfolio_service.get_or_create_portfolio(current_user, db)
-    return db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio.id, PortfolioResult.source == SOURCE, PortfolioResult.source_reference == REFERENCE)).first()
-
-
-def _taken(scores: dict[str, int], db: Session, result: dict) -> dict:
+def _taken(scores: dict[str, int], db: Session, result: dict, way: str = SOURCE, top_score: int = MAX) -> dict:
     top = interest_quiz.ranked(scores)
-    return {"result": result, "scores": scores, "code": "".join(top[:3]), "careers": interest_quiz.careers(db, scores)}
+    return {"way": way, "max": top_score, "result": result, "scores": scores, "code": "".join(top[:3]), "careers": interest_quiz.careers(db, scores)}
 
 
 def latest(current_user: PublicUser, db: Session) -> dict:
-    row = _mine(current_user, db)
+    # The learner's one interest result, from this sort or the quiz.
+    row = interest_quiz.mine(current_user, db)
     taken = None
     if row:
         scores = {key: int((row.data or {}).get("scores", {}).get(key, 0)) for key in interest_quiz.TYPES}
-        taken = _taken(scores, db, portfolio_results.result_dto(row))
+        taken = _taken(scores, db, portfolio_results.result_dto(row), row.source, int((row.data or {}).get("max") or MAX))
     return {"sort": deck(), "taken": taken}
 
 
@@ -77,5 +72,5 @@ def take(answers: dict[str, int], current_user: PublicUser, db: Session) -> dict
     data = {"template": interest_quiz.TEMPLATE, "scores": scores, "max": MAX, "quiz": REFERENCE, "answers": answers}
     payload = ResultWrite(kind="interests", name=NAME, summary=" · ".join(interest_quiz.TYPES[key] for key in top[:3]), data=data,
                           taken_on=datetime.now(timezone.utc).strftime("%Y-%m"), visibility="public")
-    result = portfolio_results.record_result(current_user, payload, SOURCE, REFERENCE, db)
+    result = interest_quiz.save(current_user, payload, SOURCE, db)
     return _taken(scores, db, result)

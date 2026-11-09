@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getHubMemory, updateHubMemorySettings } from '@services/hub/advisor'
 
+import { tr } from '@/lib/tr'
 /** The learner's memory setting and whether the one-time memory notice still needs an answer. */
 // eslint-disable-next-line no-unused-vars
 export default function useHubMemory(orgId: number | undefined, accessToken: string | undefined, onError: (message: string) => void) {
@@ -33,7 +34,7 @@ export default function useHubMemory(orgId: number | undefined, accessToken: str
       await updateHubMemorySettings(orgId, { notice_dismissed: true }, accessToken)
     } catch {
       setVisible(true)
-      onError('The memory notice could not be dismissed. Please try again.')
+      onError(tr('lit.use_hub_memory.the_memory_notice_could_not', 'The memory notice could not be dismissed. Please try again.'))
     }
   }, [accessToken, onError, orgId, visible])
 
@@ -46,7 +47,7 @@ export default function useHubMemory(orgId: number | undefined, accessToken: str
       setVisible(false)
       return true
     } catch (error: any) {
-      onError(error?.message || 'Your memory setting could not be saved.')
+      onError(error?.message || tr('lit.use_hub_memory.your_memory_setting_could_not', 'Your memory setting could not be saved.'))
       return false
     } finally {
       setSaving(false)

@@ -14,7 +14,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # On a push from a merged pull request, these checks already passed on exactly this code: skip them.
+  checked:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/ci/pr-checked.py find quality-gate.yaml | tee -a "$GITHUB_OUTPUT"
+
   analyze:
+    needs: checked
+    if: needs.checked.outputs.run_id == ''
     runs-on: ubuntu-latest
     outputs:
       api: ${{ steps.plan.outputs.api }}
@@ -91,18 +109,37 @@ jobs:
   quality-gate:
     name: quality-gate
     if: always()
-    needs: [analyze, contracts, api, web, browser]
+    needs: [checked, analyze, contracts, api, web, browser]
     runs-on: ubuntu-latest
     steps:
       - name: Require every selected check
         env:
+          CHECKED: ${{ needs.checked.result }}
+          CHECKED_RUN: ${{ needs.checked.outputs.run_id }}
           ANALYZE: ${{ needs.analyze.result }}
           CONTRACTS: ${{ needs.contracts.result }}
           API: ${{ needs.api.result }}
           WEB: ${{ needs.web.result }}
           BROWSER: ${{ needs.browser.result }}
         run: |
-          for result in "$ANALYZE" "$CONTRACTS" "$API" "$WEB" "$BROWSER"; do
+          test "$CHECKED" = success
+          if [ -n "$CHECKED_RUN" ]; then
+            printf 'quality-gate passed in pull request run %s on this exact code\n' "$CHECKED_RUN"
+            exit 0
+          fi
+          test "$ANALYZE" = success
+          for result in "$CONTRACTS" "$API" "$WEB" "$BROWSER"; do
             case "$result" in success|skipped) ;; *) exit 1 ;; esac
           done
           printf 'quality-gate passed (api=%s web=%s browser=%s)\n' "$API" "$WEB" "$BROWSER"
+      - uses: actions/checkout@v6
+        if: github.event_name == 'pull_request'
+      - name: Record checked code
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/ci/pr-checked.py record checked.json && cat checked.json
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: checked-tree
+          path: checked.json
+          retention-days: 30

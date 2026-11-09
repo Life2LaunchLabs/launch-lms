@@ -59,7 +59,7 @@ conversation conversationmember conversationmessage conversationmessageref conve
 # Platform reference data with nothing personal in it (sourced budget estimates, the
 # career and school catalogs). Too large to copy into every visitor workspace, so a
 # workspace reads the live rows through a read-only view (namespaces.materialize).
-REFERENCE = frozenset("estimatesource estimatefact careerentry schoolentry".split())
+REFERENCE = frozenset("estimatesource estimatefact careerentry schoolentry programentry".split())
 CORE = frozenset(
     "user goal plancollaborator goal_assignment requirementassignmentbatch".split()
 )

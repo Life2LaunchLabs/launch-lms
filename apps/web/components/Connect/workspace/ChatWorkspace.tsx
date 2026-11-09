@@ -22,6 +22,7 @@ import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
 import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './feed'
 
+import { tr } from '@/lib/tr'
 const CHAT_REFRESH_MS = 5_000
 
 /**
@@ -33,8 +34,8 @@ export type ChatSource = ({ chatUuid: string } | { orgId: number; userId: number
 export type { TimelineItem }
 
 const AUDIENCE: Record<ChatAudience, { icon: React.ElementType; text: string }> = {
-  staff: { icon: Users, text: 'Everyone in the group sees this' },
-  group: { icon: Users, text: 'Everyone in the group sees this' },
+  staff: { icon: Users, get text() { return tr('lit.chat_workspace.everyone_in_the_group_sees', 'Everyone in the group sees this') } },
+  group: { icon: Users, get text() { return tr('lit.chat_workspace.everyone_in_the_group_sees', 'Everyone in the group sees this') } },
 }
 
 function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string) {
@@ -155,11 +156,11 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     try {
       const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope, share, staffOnly })
       for (const outcome of sent.mentions || []) {
-        if (outcome.status === 'invited') toast.success(`Invited ${outcome.user.name} as a commenter`)
-        else if (outcome.status === 'requested') toast.success(`Asked the plan’s admins to add ${outcome.user.name}`)
-        else if (outcome.status === 'no_access' || outcome.status === 'not_here') toast(`${outcome.user.name} isn’t in this chat`)
+        if (outcome.status === 'invited') toast.success(tr('connect.chat_workspace.invited_name_as_a_commenter', 'Invited {{name}} as a commenter', { name: outcome.user.name }))
+        else if (outcome.status === 'requested') toast.success(tr('connect.chat_workspace.asked_the_plan_s_admins', 'Asked the plan’s admins to add {{name}}', { name: outcome.user.name }))
+        else if (outcome.status === 'no_access' || outcome.status === 'not_here') toast(tr('connect.chat_workspace.name_isn_t_in_this', '{{name}} isn’t in this chat', { name: outcome.user.name }))
       }
-      if (Object.values(sent.shared || {}).includes('requested')) toast.success('Asked the plan’s admins to share it')
+      if (Object.values(sent.shared || {}).includes('requested')) toast.success(tr('connect.chat_workspace.asked_the_plan_s_admins_2', 'Asked the plan’s admins to share it'))
       await mutate()
       void mutateGlobal(connectKeys.chats())
       return true
@@ -169,7 +170,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
         setAsking({ body, plans: sendError.detail.plans })
         return false
       }
-      toast.error(sendError?.message || 'That message didn’t send')
+      toast.error(sendError?.message || tr('connect.chat_workspace.that_message_didn_t_send', 'That message didn’t send'))
       return false
     }
   }
@@ -179,7 +180,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       const { reactions } = await connectApi.react(chat.conversation_uuid, message.message_uuid, token)
       await mutate((current) => current && { ...current, messages: current.messages.map((item) => item.message_uuid === message.message_uuid ? { ...item, reactions } : item) }, { revalidate: false })
     } catch (cheerError: any) {
-      toast.error(cheerError?.message || 'That didn’t go through')
+      toast.error(cheerError?.message || tr('connect.chat_cards.that_didn_t_go_through', 'That didn’t go through'))
     }
   }
   const answered = () => {
@@ -189,7 +190,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   }
 
   const shown = React.useMemo(() => !chat ? [] : only ? chat.messages.filter(only) : chat.messages, [chat, only])
-  const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : 'You can read along here')) : ''
+  const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : tr('lit.chat_workspace.you_can_read_along_here', 'You can read along here'))) : ''
   const names = chat ? chat.kind !== 'direct' : false
   return <>
     {header?.(chat, mutate)}
@@ -208,7 +209,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
               first={!before || before.kind !== 'message' || before.message.sender?.id !== message.sender?.id || before.message.kind === 'card'} />
           })}
         </ol>
-        : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
+        : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? tr('connect.chat_workspace.nothing_about_title_yet_anything', 'Nothing about {{title}} yet. Anything you write here is about it.', { title: step.title }) : plan ? tr('connect.chat_workspace.nothing_about_title_yet_anything', 'Nothing about {{title}} yet. Anything you write here is about it.', { title: plan.title }) : empty}</p>}
       {footer}
     </div>
     {chat && composerOff ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">{composerOff}</div>
@@ -216,7 +217,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
       {chat.can_post_staff_only ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
       <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token} resources={Boolean(isStaff)}
-        placeholder={staffOnly ? 'Only staff will see this' : step ? `Comment on ${step.title}` : plan ? `Message ${title ? `${title} ` : ''}about ${plan.title}` : `Message ${title || chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
+        placeholder={staffOnly ? tr('connect.chat_workspace.only_staff_will_see_this', 'Only staff will see this') : step ? tr('goals.goal_chat.comment_on_title', 'Comment on {{title}}', { title: step.title }) : plan ? tr('connect.chat_workspace.message_valueabout_title', 'Message {{value}}about {{title}}', { value: title ? `${title} ` : '', title: plan.title }) : `Message ${title || chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
@@ -249,8 +250,8 @@ function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
     on ? 'border-foreground bg-foreground text-background' : 'border-border text-foreground/85 hover:bg-muted/60 hover:text-foreground')
   const dot = (goalUuid: string) => <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ background: color(goalUuid) }} />
   const shell = 'flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3 py-2.5 [scrollbar-width:none] sm:px-6'
-  if (!plan) return <div role="group" aria-label="Show messages about" className={shell}>
-    <button type="button" aria-pressed="true" onClick={() => onChange({})} className={chip(true)}>Everything</button>
+  if (!plan) return <div role="group" aria-label={tr('connect.chat_workspace.show_messages_about', 'Show messages about')} className={shell}>
+    <button type="button" aria-pressed="true" onClick={() => onChange({})} className={chip(true)}>{tr('connect.chat_workspace.everything', 'Everything')}</button>
     {topics.map((item) => <button key={item.goal_uuid} type="button" aria-pressed="false" onClick={() => onChange({ goal_uuid: item.goal_uuid })} className={chip(false)}>
       {dot(item.goal_uuid)}{item.title}{item.count ? <span className="font-medium text-muted-foreground">{item.count}</span> : null}
     </button>)}
@@ -259,8 +260,8 @@ function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
   // A portfolio shows all its experiences and projects, so you can pick one to talk about.
   const talked = plan.portfolio ? plan.steps : plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
   const PlanIcon = plan.portfolio ? BookUser : Flag
-  return <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className={shell}>
-    <button type="button" onClick={() => onChange({})} aria-label="Show everything" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground hover:text-foreground"><X size={16} /></button>
+  return <div ref={row} role="group" aria-label={tr('connect.chat_workspace.show_messages_about_title', 'Show messages about {{title}}', { title: plan.title })} className={shell}>
+    <button type="button" onClick={() => onChange({})} aria-label={tr('connect.chat_workspace.show_everything', 'Show everything')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground hover:text-foreground"><X size={16} /></button>
     {/* With a step picked, a phone shows the plan as its flag so the step beside it fits without cutting the plan off. */}
     <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} aria-label={plan.title} title={plan.title}
       className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition-opacity" style={{ background: face.deep, color: face.deepInk, opacity: filter.step_uuid ? 0.75 : 1 }}>
@@ -271,7 +272,7 @@ function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
       className={chip(filter.step_uuid === item.step_uuid)}>
       {item.item_kind ? (() => { const Icon = ITEM_ICONS[item.item_kind]; return <Icon className="h-3.5 w-3.5" aria-hidden="true" /> })() : <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" />}<span className="max-w-40 truncate sm:max-w-48">{item.title}</span>{item.count ? <span className="font-medium opacity-60">{item.count}</span> : null}
     </button>)}
-    {stepLink ? <Link href={stepLink} className="ml-auto flex h-9 shrink-0 items-center gap-1 px-1 text-sm font-bold text-[var(--org-primary-color)] hover:underline">{plan.portfolio ? 'Open' : 'Open step'}<ArrowUpRight size={14} /></Link> : null}
+    {stepLink ? <Link href={stepLink} className="ml-auto flex h-9 shrink-0 items-center gap-1 px-1 text-sm font-bold text-[var(--org-primary-color)] hover:underline">{plan.portfolio ? tr('connect.chat_workspace.open', 'Open') : tr('connect.chat_workspace.open_step', 'Open step')}<ArrowUpRight size={14} /></Link> : null}
   </div>
 }
 
@@ -303,7 +304,7 @@ function Message({ message, orgslug, token, links, first, names, topics, filter,
   </>
   const scope = scopeLabel(message, filter)
   return <li className={cn('group/message flex flex-col', message.mine ? 'items-end' : 'items-start', (first || message.staff_only) && 'mt-2')}>
-    {message.staff_only ? <span className="mb-0.5 flex items-center gap-1 px-3 text-[11px] font-bold text-amber-700 dark:text-amber-300"><Lock size={10} aria-hidden="true" />Staff only{!message.mine && message.sender ? ` · ${message.sender.name}` : ''}</span>
+    {message.staff_only ? <span className="mb-0.5 flex items-center gap-1 px-3 text-[11px] font-bold text-amber-700 dark:text-amber-300"><Lock size={10} aria-hidden="true" />{tr('connect.chat_workspace.staff_only', 'Staff only')}{!message.mine && message.sender ? ` · ${message.sender.name}` : ''}</span>
       : names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
     {/* Coach's bubbles: yours on the raised surface as in Coach; other people's a shade apart. Only Coach goes without one. */}
     <div className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground',
@@ -314,7 +315,7 @@ function Message({ message, orgslug, token, links, first, names, topics, filter,
     </div>
     {cheers}
     {scope ? <button type="button" onClick={() => onTag(scope.ref)} className="mt-0.5 flex max-w-[85%] items-center gap-1 px-3 text-[11px] text-muted-foreground hover:text-foreground hover:underline">
-      <Flag size={10} aria-hidden="true" /><span className="truncate">in {scope.text}</span>
+      <Flag size={10} aria-hidden="true" /><span className="truncate">{tr('connect.chat_workspace.in_text', 'in {{text}}', { text: scope.text })}</span>
     </button> : null}
   </li>
 }
@@ -323,7 +324,7 @@ function Message({ message, orgslug, token, links, first, names, topics, filter,
 function Cheers({ message, onCheer }: { message: ChatMessage; onCheer?: (message: ChatMessage) => void }) { // eslint-disable-line no-unused-vars
   const reactions = message.reactions || []
   if (!reactions.length && !onCheer) return null
-  if (!reactions.length) return <button type="button" onClick={() => onCheer?.(message)} aria-label="Cheer" title="Cheer"
+  if (!reactions.length) return <button type="button" onClick={() => onCheer?.(message)} aria-label={tr('connect.chat_workspace.cheer', 'Cheer')} title={tr('connect.chat_workspace.cheer', 'Cheer')}
     className="mt-0.5 hidden h-6 items-center rounded-full px-2 text-xs text-muted-foreground hover:bg-muted group-hover/message:flex group-focus-within/message:flex">👏</button>
   return <span className="mt-1 flex gap-1 px-1">{reactions.map((reaction) => <button key={reaction.emoji} type="button" disabled={!onCheer} aria-pressed={reaction.mine}
     onClick={() => onCheer?.(message)} aria-label={`${reaction.emoji} ${reaction.count}${reaction.mine ? ', including you' : ''}`}

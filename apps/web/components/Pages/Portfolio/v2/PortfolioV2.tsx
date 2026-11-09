@@ -41,6 +41,7 @@ import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
 import { questPath, spotPaths, spotsFor, stageOf, type Quest } from './progress'
 import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 
+import { tr } from '@/lib/tr'
 // The new portfolio front page (V5 prototype): a stacked header, the highlights band, then the sections as
 // tiles in a grid or a list. Quests, the résumé builder and the editors come in later phases.
 
@@ -53,20 +54,20 @@ function Avatar({ url, name, size = 'h-[92px] w-[92px] text-[32px]' }: { url?: s
 /** The owner's corner: Settings, which holds the look. A quest step for the look marks both the button and the item. */
 function SettingsMenu({ orgslug, onLook, onUnpublish, connect, onConnect, className, spot }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; connect: boolean; onConnect: Dispatch<boolean>; className: string; spot?: string }) {
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button type="button" aria-label="Settings" className={`${className} ${spot ? 'ring-4 ring-[#ffc21a]' : ''}`}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">Settings</span></button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><button type="button" aria-label={tr('portfolio.portfolio_v2.settings', 'Settings')} className={`${className} ${spot ? 'ring-4 ring-[#ffc21a]' : ''}`}><SlidersHorizontal className="h-[15px] w-[15px]" /><span className="max-sm:hidden">{tr('portfolio.portfolio_v2.settings', 'Settings')}</span></button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-60 rounded-2xl p-2">
-      <DropdownMenuItem onSelect={onLook} className={`rounded-xl px-3 py-2 ${spot ? 'bg-[#ffc21a]/20' : ''}`}><Palette className="h-4 w-4" /><span className="flex-1">Look and layout</span>{spot ? <QuestMark className="h-[18px] w-[18px]" /> : null}</DropdownMenuItem>
+      <DropdownMenuItem onSelect={onLook} className={`rounded-xl px-3 py-2 ${spot ? 'bg-[#ffc21a]/20' : ''}`}><Palette className="h-4 w-4" /><span className="flex-1">{tr('portfolio.portfolio_v2.look_and_layout', 'Look and layout')}</span>{spot ? <QuestMark className="h-[18px] w-[18px]" /> : null}</DropdownMenuItem>
       <DropdownMenuSeparator />
       {/* Off until the learner turns it on: visitors with an account can then send a request with a note. */}
       <DropdownMenuCheckboxItem checked={connect} onCheckedChange={(on) => onConnect(on === true)} onSelect={(event) => event.preventDefault()} className="rounded-xl py-2">
-        <span className="flex flex-col"><span>Let people ask to connect</span><small className="text-xs text-muted-foreground">Visitors with an account can send you a request</small></span>
+        <span className="flex flex-col"><span>{tr('portfolio.portfolio_v2.let_people_ask_to_connect', 'Let people ask to connect')}</span><small className="text-xs text-muted-foreground">{tr('portfolio.portfolio_v2.visitors_with_an_account_can', 'Visitors with an account can send you a request')}</small></span>
       </DropdownMenuCheckboxItem>
-      {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">Make my portfolio private</DropdownMenuItem> : null}
-      <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>My documents</Link></DropdownMenuItem>
-      <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())}>Account settings</Link></DropdownMenuItem>
+      {onUnpublish ? <DropdownMenuItem onSelect={onUnpublish} className="rounded-xl px-3 py-2">{tr('portfolio.portfolio_v2.make_my_portfolio_private', 'Make my portfolio private')}</DropdownMenuItem> : null}
+      <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, '/portfolio/documents')}>{tr('portfolio.portfolio_documents_page.my_documents', 'My documents')}</Link></DropdownMenuItem>
+      <DropdownMenuItem asChild className="rounded-xl px-3 py-2"><Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())}>{tr('portfolio.portfolio_v2.account_settings', 'Account settings')}</Link></DropdownMenuItem>
       {/* Phones have no side navigation, so feedback and sign out live here too. */}
-      <DropdownMenuItem onSelect={() => openCandidatePanel('feedback')} className="rounded-xl px-3 py-2 md:hidden">Feedback</DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => signOut({ callbackUrl: '/' })} className="rounded-xl px-3 py-2 text-red-600 focus:text-red-600 md:hidden">Sign out</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => openCandidatePanel('feedback')} className="rounded-xl px-3 py-2 md:hidden">{tr('portfolio.portfolio_v2.feedback', 'Feedback')}</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => signOut({ callbackUrl: '/' })} className="rounded-xl px-3 py-2 text-red-600 focus:text-red-600 md:hidden">{tr('portfolio.portfolio_v2.sign_out', 'Sign out')}</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 }
@@ -117,7 +118,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     if (newLook) setTheme(mode)
   }, [owner, look, accent, mode, setTheme])
   const centered = layout.header === 'center'
-  const name = shell.identity?.shown_name || shell.portfolio.display_name || username || 'Your portfolio'
+  const name = shell.identity?.shown_name || shell.portfolio.display_name || username || tr('lit.portfolio_v2.your_portfolio', 'Your portfolio')
   // Without a name the portfolio would be headed by the username, which can come from an email.
   const hasName = Boolean(shell.identity?.preferred_name || shell.identity?.first_name || shell.portfolio.display_name)
   const avatarUrl = shell.portfolio.avatar_image ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image) : ''
@@ -157,7 +158,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       setShell((current) => ({ ...current, progress: { seen }, mastered: seen.includes(3) }))
       setQuestOpen(true); setQuestList(false)
       await then?.()
-    } catch (error: any) { toast.error(error?.message || 'Could not save that') }
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.resume_builder.could_not_save_that', 'Could not save that')) }
   }
 
   const saves = useRef(0)
@@ -172,14 +173,14 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     // Only the latest answer replaces the layout, so quick changes in a row don't undo each other.
     const ticket = ++saves.current
     try { const saved = await updateMyLayout(next, token); if (ticket === saves.current) setShell((current) => ({ ...current, layout: saved.layout })) }
-    catch (error: any) { if (ticket === saves.current) setShell(previous); toast.error(error?.message || 'Could not change the layout') }
+    catch (error: any) { if (ticket === saves.current) setShell(previous); toast.error(error?.message || tr('portfolio.portfolio_v2.could_not_change_the_layout', 'Could not change the layout')) }
   }
 
   async function publish() {
     if (!token) return
     setBusy(true)
-    try { setShell(await publishMyPortfolio({ revision: shell.portfolio.revision, privacy_confirmed: true }, token)); toast.success('Your portfolio is public') }
-    catch (error: any) { toast.error(error?.message || 'Could not make your portfolio public') } finally { setBusy(false) }
+    try { setShell(await publishMyPortfolio({ revision: shell.portfolio.revision, privacy_confirmed: true }, token)); toast.success(tr('portfolio.portfolio_v2.your_portfolio_is_public', 'Your portfolio is public')) }
+    catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_v2.could_not_make_your_portfolio', 'Could not make your portfolio public')) } finally { setBusy(false) }
   }
 
   async function setConnect(on: boolean) {
@@ -187,18 +188,18 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     setShell((current) => ({ ...current, connect_requests: on }))
     try {
       await updateConnectRequests(on, token)
-      toast.success(on ? 'People can ask to connect' : 'Requests to connect are off')
+      toast.success(on ? tr('portfolio.portfolio_v2.people_can_ask_to_connect', 'People can ask to connect') : tr('portfolio.portfolio_v2.requests_to_connect_are_off', 'Requests to connect are off'))
     } catch (error: any) {
       setShell((current) => ({ ...current, connect_requests: !on }))
-      toast.error(error?.message || 'That didn’t save')
+      toast.error(error?.message || tr('portfolio.portfolio_v2.that_didn_t_save', 'That didn’t save'))
     }
   }
 
   async function unpublish() {
-    if (!token || !(await ask.confirm({ title: 'Make your portfolio private?', body: 'Only you and the people you added will see it. You can make it public again later.', action: 'Make private' }))) return
+    if (!token || !(await ask.confirm({ title: tr('portfolio.portfolio_v2.make_your_portfolio_private', 'Make your portfolio private?'), body: tr('lit.portfolio_v2.only_you_and_the_people', 'Only you and the people you added will see it. You can make it public again later.'), action: tr('lit.portfolio_v2.make_private', 'Make private') }))) return
     setBusy(true)
-    try { setShell(await unpublishMyPortfolio(shell.portfolio.revision, token)); toast.success('Your portfolio is private') }
-    catch (error: any) { toast.error(error?.message || 'Could not make your portfolio private') } finally { setBusy(false) }
+    try { setShell(await unpublishMyPortfolio(shell.portfolio.revision, token)); toast.success(tr('portfolio.portfolio_v2.your_portfolio_is_private', 'Your portfolio is private')) }
+    catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_v2.could_not_make_your_portfolio_2', 'Could not make your portfolio private')) } finally { setBusy(false) }
   }
 
   async function saveAvatar(asset: MediaAsset) {
@@ -206,7 +207,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     const user = await applyMediaAssetToUserAvatar(asset.asset_uuid, token)
     setShell((current) => ({ ...current, portfolio: { ...current.portfolio, avatar_image: user.avatar_image || asset.url } }))
     setAvatarOpen(false)
-    toast.success('Photo updated')
+    toast.success(tr('portfolio.portfolio_v2.photo_updated', 'Photo updated'))
   }
 
   // ── The section stack: the learner's own, or the look's suggestion. Sections with nothing to show are left out. ──
@@ -245,7 +246,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const addable = ALL_SECTIONS.filter((type) => type === 'feature' ? !slides.length : !stored.some((row) => row.some((item) => item.type === type)))
   // Bio and experience are always on the page; the rest can be taken out (and come back from the adds below).
   const controls = (type: SectionType) => REQUIRED.includes(type) ? null
-    : <button type="button" data-sec-tool onClick={() => removeSection(type)} aria-label={`Take out ${titleOf(type)}`} title="Take this section out" className="relative z-[2] grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>
+    : <button type="button" data-sec-tool onClick={() => removeSection(type)} aria-label={tr('portfolio.portfolio_v2.take_out_titleof', 'Take out {{titleOf}}', { titleOf: titleOf(type) })} title={tr('portfolio.portfolio_v2.take_this_section_out', 'Take this section out')} className="relative z-[2] grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground"><X className="h-4 w-4" /></button>
   // One click from the page: each section's pencil opens what edits it.
   const edits: Partial<Record<SectionType, () => void>> = {
     feature: () => setFeatureOpen(true), highlights: () => setHighlightsOpen(true),
@@ -257,14 +258,14 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const renderSection = (type: SectionType) => {
     if (type === 'feature') return <div className="relative flex min-w-0 flex-col [&>*]:flex-1" data-feature-wrap><SectionTools section="feature" label={titleOf('feature')} /><FeatureSection slides={slides} autoplay={Boolean(layout.feature_autoplay)} /></div>
     // Empty highlights on the page is a section like the others, with its add inside.
-    if (type === 'highlights' && !highlights.length) return <Tile section="highlights" color="violet" icon={Trophy} title="Highlights" wide>
-      <EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} />
+    if (type === 'highlights' && !highlights.length) return <Tile section="highlights" color="violet" icon={Trophy} title={tr('portfolio.portfolio_dialogs.highlights', 'Highlights')} wide>
+      <EmptyAdd title={tr('portfolio.portfolio_v2.add_highlights', 'Add highlights')} hint={tr('portfolio.portfolio_v2.the_numbers_people_notice_first', 'The numbers people notice first, like hours worked, a GPA or a win')} onClick={() => setHighlightsOpen(true)} />
     </Tile>
     if (type === 'highlights') return <div className="group relative flex min-w-0 flex-col" data-highlights-section>
       <SectionTools section="highlights" label={titleOf('highlights')} />
-      {highlights.length ? <section aria-label="Highlights" className="@container relative grid grid-cols-2 gap-3 @md:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
+      {highlights.length ? <section aria-label={tr('portfolio.portfolio_dialogs.highlights', 'Highlights')} className="@container relative grid grid-cols-2 gap-3 @md:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
         {highlights.map((item, index) => <div key={index} data-item data-highlight className="min-w-0 rounded-2xl border-2 border-border bg-card px-4 py-3 shadow-[0_4px_0_hsl(var(--border))]"><b className="block truncate text-[21px] font-extrabold leading-[1.1] tabular-nums">{item.value}</b><span className="mt-0.5 block text-[13px] font-semibold text-muted-foreground">{item.label}</span></div>)}
-      </section> : <EmptyAdd title="Add highlights" hint="The numbers people notice first, like hours worked, a GPA or a win" onClick={() => setHighlightsOpen(true)} />}
+      </section> : <EmptyAdd title={tr('portfolio.portfolio_v2.add_highlights', 'Add highlights')} hint={tr('portfolio.portfolio_v2.the_numbers_people_notice_first', 'The numbers people notice first, like hours worked, a GPA or a win')} onClick={() => setHighlightsOpen(true)} />}
     </div>
     return TILE_SECTIONS[type]?.(tileProps) ?? null
   }
@@ -272,13 +273,13 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const questButton = stage ? <QuestButton stage={stage} open={questOpen} onToggle={() => setQuestOpen(!questOpen)} /> : null
   const ownerActions = <>
     {/* Adding happens in each section; the row's first action brings in what the learner already has. */}
-    <Button asChild variant="brand" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link prefetch={false} href={getUriWithOrg(orgslug, '/portfolio/import')}><Download className="h-4 w-4" />Import from…</Link></Button>
+    <Button asChild variant="brand" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link prefetch={false} href={getUriWithOrg(orgslug, '/portfolio/import')}><Download className="h-4 w-4" />{tr('portfolio.portfolio_v2.import_from', 'Import from…')}</Link></Button>
     {!past(1) ? questButton : shell.portfolio.email_verified === false && !published
       ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} />
       : <PortfolioShareButton orgslug={orgslug} username={username} displayName={name} published={published} onPublish={publish} busy={busy} className="h-10 flex-1 px-3 text-sm sm:flex-none sm:px-4" />}
-    {!past(1) ? null : !past(2) ? questButton : <Button asChild variant="surface" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button>}
+    {!past(1) ? null : !past(2) ? questButton : <Button asChild variant="surface" className="h-10 flex-1 px-3 sm:flex-none sm:px-4"><Link href={resumeHref}><FileText className="h-4 w-4" />{tr('portfolio.resume_builder.r_sum', 'Résumé')}</Link></Button>}
     {past(2) ? questButton : null}
-    <Button asChild variant="surface" size="icon" className="h-10 w-10 shrink-0" aria-label="Preview as a visitor" title="Preview as a visitor"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="h-4 w-4" /></Link></Button>
+    <Button asChild variant="surface" size="icon" className="h-10 w-10 shrink-0" aria-label={tr('portfolio.portfolio_v2.preview_as_a_visitor', 'Preview as a visitor')} title={tr('portfolio.portfolio_v2.preview_as_a_visitor', 'Preview as a visitor')}><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="h-4 w-4" /></Link></Button>
   </>
 
   // Professional puts the header in a column beside everything else.
@@ -288,19 +289,19 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     onClose={() => stage.kind === 'unlocked' ? void seeUnlock(stage.quest) : setQuestOpen(false)} onItem={questItem}
     onUnlock={(next) => seeUnlock(next, next.n === 1 ? publish : next.n === 2 ? () => router.push(resumeHref) : undefined)} /> : null
   const ADD_HINTS: Record<SectionType, string> = {
-    highlights: 'The numbers people notice first, like hours worked, a GPA or a win', feature: 'Put a project, a quote or a link up top',
-    about: 'A few lines about you', experience: 'Jobs, volunteering, teams and clubs', projects: 'Things you made, with a photo and a line',
-    credentials: 'Cards, certificates and badges', results: 'Quiz and test results that say what you’re like', headed: 'Where you are now, and what’s next',
-    people: 'Quotes from people who know your work',
+    highlights: tr('lit.portfolio_v2.the_numbers_people_notice_first', 'The numbers people notice first, like hours worked, a GPA or a win'), feature: tr('lit.portfolio_v2.put_a_project_a_quote', 'Put a project, a quote or a link up top'),
+    about: 'A few lines about you', experience: tr('lit.portfolio_v2.jobs_volunteering_teams_and_clubs', 'Jobs, volunteering, teams and clubs'), projects: tr('lit.portfolio_v2.things_you_made_with_a', 'Things you made, with a photo and a line'),
+    credentials: tr('lit.portfolio_v2.cards_certificates_and_badges', 'Cards, certificates and badges'), results: tr('lit.portfolio_v2.quiz_and_test_results_that', 'Quiz and test results that say what you’re like'), headed: tr('lit.portfolio_v2.where_you_are_now_and', 'Where you are now, and what’s next'),
+    people: tr('lit.portfolio_v2.quotes_from_people_who_know', 'Quotes from people who know your work'),
   }
   const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.portfolio.location_label || ''}
     socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onProfile={() => setProfileOpen(true)}
     banner={{ image: bannerImage, css: bannerCss, fallback: look || accent ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]' }}
-    marks={<>{shell.mastered ? <MasteryBadge /> : null}{editing ? <span data-pf-chip className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? 'Public' : 'Private'}</span> : null}</>}
+    marks={<>{shell.mastered ? <MasteryBadge /> : null}{editing ? <span data-pf-chip className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? tr('portfolio.portfolio_v2.public', 'Public') : tr('portfolio.portfolio_v2.private', 'Private')}</span> : null}</>}
     corner={editing && !side ? cornerFor : undefined}
     actions={editing ? ownerActions : !owner ? <>
       {/* The résumé is the learner's to unlock first; until then visitors don't get one. */}
-      {shell.resume_unlocked ? <Button asChild variant="brand" className="h-10"><Link href={resumeHref}><FileText className="h-4 w-4" />Résumé</Link></Button> : null}
+      {shell.resume_unlocked ? <Button asChild variant="brand" className="h-10"><Link href={resumeHref}><FileText className="h-4 w-4" />{tr('portfolio.resume_builder.r_sum', 'Résumé')}</Link></Button> : null}
       {username ? <PortfolioVisitorBar orgslug={orgslug} username={username} token={token} shell={shell} /> : null}
     </> : null} />
 
@@ -308,8 +309,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   return <main className={`min-h-screen bg-background pb-20 text-foreground ${look && dark ? 'dark' : ''}`} data-portfolio-v2 data-look={look || undefined} data-accent={accent ? '' : undefined} style={accentVars(accent) as CSSProperties}>
     {owner ? ask.dialog : null}
     {preview ? <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-3">
-      <div><b className="text-sm font-extrabold">Visitor preview</b><p className="text-xs text-muted-foreground">This is how people see your portfolio{published ? '' : ' once it’s public'}.</p></div>
-      <Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="h-4 w-4" />Back to editing</Link></Button>
+      <div><b className="text-sm font-extrabold">{tr('portfolio.portfolio_v2.visitor_preview', 'Visitor preview')}</b><p className="text-xs text-muted-foreground">{tr('portfolio.portfolio_v2.this_is_how_people_see', 'This is how people see your portfolio')}{published ? '' : tr('portfolio.portfolio_v2.once_it_s_public', ' once it’s public')}.</p></div>
+      <Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="h-4 w-4" />{tr('portfolio.portfolio_v2.back_to_editing', 'Back to editing')}</Link></Button>
     </div></div> : null}
     <div className={`mx-auto px-4 pt-4 sm:px-6 sm:pt-6 ${side ? 'max-w-[1140px] md:grid md:grid-cols-[290px_minmax(0,1fr)] md:items-start md:gap-7' : 'max-w-[960px]'}`}>
       {side && editing ? <div className="mb-3 flex flex-wrap justify-end gap-1.5 md:hidden">{cornerFor(false)}</div> : null}
@@ -326,7 +327,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
           context={(type) => ({ editing, look: lookId, title: titleOf(type), rename: rename(type), controls: controls(type), edit: editing ? edits[type] : undefined })} />
       </div>
       {/* Sections not on the page come back from here, each drawn like any empty section's add. */}
-      {editing && addable.length ? <section aria-label="Add a section" className="mt-[var(--stack-gy,16px)] grid gap-3 sm:grid-cols-2">
+      {editing && addable.length ? <section aria-label={tr('portfolio.portfolio_v2.add_a_section', 'Add a section')} className="mt-[var(--stack-gy,16px)] grid gap-3 sm:grid-cols-2">
         {addable.map((type) => <EmptyAdd key={type} title={`Add ${(layout.names?.[type] || LOOK_NAMES[lookId][type] || SECTION_LABELS[type]).toLowerCase()}`} hint={ADD_HINTS[type]} onClick={() => addSection(type)} />)}
       </section> : null}
       </div>
@@ -339,7 +340,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       <LinksDialog mark={mark} open={linksOpen} onOpenChange={(open) => { setLinksOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} />
       <FeatureDialog open={featureOpen} onOpenChange={setFeatureOpen} items={layout.features || []} autoplay={Boolean(layout.feature_autoplay)} choices={choices} onChange={changeFeatures} onAutoplay={(on) => void changeLayout({ feature_autoplay: on })} />
       <HighlightsDialog open={highlightsOpen} onOpenChange={setHighlightsOpen} shell={shell} setShell={setShell} token={token} />
-      <MediaPickerDialog open={avatarOpen} onOpenChange={setAvatarOpen} title="Your photo" description="Upload a photo or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />
+      <MediaPickerDialog open={avatarOpen} onOpenChange={setAvatarOpen} title={tr('portfolio.look_dialog.your_photo', 'Your photo')} description={tr('portfolio.credential_dialog.upload_a_photo_or_choose', 'Upload a photo or choose one from your media library.')} owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />
     </> : null}
   </main>
 }

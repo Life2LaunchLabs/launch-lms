@@ -3,8 +3,7 @@
 Facts are numbers; catalog entries are things a learner can pick (a career, a school).
 Both load the same way: a superadmin uploads the publisher's file as released, every
 entry lands as a draft tied to its source, and nothing shows until the source is
-reviewed. Numbers that come with an entry (a school's tuition) load as facts, so the
-budget resolves them like rent and pay.
+reviewed. Numbers that come with an entry (a school's tuition) load as facts. Career titles load singular.
 
 - O*NET database, text edition (db_31_0_text.zip): Occupation Data, interests (RIASEC,
   the OI scale), Job Zones and other titles. Release 31.0 renamed Interests.txt to
@@ -28,6 +27,8 @@ from sqlmodel import Session, col, delete, select
 
 from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, SchoolEntry
 from src.services.life_plans.estimates import REVIEWED, dims_key
+from src.services.life_plans.skill_words import career_skills
+from src.services.life_plans.titles import singular_title
 
 RIASEC = "RIASEC"
 INTEREST_NAMES = {"realistic": "R", "investigative": "I", "artistic": "A", "social": "S", "enterprising": "E", "conventional": "C"}
@@ -35,6 +36,7 @@ ONET_URL = "https://www.onetcenter.org/database.html"
 SCORECARD_URL = "https://collegescorecard.ed.gov/data/"
 MAX_ALT_TITLES = 25
 MAX_TASKS = 5
+MAX_RELATED = 10
 
 
 class CatalogProblem(ValueError):
@@ -112,6 +114,11 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         alts = _tsv(zf, "Job Titles.txt", "Alternate Titles.txt", required=False)
         task_rows = _tsv(zf, "Task Statements.txt", required=False)
         ratings = _tsv(zf, "Task Ratings.txt", required=False)
+        schooling = _tsv(zf, "Education, Training, and Experience.txt", "Education.txt", required=False)
+        related_rows = _tsv(zf, "Related Occupations.txt", required=False)
+        # Release 31.0 split Skills.txt into essential and transferable skills.
+        skill_rows = _tsv(zf, "Skills.txt", required=False) or (_tsv(zf, "Essential Skills.txt", required=False) + _tsv(zf, "Transferable Skills.txt", required=False))
+        style_rows = _tsv(zf, "Work Styles.txt", required=False)
     code_col = "o*net-soc code"
     if not occupations or code_col not in occupations[0] or "title" not in occupations[0]:
         raise CatalogProblem("Occupation Data.txt doesn't have the O*NET-SOC Code and Title columns.")
@@ -162,12 +169,34 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         ranked_tasks.setdefault(r.get(code_col, ""), []).append((core, -importance.get((r.get(code_col, ""), r.get("task id", "")), 0), text))
     tasks = {code: [text for _, _, text in sorted(rows)[:MAX_TASKS]] for code, rows in ranked_tasks.items()}
 
+    # What people in the job say it takes: O*NET's "Required Level of Education" survey, the share of workers
+    # at each of 12 levels. Levels nobody picked are left out.
+    education: dict[str, list[dict]] = {}
+    for r in schooling:
+        if r.get("scale id", "").upper() != "RL":
+            continue
+        try:
+            level, pct = int(float(r.get("category", ""))), round(float(r.get("data value", "")), 1)
+        except ValueError:
+            continue
+        if pct > 0:
+            education.setdefault(r.get(code_col, ""), []).append({"level": level, "pct": pct})
+    # Careers O*NET itself says are related, closest first.
+    related: dict[str, list[str]] = {}
+    for r in sorted(related_rows, key=lambda row: int(row.get("index") or 0) if (row.get("index") or "").isdigit() else 999):
+        other = r.get("related o*net-soc code", "")
+        bucket = related.setdefault(r.get(code_col, ""), [])
+        if other and other not in bucket and len(bucket) < MAX_RELATED:
+            bucket.append(other)
+
+    skills = career_skills(skill_rows, style_rows, code_col)
+
     src = _upsert_source(
         db,
         key=f"onet-{version.replace('.', '-')}",
         publisher="U.S. Department of Labor, Employment and Training Administration (USDOL/ETA)",
         title=f"O*NET {version} Database",
-        dataset="Occupation Data, Career Interest Types, Job Zones, job titles and task statements",
+        dataset="Occupation Data, Career Interest Types, Job Zones, job titles, task statements, required level of education, related occupations, skills and work styles",
         url=url,
         released=f"O*NET {version}",
         license="CC BY 4.0. Credit: O*NET " + version + " Database by USDOL/ETA. O*NET is a trademark of USDOL/ETA. Used under the CC BY 4.0 license; our descriptions may be shortened or reformatted.",
@@ -182,7 +211,8 @@ def import_onet(db: Session, data: bytes, filename: str, *, url: str = ONET_URL)
         code = r[code_col]
         if not re.fullmatch(r"\d{2}-\d{4}\.\d{2}", code):
             continue
-        db.add(CareerEntry(code=code, soc=code[:7], title=r["title"], description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []), source_id=src.id, status="draft", creation_date=now))
+        db.add(CareerEntry(code=code, soc=code[:7], title=singular_title(r["title"]), description=r.get("description", ""), job_zone=job_zone.get(code), interests=profile.get(code, {}), alt_titles=alt_titles.get(code, []), tasks=tasks.get(code, []),
+                               education=sorted(education.get(code, []), key=lambda row: row["level"]), related=related.get(code, []), skills=skills.get(code, []), source_id=src.id, status="draft", creation_date=now))
         n += 1
     if not n:
         raise CatalogProblem("No occupations found in Occupation Data.txt.")
@@ -208,7 +238,17 @@ def _val(text: str | None) -> float | None:
 
 
 # The institution file has about 3,300 columns; only these are kept while reading it.
-SCORECARD_COLUMNS = ("unitid", "instnm", "city", "stabbr", "insturl", "control", "preddeg", "curroper", "ugds", "adm_rate", "c150_4", "c150_l4", "md_earn_wne_p10", "tuitionfee_in", "tuitionfee_out")
+SCORECARD_COLUMNS = ("unitid", "instnm", "city", "stabbr", "insturl", "control", "preddeg", "curroper", "ugds", "adm_rate", "c150_4", "c150_l4", "md_earn_wne_p10", "tuitionfee_in", "tuitionfee_out", "roomboard_on", "roomboard_off", "booksupply", "otherexpense_on", "otherexpense_off", "otherexpense_fam")
+
+# The school's own cost-of-attendance budget (IPEDS, via the Scorecard), yearly, full time: (metric, dims, column, label).
+COST_COLUMNS = (
+    ("room_board", {"housing": "on"}, "roomboard_on", "room and board on campus"),
+    ("room_board", {"housing": "off"}, "roomboard_off", "room and board off campus"),
+    ("books", {}, "booksupply", "books and supplies"),
+    ("other_costs", {"housing": "on"}, "otherexpense_on", "other costs, living on campus"),
+    ("other_costs", {"housing": "off"}, "otherexpense_off", "other costs, living off campus"),
+    ("other_costs", {"housing": "family"}, "otherexpense_fam", "other costs, living with family"),
+)
 
 
 def scorecard_rows(data: bytes, filename: str) -> Iterator[dict[str, str]]:
@@ -248,11 +288,11 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
         key=f"college-scorecard-institutions{('-' + release) if release else ''}",
         publisher="U.S. Department of Education",
         title="College Scorecard, most recent institution data",
-        dataset="Schools: type, size, admission and completion rates, earnings 10 years after entry, tuition and fees",
+        dataset="Schools: type, size, admission and completion rates, earnings 10 years after entry, tuition and fees, and each school's cost-of-attendance budget (room and board, books, other costs)",
         url=url,
         released=f"Data files dated {release}" if release else "Most recent cohorts (release date not in the file name)",
         license="U.S. government work, public domain",
-        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started, reported for a school and its branch campuses together. Tuition and fees are yearly published prices, before aid.",
+        notes="Completion is the share finishing within 150% of normal time. Earnings are the median for students working 10 years after they started, reported for a school and its branch campuses together. Tuition and fees are yearly published prices, before aid. Room and board, books and other costs are the school's own yearly budget for a full-time student, as reported to IPEDS.",
     )
     # Keep only the columns used, so a full-width file passed in as rows stays small.
     rows = [{k: r[k] for k in SCORECARD_COLUMNS if k in r} for r in rows]
@@ -289,6 +329,12 @@ def import_scorecard(db: Session, data: bytes, filename: str, *, url: str = SCOR
             dims = {"school": unitid, "residency": residency}
             db.add(EstimateFact(metric="tuition", place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} tuition and fees ({'in-state' if residency == 'in' else 'out-of-state'})", value=v, period="yr", stat="published price", source_id=src.id, status="draft", creation_date=now))
             facts += 1
+        for metric, extra, column, what in COST_COLUMNS:
+            if (v := _val(r.get(column))) is None:
+                continue
+            dims = {"school": unitid, **extra}
+            db.add(EstimateFact(metric=metric, place="us", dims=dims, dims_key=dims_key(dims), label=f"{r['instnm']} {what}", value=v, period="yr", stat="school's cost-of-attendance budget", source_id=src.id, status="draft", creation_date=now))
+            facts += 1
     if not schools:
         raise CatalogProblem("No operating schools found in the file.")
     db.commit()
@@ -305,7 +351,12 @@ def _upsert_source(db: Session, **fields) -> EstimateSource:
 
 
 def review_entries(db: Session, source_id: int, status: str) -> int:
-    n = 0
+    from sqlalchemy import update
+
+    from src.db.life_plans import ProgramEntry
+
+    # Programs run to hundreds of thousands of rows, so they change in one statement.
+    n = db.exec(update(ProgramEntry).where(ProgramEntry.source_id == source_id).values(status=status)).rowcount or 0
     for model in (CareerEntry, SchoolEntry):
         for row in db.exec(select(model).where(model.source_id == source_id)).all():
             row.status = status
@@ -315,8 +366,10 @@ def review_entries(db: Session, source_id: int, status: str) -> int:
 
 
 def entry_counts(db: Session, source_id: int) -> dict[str, int]:
+    from src.db.life_plans import ProgramEntry
+
     out: dict[str, int] = {}
-    for model in (CareerEntry, SchoolEntry):
+    for model in (CareerEntry, SchoolEntry, ProgramEntry):
         rows = db.exec(select(model.status).where(model.source_id == source_id)).all()
         for status in rows:
             out[status] = out.get(status, 0) + 1
@@ -349,7 +402,7 @@ def live_schools():
 def _career_view(c: CareerEntry, *, full: bool = False) -> dict:
     out = {"code": c.code, "soc": c.soc, "title": c.title, "job_zone": c.job_zone, "interests": c.interests, "top_interests": top_interests(c.interests)}
     if full:
-        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or []}
+        out |= {"description": c.description, "alt_titles": c.alt_titles, "tasks": c.tasks or [], "education": c.education or [], "related": c.related or [], "skills": c.skills or []}
     return out
 
 

@@ -1,330 +1,109 @@
 'use client'
 
 import React from 'react'
-import { ChevronDown, Info, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { CalendarRange, ChevronRight, MoreVertical, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { Button } from '@components/ui/button'
-import { lifeApi, type Estimate, type Line, type Occupation, type Unit } from '@services/life/life'
+import type { Line } from '@services/life/life'
 import { useLife } from './LifeContext'
 import { LifeIcon } from './icons'
-import { estimateTax, isTaxable, monthlyTax, stateName, stateOf, type Filing } from './tax'
-import { DEFAULT_HOURS, PER_WORD, activeAt, fromMonthly, money, monthLabel, phaseOffset, toMonthly } from './model'
+import { PerTag, useTotals } from './BudgetSummary'
+import LineEditor, { DatesSheet, datesText, lineTitle, standing, subtitle } from './LineEditor'
+import { RenameSheet } from './MoneyParts'
+import TaxButton from './TaxButton'
+import { DebtPayRow } from './Debts'
+import { fromMonthly, money, phaseOffset } from './model'
 
-const parse = (s: string) => { const v = Number(String(s).replace(/[$,\s]/g, '')); return Number.isFinite(v) && v >= 0 ? v : null }
-const fmt = (v: number, cents = false) => v.toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 })
+import { tr } from '@/lib/tr'
 
-/** Income and expenses for the stretch in view, grouped like the Add tray. */
+export { OccupationPicker } from './LineEditor'
+
+/** Income and expenses for the stretch in view, each its own card with its total and an add button above it. */
 export default function BudgetTable() {
-  const { doc, phase, stretch, catalog, valueOf, per, openAdd, projection, readOnly } = useLife()
-  const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({})
-  const lines = phase.lines.filter((l) => activeAt(l, stretch.m0))
-  const total = (side: 'in' | 'out') => lines.filter((l) => l.side === side).reduce((a, l) => a + (valueOf(phase, l).monthly ?? 0), 0)
-  const pay = lines.filter(isTaxable).reduce((a, l) => a + (valueOf(phase, l).monthly ?? 0), 0)
-  const tax = monthlyTax(phase, pay)
-  const inn = total('in') - tax, out = total('out')
-  const g = stretch.g0
-  const debtPay = projection.paid[g] ?? 0, saving = projection.put[g] ?? 0
-  const left = inn - out - debtPay - saving
-  const cats = catalog?.categories || []
+  const { phase, stretch, catalog, per, projection, openAdd, openEstimates, readOnly } = useLife()
+  const { lines, pay, tax, inn, out, debtPay } = useTotals()
+  // Loan payments are expenses too; the loans themselves are cards further down.
+  const paying = projection.debtsAt(stretch.g0).filter((d) => d.state === 'owing' && d.payment > 0.005)
+  const order = (catalog?.categories || []).map((c) => c.key)
+  const rank = (l: Line) => { const i = order.indexOf(l.cat); return i < 0 ? order.length : i }
 
   const section = (side: 'in' | 'out', title: string, value: number) => {
-    const open = !collapsed[side]
-    const groups = cats.filter((c) => c.side === side).map((c) => ({ c, rows: lines.filter((l) => l.side === side && (l.cat === c.key || (!cats.some((x) => x.key === l.cat) && c.key === `other_${side}`))) }))
+    const rows = lines.filter((l) => l.side === side).sort((a, b) => rank(a) - rank(b))
+    const addLabel = side === 'in' ? tr('budget.add_tray.add_income', 'Add income') : tr('budget.add_tray.add_an_expense', 'Add an expense')
     return (
-      <div className="border-b border-border last:border-b-0">
-        <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-5">
-          <button type="button" aria-expanded={open} onClick={() => setCollapsed({ ...collapsed, [side]: open })} className="inline-flex items-center gap-2 text-lg font-extrabold">
-            {title}<ChevronDown className={`size-4 transition-transform ${open ? '' : '-rotate-90'}`} />
-          </button>
-          <span className="flex items-baseline gap-2">
-            {side === 'in' && pay > 0 && <span className="text-xs font-semibold text-muted-foreground">after tax</span>}
-            <b className={`text-lg font-extrabold tabular-nums ${side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{side === 'out' && value > 0.5 ? '−' : ''}{money(fromMonthly(value, per))}</b>
+      <section aria-label={title}>
+        <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+          <h2 className="text-lg font-extrabold tracking-tight">{title}</h2>
+          <span className="flex items-center gap-2">
+            {side === 'in' && pay > 0 && <TaxButton pay={pay} tax={tax} />}
+            <b className={`text-lg font-extrabold tabular-nums ${side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{money(fromMonthly(value, per))}<PerTag per={per} /></b>
+            {readOnly ? null : <Button variant="secondary" size="icon" className="size-8 rounded-full [&_svg]:size-4" onClick={() => openAdd(side)} aria-label={addLabel} title={addLabel}><Plus /></Button>}
           </span>
         </div>
-        {side === 'in' && pay > 0 && <TaxLine pay={pay} tax={tax} />}
-        {open && (
-          <div className="px-4 pb-3 sm:px-5">
-            {groups.filter((x) => x.rows.length || (x.c.expected && !readOnly)).map(({ c, rows }) => (
-              <div key={c.key}>
-                <div className="pt-3 text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{c.title}</div>
-                {rows.map((l) => <Row key={l.id} line={l} />)}
-                {!rows.length && !readOnly && (
-                  <button type="button" onClick={() => openAdd(side, c.key)} className="flex w-full items-center gap-3 border-b border-border/70 py-3 text-left font-semibold text-muted-foreground hover:text-foreground">
-                    <Plus className="size-4" />Add {c.title.toLowerCase()}
-                  </button>
-                )}
-              </div>
-            ))}
-            {!lines.some((l) => l.side === side) && side === 'in' && <p className="pt-3 text-sm text-muted-foreground">Nothing coming in yet.</p>}
-            {readOnly ? null : <button type="button" onClick={() => openAdd(side)} className="mt-2 inline-flex items-center gap-1.5 py-2 text-sm font-extrabold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]">
-              <Plus className="size-4" />{side === 'in' ? 'Add income' : 'Add an expense'}
-            </button>}
-          </div>
-        )}
-      </div>
+        <div className="rounded-2xl bg-card px-3 shadow-[0_1px_0_hsl(var(--border))] sm:px-4">
+          {rows.map((l, i) => <Row key={l.id} line={l} first={i === 0} />)}
+          {side === 'out' && paying.map((d, i) => <DebtPayRow key={d.debt.id} at={d} first={!rows.length && i === 0} />)}
+          {!rows.length && (side === 'in' || !paying.length) && <p className="py-4 text-sm text-muted-foreground">{side === 'in' ? tr('budget.budget_table.nothing_coming_in_yet', 'Nothing coming in yet.') : tr('budget.budget_table.nothing_going_out_yet', 'Nothing going out yet.')}</p>}
+        </div>
+      </section>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-card shadow-[0_1px_0_hsl(var(--border))]">
-      {section('in', 'Income', inn)}
-      {section('out', 'Expenses', out)}
-      <div className={`px-4 py-4 sm:px-5 ${left >= 0 ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-base font-extrabold">{left >= 0 ? `Left over each ${PER_WORD[per]}` : `Short each ${PER_WORD[per]}`}</span>
-          <b className="text-xl font-extrabold tabular-nums">{left >= 0 ? '+' : '−'}{money(Math.abs(fromMonthly(left, per)))}</b>
-        </div>
-        {(debtPay > 0 || saving > 0) && <p className="mt-1 text-xs font-semibold opacity-80">After {[debtPay > 0 && `${money(fromMonthly(debtPay, per))} to debt`, saving > 0 && `${money(fromMonthly(saving, per))} into savings`].filter(Boolean).join(' and ')}. What's left goes into your savings account.</p>}
-      </div>
-      <p className="sr-only">{monthLabel(doc.start, phaseOffset(doc, phase.id))}</p>
+    <div className="space-y-5">
+      {!phase.lines.length && !readOnly && openEstimates ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[color-mix(in_srgb,var(--org-primary-color)_8%,transparent)] px-4 py-4 sm:px-5">
+        <span className="min-w-0"><b className="block text-base font-extrabold">{tr('budget.budget_table.start_your_budget', 'Start your budget')}</b><span className="text-sm text-muted-foreground">{tr('budget.budget_table.we_ll_suggest_lines_and', 'We’ll suggest lines and amounts from where you live, how you live and what you’re doing.')}</span></span>
+        <Button variant="brand" size="sm" onClick={openEstimates}><Sparkles size={15} />{tr('budget.budget_table.see_estimates', 'See estimates')}</Button>
+      </div> : null}
+      {section('in', tr('lit.budget_table.income', 'Income'), inn)}
+      {section('out', tr('lit.budget_table.expenses', 'Expenses'), out + debtPay)}
     </div>
   )
 }
 
-const pct = (r: number) => `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`
-
-/** One compact line under the Income total: the tax on pay from work, opening into how it's worked out. */
-function TaxLine({ pay, tax }: { pay: number; tax: number }) {
-  const { phase, per, updatePhase, readOnly } = useLife()
-  const [open, setOpen] = React.useState(false)
-  const [src, setSrc] = React.useState<string | null>(null)
-  const filing: Filing = phase.tax?.filing || 'single'
-  const own = phase.tax?.rate ?? null
-  const est = estimateTax(pay * 12, filing, stateOf(phase.place))
-  const rate = pay > 0 ? tax / pay : 0
-  const setTax = (patch: { filing?: Filing; rate?: number | null }) => updatePhase((p) => { p.tax = { filing, rate: own, ...p.tax, ...patch } })
-  return (
-    <div className="-mt-2 px-4 pb-3 sm:px-5">
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-muted-foreground hover:text-foreground">
-        <span className="inline-flex items-center gap-1.5">Taxes on {money(fromMonthly(pay, per))} of pay · {pct(rate)}{own == null ? '' : ' (your rate)'}<ChevronDown className={`size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} /></span>
-        <span className="tabular-nums">{tax > 0.5 ? '−' : ''}{money(fromMonthly(tax, per))}</span>
-      </button>
-      {open && (
-        <div className="mt-2 space-y-3">
-          <div className={`rounded-xl bg-muted/60 p-3 ${own != null ? 'opacity-75' : ''}`}>
-            <div className="flex items-baseline justify-between text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-              <span>Estimate</span><span className="tabular-nums normal-case tracking-normal">{pct(est.rate)} · {money(fromMonthly(est.annual / 12, per))} a {PER_WORD[per]}</span>
-            </div>
-            <ul className="mt-1">
-              {est.parts.map((x) => (
-                <li key={x.key} className="border-b border-border/60 py-1.5 text-sm last:border-b-0">
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1">{x.title}</span>
-                    <span className="tabular-nums text-muted-foreground">{money(fromMonthly(x.annual / 12, per))}</span>
-                    <button type="button" onClick={() => setSrc(src === x.key ? null : x.key)} aria-expanded={src === x.key} aria-label={`Where ${x.title.toLowerCase()} comes from`} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted"><Info className="size-3.5" /></button>
-                  </div>
-                  {src === x.key && <p className="mt-1 text-xs text-muted-foreground">{x.note}. <a className="font-semibold text-[var(--org-primary-color)] underline dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]" href={x.source.url} target="_blank" rel="noreferrer">{x.source.publisher}, {x.source.title}</a></p>}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {est.stateCovered ? '' : est.state ? `${stateName(est.state)}'s own income tax isn't included yet. ` : 'Pick a place for this phase to include state tax. '}
-              Worked out on Work income as wages for a full year, with the standard deduction and no credits. Aid isn't taxed here.
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-xs font-semibold text-muted-foreground">Filing</span>
-              {([['single', 'Single'], ['joint', 'Married, filing together']] as [Filing, string][]).map(([k, t]) => (
-                <button key={k} type="button" aria-pressed={filing === k} disabled={readOnly} onClick={() => setTax({ filing: k })} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${filing === k ? 'bg-card text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>
-              ))}
-            </div>
-            {own != null && <Button variant="ghost" size="sm" className="mt-2" onClick={() => setTax({ rate: null })}><RotateCcw />Use the estimate</Button>}
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 text-sm">
-            {own == null && !readOnly && <button type="button" onClick={() => setTax({ rate: 0 })} className="mr-auto text-xs font-semibold text-muted-foreground underline decoration-dashed underline-offset-4 hover:text-foreground">My pay is already after tax</button>}
-            <span className="text-muted-foreground">{own == null ? 'Use your own rate' : own === 0 ? 'Your pay is already after tax' : 'Your rate'}</span>
-            <label className="inline-flex items-baseline font-semibold tabular-nums">
-              <input aria-label="Your tax rate, percent" inputMode="decimal" key={`r${own}`} defaultValue={own == null ? '' : String(own)} placeholder={(est.rate * 100).toFixed(1)}
-                style={{ width: '5ch' }}
-                className="border-b-[1.5px] border-dashed border-border bg-transparent text-right outline-none placeholder:font-normal focus:border-[var(--org-primary-color)]"
-                onBlur={(e) => { const t = e.target.value.trim(); if (!t) return; const n = parse(t.replace('%', '')); if (n == null || n > 100 || n === own) return; setTax({ rate: Math.round(n * 10) / 10 }) }} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />%
-            </label>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Row({ line }: { line: Line }) {
-  const { phase, catalog, valueOf, per, openLine, setOpenLine, estimates, estimatesLoading } = useLife()
+/** One budget line: icon, name with what its settings are set to, and its amount. Opens in place. */
+function Row({ line, first }: { line: Line; first: boolean }) {
+  const { doc, phase, catalog, valueOf, per, openLine, setOpenLine, estimates, estimatesLoading, updatePhase, readOnly } = useLife()
+  const [dates, setDates] = React.useState(false)
+  const [naming, setNaming] = React.useState(false)
+  const title = lineTitle(line)
   const item = catalog?.items.find((i) => i.key === line.item)
   const cat = catalog?.categories.find((c) => c.key === line.cat)
   const v = valueOf(phase, line)
   const open = openLine === line.id
-  const est = estimates[`${phase.id}:${line.id}`]
-  const sign = line.side === 'out' ? '−' : ''
+  const est = estimates[`${phase.id}:${line.id}`] ?? null
   const value = v.monthly == null ? null : fromMonthly(v.monthly, per)
+  const sub = [subtitle(line, item, v), datesText(line, doc.start, phaseOffset(doc, phase.id))].filter(Boolean).join(' · ')
+  const vs = open ? '' : standing(line, item, est, v)
   return (
-    <div id={`row-${line.id}`} className="border-b border-border/70 last:border-b-0">
-      <button type="button" aria-expanded={open} onClick={() => setOpenLine(open ? null : line.id)} className="flex w-full items-center gap-3 py-3 text-left">
-        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} /></span>
-        <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{line.title}</span>
-        {!open && (value == null
-          ? <span className="text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : 'Add your number'}</span>
-          : <span className={`font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{sign}{money(value)}</span>)}
-      </button>
-      {open && <RowEditor line={line} est={est ?? null} hasMetric={!!item?.metric} />}
-    </div>
-  )
-}
-
-function RowEditor({ line, est, hasMetric }: { line: Line; est: Estimate | null; hasMetric: boolean }) {
-  const { doc, phase, catalog, valueOf, per, updatePhase, setOpenLine, estimatesLoading, token } = useLife()
-  const off = phaseOffset(doc, phase.id)
-  const item = catalog?.items.find((i) => i.key === line.item)
-  const v = valueOf(phase, line)
-  const [showSrc, setShowSrc] = React.useState(false)
-  const [calc, setCalc] = React.useState(!!line.own && line.own.unit !== per)
-  // eslint-disable-next-line no-unused-vars -- parameter names in a function type
-  const set = (fn: (l: Line) => void) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (l) fn(l) })
-  const hourly = !!item?.hourly || line.own?.unit === 'hr'
-  const unit: Unit = line.own?.unit || (est?.period === 'hr' ? 'hr' : per)
-  const hours = line.own?.hours ?? line.hours ?? DEFAULT_HOURS
-  const shown = v.monthly == null ? null : fromMonthly(v.monthly, per)
-  const raw = line.own ? line.own.value : v.monthly != null ? fromMonthly(v.monthly, unit, hours) : null
-  const setOwn = (value: number | null, u: Unit = unit, h = hours) => set((l) => { l.own = value == null ? null : { unit: u, value, hours: u === 'hr' ? h : null } })
-  const months = Array.from({ length: phase.months }, (_, m) => m)
-
-  return (
-    <div className="space-y-3 pb-4">
-      {hasMetric && (
-        <div className={`rounded-xl bg-muted/60 p-3 ${line.own ? 'opacity-75' : ''}`}>
-          <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-            <span>Estimate</span>
-            {est && <button type="button" onClick={() => setShowSrc(!showSrc)} aria-expanded={showSrc} aria-label="Where this comes from" className="rounded-full p-1 hover:bg-muted"><Info className="size-4" /></button>}
-          </div>
-          {estimatesLoading && !est ? <p className="mt-1 text-sm text-muted-foreground">Looking for an estimate…</p>
-            : !est ? <p className="mt-1 text-sm text-muted-foreground">We don't have a sourced estimate for this {phase.place_label ? `in ${phase.place_label}` : 'here'} yet, so use your own number.</p>
-            : <EstimateView est={est} line={line} />}
-          {showSrc && est && (
-            <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-              <p><b className="text-foreground">{est.source.title}</b>, {est.source.publisher}{est.source.released ? ` (${est.source.released})` : ''}. {est.source.dataset}.</p>
-              {est.source.notes && <p className="mt-1">{est.source.notes}</p>}
-              {est.source.url && <a className="mt-1 inline-block font-semibold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)] underline" href={est.source.url} target="_blank" rel="noreferrer">See the source</a>}
-            </div>
-          )}
-          {item?.settings?.length ? <Settings line={line} token={token} /> : null}
-          {line.own && v.estMonthly != null && <Button variant="ghost" size="sm" className="mt-2" onClick={() => setOwn(null)}><RotateCcw />Use the estimate</Button>}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-2 text-sm">
-        {calc && (
-          <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
-            <label className="inline-flex items-baseline border-b-[1.5px] border-dashed border-border font-semibold tabular-nums focus-within:border-[var(--org-primary-color)]">$
-              <input aria-label="Amount" inputMode="decimal" className="w-20 bg-transparent text-right outline-none" key={`a${raw}${unit}`} defaultValue={raw == null ? '' : fmt(raw, unit === 'hr')} placeholder="0" onBlur={(e) => { const n = parse(e.target.value); if (n != null && n !== raw) setOwn(n) }} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
-            </label>
-            <select aria-label="Per" className="rounded-md border-b-[1.5px] border-dashed border-border bg-transparent font-semibold" value={unit} onChange={(e) => { const u = e.target.value as Unit; if (raw != null) setOwn(fromMonthly(v.monthly ?? 0, u, hours), u) }}>
-              {(hourly ? ['hr', 'wk', 'mo', 'yr'] : ['wk', 'mo', 'yr']).map((u) => <option key={u} value={u}>{u === 'hr' ? 'an hour' : u === 'wk' ? 'a week' : u === 'mo' ? 'a month' : 'a year'}</option>)}
-            </select>
-            {unit === 'hr' && <>
-              <span className="text-muted-foreground">×</span>
-              <label className="inline-flex items-baseline border-b-[1.5px] border-dashed border-border font-semibold focus-within:border-[var(--org-primary-color)]">
-                <input aria-label="Hours a week" inputMode="decimal" className="w-10 bg-transparent text-right outline-none" key={`h${hours}`} defaultValue={hours} onBlur={(e) => { const h = parse(e.target.value); if (h == null || h === hours) return; if (line.own) setOwn(line.own.value, 'hr', h); else set((l) => { l.hours = h }) }} />
-              </label>
-              <span className="text-muted-foreground">hrs a week</span>
-            </>}
-            <span className="font-bold text-muted-foreground">=</span>
+    <div id={`row-${line.id}`} className={`relative ${first ? '' : 'border-t border-border/70'}`}>
+      <button type="button" aria-expanded={open} onClick={() => setOpenLine(open ? null : line.id)} className="flex w-full items-center gap-2.5 py-2 text-left text-[15px]">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground"><LifeIcon name={item?.icon || cat?.icon} className="size-[15px]" /></span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="flex items-baseline gap-2">
+            <span className={`min-w-0 flex-1 truncate ${open ? 'font-extrabold' : 'font-semibold'}`}>{title}</span>
+            {value == null
+              ? <span className="shrink-0 text-sm font-semibold text-muted-foreground">{item?.metric && estimatesLoading ? '…' : tr('budget.budget_table.add_your_number', 'Add your number')}</span>
+              : <span className={`shrink-0 font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{money(value)}<PerTag per={per} /></span>}
           </span>
-        )}
-        <button type="button" onClick={() => setCalc(!calc)} aria-pressed={calc} title="Work it out" aria-label="Work it out" className={`rounded-lg p-1.5 ${calc ? 'bg-muted text-foreground' : 'text-muted-foreground opacity-70 hover:opacity-100'}`}>
-          <CalcIcon />
-        </button>
-        <label className={`inline-flex items-baseline font-semibold tabular-nums ${line.side === 'in' ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
-          {line.side === 'out' && shown ? '−' : ''}$
-          <input aria-label={`${line.title} a ${PER_WORD[per]}`} inputMode="decimal" key={`v${shown}${per}`} defaultValue={shown == null ? '' : fmt(shown)} placeholder="Add your number"
-            style={{ width: `${Math.max(shown == null ? 13 : fmt(shown).length + 1, 4)}ch` }}
-            className="border-b-[1.5px] border-transparent bg-transparent text-right outline-none placeholder:text-sm placeholder:font-normal hover:border-border focus:border-[var(--org-primary-color)]"
-            onBlur={(e) => { const n = parse(e.target.value); if (n == null || (shown != null && Math.abs(n - shown) < 0.5)) return; setOwn(n, per) }} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
-        </label>
-      </div>
-      {line.own && v.estMonthly != null && <p className="text-right text-xs text-muted-foreground">Your number. The estimate is {money(fromMonthly(v.estMonthly, per))} a {PER_WORD[per]}.</p>}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3 text-sm">
-        <span className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
-          From
-          <select aria-label="Starts" className="rounded-md bg-muted px-1.5 py-1 font-semibold text-foreground" value={line.start || 0} onChange={(e) => set((l) => { l.start = Number(e.target.value); if (l.end != null && l.end <= l.start) l.end = null })}>
-            {months.map((m) => <option key={m} value={m}>{m === 0 ? 'the start' : monthLabel(doc.start, off + m)}</option>)}
-          </select>
-          to
-          <select aria-label="Ends" className="rounded-md bg-muted px-1.5 py-1 font-semibold text-foreground" value={line.end ?? ''} onChange={(e) => set((l) => { l.end = e.target.value === '' ? null : Number(e.target.value) })}>
-            <option value="">the end</option>
-            {months.filter((m) => m > (line.start || 0)).map((m) => <option key={m} value={m}>{monthLabel(doc.start, off + m)}</option>)}
-          </select>
+          {(sub || vs) && <span className="mt-0.5 flex items-baseline gap-2 text-[11px] text-muted-foreground"><span className="min-w-0 flex-1 truncate">{sub}</span>{vs && <span className="shrink-0">{vs}</span>}</span>}
         </span>
-        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { updatePhase((p) => { p.lines = p.lines.filter((l) => l.id !== line.id) }); setOpenLine(null) }}><Trash2 />Remove</Button>
-      </div>
-    </div>
-  )
-}
-
-function EstimateView({ est, line }: { est: Estimate; line: Line }) {
-  const { per, phase, valueOf } = useLife()
-  const v = valueOf(phase, line)
-  const p = est.percentiles
-  const hours = line.hours ?? DEFAULT_HOURS
-  const conv = (x: number) => fromMonthly(toMonthly(x, est.period, hours) / (est.metric === 'rent' ? Number(line.settings?.share || 1) : 1), per)
-  const what = est.metric === 'rent' ? `${est.stat ? `${est.stat.charAt(0).toUpperCase()}${est.stat.slice(1)}` : 'Rent'} for ${est.dims.bedrooms === 0 ? 'a studio' : `a ${est.dims.bedrooms} bedroom`}` : `${est.stat === 'median' ? 'Median pay' : 'Pay'} for ${est.label.toLowerCase()}`
-  return (
-    <div className="mt-1">
-      <div className="flex items-baseline gap-1.5"><b className="text-sm font-bold tabular-nums text-muted-foreground">{money(fromMonthly(v.estMonthly ?? 0, per))}</b><span className="text-xs text-muted-foreground">a {PER_WORD[per]}</span></div>
-      {v.calc && <p className="text-xs text-muted-foreground">{v.calc}</p>}
-      <p className="mt-1 text-xs text-muted-foreground">{what} in {est.place_label}{est.fallback && est.asked_place_label && est.place_label !== est.asked_place_label ? `. No figure for ${est.asked_place_label} itself yet.` : '.'}</p>
-      {p && p.p10 != null && p.p90 != null && (
-        <div className="mt-2">
-          <div className="relative h-2 rounded-full bg-border">
-            <span className="absolute inset-y-0 rounded-full bg-muted-foreground/40" style={{ left: `${((p.p25 - p.p10) / (p.p90 - p.p10)) * 100}%`, right: `${((p.p90 - p.p75) / (p.p90 - p.p10)) * 100}%` }} />
-            <span className="absolute -top-0.5 h-3 w-0.5 bg-foreground" style={{ left: `${((p.p50 - p.p10) / (p.p90 - p.p10)) * 100}%` }} />
-          </div>
-          <div className="mt-1 flex justify-between text-[11px] font-semibold tabular-nums text-muted-foreground">
-            <span>{money(conv(p.p10))} low</span><span>middle half {money(conv(p.p25))} to {money(conv(p.p75))}</span><span>{money(conv(p.p90))} high</span>
-          </div>
-        </div>
+        {open ? <span className="w-8 shrink-0" aria-hidden="true" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+      </button>
+      {open && !readOnly && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><button type="button" className="absolute right-0 top-2 grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={tr('budget.line.line_options', 'Options for {{title}}', { title })}><MoreVertical className="size-4" /></button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onSelect={() => setNaming(true)}><Pencil className="mr-2 size-4" />{tr('budget.line.rename', 'Rename')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setDates(true)}><CalendarRange className="mr-2 size-4" />{tr('budget.line.adjust_dates', 'Adjust dates')}</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => { updatePhase((p) => { p.lines = p.lines.filter((l) => l.id !== line.id) }); setOpenLine(null) }}><Trash2 className="mr-2 size-4" />{tr('budget.budget_table.remove', 'Remove')}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
+      {open && <LineEditor line={line} est={est} item={item} />}
+      {dates && <DatesSheet line={line} open onClose={() => setDates(false)} />}
+      <RenameSheet open={naming} value={title} onClose={() => setNaming(false)}
+        onSave={(t) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (!l) return; const auto = l.settings?.soc_title || item?.title || l.title; l.title = t || auto; l.settings = { ...(l.settings || {}), named: !!t && t !== auto } })} />
     </div>
   )
-}
-
-function Settings({ line, token }: { line: Line; token?: string }) {
-  const { catalog, updatePhase } = useLife()
-  const item = catalog?.items.find((i) => i.key === line.item)
-  const set = (k: string, v: any, title?: string) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (!l) return; l.settings = { ...(l.settings || {}), [k]: v }; if (title) l.title = title })
-  return (
-    <div className="mt-3 space-y-2">
-      {item?.settings?.map((s) => s.kind === 'choice' ? (
-        <div key={s.key} className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-semibold text-muted-foreground">{s.title}</span>
-          {s.choices!.map(([val, t]) => {
-            const on = (line.settings?.[s.key] ?? s.default) === val
-            return <button key={String(val)} type="button" aria-pressed={on} onClick={() => set(s.key, val)} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${on ? 'bg-card text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>
-          })}
-        </div>
-      ) : <OccupationPicker key={s.key} token={token} value={line.settings?.soc} label={line.settings?.soc_title} onPick={(o) => set('soc', o.soc, line.title === 'A job' || !line.title ? o.title : undefined)} onPicked={(o) => updatePhase((p) => { const l = p.lines.find((x) => x.id === line.id); if (l) l.settings = { ...(l.settings || {}), soc: o.soc, soc_title: o.title } })} />)}
-    </div>
-  )
-}
-
-// eslint-disable-next-line no-unused-vars -- parameter names in a function type
-export function OccupationPicker({ token, value, label, onPick, onPicked }: { token?: string; value?: string; label?: string; onPick?: (o: Occupation) => void; onPicked?: (o: Occupation) => void }) {
-  const [q, setQ] = React.useState('')
-  const [rows, setRows] = React.useState<Occupation[] | null>(null)
-  const [open, setOpen] = React.useState(!value)
-  React.useEffect(() => {
-    if (!open) return
-    let live = true
-    const t = setTimeout(() => { lifeApi.occupations(q, token).then((r) => { if (live) setRows(r.occupations) }).catch(() => setRows([])) }, 150)
-    return () => { live = false; clearTimeout(t) }
-  }, [q, open, token])
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="text-xs font-semibold text-muted-foreground">Job: <span className="text-foreground underline decoration-dashed underline-offset-4">{label || value}</span></button>
-  return (
-    <div className="rounded-xl bg-card ring-1 ring-border">
-      <div className="flex items-center gap-2 px-3"><Search className="size-4 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find the job for a pay estimate" aria-label="Find a job" className="h-9 w-full bg-transparent text-sm outline-none" /></div>
-      {rows && (rows.length ? (
-        <ul className="max-h-48 overflow-auto border-t border-border py-1">
-          {rows.map((o) => <li key={o.soc}><button type="button" onClick={() => { onPick?.(o); onPicked?.(o); setOpen(false) }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted">{o.title}</button></li>)}
-        </ul>
-      ) : <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">No pay figures loaded for jobs like that yet. Enter your own pay below.</p>)}
-    </div>
-  )
-}
-
-function CalcIcon() {
-  return <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 14.5h.01M12 14.5h.01M16 14.5h.01M8 18h.01M12 18h4" /></svg>
 }

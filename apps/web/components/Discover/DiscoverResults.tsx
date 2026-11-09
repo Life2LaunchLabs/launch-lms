@@ -14,6 +14,7 @@ import { usePlanFeed } from './DiscoverFeed'
 import { ResourceTile } from './ResourceShelves'
 import type { DiscoverFilters } from './DiscoverSearchBar'
 
+import { tr } from '@/lib/tr'
 const GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4'
 
 function matches(card: PlanOfferCard, terms: string[]) {
@@ -40,24 +41,24 @@ export default function DiscoverResults({ orgslug, query, filters, showPlans, sh
   const askHub = hub && query ? () => hub.open({ prompt: query }) : undefined
 
   return <div className="flex flex-col gap-9" aria-live="polite">
-    {loading ? <div className="flex min-h-48 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label="Searching" /></div> : null}
-    {resourcesError ? <p role="alert" className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">Resources couldn’t load. Try again in a moment.</p> : null}
+    {loading ? <div className="flex min-h-48 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label={tr('discover.discover_results.searching', 'Searching')} /></div> : null}
+    {resourcesError ? <p role="alert" className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">{tr('discover.discover_results.resources_couldn_t_load_try', 'Resources couldn’t load. Try again in a moment.')}</p> : null}
     {empty ? <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
       <SearchX size={36} className="text-muted-foreground" aria-hidden="true" />
-      <p className="text-lg font-extrabold">{query ? `Nothing matches “${query}”` : 'Nothing matches these filters'}</p>
-      <p className="max-w-sm text-sm text-muted-foreground">Try fewer words or another filter{askHub ? ', or ask Coach to look with you' : ''}.</p>
-      {askHub ? <Button type="button" variant="brand" onClick={askHub}><Sparkles size={16} />Ask Coach</Button> : null}
+      <p className="text-lg font-extrabold">{query ? tr('discover.discover_results.nothing_matches_query', 'Nothing matches “{{query}}”', { query }) : tr('discover.discover_results.nothing_matches_these_filters', 'Nothing matches these filters')}</p>
+      <p className="max-w-sm text-sm text-muted-foreground">{tr('discover.discover_results.try_fewer_words_or_another', 'Try fewer words or another filter')}{askHub ? tr('discover.discover_results.or_ask_coach_to_look', ', or ask Coach to look with you') : ''}.</p>
+      {askHub ? <Button type="button" variant="brand" onClick={askHub}><Sparkles size={16} />{tr('discover.discover_results.ask_coach', 'Ask Coach')}</Button> : null}
     </div> : null}
     {!empty && askHub ? <button type="button" onClick={askHub} className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3 text-left hover:bg-raised">
       <Sparkles size={20} className="shrink-0 text-[#7cc4ff]" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-sm font-bold">Ask Coach about “{query}”</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-bold">{tr('discover.discover_results.ask_coach_about_query', 'Ask Coach about “{{query}}”', { query })}</span>
     </button> : null}
-    {plans.length ? <section aria-label="Plans" className="flex flex-col gap-4">
-      <h2 className="text-xl font-extrabold tracking-tight">Plans <span className="text-muted-foreground">· {plans.length}</span></h2>
+    {plans.length ? <section aria-label={tr('discover.discover_results.plans', 'Plans')} className="flex flex-col gap-4">
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('discover.discover_results.plans', 'Plans')}{' '}<span className="text-muted-foreground">· {plans.length}</span></h2>
       <div className={GRID}>{plans.map((card) => <PlanTile key={card.template_uuid} card={card} orgslug={orgslug} fill />)}</div>
     </section> : null}
-    {resourceList.length ? <section aria-label="Resources" className="flex flex-col gap-4">
-      <h2 className="text-xl font-extrabold tracking-tight">Resources <span className="text-muted-foreground">· {resourceList.length}</span></h2>
+    {resourceList.length ? <section aria-label={tr('discover.discover_results.resources', 'Resources')} className="flex flex-col gap-4">
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('discover.discover_results.resources', 'Resources')}{' '}<span className="text-muted-foreground">· {resourceList.length}</span></h2>
       <div className={GRID}>{resourceList.map((resource) => <ResourceTile key={resource.resource_uuid} resource={resource} orgslug={orgslug} fill />)}</div>
     </section> : null}
   </div>

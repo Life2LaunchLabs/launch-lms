@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { useGoalMutation } from '../useGoalActions'
 import EditSheet from './EditSheet'
 
+import { tr } from '@/lib/tr'
 /** The goal itself: its name, why it matters, its mark and colour. Its target date sits on its Finish section. */
 export default function GoalSettingsSheet({ goal, token, color, setColor, onClose }: {
   goal: Goal; token?: string; color: string
@@ -43,16 +44,16 @@ export default function GoalSettingsSheet({ goal, token, color, setColor, onClos
     } catch { /* toast shown */ }
   }
   const current = planPalette(shade)
-  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={shade} title="Goal settings"
-    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
-      <Button type="button" variant="plan" disabled={busy || (details && !title.trim())} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Save</Button></>}>
+  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={shade} title={tr('goals.goal_header_actions.goal_settings', 'Goal settings')}
+    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>{tr('goals.goal_stages.cancel', 'Cancel')}</Button>
+      <Button type="button" variant="plan" disabled={busy || (details && !title.trim())} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}{tr('goals.goal_stages.save', 'Save')}</Button></>}>
     <div className="flex flex-col gap-5">
       {details ? <>
-        <div className="flex flex-col gap-1"><Label htmlFor="goal-title">Goal</Label><Input id="goal-title" value={title} onChange={(event) => setTitle(event.target.value)} /></div>
-        <div className="flex flex-col gap-1"><Label htmlFor="goal-why">Why it matters <span className="font-normal text-muted-foreground">(optional)</span></Label><Textarea id="goal-why" rows={2} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="A line or two is plenty" /></div>
+        <div className="flex flex-col gap-1"><Label htmlFor="goal-title">{tr('goals.goal_settings_sheet.goal', 'Goal')}</Label><Input id="goal-title" value={title} onChange={(event) => setTitle(event.target.value)} /></div>
+        <div className="flex flex-col gap-1"><Label htmlFor="goal-why">{tr('goals.goal_settings_sheet.why_it_matters', 'Why it matters')}{' '}<span className="font-normal text-muted-foreground">{tr('goals.goal_stages.optional', '(optional)')}</span></Label><Textarea id="goal-why" rows={2} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={tr('goals.goal_settings_sheet.a_line_or_two_is', 'A line or two is plenty')} /></div>
         {marked ? <div className="flex flex-col gap-2">
-          <Label>Icon</Label>
-          <div role="radiogroup" aria-label="Icon" className="grid grid-cols-6 gap-2">
+          <Label>{tr('goals.goal_settings_sheet.icon', 'Icon')}</Label>
+          <div role="radiogroup" aria-label={tr('goals.goal_settings_sheet.icon', 'Icon')} className="grid grid-cols-6 gap-2">
             {GOAL_ICONS.map(({ key, label, icon: Icon }) => {
               const on = (icon || 'target') === key
               return <button key={key} type="button" role="radio" aria-checked={on} aria-label={label} onClick={() => setIcon(key === 'target' ? null : key)}
@@ -64,8 +65,8 @@ export default function GoalSettingsSheet({ goal, token, color, setColor, onClos
         </div> : null}
       </> : null}
       {setColor ? <div className="flex flex-col gap-2">
-        <Label>Colour</Label>
-        <div role="radiogroup" aria-label="Colour" className="flex flex-wrap gap-2">
+        <Label>{tr('goals.goal_settings_sheet.colour', 'Colour')}</Label>
+        <div role="radiogroup" aria-label={tr('goals.goal_settings_sheet.colour', 'Colour')} className="flex flex-wrap gap-2">
           {PLAN_PALETTES.map((palette) => <button key={palette.key} type="button" role="radio" aria-label={palette.label} aria-checked={palette.key === current.key} onClick={() => setShade(palette.face)}
             className="flex h-8 w-8 items-center justify-center rounded-full ring-offset-2 ring-offset-popover transition aria-checked:ring-2 aria-checked:ring-foreground/50" style={{ backgroundColor: palette.face, color: palette.faceInk }}>
             {palette.key === current.key ? <Check size={14} strokeWidth={3} /> : null}

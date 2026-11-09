@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, ProgramEntry, SchoolEntry
 from src.db.users import PublicUser, User
 from src.services.life_plans import estimates, importers, places
 from src.services.life_plans import plans as plan_service
@@ -31,7 +31,7 @@ OEWS_CSV = b"""AREA,AREA_TITLE,AREA_TYPE,PRIM_STATE,OCC_CODE,OCC_TITLE,O_GROUP,H
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     db = Session(engine)
     db.add(User(id=1, user_uuid="user_1", username="u1", email="u1@example.com", first_name="U", last_name="1"))
     db.commit()
@@ -310,7 +310,7 @@ def test_admin_import_answers_small_files_and_runs_big_ones_as_jobs(monkeypatch)
     from src.security.superadmin import require_superadmin
 
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=__import__("sqlalchemy.pool", fromlist=["StaticPool"]).StaticPool)
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     monkeypatch.setattr(life_router, "engine", engine)
     app = FastAPI()
     app.include_router(life_router.router, prefix="/life")
@@ -406,9 +406,9 @@ def test_a_plan_drawn_as_a_map_branches_merges_and_never_loops():
     assert by["el"].after == ["tr", "ap"]
     assert by["ap"].activities[0].career == "47-2111.00"
 
-    with pytest.raises(HTTPException):  # comes after a phase that starts later
-        plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "starts": "2030-01"}, b={"id": "b", "title": "B", "starts": "2029-01", "after": ["a"]}))
-    with pytest.raises(HTTPException):  # a loop, with no dates to catch it
+    # A skip: the phase after a fork also follows the phase before it, and starts the month that one ends.
+    plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "starts": "2030-01"}, g={"id": "g", "title": "Gap", "starts": "2031-01", "after": ["a"]}, b={"id": "b", "title": "B", "starts": "2031-01", "after": ["g", "a"]}))
+    with pytest.raises(HTTPException):  # a loop
         plan_service._check_links(_map_doc(a={"id": "a", "title": "A", "after": ["b"]}, b={"id": "b", "title": "B", "after": ["a"]}))
 
 
@@ -428,3 +428,20 @@ def test_headed_on_a_map_is_the_phase_now_and_what_comes_right_after():
     assert headed["now"]["title"] == "High school" and headed["now"]["ends"] == "2027-06"
     assert [p["title"] for p in headed["next"]] == ["College", "Electrician apprentice"]
     assert plan_service.headed(db, 1, datetime(2031, 1, 1, tzinfo=UTC))["now"]["title"] == "College"  # ideas are never "now"
+
+
+def test_a_skip_is_kept_and_headed_looks_through_it():
+    from datetime import UTC, datetime
+
+    doc = plan_service.LifePlanDocument.model_validate({"version": 1, "start": "2023-09", "lengths": True, "phases": [
+        {"id": "hs", "title": "High school", "starts": "2023-09", "months": 45},
+        {"id": "gap", "title": "Gap year", "starts": "2027-06", "months": 12, "after": ["hs"]},
+        {"id": "sk", "title": "Skip", "starts": "2027-06", "pass": True, "after": ["hs"], "rank": 1},
+        {"id": "ap", "title": "Apprenticeship", "starts": "2028-06", "months": 24, "after": ["gap", "sk"]},
+    ]})
+    plan_service._check_links(doc)
+    dumped = doc.model_dump(mode="json", by_alias=True)
+    assert dumped["phases"][2]["pass"] is True and dumped["phases"][0]["pass"] is False
+    answer = plan_service._headed_on_map(dumped["phases"], datetime(2026, 11, 1, tzinfo=UTC).year * 12 + 10)
+    assert answer["now"]["id"] == "hs"
+    assert [card["id"] for card in answer["next"]] == ["gap", "ap"]

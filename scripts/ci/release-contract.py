@@ -20,6 +20,9 @@ def validate(data, *, commit=None, branch=None):
         raise ValueError('Image reference does not match digest')
     if data.get('source_branch') not in ('dev', 'main'):
         raise ValueError('Candidate must come from dev or main')
+    build = data.get('build_commit_sha')
+    if build is not None and not re.fullmatch(r'[a-f0-9]{40}', build):
+        raise ValueError('The commit an image was built from must be a full commit')
     if commit and data['commit_sha'] != commit:
         raise ValueError('Candidate belongs to another commit')
     if branch and data['source_branch'] != branch:
@@ -43,7 +46,9 @@ def main():
             image_ref=f'{REPOSITORY}@{digest}', commit_sha=sha,
             source_branch=os.environ['SOURCE_BRANCH'], version=f'sha-{sha}',
             image_tag=f'sha-{sha}', build_run_id=os.environ['GITHUB_RUN_ID'],
-            released_at=datetime.now(timezone.utc).isoformat()))
+            released_at=datetime.now(timezone.utc).isoformat(),
+            # A pull request's checked image, published as this commit: it was built from another.
+            **({'build_commit_sha': built} if (built := os.environ.get('BUILD_COMMIT_SHA') or sha) != sha else {})))
         Path(path).write_text(json.dumps(data, indent=2)+'\n')
     elif mode == 'promote':
         data = promote(json.loads(Path(path).read_text()), os.environ['GITHUB_REF_NAME'], os.environ['GITHUB_SHA'])

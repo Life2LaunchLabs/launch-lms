@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Debt, LifeDoc, Phase } from '@services/life/life'
-import { lineValue, newDoc, project, stretches } from '../model'
+import { fromMonthly, lineValue, newDoc, project, stretches, toMonthly } from '../model'
 
 const phase = (id: string, months: number, pay = 3000): Phase => ({
   id, title: id, kind: 'other', place: null, place_label: '', months, goals: [],
@@ -110,5 +110,36 @@ describe('loan story', () => {
     expect(i.months).toBe(120)
     expect(Math.abs(i.total - 12000 - 3987.6) < 1).toBe(true)
     expect(schedule(10000, 12, 100).months).toBe(null)
+  })
+})
+
+describe('what is left each month', () => {
+  test('stays in the savings account', () => {
+    const p = run(plan([loan({ id: 'b', rate: 20, balance: 500 })]))
+    expect(p.left[0]).toBe(2900)
+  })
+
+  test('an account opened later takes nothing and does not show until its month, which starts a stretch', () => {
+    const doc = plan([])
+    doc.savings.push({ id: 'k', kind: 'savings', title: 'IRA', balance: 50, rate: 0, monthly: 100, main: false, start: { phase: 'p2', month: 6 } })
+    const p = run(doc)
+    const before = p.savingsAt(12 + 5).find((x) => x.id === 'k')!
+    expect(before.open).toBe(false)
+    expect(p.put[12 + 5]).toBe(0)
+    const after = p.savingsAt(12 + 6).find((x) => x.id === 'k')!
+    expect(after.open).toBe(true)
+    expect(after.balance).toBe(50)
+    expect(p.put[12 + 6]).toBe(100)
+    expect(p.savingsAt(0).find((x) => x.id === 'k')!.open).toBe(false)
+    expect(stretches(doc, doc.phases[1], p).map((x) => x.m0)).toEqual([0, 6])
+  })
+})
+
+describe('a month is 4 weeks', () => {
+  test('hourly and weekly amounts times 4, salary does not depend on hours', () => {
+    expect(toMonthly(20, 'hr', 40)).toBe(3200)
+    expect(toMonthly(100, 'wk')).toBe(400)
+    expect(toMonthly(60000, 'yr', 10)).toBe(5000)
+    expect(fromMonthly(3200, 'hr', 40)).toBe(20)
   })
 })

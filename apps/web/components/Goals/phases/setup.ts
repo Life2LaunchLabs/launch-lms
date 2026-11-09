@@ -1,6 +1,4 @@
-/* eslint-disable no-unused-vars -- parameter names in function types */
-import type { Activity, Line, Phase } from '@services/life/life'
-import { uid } from '@components/LifePlan/model'
+import type { Activity, Household, Phase } from '@services/life/life'
 import { tr } from '@/lib/tr'
 
 /*
@@ -24,6 +22,19 @@ export const LIVING: [string, string][] = LIVING_EN.map(([key, en]) => {
 })
 export const livingLabel = (key?: string | null) => LIVING.find(([k]) => k === key)?.[1] || ''
 
+/** How many people the budget provides for, the learner included. */
+export const householdSize = (h?: Household | null) => 1 + (h?.partner ? 1 : 0) + (h?.kids?.length || 0)
+
+/** "Just me", "Me and a partner", "Me and 2 kids", "Me, a partner and 1 kid". */
+export function householdLabel(h?: Household | null) {
+  const kids = h?.kids?.length || 0
+  const k = kids === 1 ? tr('phases.household.one_kid', '1 kid') : tr('phases.household.kids', '{{n}} kids', { n: kids })
+  if (h?.partner && kids) return tr('phases.household.partner_kids', 'Me, a partner and {{kids}}', { kids: k })
+  if (h?.partner) return tr('phases.household.partner', 'Me and a partner')
+  if (kids) return tr('phases.household.with_kids', 'Me and {{kids}}', { kids: k })
+  return tr('phases.household.me', 'Just me')
+}
+
 export const KINDS: { key: Activity['kind']; title: string; hint: string }[] = [
   { key: 'learning', get title() { return tr('phases.kinds.learning', 'Learning') }, get hint() { return tr('phases.kinds.learning_hint', 'School, college, training') } },
   { key: 'working', get title() { return tr('phases.kinds.working', 'Working') }, get hint() { return tr('phases.kinds.working_hint', 'A job, an apprenticeship') } },
@@ -43,7 +54,7 @@ export const LEVELS: { key: string; title: string; short: string; college?: bool
 ]
 export const levelOf = (key?: string | null) => LEVELS.find((l) => l.key === key)
 
-const singular = (t: string) => t.split(/,| and /)[0].trim().replace(/s$/, '')
+const singular = (t: string) => t.split(/,| and | or /)[0].trim().replace(/([^s])s$/, '$1')
 
 /** "Learning at Sheldon High School", "Electrician at Northwest Electric". */
 export function activityText(a?: Activity | null): string {
@@ -82,28 +93,6 @@ export function kindFor(acts?: Activity[]): string {
   return 'other'
 }
 
-/**
- * Starting budget lines from what the phase is: pay for each job (its estimate comes from BLS for the
- * place), rent or a dorm or living with family, and food. Lines already there are kept; nothing is
- * added twice.
- */
-export function seedLines(p: Phase): Line[] {
-  const lines = [...(p.lines || [])]
-  const has = (item: string, f?: (l: Line) => boolean) => lines.some((l) => l.item === item && (!f || f(l)))
-  for (const a of p.activities || []) {
-    const soc = a.career?.slice(0, 7)
-    if (a.kind === 'working' && soc && !a.apprentice && !has('job', (l) => l.settings?.soc === soc)) {
-      lines.push({ id: uid('l'), cat: 'work', item: 'job', title: a.employer ? tr('phases.lines.pay_at', 'Pay at {{employer}}', { employer: a.employer }) : tr('phases.lines.pay_as', 'Pay as {{job}}', { job: singular(a.career_title || tr('phases.lines.a_worker', 'a worker')).toLowerCase() }), side: 'in', settings: { soc }, hours: 40, start: 0 })
-    }
-  }
-  if (p.living === 'family' && !has('family_home')) lines.push({ id: uid('l'), cat: 'home', item: 'family_home', title: tr('phases.lines.family_home', 'Living with family'), side: 'out', settings: {}, start: 0, own: { unit: 'mo', value: 0 } })
-  if (p.living === 'dorm' && !has('dorm')) lines.push({ id: uid('l'), cat: 'home', item: 'dorm', title: tr('phases.lines.dorm', 'Dorm'), side: 'out', settings: {}, start: 0 })
-  if ((p.living === 'own' || p.living === 'roommates' || p.living === 'partner') && !has('rent')) {
-    lines.push({ id: uid('l'), cat: 'home', item: 'rent', title: tr('phases.lines.rent', 'Rent'), side: 'out', settings: { bedrooms: p.living === 'own' ? 1 : 2, share: p.living === 'own' ? 1 : 2 }, start: 0 })
-  }
-  return lines
-}
-
 export interface CheckItem { key: 'place' | 'living' | 'doing' | 'starts' | 'budget' | 'goals'; title: string; done: boolean }
 /** The "fully defined" list for a phase. Budget counts; goals count. */
 export function checklist(p: Phase, goals: number): CheckItem[] {
@@ -111,7 +100,7 @@ export function checklist(p: Phase, goals: number): CheckItem[] {
     { key: 'place', title: tr('phases.check.place', 'Where'), done: Boolean(p.place || p.places?.length) },
     { key: 'living', title: tr('phases.check.living', 'How you live'), done: Boolean(p.living) },
     { key: 'doing', title: tr('phases.check.doing', 'What you’re doing'), done: Boolean(p.activities?.length) },
-    { key: 'starts', title: tr('phases.check.starts', 'When it starts'), done: Boolean(p.starts) },
+    { key: 'starts', title: tr('phases.check.how_long', 'How long it lasts'), done: !p.undated },
     { key: 'budget', title: tr('phases.check.budget', 'A budget'), done: (p.lines || []).length > 0 },
     { key: 'goals', title: tr('phases.check.goals', 'A goal'), done: goals > 0 },
   ]

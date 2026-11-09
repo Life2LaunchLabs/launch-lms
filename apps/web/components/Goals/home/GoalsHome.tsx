@@ -2,12 +2,9 @@
 
 import React from 'react'
 import Link from 'next/link'
-import useSWR, { mutate } from 'swr'
-import toast from 'react-hot-toast'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, Compass, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
 import { GoalTabs } from '@components/Goals/learner/GoalHeader'
 import type { PhaseGroup } from '@components/Goals/learner/phases'
 import { StartPhaseCard } from '@components/Goals/phases/PhaseStack'
@@ -16,15 +13,14 @@ import { current, normalize } from '@components/Goals/phases/graph'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
+import Invitations from './Invitations'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { isGoalsKey } from '@services/goals/goals'
 import { homeUrl } from '@services/goals/home'
 import type { LifeDoc } from '@services/life/life'
-import { goalSharingApi, myInvitationsKey, type ReceivedInvitation } from '@services/goals/sharing'
 import type { GoalSummary } from '@services/goals/types'
-import { swrFetcher } from '@services/utils/ts/requests'
 
+import { tr } from '@/lib/tr'
 /** The SWR key of the learner's home payload (finished goals waiting to greet them). */
 export const homeKey = () => homeUrl()
 
@@ -49,7 +45,7 @@ type GoalsHomeProps = {
   retryFinished?: () => void
 }
 
-const WHEN = { now: 'Now', next: 'Next', later: 'Later', done: 'Before' } as const
+const WHEN = { get now() { return tr('lit.routine_chart.now', 'Now') }, get next() { return tr('lit.goals_home.next', 'Next') }, get later() { return tr('lit.phase_sheet.later', 'Later') }, get done() { return tr('lit.goals_home.before', 'Before') } } as const
 const monthYear = (value?: string) => {
   if (!value) return ''
   const [year, month] = value.split('-').map(Number)
@@ -61,7 +57,7 @@ export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<
   return <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
     {group.when ? <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{WHEN[group.when]}</span> : null}
     <Tag className="text-xl font-extrabold tracking-tight">{group.title}</Tag>
-    {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">from {monthYear(group.starts)}</span> : null}
+    {group.when && group.when !== 'now' && group.starts ? <span className="text-sm text-muted-foreground">{tr('goals.goals_home.from_monthyear', 'from {{monthYear}}', { monthYear: monthYear(group.starts) })}</span> : null}
     {children}
   </div>
 }
@@ -69,37 +65,32 @@ export function PhaseHeading({ group, as: Tag = 'h2', children }: { group: Pick<
 /** Start a goal in a phase, or find one: one row under the phase's goals, whatever their number. */
 export function AddToPhase({ orgslug, phaseTitle, empty, onCreate, creating }: { orgslug: string; phaseTitle?: string; empty?: boolean; onCreate: () => void; creating: boolean }) {
   return <div className="flex flex-wrap items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 pl-4">
-    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? `No goals${phaseTitle ? ` for ${phaseTitle}` : ''} yet.` : 'Add another goal here.'}</span>
-    <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? 'Starting…' : 'Create your own'}</Button>
-    <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
+    <span className="min-w-0 flex-1 text-sm text-muted-foreground">{empty ? tr('goals.goals_home.no_goalsvalue_yet', 'No goals{{value}} yet.', { value: phaseTitle ? ` for ${phaseTitle}` : '' }) : tr('goals.goals_home.add_another_goal_here', 'Add another goal here.')}</span>
+    <Button type="button" variant="surface" size="sm" onClick={onCreate} disabled={creating}><Plus size={15} />{creating ? tr('goals.phase_page.starting', 'Starting…') : tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
+    <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />{tr('goals.phase_page.discover', 'Discover')}</Link></Button>
   </div>
 }
 
 /** Plans: invitations, then the phases of the learner's life as pictures, then finished goals. */
 export default function GoalsHome({ orgslug, token, goals, finished, life, choose, onIntent, getGoalColor, onCreate, creating, finishedError, retryFinished }: GoalsHomeProps) {
   const router = useRouter()
-  const { data: invitations = [], isLoading: invitesLoading } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { change } = useLifePlan(token)
   const params = useSearchParams()
   const focus = params?.get('phase')
   const wantsMap = Boolean(focus || params?.has('map'))
   const nowPhase = life?.phases?.length ? current(normalize(life)) : undefined
-  // Plans opens on the phase you're in; the map is one tap from there (?map or ?phase=). Invitations waiting keep you here to answer them.
-  const toPhase = Boolean(nowPhase && !wantsMap && token && !invitesLoading && !invitations.length)
+  // Plans opens on the phase you're in, where invitations wait too; the map is one tap from there (?map or ?phase=).
+  const toPhase = Boolean(nowPhase && !wantsMap && token)
   React.useEffect(() => { if (toPhase && nowPhase) router.replace(getUriWithOrg(orgslug, routePaths.org.phase(nowPhase.id))) }, [toPhase, nowPhase?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const photos = usePlacePhotos(token)
   const open = goals.filter((goal) => goal.target_kind !== 'group' && goal.status !== 'pending')
 
   if (life?.phases?.length) {
     if (toPhase) return null
-    const now = nowPhase
     return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6">
-      <SharedWithYou token={token} />
-      <Invitations invitations={invitations} token={token} />
       <section aria-labelledby="plan-map" className="flex flex-col gap-3">
         <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus}
-          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">Your map</h1>}
-          actions={now ? <Button variant="brand" size="sm" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(now.id))}>You’re in {now.title}</Link></Button> : null} />
+          title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">{tr('goals.goals_home.your_map', 'Your map')}</h1>} />
       </section>
     </div>
   }
@@ -107,72 +98,40 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   // No phases yet: start the plan with the phase they're in; goals they already have wait below.
   return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
     <SharedWithYou token={token} />
-    <Invitations invitations={invitations} token={token} />
+    <Invitations token={token} />
     <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
-    {open.length ? <section aria-label="Your goals" className="flex flex-col gap-3">
-      <h2 className="text-xl font-extrabold tracking-tight">Your goals</h2>
-      <GoalTabs label="Your goals" goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
+    {open.length ? <section aria-label={tr('goals.phases.your_goals', 'Your goals')} className="flex flex-col gap-3">
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('goals.phases.your_goals', 'Your goals')}</h2>
+      <GoalTabs label={tr('goals.phases.your_goals', 'Your goals')} goals={open} getGoalColor={getGoalColor} choose={choose} onIntent={onIntent} />
       <AddToPhase orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />
     </section> : <EmptyHome orgslug={orgslug} onCreate={() => onCreate()} creating={creating} />}
     <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open={!open.length} />
   </div>
 }
 
-/** Invitations to work on someone's goal, and goals an organization handed the learner, answered here. */
-function Invitations({ invitations, token }: { invitations: ReceivedInvitation[]; token?: string }) {
-  const [busy, setBusy] = React.useState('')
-  const { invitations: orgGoals, respond: respondOrg } = useGoalInvitations()
-  if (!invitations.length && !orgGoals.length) return null
-  const answer = async (uuid: string, send: () => Promise<unknown>) => {
-    setBusy(uuid)
-    try { await send(); await mutate(isGoalsKey) } catch { toast.error('Could not respond to this invitation') } finally { setBusy('') }
-  }
-  const respond = (uuid: string, accept: boolean) => answer(uuid, () => goalSharingApi.respondInvitation(uuid, accept, token))
-  const respondGoal = (goal: OrgGoalInvitation, accept: boolean) => answer(goal.goal_uuid, () => respondOrg(goal, accept))
-  return <section aria-label="Goal invitations" className="flex flex-col gap-3">
-    <h2 className="text-xl font-extrabold tracking-tight">Invitations</h2>
-    {orgGoals.map((goal) => <div key={goal.goal_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
-      <div className="min-w-0 flex-1">
-        <p className="font-bold">{goal.title}</p>
-        <p className="text-sm text-muted-foreground">{goal.organization?.name || 'Launch LMS'}</p>
-      </div>
-      <Button size="sm" variant="ghost" disabled={busy === goal.goal_uuid} onClick={() => void respondGoal(goal, false)}>Decline</Button>
-      <Button size="sm" variant="brand" disabled={busy === goal.goal_uuid} onClick={() => void respondGoal(goal, true)}>Accept</Button>
-    </div>)}
-    {invitations.map((invite) => <div key={invite.invitation_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
-      <div className="min-w-0 flex-1">
-        <p className="font-bold">{invite.goal.title}</p>
-        <p className="text-sm text-muted-foreground">{invite.organization?.name || invite.invited_by?.name || invite.invited_by?.username || 'Launch LMS'}{invite.kind !== 'subject' ? ` · Help as ${invite.role.name}` : ''}</p>
-      </div>
-      <Button size="sm" variant="ghost" disabled={busy === invite.invitation_uuid} onClick={() => void respond(invite.invitation_uuid, false)}>Decline</Button>
-      <Button size="sm" variant="brand" disabled={busy === invite.invitation_uuid} onClick={() => void respond(invite.invitation_uuid, true)}>Accept</Button>
-    </div>)}
-  </section>
-}
-
 // eslint-disable-next-line no-unused-vars
 function FinishedGoals({ goals, getGoalColor, choose, error, retry, open = false }: { goals: GoalSummary[]; getGoalColor: (uuid?: string) => string; choose: (goal: GoalSummary) => void; error?: boolean; retry?: () => void; open?: boolean }) {
-  if (error) return retry ? <Button variant="ghost" onClick={retry} className="w-fit text-xs">Retry finished goals</Button> : null
+  if (error) return retry ? <Button variant="ghost" onClick={retry} className="w-fit text-xs">{tr('goals.goals_home.retry_finished_goals', 'Retry finished goals')}</Button> : null
   if (!goals.length) return null
   return <details className="group/done" open={open}>
     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl py-2">
-      <h2 className="text-xl font-extrabold tracking-tight">Finished</h2>
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('goals.phase_page.finished', 'Finished')}</h2>
       <span className="text-sm text-muted-foreground">{goals.length} {goals.length === 1 ? 'goal' : 'goals'}</span>
       <ChevronDown size={18} className="ml-auto text-muted-foreground transition-transform group-open/done:rotate-180" aria-hidden="true" />
     </summary>
     <ul className="mt-2 flex flex-col gap-2">{goals.map((goal) => <li key={goal.goal_uuid}><button type="button" onClick={() => choose(goal)} data-plan="" style={planVars(getGoalColor(goal.goal_uuid))} className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-card px-4 text-left hover:bg-raised">
-      <span className="h-3 w-3 rounded-full bg-[var(--plan-face)]" aria-hidden="true" /><span className="flex-1 font-bold">{goal.title}</span><span className="text-xs text-muted-foreground">Done</span>
+      <span className="h-3 w-3 rounded-full bg-[var(--plan-face)]" aria-hidden="true" /><span className="flex-1 font-bold">{goal.title}</span><span className="text-xs text-muted-foreground">{tr('goals.routine_action.done', 'Done')}</span>
     </button></li>)}</ul>
   </details>
 }
 
 function EmptyHome({ orgslug, onCreate, creating }: { orgslug: string; onCreate: () => void; creating: boolean }) {
   return <div className="rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
-    <h2 className="text-2xl font-extrabold">Then add something to work toward</h2>
-    <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Set your own goal, or pick a badge to earn and its goal shows up here.</p>
+    <h2 className="text-2xl font-extrabold">{tr('goals.goals_home.then_add_something_to_work', 'Then add something to work toward')}</h2>
+    <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{tr('goals.goals_home.set_your_own_goal_or', 'Set your own goal, or pick a badge to earn and its goal shows up here.')}</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">
-      <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Starting…' : 'Create your own'}</Button>
-      <Button type="button" variant="surface" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={16} />Find one in Discover</Link></Button>
+      <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? tr('goals.phase_page.starting', 'Starting…') : tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
+      <Button type="button" variant="surface" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={16} />{tr('goals.goals_home.find_one_in_discover', 'Find one in Discover')}</Link></Button>
     </div>
   </div>
 }

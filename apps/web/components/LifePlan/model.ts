@@ -6,10 +6,12 @@
 import { isTaxable, monthlyTax } from './tax'
 import type { Asset, Catalog, Debt, Estimate, LifeDoc, LifeEvent, Line, Phase, Policy, Unit } from '@services/life/life'
 
+import { tr, trLocale } from '@/lib/tr'
 export type Per = 'wk' | 'mo' | 'yr'
-export const PER_WORD: Record<Per, string> = { wk: 'week', mo: 'month', yr: 'year' }
+export const PER_WORD: Record<Per, string> = { get wk() { return tr('budget.per.week', 'week') }, get mo() { return tr('budget.per.month', 'month') }, get yr() { return tr('budget.per.year', 'year') } }
 export const UNIT_WORD: Record<Unit, string> = { hr: 'an hour', wk: 'a week', mo: 'a month', yr: 'a year' }
-export const WEEKS_PER_MONTH = 52 / 12
+/** A month counts as 4 weeks: hourly and weekly amounts × 4. Yearly amounts ÷ 12. */
+export const WEEKS_PER_MONTH = 4
 export const DEFAULT_HOURS = 20
 
 export const uid = (p = 'x') => `${p}${Math.random().toString(36).slice(2, 9)}`
@@ -39,11 +41,17 @@ export function short(v: number): string {
   return `${sign}$${Math.round(a)}`
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// Short month names in the current language ("Jan", "ene").
+const shortMonth = (index: number) => new Intl.DateTimeFormat(trLocale(), { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, index, 1))).replace('.', '')
+/** The month of the year (0 = January) `g` months after `start`. */
+export function monthIndex(start: string, g: number): number {
+  const m = Number(start.split('-')[1])
+  return ((((m - 1) + g) % 12) + 12) % 12
+}
 export function monthLabel(start: string, g: number): string {
   const [y, m] = start.split('-').map(Number)
   const t = (m - 1) + g
-  return `${MONTHS[((t % 12) + 12) % 12]} ${y + Math.floor(t / 12)}`
+  return `${shortMonth(((t % 12) + 12) % 12)} ${y + Math.floor(t / 12)}`
 }
 export const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
 
@@ -65,6 +73,12 @@ export function estimateQuery(catalog: Catalog | undefined, phase: Phase, line: 
     const v = line.settings?.[d] ?? s?.default
     if (v !== undefined && v !== null && v !== '') dims[d] = v
   }
+  // Who the phase provides for: household size for spending surveys, and the people for food plans.
+  const h = phase.household
+  const want = catalog!.metrics[item.metric]?.dims || []
+  if (want.includes('size')) dims.size = Math.min(5, 1 + (h?.partner ? 1 : 0) + (h?.kids?.length || 0))
+  if (want.includes('adults')) dims.adults = h?.partner ? 2 : 1
+  if (want.includes('kids') && h?.kids?.length) dims.kids = [...h.kids].sort((x, y) => x - y)
   return { id: `${phase.id}:${line.id}`, metric: item.metric, place: phase.place || null, dims }
 }
 
@@ -78,6 +92,9 @@ export interface LineValue {
   calc: string | null
 }
 
+/** Costs a household splits: the line's `share` setting divides them. */
+export const SHARED_METRICS = ['rent', 'utilities']
+
 export function lineValue(line: Line, est: Estimate | null | undefined): LineValue {
   let estMonthly: number | null = null
   let calc: string | null = null
@@ -86,7 +103,7 @@ export function lineValue(line: Line, est: Estimate | null | undefined): LineVal
     estMonthly = toMonthly(est.value, est.period, hours)
     if (est.period === 'hr') calc = `${money(est.value, { cents: true })} an hour × ${hours} hours a week`
     const share = Number(line.settings?.share || 1)
-    if (est.metric === 'rent' && share > 1) { estMonthly = estMonthly / share; calc = `${money(est.value)} split ${share} ways` }
+    if (SHARED_METRICS.includes(est.metric) && share > 1) { estMonthly = estMonthly / share; calc = `${money(toMonthly(est.value, est.period))} split ${share} ways` }
   }
   if (line.own) return { monthly: toMonthly(line.own.value, line.own.unit, line.own.hours ?? line.hours), mine: true, estMonthly, calc }
   return { monthly: estMonthly, mine: false, estMonthly, calc }
@@ -96,8 +113,8 @@ export const activeAt = (line: Line, m: number) => (line.start || 0) <= m && (li
 
 export interface Stretch { i: number; phase: Phase; m0: number; m1: number; g0: number; g1: number; why: string[]; icon: string }
 
-/** A phase splits into stretches wherever something starts, stops, or happens once. */
-export function stretches(doc: LifeDoc, phase: Phase): Stretch[] {
+/** A phase splits into stretches wherever something starts, stops, happens once, or a debt is paid off. */
+export function stretches(doc: LifeDoc, phase: Phase, projection?: Pick<Projection, 'debtsAt'> | null): Stretch[] {
   const off = phaseOffset(doc, phase.id)
   const marks = new Map<number, { why: string[]; icon: string }>()
   const mark = (m: number, why: string, icon: string) => {
@@ -113,11 +130,14 @@ export function stretches(doc: LifeDoc, phase: Phase): Stretch[] {
     if (a.sold?.phase === phase.id) mark(a.sold.month, `You sell ${a.title.toLowerCase()}`, 'tag')
   })
   doc.debts.forEach((d) => { if (d.start?.phase === phase.id && !doc.assets.some((a) => a.loan_id === d.id)) mark(d.start.month, `You take ${d.title.toLowerCase()}`, 'landmark') })
+  doc.savings.forEach((s) => { if (s.start?.phase === phase.id) mark(s.start.month, `You open ${s.title}`, 'piggy-bank') })
   ;(doc.policies || []).forEach((x) => {
     if (x.phase !== phase.id) return
     const t = doc.debts.find((d) => d.id === x.target) || doc.savings.find((v) => v.id === x.target)
     if (t) mark(x.month, 'pay' in x || 'full' in x ? `You change what you pay on ${t.title.toLowerCase()}` : `You change what goes into ${t.title.toLowerCase()}`, 'sliders')
   })
+  // A payoff moves with what is paid, so the stretch after it starts wherever the plan puts it.
+  if (projection) projection.debtsAt(off).forEach((d) => { if (d.paidOffAt != null) mark(d.paidOffAt + 1 - off, `${d.debt.title} paid off`, 'check') })
   const cuts = [0, ...[...marks.keys()].sort((a, b) => a - b)]
   return cuts.map((m0, i) => {
     const m1 = (cuts[i + 1] ?? phase.months) - 1
@@ -142,8 +162,9 @@ export interface DebtAt {
   paidOffAt: number | null
 }
 
-/** One account's month: what you put in, what an employer adds, what is in it once the month's one-time things land. */
-export interface SavingAt { id: string; title: string; balance: number; put: number; match: number }
+/** One account's month: what you put in, what an employer adds, what is in it once the month's one-time things land.
+ *  `open` is false before an account the learner opens later (startsAt) has started. */
+export interface SavingAt { id: string; title: string; balance: number; put: number; match: number; open: boolean; startsAt: number | null }
 
 /** Something that makes the lines jump in one month, to mark on the chart and explain. */
 export interface Mark {
@@ -166,7 +187,7 @@ export interface Projection {
   out: number[]
   /** Per global month: the tax taken from pay. */
   tax: number[]
-  /** Per global month: paid on debts and put into accounts (not the main one); what is left goes to savings. */
+  /** Per global month: paid on debts and put into accounts (not the main one); what is left goes to the savings account. */
   paid: number[]
   put: number[]
   left: number[]
@@ -181,6 +202,8 @@ export interface Projection {
   savingsAt: (g: number) => SavingAt[]
   /** Things owned in month g, once that month's purchase or sale has happened. */
   assetsAt: (g: number) => { asset: Asset; value: number }[]
+  /** A debt's, account's or thing's balance at the start of each month (index g), and after the last. */
+  historyOf: (id: string) => number[]
   /* eslint-enable no-unused-vars */
 }
 
@@ -237,7 +260,8 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
   const main = doc.savings.find((s) => s.main) || null
   let cash = main ? main.balance : 0
   let owed = 0
-  doc.savings.filter((s) => !s.main).forEach((s) => { saveBal[s.id] = s.balance })
+  // An account opened later has nothing in it (and takes nothing) until its month.
+  doc.savings.filter((s) => !s.main && !s.start).forEach((s) => { saveBal[s.id] = s.balance })
   doc.debts.forEach((d) => { if (!d.start) debtBal[d.id] = d.balance })
   doc.assets.forEach((a) => { if (!a.bought) assetVal[a.id] = a.value })
   const evAt = new Map<number, LifeEvent[]>()
@@ -295,6 +319,7 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
           marks.push({ g, kind: 'sell', title: a.title, amount: into, ref: a.id })
         }
       })
+      doc.savings.forEach((s) => { if (!s.main && s.start && gOf(doc, s.start) === g) saveBal[s.id] = s.balance })
       ;(evAt.get(g) || []).forEach((e) => { cash += e.amount; marks.push({ g, kind: 'once', title: e.title, amount: e.amount, ref: e.id }) })
       opened()
       let i = 0, o = 0, pay = 0
@@ -314,7 +339,7 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
         debtPaid[d.id][g] = amt; debtMin[d.id][g] = min
       })
       doc.savings.forEach((s) => {
-        if (s.main) return
+        if (s.main || saveBal[s.id] === undefined) return
         const pol = policyAt(doc, s.id, g)
         const pct = pol?.pct ?? s.pct ?? null
         const c = pct != null ? (pay * pct) / 100 : (pol?.put ?? s.monthly)
@@ -322,6 +347,7 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
         saveBal[s.id] = (saveBal[s.id] + c + e) * (1 + s.rate / 1200); cash -= c; put += c
         savePut[s.id][g] = c; saveMatch[s.id][g] = e
       })
+      // What is left after the budget, debt payments and other accounts stays in the savings account (or comes out of it).
       paidT.push(paid); putT.push(put); left.push(i - t - o - paid - put)
       doc.assets.forEach((a) => { if (assetVal[a.id] !== undefined) assetVal[a.id] *= Math.pow(1 + a.change / 100, 1 / 12) })
       if (main && cash > 0) cash *= 1 + main.rate / 1200
@@ -348,11 +374,15 @@ export function project(doc: LifeDoc, values: (phase: Phase, line: Line) => Line
       const state: DebtAt['state'] = startsAt != null && t < startsAt ? 'later' : balance > 0.5 ? 'owing' : 'paid'
       return { debt: d, balance: state === 'later' ? d.balance : balance, payment: debtPaid[d.id]?.[at(t)] ?? 0, minimum: debtMin[d.id]?.[at(t)] ?? 0, state, startsAt, paidOffAt }
     }),
-    savingsAt: (t) => doc.savings.map((s) => ({ id: s.id, title: s.title, balance: saveOpen[s.id]?.[at(t)] ?? 0, put: savePut[s.id]?.[at(t)] ?? 0, match: saveMatch[s.id]?.[at(t)] ?? 0 })),
+    savingsAt: (t) => doc.savings.map((s) => {
+      const startsAt = !s.main && s.start ? gOf(doc, s.start) : null
+      return { id: s.id, title: s.title, balance: saveOpen[s.id]?.[at(t)] ?? 0, put: savePut[s.id]?.[at(t)] ?? 0, match: saveMatch[s.id]?.[at(t)] ?? 0, open: startsAt == null || t >= startsAt, startsAt }
+    }),
     assetsAt: (t) => doc.assets.map((a) => ({ asset: a, value: assetOpen[a.id]?.[at(t)] ?? 0 })).filter((x) => x.value > 0.5),
+    historyOf: (id) => debtHist[id] || saveHist[id] || assetHist[id] || [],
   }
 }
 
 export function newDoc(): LifeDoc {
-  return { version: 1, start: thisMonth(), phases: [], debts: [], savings: [{ id: 'save', kind: 'savings', title: 'Savings account', balance: 0, rate: 0, monthly: 0, main: true }], assets: [], events: [] }
+  return { version: 1, start: thisMonth(), phases: [], debts: [], savings: [{ id: 'save', kind: 'savings', title: tr('budget.catalog.savings', 'Savings account'), balance: 0, rate: 0, monthly: 0, main: true }], assets: [], events: [] }
 }

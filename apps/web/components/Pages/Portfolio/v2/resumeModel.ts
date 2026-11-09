@@ -2,6 +2,7 @@ import { timelineDateLabel, type TimelineEntry } from '../Timeline'
 import type { Shell } from '../portfolioTypes'
 import { skillsOf, templateOf } from './resultTemplates'
 
+import { tr } from '@/lib/tr'
 // The résumé is a view of the portfolio: these sections, built from what's there, minus what a version took off.
 // Keys match the API's excluded list: "section:<key>", "timeline:<uuid>", "credential:<uuid>", "project:<uuid>",
 // "contact:<uuid>".
@@ -17,15 +18,15 @@ const typeOf = (entry: TimelineEntry) => LEGACY[entry.entry_type] || entry.entry
 const month = (value?: string | null) => value && /^\d{4}-\d{2}$/.test(value) ? new Date(`${value}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''
 
 const SECTIONS: Array<{ key: string; title: string; types?: string[] }> = [
-  { key: 'profile', title: 'Profile' },
-  { key: 'experience', title: 'Experience', types: ['work_career', 'other'] },
-  { key: 'leadership', title: 'Leadership & activities', types: ['leadership_service', 'teams_activities'] },
-  { key: 'education', title: 'Education', types: ['education', 'learning_experiences'] },
-  { key: 'projects', title: 'Projects' },
-  { key: 'awards', title: 'Awards', types: ['awards_recognition', 'challenges_milestones'] },
-  { key: 'certifications', title: 'Certifications' },
-  { key: 'skills', title: 'Skills' },
-  { key: 'references', title: 'References' },
+  { key: 'profile', get title() { return tr('portfolio.resume_model.profile', 'Profile') } },
+  { key: 'experience', get title() { return tr('portfolio.covers.experience', 'Experience') }, types: ['work_career', 'other'] },
+  { key: 'leadership', get title() { return tr('portfolio.resume_model.leadership_activities', 'Leadership & activities') }, types: ['leadership_service', 'teams_activities'] },
+  { key: 'education', get title() { return tr('portfolio.covers.education', 'Education') }, types: ['education', 'learning_experiences'] },
+  { key: 'projects', get title() { return tr('portfolio.resume_model.projects', 'Projects') } },
+  { key: 'awards', get title() { return tr('portfolio.covers.awards', 'Awards') }, types: ['awards_recognition', 'challenges_milestones'] },
+  { key: 'certifications', get title() { return tr('portfolio.resume_model.certifications', 'Certifications') } },
+  { key: 'skills', get title() { return tr('portfolio.resume_model.skills', 'Skills') } },
+  { key: 'references', get title() { return tr('portfolio.resume_model.references', 'References') } },
 ]
 
 export function sectionTitle(key: string) {

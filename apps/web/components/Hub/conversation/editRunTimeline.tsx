@@ -6,6 +6,7 @@ import { Button } from '@components/ui/button'
 import type { HubEditObjectState, HubEditOperation, HubEditRun, HubEditRunEvent } from '@services/hub/advisor'
 import { NEW_GOAL_OBJECT_KEY } from '@services/hub/objectEditing'
 
+import { tr } from '@/lib/tr'
 type EditRun = HubEditRun | null
 
 /** A message-like record the timeline is placed against. */
@@ -105,12 +106,12 @@ export function buildHubRunTimeline(events: HubEditRunEvent[]): HubRunTimelineEn
 export function HubSessionBoundary({ event, run, onRestore }: { event: HubEditRunEvent; run: EditRun; onRestore: () => void }) {
   const terminal = event.kind === 'run.completed' || event.kind === 'run.cancelled'
   const scopeKind = String(event.payload?.scope_kind || run?.scope.kind || '')
-  const rawGoal = String(event.payload?.goal || run?.goal || 'Focused work')
-  const goal = /^\s*(create|edit|update|build|plan)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? 'Create a goal' : 'Edit a goal'}: ${rawGoal}`
+  const rawGoal = String(event.payload?.goal || run?.goal || tr('lit.edit_run_timeline.focused_work', 'Focused work'))
+  const goal = /^\s*(create|edit|update|build|plan)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? tr('lit.edit_run_timeline.create_a_goal', 'Create a goal') : tr('lit.edit_run_timeline.edit_a_goal', 'Edit a goal')}: ${rawGoal}`
   const verb = event.kind === 'run.started' ? 'started session' : event.kind === 'run.reopened' ? 'reopened session' : 'ended session'
   return <div className="flex items-center gap-2 py-1 text-[10px] text-muted-foreground" aria-label={`${verb}: ${goal}`}>
     <span className="h-px flex-1 bg-border" />
-    {terminal ? <button type="button" onClick={onRestore} className="group/boundary flex max-w-[80%] flex-col items-center rounded-lg px-3 py-1 text-center leading-4 transition hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><span className="inline-flex items-center gap-1"><span className="group-hover/boundary:hidden">ended session</span><span className="hidden items-center gap-1 group-hover/boundary:inline-flex"><ChevronsUp size={11} />restore session</span></span><span className="truncate text-[11px] font-medium">{goal}</span></button> : <div className="max-w-[80%] text-center leading-4"><div>{verb}</div><div className="truncate text-[11px] font-medium">{goal}</div></div>}
+    {terminal ? <button type="button" onClick={onRestore} className="group/boundary flex max-w-[80%] flex-col items-center rounded-lg px-3 py-1 text-center leading-4 transition hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><span className="inline-flex items-center gap-1"><span className="group-hover/boundary:hidden">{tr('coach.edit_run_timeline.ended_session', 'ended session')}</span><span className="hidden items-center gap-1 group-hover/boundary:inline-flex"><ChevronsUp size={11} />{tr('coach.edit_run_timeline.restore_session', 'restore session')}</span></span><span className="truncate text-[11px] font-medium">{goal}</span></button> : <div className="max-w-[80%] text-center leading-4"><div>{verb}</div><div className="truncate text-[11px] font-medium">{goal}</div></div>}
     <span className="h-px flex-1 bg-border" />
   </div>
 }
@@ -121,16 +122,16 @@ export function HubEditActivity({ events, objects, onPoint, onFinish, pendingRev
   const [expanded, setExpanded] = useState(Boolean(conclusion))
   const details = events.flatMap((event) => {
     const operation = event.payload?.operation as { stages?: Array<{ local_id: string; title: string }>; steps?: Array<{ local_id: string; title: string }> } | undefined
-    if (operation?.stages) return operation.stages.map((stage) => { const state = objects.find((item) => item.object_key === stage.local_id); return { id: `${event.event_uuid}:${stage.local_id}`, label: `Proposed stage “${stage.title}”`, targetId: state?.object_uuid ? `goal-stage-${state.object_uuid}` : hubEventTarget(event, stage.local_id) } })
+    if (operation?.stages) return operation.stages.map((stage) => { const state = objects.find((item) => item.object_key === stage.local_id); return { id: `${event.event_uuid}:${stage.local_id}`, label: tr('coach.edit_run_timeline.proposed_stage_title', 'Proposed stage “{{title}}”', { title: stage.title }), targetId: state?.object_uuid ? `goal-stage-${state.object_uuid}` : hubEventTarget(event, stage.local_id) } })
     const changes = (event.payload?.operation as { changes?: Array<{ local_id: string; remove?: boolean; from?: { title?: string } }> } | undefined)?.changes
     if (changes) return changes.map((change) => ({ id: `${event.event_uuid}:${change.local_id}`, label: change.remove ? `Suggested removing “${change.from?.title || 'a row'}”` : `Suggested a change to “${change.from?.title || 'the goal'}”`, targetId: hubEventTarget(event, change.local_id) }))
-    if (operation?.steps) return operation.steps.map((step) => { const state = objects.find((item) => item.object_key === step.local_id); return { id: `${event.event_uuid}:${step.local_id}`, label: `Proposed step “${step.title}”`, targetId: state?.object_uuid ? `hub-object-${state.object_uuid}` : hubEventTarget(event, step.local_id) } })
+    if (operation?.steps) return operation.steps.map((step) => { const state = objects.find((item) => item.object_key === step.local_id); return { id: `${event.event_uuid}:${step.local_id}`, label: tr('coach.edit_run_timeline.proposed_step_title', 'Proposed step “{{title}}”', { title: step.title }), targetId: state?.object_uuid ? `hub-object-${state.object_uuid}` : hubEventTarget(event, step.local_id) } })
     return [{ id: event.event_uuid, label: event.summary, targetId: hubEventTarget(event) }]
   })
   const summary = events.map((event) => event.summary.replace(/^Prepared/, 'Proposed')).join(' · ')
-  return <details open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)} className="group/activity text-xs text-muted-foreground" aria-label="Coach editing activity">
+  return <details open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)} className="group/activity text-xs text-muted-foreground" aria-label={tr('coach.edit_run_timeline.coach_editing_activity', 'Coach editing activity')}>
     <summary className="flex cursor-pointer list-none items-center gap-2 py-1.5 hover:text-foreground"><ListChecks size={13} className="shrink-0" /><span className="min-w-0 flex-1 truncate">{summary}</span><ChevronDown size={13} className="shrink-0 opacity-0 transition group-hover/activity:opacity-100 group-open/activity:rotate-180 group-open/activity:opacity-100" /></summary>
-    <div className="ml-5 mt-1 space-y-0.5 border-l border-border pl-2">{!conclusion ? details.map((detail) => <button key={detail.id} type="button" disabled={!detail.targetId} onClick={() => detail.targetId && onPoint(detail.targetId)} className="flex w-full items-center justify-between gap-3 rounded px-2 py-1.5 text-left text-[11px] enabled:hover:bg-muted enabled:hover:text-foreground"><span>{detail.label}</span>{detail.targetId ? <ArrowRight size={11} className="shrink-0" /> : null}</button>) : <div className="px-2 py-1"><p className="leading-5">{String(conclusion.payload?.operation && typeof conclusion.payload.operation === 'object' && 'summary' in conclusion.payload.operation ? conclusion.payload.operation.summary : conclusion.summary)}</p><Button type="button" size="sm" className="mt-2 h-8 text-xs" disabled={Boolean(pendingReviewCount)} onClick={onFinish}>Finish session</Button>{pendingReviewCount ? <p className="mt-1.5 text-[10px]">Review the remaining {pendingReviewCount} {pendingReviewCount === 1 ? 'object' : 'objects'} first.</p> : null}</div>}</div>
+    <div className="ml-5 mt-1 space-y-0.5 border-l border-border pl-2">{!conclusion ? details.map((detail) => <button key={detail.id} type="button" disabled={!detail.targetId} onClick={() => detail.targetId && onPoint(detail.targetId)} className="flex w-full items-center justify-between gap-3 rounded px-2 py-1.5 text-left text-[11px] enabled:hover:bg-muted enabled:hover:text-foreground"><span>{detail.label}</span>{detail.targetId ? <ArrowRight size={11} className="shrink-0" /> : null}</button>) : <div className="px-2 py-1"><p className="leading-5">{String(conclusion.payload?.operation && typeof conclusion.payload.operation === 'object' && 'summary' in conclusion.payload.operation ? conclusion.payload.operation.summary : conclusion.summary)}</p><Button type="button" size="sm" className="mt-2 h-8 text-xs" disabled={Boolean(pendingReviewCount)} onClick={onFinish}>{tr('coach.edit_run_timeline.finish_session', 'Finish session')}</Button>{pendingReviewCount ? <p className="mt-1.5 text-[10px]">{tr('coach.edit_run_timeline.review_the_remaining_pendingreviewcount', 'Review the remaining {{pendingReviewCount}}', { pendingReviewCount })}{' '}{pendingReviewCount === 1 ? 'object' : 'objects'}{' '}{tr('coach.edit_run_timeline.first', 'first.')}</p> : null}</div>}</div>
   </details>
 }
 
@@ -140,7 +141,7 @@ export function HubLearnerSessionEvent({ events, onPoint }: { events: HubEditRun
   const status = first.kind.endsWith('.cancelled') ? 'cancelled' : 'saved'
   const objectType = first.object_type || 'object'
   const label = first.kind === 'run.goal_updated'
-    ? 'You updated the session goal'
+    ? tr('lit.edit_run_timeline.you_updated_the_session_goal', 'You updated the session goal')
     : `You ${status} ${events.length === 1 ? (first.object_label ? `“${first.object_label}”` : `1 ${objectType}`) : `${events.length} ${objectType}s`}`
   const targets = events.map((event) => ({ event, targetId: hubEventTarget(event) })).filter((item) => item.targetId)
   if (targets.length <= 1) return <button type="button" disabled={!targets.length} onClick={() => targets[0]?.targetId && onPoint(targets[0].targetId)} className="w-fit text-left text-[11px] italic text-muted-foreground enabled:hover:text-foreground">{label}</button>

@@ -5,7 +5,7 @@ import io
 from openpyxl import Workbook
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, SchoolEntry
+from src.db.life_plans import CareerEntry, EstimateFact, EstimateSource, LifePlan, ProgramEntry, SchoolEntry
 from src.db.users import User
 from src.services.life_plans import estimates, importers, places
 
@@ -48,7 +48,7 @@ WAGES = _book("2026 Oregon Wage Information, Statewide", "2026 Oregon Wage Infor
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, LifePlan.__table__, EstimateSource.__table__, EstimateFact.__table__, CareerEntry.__table__, SchoolEntry.__table__, ProgramEntry.__table__])
     db = Session(engine)
     db.add(User(id=1, user_uuid="user_1", username="u1", email="u1@example.com", first_name="U", last_name="1"))
     db.commit()
@@ -100,3 +100,21 @@ def test_other_workbooks_are_not_mistaken_for_oed_files():
     out = io.BytesIO()
     plain.save(out)
     assert oregon.kind_of(out.getvalue(), "x.xlsx") is None and oregon.kind_of(b"a,b\n", "x.csv") is None
+
+
+def test_career_pay_takes_the_newest_wages_and_credits_who_published_them():
+    from src.services.life_plans import careers
+    db = _session()
+    bls = EstimateSource(key="bls-oews-2025", publisher="U.S. Bureau of Labor Statistics", title="OEWS May 2025")
+    db.add(bls)
+    db.commit()
+    db.add(EstimateFact(metric="wage", place="state:OR", dims={"soc": "29-1141"}, dims_key=estimates.dims_key({"soc": "29-1141"}), value=60.0, period="hr",
+                        dollar_year=2025, status=estimates.REVIEWED, source_id=bls.id))
+    db.commit()
+    assert careers.pay(db, "29-1141")["source"] == "BLS Occupational Employment and Wage Statistics, May 2025"
+    importers.import_file(db, WAGES, "Oregon Occupational Wage Information.xlsx")
+    importers.review_source(db, "oed-wages-2026", 1)
+    money = careers.pay(db, "29-1141")
+    assert money["overall"]["year"] == 2026 and money["overall"]["median"] == round(63.76 * careers.HOURS_A_YEAR, -2)
+    assert money["source"].startswith("Oregon Employment Department")
+    assert careers.median_pay(db, ["29-1141"])["29-1141"] == money["overall"]["median"]
