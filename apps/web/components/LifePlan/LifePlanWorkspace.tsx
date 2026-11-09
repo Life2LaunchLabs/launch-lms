@@ -11,7 +11,10 @@ import { lifeApi, lifeUrl, type LifeDoc, type Phase } from '@services/life/life'
 import { LifeContext, type LifeCtx } from './LifeContext'
 import { stretches, type Per } from './model'
 import useLifeNumbers from './useLifeNumbers'
-import { mergeRoute, normalize, routeDoc } from '@components/Goals/phases/graph'
+import { mergeRoute, routeDoc } from '@components/Goals/phases/dates'
+import { normalize } from '@components/Goals/phases/graph'
+import { WayBar } from '@components/Goals/phases/PhaseTime'
+import { useShown } from '@components/Goals/phases/way'
 import ContextBar from './ContextBar'
 import PhaseChart from './PhaseChart'
 import BudgetSummary from './BudgetSummary'
@@ -60,6 +63,9 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
     setFull(data.plan?.document ? normalize(data.plan.document) : null)
     revision.current = data.plan?.revision ?? null
   }, [data, ready])
+  // Dates follow the way being looked at: when it changes (say, back to the first choices), so do they.
+  const shown = useShown()
+  React.useEffect(() => { setFull((f) => (f?.phases?.length ? normalize(f, shown) : f)) }, [shown])
 
   const flush = React.useCallback(async () => {
     const next = pending.current
@@ -138,6 +144,7 @@ export default function LifePlanWorkspace({ of, phaseId, orgslug }: { of?: strin
       <div className="mx-auto w-full max-w-[900px] px-4 pb-24 sm:px-6">
         <ContextBar saving={saving} owner={owner} onBack={() => (of ? router.back() : router.push(getUriWithOrg(orgslug, `/plans/phase/${encodeURIComponent(phase.id)}`)))} backLabel={of ? tr('lit.life_plan_workspace.back', 'Back') : `Back to ${phase.title}`} full={full}
           onMap={of ? undefined : () => router.push(getUriWithOrg(orgslug, `/plans?phase=${encodeURIComponent(phase.id)}`))} />
+        {of ? null : <WayBar doc={full} className="mb-3" />}
         <BudgetSummary />
         <div className="mt-2"><PhaseChart /></div>
         <div className="mt-5" />

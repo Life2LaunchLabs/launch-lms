@@ -3,16 +3,16 @@ import type { LifeDoc } from '@services/life/life'
 import { mi, normalize } from '../graph'
 import { gapsOf, howLong, spanOf, waysOf } from '../compare'
 
-const ph = (id: string, title: string, starts: string, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months: 12, lines: [], goals: [], starts, after, ...extra })
+const ph = (id: string, title: string, months: number, after: string[] = [], extra: any = {}) => ({ id, title, kind: 'other', months, lines: [], goals: [], after, ...extra })
 const map = (): LifeDoc => normalize({
-  version: 1, start: '2023-09', debts: [], savings: [], assets: [], events: [],
+  version: 1, start: '2023-09', lengths: true, debts: [], savings: [], assets: [], events: [],
   phases: [
-    ph('hs', 'High school', '2023-09'),
-    ph('gap', 'Gap year', '2027-09', ['hs'], { lines: [{ id: 'l' }] }),
-    ph('col', 'College', '2027-09', ['hs'], { undated: true }),
-    ph('job', 'Nurse', '2031-09', ['gap', 'col'], { months: 36 }),
+    ph('hs', 'High school', 48, [], { starts: '2023-09' }),
+    ph('gap', 'Gap year', 48, ['hs'], { lines: [{ id: 'l' }] }),
+    ph('col', 'College', 12, ['hs'], { undated: true }),
+    ph('job', 'Nurse', 36, ['gap', 'col']),
   ] as any,
-})
+}, {})
 
 describe('comparing options', () => {
   test('each option runs to where the options meet again; spans cover the options, ten years, or the whole plan', () => {

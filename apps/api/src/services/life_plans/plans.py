@@ -108,13 +108,15 @@ class Phase(Doc):
     # The learner's own cover photo; without one, the place's photo (or a drawing) shows.
     cover: Cover | None = None
     tax: Tax | None = None
-    # When it starts (YYYY-MM). A phase lasts until the next one after it starts; `months` is
-    # only the length of a phase nothing comes after. Old plans without dates run in order.
+    # How long it lasts is `months`; when it starts (YYYY-MM) is kept for a first phase and worked out
+    # by the app for the others, from the lengths before them. Old plans without dates run in order.
     starts: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
-    # The learner hasn't picked when it starts yet: `starts` is only where it sits on the map for now.
+    # The learner hasn't picked how long it lasts yet: it takes no time until they do.
     undated: bool = False
     # The phases it comes after: none for the first, two or more where two ways join up.
     after: list[str] = Field(default_factory=list, max_length=8)
+    # A skip: an option with no phase of its own that takes no time ("pass" in the document). Never shown as a phase.
+    skip: bool = Field(default=False, alias="pass")
     # A dashed idea on the map: quick to add and remove, not yet part of the plan.
     idea: bool = False
     activities: list[Activity] = Field(default_factory=list, max_length=8)
@@ -201,6 +203,8 @@ class Event(Doc):
 class LifePlanDocument(Doc):
     version: int = 1
     start: str = Field(pattern=r"^\d{4}-\d{2}$")
+    # Phases store how long they last and the app works out their dates (older plans stored start dates).
+    lengths: bool = False
     phases: list[Phase] = Field(default_factory=list, max_length=40)
     debts: list[Debt] = Field(default_factory=list, max_length=40)
     savings: list[Saving] = Field(default_factory=list, max_length=20)
@@ -217,12 +221,10 @@ def _check_links(doc: LifePlanDocument) -> None:
     ids = {phase.id for phase in doc.phases}
     if len(ids) != len(doc.phases):
         raise HTTPException(status_code=422, detail={"message": "Two phases share an id."})
-    starts = {phase.id: phase.starts for phase in doc.phases}
+    # Dates come from lengths now, so a phase after two ways in (or after a skip) can start the same
+    # month as one of them: only loops are refused.
     for phase in doc.phases:
         phase.after = [pid for pid in dict.fromkeys(phase.after) if pid in ids and pid != phase.id]
-        for pid in phase.after:
-            if phase.starts and starts[pid] and starts[pid] >= phase.starts:
-                raise HTTPException(status_code=422, detail={"message": f"{phase.title} starts before a phase it comes after."})
     parents = {phase.id: phase.after for phase in doc.phases}
     seen: dict[str, int] = {}
 
@@ -287,7 +289,7 @@ def shared_plan(db: Session, user: PublicUser, user_uuid: str) -> dict:
 def save_plan(db: Session, user: PublicUser, body: SavePlan) -> dict:
     plan = db.exec(select(LifePlan).where(LifePlan.user_id == user.id)).first()
     _check_links(body.document)
-    doc = body.document.model_dump(mode="json")
+    doc = body.document.model_dump(mode="json", by_alias=True)
     if plan is None:
         plan = LifePlan(plan_uuid=f"lifeplan_{uuid4()}", user_id=user.id, document=doc, revision=1, creation_date=_now(), update_date=_now())
     else:
@@ -385,9 +387,20 @@ def headed(db: Session, user_id: int, today: datetime | None = None) -> dict:
 def _headed_on_map(phases: list[dict], current: int) -> dict:
     """The same answer for a plan drawn as a map: the latest phase that has started is now, and
     what comes straight after it is next, real phases before ideas."""
-    dated = [phase for phase in phases if phase.get("starts")]
+    # Skips take no time and are never a phase of their own: what follows one follows what came before it.
+    skips = {phase["id"]: phase.get("after") or [] for phase in phases if phase.get("pass")}
+
+    def through(ids: list[str], depth: int = 0) -> list[str]:
+        out: list[str] = []
+        for pid in ids:
+            for x in (through(skips[pid], depth + 1) if pid in skips and depth < 40 else [pid]):
+                if x not in out:
+                    out.append(x)
+        return out
+
+    dated = [phase for phase in phases if phase.get("starts") and not phase.get("pass")]
     begins = {phase["id"]: _month_index(phase["starts"]) for phase in dated}
-    after = {phase["id"]: [pid for pid in phase.get("after") or [] if pid in begins] for phase in dated}
+    after = {phase["id"]: [pid for pid in through(phase.get("after") or []) if pid in begins] for phase in dated}
     kids = {pid: sorted((p for p in dated if pid in after[p["id"]]), key=lambda p: (bool(p.get("idea")), begins[p["id"]])) for pid in begins}
 
     def card(phase: dict) -> dict:

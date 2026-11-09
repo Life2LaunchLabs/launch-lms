@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, GitBranch, Loader2 } from 'lucide-react'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
-import { holdRoute } from '@components/Goals/phases/PlanMap'
-import { addRoute, current, monthText, normalize, routesFor, type CareerLike } from '@components/Goals/phases/graph'
+import { holdRoute } from '@components/Goals/phases/MapParts'
+import { addRoute, routesFor, type CareerLike } from '@components/Goals/phases/careers'
+import { current, monthText, normalize } from '@components/Goals/phases/graph'
 import { getUriWithOrg } from '@services/config/config'
 import { cn } from '@/lib/utils'
 
@@ -61,7 +62,7 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
           {wanted ? <div className="flex flex-col gap-2">
             <span className="text-[14px] font-extrabold">{tr('careers.add_to_plans.after_which_phase', 'After which phase?')}</span>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tr('careers.add_to_plans.after_which_phase_2', 'After which phase')}>
-              {plan.phases.map((phase) => <button key={phase.id} type="button" role="radio" aria-checked={phase.id === chosen} onClick={() => setAfter(phase.id)}
+              {plan.phases.filter((phase) => !phase.pass).map((phase) => <button key={phase.id} type="button" role="radio" aria-checked={phase.id === chosen} onClick={() => setAfter(phase.id)}
                 className={cn('flex flex-col items-start rounded-2xl border-2 px-3 py-1.5 text-left text-[13px] font-extrabold', phase.id === chosen ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_12%,transparent)]' : 'border-border bg-card', phase.idea && 'border-dashed')}>
                 {phase.title}{phase.starts ? <small className="text-[11px] font-bold text-muted-foreground">{monthText(phase.starts)}</small> : null}
               </button>)}

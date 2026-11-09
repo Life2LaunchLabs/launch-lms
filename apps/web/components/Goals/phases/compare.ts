@@ -71,12 +71,13 @@ export function howLong(months: number): string {
   return [ys, ms].filter(Boolean).join(' ') || '1 month'
 }
 
-/** What to fill in before the comparison means much: phases of the options with no budget or no start date. */
+/** What to fill in before the comparison means much: phases of the options with no budget or no length picked. */
 export function gapsOf(ways: Way[]): { phase: Phase; what: 'budget' | 'date' }[] {
   const seen = new Set<string>(), out: { phase: Phase; what: 'budget' | 'date' }[] = []
   for (const w of ways) for (const p of w.piece) {
     if (seen.has(p.id)) continue
     seen.add(p.id)
+    if (p.pass) continue
     if (p.undated) out.push({ phase: p, what: 'date' })
     else if (!p.lines.length) out.push({ phase: p, what: 'budget' })
   }
