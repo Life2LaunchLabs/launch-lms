@@ -137,6 +137,11 @@ def send_email(to: EmailStr, subject: str, body: str, *, idempotency_key: str | 
     if current_demo.get():
         # Do not deliver live messages from a visitor copy.
         return {"id": None, "demo": True, "delivered": False}
+    from src.services.user_tests.mail import capture as capture_test_mail
+    captured = capture_test_mail(to, subject, body)
+    if captured:
+        # Sent to a test persona, or by one: kept in User tests, never delivered.
+        return captured
     lh_config = get_launchlms_config()
     mailing = lh_config.mailing_config
     sender = f"Launch LMS <{mailing.system_email_address}>"

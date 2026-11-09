@@ -1,0 +1,30 @@
+'use client'
+import { useSyncExternalStore } from 'react'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { signOut } from '@components/Contexts/AuthContext'
+import { readTestPersonaCookie } from '@services/userTests/userTests'
+
+function clearMarker() {
+  const expire = 'launchlms_test_persona=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+  document.cookie = expire
+  const parts = window.location.hostname.split('.')
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    document.cookie = `${expire}; domain=.${parts.slice(index).join('.')}`
+  }
+}
+
+/** A thin bar on every page while a test persona is signed in, so it is never mistaken for a real user. */
+export default function TestPersonaBar() {
+  const session = useLHSession() as { data?: { user?: { id?: number } } } | undefined
+  // Cookies have no change event; the session refreshing re-renders this often enough.
+  const cookie = useSyncExternalStore(() => () => {}, () => document.cookie, () => '')
+  const marker = readTestPersonaCookie(cookie)
+
+  const userId = session?.data?.user?.id
+  if (!marker || !userId) return null
+  if (marker.userId !== userId) { clearMarker(); return null }
+  return <div role="status" className="sticky top-0 z-[60] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-300 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
+    <span>Test persona: {marker.name || 'unnamed'}{marker.cohort ? ` · ${marker.cohort}` : ''}</span>
+    <button type="button" className="underline underline-offset-2" onClick={() => { clearMarker(); void signOut({ callbackUrl: '/auth/login' }) }}>Sign out</button>
+  </div>
+}

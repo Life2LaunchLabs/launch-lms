@@ -10,6 +10,7 @@ const isTelemetryDisabled = getLAUNCHLMS_TELEMETRY_DISABLED_VAL() === 'true'
 import Script from 'next/script'
 import '../lib/i18n'
 import DemoExperience from '@components/Demo/DemoExperience'
+import TestPersonaBar from '@components/Admin/Platform/UserTests/TestPersonaBar'
 import I18nProvider from '@components/Contexts/I18nContext'
 import { AccessibilityProvider } from '@components/Accessibility/AccessibilityContext'
 import { ThemeProvider } from 'next-themes'
@@ -49,6 +50,7 @@ export default function RootLayout({
               <I18nProvider>
                 <AccessibilityProvider>
                   <DemoExperience />
+                  <TestPersonaBar />
                   <main className="animate-fade-in">
                     {children}
                   </main>

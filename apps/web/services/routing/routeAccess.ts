@@ -11,7 +11,7 @@ export interface RouteAccessClassification {
 }
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/start', '/reset', '/forgot', '/verify-email'])
-const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
+const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange', '/auth/test-entry']
 const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
 // A badge award (its short link, and the older /badges/<uuid> that redirects to it), the plan page that is its badge's criteria,
 // and an Insights capture's read-only link: all shared outside the app.

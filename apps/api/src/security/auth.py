@@ -197,6 +197,11 @@ async def get_current_user(
         if not target or not db_session.get(DemoMember, target.id):
             raise HTTPException(403, "This account is no longer a demo user.")
         validate_member(db_session, target)
+    from src.services.user_tests.sessions import is_test_session
+    if is_test_session(payload):
+        # Test personas: opened only by a platform admin's login link, rechecked every request.
+        from src.services.user_tests.sessions import enter as enter_test_session
+        enter_test_session(db_session, payload)
 
     # Step 1: Check for API token (Bearer lh_...)
     auth_header = request.headers.get("Authorization", "").strip()

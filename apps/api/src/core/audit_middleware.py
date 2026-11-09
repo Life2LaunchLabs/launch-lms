@@ -39,7 +39,8 @@ async def log_request_audit_event(request: Request, status_code: int) -> None:
         email = payload.get("sub") if payload else None
         if email:
             with Session(engine) as db_session:
-                user = (db_session.get(User, payload["demo_operator"]) if payload.get("demo_operator")
+                operator = payload.get("demo_operator") or payload.get("test_operator")
+                user = (db_session.get(User, operator) if operator
                         else await security_get_user(request, db_session, email=email))
                 if user:
                     user_id = user.id

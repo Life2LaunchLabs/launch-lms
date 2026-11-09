@@ -1,0 +1,38 @@
+'use client'
+
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { redeemLoginLink } from '@services/userTests/userTests'
+
+/** Spends a one-use login link an admin made in Platform › User tests, then goes to its page. */
+function TestEntryInner() {
+  const searchParams = useSearchParams()
+  // Read once: the address bar is cleared below, which updates the search params.
+  const [ticket] = useState(() => searchParams.get('t'))
+  const [failure, setError] = useState('')
+  const error = ticket || failure ? failure : 'This login link is incomplete. Make a new one in User tests.'
+  const started = useRef(false)
+
+  useEffect(() => {
+    if (started.current || !ticket) return
+    started.current = true
+    // Drop the ticket from the address bar and history before anything else.
+    window.history.replaceState(null, '', '/auth/test-entry')
+    redeemLoginLink(ticket)
+      .then((result) => { window.location.replace(result.target_path || '/') })
+      .catch((failure) => setError((failure as Error).message || 'This login link did not work.'))
+  }, [ticket])
+
+  return <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+    <div className="max-w-md text-center">
+      {error ? <>
+        <h1 className="mb-2 text-xl font-semibold text-gray-800">This test login link did not work</h1>
+        <p role="alert" className="text-gray-600">{error}</p>
+      </> : <p role="status" className="text-gray-600">Opening the test persona…</p>}
+    </div>
+  </main>
+}
+
+export default function TestEntryPage() {
+  return <Suspense fallback={null}><TestEntryInner /></Suspense>
+}
