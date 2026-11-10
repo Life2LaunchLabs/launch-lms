@@ -4482,7 +4482,9 @@
       "add_your_first_value": "Agrega tus primeros {{value}}",
       "covers_covers_of_of": "Cubre {{covers}} de {{of}}",
       "step_value_of_length": "Paso {{value}} de {{length}}",
-      "v_learners": "estudiantes"
+      "v_learners": "estudiantes",
+      "planning_for_yourself": "¿Estás planeando tu propio futuro?",
+      "go_to_your_own_space": "Ir a tu propio espacio"
     },
     "tier_compare": {
       "for_one_person_helping_a": "Para una persona que ayuda a algunos estudiantes.",
