@@ -112,11 +112,12 @@ def redeem(db: Session, token: str) -> dict:
     if not user or not persona or not sessions.is_platform_admin(ticket.operator_user_id, db):
         raise invalid
     cohort = sessions.open_cohort(db, persona.cohort_id)
-    # No particular page asked for: an org's admin starts on that org's admin, on its own site.
-    org_slug = admin_org_slug(db, persona) if ticket.target_path == "/" else None
+    # An org's admin starts on that org's admin, on its own site, and admin pages open there too.
+    for_org = ticket.target_path == "/" or ticket.target_path.startswith((ADMIN_PATH + "/", ADMIN_PATH + "?")) or ticket.target_path == ADMIN_PATH
+    org_slug = admin_org_slug(db, persona) if for_org else None
     return {
         "tokens": sessions.tokens(user, ticket.operator_user_id, cohort),
-        "target_path": ADMIN_PATH if org_slug else ticket.target_path,
+        "target_path": (ADMIN_PATH if ticket.target_path == "/" else ticket.target_path) if org_slug else ticket.target_path,
         "target_org_slug": org_slug,
         "persona": {"user_id": user.id, "name": f"{user.first_name} {user.last_name}".strip()},
         "cohort": {"cohort_uuid": cohort.cohort_uuid, "name": cohort.name},
