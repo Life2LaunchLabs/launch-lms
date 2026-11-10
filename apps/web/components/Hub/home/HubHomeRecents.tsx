@@ -5,9 +5,16 @@ import { ChevronDown, LibraryBig } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import type { HubConversationSummary } from '@services/hub/advisor'
 import { hubTimestampLabel } from '@services/hub/timestamp'
-import HubConversationHistory from '../conversation/HubConversationHistory'
 
 import { tr } from '@/lib/tr'
+
+export const HUB_HOME_RECENT_LIMIT = 5
+
+/** The rows Coach home shows: the latest few, or every conversation once expanded. */
+export function visibleHubRecents(conversations: HubConversationSummary[], expanded: boolean) {
+  return expanded ? conversations : conversations.slice(0, HUB_HOME_RECENT_LIMIT)
+}
+
 export default function HubHomeRecents({
   conversations,
   loading,
@@ -27,7 +34,8 @@ export default function HubHomeRecents({
   onOpenResources: (_conversationUuid: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  const recent = conversations.slice(0, 5)
+  const recent = visibleHubRecents(conversations, open)
+  const hasMore = conversations.length > HUB_HOME_RECENT_LIMIT
 
   if (!loading && recent.length === 0) return null
 
@@ -73,7 +81,7 @@ export default function HubHomeRecents({
           </div>
         ))}
       </div>
-      <button
+      {(hasMore || open) && <button
         type="button"
         className="mt-0.5 flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         onClick={toggleHistory}
@@ -81,20 +89,7 @@ export default function HubHomeRecents({
       >
         {open ? tr('coach.hub_home_recents.show_less', 'Show less') : tr('coach.hub_home_recents.all_conversations', 'All conversations')}
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="mt-3">
-          <HubConversationHistory inline
-            conversations={conversations}
-            activeConversationUuid={null}
-            loading={loading}
-            disabled={disabled}
-            attached={false}
-            onSelect={(uuid) => { setOpen(false); onSelect(uuid) }}
-            onOpenResources={(uuid) => { setOpen(false); onOpenResources(uuid) }}
-          />
-        </div>
-      )}
+      </button>}
     </section>
   )
 }
