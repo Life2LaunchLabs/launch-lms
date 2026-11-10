@@ -189,7 +189,7 @@ class TestAuth:
         mock_request.cookies = {JWT_COOKIE_NAME: token}
         mock_request.state = Mock()
 
-        with patch('src.security.auth.security_get_user', new_callable=AsyncMock) as mock_get_user:
+        with patch('src.security.auth._user_by_email') as mock_get_user:
             mock_get_user.return_value = mock_user
 
             result = await get_current_user(
@@ -198,7 +198,7 @@ class TestAuth:
             )
 
             assert isinstance(result, PublicUser)
-            mock_get_user.assert_called_once_with(mock_request, mock_db_session, email="test@example.com")
+            mock_get_user.assert_called_once_with(mock_db_session, "test@example.com")
 
     @pytest.mark.asyncio
     async def test_get_current_user_anonymous(self, mock_request, mock_db_session):
@@ -243,7 +243,7 @@ class TestAuth:
         mock_request.cookies = {JWT_COOKIE_NAME: token}
         mock_request.state = Mock()
 
-        with patch('src.security.auth.security_get_user', new_callable=AsyncMock) as mock_get_user:
+        with patch('src.security.auth._user_by_email') as mock_get_user:
             mock_get_user.return_value = None
 
             with pytest.raises(HTTPException) as exc_info:
