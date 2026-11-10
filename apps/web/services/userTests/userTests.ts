@@ -26,6 +26,7 @@ export type TestPersona = {
   handle: string
   brief: string
   start_state: 'has_account' | 'new_signup' | 'org_owner'
+  orgs?: { id: number; name: string; slug: string }[]
   last_active_at: string | null
   unread_mail: number
 }
@@ -82,7 +83,7 @@ export type MyRun = { persona: { user_id: number; name: string; handle: string }
 export type NewFinding = { kind: 'bug' | 'confusion' | 'wish'; severity?: 'low' | 'medium' | 'high'; stage_key?: string | null; page?: string; what_happened: string; what_wanted?: string }
 export const fetchMyRun = () => call<MyRun>('me')
 /** A one-use login link for another persona of the same run. */
-export const switchPersona = (userId: number) => call<{ path: string; expires_at: string }>('me/switch', 'POST', { user_id: userId })
+export const switchPersona = (userId: number) => call<{ path: string; url: string; expires_at: string }>('me/switch', 'POST', { user_id: userId })
 export const fetchMyMail = () => call<{ mail: TestMail[] }>('me/mail')
 export const readMyMail = (mailId: number) => call<TestMail>(`me/mail/${mailId}`)
 export const reportMyProgress = (stageKey: string, status: StageStatus, note = '') => call<BoardCell>('me/progress', 'POST', { stage_key: stageKey, status, note })

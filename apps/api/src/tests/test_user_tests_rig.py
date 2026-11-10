@@ -25,6 +25,8 @@ def test_a_new_sign_up_persona_first_opens_sign_up_onboarding(db):  # noqa: F811
     db.add(TestCohortOrg(org_id=1, cohort_id=db.get(TestPersona, robin["user_id"]).cohort_id, created_by_user_id=robin["user_id"]))
     db.commit()
     assert _target(db, tickets.mint(db, 1, robin["user_id"])) == "/"  # once their org exists, they land at home
+    row = cohorts.persona_row(db, db.get(TestPersona, robin["user_id"]), db.get(User, robin["user_id"]))
+    assert [org["id"] for org in row["orgs"]] == [1]  # the cohort page names the org they made
 
 
 def test_a_persona_switches_to_another_persona_of_its_run_only(db, monkeypatch):  # noqa: F811
@@ -42,6 +44,7 @@ def test_a_persona_switches_to_another_persona_of_its_run_only(db, monkeypatch):
     token = sessions.current_test_operator.set(1)
     try:
         link = switch_persona(SwitchRequest(user_id=maya["user_id"]), me, db)
+        assert link["url"].startswith("http") and link["url"].endswith(link["path"])  # always on the main site
         assert db.get(TestLoginTicket, tickets._hash(link["path"].split("t=", 1)[1])).persona_user_id == maya["user_id"]
         for target in (sam["user_id"], dana["user_id"], 1):
             with pytest.raises(HTTPException) as refused:

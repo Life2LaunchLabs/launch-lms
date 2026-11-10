@@ -37,7 +37,7 @@ export async function submitPlanRequest(
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data?.detail || 'Failed to submit request')
+    throw new Error(data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : '') || 'Failed to submit request')
   }
   return res.json()
 }
