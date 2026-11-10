@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import html as html_lib
 import re
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request
 from sqlmodel import Session
@@ -92,8 +93,16 @@ async def get_test_board(request: Request, db: Session, ctx: AccessContext, args
 
 async def open_as_test_persona(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     _require_operator(db, ctx)
-    link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), str(args.get("target_path") or "/"))  # type: ignore[arg-type]
-    return {"url": f"{frontend_url()}{link['path']}", "expires_at": link["expires_at"],
+    target, origin = str(args.get("target_path") or "/"), frontend_url()
+    if target.startswith(("http://", "https://")):
+        # A link from the persona's mail: sign in on that link's own site (an org's host), then open it.
+        path = mail.on_site_path(target)
+        if path is None:
+            raise HTTPException(400, "That link isn't on this site.")
+        parts = urlsplit(target)
+        target, origin = path, f"{urlsplit(origin).scheme}://{parts.netloc}"
+    link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), target)  # type: ignore[arg-type]
+    return {"url": f"{origin}{link['path']}", "expires_at": link["expires_at"],
             "note": "Works once. Open it in a fresh browser session (no other sign-in), since it signs that browser in as the persona."}
 
 

@@ -29,7 +29,8 @@ function SignUpClient(props: SignUpClientProps) {
   const joinMethod = config?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
   const invitationToken = invitationParam || ''
-  const preview = useInvitePreview(props.org?.id, invitationToken, inviteCode)
+  const previewState = useInvitePreview(props.org?.id, invitationToken, inviteCode)
+  const preview = previewState ?? null
   usePrefillInvitedEmail(preview)
   const card = preview ? <InviteCard preview={preview} /> : null
 
@@ -38,7 +39,7 @@ function SignUpClient(props: SignUpClientProps) {
       <>
           {joinMethod == 'open' &&
             (session.status == 'authenticated' ? (
-              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
+              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={previewState} />
             ) : (
               <div className="flex-1 flex flex-row">
                 <OpenSignUpComponent header={card} />
@@ -47,7 +48,7 @@ function SignUpClient(props: SignUpClientProps) {
           {joinMethod == 'inviteOnly' &&
             (inviteCode || invitationToken ? (
               session.status == 'authenticated' ? (
-                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
+                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={previewState} />
               ) : (
                 <div className="flex-1 flex flex-row">
                   <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} header={card} postSignupUrl={joinedUrl(props.org, preview, true)} />
@@ -71,7 +72,7 @@ interface JoinScreenProps {
   inviteCode: string
   invitationToken: string
   org: any
-  preview: InvitePreview | null
+  preview: InvitePreview | null | undefined
 }
 
 const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinScreenProps) => {
@@ -86,7 +87,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
   const [showMessage, setShowMessage] = useState(false)
   const router = useRouter()
   // Staff and admins set up their profile first; learners go straight in.
-  const after = joinedUrl(activeOrg, preview, false) || getUriWithOrg(activeOrg.slug, '/')
+  const after = joinedUrl(activeOrg, preview ?? null, false) || getUriWithOrg(activeOrg.slug, '/')
 
   const join = async () => {
     setIsSubmitting(true)
@@ -135,6 +136,21 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
       setShowMessage(true)
     }
     setIsSubmitting(false)
+  }
+
+  // A link opened on another organization's site: never report a join that didn't happen.
+  if ((inviteCode || invitationToken) && preview === null) {
+    return (
+      <div className="flex-1 flex flex-row">
+        <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
+          <div role="alert" className="bg-white rounded-xl p-6 nice-shadow flex flex-col items-center gap-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center"><AlertTriangle size={28} /></div>
+            <p className="font-semibold text-gray-900">{t('auth.invite_wrong_org', { org: activeOrg?.name })}</p>
+            <p className="text-sm text-gray-500">{t('auth.invite_wrong_org_desc')}</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (isUserPartOfTheOrg) {

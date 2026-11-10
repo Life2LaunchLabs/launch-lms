@@ -9,11 +9,12 @@ export function useLoginLink() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function make(userId: number, label: string, targetPath = '/') {
+  /** ``origin``: the host to sign in on, such as an org's own site for a link from its email. */
+  async function make(userId: number, label: string, targetPath = '/', origin = '') {
     setBusy(true); setError('')
     try {
       const result = await createLoginLink(userId, targetPath)
-      setLink({ url: `${window.location.origin}${result.path}`, expiresAt: Date.parse(result.expires_at), label })
+      setLink({ url: `${origin || window.location.origin}${result.path}`, expiresAt: Date.parse(result.expires_at), label })
     } catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
