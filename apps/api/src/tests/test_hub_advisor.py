@@ -37,11 +37,31 @@ def message(role: str, content: str) -> AdvisorMessage:
 
 
 def test_advisor_text_is_bounded_at_a_readable_break():
-    result = bound_advisor_text(("Useful sentence. " * 200).strip())
+    result = bound_advisor_text(("Useful sentence. " * 2_000).strip())
 
     assert len(result) <= hub_advisor.MAX_ASSISTANT_CHARS
     assert result.endswith("…")
     assert result.startswith("Useful sentence.")
+
+
+def test_long_coach_reply_is_kept_whole():
+    # A full multi-part answer (path, timeline, pay, paying for it) runs well past the
+    # 1,600 characters REPLY_RULES asks for; it used to be cut mid-answer with "…" (FEED-67).
+    reply = "\n\n".join(
+        f"**Part {index}:** " + "Reapply for aid annually and keep your grades strong. " * 6
+        for index in range(1, 9)
+    ).strip()
+    assert 1_600 < len(reply) <= hub_advisor.MAX_OUTPUT_TOKENS * 4
+
+    assert bound_advisor_text(reply) == reply
+
+
+def test_reply_bound_holds_the_largest_configurable_output():
+    from src.db.coach import CoachModelSettings
+
+    largest = CoachModelSettings.model_fields["max_output_tokens"].metadata
+    ceiling = next(item.le for item in largest if getattr(item, "le", None) is not None)
+    assert hub_advisor.MAX_ASSISTANT_CHARS >= ceiling * 4
 
 
 @pytest.mark.asyncio
