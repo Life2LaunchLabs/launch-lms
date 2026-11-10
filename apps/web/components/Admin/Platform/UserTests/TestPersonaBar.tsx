@@ -1,5 +1,5 @@
 'use client'
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -19,7 +19,7 @@ function clearMarker() {
 
 /** A thin bar on every page while a test persona is signed in, so it is never mistaken for a real user. */
 export default function TestPersonaBar() {
-  const session = useLHSession() as { data?: { user?: { id?: number } } } | undefined
+  const session = useLHSession() as { status?: string; data?: { user?: { id?: number } } } | undefined
   // Cookies have no change event; the session refreshing re-renders this often enough.
   const cookie = useSyncExternalStore(() => () => {}, () => document.cookie, () => '')
   const marker = readTestPersonaCookie(cookie)
@@ -37,6 +37,13 @@ export default function TestPersonaBar() {
       void signOut({ callbackUrl: '/auth/test-entry?closed=1' })
     },
   })
+  // The session ended on its own (a background refresh after the run closed): say so, not the org's login page.
+  const ended = Boolean(marker && session?.status === 'unauthenticated')
+  useEffect(() => {
+    if (!ended) return
+    clearMarker()
+    if (!window.location.pathname.startsWith('/auth/test-entry')) window.location.replace('/auth/test-entry?closed=1')
+  }, [ended])
   if (!marker || !userId) return null
   if (marker.userId !== userId) { clearMarker(); return null }
   return <div style={{ zIndex: 'var(--z-popover)' }} className="sticky top-0">
