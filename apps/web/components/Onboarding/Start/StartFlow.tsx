@@ -23,6 +23,7 @@ import { inviteBatchUsers } from '@services/organizations/invites'
 import { createUserGroup } from '@services/usergroups/usergroups'
 import { startApi, startKeys, type SetUpResult } from '@services/onboarding/start'
 import Critter from './Critter'
+import PlanningForMyself from './PlanningForMyself'
 import SitePreview, { type PreviewPage } from './SitePreview'
 import TierCompare from './TierCompare'
 import TourScene from './TourScene'
@@ -218,7 +219,8 @@ export default function StartFlow() {
           <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border', state.role === id ? 'border-transparent bg-[var(--rc)] text-white' : 'border-border')}>{state.role === id ? <Check size={12} /> : null}</span>
         </button>)}
       </div>
-      <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} /></>
+      <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} />
+      <PlanningForMyself /></>
     if (step === 'reqs') return <><Eyebrow>{tr('onboarding.start_flow.optional', 'Optional')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.working_toward_requirements', 'Working toward requirements?')}</h1>
       <p className={LEDE}>{tr('onboarding.start_flow.pick_the_standards_or_graduation', 'Pick the standards or graduation requirements you report on. We’ll track who’s met what.')}</p>
       <div role="radiogroup" aria-label={tr('onboarding.start_flow.requirements_to_track', 'Requirements to track')} className="mt-6 space-y-2">{frameworks.length ? frameworks.map((item) => { const on = state.framework === item.framework_uuid; return <button key={item.framework_uuid} type="button" role="radio" aria-checked={on}
