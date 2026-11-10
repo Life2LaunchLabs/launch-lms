@@ -41,8 +41,10 @@ def _target(db: Session, assignment: GoalAssignment) -> dict:
     if assignment.usergroup_id:
         group = db.get(UserGroup, assignment.usergroup_id)
         return {"type": "group", "id": assignment.usergroup_id, "uuid": group.usergroup_uuid if group else None, "name": group.name if group else "Deleted group"}
-    if assignment.user_id:
-        user = db.get(User, assignment.user_id)
+    # Sent by email to someone who has (or now has) an account: that person, by name.
+    subject_id = assignment.user_id or db.exec(select(Goal.subject_user_id).where(Goal.assignment_id == assignment.id, col(Goal.subject_user_id).is_not(None))).first()
+    if subject_id:
+        user = db.get(User, subject_id)
         name = " ".join(part for part in (user.first_name, user.last_name) if part) or user.username if user else "Deleted person"
         return {"type": "person", "person": person(user), "name": name}
     return {"type": "email", "email": assignment.subject_email, "name": assignment.subject_email}

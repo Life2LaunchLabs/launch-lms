@@ -9,8 +9,15 @@ import { hasDashboardAccessForOrg } from '@/lib/auth/orgAccess'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { routePaths } from '@services/config/config'
 
-export const metadata: Metadata = {
-  title: 'Launch LMS Dashboard',
+/** The tab names the organization being run, not the software behind it. */
+export async function generateMetadata({ params }: { params: Promise<{ orgslug: string }> }): Promise<Metadata> {
+  const { orgslug } = await params
+  try {
+    const org = await getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] })
+    return { title: org?.name ? `Admin · ${org.name}` : 'Admin' }
+  } catch {
+    return { title: 'Admin' }
+  }
 }
 
 async function DashboardLayout(

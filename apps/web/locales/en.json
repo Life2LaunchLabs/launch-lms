@@ -5477,6 +5477,7 @@
       "optional": " · optional",
       "remove": "Remove",
       "add_a_link": "Add a link",
+      "add_kind": "Add a {{kind}}",
       "add": "Add",
       "upload_something_new_or_choose": "Upload something new or choose it from your media library.",
       "items": "Items",

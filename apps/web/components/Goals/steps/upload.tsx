@@ -41,7 +41,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const required = missing.find((slot) => !slot.optional)
   const blocker = required ? `Add ${required.label} first` : missing.length === step.config.slots.length ? tr('lit.upload.add_a_file_first', 'Add a file first') : null
   const choose = (slot: UploadSlot) => {
-    const media = slot.kinds.filter((kind) => kind !== 'link') as MediaType[]
+    const media = mediaKinds(slot)
     if (!media.length) return setLinkSlot(slot)
     setPicking({ slot, type: media[0] })
   }
@@ -59,6 +59,8 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
               : <p className="text-xs font-semibold text-muted-foreground">{kindText(slot)}{slot.optional ? tr('goals.upload.optional', ' · optional') : ''}</p>}
           </div>
           {open && entry ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => actions.deleteEntry(entry.entry_uuid)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+          {/* The picker takes one kind at a time: a slot open to photos and documents offers each, so a PDF is never refused. */}
+          {open && !entry ? mediaKinds(slot).length > 1 && mediaKinds(slot).map((kind) => <button key={kind} type="button" onClick={() => setPicking({ slot, type: kind })} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
           {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={() => setLinkSlot(slot)} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
         </li>
       })}
@@ -74,6 +76,8 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
 }
 
 const KINDS = () => ([['image', tr('lit.upload.photo', 'Photo')], ['video', tr('lit.upload.video', 'Video')], ['document', tr('lit.portfolio_documents_page.document', 'Document')], ['link', tr('lit.people_access.link', 'Link')]] as const)
+const mediaKinds = (slot: UploadSlot) => slot.kinds.filter((kind) => kind !== 'link') as MediaType[]
+const kindLabel = (kind: string) => KINDS().find(([key]) => key === kind)?.[1] || kind
 const kindText = (slot: UploadSlot) => slot.kinds.map((kind) => KINDS().find(([key]) => key === kind)?.[1] || kind).join(' or ')
 const chip = (on: boolean) => cn('rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))]' : 'text-muted-foreground hover:border-[var(--plan-face)]')
 

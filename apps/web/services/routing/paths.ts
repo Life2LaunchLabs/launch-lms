@@ -192,9 +192,10 @@ export const routePaths = {
       /** One Plans tab's page; with no tab, the org's plans. */
       plans: (tab: PlansTabId = 'plans') => PLANS_TAB_PATHS[tab],
       assignments: () => PLANS_TAB_PATHS.assignments,
-      // The grading stack; from 'assignment' goes back to the assignment rather than the list.
+      // The grading stack: `objective` is a step's template key (step_key), `planObjective` one goal step's uuid.
+      // From 'assignment' it goes back to the assignment rather than the list.
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
-        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
+        withQuery('/admin/plans/review', { assignment: params.assignment, step_key: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
       // One assignment (a template handed to a group or a person): its plan, or its learners.
       planAssignment: (assignmentUuid: string, subpage: 'plan' | 'learners' = 'plan') => subpage === 'plan'
         ? `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}` : `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${subpage}`,

@@ -5489,6 +5489,7 @@
       "optional": " · opcional",
       "remove": "Quitar",
       "add_a_link": "Agregar un enlace",
+      "add_kind": "Añadir {{kind}}",
       "add": "Agregar",
       "upload_something_new_or_choose": "Sube algo nuevo o elígelo de tu biblioteca de medios.",
       "items": "Elementos",
