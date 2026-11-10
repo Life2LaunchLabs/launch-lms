@@ -17,6 +17,13 @@ import {
 } from '@services/organizations/orgs'
 import useOrganizationInvitations from '@components/Hooks/useOrganizationInvitations'
 
+// The API's detail is a string or an object with a message (for example when a test persona is refused).
+function detailText(detail: unknown): string {
+  if (typeof detail === 'string') return detail
+  if (detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string') return (detail as { message: string }).message
+  return ''
+}
+
 interface OrganizationMembershipActionsProps {
   organization: DiscoverOrganization
   currentOrgslug: string
@@ -71,7 +78,7 @@ export default function OrganizationMembershipActions({
       )
 
       if (res.status >= 400) {
-        toast.error(res.data?.detail || 'Failed to join organization')
+        toast.error(detailText(res.data?.detail) || 'Failed to join organization')
         return
       }
 
@@ -92,7 +99,7 @@ export default function OrganizationMembershipActions({
       const res = await leaveOrg(organization.id, accessToken)
 
       if (res.status >= 400) {
-        toast.error(res.data?.detail || 'Failed to leave organization')
+        toast.error(detailText(res.data?.detail) || 'Failed to leave organization')
         return
       }
 

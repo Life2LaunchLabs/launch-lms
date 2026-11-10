@@ -26,6 +26,7 @@ from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
 from src.security.access.access import access_from_config, is_staff_role, owner_org_id
+from src.services.user_tests.visibility import visible_orgs
 from src.services.orgs.uploads import (
     upload_org_auth_background,
     upload_org_favicon,
@@ -566,6 +567,10 @@ def _build_discover_org_read(
     return OrganizationDiscoverRead.model_validate(payload)
 
 
+def _viewer_id(current_user) -> int | None:
+    return None if isinstance(current_user, AnonymousUser) else getattr(current_user, "id", None)
+
+
 async def list_discoverable_orgs(
     db_session: Session,
     current_user: PublicUser | AnonymousUser,
@@ -584,6 +589,8 @@ async def list_discoverable_orgs(
 
     if isinstance(current_user, AnonymousUser):
         statement = statement.where(Organization.explore == True)
+    # Test orgs show only to their own run's personas; personas don't see other runs' orgs.
+    statement = statement.where(visible_orgs(db_session, _viewer_id(current_user), Organization.id))
 
     if query.strip():
         pattern = f"%{query.strip()}%"
@@ -655,6 +662,8 @@ async def get_discoverable_org_by_slug(
         )
 
     org, org_config = row
+    if db_session.exec(select(Organization.id).where(Organization.id == org.id, visible_orgs(db_session, _viewer_id(current_user), Organization.id))).first() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
     is_member = False
     if not isinstance(current_user, AnonymousUser):
         membership = db_session.exec(
