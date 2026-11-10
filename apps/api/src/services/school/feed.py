@@ -203,10 +203,17 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
         entry["_school"] = conversation
         touch(entry, conversation.last_message_at)
 
-    for goal, step, progress in turn_ins(db, viewer, org_id):
+    waiting = turn_ins(db, viewer, org_id)
+    assignment_uuids = dict(db.exec(select(GoalAssignment.id, GoalAssignment.assignment_uuid).where(
+        col(GoalAssignment.id).in_({int(goal.assignment_id) for goal, _, _ in waiting} or {0})  # type: ignore[arg-type]
+    )).all())
+    for goal, step, progress in waiting:
         entry = row("person", int(goal.subject_user_id))  # type: ignore[arg-type]
         entry["counts"]["turn_ins"] += 1
         entry["_step_title"] = step.title
+        # The oldest hand-in, so a click on the row can open its review (turn-ins come oldest first).
+        entry.setdefault("review", {"goal_uuid": goal.goal_uuid, "assignment_uuid": assignment_uuids.get(goal.assignment_id), "step_uuid": step.step_uuid,
+                                    "step_key": step.template_key, "title": step.title, "submitted_at": progress.update_date})
         touch(entry, progress.update_date)
 
     if admin:

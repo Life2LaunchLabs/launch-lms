@@ -17,7 +17,7 @@ import { planPalette } from '@components/Goals/planColors'
 import { schoolApi, schoolKeys } from '@services/school/school'
 import { useChatList } from '../useConnect'
 import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
-import { CardMessage } from './ChatCards'
+import { CardMessage, ReviewLinks } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
 import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './feed'
@@ -50,7 +50,7 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, filter: shownFilter, onFilter, hideTopics = false, only, title, audience, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer, composer: composerOff }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, filter: shownFilter, onFilter, hideTopics = false, only, title, audience, header, blocked, empty, stepHref, reviewHref, steps, onOpenPlan, onChat, timeline, timelineFiltered = false, footer, composer: composerOff }: {
   source: ChatSource
   orgslug: string
   token?: string
@@ -78,6 +78,9 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   /** Where a step opens for whoever is reading: the learner's plan, or staff's view of it. */
   // eslint-disable-next-line no-unused-vars
   stepHref?: (goalUuid: string, stepUuid: string) => string
+  /** Where a step turned in and waiting on the viewer's review opens its review; its card then offers Review. */
+  // eslint-disable-next-line no-unused-vars
+  reviewHref?: (goalUuid: string, stepUuid: string) => string | undefined
   /** The plan to filter by in place of the chat's own: an assignment's template, for its cohort's chat. */
   steps?: ChatTopic
   /** Where a plan tagged from outside this chat opens; by default the learner's plan. */
@@ -192,7 +195,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const shown = React.useMemo(() => !chat ? [] : only ? chat.messages.filter(only) : chat.messages, [chat, only])
   const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : tr('lit.chat_workspace.you_can_read_along_here', 'You can read along here'))) : ''
   const names = chat ? chat.kind !== 'direct' : false
-  return <>
+  return <ReviewLinks.Provider value={reviewHref}>
     {header?.(chat, mutate)}
     {!hideTopics && (live.length || plan) ? <TopicFilters topics={live} plan={plan} filter={filter} onChange={setFilter} color={getGoalColor}
       stepLink={plan && step ? plan.portfolio ? portfolioItemHref(orgslug, plan, step) : stepHref?.(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
@@ -221,7 +224,7 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
-  </>
+  </ReviewLinks.Provider>
 }
 
 /** Above the composer of an assignment's chat: who reads what's written here. */

@@ -131,6 +131,11 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
 
   const steps: StepOption[] = thread.steps.map((item) => ({ id: item.step_uuid, title: item.title, updates: item.updates, done: ['done', 'approved', 'excused'].includes(item.state) }))
   const shown: ChatFilter = { goal_uuid: focus || undefined, step_uuid: focus && step ? step : undefined }
+  // A turned-in card's Review opens that hand-in's review, as the Review filter's cards do; only for hand-ins waiting on you.
+  const reviewOf = (goalUuid: string, stepUuid: string) => {
+    const item = thread.review.find((entry) => entry.goal_uuid === goalUuid && entry.step_uuid === stepUuid)
+    return item ? getUriWithOrg(orgslug, turnInHref(item)) : undefined
+  }
   const pick = (next: ChatFilter) => { if (next.goal_uuid !== focus) context.setFocus(next.goal_uuid || null); if (next.goal_uuid) context.setStep(next.step_uuid || null) }
   return <Shell>
     {header}
@@ -142,6 +147,7 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
       only={filter === 'questions' ? onlyQuestions : filter === 'review' || filter === 'requests' || filter === 'past_due' ? hideAll : undefined}
       timeline={timeline} timelineFiltered
       stepHref={(goalUuid, stepUuid) => `${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid))}?step=${encodeURIComponent(stepUuid)}`}
+      reviewHref={reviewOf}
       empty={filter === 'all' ? `Nothing here yet. Say hello to ${thread.person.name.split(' ')[0]}.` : 'Nothing left here. Nice.'}
       onOpenPlan={(goalUuid) => onOpen?.({ kind: 'person', userId: target.userId, plan: goalUuid })} />
   </Shell>
