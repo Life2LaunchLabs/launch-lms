@@ -1,3 +1,5 @@
+import asyncio
+import time
 import importlib
 import logging
 import os
@@ -5,6 +7,7 @@ import os
 from config.config import get_launchlms_config
 from fastapi import FastAPI, Request
 from sqlalchemy import event
+from sqlalchemy.pool import QueuePool
 from sqlmodel import Session, create_engine
 
 
@@ -52,6 +55,36 @@ install_cohort_seal()
 
 launchlms_config = get_launchlms_config()
 
+class PoolBusy(Exception):
+    """No database connection came free in time for a query made on the event loop."""
+
+
+class LoopAwarePool(QueuePool):
+    """A pool that never makes the event loop wait long for a connection.
+
+    Many routes are ``async def`` and run their queries on the event loop. When every connection
+    is checked out, a query there used to wait up to ``pool_timeout`` with the whole loop stopped,
+    while the requests holding the connections needed that loop to finish and give them back: the
+    API hung, recovering only between timeouts (unstable, 2026-11-10, about 18 minutes at a time;
+    likely prod 2026-11-03). On the loop it now waits at most LOOP_WAIT_SECONDS and then fails that
+    one request (503), so the rest keep moving. Worker threads wait as before.
+    """
+
+    LOOP_WAIT_SECONDS = 2.0
+
+    def _do_get(self):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return super()._do_get()  # a worker thread: waiting here stops nothing else
+        deadline = time.monotonic() + self.LOOP_WAIT_SECONDS
+        while self.checkedout() >= self.size() + max(self._max_overflow, 0):
+            if time.monotonic() >= deadline:
+                raise PoolBusy("Every database connection is in use")
+            time.sleep(0.02)
+        return super()._do_get()
+
+
 # Check if we're in test mode
 is_testing = os.getenv("TESTING", "false").lower() == "true"
 
@@ -68,8 +101,11 @@ else:
         launchlms_config.database_config.sql_connection_string,  # type: ignore
         echo=False, 
         pool_pre_ping=True,  # type: ignore
-        pool_size=20,  # Increased from 5 to handle more concurrent requests
-        max_overflow=10,  # Allow 10 additional connections beyond pool_size
+        poolclass=LoopAwarePool,
+        pool_size=20,
+        # 45 in all: more than the 40 worker threads that run sync routes, so they never wait on
+        # one another for a connection (Postgres allows 100).
+        max_overflow=25,
         pool_recycle=300,  # Recycle connections after 5 minutes
         pool_timeout=30
     )

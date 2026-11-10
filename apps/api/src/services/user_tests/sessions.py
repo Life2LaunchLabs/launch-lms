@@ -102,19 +102,34 @@ def refuse_blocked(method: str, path: str) -> None:
             raise HTTPException(403, {"code": "test_persona_blocked", "message": "Test personas can't do this."})
 
 
-def enter(db: Session, payload: dict, request=None) -> TestPersona:
-    """Called by authentication for every request that carries a test session."""
+def check(db: Session, payload: dict) -> tuple[int, int]:
+    """The database half of entering a test session: (persona user id, operator id).
+
+    Authentication runs this on a worker thread (it waits on the database), then sets the context
+    variables itself: a value set on a worker thread does not reach the request.
+    """
     user, persona, _ = validate(db, payload)
-    current_test_persona.set(user.id)
-    current_test_operator.set(int(payload["test_operator"]))
-    if request is not None:
-        refuse_blocked(request.method, request.url.path)
     now = datetime.utcnow()
     if not persona.last_active_at or now - persona.last_active_at > timedelta(minutes=1):
         persona.last_active_at = now
         db.add(persona)
-        db.commit()
-    return persona
+    ids = int(user.id), int(payload["test_operator"])  # type: ignore[arg-type]
+    db.commit()  # ends the transaction, so the connection goes back to the pool before the route runs
+    return ids
+
+
+def mark(persona_id: int, operator_id: int, request=None) -> None:
+    current_test_persona.set(persona_id)
+    current_test_operator.set(operator_id)
+    if request is not None:
+        refuse_blocked(request.method, request.url.path)
+
+
+def enter(db: Session, payload: dict, request=None) -> int:
+    """Enter a test session on the calling thread; returns the persona's user id."""
+    persona_id, operator_id = check(db, payload)
+    mark(persona_id, operator_id, request)
+    return persona_id
 
 
 def claims(user: User, operator_id: int, cohort: TestCohort) -> dict:
