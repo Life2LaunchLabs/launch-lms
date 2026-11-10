@@ -107,6 +107,8 @@ def test_an_org_admin_persona_lands_on_its_orgs_admin_and_links_can_wait_for_a_r
     landing = redeem(tickets.mint(db, 1, dana["user_id"]))
     assert landing["target_path"] == "/admin" and landing["target_org_slug"]  # Dana runs Riverside High
     assert redeem(tickets.mint(db, 1, dana["user_id"], "/plans"))["target_org_slug"] is None  # a chosen page wins
+    invite = redeem(tickets.mint(db, 1, dana["user_id"], "/admin/threads?invite=staff"))
+    assert invite["target_path"] == "/admin/threads?invite=staff" and invite["target_org_slug"] == landing["target_org_slug"]  # on her org's site
     assert redeem(tickets.mint(db, 1, maya["user_id"]))["target_org_slug"] is None  # a learner starts at home
     later = tickets.mint(db, 1, maya["user_id"], ttl=timedelta(hours=5))
     assert datetime.fromisoformat(later["expires_at"].rstrip("Z")) - datetime.utcnow() <= timedelta(minutes=30)
