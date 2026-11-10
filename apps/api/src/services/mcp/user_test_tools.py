@@ -59,6 +59,7 @@ USER_TEST_TOOLS = [
     _tool("get_test_board", "Read the run board", "Every persona against every stage: not started, waiting on someone, in progress, done or stuck. Stuck personas come first.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_board),
     _tool("open_as_test_persona", "Open the site as a test persona", "A one-use link that signs a browser in as the persona and opens target_path. Use a fresh browser session for each persona.", {
         **_PERSONA, "target_path": {"type": "string", "maxLength": 1000, "description": "A path such as /start, or a link's full url from read_test_mail, which signs in on that link's own site."},
+        "valid_minutes": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How long the link waits to be opened (default 1). Raise it to hand the link to a browser elsewhere, or to sign a persona back in after its session drops."},
     }, ["user_id"], tests_mcp.open_as_test_persona, write=True),
     _tool("read_test_mail", "Read a test persona's email", "The persona's inbox (email the site sent it, held back from delivery), or one email as text with its links (pass mail_id).", {
         **_PERSONA, "mail_id": {"type": "integer"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},

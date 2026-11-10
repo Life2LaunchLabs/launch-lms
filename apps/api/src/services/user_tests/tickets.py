@@ -17,6 +17,8 @@ from src.db.users import User
 from src.services.user_tests import sessions
 
 TICKET_TTL = timedelta(seconds=60)
+# An orchestrator may hand a link on to a browser elsewhere, which takes longer than a click.
+MAX_TICKET_TTL = timedelta(minutes=30)
 ENTRY_PATH = "/auth/test-entry"
 
 
@@ -33,6 +35,7 @@ def safe_path(path: str | None) -> str:
 
 
 START_PATH = "/start"
+ADMIN_PATH = "/admin"
 
 
 def _owns_test_org(db: Session, persona) -> bool:
@@ -42,7 +45,20 @@ def _owns_test_org(db: Session, persona) -> bool:
     return db.exec(select(TestCohortOrg.org_id).where(TestCohortOrg.created_by_user_id == persona.user_id)).first() is not None
 
 
-def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str = "/") -> dict:
+def admin_org_slug(db: Session, persona) -> str | None:
+    """The run's org this persona runs as an admin, if any: where its day starts, not the learner Launchpad."""
+    from sqlmodel import col, select
+    from src.db.organizations import Organization
+    from src.db.user_organizations import UserOrganization
+    from src.db.user_tests import TestCohortOrg
+
+    return db.exec(select(Organization.slug).join(TestCohortOrg, col(TestCohortOrg.org_id) == Organization.id)
+                   .join(UserOrganization, col(UserOrganization.org_id) == Organization.id)
+                   .where(TestCohortOrg.cohort_id == persona.cohort_id, UserOrganization.user_id == persona.user_id,
+                          UserOrganization.role_id == 1).order_by(col(TestCohortOrg.creation_date))).first()
+
+
+def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str = "/", ttl: timedelta = TICKET_TTL) -> dict:
     if not sessions.is_platform_admin(operator_id, db):
         raise HTTPException(403, "Platform admin access is required.")
     user = db.get(User, persona_user_id)
@@ -54,7 +70,7 @@ def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str =
     if persona.start_state == "new_signup" and safe_path(target_path) == "/" and not _owns_test_org(db, persona):
         target_path = START_PATH  # just signed up: the onboarding a new account goes through next
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + TICKET_TTL
+    expires_at = datetime.utcnow() + min(max(ttl, TICKET_TTL), MAX_TICKET_TTL)
     db.add(
         TestLoginTicket(
             token_hash=_hash(token),
@@ -96,9 +112,12 @@ def redeem(db: Session, token: str) -> dict:
     if not user or not persona or not sessions.is_platform_admin(ticket.operator_user_id, db):
         raise invalid
     cohort = sessions.open_cohort(db, persona.cohort_id)
+    # No particular page asked for: an org's admin starts on that org's admin, on its own site.
+    org_slug = admin_org_slug(db, persona) if ticket.target_path == "/" else None
     return {
         "tokens": sessions.tokens(user, ticket.operator_user_id, cohort),
-        "target_path": ticket.target_path,
+        "target_path": ADMIN_PATH if org_slug else ticket.target_path,
+        "target_org_slug": org_slug,
         "persona": {"user_id": user.id, "name": f"{user.first_name} {user.last_name}".strip()},
         "cohort": {"cohort_uuid": cohort.cohort_uuid, "name": cohort.name},
     }

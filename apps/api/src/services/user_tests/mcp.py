@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import html as html_lib
 import re
+from datetime import timedelta
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request
@@ -102,9 +103,11 @@ async def open_as_test_persona(request: Request, db: Session, ctx: AccessContext
             raise HTTPException(400, "That link isn't on this site.")
         parts = urlsplit(target)
         target, origin = path, f"{urlsplit(origin).scheme}://{parts.netloc}"
-    link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), target)  # type: ignore[arg-type]
+    minutes = min(max(int(args.get("valid_minutes") or 1), 1), 30)
+    link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), target, timedelta(minutes=minutes))  # type: ignore[arg-type]
     return {"url": f"{origin}{link['path']}", "expires_at": link["expires_at"],
-            "note": "Works once. Open it in a fresh browser session (no other sign-in), since it signs that browser in as the persona."}
+            "note": "Works once. Open it in a fresh browser session (no other sign-in), since it signs that browser in as the persona. "
+                    "It also signs a persona back in after its session drops, with no admin sign-in in that browser."}
 
 
 async def read_test_mail(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:

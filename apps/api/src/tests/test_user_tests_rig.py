@@ -93,3 +93,20 @@ def test_a_test_orgs_discover_listing_reaches_only_its_own_run(db):  # noqa: F81
     assert seen(maya["user_id"]) == {1, 2}  # the run's own personas do
     assert seen(sam["user_id"]) == {1}  # another run's don't
     assert "goal_template_listing" not in TEST_FORBIDDEN_TABLES
+
+
+def test_an_org_admin_persona_lands_on_its_orgs_admin_and_links_can_wait_for_a_relay(db):  # noqa: F811
+    from datetime import datetime, timedelta
+    from urllib.parse import parse_qs, urlsplit
+
+    _, dana, maya = _run(db)
+
+    def redeem(link: dict) -> dict:
+        return tickets.redeem(db, parse_qs(urlsplit(link["path"]).query)["t"][0])
+
+    landing = redeem(tickets.mint(db, 1, dana["user_id"]))
+    assert landing["target_path"] == "/admin" and landing["target_org_slug"]  # Dana runs Riverside High
+    assert redeem(tickets.mint(db, 1, dana["user_id"], "/plans"))["target_org_slug"] is None  # a chosen page wins
+    assert redeem(tickets.mint(db, 1, maya["user_id"]))["target_org_slug"] is None  # a learner starts at home
+    later = tickets.mint(db, 1, maya["user_id"], ttl=timedelta(hours=5))
+    assert datetime.fromisoformat(later["expires_at"].rstrip("Z")) - datetime.utcnow() <= timedelta(minutes=30)
