@@ -26,8 +26,12 @@ NOTICE = "notice"
 
 
 def _stamp(value: datetime | str | None) -> str:
+    """An ISO time with its zone. Stored times without one are UTC: said so, a browser would read them as its own local time."""
     if isinstance(value, str) and value:
-        return value
+        try:
+            value = datetime.fromisoformat(value.replace(" ", "T"))
+        except ValueError:
+            return value
     value = value if isinstance(value, datetime) else datetime.now(timezone.utc)
     return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
 

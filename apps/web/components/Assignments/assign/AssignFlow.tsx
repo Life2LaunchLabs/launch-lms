@@ -104,7 +104,7 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
           newGroups[recipientKey(pick)] = Number(created.data.id)
         }
         const result = await templatesApi.assign(orgId, template.template_uuid, requestFor(pick, base, newGroups), token)
-        done.push({ assignment_uuid: result.assignment_uuid, name: recipientName(pick), group: pick.kind === 'group' || pick.kind === 'newgroup' })
+        done.push({ assignment_uuid: result.assignment_uuid, name: recipientName(pick), group: pick.kind === 'group' || pick.kind === 'newgroup', invited: pick.kind === 'email' })
       } catch (error: any) {
         failed.push(`${recipientName(pick)}: ${error?.message || 'failed'}`)
       }

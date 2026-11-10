@@ -1,4 +1,5 @@
 'use client'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useFormik } from 'formik'
 import SignupNames, { welcomeSignupNamesKey } from './SignupNames'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -116,7 +117,7 @@ function OpenSignUpComponent({
           return
         }
 
-        window.location.href = callbackUrl
+        window.location.href = authenticatedOrgHref(callbackUrl, true)
         return
       } else if (
         res.status == 401 ||

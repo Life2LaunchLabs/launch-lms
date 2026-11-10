@@ -16,8 +16,17 @@ import { tr } from '@/lib/tr'
 const KIND_ICON = { image: ImageIcon, video: Film, document: FileText, link: Link2 }
 const filled = (step: Step<'upload'>, slot: UploadSlot) => step.entries.find((entry) => entry.slot === slot.key && (entry.kind === 'file' || entry.kind === 'link'))
 
+/** What a handed-in file is, from its name: a slot that takes several kinds would otherwise show its first kind's icon. */
+function fileKind(url: string): keyof typeof KIND_ICON | null {
+  const path = url.split('?')[0]
+  if (/\.(png|jpe?g|gif|webp|heic|svg)$/i.test(path)) return 'image'
+  if (/\.(mp4|mov|webm|m4v)$/i.test(path)) return 'video'
+  if (/\.[a-z0-9]{2,5}$/i.test(path)) return 'document'
+  return null
+}
+
 function Thumb({ entry, slot }: { entry?: StepEntry; slot: UploadSlot }) {
-  const Icon = entry?.kind === 'link' ? Link2 : KIND_ICON[slot.kinds[0]] || FileText
+  const Icon = entry?.kind === 'link' ? Link2 : (entry?.kind === 'file' && fileKind(entry.url)) ? KIND_ICON[fileKind(entry.url)!] : KIND_ICON[slot.kinds[0]] || FileText
   const image = entry && entry.kind === 'file' && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(entry.url)
   if (image) return <img src={normalizeMediaUrl(entry!.url)} alt="" className="h-14 w-14 rounded-xl object-cover" />
   return <span className="grid h-14 w-14 place-items-center rounded-xl border-2 border-dashed bg-background text-muted-foreground">{entry ? <Icon size={20} className="text-[var(--plan-accent)]" /> : <Plus size={18} />}</span>
