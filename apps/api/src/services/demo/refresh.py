@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request, Response
 from sqlmodel import Session
-from src.core.events.database import engine
+from src.core.events import database
 from src.db.users import User
 from src.security.auth import create_access_token
 from src.security.superadmin import is_user_owner_org_admin, is_user_superadmin
@@ -16,19 +16,19 @@ def refresh_demo(
         # Test personas keep their test claims; the cohort and the admin are rechecked first.
         from src.services.user_tests.sessions import refresh as refresh_test_session
 
-        with Session(engine) as control:
+        with Session(database.engine) as control:
             access = refresh_test_session(control, payload)
         set_cookies(response, access, request.cookies.get("refresh_token_cookie", ""), request)
         return {"access_token": access, "expiry": expiry_ms()}
     if payload.get("demo_session"):
-        with Session(engine) as control:
+        with Session(database.engine) as control:
             credentials = visitor_credentials(control, payload["demo_session"])
         set_cookies(
             response, credentials["access_token"], credentials["refresh_token"], request
         )
         return credentials
     if payload.get("demo_operator"):
-        with Session(engine) as control:
+        with Session(database.engine) as control:
             actor = control.get(User, payload["demo_operator"])
             if not actor or not (
                 is_user_superadmin(actor.id, control)
@@ -46,5 +46,5 @@ def revoke_demo(token: str) -> None:
 
     payload = decode_jwt(token) or {}
     if payload.get("demo_session"):
-        with Session(engine) as control:
+        with Session(database.engine) as control:
             end(control, payload["demo_session"])

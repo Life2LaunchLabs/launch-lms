@@ -245,8 +245,11 @@ def _check_persona_identity(session: Session, obj, worlds: Worlds, is_new: bool)
 
 
 def after_flush(session: Session, _flush_context) -> None:
+    from src.services.demo.context import current_demo
+
     candidates = [(obj, True) for obj in session.new] + [(obj, False) for obj in session.dirty]
-    if not candidates or not tables_ready(session):
+    # A demo visitor copy is private to one visitor: published personas act there freely.
+    if not candidates or current_demo.get() or not tables_ready(session):
         return
     with session.no_autoflush:
         new_orgs = {int(obj.id) for obj, is_new in candidates if is_new and sa_inspect(obj).mapper.local_table.name == "organization" and obj.id}

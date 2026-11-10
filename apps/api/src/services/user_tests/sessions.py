@@ -31,6 +31,10 @@ def is_platform_admin(user_id: int | None, db: Session) -> bool:
 
 def is_test_session(payload: dict | None) -> bool:
     payload = payload or {}
+    if payload.get("demo_session"):
+        # A demo visitor exploring a published run's persona acts in a private visitor copy,
+        # not on the live site, so the visitor's demo session rules apply instead.
+        return False
     return bool(payload.get("test_operator")) or is_test_address(payload.get("sub"))
 
 
