@@ -4,6 +4,8 @@ on:
     branches: [dev, main]
   pull_request:
     branches: [dev, main]
+  # dev's merge queue: check each queued pull request on top of dev and the ones ahead of it.
+  merge_group:
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,13 +55,13 @@ jobs:
     needs: checked
     if: needs.checked.outputs.run_id == ''
     uses: ./.github/workflows/browser-ui.yaml
-  # A pull request that passed everything: publish its tested image (branches of this repository only;
-  # fork and Dependabot runs cannot write packages, so they only record the code they checked)
-  # and record the code it checked, so the merge can deploy this exact image.
+  # A pull request or merge queue run that passed everything: publish its tested image (branches of this
+  # repository only; fork and Dependabot runs cannot write packages, so they only record the code they
+  # checked) and record the code it checked, so the merge can deploy this exact image.
   checked-tree:
     name: Record checked code and image
     needs: [build, contract, api-tests, api-lint, migrations, browser-ui]
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,21 +69,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        if: (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
         with:
           pattern: digest-*
           path: digests
           merge-multiple: true
       - uses: docker/setup-buildx-action@v4
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        if: (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
       - uses: docker/login-action@v4
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        if: (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish the checked image (not a release; no branch tag)
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        if: (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
         run: |
           amd64=$(cat digests/amd64)
           arm64=$(cat digests/arm64)
@@ -105,7 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - id: find
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -162,13 +164,13 @@ jobs:
       - name: Let the cache read the embedding model
         run: sudo chown -R "$USER" "$HOME/ollama-models"
       - uses: docker/login-action@v4
-        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push the tested image (no build)
-        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
         env:
           IMAGE: ${{ env.REPOSITORY }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
         run: |
@@ -176,7 +178,7 @@ jobs:
           mkdir -p digests
           docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}' > "digests/${{ matrix.arch }}"
       - uses: actions/upload-artifact@v7
-        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+        if: (github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') || github.event_name == 'merge_group'
         with:
           name: digest-${{ matrix.arch }}
           path: digests/*
