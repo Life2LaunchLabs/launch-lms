@@ -10,10 +10,15 @@ const REASONS: Record<TestMail['reason'], string> = {
   persona_sender: 'Sent by a persona to an outside address, not delivered',
 }
 
+/** Sign in on the host the link points at (an org's own site), keeping this page's scheme. */
+function linkOrigin(url: string): string {
+  try { return `${window.location.protocol}//${new URL(url).host}` } catch { return '' }
+}
+
 export default function UserTestsInbox({ cohortUuid, personas, onOpenAs }: {
   cohortUuid: string
   personas: TestPersona[]
-  onOpenAs: React.Dispatch<{ persona: TestPersona; path: string }>
+  onOpenAs: React.Dispatch<{ persona: TestPersona; path: string; origin: string }>
 }) {
   const [persona, setPersona] = useState<number | ''>('')
   const [open, setOpen] = useState<TestMail | null>(null)
@@ -58,7 +63,7 @@ export default function UserTestsInbox({ cohortUuid, personas, onOpenAs }: {
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Links</p>
             <ul className="space-y-1.5">{open.links.map((link) => <li key={link.url} className="flex flex-wrap items-center gap-2 text-xs">
               <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1">{link.url}</code>
-              {link.path && recipient ? <Button type="button" size="sm" onClick={() => onOpenAs({ persona: recipient, path: link.path! })}>Open as {recipient.first_name}</Button>
+              {link.path && recipient ? <Button type="button" size="sm" onClick={() => onOpenAs({ persona: recipient, path: link.path!, origin: linkOrigin(link.url) })}>Open as {recipient.first_name}</Button>
                 : <span className="text-muted-foreground">{link.path ? 'No persona has this address' : 'Not on this site'}</span>}
             </li>)}</ul>
           </div> : null}

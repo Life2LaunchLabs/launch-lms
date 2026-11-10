@@ -20,7 +20,8 @@ const CLOSED: Record<string, string> = {
 export function useInvitePreview(orgId: number | undefined, invitation: string, inviteCode: string) {
   const token = invitation || inviteCode
   const { data } = useSWR(orgId && token ? ['invite-preview', orgId, token] : null, () => getInvitePreview(orgId as number, { invitation, inviteCode }))
-  return data ?? null
+  // undefined while loading; null when the token isn't one of this organization's.
+  return token ? data : null
 }
 
 /** Puts the invited address in the signup form, which reads it from the URL. */

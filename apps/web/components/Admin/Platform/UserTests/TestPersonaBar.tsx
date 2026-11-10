@@ -39,10 +39,12 @@ export default function TestPersonaBar() {
   })
   if (!marker || !userId) return null
   if (marker.userId !== userId) { clearMarker(); return null }
-  return <div role="status" className="sticky top-0 z-[60] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-300 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
-    <span>Test persona: {marker.name || 'unnamed'}{marker.cohort ? ` · ${marker.cohort}` : ''}</span>
-    <button type="button" className="underline underline-offset-2" aria-expanded={panel} onClick={() => setPanel(!panel)}>My test run{run?.unread_mail ? ` (${run.unread_mail} new email)` : ''}</button>
-    <button type="button" className="underline underline-offset-2" onClick={() => { clearMarker(); void signOut({ callbackUrl: '/auth/login' }) }}>Sign out</button>
+  return <div style={{ zIndex: 'var(--z-popover)' }} className="sticky top-0">
+    <div role="status" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-300 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
+      <span>Test persona: {marker.name || 'unnamed'}{marker.cohort ? ` · ${marker.cohort}` : ''}</span>
+      <button type="button" className="underline underline-offset-2" aria-expanded={panel} onClick={() => setPanel(!panel)}>My test run{run?.unread_mail ? ` (${run.unread_mail} new email)` : ''}</button>
+      <button type="button" className="underline underline-offset-2" onClick={() => { clearMarker(); void signOut({ callbackUrl: '/auth/login' }) }}>Sign out</button>
+    </div>
     {panel ? <PersonaPanel onClose={() => setPanel(false)} /> : null}
   </div>
 }

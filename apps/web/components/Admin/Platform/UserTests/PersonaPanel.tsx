@@ -87,7 +87,7 @@ export default function PersonaPanel({ onClose }: { onClose: () => void }) {
   const { data: run, error, mutate } = useSWR('user_tests/me', fetchMyRun, { refreshInterval: 15000 })
   const [tab, setTab] = useState<Tab>('stages')
   const tabs: [Tab, string][] = [['stages', 'My stages'], ['mail', `Email${run?.unread_mail ? ` (${run.unread_mail})` : ''}`], ['finding', 'Note a problem']]
-  return <div role="dialog" aria-label="Test run" className="fixed right-2 top-9 z-[61] max-h-[80vh] w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border bg-card p-4 text-left text-sm text-foreground shadow-xl">
+  return <div role="dialog" aria-label="Test run" className="absolute right-2 top-full mt-1 max-h-[80vh] w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border bg-card p-4 text-left text-sm text-foreground shadow-xl">
     <div className="mb-3 flex items-center gap-2">
       <div role="tablist" className="flex flex-1 flex-wrap gap-1">{tabs.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`rounded-full px-3 py-1 text-xs font-semibold ${tab === key ? 'bg-foreground text-background' : 'bg-muted'}`}>{label}</button>)}</div>
       <button type="button" aria-label="Close" className="text-lg leading-none text-muted-foreground" onClick={onClose}>×</button>

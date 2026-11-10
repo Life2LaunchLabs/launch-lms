@@ -39,6 +39,10 @@ def test_a_connector_runs_a_cohort_end_to_end(db, monkeypatch):  # noqa: F811
 
     link = _call(db, "open_as_test_persona", {"user_id": maya["user_id"], "target_path": "/start"})
     assert link["structuredContent"]["url"].startswith("https://lms.test/auth/test-entry?t=")
+    monkeypatch.setattr(tests_mcp.mail, "site_hosts", lambda: {"lms.test"})
+    on_org = _call(db, "open_as_test_persona", {"user_id": maya["user_id"], "target_path": "http://riverside.lms.test/signup?invitation=abc"})["structuredContent"]
+    assert on_org["url"].startswith("https://riverside.lms.test/auth/test-entry?t=")
+    assert _call(db, "open_as_test_persona", {"user_id": maya["user_id"], "target_path": "https://evil.test/x"})["isError"]
     db.add(TestMail(cohort_id=db.get(TestPersona, maya["user_id"]).cohort_id, to_address=maya["email"], to_user_id=maya["user_id"], subject="You're invited",
                     html="<html><head><style>p{}</style></head><body><p>Join Riverside &amp; start.</p><a href='https://lms.test/join'>Join</a></body></html>",
                     reason="test_address", links=[{"url": "https://lms.test/join", "path": "/join"}]))

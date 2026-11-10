@@ -299,6 +299,8 @@
     "join_organization": "Join Organization",
     "join_organization_desc": "You're about to join this organization",
     "join_organization_success": "Successfully joined the organization",
+    "invite_wrong_org": "This invitation isn't for {{org}}",
+    "invite_wrong_org_desc": "Open the link from your invitation email again, or ask the person who invited you for a new one.",
     "joining": "Joining",
     "invite_required": "Invite Required",
     "invite_required_desc": "An invite code is required to join {{org}}",

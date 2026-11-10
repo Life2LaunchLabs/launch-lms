@@ -271,6 +271,8 @@
     "join_organization": "Unirse a la organización",
     "join_organization_desc": "Estás a punto de unirte a esta organización",
     "join_organization_success": "Te has unido a la organización exitosamente",
+    "invite_wrong_org": "Esta invitación no es para {{org}}",
+    "invite_wrong_org_desc": "Vuelve a abrir el enlace del correo de invitación o pide una nueva a quien te invitó.",
     "joining": "Uniéndose",
     "invite_required": "Invitación requerida",
     "invite_required_desc": "Se requiere un código de invitación para unirse a {{org}}",

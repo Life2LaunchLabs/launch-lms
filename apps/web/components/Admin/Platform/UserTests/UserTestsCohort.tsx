@@ -54,7 +54,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
     try { await closeCohort(cohortUuid); await mutate() } catch (failure) { setCloseError((failure as Error).message) }
     finally { setClosing(false) }
   }
-  const openAs = (persona: TestPersona, path = '/') => void login.make(persona.user_id, personaName(persona), path)
+  const openAs = (persona: TestPersona, path = '/', origin = '') => void login.make(persona.user_id, personaName(persona), path, origin)
 
   return <UserTestsShell actions={isOpen ? <Button size="sm" variant="outline" onClick={close} disabled={closing}>{closing ? 'Closing…' : 'Close cohort'}</Button> : null}>
     {ask.dialog}
@@ -86,7 +86,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
       {isOpen ? <AddPersonasForm cohort={data} onAdded={() => void mutate()} /> : null}
       <RunBoard cohortUuid={cohortUuid} personas={data.personas} stages={data.stages} isOpen={isOpen} onChanged={() => void mutate()} />
       {!isOpen && data.status !== 'purged' ? <CohortCleanup cohortUuid={cohortUuid} cohortName={data.name} onPurged={() => void mutate()} /> : null}
-      <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} onOpenAs={({ persona, path }) => { if (isOpen) openAs(persona, path) }} />
+      <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} onOpenAs={({ persona, path, origin }) => { if (isOpen) openAs(persona, path, origin) }} />
     </> : null}
   </UserTestsShell>
 }

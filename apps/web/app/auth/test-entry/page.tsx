@@ -30,7 +30,7 @@ function TestEntryInner() {
   return <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
     <div className="max-w-md text-center">
       {error ? <>
-        <h1 className="mb-2 text-xl font-semibold text-gray-800">This test login link did not work</h1>
+        <h1 className="mb-2 text-xl font-semibold text-gray-800">{searchParams.get('closed') === '1' ? 'Signed out' : ended ? 'Test session ended' : 'This test login link did not work'}</h1>
         <p role="alert" className="text-gray-600">{error}</p>
       </> : <p role="status" className="text-gray-600">Opening the test persona…</p>}
     </div>
