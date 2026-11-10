@@ -221,6 +221,8 @@ export function resolveRequestRouting(
     context.subdomainOrgSlug &&
     context.subdomainOrgSlug !== instanceInfo.default_org_slug &&
     !pathname.startsWith('/admin') &&
+    // The staff welcome after accepting an invite opens on the org's address, like the admin it leads to.
+    pathname !== '/joined' &&
     !context.subdomainAllowed
   ) {
     return {

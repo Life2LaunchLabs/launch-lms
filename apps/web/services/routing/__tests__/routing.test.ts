@@ -779,6 +779,21 @@ test('request policy redirects non-entitled org subdomains back to the main host
   assert.equal(decision.destination, 'https://launchlms.test/badges')
 })
 
+test('the staff welcome stays on an org subdomain without a learner site, like its admin', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/joined?tour=1',
+    pathname: '/joined',
+    search: '?tour=1',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+  })
+  assert.notEqual(decision.action, 'redirect')
+  assert.match(String(decision.destination), /^\/orgs\/acme\/joined/)
+})
+
 test('request policy lets a signed-in visitor open an invitation link instead of sending them home', () => {
   const input = {
     requestUrl: 'https://acme.launchlms.test/signup?invitation=abc',

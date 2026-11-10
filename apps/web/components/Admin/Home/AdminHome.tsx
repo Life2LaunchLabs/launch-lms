@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { TrialBanner } from '@components/Admin/Upgrade/PlanBanners'
 import { Skeleton } from '@components/ui/skeleton'
@@ -84,6 +85,8 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
 
   return (
     <div className="h-full w-full bg-[#f8f8f8]">
+      {/* The admin home's tab names the organization, like the admin layout's own title. */}
+      {org?.name ? <PageTitleRegistration section="Admin" detail={org.name} /> : null}
       <div className="mx-auto w-full max-w-[1240px] px-4 pb-10 pt-8 sm:px-10">
         {data?.welcome ? <Welcome data={data} orgName={org?.name} firstName={firstName} onDismiss={() => void dismiss('welcome')} onCustomize={() => setCustomizing(!customizing)} customizing={customizing} />
           : <div className="mb-6 flex flex-wrap items-end justify-between gap-4">

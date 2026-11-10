@@ -24,43 +24,40 @@ def auto_install():
             logger.info("Auto-install skipped: database schema is not initialized yet.")
             return
 
-    db_session = Session(engine)
+    # Closed when done: left open, its idle transaction kept read locks on organization for the life of the process.
+    with Session(engine) as db_session:
+        orgs = db_session.exec(select(Organization)).all()
 
-    orgs = db_session.exec(select(Organization)).all()
+        def ensure_owner_org_is_enterprise() -> None:
+            org = owner_org(db_session)
+            if not org:
+                return
 
-    def ensure_owner_org_is_enterprise() -> None:
-        org = owner_org(db_session)
-        if not org:
-            return
+            owner_org_config = db_session.exec(
+                select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
+            ).first()
+            if not owner_org_config:
+                return
 
-        owner_org_config = db_session.exec(
-            select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-        ).first()
-        if not owner_org_config:
-            return
+            config = dict(owner_org_config.config or {})
+            if config.get("tier") != "enterprise":
+                config["tier"] = "enterprise"
+                owner_org_config.config = config
+                db_session.add(owner_org_config)
+                db_session.commit()
+                logger.info("Updated owner organization '%s' tier to enterprise", org.slug)
 
-        config = dict(owner_org_config.config or {})
-        if config.get("tier") != "enterprise":
-            config["tier"] = "enterprise"
-            owner_org_config.config = config
-            db_session.add(owner_org_config)
-            db_session.commit()
-            logger.info("Updated owner organization '%s' tier to enterprise", org.slug)
-
-    if len(orgs) == 0:
-        logger.info("No organizations found. Starting auto-installation 🏗️")
-        install(short=True)
-        ensure_owner_org_is_enterprise()
-        return
-
-    if orgs:
-        if not owner_org(db_session):
-            logger.info("No owner organization found. Starting auto-installation 🏗️")
+        if len(orgs) == 0:
+            logger.info("No organizations found. Starting auto-installation 🏗️")
             install(short=True)
             ensure_owner_org_is_enterprise()
             return
 
-        ensure_owner_org_is_enterprise()
+        if orgs:
+            if not owner_org(db_session):
+                logger.info("No owner organization found. Starting auto-installation 🏗️")
+                install(short=True)
+                ensure_owner_org_is_enterprise()
+                return
 
-            
-            
+            ensure_owner_org_is_enterprise()

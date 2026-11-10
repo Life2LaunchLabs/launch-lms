@@ -42,6 +42,9 @@ def startup_app(app: FastAPI) -> Callable:
         app.state.demo_cleanup = asyncio.create_task(run_cleanup(engine))
         app.state.demo_preparation = asyncio.create_task(run_preparation(engine))
         app.state.demo_recapture = asyncio.create_task(run_recapture(engine))
+        # Writes down why, should the loop or the thread pool stop moving (see the module).
+        from src.core.stall_watchdog import start as watch_for_stalls
+        await watch_for_stalls(engine)
         from src.services.insights.rules import run_forever as run_capture_rules
         app.state.insight_capture_rules = asyncio.create_task(run_capture_rules(engine))
 
