@@ -156,16 +156,19 @@ def check_verification_resend_rate_limit(email: str) -> tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_refresh_rate_limit(request: Request) -> tuple[bool, int]:
+def check_refresh_rate_limit(request: Request, test_persona: str | None = None) -> tuple[bool, int]:
     """
     Check token refresh rate limit: 60 attempts per minute per IP.
     This prevents brute-force attacks on the refresh endpoint.
+
+    ``test_persona``: the subject of a verified test persona refresh token. Many persona
+    browsers can share one cloud IP in a user test, so each persona gets its own limit.
 
     Returns:
         Tuple of (is_allowed, retry_after_seconds)
     """
     ip = get_client_ip(request)
-    key = f"refresh:{ip}"
+    key = f"refresh:test:{test_persona}" if test_persona else f"refresh:{ip}"
 
     is_allowed, count, retry_after = check_rate_limit(
         key=key,

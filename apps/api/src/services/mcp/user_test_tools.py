@@ -49,6 +49,9 @@ USER_TEST_TOOLS = [
             "start_state": {"type": "string", "enum": ["has_account", "org_owner"]}, "org_name": {"type": "string", "maxLength": 100},
         }, "required": ["first_name"]}},
     }, ["cohort_uuid", "personas"], tests_mcp.add_test_personas, write=True),
+    _tool("replay_test_cohort", "Run a test story again", "Start a new cohort with fresh personas like this one's (names, briefs, starting state, test orgs) and the same stages, for example to retest after a fix. Nothing the first run did is copied.", {
+        **_COHORT, "days": {"type": "integer", "minimum": 1, "maximum": 30},
+    }, ["cohort_uuid"], tests_mcp.replay_test_cohort, write=True),
     _tool("set_test_stages", "Set a test run's stages", "Replace the run's stages (at most 20). Every persona works through every stage.", {
         **_COHORT, "stages": {"type": "array", "maxItems": 20, "items": _STAGE},
     }, ["cohort_uuid", "stages"], tests_mcp.set_test_stages, write=True),

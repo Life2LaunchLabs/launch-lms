@@ -14,11 +14,13 @@ from src.security.auth import get_authenticated_user
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 from src.db.user_tests import TestMail, TestPersona
 from src.db.users import User
-from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, stories, tickets
+from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, replays, stories, tickets
 from src.services.user_tests.sessions import current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
 router = APIRouter()
+# Enough for a 30-persona run with every persona reopened several times.
+MINT_PER_HOUR = 400
 
 
 def operator(
@@ -78,6 +80,16 @@ def create_cohort(
 @router.get("/cohorts/{cohort_uuid}")
 def get_cohort(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
     return cohorts.serialize(db, cohorts.get_cohort(db, cohort_uuid), detail=True)
+
+
+class ReplayRequest(BaseModel):
+    days: int = Field(default=7, ge=1, le=30)
+
+
+@router.post("/cohorts/{cohort_uuid}/replay", status_code=201)
+async def replay_cohort(cohort_uuid: str, body: ReplayRequest, actor: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    """Run the story again: fresh personas like this cohort's, and the same stages."""
+    return await replays.replay(db, cohort_uuid, actor.id, body.days)
 
 
 @router.post("/cohorts/{cohort_uuid}/close")
@@ -216,7 +228,7 @@ def login_link(
     actor: PublicUser = Depends(operator),
     db: Session = Depends(get_db_session),
 ):
-    allowed, _, retry = check_rate_limit(f"user-tests-mint:{actor.id}", 120, 3600)
+    allowed, _, retry = check_rate_limit(f"user-tests-mint:{actor.id}", MINT_PER_HOUR, 3600)
     if not allowed:
         raise HTTPException(429, f"Too many login links this hour. Try again in {retry} seconds.")
     return tickets.mint(db, actor.id, user_id, body.target_path)

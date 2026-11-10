@@ -331,3 +331,17 @@ def test_a_persona_moves_to_another_org_host_as_the_same_persona(db):
         assert closed.value.status_code == 401
         with pytest.raises(HTTPException):
             issue_handoff(SimpleNamespace(cookies={JWT_REFRESH_COOKIE_NAME: refresh}), body, Response(), db)
+
+
+def test_only_a_verified_persona_refresh_token_gets_its_own_refresh_limit(db):
+    from src.security.auth import create_refresh_token
+    from src.services.user_tests.sessions import refresh_test_persona
+
+    cohort = _cohort(db)
+    persona = _persona(db, cohort["cohort_uuid"])
+    link = tickets.mint(db, 1, persona["user_id"], "/")
+    refresh = tickets.redeem(db, link["path"].split("t=", 1)[1])["tokens"]["refresh_token"]
+    assert refresh_test_persona(refresh) == persona["email"]
+    assert refresh_test_persona(create_refresh_token({"sub": "admin@example.com"})) is None
+    assert refresh_test_persona("forged.token.value") is None
+    assert refresh_test_persona(None) is None

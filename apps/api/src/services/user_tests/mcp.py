@@ -17,7 +17,7 @@ from sqlmodel import Session
 from src.db.user_tests import TestMail, TestPersona
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
-from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, stories, tickets
+from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, replays, stories, tickets
 from src.services.user_tests.sessions import current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
@@ -160,3 +160,9 @@ async def publish_test_checkpoint(request: Request, db: Session, ctx: AccessCont
     _require_operator(db, ctx)
     result = checkpoints.publish(db, str(args["checkpoint_id"]), int(ctx.user.id))  # type: ignore[arg-type]
     return {**result, "note": "New demo visits start from this checkpoint." if result["demo_enabled"] else "Published, but the demo is turned off in Demo Studio, so visitors can't start it yet."}
+
+
+async def replay_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    made = await replays.replay(db, str(args["cohort_uuid"]), int(ctx.user.id), int(args.get("days") or 7))  # type: ignore[arg-type]
+    return {**made, "console_url": _console_url(db, ctx, made["cohort_uuid"])}

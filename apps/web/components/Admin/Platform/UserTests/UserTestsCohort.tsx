@@ -1,11 +1,12 @@
 'use client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
-import { addPersonas, closeCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestPersona } from '@services/userTests/userTests'
+import { addPersonas, closeCohort, replayCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestPersona } from '@services/userTests/userTests'
 import CohortCleanup from './CohortCleanup'
 import CohortCheckpoints from './CohortCheckpoints'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -59,9 +60,20 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
     try { await closeCohort(cohortUuid); await mutate() } catch (failure) { setCloseError((failure as Error).message) }
     finally { setClosing(false) }
   }
+  const router = useRouter()
+  const [replaying, setReplaying] = useState(false)
+  async function replay() {
+    if (!await ask.confirm({ title: 'Run this story again?', body: 'A new cohort starts with fresh personas like these (names, briefs, starting state and test orgs) and the same stages. Nothing this run did comes along.', action: 'Run again' })) return
+    setReplaying(true); setCloseError('')
+    try { const made = await replayCohort(cohortUuid); router.push(href(made.cohort_uuid)) } catch (failure) { setCloseError((failure as Error).message); setReplaying(false) }
+  }
   const openAs = (persona: TestPersona, path = '/', origin = '') => void login.make(persona.user_id, personaName(persona), path, origin)
 
-  return <UserTestsShell actions={isOpen ? <Button size="sm" variant="outline" onClick={close} disabled={closing}>{closing ? 'Closing…' : 'Close cohort'}</Button> : null}>
+  const actions = data ? <div className="flex flex-wrap gap-2">
+    {data.persona_count ? <Button size="sm" variant="outline" onClick={() => void replay()} disabled={replaying}>{replaying ? 'Starting…' : 'Run again'}</Button> : null}
+    {isOpen ? <Button size="sm" variant="outline" onClick={close} disabled={closing}>{closing ? 'Closing…' : 'Close cohort'}</Button> : null}
+  </div> : null
+  return <UserTestsShell actions={actions}>
     {ask.dialog}
     <Link href={href()} className="text-sm text-muted-foreground hover:text-foreground">← All cohorts</Link>
     {error ? <p role="alert" className="text-sm text-destructive">{(error as Error).message}</p> : null}

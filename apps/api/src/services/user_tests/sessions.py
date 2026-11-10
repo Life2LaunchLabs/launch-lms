@@ -34,6 +34,14 @@ def is_test_session(payload: dict | None) -> bool:
     return bool(payload.get("test_operator")) or is_test_address(payload.get("sub"))
 
 
+def refresh_test_persona(refresh_token: str | None) -> str | None:
+    """A verified test persona refresh token's subject, so it gets its own refresh limit; else None (the per-IP one)."""
+    from src.security.auth import decode_refresh_token
+
+    payload = decode_refresh_token(refresh_token) if refresh_token else None
+    return str(payload["sub"]) if payload and payload.get("sub") and payload.get("test_operator") and is_test_session(payload) else None
+
+
 def open_cohort(db: Session, cohort_id: int) -> TestCohort:
     cohort = db.get(TestCohort, cohort_id)
     if not cohort or cohort.status != "open" or cohort.expires_at <= datetime.utcnow():
