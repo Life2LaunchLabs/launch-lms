@@ -4,10 +4,12 @@ import { useEffect } from 'react'
 import useSWR from 'swr'
 import { Loader2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getLAUNCHLMS_DOMAIN_VAL, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { EXPERIENCE_PREFERENCE_KEY } from '@components/Auth/ExperiencePreferenceTracker'
 import { authenticatedOrgHref } from '@services/auth/handoff'
+import { getOrgSlugFromSubdomain } from '@services/routing/context'
+import { signedInLanding } from '@services/routing/signedInLanding'
 
 export default function AuthRedirectPage() {
   const session = useLHSession() as any
@@ -36,14 +38,14 @@ export default function AuthRedirectPage() {
 
     let preference: { side?: string; orgslug?: string } = {}
     try { preference = JSON.parse(window.localStorage.getItem(EXPERIENCE_PREFERENCE_KEY) || '{}') } catch { /* Ignore malformed legacy state. */ }
-    if (preference.side === 'admin') {
-      const target = adminOrgs.find((organization: any) => organization.slug === preference.orgslug) || adminOrgs[0]
-      if (target) {
-        window.location.href = authenticatedOrgHref(getUriWithOrg(target.slug, routePaths.org.admin.root()), true)
-        return
-      }
-    }
-    window.location.href = authenticatedOrgHref(getUriWithOrg(preference.orgslug || ownerOrgSlug, routePaths.owner.root()), true)
+    const landing = signedInLanding({
+      hostOrgSlug: getOrgSlugFromSubdomain(window.location.host, getLAUNCHLMS_DOMAIN_VAL()),
+      staffOrgSlugs: adminOrgs.map((organization: any) => organization.slug),
+      preference,
+      ownerOrgSlug,
+    })
+    const path = landing.side === 'admin' ? routePaths.org.admin.root() : routePaths.owner.root()
+    window.location.href = authenticatedOrgHref(getUriWithOrg(landing.orgslug, path), true)
   }, [adminOrgs, ownerOrgSlug, session?.status])
 
   return (
