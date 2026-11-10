@@ -9,7 +9,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
-    "AGENTS.md", "WORKFLOW.md", "ARCHITECTURE.md", "docs/product/README.md",
+    "AGENTS.md", "ARCHITECTURE.md", "docs/product/README.md",
     "docs/design/README.md", "docs/quality/README.md", "docs/security/README.md",
     "docs/reliability/README.md", "docs/plans/README.md",
 ]
@@ -21,7 +21,7 @@ def main() -> None:
     for value in REQUIRED:
         if not (ROOT / value).is_file():
             errors.append(f"missing required document: {value}")
-    documents = [ROOT / "AGENTS.md", ROOT / "WORKFLOW.md", ROOT / "ARCHITECTURE.md"]
+    documents = [ROOT / "AGENTS.md", ROOT / "ARCHITECTURE.md"]
     documents += list((ROOT / "docs").rglob("*.md"))
     for document in documents:
         for target in LINK.findall(document.read_text(encoding="utf-8")):
