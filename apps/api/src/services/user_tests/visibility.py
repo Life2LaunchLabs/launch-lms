@@ -44,6 +44,16 @@ def visible_orgs(db: Session, viewer_id: int | None, org_id_column):
     return ~hidden
 
 
+def listed_for_viewer(db: Session, org_id_column):
+    """A WHERE clause for Discover listings: a test org's listings reach only its own run's personas.
+
+    Reads the persona acting in this request, so every Discover query gets it without a viewer argument.
+    """
+    from src.services.user_tests.sessions import current_test_persona
+
+    return visible_orgs(db, current_test_persona.get(), org_id_column)
+
+
 def is_test_org(db: Session, org_id: int | None) -> bool:
     return bool(org_id) and _ready(db) and db.get(TestCohortOrg, int(org_id)) is not None  # type: ignore[arg-type]
 

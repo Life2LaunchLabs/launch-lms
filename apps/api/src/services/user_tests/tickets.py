@@ -32,6 +32,16 @@ def safe_path(path: str | None) -> str:
     return path[:1000]
 
 
+START_PATH = "/start"
+
+
+def _owns_test_org(db: Session, persona) -> bool:
+    from sqlmodel import select
+    from src.db.user_tests import TestCohortOrg
+
+    return db.exec(select(TestCohortOrg.org_id).where(TestCohortOrg.created_by_user_id == persona.user_id)).first() is not None
+
+
 def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str = "/") -> dict:
     if not sessions.is_platform_admin(operator_id, db):
         raise HTTPException(403, "Platform admin access is required.")
@@ -41,6 +51,8 @@ def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str =
     if not user or not persona:
         raise HTTPException(403, "Login links can only be made for test personas.")
     sessions.open_cohort(db, persona.cohort_id)
+    if persona.start_state == "new_signup" and safe_path(target_path) == "/" and not _owns_test_org(db, persona):
+        target_path = START_PATH  # just signed up: the onboarding a new account goes through next
     token = secrets.token_urlsafe(32)
     expires_at = datetime.utcnow() + TICKET_TTL
     db.add(

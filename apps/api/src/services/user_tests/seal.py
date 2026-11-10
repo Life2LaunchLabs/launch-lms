@@ -45,8 +45,9 @@ EMAIL_COLUMNS = {
 # Credit, not a connection: a badge names the org that wrote the plan, and personas may earn it.
 IGNORED_COLUMNS = {("badge_award", "creator_org_id")}
 # Writes a test world never makes: they publish, bill or hand out access beyond the cohort.
+# Discover listings are allowed: Discover shows a test org's listings only to its own run.
 TEST_FORBIDDEN_TABLES = {
-    "goal_template_listing", "plan_request", "paymentsconfig", "paymentsoffer", "paymentsenrollment",
+    "plan_request", "paymentsconfig", "paymentsoffer", "paymentsenrollment",
     "apitoken", "oauthgrant", "oauthauthorizationcode", "ssoconnection",
 }
 TEST_FORBIDDEN_COLUMNS = {("goal_template", "library_published_at")}

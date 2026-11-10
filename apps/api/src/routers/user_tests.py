@@ -15,7 +15,7 @@ from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 from src.db.user_tests import TestMail, TestPersona
 from src.db.users import User
 from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, replays, stories, tickets
-from src.services.user_tests.sessions import current_test_persona, is_platform_admin
+from src.services.user_tests.sessions import current_test_operator, current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
 router = APIRouter()
@@ -188,6 +188,28 @@ def read_my_mail(mail_id: int, me: tuple[TestPersona, User] = Depends(persona_se
 @router.post("/me/progress")
 def my_progress(body: stories.Progress, background: BackgroundTasks, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
     return _progress(db, me[0], body, background, "persona")
+
+
+class SwitchRequest(BaseModel):
+    user_id: int
+
+
+@router.post("/me/switch")
+def switch_persona(body: SwitchRequest, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    """A login link for another persona of this run, made for the admin who opened this one."""
+    operator_id = current_test_operator.get()
+    target = db.get(TestPersona, body.user_id)
+    if not operator_id or not target or target.cohort_id != me[0].cohort_id or target.user_id == me[0].user_id:
+        raise HTTPException(404, "That persona isn't in this run.")
+    allowed, _, retry = check_rate_limit(f"user-tests-mint:{operator_id}", MINT_PER_HOUR, 3600)
+    if not allowed:
+        raise HTTPException(429, f"Too many login links this hour. Try again in {retry} seconds.")
+    return tickets.mint(db, operator_id, target.user_id, "/")
+
+
+@router.post("/me/steps", status_code=201)
+def my_step(body: stories.Step, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    return stories.log_step(db, me[0], body)
 
 
 @router.post("/me/findings", status_code=201)

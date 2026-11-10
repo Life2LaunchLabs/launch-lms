@@ -205,10 +205,12 @@ def _card(db: Session, template: GoalTemplate, listing: GoalTemplateListing, org
 
 def browse(db: Session, current_user: PublicUser, org_id: int, query: str = "", creator_org_id: int | None = None) -> list[dict]:
     """Listed templates with a published version, each with this organization's permission."""
+    from src.services.user_tests.visibility import listed_for_viewer
+
     require_reader(db, current_user, org_id)
     statement = (select(GoalTemplate, GoalTemplateListing).join(GoalTemplateListing, GoalTemplateListing.template_id == GoalTemplate.id)
                  .where(GoalTemplateListing.listed == True, GoalTemplate.status != TemplateStatus.ARCHIVED,  # noqa: E712
-                        col(GoalTemplate.published_version_id).is_not(None)))
+                        col(GoalTemplate.published_version_id).is_not(None), listed_for_viewer(db, GoalTemplateListing.org_id)))
     if creator_org_id:
         statement = statement.where(GoalTemplate.org_id == creator_org_id)
     needle = query.strip().lower()

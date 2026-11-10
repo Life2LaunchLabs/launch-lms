@@ -4,13 +4,14 @@ import useSWR from 'swr'
 import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
+import StepForm from './StepForm'
 import {
   fetchMyMail, fetchMyRun, logMyFinding, readMyMail, reportMyProgress,
   type MyRun, type NewFinding, type StageStatus, type TestMail,
 } from '@services/userTests/userTests'
 
 const STATUS_LABEL: Record<StageStatus, string> = { not_started: 'Not started', waiting: 'Waiting', in_progress: 'In progress', done: 'Done', stuck: 'Stuck' }
-type Tab = 'stages' | 'mail' | 'finding'
+type Tab = 'stages' | 'step' | 'mail' | 'finding'
 
 function Stages({ run, onChanged }: { run: MyRun; onChanged: () => void }) {
   const [error, setError] = useState('')
@@ -86,7 +87,7 @@ function FindingForm({ run }: { run: MyRun }) {
 export default function PersonaPanel({ onClose }: { onClose: () => void }) {
   const { data: run, error, mutate } = useSWR('user_tests/me', fetchMyRun, { refreshInterval: 15000 })
   const [tab, setTab] = useState<Tab>('stages')
-  const tabs: [Tab, string][] = [['stages', 'My stages'], ['mail', `Email${run?.unread_mail ? ` (${run.unread_mail})` : ''}`], ['finding', 'Note a problem']]
+  const tabs: [Tab, string][] = [['stages', 'My stages'], ['step', 'Log a step'], ['mail', `Email${run?.unread_mail ? ` (${run.unread_mail})` : ''}`], ['finding', 'Note a problem']]
   return <div role="dialog" aria-label="Test run" className="absolute right-2 top-full mt-1 max-h-[80vh] w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border bg-card p-4 text-left text-sm text-foreground shadow-xl">
     <div className="mb-3 flex items-center gap-2">
       <div role="tablist" className="flex flex-1 flex-wrap gap-1">{tabs.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`rounded-full px-3 py-1 text-xs font-semibold ${tab === key ? 'bg-foreground text-background' : 'bg-muted'}`}>{label}</button>)}</div>
@@ -95,6 +96,6 @@ export default function PersonaPanel({ onClose }: { onClose: () => void }) {
     {error ? <p role="alert" className="text-sm text-destructive">{(error as Error).message}</p>
       : !run ? <p className="text-sm text-muted-foreground">Loading…</p>
         : tab === 'stages' ? <Stages run={run} onChanged={() => void mutate()} />
-          : tab === 'mail' ? <Mail /> : <FindingForm run={run} />}
+          : tab === 'step' ? <StepForm run={run} /> : tab === 'mail' ? <Mail /> : <FindingForm run={run} />}
   </div>
 }

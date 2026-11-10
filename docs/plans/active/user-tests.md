@@ -44,6 +44,8 @@ way for a test to email, impersonate or change a real person.
 - [x] Phase 4: checkpoints per stage (automatic when the last persona finishes) and publishing one as the demo.
 - [x] Phase 5: replays (Run again) and limits sized for 30 persona browsers.
 - [x] Stages per persona: a stage names the personas it is for, so each role gets its own.
+- [x] Rig fixes from the badge test review: a "new sign-up" start state, switching persona from
+  the banner, a step log for the story map, the release in the report, Discover inside a run.
 
 ## Decisions
 
@@ -100,6 +102,16 @@ way for a test to email, impersonate or change a real person.
   reports only its own stages, the board shows a dash for the rest, and a stage counts as finished
   (and is captured as a checkpoint) once the personas it is for are done. Run again keeps the
   assignment. In the story editor: `Title | goal | for maya, sam | after dana/stage-key`.
+- A `new_signup` persona has an account and no org; until it makes one, a link to `/` opens
+  `/start` (role, "Make it yours", org setup, first steps). The account form itself stays untested.
+- The banner's "Switch to…" asks the API (`POST /user_tests/me/switch`) for a one-use link to
+  another persona of the same run, minted for the admin who opened this session, then signs this
+  browser out and opens it: one browser can play every persona in turn.
+- "Log a step" records did / worked, struggled or couldn't / wanted; the report ends with a
+  story-map table of every step and starts with the release the site runs.
+- Discover listings are no longer refused for test orgs (upgrade requests still are). Every Discover query
+  filters listings with `listed_for_viewer`: a test org's listings reach only its own run's
+  personas. Listing still needs the plan publisher program, as on production.
 
 ## Verification
 
@@ -130,3 +142,4 @@ way for a test to email, impersonate or change a real person.
   and remapped waits, run numbering, and the per-persona refresh key; `test_user_tests.py`
   checks only a verified persona refresh token gets it.
 - `apps/api/src/tests/test_user_tests_assignment.py` and `services/userTests/__tests__/stageLines.test.ts`: stages per persona.
+- `apps/api/src/tests/test_user_tests_rig.py`: the new sign-up start, switching persona, the step log and report, and Discover inside a run.

@@ -66,6 +66,16 @@ class Finding(BaseModel):
     what_wanted: str = Field(default="", max_length=4000)
 
 
+class Step(BaseModel):
+    """One interaction for the story map: what the persona did or tried, whether it worked, and what they wanted."""
+
+    did: str = Field(min_length=1, max_length=1000)
+    outcome: Literal["worked", "struggled", "couldnt"] = "worked"
+    wanted: str = Field(default="", max_length=1000)
+    stage_key: str | None = Field(default=None, max_length=60)
+    page: str = Field(default="", max_length=1000)
+
+
 def _key(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:40] or "stage"
 
@@ -166,6 +176,12 @@ def log_finding(db: Session, persona: TestPersona, body: Finding) -> dict:
     return serialize_event(event)
 
 
+def log_step(db: Session, persona: TestPersona, body: Step) -> dict:
+    event = _record(db, persona.cohort_id, persona.user_id, "step", body.stage_key, body.model_dump(exclude={"stage_key"}))
+    db.commit()
+    return serialize_event(event)
+
+
 def record_blocked(message: str, detail: dict | None = None) -> None:
     """Log an action the seal or a persona session refused, so a blocked step shows in the report.
 
@@ -207,7 +223,7 @@ def report(db: Session, cohort_uuid: str) -> str:
     names = {user.id: f"{user.first_name} {user.last_name}".strip() for _, user in db.exec(select(TestPersona, User).join(User, User.id == TestPersona.user_id).where(TestPersona.cohort_id == cohort.id)).all()}
     titles = {stage["key"]: stage["title"] for stage in cohort.stages or []}
     rows = db.exec(select(TestEvent).where(TestEvent.cohort_id == cohort.id, TestEvent.kind.in_(["finding", "blocked"])).order_by(TestEvent.created_at)).all()  # type: ignore[attr-defined]
-    lines = [f"# {cohort.name}: findings", ""]
+    lines = [f"# {cohort.name}: findings", "", f"Release: {release()}", ""]
     sections = (("bug", "Bugs"), ("confusion", "Confusing parts"), ("wish", "Wishes"), ("blocked", "Refused by the test seal"))
     for kind, heading in sections:
         items = [row for row in rows if (row.payload or {}).get("kind", row.kind) == kind or (kind == "blocked" and row.kind == "blocked")]
@@ -223,9 +239,41 @@ def report(db: Session, cohort_uuid: str) -> str:
             if payload.get("what_wanted"):
                 lines.append(f"  - Wanted: {payload['what_wanted']}")
         lines.append("")
-    if len(lines) == 2:
+    if len(lines) == 4:
         lines.append("No findings yet.")
-    return "\n".join(lines)
+    return "\n".join(lines + _story_map(db, cohort, names, titles))
+
+
+OUTCOMES = {"worked": "Worked", "struggled": "Struggled", "couldnt": "Couldn't"}
+
+
+def _cell(text: str) -> str:
+    return " ".join((text or "").split()).replace("|", "\\|")
+
+
+def _story_map(db: Session, cohort: TestCohort, names: dict, titles: dict) -> list[str]:
+    """Every logged step, in order: the run's interaction log for building a story map."""
+    steps = db.exec(select(TestEvent).where(TestEvent.cohort_id == cohort.id, TestEvent.kind == "step").order_by(TestEvent.created_at, TestEvent.id)).all()
+    if not steps:
+        return []
+    lines = ["", f"## Steps ({len(steps)})", "", "| Persona | Stage | Did or tried | Result | Wanted | Page |", "|---|---|---|---|---|---|"]
+    for row in steps:
+        payload = row.payload or {}
+        lines.append("| " + " | ".join(_cell(part) for part in (
+            names.get(row.persona_user_id or 0, ""), titles.get(row.stage_key or "", ""), payload.get("did", ""),
+            OUTCOMES.get(payload.get("outcome", ""), ""), payload.get("wanted", ""), payload.get("page", ""))) + " |")
+    return lines
+
+
+def release() -> str:
+    """Which build this site runs, so a run's differences from another site can be traced to fixes."""
+    from src.core.build_info import build_info
+
+    info = build_info() or {}
+    sha = str(info.get("commit_sha") or "unknown")
+    if sha == "unknown":
+        return "not recorded on this site"
+    return f"{info.get('version', 'dev')} ({info.get('source_branch', 'unknown')} @ {sha[:10]}, released {info.get('released_at', 'unknown')})"
 
 
 def persona_view(db: Session, persona: TestPersona, user: User) -> dict:
@@ -241,4 +289,6 @@ def persona_view(db: Session, persona: TestPersona, user: User) -> dict:
     stages = [{"key": stage["key"], "title": stage["title"], "goal": stage["goal"], **{k: cell[k] for k in ("status", "note", "waiting_on")}} for stage, cell in zip(cohort.stages or [], cells) if cell["status"] != "not_assigned"]
     unread = db.exec(select(func.count()).select_from(TestMail).where(TestMail.to_user_id == user.id, TestMail.opened_at.is_(None))).one()  # type: ignore[union-attr]
     return {"persona": {"user_id": user.id, "name": f"{user.first_name} {user.last_name}".strip(), "handle": persona.handle}, "cohort": {"name": cohort.name},
-            "stages": stages, "unread_mail": unread}
+            "stages": stages, "unread_mail": unread,
+            # Names only, for the banner's switcher: one browser can play every persona in turn.
+            "others": [{"user_id": other.id, "name": f"{other.first_name} {other.last_name}".strip()} for item, other in rows if other.id != user.id]}
