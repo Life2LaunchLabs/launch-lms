@@ -8,13 +8,15 @@ import { getServerSession } from '@/lib/auth/server'
 import { hasDashboardAccessForOrg } from '@/lib/auth/orgAccess'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { routePaths } from '@services/config/config'
+import { formatAppPageTitle } from '@services/routing/pageTitles'
 
 /** The tab names the organization being run, not the software behind it. */
 export async function generateMetadata({ params }: { params: Promise<{ orgslug: string }> }): Promise<Metadata> {
   const { orgslug } = await params
   try {
     const org = await getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] })
-    return { title: org?.name ? `Admin · ${org.name}` : 'Admin' }
+    // The same "Admin | …" shape as every admin page's own title, so tabs read alike.
+    return { title: formatAppPageTitle({ section: 'Admin', detail: org?.name || undefined }) }
   } catch {
     return { title: 'Admin' }
   }

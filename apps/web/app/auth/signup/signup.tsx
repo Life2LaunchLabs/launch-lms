@@ -9,6 +9,7 @@ import InviteOnlySignUpComponent from './InviteOnlySignUp'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
 import AskToJoin from './AskToJoin'
@@ -64,8 +65,10 @@ function SignUpClient(props: SignUpClientProps) {
 
 /** Where staff and admins go after accepting: the tour (new accounts) and profile step before Home; undefined for learners. */
 function joinedUrl(org: any, preview: InvitePreview | null, newAccount: boolean): string | undefined {
-  if (!org?.slug || !preview || preview.kind !== 'invitation' || preview.role === 'learner') return undefined
-  return getUriWithOrg(org.slug, newAccount ? '/joined?tour=1' : '/joined')
+  // The invitation names its org; the page's org is only a fallback, so the welcome always opens on the org they joined.
+  const slug = preview?.org?.slug || org?.slug
+  if (!slug || !preview || preview.kind !== 'invitation' || preview.role === 'learner') return undefined
+  return getUriWithOrg(slug, newAccount ? '/joined?tour=1' : '/joined')
 }
 
 interface JoinScreenProps {
@@ -87,7 +90,13 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
   const [showMessage, setShowMessage] = useState(false)
   const router = useRouter()
   // Staff and admins set up their profile first; learners go straight in.
-  const after = joinedUrl(activeOrg, preview ?? null, false) || getUriWithOrg(activeOrg.slug, '/')
+  const after = joinedUrl(activeOrg, preview ?? null, false) || getUriWithOrg(preview?.org?.slug || activeOrg.slug, '/')
+  // Another org's address needs the sign-in carried over (host-only cookies), and a full page load.
+  const go = () => {
+    const target = authenticatedOrgHref(after, true)
+    if (new URL(target, window.location.origin).origin === window.location.origin) router.push(target)
+    else window.location.assign(target)
+  }
 
   const join = async () => {
     setIsSubmitting(true)
@@ -111,7 +120,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
       setSuccess(typeof res.data === 'string' ? res.data : t('auth.join_organization_success'))
       setShowMessage(true)
       setTimeout(() => {
-        router.push(after)
+        go()
       }, 2000)
     } else {
       const detail = res.data?.detail
@@ -120,7 +129,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
         setSuccess(t('auth.join_organization_success'))
         setShowMessage(true)
         setTimeout(() => {
-          router.push(after)
+          go()
         }, 1500)
         setIsSubmitting(false)
         return

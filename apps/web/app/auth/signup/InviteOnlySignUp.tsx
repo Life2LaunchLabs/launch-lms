@@ -1,4 +1,5 @@
 'use client'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useFormik } from 'formik'
 import React, { useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -99,7 +100,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
           return
         }
 
-        window.location.href = callbackUrl
+        window.location.href = authenticatedOrgHref(callbackUrl, true)
         return
       } else if (
         res.status == 401 ||
