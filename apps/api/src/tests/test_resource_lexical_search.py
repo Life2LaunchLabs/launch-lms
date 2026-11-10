@@ -49,9 +49,11 @@ def test_committed_relevance_set_establishes_measured_lexical_baseline(relevance
         ideal = [1 / math.log2(rank + 1) for rank in range(1, min(len(relevant), 10) + 1)]
         ndcg_at_ten.append(sum(gains) / sum(ideal))
 
-    assert sum(reciprocal_ranks) / len(reciprocal_ranks) == pytest.approx(7 / 9)
-    assert sum(recall_at_ten) / len(recall_at_ten) == pytest.approx(7 / 9)
-    assert sum(ndcg_at_ten) / len(ndcg_at_ten) == pytest.approx(7 / 9)
+    # "tuition assistance form" used to reach the FAFSA walkthrough only because the word "for" in its
+    # description counted as a prefix of "form" (the same mistake that matched "oregon" to "ore").
+    assert sum(reciprocal_ranks) / len(reciprocal_ranks) == pytest.approx(6 / 9)
+    assert sum(recall_at_ten) / len(recall_at_ten) == pytest.approx(6 / 9)
+    assert sum(ndcg_at_ten) / len(ndcg_at_ten) == pytest.approx(6 / 9)
 
 
 def test_weighted_fields_prefer_title_over_description():
@@ -169,3 +171,17 @@ def test_resource_edit_refreshes_only_its_document_and_invalidates_embedding():
         assert refreshed.embedding is None
         assert refreshed.embedding_model is None
         assert refreshed.embedding_version is None
+
+
+def test_short_indexed_words_inside_longer_query_terms_do_not_match():
+    documents = [
+        ResourceSearchDocument(key="dietitian", title="Dietitian or Nutritionist", description="Plan nutritional programs."),
+        ResourceSearchDocument(key="tool-and-die", title="Tool and Die Maker"),
+        ResourceSearchDocument(key="mining", title="Continuous Mining Machine Operator", description="Extract coal, ore or rock."),
+    ]
+
+    assert [item.document.key for item in rank_resource_documents(documents, "dietitian")] == ["dietitian"]
+    assert rank_resource_documents(documents, "university of oregon") == []
+    # A query term still being typed keeps finding longer words, and close word forms still match.
+    assert [item.document.key for item in rank_resource_documents(documents, "diet")] == ["dietitian"]
+    assert [item.document.key for item in rank_resource_documents(documents, "nutritional")] == ["dietitian"]
