@@ -68,10 +68,12 @@ def offers(db: Session, org_id: int | None = None, site_org_id: int | None = Non
     organization that runs them. ``org_id`` narrows to that organization's offers; without it, the site
     organization's offers and verified publishers' offers of their own plans."""
     from src.security.access.access import orgs_with_feature, owner_org_id
+    from src.services.user_tests.visibility import listed_for_viewer
 
     statement = (select(GoalTemplateLearnerAccess, GoalTemplate).join(GoalTemplate, GoalTemplate.id == GoalTemplateLearnerAccess.template_id)
                  .where(col(GoalTemplateLearnerAccess.access).in_(plan_access.OFFERED), GoalTemplate.status != TemplateStatus.ARCHIVED,
                         col(GoalTemplate.published_version_id).is_not(None), col(GoalTemplate.system_type).is_(None)))
+    statement = statement.where(listed_for_viewer(db, GoalTemplateLearnerAccess.org_id), listed_for_viewer(db, GoalTemplate.org_id))
     if org_id is not None:
         statement = statement.where(GoalTemplateLearnerAccess.org_id == org_id)
     if template_ids is not None:
