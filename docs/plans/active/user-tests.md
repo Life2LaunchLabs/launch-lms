@@ -43,6 +43,7 @@ way for a test to email, impersonate or change a real person.
 - [x] Phase 3: stories, stages, run board, persona panel, findings report, connector tools.
 - [x] Phase 4: checkpoints per stage (automatic when the last persona finishes) and publishing one as the demo.
 - [x] Phase 5: replays (Run again) and limits sized for 30 persona browsers.
+- [x] Stages per persona: a stage names the personas it is for, so each role gets its own.
 
 ## Decisions
 
@@ -95,6 +96,10 @@ way for a test to email, impersonate or change a real person.
 - For 30 persona browsers behind one cloud IP: a verified persona refresh token gets its own
   refresh limit (`refresh:test:<sub>`) instead of the shared per-IP one, and an admin can make
   400 login links an hour.
+- A stage can name its personas (`personas`: handles; empty is everyone). A persona sees and
+  reports only its own stages, the board shows a dash for the rest, and a stage counts as finished
+  (and is captured as a checkpoint) once the personas it is for are done. Run again keeps the
+  assignment. In the story editor: `Title | goal | for maya, sam | after dana/stage-key`.
 
 ## Verification
 
@@ -124,3 +129,4 @@ way for a test to email, impersonate or change a real person.
 - `apps/api/src/tests/test_user_tests_replays.py`: a replay's fresh personas, test org, stages
   and remapped waits, run numbering, and the per-persona refresh key; `test_user_tests.py`
   checks only a verified persona refresh token gets it.
+- `apps/api/src/tests/test_user_tests_assignment.py` and `services/userTests/__tests__/stageLines.test.ts`: stages per persona.

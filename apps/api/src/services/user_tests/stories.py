@@ -38,6 +38,8 @@ class Stage(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     goal: str = Field(default="", max_length=2000)
     after: After | None = None
+    # Handles of the personas this stage is for; empty means everyone in the run.
+    personas: list[str] = Field(default_factory=list, max_length=50)
 
     @field_validator("title", "goal")
     @classmethod
@@ -76,7 +78,11 @@ def set_stages(db: Session, cohort_uuid: str, body: SetStages) -> dict:
         key = _key(stage.key or stage.title)
         while key in {item["key"] for item in stages}:
             key = f"{key[:36]}-{len(stages) + 1}"
-        stages.append({"key": key, "title": stage.title, "goal": stage.goal, "after": stage.after.model_dump() if stage.after else None})
+        who = list(dict.fromkeys(handle.strip().lower().lstrip("@") for handle in stage.personas if handle.strip()))
+        unknown = [handle for handle in who if handle not in handles]
+        if unknown:
+            raise HTTPException(422, f"\"{stage.title}\" is for a persona that isn't in this cohort: {', '.join(unknown)}.")
+        stages.append({"key": key, "title": stage.title, "goal": stage.goal, "after": stage.after.model_dump() if stage.after else None, "personas": who})
     keys = {item["key"] for item in stages}
     for stage in stages:
         after = stage["after"]
@@ -89,9 +95,17 @@ def set_stages(db: Session, cohort_uuid: str, body: SetStages) -> dict:
     return board(db, cohort_uuid)
 
 
+def is_for(stage: dict, handle: str) -> bool:
+    """Whether a stage is one of this persona's: stages name their personas, or are for everyone."""
+    return not stage.get("personas") or handle in stage["personas"]
+
+
 def _cells(cohort: TestCohort, persona: TestPersona, by_handle: dict[str, tuple[TestPersona, User]]) -> list[dict]:
     cells = []
     for stage in cohort.stages or []:
+        if not is_for(stage, persona.handle):
+            cells.append({"stage_key": stage["key"], "status": "not_assigned", "note": "", "updated_at": None, "waiting_on": None})
+            continue
         state = (persona.stage_state or {}).get(stage["key"]) or {}
         status, waiting_on = state.get("status") or "not_started", None
         after = stage.get("after")
@@ -113,7 +127,7 @@ def board(db: Session, cohort_uuid: str) -> dict:
     for persona, user in rows:
         cells = _cells(cohort, persona, by_handle)
         personas.append({"user_id": user.id, "name": f"{user.first_name} {user.last_name}".strip(), "handle": persona.handle, "brief": persona.brief, "cells": cells,
-                         "rank": min([ORDER[cell["status"]] for cell in cells] or [ORDER["not_started"]])})
+                         "rank": min([ORDER[cell["status"]] for cell in cells if cell["status"] in ORDER] or [ORDER["not_started"]])})
     personas.sort(key=lambda item: item["rank"])
     counts = {status: sum(1 for row in personas for cell in row["cells"] if cell["status"] == status) for status in ORDER}
     return {"stages": cohort.stages or [], "personas": personas, "counts": counts}
@@ -133,6 +147,9 @@ def report_progress(db: Session, persona: TestPersona, body: Progress, by: str =
     cohort = db.get(TestCohort, persona.cohort_id)
     if not cohort or body.stage_key not in _stage_keys(cohort):
         raise HTTPException(404, f"There is no stage \"{body.stage_key}\" in this run.")
+    stage = next(item for item in cohort.stages if item["key"] == body.stage_key)
+    if not is_for(stage, persona.handle):
+        raise HTTPException(422, f"\"{stage['title']}\" isn't one of this persona's stages.")
     state = dict(persona.stage_state or {})
     state[body.stage_key] = {"status": body.status, "note": body.note.strip(), "updated_at": datetime.utcnow().isoformat() + "Z", "by": by}
     persona.stage_state = state
@@ -221,7 +238,7 @@ def persona_view(db: Session, persona: TestPersona, user: User) -> dict:
         raise HTTPException(401, "This test cohort is closed.")
     rows = db.exec(select(TestPersona, User).join(User, User.id == TestPersona.user_id).where(TestPersona.cohort_id == cohort.id)).all()
     cells = _cells(cohort, persona, {item.handle: (item, other) for item, other in rows})
-    stages = [{"key": stage["key"], "title": stage["title"], "goal": stage["goal"], **{k: cell[k] for k in ("status", "note", "waiting_on")}} for stage, cell in zip(cohort.stages or [], cells)]
+    stages = [{"key": stage["key"], "title": stage["title"], "goal": stage["goal"], **{k: cell[k] for k in ("status", "note", "waiting_on")}} for stage, cell in zip(cohort.stages or [], cells) if cell["status"] != "not_assigned"]
     unread = db.exec(select(func.count()).select_from(TestMail).where(TestMail.to_user_id == user.id, TestMail.opened_at.is_(None))).one()  # type: ignore[union-attr]
     return {"persona": {"user_id": user.id, "name": f"{user.first_name} {user.last_name}".strip(), "handle": persona.handle}, "cohort": {"name": cohort.name},
             "stages": stages, "unread_mail": unread}

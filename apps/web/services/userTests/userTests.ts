@@ -30,7 +30,7 @@ export type TestPersona = {
   unread_mail: number
 }
 
-export type TestStage = { key: string; title: string; goal: string; after: { persona: string; stage: string } | null }
+export type TestStage = { key: string; title: string; goal: string; after: { persona: string; stage: string } | null; personas?: string[] }
 export type TestCohortDetail = TestCohort & { personas: TestPersona[]; org_ids: number[]; stages: TestStage[] }
 
 export type TestMailLink = { url: string; path: string | null }
@@ -68,17 +68,17 @@ export const addPersonas = (cohortUuid: string, personas: NewPersona[]) =>
 export const readTestMail = (mailId: number) => call<TestMail>(`mail/${mailId}`)
 
 export type StageStatus = 'not_started' | 'waiting' | 'in_progress' | 'done' | 'stuck'
-export type BoardCell = { stage_key: string; status: StageStatus; note: string; updated_at: string | null; waiting_on: string | null }
+export type BoardCell = { stage_key: string; status: StageStatus | 'not_assigned'; note: string; updated_at: string | null; waiting_on: string | null }
 export type TestBoard = { stages: TestStage[]; personas: { user_id: number; name: string; handle: string; brief: string; cells: BoardCell[] }[]; counts: Record<StageStatus, number> }
 export type TestEvent = { id: number; kind: 'progress' | 'finding' | 'blocked'; persona_user_id: number | null; stage_key: string | null; payload: Record<string, string>; created_at: string }
-export type NewStage = { title: string; goal?: string; after?: { persona: string; stage: string } | null }
+export type NewStage = { title: string; goal?: string; after?: { persona: string; stage: string } | null; personas?: string[] }
 export const setStages = (cohortUuid: string, stages: NewStage[]) => call<TestBoard>(`cohorts/${cohortUuid}/stages`, 'PUT', { stages })
 export const fetchReport = (cohortUuid: string) => call<{ markdown: string }>(`cohorts/${cohortUuid}/report`)
 export const setPersonaProgress = (userId: number, stageKey: string, status: StageStatus, note = '') =>
   call<BoardCell>(`personas/${userId}/progress`, 'POST', { stage_key: stageKey, status, note })
 
 /* A persona's own session: its stages, its inbox, and what it reports. */
-export type MyRun = { persona: { user_id: number; name: string; handle: string }; cohort: { name: string }; stages: (Pick<TestStage, 'key' | 'title' | 'goal'> & Pick<BoardCell, 'status' | 'note' | 'waiting_on'>)[]; unread_mail: number }
+export type MyRun = { persona: { user_id: number; name: string; handle: string }; cohort: { name: string }; stages: (Pick<TestStage, 'key' | 'title' | 'goal'> & Pick<BoardCell, 'note' | 'waiting_on'> & { status: StageStatus })[]; unread_mail: number }
 export type NewFinding = { kind: 'bug' | 'confusion' | 'wish'; severity?: 'low' | 'medium' | 'high'; stage_key?: string | null; page?: string; what_happened: string; what_wanted?: string }
 export const fetchMyRun = () => call<MyRun>('me')
 export const fetchMyMail = () => call<{ mail: TestMail[] }>('me/mail')
@@ -86,22 +86,7 @@ export const readMyMail = (mailId: number) => call<TestMail>(`me/mail/${mailId}`
 export const reportMyProgress = (stageKey: string, status: StageStatus, note = '') => call<BoardCell>('me/progress', 'POST', { stage_key: stageKey, status, note })
 export const logMyFinding = (finding: NewFinding) => call<TestEvent>('me/findings', 'POST', finding)
 
-/** "Title | goal | after dana/invite-your-students" per line. */
-export function parseStageLines(text: string): NewStage[] {
-  return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [title, goal = '', after = ''] = line.split('|').map((part) => part.trim())
-    const match = after.match(/^after\s+([^/\s]+)\s*\/\s*(\S+)$/i)
-    return { title, goal, after: match ? { persona: match[1].toLowerCase(), stage: match[2].toLowerCase() } : null }
-  })
-}
-
-export function stageLines(stages: TestStage[]): string {
-  return stages.map((stage) => {
-    const parts = [stage.title, stage.goal]
-    if (stage.after) parts.push(`after ${stage.after.persona}/${stage.after.stage}`)
-    return parts.join(' | ')
-  }).join('\n')
-}
+export { parseStageLines, stageLines } from './stageLines'
 
 export type TestLeak = { table: string; key: Record<string, number | string>; worlds: string[] }
 export type TestAudit = { clean: boolean; count: number; leaks: TestLeak[]; checked_at: string }
