@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 MAX_MESSAGES = 12
 MAX_MESSAGE_CHARS = 2_000
-MAX_ASSISTANT_CHARS = 1_600
+MAX_ASSISTANT_CHARS = 16_000  # Safety bound, not a budget: holds 4,000 output tokens (the most a model may write).
 MAX_CONVERSATION_CHARS = 8_000
 MAX_OUTPUT_TOKENS = 700
 ADVISOR_RATE_LIMIT = 12
