@@ -100,7 +100,11 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
           <StepsTab ctx={ctx} scheduling={scheduling} setScheduling={(on) => setQuery(on ? { schedule: '1' } : {})}
             onSave={(draft: ScheduleDraft) => run(() => assignmentApi.saveSchedule(orgId, assignmentUuid, draftToSave(draft), token), 'Schedule saved. Learners’ plans moved with it.')} />
           <Sidebar detail={detail} thread={thread} onMessage={message}
-            needsHref={(kind) => href({ tab: 'people', filter: kind })}
+            needsHref={(kind) => {
+              // Ready to review opens the review screen, at the first step with work waiting, like the step's own "to review".
+              const waiting = kind === 'review' ? detail.stages.flatMap((stage) => stage.steps).find((step) => step.counts.review > 0) : undefined
+              return waiting ? ctx.reviewHref(waiting.key) : href({ tab: 'people', filter: kind })
+            }}
             otherHref={(uuid) => getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(uuid))} />
         </div>}
     </div>
