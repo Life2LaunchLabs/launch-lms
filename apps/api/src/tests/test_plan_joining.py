@@ -193,3 +193,32 @@ def test_a_plan_request_is_a_card_in_the_askers_thread_and_the_answer_is_posted_
         # Answered, the card is gone; Nia is a learner now.
         thread = threads.person_thread(db, _user(ADMIN), 1, NEWCOMER)
         assert (thread["role"], thread["plan_requests"]) == ("learner", [])
+
+
+def test_a_test_orgs_offers_reach_only_its_own_runs_personas():
+    from datetime import datetime, timedelta
+
+    from src.db.user_tests import TestCohort, TestCohortOrg, TestPersona
+    from src.services.user_tests import seal
+    from src.services.user_tests.sessions import current_test_persona
+
+    db, (first, _) = _setup()
+    for model in (TestCohort, TestPersona, TestCohortOrg):
+        model.__table__.create(db.get_bind(), checkfirst=True)
+    seal._has_tables.clear()  # the world's setup already found no test tables
+    with db:
+        db.add(TestCohort(id=1, cohort_uuid="cohort_1", name="Run", slug="run", created_by=ADMIN, expires_at=datetime.utcnow() + timedelta(days=1)))
+        db.add(TestPersona(user_id=NEWCOMER, cohort_id=1, handle="nia"))
+        db.add(TestCohortOrg(org_id=PARTNER, cohort_id=1))
+        db.commit()
+        _offer(db, first, PARTNER, "open")
+
+        def offered(viewer):
+            token = current_test_persona.set(viewer)
+            try:
+                return {(int(offer.template.id), offer.org_id) for offer in plan_joining.offers(db, PARTNER)}  # type: ignore[arg-type]
+            finally:
+                current_test_persona.reset(token)
+
+        assert offered(None) == set()  # real learners never see a test org's plans, wherever they look
+        assert offered(NEWCOMER) == {(int(first.id), PARTNER)}  # type: ignore[arg-type]  # the run's own personas do
