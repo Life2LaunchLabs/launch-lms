@@ -23,6 +23,9 @@ from src.services.life_plans.titles import singular_title
     ("Electrician", "Electrician"),
     ("Emergency Medical Technician", "Emergency Medical Technician"),
     ("Chief Executives", "Chief Executive"),
+    ("Nurse Midwives", "Nurse Midwife"),
+    ("Customer Service Representatives", "Customer Service Representative"),
+    ("Detectives and Criminal Investigators", "Detective or Criminal Investigator"),
     ("Agents and Business Managers of Artists, Performers, and Athletes", "Agent or Business Manager of Artists, Performers, and Athletes"),
     ("", ""),
 ])
