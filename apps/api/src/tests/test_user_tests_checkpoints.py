@@ -68,3 +68,23 @@ def test_a_checkpoint_from_before_a_product_update_is_not_published(db):  # noqa
     with pytest.raises(HTTPException):
         checkpoints.capture_now(db, cohort["cohort_uuid"], 1, "no-such-stage")
     assert db.get(TestCohort, db.get(TestCheckpoint, made["id"]).cohort_id)
+
+
+def test_a_demo_visitor_exploring_a_published_persona_keeps_a_demo_session(monkeypatch):
+    """The visitor copy's persona has a test address, but it's a demo session, not a test one."""
+    from types import SimpleNamespace
+
+    from src.services.demo import refresh as demo_refresh
+    from src.services.user_tests.sessions import is_test_session
+    from src.services.user_tests.settings import email_domain
+
+    persona = f"dana@cohort.{email_domain()}"
+    assert is_test_session({"sub": persona})
+    visitor = {"sub": persona, "demo_session": "visit-1", "demo_user": 7}
+    assert not is_test_session(visitor)
+
+    monkeypatch.setattr(demo_refresh, "visitor_credentials", lambda _db, session: {"access_token": f"a-{session}", "refresh_token": "r", "expiry": 1})
+    set_cookies = []
+    request = SimpleNamespace(cookies={})
+    result = demo_refresh.refresh_demo(request, None, visitor, lambda *args: set_cookies.append(args), lambda: 1)
+    assert result["access_token"] == "a-visit-1" and set_cookies

@@ -57,7 +57,7 @@ def capture(db: Session, cohort: TestCohort, stage_key: str | None, actor_id: in
     titles = {stage["key"]: stage["title"] for stage in cohort.stages or []}
     checkpoint = TestCheckpoint(
         id=uuid4().hex, cohort_id=int(cohort.id), stage_key=stage_key,  # type: ignore[arg-type]
-        label=label.strip()[:120] or (f"After {titles[stage_key]}" if stage_key else "Captured by hand"),
+        label=label.strip()[:120] or (f"After {titles[stage_key]}" if stage_key else "The run so far"),
         created_by=actor_id, schema_signature=schema_signature(), pilots=pilots, portraits=portraits, summary=summary,
         data={"schema": schema_signature(), "rows": rows, "files": files, "summary": summary},
     )
