@@ -60,6 +60,10 @@ def test_a_connector_runs_a_cohort_end_to_end(db, monkeypatch):  # noqa: F811
     report = _call(db, "get_test_report", {"cohort_uuid": uuid})["structuredContent"]["markdown"]
     assert "## Confusing parts (1)" in report and "The invite opened a login page" in report
 
+    captured = _call(db, "capture_test_checkpoint", {"cohort_uuid": uuid, "label": "Mid-run"})["structuredContent"]
+    listed = _call(db, "get_test_cohort", {"cohort_uuid": uuid})["structuredContent"]["checkpoints"]
+    assert [item["label"] for item in listed] == ["Mid-run"] and listed[0]["id"] == captured["id"]
+
     assert _call(db, "purge_test_cohort", {"cohort_uuid": uuid})["isError"]  # still open
     _call(db, "close_test_cohort", {"cohort_uuid": uuid})
     dry = _call(db, "purge_test_cohort", {"cohort_uuid": uuid})["structuredContent"]

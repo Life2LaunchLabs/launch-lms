@@ -7,6 +7,9 @@ import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
 import { addPersonas, closeCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestPersona } from '@services/userTests/userTests'
 import CohortCleanup from './CohortCleanup'
+import CohortCheckpoints from './CohortCheckpoints'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import LoginLinkPanel, { useLoginLink } from './LoginLinkPanel'
 import RunBoard from './RunBoard'
 import { useAsk } from '@components/ui/ask-dialog'
@@ -46,6 +49,8 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
   const [closing, setClosing] = useState(false)
   const [closeError, setCloseError] = useState('')
   const ask = useAsk()
+  const org = useOrg() as { slug?: string } | undefined
+  const demoHref = org?.slug ? getUriWithOrg(org.slug, routePaths.owner.platform.demo()) : routePaths.owner.platform.demo()
   const isOpen = data?.status === 'open'
 
   async function close() {
@@ -85,6 +90,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
       </section>
       {isOpen ? <AddPersonasForm cohort={data} onAdded={() => void mutate()} /> : null}
       <RunBoard cohortUuid={cohortUuid} personas={data.personas} stages={data.stages} isOpen={isOpen} onChanged={() => void mutate()} />
+      {data.status !== 'purged' ? <CohortCheckpoints cohortUuid={cohortUuid} stages={data.stages} canCapture={isOpen} demoHref={demoHref} /> : null}
       {!isOpen && data.status !== 'purged' ? <CohortCleanup cohortUuid={cohortUuid} cohortName={data.name} onPurged={() => void mutate()} /> : null}
       <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} onOpenAs={({ persona, path, origin }) => { if (isOpen) openAs(persona, path, origin) }} />
     </> : null}

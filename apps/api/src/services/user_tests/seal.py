@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 REAL = 0  # the real world; a test world is its cohort id
 
 # Bookkeeping that names people without connecting them.
-SKIP_TABLES = {"auditlog", "test_cohort", "test_persona", "test_cohort_org", "test_mail", "test_login_ticket", "test_event"}
+SKIP_TABLES = {"auditlog", "test_cohort", "test_persona", "test_cohort_org", "test_mail", "test_login_ticket", "test_event", "test_checkpoint"}
 # Rows in these tables are places where people meet, so a row pointing at one names their people too.
 FOLLOW_TARGETS = {"conversation", "conversationmessage", "goal", "portfolio", "resourcecomment"}
 # Public writes read by everyone in the org: here the main org counts as real, not shared.
