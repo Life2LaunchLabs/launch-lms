@@ -14,7 +14,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 from src.db.user_tests import TestCohort, TestCohortOrg, TestLoginTicket, TestMail, TestPersona
 from src.db.users import User
@@ -116,7 +117,13 @@ def purge(db: Session, cohort_uuid: str, *, dry_run: bool = True) -> dict:
         raise HTTPException(409, {"code": "leaks_found", "message": "The leak audit found links to real people or orgs. Fix those first; purge never touches real data.", **result})
     if dry_run:
         return result
-    _delete(db, cohort, users, orgs)
+    try:
+        _delete(db, cohort, users, orgs)
+    except IntegrityError as exc:
+        db.rollback()
+        # Say which link stopped it, so a failed purge never shows up as a bare server error.
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None) or str(exc.orig).splitlines()[0]
+        raise HTTPException(409, {"code": "purge_blocked", "message": f"A row still points at this cohort's personas or orgs ({constraint}). Nothing was deleted.", **result}) from exc
     return {**result, "status": "purged"}
 
 
@@ -125,8 +132,22 @@ def _delete(db: Session, cohort: TestCohort, users: set[int], orgs: set[int]) ->
     from src.db.user_organizations import UserOrganization
     from src.services.superadmin.users import _invalidate_session_cache
 
+    from src.db.api_tokens import APIToken
+    from src.db.goals import Goal, GoalAssignment
+    from src.db.requirements import RequirementAssignmentBatch, RequirementEnrollment
+
     for ticket in db.execute(select(TestLoginTicket).where(TestLoginTicket.persona_user_id.in_(users))).scalars() if users else []:  # type: ignore[attr-defined]
         db.delete(ticket)
+    # Rows whose keys RESTRICT (or don't cascade) would stop the user and org deletes below, so they
+    # go first. The clean audit means every one of them belongs to this cohort.
+    if users:
+        db.execute(delete(Goal).where(Goal.owner_user_id.in_(users)))  # type: ignore[attr-defined]
+        db.execute(delete(APIToken).where(APIToken.created_by_user_id.in_(users)))  # type: ignore[attr-defined]
+        db.execute(delete(RequirementEnrollment).where(RequirementEnrollment.user_id.in_(users)))  # type: ignore[attr-defined]
+    if orgs:
+        db.execute(delete(RequirementEnrollment).where(RequirementEnrollment.org_id.in_(orgs)))  # type: ignore[attr-defined]
+        db.execute(delete(RequirementAssignmentBatch).where(RequirementAssignmentBatch.org_id.in_(orgs)))  # type: ignore[attr-defined]
+        db.execute(delete(GoalAssignment).where(GoalAssignment.org_id.in_(orgs)))  # type: ignore[attr-defined]
     for org_id in orgs:
         if (org := db.get(Organization, org_id)) is not None:
             db.delete(org)  # its rows go with it (ON DELETE CASCADE)
