@@ -101,7 +101,7 @@ export const purgeCohort = (cohortUuid: string, dryRun: boolean) => call<TestPur
 export const createLoginLink = (userId: number, targetPath = '/') =>
   call<LoginLink>(`personas/${userId}/login-link`, 'POST', { target_path: targetPath })
 /** Through the web's own route, which sets this browser's cookies for the persona. */
-export async function redeemLoginLink(ticket: string): Promise<{ target_path: string; persona: { user_id: number; name: string }; cohort: { name: string } }> {
+export async function redeemLoginLink(ticket: string): Promise<{ target_path: string; target_org_slug?: string | null; persona: { user_id: number; name: string }; cohort: { name: string } }> {
   const res = await fetch('/api/user-tests/redeem', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }) })
   return errorHandling(res)
 }

@@ -6,7 +6,10 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { signOut } from '@components/Contexts/AuthContext'
 import { fetchMyRun, readTestPersonaCookie, switchPersona } from '@services/userTests/userTests'
 
-const PersonaPanel = dynamic(() => import('./PersonaPanel'), { ssr: false })
+const PersonaPanel = dynamic(() => import('./PersonaPanel'), {
+  ssr: false,
+  loading: () => <div role="status" className="absolute right-2 top-full mt-1 rounded-xl border bg-card p-4 text-sm text-muted-foreground shadow-xl">Loading…</div>,
+})
 
 function clearMarker() {
   const expire = 'launchlms_test_persona=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'

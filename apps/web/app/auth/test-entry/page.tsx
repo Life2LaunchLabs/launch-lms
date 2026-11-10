@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { redeemLoginLink } from '@services/userTests/userTests'
+import { authenticatedOrgHref } from '@services/auth/handoff'
+import { getUriWithOrg } from '@services/config/config'
 
 /** Spends a one-use login link an admin made in Platform › User tests, then goes to its page. */
 function TestEntryInner() {
@@ -23,7 +25,11 @@ function TestEntryInner() {
     // Drop the ticket from the address bar and history before anything else.
     window.history.replaceState(null, '', '/auth/test-entry')
     redeemLoginLink(ticket)
-      .then((result) => { window.location.replace(result.target_path || '/') })
+      .then((result) => {
+        // An org's admin lands on that org's own site, with the persona's session carried there.
+        const path = result.target_path || '/'
+        window.location.replace(result.target_org_slug ? authenticatedOrgHref(getUriWithOrg(result.target_org_slug, path), true) : path)
+      })
       .catch((failure) => setError((failure as Error).message || 'This login link did not work.'))
   }, [ticket])
 

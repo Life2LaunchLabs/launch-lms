@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const data = await upstream.json()
     if (!upstream.ok) return NextResponse.json({ detail: data?.detail || 'This login link did not work.' }, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } })
     const options = getCookieOptions(request)
-    const response = NextResponse.json({ target_path: data.target_path, persona: data.persona, cohort: data.cohort }, { headers: { 'Cache-Control': 'no-store' } })
+    const response = NextResponse.json({ target_path: data.target_path, target_org_slug: data.target_org_slug || null, persona: data.persona, cohort: data.cohort }, { headers: { 'Cache-Control': 'no-store' } })
     response.cookies.set(ACCESS_TOKEN_COOKIE, data.tokens.access_token, { ...options, maxAge: SESSION_SECONDS })
     response.cookies.set(REFRESH_TOKEN_COOKIE, data.tokens.refresh_token, { ...options, maxAge: SESSION_SECONDS })
     response.cookies.set('launchlms_has_session', '1', { ...options, httpOnly: false, maxAge: SESSION_SECONDS })

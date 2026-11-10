@@ -5,6 +5,8 @@ import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
 import StepForm from './StepForm'
+import { authenticatedOrgHref } from '@services/auth/handoff'
+import { personaMailHtml } from '@services/userTests/mailLinks'
 import {
   fetchMyMail, fetchMyRun, logMyFinding, readMyMail, reportMyProgress,
   type MyRun, type NewFinding, type StageStatus, type TestMail,
@@ -36,6 +38,9 @@ function Stages({ run, onChanged }: { run: MyRun; onChanged: () => void }) {
   </ol>
 }
 
+/** A link from the persona's mail, opened as this persona on the link's own site (an org's host). */
+const carry = (url: string) => authenticatedOrgHref(url, true)
+
 function Mail() {
   const { data } = useSWR('user_tests/me/mail', fetchMyMail, { refreshInterval: 15000 })
   const [open, setOpen] = useState<TestMail | null>(null)
@@ -43,9 +48,10 @@ function Mail() {
     <button type="button" className="text-xs underline" onClick={() => setOpen(null)}>Back to inbox</button>
     <p className="font-semibold">{open.subject}</p>
     {open.links.length ? <ul className="space-y-1 text-xs">{open.links.map((link) => <li key={link.url}>
-      {link.path ? <a className="underline" href={link.path}>{link.path}</a> : <span className="break-all">{link.url}</span>}
+      {link.path ? <a className="break-all underline" href={carry(link.url)}>{link.url}</a> : <span className="break-all">{link.url}</span>}
     </li>)}</ul> : null}
-    <iframe title={`Email: ${open.subject}`} sandbox="" srcDoc={open.html || ''} className="h-80 w-full rounded-lg border bg-white" />
+    {/* Links open in the whole window, as this persona, on the link's own site. Scripts and forms stay off. */}
+    <iframe title={`Email: ${open.subject}`} sandbox="allow-top-navigation-by-user-activation" srcDoc={personaMailHtml(open.html || '', carry)} className="h-80 w-full rounded-lg border bg-white" />
   </div>
   if (!data) return <p className="text-sm text-muted-foreground">Loading…</p>
   if (!data.mail.length) return <p className="text-sm text-muted-foreground">No email yet. Anything the site sends you shows up here.</p>
@@ -85,7 +91,8 @@ function FindingForm({ run }: { run: MyRun }) {
 
 /** The persona's own side of a run: its stages, the email the site sent it, and a place to note what went wrong. */
 export default function PersonaPanel({ onClose }: { onClose: () => void }) {
-  const { data: run, error, mutate } = useSWR('user_tests/me', fetchMyRun, { refreshInterval: 15000 })
+  // Revalidates on opening: after a move to another site (an org's, after setting it up) the panel never shows stale or empty.
+  const { data: run, error, mutate } = useSWR('user_tests/me', fetchMyRun, { refreshInterval: 15000, revalidateOnMount: true, shouldRetryOnError: true, errorRetryCount: 3 })
   const [tab, setTab] = useState<Tab>('stages')
   const tabs: [Tab, string][] = [['stages', 'My stages'], ['step', 'Log a step'], ['mail', `Email${run?.unread_mail ? ` (${run.unread_mail})` : ''}`], ['finding', 'Note a problem']]
   return <div role="dialog" aria-label="Test run" className="absolute right-2 top-full mt-1 max-h-[80vh] w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border bg-card p-4 text-left text-sm text-foreground shadow-xl">
