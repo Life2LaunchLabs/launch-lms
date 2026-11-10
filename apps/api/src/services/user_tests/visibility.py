@@ -44,6 +44,18 @@ def visible_orgs(db: Session, viewer_id: int | None, org_id_column):
     return ~hidden
 
 
+def discoverable_orgs(db: Session, current_user, org_id_column):
+    """Org search and org pages: test orgs show only to their own run's personas, never to real people."""
+    return visible_orgs(db, getattr(current_user, "id", None) or None, org_id_column)
+
+
+def org_is_discoverable(db: Session, current_user, org_id: int | None) -> bool:
+    if not org_id or not is_test_org(db, org_id):
+        return True
+    cohort = viewer_cohort(db, getattr(current_user, "id", None) or None)
+    return cohort is not None and db.get(TestCohortOrg, int(org_id)).cohort_id == cohort  # type: ignore[union-attr]
+
+
 def listed_for_viewer(db: Session, org_id_column):
     """A WHERE clause for Discover listings: a test org's listings reach only its own run's personas.
 
