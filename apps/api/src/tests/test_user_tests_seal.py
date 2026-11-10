@@ -267,3 +267,36 @@ def test_main_org_insights_leave_personas_out_for_real_viewers(db):
     maya = _persona(db, _cohort(db))
     assert maya["user_id"] not in {row.user_id for row in _learner_memberships(db, 1, 1)}
     assert maya["user_id"] in {row.user_id for row in _learner_memberships(db, 1, maya["user_id"])}
+
+
+def test_purge_removes_a_persona_who_owns_plans_and_an_org_that_assigned_them(db):
+    # Postgres enforces the RESTRICT keys on goal.owner_user_id and goal_assignment.version_id;
+    # turn SQLite's foreign keys on so this test does too.
+    from sqlalchemy import text
+    from src.db.goals import Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion
+
+    cohort = _cohort(db)
+    dana = _persona(db, cohort, first_name="Dana", start_state="org_owner", org_name="Riverside High")
+    maya = _persona(db, cohort)
+    test_org = db.exec(select(TestCohortOrg)).one().org_id
+    template = GoalTemplate(template_uuid="gt_1", org_id=test_org, title="Safety badge")
+    db.add(template)
+    db.commit()
+    version = GoalTemplateVersion(version_uuid="gtv_1", template_id=template.id, org_id=test_org)
+    db.add(version)
+    db.commit()
+    assignment = GoalAssignment(assignment_uuid="ga_1", org_id=test_org, template_id=template.id, version_id=version.id, user_id=maya["user_id"])
+    db.add(assignment)
+    db.commit()
+    db.add_all([
+        Goal(goal_uuid="g_1", owner_user_id=maya["user_id"], org_id=test_org, assignment_id=assignment.id, version_id=version.id, title="Safety badge"),
+        Goal(goal_uuid="g_2", owner_user_id=maya["user_id"], org_id=1, title="Afford University of Oregon"),
+    ])
+    db.commit()
+    db.execute(text("PRAGMA foreign_keys=ON"))
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    done = cleanup.purge(db, cohort["cohort_uuid"], dry_run=False)
+    assert done["status"] == "purged"
+    assert db.get(User, maya["user_id"]) is None and db.get(User, dana["user_id"]) is None
+    assert db.get(Organization, test_org) is None
+    assert db.exec(select(Goal)).all() == [] and db.exec(select(GoalAssignment)).all() == []
