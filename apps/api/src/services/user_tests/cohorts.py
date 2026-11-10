@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
 from sqlmodel import Session, select
+from src.db.organizations import Organization
 from src.db.user_tests import TestCohort, TestCohortOrg, TestMail, TestPersona
 from src.db.users import User
 
@@ -97,6 +98,11 @@ def persona_row(db: Session, persona: TestPersona, user: User) -> dict:
         "start_state": persona.start_state,
         "last_active_at": persona.last_active_at.isoformat() + "Z" if persona.last_active_at else None,
         "unread_mail": unread,
+        # Orgs this persona made, by hand or at the start: a new sign-up's org shows here once it exists.
+        "orgs": [{"id": org_id, "name": name, "slug": slug} for org_id, name, slug in db.exec(
+            select(Organization.id, Organization.name, Organization.slug).join(TestCohortOrg, TestCohortOrg.org_id == Organization.id)
+            .where(TestCohortOrg.created_by_user_id == user.id).order_by(Organization.id)
+        ).all()],
     }
 
 

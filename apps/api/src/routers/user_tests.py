@@ -204,7 +204,11 @@ def switch_persona(body: SwitchRequest, me: tuple[TestPersona, User] = Depends(p
     allowed, _, retry = check_rate_limit(f"user-tests-mint:{operator_id}", MINT_PER_HOUR, 3600)
     if not allowed:
         raise HTTPException(429, f"Too many login links this hour. Try again in {retry} seconds.")
-    return tickets.mint(db, operator_id, target.user_id, "/")
+    from src.services.oauth.config import frontend_url
+
+    link = tickets.mint(db, operator_id, target.user_id, "/")
+    # On the main site, whatever host this persona is on: its session there is replaced.
+    return {**link, "url": f"{frontend_url()}{link['path']}"}
 
 
 @router.post("/me/steps", status_code=201)

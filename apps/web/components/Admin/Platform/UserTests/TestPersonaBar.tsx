@@ -49,8 +49,8 @@ export default function TestPersonaBar() {
     try {
       const link = await switchPersona(otherId)
       clearMarker()
-      // Sign this browser out, then open the other persona's one-use link here.
-      void signOut({ callbackUrl: link.path })
+      // Sign this browser out here, then open the other persona's one-use link on the main site.
+      void signOut({ callbackUrl: link.url || link.path })
     } catch (failure) { window.alert((failure as Error).message) }
   }
   if (!marker || !userId) return null

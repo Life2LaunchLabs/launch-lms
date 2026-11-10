@@ -16,6 +16,7 @@ from src.db.badges import BadgeAward
 from src.db.organization_config import OrganizationConfig, OrganizationConfigDocument
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.plan_requests import PlanRequest, PlanRequestUpdate
+from src.services.user_tests.visibility import is_test_org
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -451,18 +452,15 @@ def delete_organization(db_session: Session, org_id: int) -> dict:
 # ============================================================================
 
 
-def list_all_plan_requests(
-    db_session: Session, status: str | None = None
-) -> list[dict]:
-    query = select(PlanRequest, Organization).join(
-        Organization, Organization.id == PlanRequest.org_id
-    )
+def list_all_plan_requests(db_session: Session, status: str | None = None) -> list[dict]:
+    query = select(PlanRequest, Organization).join(Organization, Organization.id == PlanRequest.org_id)
     if status:
         query = query.where(PlanRequest.status == status)
     query = query.order_by(PlanRequest.creation_date.desc())
     return [
         {
             **req.model_dump(),
+            "is_test_org": is_test_org(db_session, req.org_id),  # from a user test run
             "org_name": org.name,
             "org_slug": org.slug,
             "org_uuid": org.org_uuid,

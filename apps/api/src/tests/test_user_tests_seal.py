@@ -150,14 +150,16 @@ def test_personas_cant_change_who_they_are_but_real_users_can(db):
     db.commit()
 
 
-def test_test_orgs_cant_publish_or_request_upgrades(db):
+def test_test_orgs_can_request_access_like_real_ones(db):
+    """A persona's org applies for a partner program; a platform admin approves it as usual."""
     cohort = _cohort(db)
     _persona(db, cohort, first_name="Dana", start_state="org_owner", org_name="Riverside High")
     test_org = db.exec(select(TestCohortOrg)).one().org_id
-    error = _refused(db, PlanRequest(org_id=test_org, request_uuid="req_1"))
-    assert "publish" in error.detail["message"]
-    db.add(PlanRequest(org_id=2, request_uuid="req_2"))
+    db.add(PlanRequest(org_id=test_org, request_uuid="req_1", request_type="partner_application", requested_value="plan_publisher"))
     db.commit()
+    from src.services.superadmin.orgs import list_all_plan_requests
+
+    assert [row["is_test_org"] for row in list_all_plan_requests(db)] == [True]
 
 
 def test_personas_cant_comment_on_resources_real_learners_read(db):

@@ -273,7 +273,7 @@ def release() -> str:
     sha = str(info.get("commit_sha") or "unknown")
     if sha == "unknown":
         return "not recorded on this site"
-    return f"{info.get('version', 'dev')} ({info.get('source_branch', 'unknown')} @ {sha[:10]}, released {info.get('released_at', 'unknown')})"
+    return f"{info.get('version', 'dev')} ({info.get('source_branch', 'unknown')} @ {sha[:10]})"
 
 
 def persona_view(db: Session, persona: TestPersona, user: User) -> dict:
