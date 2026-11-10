@@ -104,10 +104,31 @@ def _made_by(db: Session, user_id: int) -> Organization | None:
     org_ids = db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == user_id, UserOrganization.role_id == 1)).all()
     if not org_ids:
         return None
-    for row in db.exec(select(OrganizationConfig).where(col(OrganizationConfig.org_id).in_(list(org_ids)))).all():
+    configs = {int(row.org_id): row for row in db.exec(select(OrganizationConfig).where(col(OrganizationConfig.org_id).in_(list(org_ids)))).all()}
+    for row in configs.values():
         if ((row.config or {}).get("setup") or {}).get("created_by_user_id") == user_id:
             return db.get(Organization, row.org_id)
+    # A try that failed partway made the space but never marked it set up: finish that one, never make a second.
+    user = db.get(User, user_id)
+    for org in db.exec(select(Organization).where(col(Organization.id).in_(list(org_ids))).order_by(col(Organization.id))).all():
+        setup = ((configs[int(org.id)].config or {}).get("setup") if int(org.id) in configs else None) or {}  # type: ignore[arg-type]
+        if user and org.email == user.email and not setup.get("completed_at"):
+            if int(org.id) not in configs:  # type: ignore[arg-type]
+                _add_config(db, int(org.id))  # type: ignore[arg-type]
+            return org
     return None
+
+
+def _add_config(db: Session, org_id: int) -> None:
+    import json
+
+    from src.db.organization_config import OrganizationConfigDocument
+    from src.security.access.catalog import BETA_TIER
+
+    now = str(datetime.now())
+    document = json.loads(OrganizationConfigDocument(**({"tier": BETA_TIER, "beta": True} if BETA_TIER else {})).model_dump_json())
+    db.add(OrganizationConfig(org_id=org_id, config=document, creation_date=now, update_date=now))
+    db.commit()
 
 
 def _space_name(user: User, payload: SetUpRequest) -> str:

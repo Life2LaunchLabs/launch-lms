@@ -150,7 +150,7 @@ test('route manifest builds admin tab and owner routes', () => {
   const admin = routePaths.org.admin
   assert.equal(admin.root(), '/admin')
   assert.equal(admin.assignments(), '/admin/plans/assignments')
-  assert.equal(admin.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&objective=objective_1')
+  assert.equal(admin.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&step_key=objective_1')
   assert.equal(admin.livePlan('plan_1'), '/admin/plans/live/plan_1')
   assert.equal(admin.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1')
   assert.equal(admin.planAssignment('assignment_1', 'learners'), '/admin/plans/assignments/assignment_1/learners')
@@ -340,7 +340,7 @@ test('request policy keeps review queue links on the canonical org route', () =>
     orgSubdomainAccess: null,
   })
   assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/admin/plans/review?assignment=assignment_1&objective=objective_1')
+  assert.equal(decision.destination, '/orgs/default/admin/plans/review?assignment=assignment_1&step_key=objective_1')
 })
 
 test('old admin and dashboard URLs redirect once, in one place, keeping their query', () => {

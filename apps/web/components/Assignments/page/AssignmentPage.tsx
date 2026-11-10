@@ -70,7 +70,7 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
   const message = () => groupId ? openThread({ kind: 'group', groupId, plan: assignmentUuid }) : detail.target.type === 'person' ? learnerOf(detail.target.person) : undefined
   const ctx = {
     detail, orgId, orgslug, token,
-    reviewHref: (stepKey: string) => getUriWithOrg(orgslug, routePaths.org.admin.planReview({ assignment: assignmentUuid, planObjective: stepKey, from: 'assignment' })),
+    reviewHref: (stepKey: string) => getUriWithOrg(orgslug, routePaths.org.admin.planReview({ assignment: assignmentUuid, objective: stepKey, from: 'assignment' })),
     onMessageStep: (stepKey: string) => groupId ? openThread({ kind: 'group', groupId, plan: assignmentUuid, step: stepKey }) : detail.target.type === 'person' ? learnerOf(detail.target.person, stepKey) : undefined,
     onMessageLearner: (person: AssignmentPerson) => learnerOf(person),
   }

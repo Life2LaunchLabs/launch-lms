@@ -121,7 +121,7 @@ export default function StartFlow() {
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
     setError('')
-    try { await work() } catch (failure: any) { setError(failure?.detail?.message || failure?.detail || failure?.message || tr('lit.start_flow.something_went_wrong_try_again', 'Something went wrong. Try again.')) } finally { setBusy(false) }
+    try { await work() } catch (failure: any) { setError(failure?.detail?.message || failure?.detail || failure?.message || `${tr('lit.start_flow.something_went_wrong_try_again', 'Something went wrong. Try again.')}${failure?.status ? ` (${failure.status})` : ''}`) } finally { setBusy(false) }
   }
 
   const setUp = (trial: boolean) => run(async () => {
