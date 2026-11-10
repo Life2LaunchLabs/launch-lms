@@ -300,3 +300,24 @@ def test_purge_removes_a_persona_who_owns_plans_and_an_org_that_assigned_them(db
     assert db.get(User, maya["user_id"]) is None and db.get(User, dana["user_id"]) is None
     assert db.get(Organization, test_org) is None
     assert db.exec(select(Goal)).all() == [] and db.exec(select(GoalAssignment)).all() == []
+
+
+def test_org_search_hides_test_orgs_from_real_users_and_other_runs(db):
+    from src.db.users import PublicUser
+    from src.services.orgs.orgs import get_discoverable_org_by_slug, list_discoverable_orgs
+
+    def viewer(user_id: int) -> PublicUser:
+        return PublicUser(id=user_id, user_uuid=f"user_{user_id}", username=f"u{user_id}", email=f"u{user_id}@example.com", first_name="U", last_name="V")
+
+    one, two = _cohort(db, "Run one"), _cohort(db, "Run two")
+    dana = _persona(db, one, first_name="Dana", start_state="org_owner", org_name="Riverside High")
+    ana = _persona(db, two, first_name="Ana")
+    test_org = db.get(Organization, db.exec(select(TestCohortOrg)).one().org_id)
+    slugs = lambda user_id: {org.slug for org in asyncio.run(list_discoverable_orgs(db, viewer(user_id), query=""))}  # noqa: E731
+    assert test_org.slug in slugs(dana["user_id"])
+    assert test_org.slug not in slugs(2) and test_org.slug not in slugs(ana["user_id"])
+    assert {"launch", "real-high"} <= slugs(2)
+    with pytest.raises(HTTPException) as hidden:
+        asyncio.run(get_discoverable_org_by_slug(db, viewer(2), test_org.slug))
+    assert hidden.value.status_code == 404
+    assert asyncio.run(get_discoverable_org_by_slug(db, viewer(dana["user_id"]), test_org.slug)).slug == test_org.slug
