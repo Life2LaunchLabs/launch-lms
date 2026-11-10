@@ -132,3 +132,22 @@ export function parsePersonaLines(text: string): NewPersona[] {
 
 /** The persona banner's cookie: "userId:name:cohort", set when a login link is redeemed. */
 export { readTestPersonaCookie } from './marker'
+
+export type TestCheckpoint = {
+  id: string
+  stage_key: string | null
+  label: string
+  automatic: boolean
+  created_at: string
+  records: number
+  files: number
+  warnings: number
+  /** False once a product update makes it unpublishable. */
+  current: boolean
+  /** The live demo right now. */
+  published: boolean
+}
+export const captureCheckpoint = (cohortUuid: string, stageKey: string | null = null, label = '') =>
+  call<TestCheckpoint>(`cohorts/${cohortUuid}/checkpoints`, 'POST', { stage_key: stageKey, label })
+export const publishCheckpoint = (checkpointId: string) =>
+  call<{ demo_checkpoint_id: string; personas: number; demo_enabled: boolean }>(`checkpoints/${checkpointId}/publish`, 'POST')

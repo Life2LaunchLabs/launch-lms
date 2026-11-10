@@ -117,3 +117,23 @@ class TestEvent(SQLModel, table=True):
     stage_key: str | None = None
     payload: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class TestCheckpoint(SQLModel, table=True):
+    """The run's world captured at a stage, in Demo Studio's checkpoint format, ready to publish as the demo."""
+
+    __tablename__ = "test_checkpoint"
+    __test__ = False
+
+    id: str = Field(primary_key=True)
+    cohort_id: int = Field(index=True)
+    stage_key: str | None = None  # None: captured by hand, between stages
+    label: str = ""
+    created_by: int | None = None  # None: captured on its own when the last persona finished the stage
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    schema_signature: str = ""
+    pilots: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    portraits: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    summary: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # {"schema", "rows", "files", "summary"}, exactly as a DemoCheckpoint holds it.
+    data: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))

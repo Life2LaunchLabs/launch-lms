@@ -100,6 +100,10 @@ def purge(db: Session, cohort_uuid: str, *, dry_run: bool = True) -> dict:
     if is_open(cohort):
         raise HTTPException(409, "Close the cohort before purging it.")
     users, orgs, _ = _ids(db, cohort)
+    from src.services.user_tests.checkpoints import demo_members
+
+    if in_demo := demo_members(db, users):
+        raise HTTPException(409, f"{len(in_demo)} of this cohort's personas are demo users. Remove them in Demo Studio first, so the demo never points at deleted accounts.")
     report = audit(db, cohort_uuid)
     counts = {
         "personas": len(users),

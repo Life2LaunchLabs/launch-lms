@@ -41,8 +41,7 @@ way for a test to email, impersonate or change a real person.
 - [ ] Maybe later: a Test badge in Platform › Users and Organizations (persona emails on the
   test domain already show who they are; both tables are over the size limit).
 - [x] Phase 3: stories, stages, run board, persona panel, findings report, connector tools.
-- [ ] Checkpoints per stage (moved to phase 4 with demos).
-- [ ] Phase 4: demos from story checkpoints.
+- [x] Phase 4: checkpoints per stage (automatic when the last persona finishes) and publishing one as the demo.
 - [ ] Phase 5: replays and scale to 30.
 
 ## Decisions
@@ -84,6 +83,12 @@ way for a test to email, impersonate or change a real person.
   through the normal session handoff, and the ticket carries her test claims: the new host gets
   a persona session that ends when the first one does, plus the banner cookie. A persona whose
   handoff fails lands on the test entry page, never a password page.
+- A checkpoint is Demo Studio's own capture of the run's personas (their orgs and the main
+  org), rehearsed like a demo publish and stored in `test_checkpoint` with the demo's data
+  format. Publishing it creates a demo checkpoint with the same id and points the demo at it;
+  the personas become pickable demo users, so Demo Studio edits their cards. Purge waits until
+  they are removed from Demo Studio. With Demo Studio's auto-update on, a product update
+  re-captures the demo from the personas' current state, not the stage.
 
 ## Verification
 
@@ -106,3 +111,7 @@ way for a test to email, impersonate or change a real person.
   setting stages, making a login link, reading mail as text (and not another persona's),
   reporting progress and findings, reading the report, and purge refusing an open cohort; the
   tools refused without platform admin, the scope or the flag, and hidden from non-admins.
+- `apps/api/src/tests/test_user_tests_checkpoints.py`: a stage captured once, when its last
+  persona finishes, with personas only and no test tables; publishing making it the demo with
+  the personas on the picker, publishing again without a duplicate, purge waiting on Demo
+  Studio; a checkpoint from before a product update refused.

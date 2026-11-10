@@ -5,7 +5,7 @@ persona's browser does with the link an admin made. The whole router is off unle
 LAUNCHLMS_USER_TESTS_ENABLED is set.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 from src.core.events.database import get_db_session
@@ -14,7 +14,7 @@ from src.security.auth import get_authenticated_user
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 from src.db.user_tests import TestMail, TestPersona
 from src.db.users import User
-from src.services.user_tests import cleanup, cohorts, mail, personas, stories, tickets
+from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, stories, tickets
 from src.services.user_tests.sessions import current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
@@ -118,12 +118,41 @@ def report(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = De
 
 
 @router.post("/personas/{user_id}/progress")
-def set_progress(user_id: int, body: stories.Progress, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+def set_progress(user_id: int, body: stories.Progress, background: BackgroundTasks, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
     """Move a persona on the board by hand, for example to reopen a stage after a fix."""
     persona = db.get(TestPersona, user_id)
     if not persona:
         raise HTTPException(404, "That persona no longer exists.")
-    return stories.report_progress(db, persona, body, by="operator")
+    return _progress(db, persona, body, background, "operator")
+
+
+def _progress(db: Session, persona: TestPersona, body: stories.Progress, background: BackgroundTasks, by: str) -> dict:
+    state = stories.report_progress(db, persona, body, by=by)
+    if body.status == "done":
+        # The last persona to finish a stage captures it, after the response.
+        background.add_task(checkpoints.capture_after_stage, persona.cohort_id, body.stage_key)
+    return state
+
+
+class CaptureRequest(BaseModel):
+    stage_key: str | None = Field(default=None, max_length=60)
+    label: str = Field(default="", max_length=120)
+
+
+@router.get("/cohorts/{cohort_uuid}/checkpoints")
+def list_checkpoints(cohort_uuid: str, _: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    return {"checkpoints": checkpoints.list_checkpoints(db, cohort_uuid)}
+
+
+@router.post("/cohorts/{cohort_uuid}/checkpoints", status_code=201)
+def capture_checkpoint(cohort_uuid: str, body: CaptureRequest, actor: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    return checkpoints.capture_now(db, cohort_uuid, actor.id, body.stage_key, body.label)
+
+
+@router.post("/checkpoints/{checkpoint_id}/publish")
+def publish_checkpoint(checkpoint_id: str, actor: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    """Make this checkpoint the demo; its personas become the demo's pickable users."""
+    return checkpoints.publish(db, checkpoint_id, actor.id)
 
 
 @router.get("/me")
@@ -145,8 +174,8 @@ def read_my_mail(mail_id: int, me: tuple[TestPersona, User] = Depends(persona_se
 
 
 @router.post("/me/progress")
-def my_progress(body: stories.Progress, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
-    return stories.report_progress(db, me[0], body)
+def my_progress(body: stories.Progress, background: BackgroundTasks, me: tuple[TestPersona, User] = Depends(persona_session), db: Session = Depends(get_db_session)):
+    return _progress(db, me[0], body, background, "persona")
 
 
 @router.post("/me/findings", status_code=201)

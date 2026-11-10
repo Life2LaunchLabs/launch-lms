@@ -17,7 +17,7 @@ from sqlmodel import Session
 from src.db.user_tests import TestMail, TestPersona
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
-from src.services.user_tests import cleanup, cohorts, mail, personas, stories, tickets
+from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, stories, tickets
 from src.services.user_tests.sessions import current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
@@ -66,7 +66,8 @@ async def list_test_cohorts(request: Request, db: Session, ctx: AccessContext, a
 async def get_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     _require_operator(db, ctx)
     cohort = cohorts.get_cohort(db, str(args["cohort_uuid"]))
-    return {**cohorts.serialize(db, cohort, detail=True), "board": stories.board(db, cohort.cohort_uuid), "console_url": _console_url(db, ctx, cohort.cohort_uuid)}
+    return {**cohorts.serialize(db, cohort, detail=True), "board": stories.board(db, cohort.cohort_uuid),
+            "checkpoints": checkpoints.list_checkpoints(db, cohort.cohort_uuid), "console_url": _console_url(db, ctx, cohort.cohort_uuid)}
 
 
 async def create_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
@@ -121,7 +122,11 @@ async def read_test_mail(request: Request, db: Session, ctx: AccessContext, args
 async def report_test_progress(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     _require_operator(db, ctx)
     persona = _persona(db, args.pop("user_id"))
-    return stories.report_progress(db, persona, stories.Progress(**args), by="tester")
+    body = stories.Progress(**args)
+    state = stories.report_progress(db, persona, body, by="tester")
+    if body.status == "done":
+        checkpoints.capture_after_stage(persona.cohort_id, body.stage_key)
+    return state
 
 
 async def log_test_finding(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
@@ -144,3 +149,14 @@ async def close_test_cohort(request: Request, db: Session, ctx: AccessContext, a
 async def purge_test_cohort(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     _require_operator(db, ctx)
     return cleanup.purge(db, str(args["cohort_uuid"]), dry_run=args.get("dry_run", True) is not False)
+
+
+async def capture_test_checkpoint(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    return checkpoints.capture_now(db, str(args["cohort_uuid"]), int(ctx.user.id), args.get("stage_key") or None, str(args.get("label") or ""))  # type: ignore[arg-type]
+
+
+async def publish_test_checkpoint(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    result = checkpoints.publish(db, str(args["checkpoint_id"]), int(ctx.user.id))  # type: ignore[arg-type]
+    return {**result, "note": "New demo visits start from this checkpoint." if result["demo_enabled"] else "Published, but the demo is turned off in Demo Studio, so visitors can't start it yet."}

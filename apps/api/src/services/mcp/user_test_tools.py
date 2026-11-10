@@ -63,6 +63,12 @@ USER_TEST_TOOLS = [
         **_PERSONA, "stage_key": {"type": "string"}, "status": {"type": "string", "enum": ["not_started", "in_progress", "done", "stuck"]}, "note": {"type": "string", "maxLength": 2000},
     }, ["user_id", "stage_key", "status"], tests_mcp.report_test_progress, write=True),
     _tool("log_test_finding", "Log a test finding", "Note a bug, a confusing moment or a wish, as the persona met it.", {**_PERSONA, **_FINDING}, ["user_id", "kind", "what_happened"], tests_mcp.log_test_finding, write=True),
+    _tool("capture_test_checkpoint", "Capture a test run checkpoint", "Capture the run's world now (its personas, their orgs and the main org) as a checkpoint that can become the demo. A stage is also captured on its own when its last persona reports it done.", {
+        **_COHORT, "stage_key": {"type": "string", "description": "The stage this checkpoint follows. Omit for a checkpoint between stages."}, "label": {"type": "string", "maxLength": 120},
+    }, ["cohort_uuid"], tests_mcp.capture_test_checkpoint, write=True),
+    _tool("publish_test_checkpoint", "Publish a checkpoint as the demo", "Make a checkpoint (from get_test_cohort) the live demo: new visitors get a private copy of it and can pick any of the run's personas. Publish only when the admin asks.", {
+        "checkpoint_id": {"type": "string"},
+    }, ["checkpoint_id"], tests_mcp.publish_test_checkpoint, write=True),
     _tool("get_test_report", "Read a test run's report", "The run's findings and refused actions as Markdown, grouped by kind.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_report),
     _tool("close_test_cohort", "Close a test cohort", "End a run now: its personas are signed out and can't sign in again.", _COHORT, ["cohort_uuid"], tests_mcp.close_test_cohort, write=True),
     _tool("purge_test_cohort", "Purge a closed test cohort", "Delete a closed run's personas and orgs, keeping its mail and report. A dry run (the default) only counts; pass dry_run false only when the admin asks.", {
