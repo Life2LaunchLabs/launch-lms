@@ -44,7 +44,7 @@ case "$command_name" in
         missing=1
       fi
     done
-    for file in AGENTS.md WORKFLOW.md ARCHITECTURE.md docs/product/manifest.json; do
+    for file in AGENTS.md ARCHITECTURE.md docs/product/manifest.json; do
       if [[ ! -f "$root_dir/$file" ]]; then
         printf 'missing required file: %s\n' "$file" >&2
         missing=1
@@ -99,14 +99,8 @@ pathlib.Path(sys.argv[1]).write_text(json.dumps(payload, indent=2) + "\n")
 PY
     printf '%s\n' "$output"
     ;;
-  jira)
-    python3 "$root_dir/scripts/jira.py" "$@"
-    ;;
-  feedback)
-    python3 "$root_dir/scripts/feedback.py" "$@"
-    ;;
   *)
-    printf 'usage: scripts/agent {doctor|docs|product|plan|check [--changed|--all]|evidence|jira|feedback}\n' >&2
+    printf 'usage: scripts/agent {doctor|docs|product|plan|check [--changed|--all]|evidence}\n' >&2
     exit 2
     ;;
 esac
