@@ -15,6 +15,7 @@ _STAGE = {
         "after": {"type": "object", "description": "Wait for another persona to finish one of its stages first.",
                   "properties": {"persona": {"type": "string", "description": "That persona's handle."}, "stage": {"type": "string", "description": "That stage's key: its title in lowercase with dashes."}},
                   "required": ["persona", "stage"]},
+        "personas": {"type": "array", "items": {"type": "string"}, "description": "Handles of the personas this stage is for (a counselor's stage, a student's stage). Leave out for everyone."},
     },
     "required": ["title"],
 }
@@ -52,7 +53,7 @@ USER_TEST_TOOLS = [
     _tool("replay_test_cohort", "Run a test story again", "Start a new cohort with fresh personas like this one's (names, briefs, starting state, test orgs) and the same stages, for example to retest after a fix. Nothing the first run did is copied.", {
         **_COHORT, "days": {"type": "integer", "minimum": 1, "maximum": 30},
     }, ["cohort_uuid"], tests_mcp.replay_test_cohort, write=True),
-    _tool("set_test_stages", "Set a test run's stages", "Replace the run's stages (at most 20). Every persona works through every stage.", {
+    _tool("set_test_stages", "Set a test run's stages", "Replace the run's stages (at most 20). A stage with `personas` is only theirs (each role gets its own stages); one without is for everyone.", {
         **_COHORT, "stages": {"type": "array", "maxItems": 20, "items": _STAGE},
     }, ["cohort_uuid", "stages"], tests_mcp.set_test_stages, write=True),
     _tool("get_test_board", "Read the run board", "Every persona against every stage: not started, waiting on someone, in progress, done or stuck. Stuck personas come first.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_board),

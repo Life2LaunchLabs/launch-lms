@@ -55,7 +55,8 @@ async def replay(db: Session, cohort_uuid: str, actor_id: int, days: int = 7) ->
     if source.stages:
         stories.set_stages(db, made["cohort_uuid"], stories.SetStages(stages=[
             stories.Stage(key=stage["key"], title=stage["title"], goal=stage.get("goal", ""),
-                          after=stories.After(persona=handles.get(stage["after"]["persona"], stage["after"]["persona"]), stage=stage["after"]["stage"]) if stage.get("after") else None)
+                          after=stories.After(persona=handles.get(stage["after"]["persona"], stage["after"]["persona"]), stage=stage["after"]["stage"]) if stage.get("after") else None,
+                          personas=[handles.get(handle, handle) for handle in stage.get("personas") or []])
             for stage in source.stages
         ]))
     return cohorts.serialize(db, get_cohort(db, made["cohort_uuid"]), detail=True)

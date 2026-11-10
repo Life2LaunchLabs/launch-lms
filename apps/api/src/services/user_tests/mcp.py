@@ -23,7 +23,7 @@ from src.services.user_tests.settings import email_domain, require_enabled
 
 GUIDE = (
     "A cohort is one test run: personas (fresh accounts on the test email domain, sealed off from real people and orgs) "
-    "and stages (goals written for the persona, which can wait for another persona to finish a stage). To test as a "
+    "and stages (goals written for the persona, each for named personas or everyone, which can wait for another persona to finish a stage). To test as a "
     "persona, open the link from open_as_test_persona in a fresh browser session, work through its stages as that person "
     "would, read the email the site sends it with read_test_mail, and note progress and findings as you go. Everything "
     "the seal refuses shows up in the report on its own."

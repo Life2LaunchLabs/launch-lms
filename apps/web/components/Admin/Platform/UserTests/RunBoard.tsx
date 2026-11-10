@@ -31,9 +31,9 @@ function StagesEditor({ cohortUuid, stages, personas, onSaved }: { cohortUuid: s
   }
   return <form onSubmit={save} className="space-y-3 rounded-xl border bg-card p-5">
     <div><h2 className="text-lg font-semibold">Stages</h2>
-      <p className="text-sm text-muted-foreground">One per line: a title, then <code>|</code> and the goal written for the persona. To make a stage wait for someone, add <code>| after handle/stage-key</code>. A stage&apos;s key is its title in lowercase with dashes. Handles: {personas.map((persona) => persona.handle).join(', ') || 'none yet'}.</p></div>
+      <p className="text-sm text-muted-foreground">One per line: a title, then <code>|</code> and the goal written for the persona. A stage is for everyone unless you add <code>| for handle, handle</code>. To make a stage wait for someone, add <code>| after handle/stage-key</code>. A stage&apos;s key is its title in lowercase with dashes. Handles: {personas.map((persona) => persona.handle).join(', ') || 'none yet'}.</p></div>
     <Label htmlFor="stage-lines" className="sr-only">Stages, one per line</Label>
-    <Textarea id="stage-lines" rows={4} value={value} onChange={(event) => setText(event.target.value)} placeholder={'Invite your students | Invite Maya to your school.\nJoin your school | Join from the invite and find your first plan. | after dana/invite-your-students'} />
+    <Textarea id="stage-lines" rows={4} value={value} onChange={(event) => setText(event.target.value)} placeholder={'Invite your students | Invite Maya to your school. | for dana\nJoin your school | Join from the invite and find your first plan. | for maya | after dana/invite-your-students'} />
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     <Button type="submit" size="sm" disabled={busy || text === null}>{busy ? 'Saving…' : 'Save stages'}</Button>
   </form>
@@ -85,7 +85,7 @@ export default function RunBoard({ cohortUuid, personas, stages, isOpen, onChang
         <thead><tr className="border-b text-left text-[11px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2.5 font-bold">Persona</th>{data.stages.map((stage) => <th key={stage.key} className="px-4 py-2.5 font-bold" title={stage.goal}>{stage.title}</th>)}</tr></thead>
         <tbody>{data.personas.map((row) => <tr key={row.user_id} className="border-b align-top last:border-0">
           <td className="px-4 py-3"><span className="block font-semibold">{row.name}</span><span className="block text-xs text-muted-foreground">@{row.handle}</span></td>
-          {row.cells.map((cell) => <td key={cell.stage_key} className="min-w-40 px-4 py-3">
+          {row.cells.map((cell) => cell.status === 'not_assigned' ? <td key={cell.stage_key} className="min-w-40 px-4 py-3 text-muted-foreground"><span aria-label="Not this persona's stage">—</span></td> : <td key={cell.stage_key} className="min-w-40 px-4 py-3">
             <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${STATUS[cell.status].tone}`}>{STATUS[cell.status].label}</span>
             {cell.waiting_on ? <span className="mt-1 block text-xs text-muted-foreground">on {cell.waiting_on}</span> : null}
             {cell.note ? <span className="mt-1 block text-xs">{cell.note}</span> : null}

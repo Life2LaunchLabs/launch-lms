@@ -71,7 +71,13 @@ def capture_now(db: Session, cohort_uuid: str, actor_id: int, stage_key: str | N
 
 
 def stage_finished(db: Session, cohort: TestCohort, stage_key: str) -> bool:
-    personas = db.exec(select(TestPersona).where(TestPersona.cohort_id == cohort.id)).all()
+    """Every persona the stage is for has finished it."""
+    from src.services.user_tests.stories import is_for
+
+    stage = next((item for item in cohort.stages or [] if item["key"] == stage_key), None)
+    if stage is None:
+        return False
+    personas = [persona for persona in db.exec(select(TestPersona).where(TestPersona.cohort_id == cohort.id)).all() if is_for(stage, persona.handle)]
     return bool(personas) and all(((persona.stage_state or {}).get(stage_key) or {}).get("status") == "done" for persona in personas)
 
 
