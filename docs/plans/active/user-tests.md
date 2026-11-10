@@ -42,7 +42,7 @@ way for a test to email, impersonate or change a real person.
   test domain already show who they are; both tables are over the size limit).
 - [x] Phase 3: stories, stages, run board, persona panel, findings report, connector tools.
 - [x] Phase 4: checkpoints per stage (automatic when the last persona finishes) and publishing one as the demo.
-- [ ] Phase 5: replays and scale to 30.
+- [x] Phase 5: replays (Run again) and limits sized for 30 persona browsers.
 
 ## Decisions
 
@@ -89,6 +89,12 @@ way for a test to email, impersonate or change a real person.
   the personas become pickable demo users, so Demo Studio edits their cards. Purge waits until
   they are removed from Demo Studio. With Demo Studio's auto-update on, a product update
   re-captures the demo from the personas' current state, not the stage.
+- A replay is a new cohort with fresh personas made from the first run's (names, briefs,
+  starting state, test-org names) and the same stages, waits remapped to the new handles.
+  Nothing the first run did is copied, so the two runs' boards and reports compare directly.
+- For 30 persona browsers behind one cloud IP: a verified persona refresh token gets its own
+  refresh limit (`refresh:test:<sub>`) instead of the shared per-IP one, and an admin can make
+  400 login links an hour.
 
 ## Verification
 
@@ -115,3 +121,6 @@ way for a test to email, impersonate or change a real person.
   persona finishes, with personas only and no test tables; publishing making it the demo with
   the personas on the picker, publishing again without a duplicate, purge waiting on Demo
   Studio; a checkpoint from before a product update refused.
+- `apps/api/src/tests/test_user_tests_replays.py`: a replay's fresh personas, test org, stages
+  and remapped waits, run numbering, and the per-persona refresh key; `test_user_tests.py`
+  checks only a verified persona refresh token gets it.

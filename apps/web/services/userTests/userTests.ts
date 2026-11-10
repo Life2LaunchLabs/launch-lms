@@ -151,3 +151,5 @@ export const captureCheckpoint = (cohortUuid: string, stageKey: string | null = 
   call<TestCheckpoint>(`cohorts/${cohortUuid}/checkpoints`, 'POST', { stage_key: stageKey, label })
 export const publishCheckpoint = (checkpointId: string) =>
   call<{ demo_checkpoint_id: string; personas: number; demo_enabled: boolean }>(`checkpoints/${checkpointId}/publish`, 'POST')
+/** A new cohort with fresh personas like this one's and the same stages. */
+export const replayCohort = (cohortUuid: string, days = 7) => call<TestCohortDetail>(`cohorts/${cohortUuid}/replay`, 'POST', { days })
