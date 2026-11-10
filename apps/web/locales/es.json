@@ -7149,8 +7149,6 @@
       "end_conversation": "Terminar conversación",
       "close_coach": "Cerrar Coach",
       "end": "Terminar",
-      "about_coach_page_awareness": "Sobre lo que Coach ve de la página",
-      "coach_can_use_saved_details": "Coach puede usar los datos guardados de las páginas de estudiante compatibles cuando envías un mensaje. No puede ver texto sin guardar ni la pantalla.",
       "scope": "Alcance",
       "a_new_personal_goal": "Una nueva meta personal",
       "your_goal_label": "Tu meta: {{label}}",
