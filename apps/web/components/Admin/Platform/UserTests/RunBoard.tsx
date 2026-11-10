@@ -43,15 +43,16 @@ function Findings({ cohortUuid, names }: { cohortUuid: string; names: Map<number
   const key = `cohorts/${cohortUuid}/events`
   const { data } = useSWR(userTestsKey(key), () => fetchUserTests<{ events: TestEvent[] }>(key), { refreshInterval: 15000 })
   const [copied, setCopied] = useState(false)
-  const items = (data?.events ?? []).filter((event) => event.kind !== 'progress')
+  const items = (data?.events ?? []).filter((event) => event.kind !== 'progress' && event.kind !== 'step')
+  const steps = (data?.events ?? []).filter((event) => event.kind === 'step').length
 
   async function copy() {
     try { await navigator.clipboard.writeText((await fetchReport(cohortUuid)).markdown); setCopied(true) } catch { setCopied(false) }
   }
   return <section className="space-y-3" aria-labelledby="findings-heading">
     <div className="flex flex-wrap items-end gap-3">
-      <div className="min-w-0 flex-1"><h2 id="findings-heading" className="text-lg font-semibold">Findings</h2><p className="text-sm text-muted-foreground">What personas reported from their own session, and anything the test seal refused.</p></div>
-      <Button type="button" size="sm" variant="outline" onClick={() => void copy()} disabled={!items.length}>{copied ? 'Copied' : 'Copy report (Markdown)'}</Button>
+      <div className="min-w-0 flex-1"><h2 id="findings-heading" className="text-lg font-semibold">Findings</h2><p className="text-sm text-muted-foreground">What personas reported from their own session, and anything the test seal refused.{steps ? ` ${steps} step${steps === 1 ? '' : 's'} logged for the story map, listed at the end of the report.` : ''}</p></div>
+      <Button type="button" size="sm" variant="outline" onClick={() => void copy()} disabled={!items.length && !steps}>{copied ? 'Copied' : 'Copy report (Markdown)'}</Button>
     </div>
     {!data ? <p className="text-sm text-muted-foreground">Loading…</p> : !items.length ? <p className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">No findings yet.</p>
       : <ul className="divide-y rounded-xl border bg-card">{items.map((event) => {

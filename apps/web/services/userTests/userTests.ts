@@ -25,7 +25,7 @@ export type TestPersona = {
   email: string
   handle: string
   brief: string
-  start_state: 'has_account' | 'org_owner'
+  start_state: 'has_account' | 'new_signup' | 'org_owner'
   last_active_at: string | null
   unread_mail: number
 }
@@ -49,7 +49,7 @@ export type TestMail = {
   html?: string
 }
 
-export type NewPersona = { first_name: string; last_name?: string; brief?: string; start_state?: 'has_account' | 'org_owner'; org_name?: string }
+export type NewPersona = { first_name: string; last_name?: string; brief?: string; start_state?: 'has_account' | 'new_signup' | 'org_owner'; org_name?: string }
 
 export type LoginLink = { path: string; expires_at: string }
 
@@ -70,7 +70,7 @@ export const readTestMail = (mailId: number) => call<TestMail>(`mail/${mailId}`)
 export type StageStatus = 'not_started' | 'waiting' | 'in_progress' | 'done' | 'stuck'
 export type BoardCell = { stage_key: string; status: StageStatus | 'not_assigned'; note: string; updated_at: string | null; waiting_on: string | null }
 export type TestBoard = { stages: TestStage[]; personas: { user_id: number; name: string; handle: string; brief: string; cells: BoardCell[] }[]; counts: Record<StageStatus, number> }
-export type TestEvent = { id: number; kind: 'progress' | 'finding' | 'blocked'; persona_user_id: number | null; stage_key: string | null; payload: Record<string, string>; created_at: string }
+export type TestEvent = { id: number; kind: 'progress' | 'finding' | 'blocked' | 'step'; persona_user_id: number | null; stage_key: string | null; payload: Record<string, string>; created_at: string }
 export type NewStage = { title: string; goal?: string; after?: { persona: string; stage: string } | null; personas?: string[] }
 export const setStages = (cohortUuid: string, stages: NewStage[]) => call<TestBoard>(`cohorts/${cohortUuid}/stages`, 'PUT', { stages })
 export const fetchReport = (cohortUuid: string) => call<{ markdown: string }>(`cohorts/${cohortUuid}/report`)
@@ -78,13 +78,17 @@ export const setPersonaProgress = (userId: number, stageKey: string, status: Sta
   call<BoardCell>(`personas/${userId}/progress`, 'POST', { stage_key: stageKey, status, note })
 
 /* A persona's own session: its stages, its inbox, and what it reports. */
-export type MyRun = { persona: { user_id: number; name: string; handle: string }; cohort: { name: string }; stages: (Pick<TestStage, 'key' | 'title' | 'goal'> & Pick<BoardCell, 'note' | 'waiting_on'> & { status: StageStatus })[]; unread_mail: number }
+export type MyRun = { persona: { user_id: number; name: string; handle: string }; cohort: { name: string }; stages: (Pick<TestStage, 'key' | 'title' | 'goal'> & Pick<BoardCell, 'note' | 'waiting_on'> & { status: StageStatus })[]; unread_mail: number; others?: { user_id: number; name: string }[] }
 export type NewFinding = { kind: 'bug' | 'confusion' | 'wish'; severity?: 'low' | 'medium' | 'high'; stage_key?: string | null; page?: string; what_happened: string; what_wanted?: string }
 export const fetchMyRun = () => call<MyRun>('me')
+/** A one-use login link for another persona of the same run. */
+export const switchPersona = (userId: number) => call<{ path: string; expires_at: string }>('me/switch', 'POST', { user_id: userId })
 export const fetchMyMail = () => call<{ mail: TestMail[] }>('me/mail')
 export const readMyMail = (mailId: number) => call<TestMail>(`me/mail/${mailId}`)
 export const reportMyProgress = (stageKey: string, status: StageStatus, note = '') => call<BoardCell>('me/progress', 'POST', { stage_key: stageKey, status, note })
 export const logMyFinding = (finding: NewFinding) => call<TestEvent>('me/findings', 'POST', finding)
+export type NewStep = { did: string; outcome: 'worked' | 'struggled' | 'couldnt'; wanted?: string; stage_key?: string | null; page?: string }
+export const logMyStep = (step: NewStep) => call<TestEvent>('me/steps', 'POST', step)
 
 export { parseStageLines, stageLines } from './stageLines'
 
@@ -105,13 +109,14 @@ export function personaName(persona: Pick<TestPersona, 'first_name' | 'last_name
   return `${persona.first_name} ${persona.last_name}`.trim() || persona.username
 }
 
-/** "First Last | brief" per line; a line starting with "owner:" also gets a test org. */
+/** "First Last | brief" per line; "owner:" also gets a test org, "new:" starts at sign-up onboarding. */
 export function parsePersonaLines(text: string): NewPersona[] {
   return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const owner = /^owner:\s*/i.test(line)
-    const [name, ...rest] = line.replace(/^owner:\s*/i, '').split('|')
+    const prefix = line.match(/^(owner|new):\s*/i)
+    const kind = prefix?.[1].toLowerCase()
+    const [name, ...rest] = line.slice(prefix?.[0].length ?? 0).split('|')
     const [first_name, ...last] = name.trim().split(/\s+/)
-    return { first_name, last_name: last.join(' '), brief: rest.join('|').trim(), start_state: owner ? 'org_owner' : 'has_account' }
+    return { first_name, last_name: last.join(' '), brief: rest.join('|').trim(), start_state: kind === 'owner' ? 'org_owner' : kind === 'new' ? 'new_signup' : 'has_account' }
   })
 }
 

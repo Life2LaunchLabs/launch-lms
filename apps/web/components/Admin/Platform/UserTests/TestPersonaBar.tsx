@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { signOut } from '@components/Contexts/AuthContext'
-import { fetchMyRun, readTestPersonaCookie } from '@services/userTests/userTests'
+import { fetchMyRun, readTestPersonaCookie, switchPersona } from '@services/userTests/userTests'
 
 const PersonaPanel = dynamic(() => import('./PersonaPanel'), { ssr: false })
 
@@ -44,12 +44,28 @@ export default function TestPersonaBar() {
     clearMarker()
     if (!window.location.pathname.startsWith('/auth/test-entry')) window.location.replace('/auth/test-entry?closed=1')
   }, [ended])
+  async function switchTo(otherId: number) {
+    if (!otherId) return
+    try {
+      const link = await switchPersona(otherId)
+      clearMarker()
+      // Sign this browser out, then open the other persona's one-use link here.
+      void signOut({ callbackUrl: link.path })
+    } catch (failure) { window.alert((failure as Error).message) }
+  }
   if (!marker || !userId) return null
   if (marker.userId !== userId) { clearMarker(); return null }
   return <div style={{ zIndex: 'var(--z-popover)' }} className="sticky top-0">
     <div role="status" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-300 px-4 py-1.5 text-center text-xs font-semibold text-amber-950">
       <span>Test persona: {marker.name || 'unnamed'}{marker.cohort ? ` · ${marker.cohort}` : ''}</span>
       <button type="button" className="underline underline-offset-2" aria-expanded={panel} onClick={() => setPanel(!panel)}>My test run{run?.unread_mail ? ` (${run.unread_mail} new email)` : ''}</button>
+      {run?.others?.length ? <label className="flex items-center gap-1">
+        <span className="sr-only">Switch to another persona in this run</span>
+        <select className="rounded bg-amber-200 px-1 py-0.5 text-xs font-semibold" value="" onChange={(event) => void switchTo(Number(event.target.value))}>
+          <option value="">Switch to…</option>
+          {run.others.map((other) => <option key={other.user_id} value={other.user_id}>{other.name}</option>)}
+        </select>
+      </label> : null}
       <button type="button" className="underline underline-offset-2" onClick={() => { clearMarker(); void signOut({ callbackUrl: '/auth/login' }) }}>Sign out</button>
     </div>
     {panel ? <PersonaPanel onClose={() => setPanel(false)} /> : null}

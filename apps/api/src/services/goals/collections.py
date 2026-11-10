@@ -79,12 +79,13 @@ def _items(db: Session, collection_ids: list[int]) -> dict[int, list[GoalTemplat
 def _listed_ids(db: Session, template_ids: list[int]) -> set[int]:
     """Plans shared in the marketplace with a live version."""
     from src.db.template_marketplace import GoalTemplateListing
+    from src.services.user_tests.visibility import listed_for_viewer
 
     if not template_ids or not inspect(db.connection()).has_table(GoalTemplateListing.__tablename__):
         return set()
     return {int(row) for row in db.exec(select(GoalTemplateListing.template_id).join(GoalTemplate, GoalTemplate.id == GoalTemplateListing.template_id).where(
         col(GoalTemplateListing.template_id).in_(template_ids), GoalTemplateListing.listed == True,  # noqa: E712
-        col(GoalTemplate.published_version_id).is_not(None))).all()}
+        col(GoalTemplate.published_version_id).is_not(None), listed_for_viewer(db, GoalTemplateListing.org_id))).all()}
 
 
 def _dict(row: PlanCollection, plans: list[GoalTemplate], listed: set[int]) -> dict:

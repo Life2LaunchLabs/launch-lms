@@ -28,7 +28,7 @@ class CreatePersona(BaseModel):
     first_name: str = Field(min_length=1, max_length=60)
     last_name: str = Field(default="", max_length=60)
     brief: str = Field(default="", max_length=4000)
-    start_state: Literal["has_account", "org_owner"] = "has_account"
+    start_state: Literal["has_account", "new_signup", "org_owner"] = "has_account"
     org_name: str = Field(default="", max_length=100)
 
     @field_validator("first_name", "last_name", "brief", "org_name")

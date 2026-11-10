@@ -11,7 +11,7 @@ _STAGE = {
     "type": "object",
     "properties": {
         "title": {"type": "string", "maxLength": 120},
-        "goal": {"type": "string", "maxLength": 2000, "description": "What the persona sets out to do, in their terms. Never name the screen or button to use."},
+        "goal": {"type": "string", "maxLength": 2000, "description": "What the persona wants, in their own words. Never name a feature, screen or button: not \"Make your first badge\" but \"Give students something to show for finishing the course\"."},
         "after": {"type": "object", "description": "Wait for another persona to finish one of its stages first.",
                   "properties": {"persona": {"type": "string", "description": "That persona's handle."}, "stage": {"type": "string", "description": "That stage's key: its title in lowercase with dashes."}},
                   "required": ["persona", "stage"]},
@@ -47,7 +47,7 @@ USER_TEST_TOOLS = [
         "personas": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"type": "object", "properties": {
             "first_name": {"type": "string", "maxLength": 60}, "last_name": {"type": "string", "maxLength": 60},
             "brief": {"type": "string", "maxLength": 4000, "description": "Who they are and how they use technology. Only the console and the tester see it."},
-            "start_state": {"type": "string", "enum": ["has_account", "org_owner"]}, "org_name": {"type": "string", "maxLength": 100},
+            "start_state": {"type": "string", "enum": ["has_account", "new_signup", "org_owner"], "description": "has_account: an existing learner. new_signup: just signed up, so their first link opens sign-up onboarding (role, org setup). org_owner: already runs an org."}, "org_name": {"type": "string", "maxLength": 100},
         }, "required": ["first_name"]}},
     }, ["cohort_uuid", "personas"], tests_mcp.add_test_personas, write=True),
     _tool("replay_test_cohort", "Run a test story again", "Start a new cohort with fresh personas like this one's (names, briefs, starting state, test orgs) and the same stages, for example to retest after a fix. Nothing the first run did is copied.", {
@@ -67,13 +67,18 @@ USER_TEST_TOOLS = [
         **_PERSONA, "stage_key": {"type": "string"}, "status": {"type": "string", "enum": ["not_started", "in_progress", "done", "stuck"]}, "note": {"type": "string", "maxLength": 2000},
     }, ["user_id", "stage_key", "status"], tests_mcp.report_test_progress, write=True),
     _tool("log_test_finding", "Log a test finding", "Note a bug, a confusing moment or a wish, as the persona met it.", {**_PERSONA, **_FINDING}, ["user_id", "kind", "what_happened"], tests_mcp.log_test_finding, write=True),
+    _tool("log_test_step", "Log a step the persona took", "Record one interaction for the story map, as it happens: what the persona did or tried, whether it worked, and what they wanted. Log steps that worked too, not only problems.", {
+        **_PERSONA, "did": {"type": "string", "maxLength": 1000, "description": "What they did or tried, in their words."},
+        "outcome": {"type": "string", "enum": ["worked", "struggled", "couldnt"]}, "wanted": {"type": "string", "maxLength": 1000, "description": "What they wanted to do or see, possible or not."},
+        "stage_key": {"type": "string"}, "page": {"type": "string", "description": "The page's path."},
+    }, ["user_id", "did"], tests_mcp.log_test_step, write=True),
     _tool("capture_test_checkpoint", "Capture a test run checkpoint", "Capture the run's world now (its personas, their orgs and the main org) as a checkpoint that can become the demo. A stage is also captured on its own when its last persona reports it done.", {
         **_COHORT, "stage_key": {"type": "string", "description": "The stage this checkpoint follows. Omit for a checkpoint between stages."}, "label": {"type": "string", "maxLength": 120},
     }, ["cohort_uuid"], tests_mcp.capture_test_checkpoint, write=True),
     _tool("publish_test_checkpoint", "Publish a checkpoint as the demo", "Make a checkpoint (from get_test_cohort) the live demo: new visitors get a private copy of it and can pick any of the run's personas. Publish only when the admin asks.", {
         "checkpoint_id": {"type": "string"},
     }, ["checkpoint_id"], tests_mcp.publish_test_checkpoint, write=True),
-    _tool("get_test_report", "Read a test run's report", "The run's findings and refused actions as Markdown, grouped by kind.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_report),
+    _tool("get_test_report", "Read a test run's report", "The run's findings and refused actions as Markdown, grouped by kind, then every logged step as a story-map table, and the release the site runs.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_report),
     _tool("close_test_cohort", "Close a test cohort", "End a run now: its personas are signed out and can't sign in again.", _COHORT, ["cohort_uuid"], tests_mcp.close_test_cohort, write=True),
     _tool("purge_test_cohort", "Purge a closed test cohort", "Delete a closed run's personas and orgs, keeping its mail and report. A dry run (the default) only counts; pass dry_run false only when the admin asks.", {
         **_COHORT, "dry_run": {"type": "boolean"},

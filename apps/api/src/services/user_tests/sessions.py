@@ -19,6 +19,8 @@ SESSION_LENGTH = timedelta(hours=4)
 
 # The persona acting in this request, if any. Mail capture reads it.
 current_test_persona: ContextVar[int | None] = ContextVar("current_test_persona", default=None)
+# The platform admin who opened it, so a persona's banner can switch to another persona of the run.
+current_test_operator: ContextVar[int | None] = ContextVar("current_test_operator", default=None)
 
 
 def is_platform_admin(user_id: int | None, db: Session) -> bool:
@@ -104,6 +106,7 @@ def enter(db: Session, payload: dict, request=None) -> TestPersona:
     """Called by authentication for every request that carries a test session."""
     user, persona, _ = validate(db, payload)
     current_test_persona.set(user.id)
+    current_test_operator.set(int(payload["test_operator"]))
     if request is not None:
         refuse_blocked(request.method, request.url.path)
     now = datetime.utcnow()

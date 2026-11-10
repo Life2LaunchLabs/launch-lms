@@ -135,6 +135,12 @@ async def log_test_finding(request: Request, db: Session, ctx: AccessContext, ar
     return stories.log_finding(db, persona, stories.Finding(**args))
 
 
+async def log_test_step(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_operator(db, ctx)
+    persona = _persona(db, args.pop("user_id"))
+    return stories.log_step(db, persona, stories.Step(**args))
+
+
 async def get_test_report(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
     _require_operator(db, ctx)
     uuid = str(args["cohort_uuid"])

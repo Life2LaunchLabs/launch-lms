@@ -22,6 +22,7 @@ from sqlmodel import Session, col, select
 from src.db.goals import GoalTemplate, TemplateStatus
 from src.db.organizations import Organization
 from src.db.plan_collections import PlanCollection, PlanCollectionItem
+from src.services.user_tests.visibility import listed_for_viewer
 from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateListing, TemplateAuthorizationRequest, TemplateAuthorizationStatus
 from src.db.users import PublicUser
 from src.security.access.access import orgs_with_feature
@@ -41,7 +42,8 @@ def _now() -> str:
 def _listed_templates(db: Session) -> list[tuple[GoalTemplate, GoalTemplateListing]]:
     return list(db.exec(select(GoalTemplate, GoalTemplateListing).join(GoalTemplateListing, GoalTemplateListing.template_id == GoalTemplate.id)
                         .where(GoalTemplateListing.listed == True, GoalTemplate.status != TemplateStatus.ARCHIVED,  # noqa: E712
-                               col(GoalTemplate.published_version_id).is_not(None)).order_by(GoalTemplate.title)).all())
+                               col(GoalTemplate.published_version_id).is_not(None), listed_for_viewer(db, GoalTemplateListing.org_id))
+                        .order_by(GoalTemplate.title)).all())
 
 
 def _owner_collections(db: Session, org_ids: set[int]) -> list[tuple[PlanCollection, list[int]]]:
@@ -157,7 +159,7 @@ def discover(db: Session, current_user: PublicUser, org_id: int, query: str = ""
 def _listed_or_404(db: Session, template_uuid: str) -> tuple[GoalTemplate, GoalTemplateListing]:
     row = db.exec(select(GoalTemplate, GoalTemplateListing).join(GoalTemplateListing, GoalTemplateListing.template_id == GoalTemplate.id).where(
         GoalTemplate.template_uuid == template_uuid, GoalTemplateListing.listed == True,  # noqa: E712
-        col(GoalTemplate.published_version_id).is_not(None))).first()
+        col(GoalTemplate.published_version_id).is_not(None), listed_for_viewer(db, GoalTemplateListing.org_id))).first()
     if row is None:
         raise HTTPException(status_code=404, detail="This plan isn't in Discover")
     return row
