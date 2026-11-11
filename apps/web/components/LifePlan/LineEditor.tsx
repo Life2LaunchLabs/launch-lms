@@ -7,6 +7,7 @@ import { lifeApi, type CatalogItem, type Estimate, type Line, type Occupation, t
 import { useLife } from './LifeContext'
 import PayChart from './PayChart'
 import SourceInfo from './SourceInfo'
+import LineResources from './LineResources'
 import Sheet from './Sheet'
 import { pctOf, points, rankText } from './payDist'
 import { DEFAULT_HOURS, PER_WORD, WEEKS_PER_MONTH, fromMonthly, money, monthLabel, phaseOffset, toMonthly, type LineValue, type Per } from './model'
@@ -194,6 +195,7 @@ export default function LineEditor({ line, est, item }: { line: Line; est: Estim
           </div>
         ))}
 
+      {item?.resources && <LineResources item={item} />}
     </div>
   )
 }

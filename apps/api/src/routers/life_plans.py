@@ -17,6 +17,7 @@ from src.core.events.database import engine, get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
+from src.services.life_plans import aid_resources as aid_service
 from src.services.life_plans import careers as career_service
 from src.services.life_plans import catalog as catalog_service
 from src.services.life_plans import datasets as dataset_service
@@ -76,6 +77,13 @@ def api_delete_plan(db: Session = Depends(get_db_session), user: PublicUser = De
 def api_catalog(user: PublicUser = Depends(get_current_user)):
     """Categories and ready-made items for the Add tray."""
     return catalog_service.catalog()
+
+
+@router.get("/lines/{item}/resources")
+def api_line_resources(item: str, org_id: int | None = None, place: str | None = None, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Resources that help the learner find a line's number (grant aid, scholarships): the organization's own and
+    the Library's, best fit for the phase's state first."""
+    return aid_service.aid_resources(db, _signed_in(user), org_id, item, place)
 
 
 @router.get("/places")

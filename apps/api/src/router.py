@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from src.routers import accessibility as accessibility_router_module
+from src.routers import notifications as notifications_router_module
 from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
@@ -72,6 +73,7 @@ from src.routers.audit_logs import router as audit_logs_router
 from src.routers.orgs import branding as org_branding
 from src.routers.orgs import invite_landing as org_invite_landing
 from src.routers.orgs import join_requests as org_join_requests
+from src.routers.orgs import staff_permissions as org_staff_permissions
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.superadmin import router as superadmin_router
 from src.routers.platform_keys import router as platform_keys_router
@@ -96,6 +98,8 @@ async def get_non_api_token_user(user = Depends(get_current_user)):
 
 # API Routes
 v1_router.include_router(accessibility_router_module.router, dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(notifications_router_module.router, dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(notifications_router_module.public_router)
 v1_router.include_router(
     users.router,
     prefix="/users",
@@ -204,6 +208,7 @@ v1_router.include_router(
 )
 # Before orgs.router, whose /{org_id}/... paths would otherwise take /join-requests/...
 v1_router.include_router(org_join_requests.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(org_staff_permissions.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     orgs.router,
     prefix="/orgs",

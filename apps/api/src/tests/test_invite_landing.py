@@ -5,9 +5,9 @@ from datetime import timedelta
 
 import pytest
 from fastapi import HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from src.db.organization_invitations import OrganizationJoinLink
+from src.db.organization_invitations import OrganizationInvitation, OrganizationJoinLink
 from src.db.organizations import Organization
 from src.services.orgs import invite_landing
 from src.tests.test_organization_invitations import NOW, _invitation, _seed, session  # noqa: F401
@@ -55,3 +55,16 @@ def test_a_join_link_says_when_it_can_no_longer_be_used(session: Session):  # no
     link.redemption_count, link.status = 0, "revoked"
     session.commit()
     assert invite_landing.preview(session, 1, invite_code="secret")["status"] == "revoked"
+
+
+def test_accepting_in_the_app_names_the_org_and_role_to_open(session: Session):  # noqa: F811
+    # FEED-84/95: a helper who accepted a staff invite in Connect stayed on their personal Goals.
+    _seed(session)
+    session.add(_invitation(role_id=2))
+    session.add(_invitation(invitation_uuid="invite_2", role_id=4))
+    session.commit()
+
+    staff = session.exec(select(OrganizationInvitation).where(OrganizationInvitation.invitation_uuid == "invite_1")).one()
+    learner = session.exec(select(OrganizationInvitation).where(OrganizationInvitation.invitation_uuid == "invite_2")).one()
+    assert invite_landing.accepted(session, staff) == {"org_slug": "studio", "role": "staff"}
+    assert invite_landing.accepted(session, learner) == {"org_slug": "studio", "role": "learner"}

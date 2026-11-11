@@ -3,6 +3,7 @@
 import React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { welcomeSignupNamesKey } from '@/app/auth/signup/SignupNames'
+import { errorDetailMessage } from '@/lib/errorDetail'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -42,7 +43,7 @@ export default function WelcomeClient() {
             }),
           })
           const data = await res.json().catch(() => null)
-          if (!res.ok) throw new Error(data?.detail || 'Unable to complete signup')
+          if (!res.ok) throw new Error(errorDetailMessage(data, 'Unable to complete signup'))
           window.sessionStorage.removeItem(welcomeSignupPasswordKey(email))
           window.sessionStorage.removeItem(welcomeSignupNamesKey(email))
           window.location.href = data?.onboarding?.redirect_url || '/'
@@ -51,7 +52,7 @@ export default function WelcomeClient() {
 
         const res = await fetch('/api/auth/onboarding/welcome', { method: 'GET', credentials: 'include' })
         const data = await res.json().catch(() => null)
-        if (!res.ok) throw new Error(data?.detail || 'Unable to load onboarding')
+        if (!res.ok) throw new Error(errorDetailMessage(data, 'Unable to load onboarding'))
         window.location.href = data?.redirect_url || '/signup'
       } catch (err: any) {
         if (!cancelled) setError(err?.message || 'Unable to load onboarding')

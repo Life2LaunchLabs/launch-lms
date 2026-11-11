@@ -1,6 +1,7 @@
 """Staff permissions: an admin decides what each staff member may do; admins can do everything."""
 
 import importlib.util
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -8,11 +9,12 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import GoalAssignmentCreate
+from src.db.organization_invitations import OrganizationInvitation
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.security.org_auth import is_org_admin, staff_permissions as effective
 from src.services.goals import assignments, templates
-from src.services.orgs import staff_permissions
+from src.services.orgs import staff_permissions, staff_setup
 from src.tests.test_goals import ADMIN, LEARNER, NOW, _published, _user
 from src.tests.test_member_status import db  # noqa: F401  (fixture)
 from src.tests.test_school import TEACHER
@@ -65,6 +67,53 @@ def test_admins_have_every_permission_and_learners_none(db):  # noqa: F811
     assert is_org_admin(ADMIN, 1, db, "manage_learners")  # superadmin
     catalog = staff_permissions.catalog(db, _user(TEACHER), 1)["permissions"]
     assert [item["key"] for item in catalog if item["default"]] == ["run_assignments", "review_work"]
+
+
+def _invite(db, uuid: str, role_id: int = 2, **fields) -> OrganizationInvitation:  # noqa: F811
+    invitation = OrganizationInvitation(invitation_uuid=uuid, org_id=1, email=f"{uuid}@example.com", email_normalized=f"{uuid}@example.com",
+                                        role_id=role_id, expires_at=datetime.utcnow() + timedelta(days=7), **fields)
+    db.add(invitation)
+    db.commit()
+    return invitation
+
+
+def test_admins_change_what_invited_staff_can_do_before_they_accept(db):  # noqa: F811
+    _org_admin(db)
+    invitation = _invite(db, "sam")
+    assert staff_permissions.invitation_permissions(invitation) == ["run_assignments", "review_work"]  # the defaults
+    result = staff_permissions.set_invitation_permissions(db, _user(ORG_ADMIN), 1, "sam", ["see_reports", "review_work"])
+    assert result["permissions"] == ["review_work", "see_reports"]
+    db.refresh(invitation)
+    assert staff_permissions.invitation_permissions(invitation) == ["review_work", "see_reports"]
+    # Accepting gives them exactly what the admin chose last.
+    db.add(User(id=99, user_uuid="user_99", username="sam", email="sam@example.com", first_name="Sam", last_name="Lee", creation_date=NOW, update_date=NOW))
+    db.add(UserOrganization(user_id=99, org_id=1, role_id=2, creation_date=NOW, update_date=NOW))
+    db.commit()
+    staff_setup.apply(db, invitation, 99)
+    member = db.exec(select(UserOrganization).where(UserOrganization.user_id == 99)).one()
+    assert effective(member) == {"review_work", "see_reports"}
+
+
+def test_only_admins_edit_pending_staff_invitations(db):  # noqa: F811
+    _org_admin(db)
+    _invite(db, "sam")
+    _invite(db, "admin-invite", role_id=1)
+    _invite(db, "taken-back", status="revoked")
+    with pytest.raises(HTTPException) as staff:
+        staff_permissions.set_invitation_permissions(db, _user(TEACHER), 1, "sam", ["see_reports"])
+    assert staff.value.status_code == 403
+    with pytest.raises(HTTPException) as unknown:
+        staff_permissions.set_invitation_permissions(db, _user(ORG_ADMIN), 1, "sam", ["launch_rockets"])
+    assert unknown.value.status_code == 422
+    with pytest.raises(HTTPException) as admin:
+        staff_permissions.set_invitation_permissions(db, _user(ORG_ADMIN), 1, "admin-invite", ["see_reports"])
+    assert admin.value.status_code == 422
+    with pytest.raises(HTTPException) as revoked:
+        staff_permissions.set_invitation_permissions(db, _user(ORG_ADMIN), 1, "taken-back", ["see_reports"])
+    assert revoked.value.status_code == 404
+    with pytest.raises(HTTPException) as other_org:
+        staff_permissions.set_invitation_permissions(db, _user(ORG_ADMIN), 2, "sam", ["see_reports"])
+    assert other_org.value.status_code in (403, 404)
 
 
 def test_migration_grants_orgs_with_more_staff_than_their_tier():

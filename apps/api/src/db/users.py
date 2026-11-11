@@ -68,8 +68,8 @@ class UserReadPublic(UserBase):
     @field_validator("details", mode="after")
     @classmethod
     def _private_details(cls, value: dict | None) -> dict | None:
-        """Accessibility settings are the learner's own; other people never see them."""
-        return {key: item for key, item in value.items() if key != "accessibility"} if isinstance(value, dict) else value
+        """Accessibility and email settings are the person's own; other people never see them."""
+        return {key: item for key, item in value.items() if key not in ("accessibility", "email_notifications")} if isinstance(value, dict) else value
 
 
 class PublicUser(UserRead):
