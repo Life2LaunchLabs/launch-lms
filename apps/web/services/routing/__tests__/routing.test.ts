@@ -9,6 +9,8 @@ import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../han
 import { hasRoutableSession, SERVER_AUTH_HEADERS } from '../../auth/sessionCookies.ts'
 import { NextRequest } from 'next/server.js'
 import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
+import { signedInLanding } from '../signedInLanding.ts'
+import { invitationSiteSlug } from '../inviteSite.ts'
 
 function unsignedToken(exp: number): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -792,6 +794,40 @@ test('the staff welcome stays on an org subdomain without a learner site, like i
   })
   assert.notEqual(decision.action, 'redirect')
   assert.match(String(decision.destination), /^\/orgs\/acme\/joined/)
+})
+
+test('signing in on an org address without a learner site stays there (FEED-53)', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/redirect_from_auth',
+    pathname: '/redirect_from_auth',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+  })
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/auth/redirect')
+})
+
+test('after signing in on an org address, its staff land on its admin', () => {
+  const base = { staffOrgSlugs: ['acme', 'other'], preference: {}, ownerOrgSlug: 'main' }
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: 'acme' }), { orgslug: 'acme', side: 'admin' })
+  // A learner of that org, or the main site, keep the remembered side.
+  assert.deepEqual(signedInLanding({ ...base, staffOrgSlugs: [], hostOrgSlug: 'acme' }), { orgslug: 'main', side: 'learner' })
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'main', side: 'learner' })
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'other' } }), { orgslug: 'other', side: 'admin' })
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'gone' } }), { orgslug: 'acme', side: 'admin' })
+})
+
+test('an invitation opened on another site moves to its own organization (FEED-83)', () => {
+  const invitation = { kind: 'invitation', org: { slug: 'acme' } }
+  assert.equal(invitationSiteSlug(invitation, 'main'), 'acme')
+  assert.equal(invitationSiteSlug(invitation, 'acme'), null)
+  assert.equal(invitationSiteSlug({ kind: 'link', org: { slug: 'acme' } }, 'main'), null)
+  assert.equal(invitationSiteSlug(null, 'main'), null)
+  assert.equal(invitationSiteSlug(undefined, 'main'), null)
 })
 
 test('request policy lets a signed-in visitor open an invitation link instead of sending them home', () => {

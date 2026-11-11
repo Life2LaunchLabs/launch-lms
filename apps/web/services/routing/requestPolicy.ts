@@ -223,6 +223,9 @@ export function resolveRequestRouting(
     !pathname.startsWith('/admin') &&
     // The staff welcome after accepting an invite opens on the org's address, like the admin it leads to.
     pathname !== '/joined' &&
+    // So does the step after signing in there: the session lives on this address (host-only cookies),
+    // and on the main site it'd be signed out and sent back to the login page.
+    pathname !== '/redirect_from_auth' &&
     !context.subdomainAllowed
   ) {
     return {

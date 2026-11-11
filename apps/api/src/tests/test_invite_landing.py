@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlmodel import Session
 
 from src.db.organization_invitations import OrganizationJoinLink
+from src.db.organizations import Organization
 from src.services.orgs import invite_landing
 from src.tests.test_organization_invitations import NOW, _invitation, _seed, session  # noqa: F401
 
@@ -23,11 +24,17 @@ def test_an_invitation_names_who_sent_it_and_the_address_it_went_to(session: Ses
     assert card["inviter"]["name"] == "O Wner" and card["org"]["name"] == "Studio"
     expired = invite_landing.preview(session, 1, invitation="invite_2")
     assert (expired["status"], expired["role"], expired["inviter"]) == ("expired", "admin", None)
-    # Another organization's invitation, or a made-up one, isn't found.
-    for org_id, token in ((2, "invite_1"), (1, "nope")):
+    # A made-up one isn't found, nor any on a site that doesn't exist.
+    for org_id, token in ((9, "invite_1"), (1, "nope")):
         with pytest.raises(HTTPException) as missing:
             invite_landing.preview(session, org_id, invitation=token)
         assert missing.value.status_code == 404
+    # Opened on another organization's site (FEED-83: the email linked the main site), the card still
+    # names the invitation's own organization, so the page can move there.
+    session.add(Organization(id=2, org_uuid="org_2", name="Main", slug="main", email="main@example.com"))
+    session.commit()
+    elsewhere = invite_landing.preview(session, 2, invitation="invite_1")
+    assert (elsewhere["org"]["slug"], elsewhere["email"]) == ("studio", "pending@example.com")
 
 
 def test_a_join_link_says_when_it_can_no_longer_be_used(session: Session):  # noqa: F811
