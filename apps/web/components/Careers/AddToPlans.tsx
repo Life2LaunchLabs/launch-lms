@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, GitBranch, Loader2 } from 'lucide-react'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
@@ -34,6 +33,12 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
   }, [onClose])
 
   const add = async () => {
+    // No plan yet: the route waits while they set up their first phase, which then opens the map holding it.
+    if (!plan) {
+      holdRoute(career.title, routes[route].steps)
+      router.push(getUriWithOrg(orgslug, '/first-phase'))
+      return
+    }
     if (!wanted) {
       holdRoute(career.title, routes[route].steps)
       router.push(getUriWithOrg(orgslug, '/plans?map&hold=1'))
@@ -54,12 +59,9 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
     <div role="dialog" aria-modal="true" aria-labelledby="add-to-plans-title" className="relative flex max-h-[92dvh] w-full flex-col gap-4 overflow-y-auto rounded-t-[28px] bg-card p-5 pb-[max(20px,env(safe-area-inset-bottom))] text-foreground sm:max-w-[520px] sm:rounded-[28px]">
       <div><small className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('careers.add_to_plans.add_to_my_plans', 'Add to my plans')}</small><b id="add-to-plans-title" className="block text-[19px] leading-tight">{career.title}</b></div>
       {isLoading ? <div className="flex h-24 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label={tr('careers.add_to_plans.loading_your_plan', 'Loading your plan')} /></div>
-        : !plan ? <div className="flex flex-col gap-3">
-          <p className="m-0 text-[14px] text-muted-foreground">{tr('careers.add_to_plans.start_your_plan_with_where', 'Start your plan with where you are now, then you can add this career after it.')}</p>
-          <Link href={getUriWithOrg(orgslug, '/plans')} className="self-start rounded-2xl bg-[var(--org-primary-color)] px-5 py-3 text-sm font-extrabold text-[var(--org-on-primary-color)] no-underline">{tr('careers.add_to_plans.start_my_plan', 'Start my plan')}</Link>
-        </div>
         : <>
-          {wanted ? <div className="flex flex-col gap-2">
+          {!plan ? <p className="m-0 text-[14px] text-muted-foreground">{tr('careers.add_to_plans.start_your_plan_with_where', 'Start your plan with where you are now, then you can add this career after it.')}</p> : null}
+          {wanted && plan ? <div className="flex flex-col gap-2">
             <span className="text-[14px] font-extrabold">{tr('careers.add_to_plans.after_which_phase', 'After which phase?')}</span>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tr('careers.add_to_plans.after_which_phase_2', 'After which phase')}>
               {plan.phases.filter((phase) => !phase.pass).map((phase) => <button key={phase.id} type="button" role="radio" aria-checked={phase.id === chosen} onClick={() => setAfter(phase.id)}
@@ -86,9 +88,9 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
           <p className="m-0 text-[12.5px] text-muted-foreground">{tr('careers.add_to_plans.these_go_on_your_map', 'These go on your map as dashed ideas: quick to add, quick to drop. Rename them, pick a school, or fill them in later. Training lengths come from what O*NET lists for this career.')}</p>
           <div className="flex gap-2.5">
             <button type="button" onClick={onClose} className="h-12 flex-1 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted">{tr('careers.add_to_plans.cancel', 'Cancel')}</button>
-            <button type="button" onClick={() => void add()} disabled={busy || !chosen}
+            <button type="button" onClick={() => void add()} disabled={busy || (Boolean(plan) && !chosen)}
               className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--org-primary-color)] text-sm font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)] disabled:opacity-50">
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <GitBranch size={16} />}{wanted ? tr('careers.add_to_plans.add_as_ideas', 'Add as ideas') : tr('careers.add_to_plans.place_on_my_map', 'Place on my map')}
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <GitBranch size={16} />}{!plan ? tr('careers.add_to_plans.start_my_plan', 'Start my plan') : wanted ? tr('careers.add_to_plans.add_as_ideas', 'Add as ideas') : tr('careers.add_to_plans.place_on_my_map', 'Place on my map')}
             </button>
           </div>
         </>}

@@ -14,6 +14,7 @@ import PhaseCover, { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { ActivityPicker, LivingPicker, MonthPicker, chip } from '@components/Goals/phases/PhasePickers'
 import { activityText, kindFor, suggestTitle } from '@components/Goals/phases/setup'
+import { routeWaiting } from '@components/Goals/phases/MapParts'
 import { monthText, normalize, phaseId } from '@components/Goals/phases/graph'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi } from '@services/goals/goals'
@@ -73,7 +74,8 @@ export default function FirstPhaseFlow() {
   const [uploading, setUploading] = React.useState(false)
   const fileInput = React.useRef<HTMLInputElement>(null)
   const next = params.get('next')
-  const home = (id?: string) => (next && next.startsWith('/') ? next : getUriWithOrg(org?.slug, id ? routePaths.org.phase(id) : routePaths.org.plans()))
+  // A career chosen before there was a plan waits for the map: the new phase opens it, holding that career's route.
+  const home = (id?: string) => (next && next.startsWith('/') ? next : getUriWithOrg(org?.slug, id && routeWaiting() ? `${routePaths.org.plans()}?map&hold=1` : id ? routePaths.org.phase(id) : routePaths.org.plans()))
 
   // Someone who already has a plan doesn't need this.
   React.useEffect(() => { if (!isLoading && doc?.phases?.length && !busy) router.replace(home()) }, [isLoading, doc, busy]) // eslint-disable-line react-hooks/exhaustive-deps
