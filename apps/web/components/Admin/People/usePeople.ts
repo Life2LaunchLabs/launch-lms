@@ -18,8 +18,11 @@ export function usePeopleContext() {
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
   const membership = (session?.data?.roles || []).find((item: any) => String(item?.org?.id) === String(org?.id))
-  const isAdmin = session?.data?.user?.is_superadmin === true || ADMIN_ROLE_IDS.has(Number(membership?.role?.id))
-  return { org, orgId: Number(org?.id) || 0, orgslug: org?.slug as string, token, isAdmin, viewerId: Number(session?.data?.user?.id) || 0 }
+  const superadmin = session?.data?.user?.is_superadmin === true
+  const isAdmin = superadmin || ADMIN_ROLE_IDS.has(Number(membership?.role?.id))
+  // Only the Admin role (and superadmins) set what staff may do.
+  const isOwnerAdmin = superadmin || Number(membership?.role?.id) === 1
+  return { org, orgId: Number(org?.id) || 0, orgslug: org?.slug as string, token, isAdmin, isOwnerAdmin, viewerId: Number(session?.data?.user?.id) || 0 }
 }
 
 export function usePeopleChats() {
