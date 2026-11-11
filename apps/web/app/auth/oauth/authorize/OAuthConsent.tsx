@@ -11,10 +11,13 @@ import {
   type OAuthAuthorizationParams,
   validateOAuthAuthorization,
 } from '@services/oauth/oauth'
+import { returnLine } from '@services/oauth/consent'
 
 type Consent = {
   client: { name: string; client_uri?: string | null; redirect_host: string }
   scopes: Array<{ name: string; description: string }>
+  /** What the app can do, in plain words, without the lines this person can't use. */
+  abilities: string[]
   orgs: Array<{ id: number; slug: string; name: string }>
   user: { username: string; email: string }
 }
@@ -79,7 +82,7 @@ export default function OAuthConsent() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <h1 className="mt-4 text-2xl font-black leading-tight">Connect {consent.client.name} to Launch LMS</h1>
+            <h1 className="mt-4 text-2xl font-black leading-tight">Connect {consent.client.name} to your organization</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Signed in as <span className="font-semibold text-foreground">{consent.user.email}</span>
             </p>
@@ -105,13 +108,13 @@ export default function OAuthConsent() {
             <div className="mt-6">
               <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">{consent.client.name} will be able to</p>
               <ul className="mt-2 space-y-2 text-sm">
-                {consent.scopes.map((scope) => (
-                  <li key={scope.name} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />{scope.description}</li>
+                {consent.abilities.map((line) => (
+                  <li key={line} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />{line}</li>
                 ))}
               </ul>
               <p className="mt-3 text-xs text-muted-foreground">
-                It can’t publish badge versions, delete activities, or see learner data. You can disconnect at any time.
-                Sends you back to <span className="font-semibold">{consent.client.redirect_host}</span>.
+                It works only in the organization you pick, with your access, and publishes only when you ask.
+                Disconnect any time in Organization › Connect Claude. {returnLine(consent.client.name, consent.client.redirect_host)}
               </p>
             </div>
 

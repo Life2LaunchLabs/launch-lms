@@ -17,6 +17,7 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session
 
 from src.security.org_auth import require_org_membership
+from src.services.coach.app_notes import app_notes_for
 from src.services.coach.output_limits import bound_advisor_text, finish_reply, output_budget
 from src.services.coach.policy import DEFAULT_METHOD, runtime as coach_runtime
 from src.services.demo.providers import reserve_ai as _reserve_demo_ai
@@ -617,7 +618,7 @@ async def ask_hub_advisor(
         capability_context += navigation_capability_context(db_session, org_id, session_target)
     if policy.can("ask_questions"):
         capability_context += question_context(db_session, org_id, user_id, edit_run, session_target)
-    capability_context += "\n\n" + REPLY_RULES
+    capability_context += app_notes_for(messages[-1].content) + "\n\n" + REPLY_RULES
     if edit_run:
         from src.services.goals.coach_sessions import session_prompt
         waiting, outline = session_prompt(db_session, edit_run, user_id)
@@ -637,10 +638,7 @@ async def ask_hub_advisor(
             "not propose edits until the learner activates that control. A different scope requires a new grant."
             "\n</hub_recent_editing_scope>"
         )
-    provider_messages = [
-        *provider_messages[:-1],
-        AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
-    ]
+    provider_messages = [*provider_messages[:-1], AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context)]
     query = " ".join([messages[-1].content, *(str(item.get("title") or "") for item in ((page_context or {}).get("receipt") or {}).get("sources", []))])
     from src.services.coach.providers import configured_advisor_provider
     result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None, query=query)).respond(provider_messages, safety_identifier)
