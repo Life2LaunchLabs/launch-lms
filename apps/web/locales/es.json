@@ -6459,14 +6459,15 @@
     },
     "unlock_matches": {
       "unlock_your_matches_done_of": "Desbloquea tus coincidencias · {{done}} de {{total}}",
-      "each_one_makes_explore_more": "Cada una hace que Explorar sea más sobre ti. Termina las {{total}} para que tu inicio de Explorar sea tuyo.",
-      "done_of_total_done": "{{done}} de {{total}} hechos",
       "done": "(hecho)",
-      "go": "Ir",
-      "careers_that_fit_you_near": "carreras que te quedan, cerca de ti, con lo que pagan y cuánto dura la preparación.",
-      "your_explore_home": "Tu inicio de Explorar:",
       "preview_it": "Verlo",
-      "your_interests_and_skills_only": "Tus intereses y habilidades solo aparecen en tu portafolio si tú los pones ahí. Tu base es la ubicación de tu portafolio."
+      "unlock_your_matches": "Desbloquea tus coincidencias",
+      "each_one_sharpens_your_matches": "Cada uno hace que tus coincidencias de carreras se parezcan más a ti.",
+      "match_accuracy": "Precisión de coincidencias",
+      "match_accuracy_done_of_total": "Precisión de coincidencias: {{done}} de {{total}} hechos",
+      "have_of_need": "{{have}} de {{need}}",
+      "close": "Cerrar",
+      "finish_all_total_for_your": "Termina los {{total}} para tener tu propio inicio de Explorar."
     }
   },
   "resources": {

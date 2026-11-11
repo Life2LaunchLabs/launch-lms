@@ -12,12 +12,13 @@ import { getUriWithOrg } from '@services/config/config'
 import { careersApi, exploreKey } from '@services/life/careers'
 import { CAREER_TYPES, CareerTile, CareerIcon } from './CareerTile'
 import { BATCH, batchProgress, deckKey } from './CareerSwipe'
-import UnlockMatches from './UnlockMatches'
+import UnlockMatches, { MatchAccuracyButton } from './UnlockMatches'
 
 import { tr } from '@/lib/tr'
 /**
  * Careers on Discover: the Career swipe billboard, then the careers closest to the learner's interests. Only for
- * signed-in learners in an organization that has added careers.
+ * signed-in learners in an organization that has added careers. Until "Unlock your matches" is done, the billboard
+ * carries a small "Match accuracy" gauge that drops its list down under the billboard.
  */
 export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
   const org = useOrg() as any
@@ -28,6 +29,8 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
   const { data: explore } = useSWR(token && org?.id ? [...exploreKey(org.id), token] : null, () => careersApi.explore(org.id, token!))
   const [progress, setProgress] = React.useState<{ at: number; of: number } | null>(null)
   React.useEffect(() => setProgress(batchProgress(org?.id)), [org?.id])
+  const [unlockOpen, setUnlockOpen] = React.useState(false)
+  const [tail, place] = useTailTo(unlockOpen)
   if (!deck?.cards.length) return null
   const swipe = getUriWithOrg(orgslug, '/discover/careers')
   const exploreHref = getUriWithOrg(orgslug, '/discover/explore')
@@ -36,12 +39,12 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
   const starred = deck.cards.some((card) => card.my_place_pay)
 
   return <>
-    {explore && !explore.quest.complete && token ? <UnlockMatches quest={explore.quest} orgslug={orgslug} orgId={org?.id} token={token} /> : null}
     {explore?.quest.complete ? <Link href={exploreHref} className="flex items-center gap-3 rounded-[20px] border-2 border-[var(--org-primary-color)] bg-card p-4 text-foreground no-underline shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_35%,transparent)]">
       <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]"><Sparkles size={20} /></span>
       <span className="flex min-w-0 flex-1 flex-col"><span className="text-[17px] font-extrabold leading-tight">{tr('careers.discover_careers.your_explore_home', 'Your Explore home')}</span><span className="text-[13px] text-muted-foreground">{tr('careers.discover_careers.careers_that_fit_you_with', 'Careers that fit you, with pay near home and how long training takes.')}</span></span>
       <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
     </Link> : null}
+    <div ref={place} className="flex flex-col gap-3">
     <section aria-label={tr('careers.discover_careers.career_swipe', 'Career swipe')} className="relative isolate grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-[22px] bg-[var(--org-primary-color)] p-5 text-[var(--org-on-primary-color)] shadow-[0_5px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]">
       <span aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(90%_120%_at_100%_0%,rgba(255,255,255,.25),transparent_60%)]" />
       <div>
@@ -51,9 +54,12 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
           {progress ? tr('careers.discover_careers.you_re_at_of_of_2', 'You’re {{at}} of {{of}} in. Pick up where you left off.', { at: progress.at, of: progress.of })
             : tr('careers.discover_careers.min_careers_picked_value_save_2', '{{min}} careers picked {{value}}. Save the ones that catch your eye and say why.', { min: Math.min(BATCH, deck.total), value: deck.has_quiz ? tr('careers.discover_careers.v_for_your_interests', 'for your interests') : tr('careers.discover_careers.v_to_start_you_off', 'to start you off') })}
         </p>
-        <Link href={swipe} className="inline-flex items-center gap-2 rounded-[14px] bg-card px-4 py-2.5 text-sm font-extrabold text-foreground no-underline shadow-[0_3px_0_rgba(0,0,0,.25)]">
-          <Play size={15} aria-hidden="true" />{progress ? tr('careers.discover_careers.keep_going', 'Keep going') : tr('careers.discover_careers.start_2', 'Start')}
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={swipe} className="inline-flex items-center gap-2 rounded-[14px] bg-card px-4 py-2.5 text-sm font-extrabold text-foreground no-underline shadow-[0_3px_0_rgba(0,0,0,.25)]">
+            <Play size={15} aria-hidden="true" />{progress ? tr('careers.discover_careers.keep_going', 'Keep going') : tr('careers.discover_careers.start_2', 'Start')}
+          </Link>
+          {explore && !explore.quest.complete && token ? <MatchAccuracyButton quest={explore.quest} open={unlockOpen} onToggle={() => setUnlockOpen(!unlockOpen)} controls="unlock-matches" /> : null}
+        </div>
       </div>
       <div aria-hidden="true" className="relative h-[112px] w-[96px] shrink-0 max-[420px]:h-[86px] max-[420px]:w-[70px]">
         {icons.map((card, index) => {
@@ -64,6 +70,8 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
         })}
       </div>
     </section>
+    {unlockOpen && explore && !explore.quest.complete && token ? <UnlockMatches id="unlock-matches" variant="drop" tail={tail} onClose={() => setUnlockOpen(false)} quest={explore.quest} orgslug={orgslug} orgId={org?.id} token={token} /> : null}
+    </div>
     <section aria-label={tr('careers.discover_careers.careers_for_you_2', 'Careers for you')} className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <SectionTitle href={exploreHref}>{tr('careers.discover_careers.careers_for_you_2', 'Careers for you')}</SectionTitle>
@@ -79,4 +87,25 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
       </Shelf>
     </section>
   </>
+}
+
+/** Where the dropped list's tail points: the middle of the accuracy button, measured inside the billboard's wrapper. */
+function useTailTo(open: boolean) {
+  const [box, setBox] = React.useState<HTMLElement | null>(null)
+  const [left, setLeft] = React.useState<number | null>(null)
+  React.useLayoutEffect(() => {
+    if (!open || !box) return
+    const place = () => {
+      const button = box.querySelector<HTMLElement>('[data-match-accuracy]')
+      if (!button) return setLeft(null)
+      const outer = box.getBoundingClientRect(), at = button.getBoundingClientRect()
+      setLeft(Math.min(Math.max(at.left + at.width / 2 - outer.left, 24), outer.width - 24))
+    }
+    place()
+    const watch = new ResizeObserver(place)
+    watch.observe(box)
+    window.addEventListener('resize', place)
+    return () => { watch.disconnect(); window.removeEventListener('resize', place) }
+  }, [open, box])
+  return [left, setBox] as const
 }
