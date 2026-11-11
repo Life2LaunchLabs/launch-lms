@@ -361,3 +361,24 @@ def test_a_dropped_persona_can_tell_an_open_run_from_a_closed_one(db, monkeypatc
     assert persona_run_state(2, request, Response(), db) == {"open": False}  # a real account says nothing more
     cohorts.close_cohort(db, cohort["cohort_uuid"])
     assert persona_run_state(maya["user_id"], request, Response(), db) == {"open": False}
+
+
+def test_a_test_counts_as_active_only_while_an_open_runs_persona_is_busy(db):
+    """Unstable's deploy waits while this is true, so a run isn't cut off by a redeploy."""
+    cohort = _cohort(db)
+    maya = _persona(db, cohort["cohort_uuid"])
+    assert cohorts.tests_active(db)["active"] is False  # made, never used
+    persona = db.get(TestPersona, maya["user_id"])
+    persona.last_active_at = datetime.utcnow() - timedelta(minutes=5)
+    db.add(persona)
+    db.commit()
+    assert cohorts.tests_active(db)["active"] is True
+    persona.last_active_at = datetime.utcnow() - timedelta(minutes=cohorts.ACTIVE_MINUTES + 1)
+    db.add(persona)
+    db.commit()
+    assert cohorts.tests_active(db)["active"] is False  # left open but idle
+    persona.last_active_at = datetime.utcnow()
+    db.add(persona)
+    db.commit()
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    assert cohorts.tests_active(db)["active"] is False  # closed

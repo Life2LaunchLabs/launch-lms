@@ -52,6 +52,23 @@ def is_open(cohort: TestCohort) -> bool:
     return cohort.status == "open" and cohort.expires_at > datetime.utcnow()
 
 
+ACTIVE_MINUTES = 20
+
+
+def tests_active(db: Session) -> dict:
+    """True when a persona of an open run did something in the last ACTIVE_MINUTES."""
+    now = datetime.utcnow()
+    last = db.exec(
+        select(TestPersona.last_active_at)
+        .join(TestCohort, TestCohort.id == TestPersona.cohort_id)
+        .where(TestCohort.status == "open", TestCohort.expires_at > now, TestPersona.last_active_at.is_not(None))  # type: ignore[union-attr]
+        .order_by(TestPersona.last_active_at.desc())  # type: ignore[union-attr]
+        .limit(1)
+    ).first()
+    return {"active": bool(last and now - last <= timedelta(minutes=ACTIVE_MINUTES)),
+            "last_activity": last.isoformat() + "Z" if last else None}
+
+
 def create_cohort(db: Session, actor_id: int, body: CreateCohort) -> dict:
     now = datetime.utcnow()
     open_count = db.exec(
