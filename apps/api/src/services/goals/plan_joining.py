@@ -53,7 +53,9 @@ def _user_id(current_user: PublicUser | AnonymousUser | None) -> int | None:
 
 
 def _org(org: Organization | None) -> dict | None:
-    return {"id": org.id, "name": org.name, "slug": org.slug, "logo_image": org.logo_image or "", "org_uuid": org.org_uuid} if org else None
+    # ``listed``: its public page is open to anyone, so a name on a plan can link to it.
+    return {"id": org.id, "name": org.name, "slug": org.slug, "logo_image": org.logo_image or "", "org_uuid": org.org_uuid,
+            "listed": bool(org.explore)} if org else None
 
 
 class Offer:

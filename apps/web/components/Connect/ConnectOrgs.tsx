@@ -31,7 +31,7 @@ export function OrganizationResults({ orgslug, query }: { orgslug: string; query
       <OrgMark org={org} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-semibold">{org.name}</span>
-        <span className="block truncate text-sm text-muted-foreground">{tr('connect.connect_orgs.organization', 'Organization')}{org.is_member ? tr('connect.connect_orgs.you_re_a_member', ' · You’re a member') : tr('connect.connect_orgs.member_count_members', ' · {{member_count}} members', { member_count: org.member_count })}</span>
+        <span className="block truncate text-sm text-muted-foreground">{tr('connect.connect_orgs.organization', 'Organization')}{org.is_member ? tr('connect.connect_orgs.you_re_a_member', ' · You’re a member') : org.description ? ` · ${org.description}` : ''}</span>
       </span>
     </Link>
   </li>)}</ul>

@@ -9,6 +9,7 @@ import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { PlanOfferCard } from '@services/goals/planJoining'
+import OrgLink from '@components/Organizations/OrgLink'
 
 import { tr } from '@/lib/tr'
 /** Tile colors behind plan art, picked per plan so a row reads as a colorful shelf; each theme sets its own shades. */
@@ -41,18 +42,20 @@ function Tag({ card }: { card: PlanOfferCard }) {
   return <span className={cn('absolute left-2.5 top-2.5 rounded-full px-2 py-1 text-[11px] font-black uppercase tracking-wide', style)}>{label}</span>
 }
 
-/** A plan on a shelf: its art on a colored tile, its name and who offers it underneath. */
+/** A plan on a shelf: its art on a colored tile, its name and who offers it underneath (a link to their page when it's public). */
 export function PlanTile({ card, orgslug, width = 196, fill = false }: { card: PlanOfferCard; orgslug: string; width?: number; fill?: boolean }) {
   const percent = card.goal?.total ? Math.round((card.goal.done * 100) / card.goal.total) : 0
-  return <Link href={planHref(orgslug, card.template_uuid)} className={cn('group flex flex-col gap-2 text-foreground no-underline', fill ? 'w-full' : 'shrink-0')} style={fill ? undefined : { width }}>
-    <span className="relative flex h-[180px] items-center justify-center rounded-[18px] transition-transform duration-200 group-hover:-translate-y-[3px]" style={{ backgroundColor: tileColor(card.template_uuid) }}>
-      <span className="transition-transform duration-300 group-hover:-rotate-[5deg] group-hover:scale-105"><PlanArt card={card} /></span>
-      <Tag card={card} />
-      {card.goal ? <span className="absolute inset-x-3.5 bottom-3 block h-2 overflow-hidden rounded-full bg-white/80"><span className="block h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${percent}%` }} /></span> : null}
-    </span>
-    <span className="px-0.5 text-base font-black leading-tight"><Tx text={card.title} /></span>
-    {card.org ? <span className="-mt-1 truncate px-0.5 text-[13px] font-semibold text-muted-foreground">{card.org.name}</span> : null}
-  </Link>
+  return <div className={cn('flex flex-col gap-1', fill ? 'w-full' : 'shrink-0')} style={fill ? undefined : { width }}>
+    <Link href={planHref(orgslug, card.template_uuid)} className="group flex flex-col gap-2 text-foreground no-underline">
+      <span className="relative flex h-[180px] items-center justify-center rounded-[18px] transition-transform duration-200 group-hover:-translate-y-[3px]" style={{ backgroundColor: tileColor(card.template_uuid) }}>
+        <span className="transition-transform duration-300 group-hover:-rotate-[5deg] group-hover:scale-105"><PlanArt card={card} /></span>
+        <Tag card={card} />
+        {card.goal ? <span className="absolute inset-x-3.5 bottom-3 block h-2 overflow-hidden rounded-full bg-white/80"><span className="block h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${percent}%` }} /></span> : null}
+      </span>
+      <span className="px-0.5 text-base font-black leading-tight"><Tx text={card.title} /></span>
+    </Link>
+    {card.org ? <OrgLink org={card.org} orgslug={orgslug} className="truncate px-0.5 text-[13px] font-semibold text-muted-foreground" /> : null}
+  </div>
 }
 
 /** A horizontal shelf that scrolls on its own, without a visible scrollbar. */

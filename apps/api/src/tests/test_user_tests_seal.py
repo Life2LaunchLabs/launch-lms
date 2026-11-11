@@ -313,6 +313,11 @@ def test_org_search_hides_test_orgs_from_real_users_and_other_runs(db):
     dana = _persona(db, one, first_name="Dana", start_state="org_owner", org_name="Riverside High")
     ana = _persona(db, two, first_name="Ana")
     test_org = db.get(Organization, db.exec(select(TestCohortOrg)).one().org_id)
+    # Real people find listed orgs; even a listed test org stays sealed to its own run.
+    for org in db.exec(select(Organization).where(Organization.slug.in_(["real-high", test_org.slug]))).all():
+        org.explore = True
+        db.add(org)
+    db.commit()
     slugs = lambda user_id: {org.slug for org in asyncio.run(list_discoverable_orgs(db, viewer(user_id), query=""))}  # noqa: E731
     assert test_org.slug in slugs(dana["user_id"])
     assert test_org.slug not in slugs(2) and test_org.slug not in slugs(ana["user_id"])

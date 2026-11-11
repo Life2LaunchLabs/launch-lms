@@ -141,18 +141,18 @@ async def api_discover_orgs(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=24, ge=1, le=100),
     query: str = Query(default="", max_length=200),
+    listed: bool = Query(default=False, description="Only Discover's Organizations shelf: listed orgs with a complete page"),
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[OrganizationDiscoverRead]:
-    """
-    List discoverable organizations for the public organizations experience.
-    """
+    """Organizations a person can find: listed ones, and their own. Unlisted pages are members-only."""
     return await list_discoverable_orgs(
         db_session=db_session,
         current_user=current_user,
         page=page,
         limit=limit,
         query=query,
+        listed=listed,
     )
 
 

@@ -81,6 +81,7 @@ export const ADMIN_TABS: AdminTab[] = [
     children: [
       { id: 'general', label: 'General', labelKey: 'dashboard.organization.settings.tabs.general', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
       { id: 'branding', label: 'Branding', labelKey: 'dashboard.organization.settings.tabs.branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
+      { id: 'public-page', label: 'Public page', href: admin.organization.publicPage(), match: [admin.organization.publicPage()], requires: {} },
       { id: 'discover', label: 'Learner Discover', href: admin.organization.discover(), match: [admin.organization.discover()], requires: {} },
       { id: 'messaging', label: 'Messaging', href: admin.organization.messaging(), match: [admin.organization.messaging()], requires: {} },
       { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
