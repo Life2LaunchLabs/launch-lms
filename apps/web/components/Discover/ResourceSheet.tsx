@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { toast } from 'react-hot-toast'
-import { ArrowUpRight, Bookmark, Loader2, Sparkles, Star, X } from 'lucide-react'
+import { ArrowUpRight, Bookmark, Check, Loader2, Sparkles, Star, X } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useHub } from '@components/Hub/HubContext'
@@ -67,7 +67,46 @@ function MoreFrom({ resource, onOpen }: { resource: Resource; onOpen: Dispatch<s
  * One resource, over Discover: what it is and a big button straight to it, then saving it, asking Coach,
  * your notes and what others say. A sheet from the bottom on phones, a card in the middle on wider screens.
  */
-export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }: { resourceUuid: string; orgslug: string; onClose: () => void; onOpen: Dispatch<string> }) {
+/** Where the sheet was opened from, when that place has its own actions: a plan phase's "Save to this phase". */
+export interface SheetContext {
+  /** The place's name, like the phase's title. */
+  label: string
+  /** Why it was suggested here, when it was. */
+  reason?: string
+  inList: boolean
+  onSave: () => Promise<void>
+  onRemove: () => Promise<void>
+  /** "Not for this phase": hides it here and closes the sheet. */
+  onHide?: () => void
+}
+
+function ContextBar({ context, onClose, onChanged }: { context: SheetContext; onClose: () => void; onChanged: () => void }) {
+  const [busy, setBusy] = React.useState(false)
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true)
+    try { await action(); onChanged() } catch { toast.error(tr('discover.resource_sheet.couldn_t_save_it_try', 'Couldn’t save it. Try again.')) } finally { setBusy(false) }
+  }
+  return <div className="flex flex-col gap-2.5 rounded-[20px] bg-raised p-3">
+    <span className="px-1 text-[12.5px] font-bold text-muted-foreground">
+      {context.reason ? tr('discover.resource_sheet.for_label_reason', 'For {{label}}: {{reason}}', { label: context.label, reason: context.reason }) : tr('discover.resource_sheet.for_label', 'For {{label}}', { label: context.label })}
+    </span>
+    <div className="flex flex-wrap items-center gap-2">
+      {context.inList
+        ? <Button type="button" variant="surface" size="tall" className="flex-1" disabled={busy} onClick={() => void run(context.onRemove)}>
+          <Check size={16} aria-hidden="true" />{tr('discover.resource_sheet.saved_to_this_phase', 'Saved to this phase')}
+        </Button>
+        : <Button type="button" variant="brand" size="tall" className="flex-1" disabled={busy} onClick={() => void run(context.onSave)}>
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <Bookmark size={16} aria-hidden="true" />}{tr('discover.resource_sheet.save_to_this_phase', 'Save to this phase')}
+        </Button>}
+      {context.onHide && !context.inList ? <Button type="button" variant="ghost" size="tall" onClick={() => { context.onHide?.(); onClose() }}>
+        {tr('discover.resource_sheet.not_for_this_phase', 'Not for this phase')}
+      </Button> : null}
+    </div>
+    {context.inList ? <span className="px-1 text-xs text-muted-foreground">{tr('discover.resource_sheet.in_your_library_list', 'In your Library list “{{label}}”. Tap to take it out.', { label: context.label })}</span> : null}
+  </div>
+}
+
+export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, context }: { resourceUuid: string; orgslug: string; onClose: () => void; onOpen: Dispatch<string>; context?: SheetContext }) {
   const session = useLHSession() as any
   const hub = useHub()
   const token = session?.data?.tokens?.access_token
@@ -169,6 +208,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen }
               </div>
               {site ? <span className="px-1 text-[12.5px] font-semibold text-muted-foreground">{tr('discover.resource_sheet.opens_site_in_a_new', 'Opens {{site}} in a new tab', { site })}</span> : null}
             </div>
+            {context && signedIn ? <ContextBar context={context} onClose={onClose} onChanged={() => void mutate()} /> : null}
             <div className="flex flex-wrap items-center gap-2.5">
               {hub ? <Button type="button" variant="surface" size="tall" className="flex-1" onClick={() => { hub.attach(resource); onClose() }}><Sparkles size={16} />{tr('discover.resource_sheet.ask_coach_about_this', 'Ask Coach about this')}</Button> : null}
               {signedIn ? <SaveDropdown resourceUuid={resource.resource_uuid} isSaved={resource.is_saved} savedUserChannelUuids={resource.user_channel_uuids || []}
