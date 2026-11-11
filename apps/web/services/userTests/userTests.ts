@@ -82,6 +82,8 @@ export const setPersonaProgress = (userId: number, stageKey: string, status: Sta
 export type MyRun = { persona: { user_id: number; name: string; handle: string }; cohort: { name: string }; stages: (Pick<TestStage, 'key' | 'title' | 'goal'> & Pick<BoardCell, 'note' | 'waiting_on'> & { status: StageStatus })[]; unread_mail: number; others?: { user_id: number; name: string }[] }
 export type NewFinding = { kind: 'bug' | 'confusion' | 'wish'; severity?: 'low' | 'medium' | 'high'; stage_key?: string | null; page?: string; what_happened: string; what_wanted?: string }
 export const fetchMyRun = () => call<MyRun>('me')
+/** Whether a persona's run is still open; needs no sign-in, so it works after the session dropped. */
+export const fetchRunOpen = (userId: number) => call<{ open: boolean }>(`personas/${userId}/run`).then((state) => state.open)
 /** A one-use login link for another persona of the same run. */
 export const switchPersona = (userId: number) => call<{ path: string; url: string; expires_at: string }>('me/switch', 'POST', { user_id: userId })
 export const fetchMyMail = () => call<{ mail: TestMail[] }>('me/mail')
