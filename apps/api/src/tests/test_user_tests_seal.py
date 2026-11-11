@@ -394,3 +394,55 @@ def test_org_search_hides_test_orgs_from_real_users_and_other_runs(db):
         asyncio.run(get_discoverable_org_by_slug(db, viewer(2), test_org.slug))
     assert hidden.value.status_code == 404
     assert asyncio.run(get_discoverable_org_by_slug(db, viewer(dana["user_id"]), test_org.slug)).slug == test_org.slug
+
+
+def test_purge_removes_badge_awards_before_the_plans_they_were_earned_from(db):
+    # FEED-104: a persona's badge from a test org's plan stopped the purge (badge_award_template_id_fkey),
+    # so the awards have to be gone before the org (and its plans) are deleted.
+    from datetime import date
+
+    from sqlalchemy import event, func, text
+    from src.db.badges import BadgeAward
+    from src.db.goals import Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion
+
+    cohort = _cohort(db)
+    dana = _persona(db, cohort, first_name="Dana", start_state="org_owner", org_name="Riverside High")
+    maya = _persona(db, cohort)
+    test_org = db.exec(select(TestCohortOrg)).one().org_id
+    template = GoalTemplate(template_uuid="gt_1", org_id=test_org, title="Bike safety")
+    real_plan = GoalTemplate(template_uuid="gt_real", org_id=1, title="First aid")
+    db.add_all([template, real_plan])
+    db.commit()
+    version = GoalTemplateVersion(version_uuid="gtv_1", template_id=template.id, org_id=test_org)
+    db.add(version)
+    db.commit()
+    assignment = GoalAssignment(assignment_uuid="ga_1", org_id=test_org, template_id=template.id, version_id=version.id, user_id=maya["user_id"])
+    db.add(assignment)
+    db.commit()
+    goal = Goal(goal_uuid="g_1", owner_user_id=maya["user_id"], org_id=test_org, assignment_id=assignment.id, version_id=version.id, title="Bike safety")
+    db.add(goal)
+    db.commit()
+    db.add_all([
+        BadgeAward(award_uuid="ba_1", template_id=template.id, version_id=version.id, user_id=maya["user_id"], issuing_org_id=test_org,
+                   creator_org_id=test_org, goal_id=goal.id, earned_on=date(2026, 11, 10), status_list_index=0),
+        BadgeAward(award_uuid="ba_2", template_id=template.id, user_id=dana["user_id"], issuing_org_id=test_org, creator_org_id=test_org,
+                   source="direct_award", awarded_by_user_id=dana["user_id"], earned_on=date(2026, 11, 10), status_list_index=1),
+        BadgeAward(award_uuid="ba_real", template_id=real_plan.id, user_id=2, issuing_org_id=1, creator_org_id=1, earned_on=date(2026, 11, 1), status_list_index=0),
+    ])
+    db.commit()
+    awards_at_org_delete: list[int] = []
+
+    def count_awards(mapper, connection, org):
+        templates = select(GoalTemplate.id).where(GoalTemplate.org_id == org.id)
+        awards_at_org_delete.append(connection.execute(select(func.count()).select_from(BadgeAward).where(BadgeAward.template_id.in_(templates))).scalar())
+
+    event.listen(Organization, "before_delete", count_awards)
+    try:
+        db.execute(text("PRAGMA foreign_keys=ON"))
+        cohorts.close_cohort(db, cohort["cohort_uuid"])
+        assert cleanup.purge(db, cohort["cohort_uuid"], dry_run=False)["status"] == "purged"
+    finally:
+        event.remove(Organization, "before_delete", count_awards)
+    assert awards_at_org_delete == [0]
+    assert db.get(User, maya["user_id"]) is None and db.get(Organization, test_org) is None
+    assert [award.award_uuid for award in db.exec(select(BadgeAward)).all()] == ["ba_real"]
