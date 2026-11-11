@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
 from src.services import hub_advisor
+from src.services.coach import output_limits
 from src.security.access.access import access_from_config
 from src.services import hub_actions
 from src.services import hub_questions
@@ -39,7 +40,7 @@ def message(role: str, content: str) -> AdvisorMessage:
 def test_advisor_text_is_bounded_at_a_readable_break():
     result = bound_advisor_text(("Useful sentence. " * 2_000).strip())
 
-    assert len(result) <= hub_advisor.MAX_ASSISTANT_CHARS
+    assert len(result) <= output_limits.MAX_ASSISTANT_CHARS
     assert result.endswith("…")
     assert result.startswith("Useful sentence.")
 
@@ -61,7 +62,7 @@ def test_reply_bound_holds_the_largest_configurable_output():
 
     largest = CoachModelSettings.model_fields["max_output_tokens"].metadata
     ceiling = next(item.le for item in largest if getattr(item, "le", None) is not None)
-    assert hub_advisor.MAX_ASSISTANT_CHARS >= ceiling * 4
+    assert output_limits.MAX_ASSISTANT_CHARS >= (ceiling + output_limits.REASONING_HEADROOM_TOKENS) * 4
 
 
 @pytest.mark.asyncio
@@ -263,7 +264,7 @@ async def test_openai_provider_is_stateless_and_exposes_learner_controlled_navig
     assert captured["store"] is False
     assert captured["tools"][0]["name"] == "suggest_navigation"
     assert captured["tool_choice"] == "auto"
-    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS
+    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS + output_limits.REASONING_HEADROOM_TOKENS
     assert "previous_response_id" not in captured
     assert "conversation" not in captured
 
@@ -306,7 +307,7 @@ async def test_openai_provider_applies_supported_advanced_settings():
             advanced={"max_output_tokens": 800, "reasoning_effort": "low", "verbosity": "low"},
         ).respond([message("user", "What next?")], "safe-user")
 
-    assert captured["max_output_tokens"] == 800
+    assert captured["max_output_tokens"] == 800 + output_limits.REASONING_HEADROOM_TOKENS
     assert captured["reasoning"] == {"effort": "low"}
     assert captured["text"] == {"verbosity": "low"}
 
@@ -360,7 +361,7 @@ async def test_anthropic_provider_is_stateless_and_applies_thinking_settings():
         ).respond([message("user", "What next?")], "safe-user")
 
     assert result == AdvisorResult("Try one focused experiment.", "claude-test", 9, 6)
-    assert captured["max_tokens"] == 900
+    assert captured["max_tokens"] == 900 + output_limits.REASONING_HEADROOM_TOKENS
     assert captured["thinking"] == {"type": "adaptive"}
     assert captured["output_config"] == {"effort": "low"}
     assert captured["tools"][0]["name"] == "suggest_navigation"
@@ -577,3 +578,66 @@ async def test_both_providers_offer_and_return_questions_in_any_chat():
     assert [item["kind"] for item in asked.questions] == ["single", "scale", "text"]
     replied = await DeterministicUiTestProvider(edit_scope="goal").respond([message("user", "My answers:\n- How sure? 4 of 5")], "safe")
     assert replied.questions == () and replied.goal_operations == ()
+
+
+@pytest.mark.asyncio
+async def test_openai_reasoning_model_gets_room_to_think_and_a_cut_reply_ends_on_a_sentence():
+    # FEED-67: reasoning tokens count against max_output_tokens, so a reasoning model given only the
+    # 700-token answer budget spent most of it thinking and stopped mid-sentence around 950 characters.
+    captured = {}
+    cut = "Becoming a dietitian takes a degree and a supervised internship. Some programs combine these"
+
+    async def handler(request: httpx.Request):
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={
+            "model": "gpt-test", "status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"},
+            "output": [
+                {"type": "reasoning", "summary": []},
+                {"type": "message", "content": [{"type": "output_text", "text": cut}]},
+            ],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIResponsesProvider("test-key", "gpt-test", client).respond(
+            [message("user", "How do I become a dietitian?")], "safe-user"
+        )
+
+    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS + output_limits.REASONING_HEADROOM_TOKENS
+    assert result.text == "Becoming a dietitian takes a degree and a supervised internship."
+
+
+@pytest.mark.asyncio
+async def test_openai_without_reasoning_keeps_the_plain_answer_budget():
+    captured = {}
+
+    async def handler(request: httpx.Request):
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={"output": [{"type": "message", "content": [{"type": "output_text", "text": "Done."}]}]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        await OpenAIResponsesProvider(
+            "test-key", "gpt-test", client, advanced={"reasoning_effort": "none"}
+        ).respond([message("user", "What next?")], "safe-user")
+
+    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS
+
+
+@pytest.mark.asyncio
+async def test_anthropic_reply_cut_at_max_tokens_ends_on_a_sentence():
+    async def handler(_request: httpx.Request):
+        return httpx.Response(200, json={
+            "model": "claude-test", "stop_reason": "max_tokens",
+            "content": [{"type": "text", "text": "First, finish the degree.\n\n- Pay: most roles start near"}],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await AnthropicMessagesProvider("test-key", "claude-test", client).respond(
+            [message("user", "How do I become a dietitian?")], "safe-user"
+        )
+
+    assert result.text == "First, finish the degree."
+
+
+def test_complete_reply_is_left_alone_and_an_unbreakable_cut_is_marked():
+    assert output_limits.end_at_last_complete_sentence("All done here.") == "All done here."
+    assert output_limits.end_at_last_complete_sentence("No break at all in this") == "No break at all in this…"
