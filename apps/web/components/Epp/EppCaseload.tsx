@@ -12,6 +12,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { caseloadKey, downloadCaseloadExport, getCaseload, type CaseloadLearner, type CaseloadState, type ComponentKey } from '@services/epp/caseload'
 import { routePaths } from '@services/routing/paths'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 const COLUMNS: { key: ComponentKey; label: string }[] = [
   { key: 'interests', label: 'Interests' }, { key: 'goals', label: 'Goals' }, { key: 'courses', label: 'Courses' }, { key: 'progress', label: 'Progress' }, { key: 'accomplishments', label: 'Evidence' },
@@ -104,8 +105,8 @@ export default function EppCaseload({ orgslug, mine }: { orgslug: string; mine: 
           })}
         </div>
 
-        {!data.learners.length ? <EmptyState title={mine ? 'You don’t counsel anyone yet' : 'No supported learners yet'}
-          detail={mine ? 'On a learner’s School record, choose Make me their counselor.' : 'Ask a learner to share their plan from their profile’s School record. They say yes in their chat with you.'} />
+        {!data.learners.length ? <EmptyState title={mine ? 'You don’t counsel anyone yet' : inOrgWords('No supported learners yet')}
+          detail={mine ? inOrgWords('On a learner’s School record, choose Make me their counselor.') : inOrgWords('Ask a learner to share their plan from their profile’s School record. They say yes in their chat with you.')} />
           : !rows.length ? <p className="py-6 text-center text-sm text-muted-foreground">Nobody here right now.</p>
           : <>
             <div className="hidden overflow-hidden rounded-xl border border-border md:block">

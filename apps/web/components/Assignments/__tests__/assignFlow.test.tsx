@@ -106,7 +106,7 @@ describe('the steps', () => {
   test('Staff warns without a Lead and lists what each role does', () => {
     const html = renderToStaticMarkup(<StaffStep staff={[{ ...me, role: 'comment' }]} setStaff={() => undefined} query="" setQuery={() => undefined} options={[]} />)
     expect(html).toContain('Make at least one person Lead')
-    expect(html).toContain('Changes dates, learners and settings')
+    expect(html).toContain('Changes dates, participants and settings')
     expect(html).toContain('aria-label="Role for Henry Ker"')
   })
 
@@ -137,7 +137,7 @@ describe('the previews and the end', () => {
   })
 
   test('the People tab preview shows the staff and their roles', () => {
-    expect(renderToStaticMarkup(<StaffPreview plan={plan} slug="riverside" picks={[]} staff={[me]} />)).toContain('Changes dates, learners and settings')
+    expect(renderToStaticMarkup(<StaffPreview plan={plan} slug="riverside" picks={[]} staff={[me]} />)).toContain('Changes dates, participants and settings')
   })
 
   test('done offers the group’s messages only for a group, and the schedule only when scheduled', () => {

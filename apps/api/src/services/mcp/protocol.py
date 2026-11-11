@@ -22,8 +22,8 @@ from src.services.requirement_documents.models import requirement_framework_json
 from src.services.oauth.server import AccessContext
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
-SERVER_INFO = {"name": "launch-lms", "title": "Launch LMS", "version": "1.1.0"}
-INSTRUCTIONS = """Launch LMS holds plans, the requirements they count toward, and the badges they earn. Everything belongs to an organization: tools act in the organization chosen when connecting; list_organizations shows every organization this admin manages, and any tool takes `org` (a slug) to act in another one. Say which organization you are working in when it is not the default.
+SERVER_INFO = {"name": "launch-lms", "title": "Life2Launch", "version": "1.1.0"}
+INSTRUCTIONS = """Life2Launch holds plans, the requirements they count toward, and the badges they earn. Everything belongs to an organization: tools act in the organization chosen when connecting; list_organizations shows every organization this admin manages, and any tool takes `org` (a slug) to act in another one. Say which organization you are working in when it is not the default.
 
 Requirement frameworks (standards, competencies, state mandates) are hierarchies of requirement nodes. Turn a requirements write-up into one with get_requirement_framework_schema, validate_requirement_framework and create_requirement_framework (or edit an existing one from list_requirement_frameworks / get_requirement_framework). Frameworks are versioned: saves edit a draft; publish_requirement_framework only when the admin asks.
 
@@ -33,7 +33,7 @@ Activities: add one by giving a new step type "activity" in a template document 
 
 Badges are an optional part of a plan: the template document's `badge` block (kind, skills, certificate style, optional name and image, extra Open Badges fields). Everything else about the badge comes from the plan (title, description, criteria, requirements, version), and finishing the plan earns it. It is drafted and published with the plan.
 
-Where plans show up: save_collection groups plans (list_collections first); a collection's categories decide where /start and Discover suggest its plans, and the platform organization's starter collections fill every organization's New plan picker. set_plan_listing lists a plan in Discover for other organizations (locked or open, open or by request), and set_plan_cover sets its image or icon. Change these only when the admin asks.
+Where plans show up: save_collection groups plans (list_collections first); a collection's categories decide where /start and Discover suggest its plans, and the platform organization's starter collections fill every organization's New plan picker. set_plan_access says who in this organization can find and start a plan (open, by request or invite only) and returns the link to share with them, set_plan_listing lists a plan in Discover for other organizations (locked or open, open or by request), and set_plan_cover sets its image or icon. Change these only when the admin asks.
 
 Media: upload_media puts an image, video or PDF (from a public URL or base64) into the organization's media library and returns the `url` to use for badge images, activity image blocks and video pages; list_media finds what is already there. search_stock_media and add_stock_media bring in free stock photos and videos (Pexels) with their credit. Only upload media the organization may use.
 
@@ -45,6 +45,8 @@ Insights dashboards show an organization's numbers as cards: the whole organizat
 
 Coach (platform admins only): get_coach_policy shows the coaching policy's draft. save_coach_playbook and delete_coach_playbook write knowledge into the draft; preview_coach_knowledge shows which playbooks a learner message would bring in. Nothing reaches learners until a person releases the draft on Platform › Coach › Releases, so never say a change is live. Tests: list_coach_tests explains how to write realistic scenarios; save_coach_test writes one; run_coach_tests grades the draft beside the live release and get_coach_test_run reads the result. A run makes real model calls, so run it when the admin asks.
 
+User tests (platform admins only, where user tests are enabled): a test cohort holds personas, fresh accounts sealed off from real people and orgs, and stages for them to work through. To test as a persona, open the link from open_as_test_persona in a fresh browser session, read the email the site sends it with read_test_mail, and record report_test_progress, log_test_step (every interaction, including what worked) and log_test_finding as you go; get_test_report collects the findings and the story-map steps. A stage is captured as a checkpoint when its last persona finishes it (capture_test_checkpoint captures one by hand); publish_test_checkpoint makes one the live demo, only when the admin asks. replay_test_cohort runs a story again with fresh personas. Purge a cohort only when the admin asks.
+
 Save only when the admin asks, with the etag you read; on a stale-document error, merge your change into the returned current document and retry. Tell the admin what will change (validation warnings list removals) and point them to the editor_url to review. Publishing to the global library happens only when the admin asks."""
 
 RESOURCES = [
@@ -52,7 +54,7 @@ RESOURCES = [
         "uri": "launch-lms://activity-document/guide",
         "name": "activity-authoring-guide",
         "title": "Activity authoring guide",
-        "description": "How Launch LMS activities, blocks, questions and branches are written.",
+        "description": "How Life2Launch activities, blocks, questions and branches are written.",
         "mimeType": "text/markdown",
     },
     {
@@ -66,7 +68,7 @@ RESOURCES = [
         "uri": "launch-lms://plan-template-document/guide",
         "name": "plan-template-authoring-guide",
         "title": "Plan template authoring guide",
-        "description": "How Launch LMS plan templates (goal templates: stages of typed steps) are written.",
+        "description": "How Life2Launch plan templates (goal templates: stages of typed steps) are written.",
         "mimeType": "text/markdown",
     },
     {
@@ -80,7 +82,7 @@ RESOURCES = [
         "uri": "launch-lms://requirement-framework-document/guide",
         "name": "requirement-framework-authoring-guide",
         "title": "Requirement framework authoring guide",
-        "description": "How Launch LMS requirement frameworks, categories, numbering, rules and versions work.",
+        "description": "How Life2Launch requirement frameworks, categories, numbering, rules and versions work.",
         "mimeType": "text/markdown",
     },
     {
@@ -94,7 +96,7 @@ RESOURCES = [
         "uri": PREVIEW_APP_URI,
         "name": "activity-preview",
         "title": "Activity preview",
-        "description": "Interactive preview of an activity, rendered by the Launch LMS learner player.",
+        "description": "Interactive preview of an activity, rendered by the Life2Launch learner player.",
         "mimeType": APP_MIME_TYPE,
     },
 ]

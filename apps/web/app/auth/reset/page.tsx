@@ -15,7 +15,7 @@ export async function generateMetadata({
   const orgslug = await getAuthBrandingOrgSlug(token)
 
   if (!orgslug) {
-    return { title: 'Reset Password — Launch LMS' }
+    return { title: 'Reset Password — Life2Launch' }
   }
 
   const org = await getOrganizationContextInfo(orgslug, {
@@ -24,7 +24,7 @@ export async function generateMetadata({
   })
 
   return {
-    title: 'Reset Password' + ` — ${org?.name || 'Launch LMS'}`,
+    title: 'Reset Password' + ` — ${org?.name || 'Life2Launch'}`,
     robots: { index: false, follow: false },
   }
 }

@@ -6,8 +6,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Clock, Mail } from 'lucide-react'
 import { getInvitePreview, InvitePreview } from '@services/organizations/invites'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
+import { inOrgWords } from '@/lib/people'
 
-const ROLE = { learner: 'a learner', staff: 'staff', admin: 'an admin' }
+const ROLE = { get learner() { return inOrgWords('a learner') }, staff: 'staff', admin: 'an admin' }
 const CLOSED: Record<string, string> = {
   accepted: 'This invitation has already been used.',
   declined: 'This invitation was declined.',
@@ -20,7 +21,8 @@ const CLOSED: Record<string, string> = {
 export function useInvitePreview(orgId: number | undefined, invitation: string, inviteCode: string) {
   const token = invitation || inviteCode
   const { data } = useSWR(orgId && token ? ['invite-preview', orgId, token] : null, () => getInvitePreview(orgId as number, { invitation, inviteCode }))
-  return data ?? null
+  // undefined while loading; null when the token isn't one of this organization's.
+  return token ? data : null
 }
 
 /** Puts the invited address in the signup form, which reads it from the URL. */

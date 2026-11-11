@@ -3,6 +3,7 @@
 import React from 'react'
 import { Download } from 'lucide-react'
 import type { CaptureAttachment } from '@services/insights/insights'
+import { inOrgWords } from '@/lib/people'
 
 type Column = { key: string; label: string }
 type Row = Record<string, string>
@@ -28,7 +29,7 @@ export default function EvidenceAttachment({ attachment }: { attachment: Capture
     link.click()
     URL.revokeObjectURL(url)
   }
-  if (!rows.length) return <p className="text-[13px] text-muted-foreground">No requirements had been credited for these learners yet.</p>
+  if (!rows.length) return <p className="text-[13px] text-muted-foreground">{inOrgWords("No requirements had been credited for these learners yet.")}</p>
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-[13px] text-muted-foreground">{rows.length} credit{rows.length === 1 ? '' : 's'} for {learners} learner{learners === 1 ? '' : 's'}. Every step that counts is listed, so a requirement two plans credit shows twice.</p>

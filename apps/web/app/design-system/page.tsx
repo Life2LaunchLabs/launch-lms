@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import DesignSystemCatalog from '@components/DesignSystem/DesignSystemCatalog'
 
 export const metadata = {
-  title: 'Launch LMS design system',
+  title: 'Life2Launch design system',
   robots: { index: false, follow: false },
 }
 

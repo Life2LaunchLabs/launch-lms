@@ -113,6 +113,8 @@ export function RankSheet({ options, onSave, onClose }: { options: Phase[]; onSa
 export const HOLD_KEY = 'plans-map-hold'
 /** Careers hand the map a route to place: it waits here while the map opens with it picked up. */
 export function holdRoute(title: string, steps: RouteStep[]) { try { sessionStorage.setItem(HOLD_KEY, JSON.stringify({ title, steps })) } catch { /* private mode: the map opens without it */ } }
+/** Whether a career's route is waiting to be placed: a learner who chose a career before having a plan finds it on the map after their first phase. */
+export function routeWaiting(): boolean { try { return Boolean(JSON.parse(sessionStorage.getItem(HOLD_KEY) || 'null')?.steps?.length) } catch { return false } }
 
 /** Mark new phases as not dated yet, unless the learner already picked a date for one. */
 export function undated(d: LifeDoc, ids: string[]): LifeDoc {

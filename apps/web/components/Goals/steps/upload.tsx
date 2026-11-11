@@ -16,8 +16,17 @@ import { tr } from '@/lib/tr'
 const KIND_ICON = { image: ImageIcon, video: Film, document: FileText, link: Link2 }
 const filled = (step: Step<'upload'>, slot: UploadSlot) => step.entries.find((entry) => entry.slot === slot.key && (entry.kind === 'file' || entry.kind === 'link'))
 
+/** What a handed-in file is, from its name: a slot that takes several kinds would otherwise show its first kind's icon. */
+function fileKind(url: string): keyof typeof KIND_ICON | null {
+  const path = url.split('?')[0]
+  if (/\.(png|jpe?g|gif|webp|heic|svg)$/i.test(path)) return 'image'
+  if (/\.(mp4|mov|webm|m4v)$/i.test(path)) return 'video'
+  if (/\.[a-z0-9]{2,5}$/i.test(path)) return 'document'
+  return null
+}
+
 function Thumb({ entry, slot }: { entry?: StepEntry; slot: UploadSlot }) {
-  const Icon = entry?.kind === 'link' ? Link2 : KIND_ICON[slot.kinds[0]] || FileText
+  const Icon = entry?.kind === 'link' ? Link2 : (entry?.kind === 'file' && fileKind(entry.url)) ? KIND_ICON[fileKind(entry.url)!] : KIND_ICON[slot.kinds[0]] || FileText
   const image = entry && entry.kind === 'file' && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(entry.url)
   if (image) return <img src={normalizeMediaUrl(entry!.url)} alt="" className="h-14 w-14 rounded-xl object-cover" />
   return <span className="grid h-14 w-14 place-items-center rounded-xl border-2 border-dashed bg-background text-muted-foreground">{entry ? <Icon size={20} className="text-[var(--plan-accent)]" /> : <Plus size={18} />}</span>
@@ -31,6 +40,30 @@ function UploadRow({ step }: { step: Step<'upload'> }) {
   </div>
 }
 
+/** One upload slot. While it's empty and open, the whole box, name and type are one button that opens the picker, not just the small box. */
+export function UploadSlotRow({ slot, entry, open, onChoose, onPick, onLink, onRemove }: { slot: UploadSlot; entry?: StepEntry; open: boolean; onChoose: () => void; onPick: React.Dispatch<MediaType>; onLink: () => void; onRemove: React.Dispatch<StepEntry> }) {
+  const kinds = `${kindText(slot)}${slot.optional ? tr('goals.upload.optional', ' · optional') : ''}`
+  return <li className="flex items-center gap-3 rounded-xl border bg-background p-2">
+    {open && !entry ? <button type="button" onClick={onChoose} aria-label={`Add ${slot.label}`} className="-m-1 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg p-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-accent)]">
+      <Thumb slot={slot} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-bold">{slot.label}</span>
+        <span className="block text-xs font-semibold text-muted-foreground">{kinds}</span>
+      </span>
+    </button> : <>
+      <Thumb entry={entry} slot={slot} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold">{slot.label}</p>
+        {entry ? <a href={normalizeMediaUrl(entry.url)} target="_blank" rel="noreferrer" className="block truncate text-xs font-semibold text-[var(--plan-accent)] hover:underline">{entry.title || tr('goals.upload.open', 'Open')}</a> : <p className="text-xs font-semibold text-muted-foreground">{kinds}</p>}
+      </div>
+    </>}
+    {open && entry ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => onRemove(entry)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+    {/* The picker takes one kind at a time: a slot open to photos and documents offers each, so a PDF is never refused. */}
+    {open && !entry ? mediaKinds(slot).length > 1 && mediaKinds(slot).map((kind) => <button key={kind} type="button" onClick={() => onPick(kind)} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
+    {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={onLink} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
+  </li>
+}
+
 function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: StepCardProps<'upload'>) {
   const [picking, setPicking] = React.useState<{ slot: UploadSlot; type: MediaType } | null>(null)
   const [linkSlot, setLinkSlot] = React.useState<UploadSlot | null>(null)
@@ -41,7 +74,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const required = missing.find((slot) => !slot.optional)
   const blocker = required ? `Add ${required.label} first` : missing.length === step.config.slots.length ? tr('lit.upload.add_a_file_first', 'Add a file first') : null
   const choose = (slot: UploadSlot) => {
-    const media = slot.kinds.filter((kind) => kind !== 'link') as MediaType[]
+    const media = mediaKinds(slot)
     if (!media.length) return setLinkSlot(slot)
     setPicking({ slot, type: media[0] })
   }
@@ -49,19 +82,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
     <StepIntro step={step} />
     <Feedback step={step} />
     <ul className="flex flex-col gap-2">
-      {step.config.slots.map((slot) => {
-        const entry = filled(step, slot)
-        return <li key={slot.key} className="flex items-center gap-3 rounded-xl border bg-background p-2">
-          <button type="button" disabled={!open || !!entry} onClick={() => choose(slot)} aria-label={`Add ${slot.label}`}><Thumb entry={entry} slot={slot} /></button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{slot.label}</p>
-            {entry ? <a href={normalizeMediaUrl(entry.url)} target="_blank" rel="noreferrer" className="block truncate text-xs font-semibold text-[var(--plan-accent)] hover:underline">{entry.title || tr('goals.upload.open', 'Open')}</a>
-              : <p className="text-xs font-semibold text-muted-foreground">{kindText(slot)}{slot.optional ? tr('goals.upload.optional', ' · optional') : ''}</p>}
-          </div>
-          {open && entry ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => actions.deleteEntry(entry.entry_uuid)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
-          {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={() => setLinkSlot(slot)} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
-        </li>
-      })}
+      {step.config.slots.map((slot) => <UploadSlotRow key={slot.key} slot={slot} entry={filled(step, slot)} open={open} onChoose={() => choose(slot)} onPick={(kind) => setPicking({ slot, type: kind })} onLink={() => setLinkSlot(slot)} onRemove={(entry) => actions.deleteEntry(entry.entry_uuid)} />)}
     </ul>
     {linkSlot ? <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); if (!link.trim()) return; await actions.addEntry({ kind: 'link', slot: linkSlot.key, url: link.trim(), title: link.trim() }); setLink(''); setLinkSlot(null) }}>
       <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={tr('goals.upload.link_for_label', 'Link for {{label}}', { label: linkSlot.label })} />
@@ -74,6 +95,8 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
 }
 
 const KINDS = () => ([['image', tr('lit.upload.photo', 'Photo')], ['video', tr('lit.upload.video', 'Video')], ['document', tr('lit.portfolio_documents_page.document', 'Document')], ['link', tr('lit.people_access.link', 'Link')]] as const)
+const mediaKinds = (slot: UploadSlot) => slot.kinds.filter((kind) => kind !== 'link') as MediaType[]
+const kindLabel = (kind: string) => KINDS().find(([key]) => key === kind)?.[1] || kind
 const kindText = (slot: UploadSlot) => slot.kinds.map((kind) => KINDS().find(([key]) => key === kind)?.[1] || kind).join(' or ')
 const chip = (on: boolean) => cn('rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))]' : 'text-muted-foreground hover:border-[var(--plan-face)]')
 

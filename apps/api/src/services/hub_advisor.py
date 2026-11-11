@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import re
+from collections import Counter
 from dataclasses import dataclass, replace
 from typing import Literal, Protocol
 
@@ -15,6 +17,8 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session
 
 from src.security.org_auth import require_org_membership
+from src.services.coach.app_notes import app_notes_for
+from src.services.coach.output_limits import bound_advisor_text, finish_reply, output_budget
 from src.services.coach.policy import DEFAULT_METHOD, runtime as coach_runtime
 from src.services.demo.providers import reserve_ai as _reserve_demo_ai
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
@@ -23,13 +27,13 @@ logger = logging.getLogger(__name__)
 
 MAX_MESSAGES = 12
 MAX_MESSAGE_CHARS = 2_000
-MAX_ASSISTANT_CHARS = 1_600
 MAX_CONVERSATION_CHARS = 8_000
 MAX_OUTPUT_TOKENS = 700
 ADVISOR_RATE_LIMIT = 12
 ADVISOR_RATE_WINDOW_SECONDS = 60
 DEFAULT_MODEL = "gpt-5.6-luna"
 MAX_GROUNDING_RESOURCES = 4
+MIN_GROUNDING_SCORE_SHARE = 0.5
 MAX_GROUNDING_DESCRIPTION_CHARS = 360
 MEMORY_EXTRACTOR_INSTRUCTIONS = """You extract durable learner-controlled memory from one learner message.
 Return JSON only as an object with a candidates array. A candidate has action create, update, supersede, or forget;
@@ -74,19 +78,6 @@ class AdvisorProviderLimited(AdvisorError):
     def __init__(self, message: str, retry_after: int = 30):
         super().__init__(message)
         self.retry_after = retry_after
-
-
-def bound_advisor_text(text: str, limit: int = MAX_ASSISTANT_CHARS) -> str:
-    """Keep persisted replies safe to replay without exposing transport limits."""
-    normalized = text.strip()
-    if len(normalized) <= limit:
-        return normalized
-    window = normalized[: limit - 1]
-    breaks = [window.rfind(marker) for marker in ("\n\n", ". ", "? ", "! ")]
-    boundary = max(breaks)
-    if boundary >= limit // 2:
-        window = window[:boundary + (0 if normalized[boundary] == "\n" else 1)]
-    return window.rstrip() + "…"
 
 
 def advisor_safety_identifier(user_id: int) -> str:
@@ -159,31 +150,28 @@ def _public_advisor_resource(resource: dict) -> dict | None:
 
 
 def relevant_advisor_resources(query: str, resources: list[dict]) -> list[dict]:
-    """Rank accessible serialized resources and return model-safe public metadata."""
+    """Rank accessible resources (rarer shared words weigh more; under half the best score is dropped)."""
     query_terms = _grounding_terms(query)
-    if not query_terms:
-        return []
-    ranked: list[tuple[int, str, dict]] = []
-    for resource in resources:
-        title = str(resource.get("title") or "")[:200]
-        description = str(resource.get("description") or "")
-        provider_name = str(resource.get("provider_name") or "")[:120]
-        raw_resource_type = resource.get("resource_type") or ""
-        resource_type = str(getattr(raw_resource_type, "value", raw_resource_type))[:40]
-        tags = [str(tag.get("name") or "")[:80] for tag in resource.get("tags") or []]
-        score = (
-            6 * len(query_terms & _grounding_terms(title))
-            + 3 * len(query_terms & _grounding_terms(" ".join(tags)))
-            + 2 * len(query_terms & _grounding_terms(f"{provider_name} {resource_type}"))
-            + len(query_terms & _grounding_terms(description))
-        )
-        if score <= 0:
-            continue
-        public_resource = _public_advisor_resource(resource)
-        if public_resource:
-            ranked.append((score, title.casefold(), public_resource))
+    candidates: list[tuple[dict, list[tuple[int, set[str]]]]] = []
+    for resource in resources if query_terms else []:
+        resource_type = resource.get("resource_type") or ""
+        fields = [(weight, query_terms & _grounding_terms(text)) for weight, text in (
+            (6, str(resource.get("title") or "")[:200]),
+            (3, " ".join(str(tag.get("name") or "")[:80] for tag in resource.get("tags") or [])),
+            (2, f"{str(resource.get('provider_name') or '')[:120]} {str(getattr(resource_type, 'value', resource_type))[:40]}"),
+            (1, str(resource.get("description") or "")),
+        )]
+        if any(terms for _weight, terms in fields):
+            candidates.append((resource, fields))
+    frequency = Counter(term for _resource, fields in candidates for term in set().union(*(t for _w, t in fields)))
+    ranked: list[tuple[float, str, dict]] = []
+    for resource, fields in candidates:
+        score = sum(weight * math.log(1 + len(resources) / frequency[term]) for weight, terms in fields for term in terms)
+        if public_resource := _public_advisor_resource(resource):
+            ranked.append((score, str(resource.get("title") or "")[:200].casefold(), public_resource))
     ranked.sort(key=lambda item: (-item[0], item[1]))
-    return [item[2] for item in ranked[:MAX_GROUNDING_RESOURCES]]
+    floor = ranked[0][0] * MIN_GROUNDING_SCORE_SHARE if ranked else 0
+    return [item[2] for item in ranked if item[0] >= floor][:MAX_GROUNDING_RESOURCES]
 
 
 def advisor_resources_for_request(
@@ -311,7 +299,7 @@ class OpenAIResponsesProvider:
             "model": self.model,
             "instructions": self.instructions,
             "input": [{"role": item.role, "content": item.content} for item in messages],
-            "max_output_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
+            "max_output_tokens": output_budget(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS), self.advanced.get("reasoning_effort") != "none"),
             "store": False,
             "tools": tools,
             "tool_choice": "auto" if tools else "none",
@@ -321,7 +309,7 @@ class OpenAIResponsesProvider:
             payload["reasoning"] = {"effort": self.advanced["reasoning_effort"]}
         if self.advanced.get("verbosity") not in (None, "default"):
             payload["text"] = {"verbosity": self.advanced["verbosity"]}
-        _reserve_demo_ai(payload, int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)))
+        _reserve_demo_ai(payload, payload["max_output_tokens"])
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=30)
         try:
@@ -374,6 +362,7 @@ class OpenAIResponsesProvider:
             for content in output.get("content", [])
             if content.get("type") == "output_text" and content.get("text", "").strip()
         ).strip()
+        text = finish_reply(text, cut=(data.get("incomplete_details") or {}).get("reason") == "max_output_tokens", provider="openai", model=self.model)
         action_destinations, goal_operations, questions = [], [], []
         if self.allow_actions:
             for output in data.get("output", []):
@@ -434,7 +423,7 @@ class AnthropicMessagesProvider:
             "model": self.model,
             "system": self.instructions,
             "messages": [{"role": item.role, "content": item.content} for item in messages],
-            "max_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
+            "max_tokens": output_budget(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS), self.advanced.get("thinking_effort") not in (None, "default")),
             "metadata": {"user_id": safety_identifier},
         }
         tools = _tools("anthropic", self.tools, self.edit_scope) if self.allow_actions else []
@@ -444,7 +433,7 @@ class AnthropicMessagesProvider:
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
             payload["output_config"] = {"effort": self.advanced["thinking_effort"]}
-        _reserve_demo_ai(payload, int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)))
+        _reserve_demo_ai(payload, payload["max_tokens"])
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=30)
         try:
@@ -493,6 +482,7 @@ class AnthropicMessagesProvider:
             for item in data.get("content", [])
             if item.get("type") == "text" and item.get("text", "").strip()
         ).strip()
+        text = finish_reply(text, cut=data.get("stop_reason") == "max_tokens", provider="anthropic", model=self.model)
         action_destinations = [
             item.get("input", {}).get("destination")
             for item in data.get("content", [])
@@ -628,7 +618,7 @@ async def ask_hub_advisor(
         capability_context += navigation_capability_context(db_session, org_id, session_target)
     if policy.can("ask_questions"):
         capability_context += question_context(db_session, org_id, user_id, edit_run, session_target)
-    capability_context += "\n\n" + REPLY_RULES
+    capability_context += app_notes_for(messages[-1].content) + "\n\n" + REPLY_RULES
     if edit_run:
         from src.services.goals.coach_sessions import session_prompt
         waiting, outline = session_prompt(db_session, edit_run, user_id)
@@ -648,10 +638,7 @@ async def ask_hub_advisor(
             "not propose edits until the learner activates that control. A different scope requires a new grant."
             "\n</hub_recent_editing_scope>"
         )
-    provider_messages = [
-        *provider_messages[:-1],
-        AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
-    ]
+    provider_messages = [*provider_messages[:-1], AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context)]
     query = " ".join([messages[-1].content, *(str(item.get("title") or "") for item in ((page_context or {}).get("receipt") or {}).get("sources", []))])
     from src.services.coach.providers import configured_advisor_provider
     result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None, query=query)).respond(provider_messages, safety_identifier)

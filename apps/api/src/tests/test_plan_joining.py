@@ -149,6 +149,24 @@ def test_the_plan_page_is_public_for_a_plan_with_a_badge_and_lists_who_offers_it
         assert [card["org"]["id"] for card in plan_joining.plan_page(db, AnonymousUser(), first.template_uuid, PARTNER)["offers"]] == [PARTNER]
 
 
+def test_an_organizations_open_plan_reaches_its_own_learners_on_the_main_site():
+    # FEED-109: an organization without a site of its own set a plan to "Open to everyone"; on the main site's Discover
+    # its learners didn't find it, and its plan page said nobody offers it.
+    db, (_, second) = _setup()
+    with db:
+        _offer(db, second, PARTNER, "open")
+        assert second.template_uuid not in _listed(db)  # not to everyone on the main site
+        assert second.template_uuid not in _listed(db, _user(NEWCOMER))  # nor to someone outside Partner
+        card = _listed(db, _user(LEARNER))[second.template_uuid]
+        assert card["org"]["id"] == PARTNER and card["access"] == "open" and card["state"] == "none"
+        page = plan_joining.plan_page(db, _user(LEARNER), second.template_uuid, 1)
+        assert [offer["org"]["id"] for offer in page["offers"]] == [PARTNER]
+        assert plan_joining.plan_page(db, _user(NEWCOMER), second.template_uuid, 1)["offers"] == []
+        joined = plan_joining.join(db, _user(LEARNER), second.template_uuid, PlanJoin(org_id=PARTNER))
+        assert joined["status"] == "joined"
+        assert _listed(db, _user(LEARNER)).get(second.template_uuid) is None  # now in Keep going, not the list
+
+
 def test_template_learners_shows_the_badge_and_is_the_running_orgs_own_setting():
     db, (first, _) = _setup()
     with db:
@@ -193,3 +211,32 @@ def test_a_plan_request_is_a_card_in_the_askers_thread_and_the_answer_is_posted_
         # Answered, the card is gone; Nia is a learner now.
         thread = threads.person_thread(db, _user(ADMIN), 1, NEWCOMER)
         assert (thread["role"], thread["plan_requests"]) == ("learner", [])
+
+
+def test_a_test_orgs_offers_reach_only_its_own_runs_personas():
+    from datetime import datetime, timedelta
+
+    from src.db.user_tests import TestCohort, TestCohortOrg, TestPersona
+    from src.services.user_tests import seal
+    from src.services.user_tests.sessions import current_test_persona
+
+    db, (first, _) = _setup()
+    for model in (TestCohort, TestPersona, TestCohortOrg):
+        model.__table__.create(db.get_bind(), checkfirst=True)
+    seal._has_tables.clear()  # the world's setup already found no test tables
+    with db:
+        db.add(TestCohort(id=1, cohort_uuid="cohort_1", name="Run", slug="run", created_by=ADMIN, expires_at=datetime.utcnow() + timedelta(days=1)))
+        db.add(TestPersona(user_id=NEWCOMER, cohort_id=1, handle="nia"))
+        db.add(TestCohortOrg(org_id=PARTNER, cohort_id=1))
+        db.commit()
+        _offer(db, first, PARTNER, "open")
+
+        def offered(viewer):
+            token = current_test_persona.set(viewer)
+            try:
+                return {(int(offer.template.id), offer.org_id) for offer in plan_joining.offers(db, PARTNER)}  # type: ignore[arg-type]
+            finally:
+                current_test_persona.reset(token)
+
+        assert offered(None) == set()  # real learners never see a test org's plans, wherever they look
+        assert offered(NEWCOMER) == {(int(first.id), PARTNER)}  # type: ignore[arg-type]  # the run's own personas do

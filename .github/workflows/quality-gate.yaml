@@ -5,6 +5,7 @@ on:
     branches: [dev, main]
   push:
     branches: [dev, main]
+  merge_group:
 
 permissions:
   contents: read
@@ -14,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # On a push from a merged pull request, these checks already passed on exactly this code: skip them.
+  # On a push from a merged pull request or the merge queue, these checks already passed on exactly this code: skip them.
   checked:
     runs-on: ubuntu-latest
     permissions:
@@ -48,7 +49,7 @@ jobs:
       - id: plan
         name: Classify changed files
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: python3 scripts/quality-plan.py "$BASE_SHA" HEAD --github-output "$GITHUB_OUTPUT"
 
   contracts:
@@ -60,30 +61,6 @@ jobs:
         run: ./scripts/agent docs
       - name: Validate release contracts
         run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
-
-  api:
-    needs: analyze
-    if: needs.analyze.outputs.api == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.14.3"
-      - uses: astral-sh/setup-uv@v7
-        with:
-          version: latest
-      - name: Install API dependencies
-        run: uv sync --frozen
-        working-directory: apps/api
-      - name: Lint API
-        run: uvx ruff check src
-        working-directory: apps/api
-      - name: Test API
-        run: uv run pytest src/tests -q
-        working-directory: apps/api
-        env:
-          TESTING: "true"
 
   web:
     needs: analyze
@@ -101,15 +78,13 @@ jobs:
         run: bun run lint && bun run typecheck && bun run test:unit
         working-directory: apps/web
 
-  browser:
-    needs: analyze
-    if: needs.analyze.outputs.browser == 'true'
-    uses: ./.github/workflows/browser-ui.yaml
+  # API lint and tests and the browser smoke run in Build Community Images (required checks) on the
+  # same code; running them here too only doubled the runner time per pull request and queue entry.
 
   quality-gate:
     name: quality-gate
     if: always()
-    needs: [checked, analyze, contracts, api, web, browser]
+    needs: [checked, analyze, contracts, web]
     runs-on: ubuntu-latest
     steps:
       - name: Require every selected check
@@ -118,9 +93,7 @@ jobs:
           CHECKED_RUN: ${{ needs.checked.outputs.run_id }}
           ANALYZE: ${{ needs.analyze.result }}
           CONTRACTS: ${{ needs.contracts.result }}
-          API: ${{ needs.api.result }}
           WEB: ${{ needs.web.result }}
-          BROWSER: ${{ needs.browser.result }}
         run: |
           test "$CHECKED" = success
           if [ -n "$CHECKED_RUN" ]; then
@@ -128,17 +101,17 @@ jobs:
             exit 0
           fi
           test "$ANALYZE" = success
-          for result in "$CONTRACTS" "$API" "$WEB" "$BROWSER"; do
+          for result in "$CONTRACTS" "$WEB"; do
             case "$result" in success|skipped) ;; *) exit 1 ;; esac
           done
-          printf 'quality-gate passed (api=%s web=%s browser=%s)\n' "$API" "$WEB" "$BROWSER"
+          printf 'quality-gate passed (web=%s)\n' "$WEB"
       - uses: actions/checkout@v6
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
       - name: Record checked code
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         run: python3 scripts/ci/pr-checked.py record checked.json && cat checked.json
       - uses: actions/upload-artifact@v7
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         with:
           name: checked-tree
           path: checked.json

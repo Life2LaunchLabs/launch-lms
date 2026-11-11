@@ -189,6 +189,18 @@ def test_assigning_by_email_to_someone_with_an_account_issues_their_goal():
         assert goal.subject_user_id == LEARNER and db.exec(select(PlanInvitation)).all() == []
 
 
+def test_someone_with_an_account_from_outside_becomes_a_learner_when_they_accept():
+    with _session() as db:
+        db.add(User(id=88, user_uuid="user_88", username="jordan", email="jordan@example.com", first_name="Jordan", last_name="Lee", creation_date=NOW, update_date=NOW))
+        db.commit()
+        template = _published(db, {"type": "task", "title": "Visit"})
+        result = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(subject_email="jordan@example.com"))
+        assert db.exec(select(UserOrganization).where(UserOrganization.user_id == 88, UserOrganization.org_id == 1)).first() is None
+        goals.respond(db, _user(88), result["goal_uuids"][0], True)
+        # Like accepting by invitation: the organization's learner, so staff can open their thread.
+        assert db.exec(select(UserOrganization).where(UserOrganization.user_id == 88, UserOrganization.org_id == 1)).one().role_id == 4
+
+
 def test_one_target_and_valid_people_are_required():
     with _session() as db:
         template = _published(db, {"type": "task", "title": "Visit"})

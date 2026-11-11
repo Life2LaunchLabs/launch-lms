@@ -358,7 +358,9 @@ LOG_LIMIT = 200
 
 
 def _iso(value) -> str:
-    return value.isoformat() if hasattr(value, "isoformat") else str(value or "")
+    from src.services.connect.inbox import _stamp as with_zone
+
+    return with_zone(value) if value else ""
 
 
 def org_log(db: Session, org_id: int) -> list[dict]:
@@ -367,17 +369,17 @@ def org_log(db: Session, org_id: int) -> list[dict]:
     Nothing is stored for it: each line follows from the organization's members and invitations.
     """
     org = db.get(Organization, org_id)
-    entries: list[dict] = [{"kind": "org_created", "at": org.creation_date, "org": {"name": org.name}}] if org and org.creation_date else []
+    entries: list[dict] = [{"kind": "org_created", "at": _iso(org.creation_date), "org": {"name": org.name}}] if org and org.creation_date else []
     staff_roles = roles.staff_role_ids(db, org_id)
     learners: dict[str, list[UserOrganization]] = defaultdict(list)
     for membership in db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id).order_by(col(UserOrganization.creation_date))).all():
         if int(membership.role_id) in staff_roles:
-            entries.append({"kind": "staff_joined", "at": membership.creation_date, "person": people.person(db, membership.user_id),
+            entries.append({"kind": "staff_joined", "at": _iso(membership.creation_date), "person": people.person(db, membership.user_id),
                             "role": "admin" if int(membership.role_id) == ADMIN_ROLE_ID else "staff"})
         else:
             learners[(membership.creation_date or "")[:10]].append(membership)
     for day, rows in learners.items():
-        entries.append({"kind": "learners_joined", "at": rows[-1].creation_date, "count": len(rows),
+        entries.append({"kind": "learners_joined", "at": _iso(rows[-1].creation_date), "count": len(rows),
                         "people": [person for person in (people.person(db, row.user_id) for row in rows[:5]) if person]})
     invited: dict[tuple[str, int | None, str], list[OrganizationInvitation]] = defaultdict(list)
     for invitation in db.exec(select(OrganizationInvitation).where(OrganizationInvitation.org_id == org_id).order_by(col(OrganizationInvitation.created_at))).all():
@@ -398,7 +400,7 @@ def _join_requests_log(db: Session, org_id: int) -> list[dict]:
     entries = []
     for row in db.exec(select(OrganizationJoinRequest).where(OrganizationJoinRequest.org_id == org_id)).all():
         who = {"name": row.name or row.email}
-        entries.append({"kind": "join_asked", "at": row.creation_date, "who": who})
+        entries.append({"kind": "join_asked", "at": _iso(row.creation_date), "who": who})
         if row.decided_at:
             entries.append({"kind": "join_answered", "at": _iso(row.decided_at), "who": who, "approved": row.status == "approved", "by": people.person(db, row.decided_by_user_id)})
     return entries
@@ -413,7 +415,7 @@ def _plan_requests_log(db: Session, org_id: int) -> list[dict]:
         incoming = row.creator_org_id == org_id
         other = db.get(Organization, row.issuer_org_id if incoming else row.creator_org_id)
         line = {"incoming": incoming, "org": {"name": other.name if other else "Another organization"}, "plan": template.title if template else "a plan"}
-        entries.append({"kind": "plan_asked", "at": row.creation_date, **line})
+        entries.append({"kind": "plan_asked", "at": _iso(row.creation_date), **line})
         if row.decided_at and row.status in ("approved", "rejected"):
             entries.append({"kind": "plan_answered", "at": _iso(row.decided_at), "approved": row.status == "approved", **line})
     return entries

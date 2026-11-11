@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react'
 import DiscoverHero from './DiscoverHero'
 import ResourceShelves from './ResourceShelves'
 import DiscoverCareers from '@components/Careers/DiscoverCareers'
+import OrganizationShelf from './OrganizationShelf'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -73,6 +74,7 @@ export default function DiscoverFeed({ orgslug, showPlans = true, showResources 
       <SectionTitle href={collectionHref(orgslug, collection.collection_uuid)} aside={<CollectedPill cards={collection.plans} />}><Tx text={collection.name} /></SectionTitle>
       <Shelf label={collection.name}>{collection.plans.map((card) => <PlanTile key={card.template_uuid} card={card} orgslug={orgslug} />)}</Shelf>
     </section>)}
+    <OrganizationShelf orgslug={orgslug} />
     {showResources ? <><DiscoverCareers orgslug={orgslug} /><ResourceShelves orgslug={orgslug} /></> : null}
     {!feed.plans.length && !feed.keep_going.length && !showResources ? <p className="rounded-2xl bg-card p-6 text-sm font-medium text-muted-foreground">{feed.earned_count ? tr('discover.discover_feed.you_ve_done_every_plan', 'You’ve done every plan here. New ones land soon.') : tr('discover.discover_feed.no_plans_to_join_yet', 'No plans to join yet. Check back soon.')}</p> : null}
   </div>

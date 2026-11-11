@@ -10,6 +10,7 @@ import { settingsCard, SettingsHeader } from '@components/Objects/Account/Accoun
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { learnerNameApi, learnerNameKey, type LearnerName } from '@services/goals/adminHome'
+import { inOrgWords } from '@/lib/people'
 
 /** Staff only: the name learners in this organization see on their messages and reviews. */
 export default function AccountLearnerName() {
@@ -37,9 +38,9 @@ export default function AccountLearnerName() {
   }
   const name = [session?.data?.user?.first_name, session?.data?.user?.last_name].filter(Boolean).join(' ')
   return <section className={`${settingsCard} p-5`}>
-    <SettingsHeader icon={Chalkboard} title="What learners call you" description={`Learners at ${org?.name || 'this organization'} see this on your messages and reviews. Staff still see your name.`} />
+    <SettingsHeader icon={Chalkboard} title={inOrgWords("What learners call you")} description={inOrgWords(`Learners at ${org?.name || 'this organization'} see this on your messages and reviews. Staff still see your name.`)} />
     <form onSubmit={save} className="mt-4 flex flex-col gap-2 sm:flex-row">
-      <Input value={value} onChange={(event) => setValue(event.target.value)} maxLength={60} placeholder={name || 'Your name'} aria-label="What learners call you" className="sm:max-w-sm" />
+      <Input value={value} onChange={(event) => setValue(event.target.value)} maxLength={60} placeholder={name || 'Your name'} aria-label={inOrgWords("What learners call you")} className="sm:max-w-sm" />
       <Button type="submit" disabled={busy || value === (data.learner_name || '')}>Save</Button>
     </form>
   </section>

@@ -42,8 +42,13 @@ def startup_app(app: FastAPI) -> Callable:
         app.state.demo_cleanup = asyncio.create_task(run_cleanup(engine))
         app.state.demo_preparation = asyncio.create_task(run_preparation(engine))
         app.state.demo_recapture = asyncio.create_task(run_recapture(engine))
+        # Writes down why, should the loop or the thread pool stop moving (see the module).
+        from src.core.stall_watchdog import start as watch_for_stalls
+        await watch_for_stalls(engine)
         from src.services.insights.rules import run_forever as run_capture_rules
         app.state.insight_capture_rules = asyncio.create_task(run_capture_rules(engine))
+        from src.services.notifications.outbox import run_forever as send_notifications
+        app.state.notification_worker = asyncio.create_task(send_notifications(engine))
 
         # Former EE startup work has either been folded into core startup
         # or intentionally disabled until a native rebuild lands.
@@ -54,7 +59,7 @@ def startup_app(app: FastAPI) -> Callable:
 def shutdown_app(app: FastAPI) -> Callable:
     async def close_app() -> None:
         import asyncio
-        for name in ('demo_cleanup', 'demo_preparation', 'demo_recapture', 'insight_capture_rules'):
+        for name in ('demo_cleanup', 'demo_preparation', 'demo_recapture', 'insight_capture_rules', 'notification_worker'):
             task = getattr(app.state, name, None)
             if task:
                 task.cancel()

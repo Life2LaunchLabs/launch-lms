@@ -27,7 +27,7 @@ describe('assignment page', () => {
     expect(stepWhen(step(), false)).toBe('Any time')
     expect(stepNeeds(step({ counts: counts(0, 3) }), false)).toEqual({ messages: 2, review: 3, late: [7] })
     expect(stepNeeds(step(), true).late).toEqual([])
-    expect(needLines({ questions: 1, review: 0, behind: 2 }).map((line) => line.label)).toEqual(['question', 'learners past due'])
+    expect(needLines({ questions: 1, review: 0, behind: 2 }).map((line) => line.label)).toEqual(['question', 'participants past due'])
   })
 
   test('a schedule needs an end and stages in order, and saves whole', () => {

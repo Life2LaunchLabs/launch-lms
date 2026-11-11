@@ -22,7 +22,7 @@ from src.services.orgs.invites import (
     get_invite_code,
     get_invite_codes,
 )
-from src.services.orgs import member_status, staff_permissions
+from src.services.orgs import member_status
 from src.services.orgs.join import JoinOrg, join_org
 from src.services.orgs.orgs import (
     create_org,
@@ -141,18 +141,18 @@ async def api_discover_orgs(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=24, ge=1, le=100),
     query: str = Query(default="", max_length=200),
+    listed: bool = Query(default=False, description="Only Discover's Organizations shelf: listed orgs with a complete page"),
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[OrganizationDiscoverRead]:
-    """
-    List discoverable organizations for the public organizations experience.
-    """
+    """Organizations a person can find: listed ones, and their own. Unlisted pages are members-only."""
     return await list_discoverable_orgs(
         db_session=db_session,
         current_user=current_user,
         page=page,
         limit=limit,
         query=query,
+        listed=listed,
     )
 
 
@@ -257,28 +257,6 @@ async def api_set_group_status(
 ):
     """Mark every learner in a group active or alumni."""
     return member_status.set_group_status(db_session, current_user, org_id, group_id, payload.status)
-
-
-@router.get("/{org_id}/staff-permissions")
-async def api_staff_permission_catalog(
-    org_id: int,
-    current_user: PublicUser = Depends(get_authenticated_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """The permissions an admin can give staff, and which new staff start with."""
-    return staff_permissions.catalog(db_session, current_user, org_id)
-
-
-@router.put("/{org_id}/users/{user_id}/permissions")
-async def api_set_staff_permissions(
-    org_id: int,
-    user_id: int,
-    payload: staff_permissions.PermissionsUpdate,
-    current_user: PublicUser = Depends(get_authenticated_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """Set what a staff member may do (admins only)."""
-    return staff_permissions.set_permissions(db_session, current_user, org_id, user_id, payload.permissions)
 
 
 @router.get("/{org_id}/relationship")

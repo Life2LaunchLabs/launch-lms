@@ -71,6 +71,33 @@ export function activityText(a?: Activity | null): string {
   return KINDS.find((k) => k.key === a.kind)?.title || ''
 }
 
+/**
+ * The line above a phase's name: what you're doing, unless that just repeats the name ("Cashier" over
+ * "Cashier"), then the kind of thing it is ("Working").
+ */
+export function eyebrowFor(acts: Activity[] | null | undefined, title: string): string {
+  const list = acts || []
+  const text = list.map(activityText).join(' + ')
+  if (text.trim().toLowerCase() !== (title || '').trim().toLowerCase()) return text
+  return [...new Set(list.map((a) => KINDS.find((k) => k.key === a.kind)?.title || ''))].filter(Boolean).join(' + ')
+}
+
+/**
+ * What this time is for, offered when naming a first phase: a phase is a stretch of life, not a job.
+ * School comes first when the learner is in school.
+ */
+export function purposeOptions(acts?: Activity[] | null): string[] {
+  const learn = (acts || []).find((a) => a.kind === 'learning')
+  const school = learn ? levelOf(learn.level)?.short || tr('phases.school', 'School') : null
+  return [
+    ...(school ? [school] : []),
+    tr('phases.purpose.gap', 'Gap year'),
+    tr('phases.purpose.saving', 'Working and saving'),
+    tr('phases.purpose.career', 'Starting my career'),
+    tr('phases.purpose.next', 'Figuring out what’s next'),
+  ]
+}
+
 /** The name we suggest: what you're learning, else the job, else how you live, else where. */
 export function suggestTitle(p: Pick<Phase, 'activities' | 'living' | 'place_label'>): string {
   const acts = p.activities || []
@@ -104,4 +131,21 @@ export function checklist(p: Phase, goals: number): CheckItem[] {
     { key: 'budget', title: tr('phases.check.budget', 'A budget'), done: (p.lines || []).length > 0 },
     { key: 'goals', title: tr('phases.check.goals', 'A goal'), done: goals > 0 },
   ]
+}
+
+/**
+ * What "Plan it with Coach" sends: the phase's name, when it is, what it's about and where, so Coach
+ * starts from the phase instead of a blank chat. Parts the learner hasn't set are left out.
+ */
+export function planAsk(p: Pick<Phase, 'title' | 'activities' | 'place_label'>, span?: string): string {
+  const doing = (p.activities || []).map(activityText).filter(Boolean).join(', ')
+  const place = p.place_label?.split(',')[0]?.trim()
+  const about = [
+    doing ? tr('phases.plan_ask.doing', 'What I’ll be doing: {{doing}}.', { doing }) : '',
+    place ? tr('phases.plan_ask.place', 'Where: {{place}}.', { place }) : '',
+  ].filter(Boolean).join(' ')
+  const head = span
+    ? tr('phases.plan_ask.head_span', 'Help me plan this phase of my plan: “{{title}}” ({{span}}).', { title: p.title, span })
+    : tr('phases.plan_ask.head', 'Help me plan this phase of my plan: “{{title}}”.', { title: p.title })
+  return [head, about, tr('phases.plan_ask.ask', 'What goals should I set for it, and what should I do first?')].filter(Boolean).join(' ')
 }

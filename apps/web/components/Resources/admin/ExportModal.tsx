@@ -11,6 +11,7 @@ import type { ResourceType } from '@services/resources/resources'
 import { RESOURCE_TYPES, type ChannelCard } from '@services/resources/workspace'
 import { cn } from '@/lib/utils'
 import { useResourcesContext } from './pieces'
+import { inOrgWords } from '@/lib/people'
 
 const chipClass = (on: boolean, empty = false) => cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-semibold',
   on ? 'border-foreground bg-foreground text-background' : 'border-border bg-card hover:bg-muted', empty && !on ? 'text-muted-foreground' : null)
@@ -23,7 +24,7 @@ function Count({ value, on }: { value?: number; on: boolean }) {
 
 const DETAILS: Array<{ value: ExportDetail; title: string; detail: string }> = [
   { value: 'simple', title: 'Simple', detail: 'Title, link, description, type, provider, minutes, channels, tags, starred and its ID. Edit it and import it back to update them.' },
-  { value: 'full', title: 'Full', detail: 'Everything in Simple, plus cost, cover image, live, provider site, dates, and how learners use each one: saves, opens, reviews and rating.' },
+  { value: 'full', title: 'Full', get detail() { return inOrgWords('Everything in Simple, plus cost, cover image, live, provider site, dates, and how learners use each one: saves, opens, reviews and rating.') } },
 ]
 
 /** Download the org's resources as a spreadsheet: simple or full, all of them or some channels and types. */

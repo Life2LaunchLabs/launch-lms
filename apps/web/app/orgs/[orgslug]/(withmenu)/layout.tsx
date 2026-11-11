@@ -1,5 +1,5 @@
 'use client';
-import React, { use } from "react";
+import React, { use, useEffect, useRef, useState } from "react";
 import '@styles/globals.css'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
 import HubShell from '@components/Hub/HubShell'
 import { useHub } from '@components/Hub/HubContext'
+import { navCompactBesideCoach } from '@components/Hub/hubLayout'
 import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
 import CandidateExperience from '@components/Candidate/CandidateExperience'
 import OperationsSurface from '@components/Operations/OperationsSurface'
@@ -30,10 +31,25 @@ function OrgFooter() {
   )
 }
 
+/** The page pane's width while Coach is open beside it (it changes as Coach is dragged wider or narrower). */
+function usePaneWidth(ref: React.RefObject<HTMLDivElement | null>, watching: boolean) {
+  const [width, setWidth] = useState<number | null>(null)
+  useEffect(() => {
+    const element = ref.current
+    if (!watching || !element) return
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref, watching])
+  return watching ? width : null
+}
+
 function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgslug: string }) {
   const session = useLHSession() as any
   const pathname = usePathname()
   const hub = useHub()
+  const shellRef = useRef<HTMLDivElement>(null)
+  const paneWidth = usePaneWidth(shellRef, hub?.state === 'open')
   const isLandingPage = session?.status === 'unauthenticated' && pathname === '/'
 
   const pathParts = pathname?.split('/').filter(Boolean) || []
@@ -67,6 +83,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
 
   return (
     <div
+      ref={shellRef}
       className="org-layout-shell flex flex-col min-h-screen print:min-h-0"
       style={{ backgroundColor: 'var(--org-page-background)' }}
     >
@@ -82,7 +99,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         <div className={`org-page-layout mx-auto w-full md:flex md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:px-6'}`}>
           {showOrgMenu && (
             <div className="print:hidden md:contents">
-              <OrgMenu orgslug={orgslug} compact={hub?.state === 'open'} />
+              <OrgMenu orgslug={orgslug} compact={navCompactBesideCoach(hub?.state, paneWidth)} />
             </div>
           )}
           <div className={`org-page-content page-frame learner-page min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>

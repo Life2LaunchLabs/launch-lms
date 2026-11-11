@@ -193,7 +193,7 @@ def _content_key(url: str, user_uuid: str) -> str | None:
 def _readme(user: PublicUser, found: dict[str, list[dict]], files: list[dict], generated: str) -> str:
     notes = {part.path: part.note for part in _parts()}
     lines = [
-        "Your Launch LMS data",
+        "Your Life2Launch data",
         "=" * 20,
         "",
         f"For: {user.first_name} {user.last_name} ({user.username}, {user.email})".replace("  ", " "),

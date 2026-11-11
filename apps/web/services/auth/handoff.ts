@@ -21,3 +21,11 @@ export function authenticatedOrgHref(destination: string, authenticated: boolean
     return destination
   }
 }
+
+/** Open a page on an organization's address: a client-side push on this address, a full page load (sign-in carried over) on another. */
+// eslint-disable-next-line no-unused-vars
+export function openOrgPage(destination: string, push: (href: string) => void): void {
+  const target = authenticatedOrgHref(destination, true)
+  if (new URL(target, window.location.origin).origin === window.location.origin) push(target)
+  else window.location.assign(target)
+}

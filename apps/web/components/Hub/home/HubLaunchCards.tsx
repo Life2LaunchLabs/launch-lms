@@ -4,7 +4,9 @@ import useSWR from 'swr'
 import { Compass, GraduationCap, Hammer, Route, Sparkles } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { getAPIUrl } from '@services/config/config'
-import { FALLBACK_LAUNCH_CARDS, HUB_LAUNCH_CARDS_PATH, usableLaunchCards, type HubLaunchCard } from '@services/hub/launchCards'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { fallbackLaunchCards, hubLaunchCardsPath, isStaffInOrg, usableLaunchCards, type HubLaunchCard } from '@services/hub/launchCards'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 import { tr } from '@/lib/tr'
@@ -21,9 +23,13 @@ export default function HubLaunchCards({
   // eslint-disable-next-line no-unused-vars
   onPick: (_message: string) => void
 }) {
-  const { data } = useSWR<HubLaunchCard[]>(token ? `${getAPIUrl()}${HUB_LAUNCH_CARDS_PATH}` : null, (url: string) => swrFetcher(url, token))
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const orgId: number | undefined = org?.id
+  const { data } = useSWR<HubLaunchCard[]>(token ? `${getAPIUrl()}${hubLaunchCardsPath(orgId)}` : null, (url: string) => swrFetcher(url, token))
   const loaded = usableLaunchCards(data)
-  const cards = loaded.length > 0 ? loaded : FALLBACK_LAUNCH_CARDS
+  // Staff and admins of this org get their own starters; the fallback follows the same rule.
+  const cards = loaded.length > 0 ? loaded : fallbackLaunchCards(isStaffInOrg(session?.data?.roles, orgId) ? 'staff' : 'learner')
 
   return (
     <section aria-label={tr('coach.hub_launch_cards.ways_to_get_started', 'Ways to get started')} className="pb-1">

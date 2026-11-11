@@ -1,6 +1,8 @@
 import sentry_sdk
 import uvicorn
 from config.config import LaunchLMSConfig, get_launchlms_config
+from fastapi.responses import JSONResponse
+from src.core.events.database import PoolBusy
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -52,6 +54,14 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(DemoMiddleware)
+
+
+
+@app.exception_handler(PoolBusy)
+async def pool_busy(request, exc):
+    """A query on the event loop found no free connection (see LoopAwarePool): fail fast, retryable."""
+    return JSONResponse(status_code=503, content={"detail": "The server is busy. Try again in a moment."}, headers={"Retry-After": "2"})
+
 
 # Events
 app.add_event_handler("startup", startup_app(app))

@@ -7,6 +7,7 @@ from src.services.goals import mcp_library as goal_library
 from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
 from src.services.mcp.coach_tools import COACH_TOOLS
+from src.services.mcp.user_test_tools import USER_TEST_TOOLS
 from src.services.mcp.insights_tools import INSIGHTS_TOOLS
 from src.services.mcp.media_tools import MEDIA_TOOLS
 from src.services.mcp.resource_tools import RESOURCE_TOOLS
@@ -262,7 +263,7 @@ TOOLS = [
     Tool(
         "search_library",
         "Search the global library",
-        "Search the plan templates or requirement frameworks published to the shared Launch LMS library.",
+        "Search the plan templates or requirement frameworks published to the shared Life2Launch library.",
         {"properties": {"kind": _LIBRARY_KIND, "query": {"type": "string"}}, "required": ["kind"]},
         goal_library.search_library,
         scope="plans:read",
@@ -326,6 +327,18 @@ TOOLS = [
         read_only=False,
     ),
     Tool(
+        "set_plan_access",
+        "Set who can find a plan",
+        "Who in this organization can find and start the plan (the plan page's \"Who can find it\"): `access` open (anyone finds it on Discover and starts right away), "
+        "request (they ask and your team accepts) or invite (only people your team assigns). Returns `share_url`, the plan's Discover page to send people to. "
+        "Also works on another organization's plan you run. Only when the admin asks.",
+        {"properties": {"template_uuid": {"type": "string"}, "access": {"type": "string", "enum": ["open", "request", "invite"]}},
+         "required": ["template_uuid", "access"]},
+        goal_collections.set_plan_access,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
         "set_plan_cover",
         "Set a plan's cover",
         "Set the plan's cover image (a url from upload_media, or \"\" to go back to the icon), icon or color. Covers aren't versioned: every version shows the current one.",
@@ -339,5 +352,6 @@ TOOLS = [
     *RESOURCE_TOOLS,
     *INSIGHTS_TOOLS,
     *COACH_TOOLS,
+    *USER_TEST_TOOLS,
 ]
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}

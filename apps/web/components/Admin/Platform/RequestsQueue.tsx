@@ -108,6 +108,7 @@ export default function RequestsQueue() {
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 group-hover:underline truncate">
                             {req.org_name}
+                            {req.is_test_org ? <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">User test</span> : null}
                           </p>
                           <p className="text-xs text-gray-400 font-mono truncate">{req.org_slug}</p>
                         </div>

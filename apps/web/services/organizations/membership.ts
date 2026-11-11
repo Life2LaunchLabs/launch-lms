@@ -1,6 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, getResponseMetadata } from '@services/utils/ts/requests'
 import type { PersonSummary } from '@services/goals/types'
+import { inOrgWords } from '@/lib/people'
 
 /** A learner's status with an organization, which the organization sets. Only active learners count toward its limit. */
 export type MemberStatus = 'active' | 'alumni'
@@ -12,7 +13,7 @@ export type StaffPermission = 'build_plans' | 'run_assignments' | 'review_work' 
 
 /** Each permission's short name; the API's label says what it allows. */
 export const PERMISSION_NAMES: Record<StaffPermission, string> = {
-  build_plans: 'Build plans', run_assignments: 'Run assignments', review_work: 'Review work', manage_learners: 'Manage learners', see_reports: 'See reports',
+  build_plans: 'Build plans', run_assignments: 'Run assignments', review_work: 'Review work', get manage_learners() { return inOrgWords('Manage learners') }, see_reports: 'See reports',
 }
 
 export interface StaffPermissionInfo { key: StaffPermission; label: string; default: boolean }

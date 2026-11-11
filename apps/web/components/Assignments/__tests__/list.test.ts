@@ -12,13 +12,13 @@ const item = (over: Partial<AssignmentListItem> = {}): AssignmentListItem => ({
 
 describe('assignments list', () => {
   test('subtitles say how many and where', () => {
-    expect(rowSubtitle(item(), '2026-10-24')).toBe('18 learners · Stage 2: Explore careers')
-    expect(rowSubtitle(item({ start_date: '2026-11-01' }), '2026-10-24')).toBe('18 learners · Not started')
-    expect(rowSubtitle(item({ status: 'paused' }))).toBe('18 learners · Paused')
+    expect(rowSubtitle(item(), '2026-10-24')).toBe('18 participants · Stage 2: Explore careers')
+    expect(rowSubtitle(item({ start_date: '2026-11-01' }), '2026-10-24')).toBe('18 participants · Not started')
+    expect(rowSubtitle(item({ status: 'paused' }))).toBe('18 participants · Paused')
     const person = item({ target: { type: 'person', person: null, name: 'Maya Rivera' }, learner_count: 1, scheduled: false, stage: null })
     expect(rowSubtitle(person)).toBe('Self-paced')
     expect(rowSubtitle(item({ learner_count: 0, target: { type: 'email', email: 'a@b.c', name: 'a@b.c' } }))).toBe('Invite sent · hasn’t joined yet')
-    expect(rowSubtitle(item({ status: 'ended', learner_count: 1 }))).toBe('Ended · 1 learner')
+    expect(rowSubtitle(item({ status: 'ended', learner_count: 1 }))).toBe('Ended · 1 participant')
   })
 
   test('dates are start and end, or when a self-paced one started', () => {

@@ -23,6 +23,7 @@ from src.security.auth import (
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
+from src.services.user_tests.sessions import refresh_test_persona
 from src.services.security.account_lockout import (
     check_account_locked,
     format_lockout_message,
@@ -144,18 +145,10 @@ async def complete_welcome_signup(
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
 
+    from src.services.auth import welcome
+
     started_at = datetime.now(timezone.utc).isoformat()
-    profile_preset = {
-        "header": {"socials": []},
-        "featured": {"cards": [], "publicVisible": True},
-        "achievements": {"featuredIds": [], "publicVisible": True},
-        "timelineEnabled": True,
-        "timelinePublicVisible": True,
-        "timeline": [],
-        "layout": [],
-        "sections": [],
-        "onboarding": {"started_at": started_at},
-    }
+    profile_preset = welcome.signup_profile(started_at)
     user_create = UserCreate(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
@@ -166,7 +159,6 @@ async def complete_welcome_signup(
         profile=profile_preset,
     )
 
-    from src.services.auth import welcome
     from src.services.users.users import create_user
 
     org = welcome.invited_org(db_session, body.invitation_token, body.invite_code, body.org_id)
@@ -214,8 +206,8 @@ async def complete_welcome_signup(
 @router.get("/refresh")
 def refresh(request: Request, response: Response):
     """Validate the refresh cookie and preserve the account/session boundary."""
-    # Rate limit refresh endpoint to prevent brute force attacks
-    is_allowed, retry_after = check_refresh_rate_limit(request)
+    refresh_token = request.cookies.get(JWT_REFRESH_COOKIE_NAME)
+    is_allowed, retry_after = check_refresh_rate_limit(request, refresh_test_persona(refresh_token))
     if not is_allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -226,7 +218,6 @@ def refresh(request: Request, response: Response):
             },
         )
 
-    refresh_token = request.cookies.get(JWT_REFRESH_COOKIE_NAME)
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

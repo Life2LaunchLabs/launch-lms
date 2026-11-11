@@ -5,6 +5,7 @@ import { Building2, ChevronRight, Library, ListChecks, MessageSquareText, Users,
 import { chatTime } from '@components/Connect/ConnectView'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { rowTarget, threadHref } from '@components/Admin/People/PeopleList'
+import { turnInHref } from '@components/Threads/ThreadCards'
 import StatusBar, { StatusLegend } from '@components/Assignments/StatusBar'
 import { NeedsButton } from '@components/Assignments/Needs'
 import { PlanTile, TargetTile } from '@components/Assignments/Pair'
@@ -13,6 +14,7 @@ import { rowDates, rowSubtitle } from '@services/assignments/list'
 import type { AdminHome, ContinueItem, HomeAssignmentRow, NeedsRow } from '@services/goals/adminHome'
 import { cn } from '@/lib/utils'
 import { Chip, WidgetCard, WidgetEmpty, plural } from './WidgetCard'
+import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
 const NEEDS_SHOWN = 5
@@ -22,6 +24,13 @@ export const ROLE_LABEL = { lead: 'Lead', review: 'Review', comment: 'Comment' }
 function waitingText(row: NeedsRow) {
   const { messages, turn_ins, approvals } = row.counts
   return [messages && plural(messages, 'message'), turn_ins && plural(turn_ins, 'hand-in'), approvals && plural(approvals, 'request')].filter(Boolean).join(' · ')
+}
+
+/** Where a Needs you row goes: a row that only waits on hand-ins opens the (oldest) one's review; anything else opens the thread. */
+export function needsRowHref(orgslug: string, row: NeedsRow) {
+  const { messages, turn_ins, approvals } = row.counts
+  if (row.review && turn_ins && !messages && !approvals) return getUriWithOrg(orgslug, turnInHref(row.review))
+  return threadHref(orgslug, rowTarget(row as any))
 }
 
 /** Threads with something waiting on the viewer: Threads' own rows, filtered to what needs them. */
@@ -38,7 +47,7 @@ export function NeedsYou({ data, orgslug, onDismissIntro }: { data: NonNullable<
         {shown.map((row) => {
           const name = row.title || (row.kind === 'group' ? row.group?.name : row.person?.name) || 'Someone'
           return <li key={row.key}>
-            <Link href={threadHref(orgslug, rowTarget(row as any))} className="flex items-center gap-3 px-5 py-3 transition hover:bg-gray-50">
+            <Link href={needsRowHref(orgslug, row)} className="flex items-center gap-3 px-5 py-3 transition hover:bg-gray-50">
               {row.kind === 'person' && row.person ? <PersonAvatar user={row.person as any} size="md" />
                 : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-foreground">{row.kind === 'org' ? <Building2 size={17} aria-hidden="true" /> : <Users size={17} aria-hidden="true" />}</span>}
               <span className="min-w-0 flex-1">
@@ -123,7 +132,7 @@ export function Continue({ items, orgslug }: { items: ContinueItem[]; orgslug: s
                 {item.kind === 'framework' ? <ListChecks size={16} aria-hidden="true" /> : <Library size={16} aria-hidden="true" />}</span>}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-bold text-gray-900">{item.title}</span>
-              <span className="block truncate text-xs text-gray-500">{KIND_LABEL[item.kind]}{item.update_date ? ` · edited ${chatTime(item.update_date)}` : ''}{item.running ? ' · learners on it' : ''}</span>
+              <span className="block truncate text-xs text-gray-500">{KIND_LABEL[item.kind]}{item.update_date ? ` · edited ${chatTime(item.update_date)}` : ''}{item.running ? inOrgWords(' · learners on it') : ''}</span>
             </span>
             <Chip tone={item.state === 'live' ? 'green' : 'amber'}>{item.state === 'live' ? 'Live' : 'Draft'}</Chip>
             <ChevronRight size={16} className="hidden shrink-0 text-gray-400 sm:block" aria-hidden="true" />

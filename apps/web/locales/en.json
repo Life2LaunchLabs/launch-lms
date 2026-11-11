@@ -46,11 +46,11 @@
     "help": "Help",
     "help_menu": {
       "documentation": "Documentation",
-      "website": "Launch LMS Website",
+      "website": "Life2Launch Website",
       "discord": "Discord",
       "report_feedback": "Report Issue or Feedback",
       "feedback_title": "Send Feedback",
-      "feedback_description": "Help us improve Launch LMS by sharing your thoughts, reporting bugs, or suggesting new features.",
+      "feedback_description": "Help us improve Life2Launch by sharing your thoughts, reporting bugs, or suggesting new features.",
       "feedback_placeholder": "Tell us what's on your mind...",
       "feedback_success": "Thank you for your feedback!",
       "send_feedback": "Send Feedback",
@@ -299,6 +299,8 @@
     "join_organization": "Join Organization",
     "join_organization_desc": "You're about to join this organization",
     "join_organization_success": "Successfully joined the organization",
+    "invite_wrong_org": "This invitation isn't for {{org}}",
+    "invite_wrong_org_desc": "Open the link from your invitation email again, or ask the person who invited you for a new one.",
     "joining": "Joining",
     "invite_required": "Invite Required",
     "invite_required_desc": "An invite code is required to join {{org}}",
@@ -315,14 +317,14 @@
     "create_free_account": "Create your free account",
     "continue": "Continue",
     "sign_in": "Sign in",
-    "agree_prefix": "By continuing, you agree to Launch LMS’s",
+    "agree_prefix": "By continuing, you agree to Life2Launch’s",
     "terms_of_service": "Terms of Service",
     "agree_and": "and",
     "privacy_policy": "Privacy Policy",
     "agree_suffix": ".",
     "name_you_go_by_optional": "Name you go by (optional)",
     "name_you_go_by": "Name you go by",
-    "age_required": "Launch LMS is for people 15 and older. Confirm your age to continue.",
+    "age_required": "Life2Launch is for people 15 and older. Confirm your age to continue.",
     "age_confirm": "I’m 15 or older"
   },
   "validation": {
@@ -499,14 +501,14 @@
     "import": {
       "scorm_package": "SCORM Package",
       "scorm_description": "Import SCORM 1.2 or SCORM 2004 packages",
-      "launch-lms_courses": "Launch LMS Courses",
-      "launch-lms_description": "Import courses exported from Launch LMS",
+      "launch-lms_courses": "Life2Launch Courses",
+      "launch-lms_description": "Import courses exported from Life2Launch",
       "upload_package": "Upload Package",
       "configure": "Configure",
       "complete": "Complete",
       "click_to_upload": "Click to upload or drag and drop",
-      "launch-lms_format": "Launch LMS course export (.zip)",
-      "launch-lms_info": "Upload a Launch LMS course export package (.zip). You'll be able to select which courses to import and configure import options.",
+      "launch-lms_format": "Life2Launch course export (.zip)",
+      "launch-lms_info": "Upload a Life2Launch course export package (.zip). You'll be able to select which courses to import and configure import options.",
       "analyze_package": "Analyze Package",
       "ready_to_analyze": "Ready to analyze",
       "invalid_file_format": "Please upload a .zip file",
@@ -1184,7 +1186,7 @@
     "not_supported_title": "This activity is not supported",
     "not_supported_description": "This type of activity requires authentication and cannot be embedded.",
     "visit_activity": "Visit Activity Page",
-    "powered_by": "Powered by Launch LMS"
+    "powered_by": "Powered by Life2Launch"
   },
   "assignments": {
     "submit_assignment": "Submit Assignment",
@@ -1555,7 +1557,7 @@
           "description": "Configure your personal settings, passwords, email"
         }
       },
-      "launch-lms_university": "Launch LMS Academy"
+      "launch-lms_university": "Life2Launch Academy"
     },
     "courses": {
       "title": "Courses",
@@ -1662,7 +1664,7 @@
         },
         "export": {
           "title": "Export Course",
-          "description": "Download this course as a ZIP file to back it up or import it into another Launch LMS instance.",
+          "description": "Download this course as a ZIP file to back it up or import it into another Life2Launch instance.",
           "button": "Export Course",
           "exporting": "Exporting..."
         },
@@ -2352,7 +2354,11 @@
         "updating": "Updating organization...",
         "footer_text": "Footer Text",
         "footer_text_placeholder": "Enter footer text...",
-        "footer_text_desc": "Custom text displayed at the bottom of your organization pages"
+        "footer_text_desc": "Custom text displayed at the bottom of your organization pages",
+        "people_words": "What you call the people you support",
+        "people_one": "One",
+        "people_many": "Several",
+        "people_words_desc": "Staff screens use these words, like students, trainees, campers or team members."
       },
       "images": {
         "title": "Images & Previews",
@@ -4261,6 +4267,19 @@
       "partner": "Me and a partner",
       "with_kids": "Me and {{kids}}",
       "me": "Just me"
+    },
+    "purpose": {
+      "gap": "Gap year",
+      "saving": "Working and saving",
+      "career": "Starting my career",
+      "next": "Figuring out what’s next"
+    },
+    "plan_ask": {
+      "doing": "What I’ll be doing: {{doing}}.",
+      "place": "Where: {{place}}.",
+      "head_span": "Help me plan this phase of my plan: “{{title}}” ({{span}}).",
+      "head": "Help me plan this phase of my plan: “{{title}}”.",
+      "ask": "What goals should I set for it, and what should I do first?"
     }
   },
   "onboarding": {
@@ -4314,6 +4333,9 @@
     "living_sub": "It helps with your budget. You can change it any time.",
     "doing": "What are you doing these days?",
     "doing_sub": "School, a job or both. Add as many as you like.",
+    "purpose": "What is this time for?",
+    "purpose_sub": "This names your phase. You can change it later.",
+    "purpose_own": "Something else? Say it in your own words",
     "since": "Since when?",
     "since_sub": "Roughly is fine. A phase lasts until the next one starts.",
     "card": "Here’s your first phase",
@@ -4474,7 +4496,9 @@
       "add_your_first_value": "Add your first {{value}}",
       "covers_covers_of_of": "Covers {{covers}} of {{of}}",
       "step_value_of_length": "Step {{value}} of {{length}}",
-      "v_learners": "learners"
+      "v_learners": "learners",
+      "planning_for_yourself": "Planning your own future?",
+      "go_to_your_own_space": "Go to your own space"
     },
     "tier_compare": {
       "for_one_person_helping_a": "For one person helping a few learners.",
@@ -4492,7 +4516,7 @@
       "maya_asked_a_question": "Maya asked a question",
       "mr": "MR",
       "maya_rivera": "Maya Rivera",
-      "building_my_launch_class_of": "Building my launch · Class of 2027",
+      "building_my_launch": "Building my launch",
       "my_goal": "My goal",
       "become_a_registered_nurse": "Become a registered nurse",
       "my_plans": "My plans",
@@ -4914,7 +4938,7 @@
       "previous_look": "Previous look",
       "next_look": "Next look",
       "your_look": "Your look",
-      "your_theme_for_all_of": "Your theme for all of Launchpad. Visitors see your portfolio in it too. Nothing moves when you change it.",
+      "your_theme_for_all_of": "Your theme for all of Life2Launch. Visitors see your portfolio in it too. Nothing moves when you change it.",
       "look": "Look",
       "you_haven_t_picked_one": "You haven’t picked one yet.",
       "wear_name": "Wear {{name}}",
@@ -5475,6 +5499,7 @@
       "optional": " · optional",
       "remove": "Remove",
       "add_a_link": "Add a link",
+      "add_kind": "Add a {{kind}}",
       "add": "Add",
       "upload_something_new_or_choose": "Upload something new or choose it from your media library.",
       "items": "Items",
@@ -5745,7 +5770,9 @@
       "start_your_budget": "Start your budget",
       "start_it": "Start it",
       "no_goals_were_left_open": "No goals were left open in {{lower}}.",
-      "done_of_total_steps": "{{done}} of {{total}} steps"
+      "done_of_total_steps": "{{done}} of {{total}} steps",
+      "plan_it_with_coach": "Plan it with Coach",
+      "plan_it_with_coach_hint": "Plan it out with Coach, say it in your own words, or pick one from Discover and earn a badge for it."
     },
     "phase_sheet": {
       "idea": "Idea · ",
@@ -5818,7 +5845,7 @@
       "could_not_respond_to_this": "Could not respond to this invitation",
       "goal_invitations": "Goal invitations",
       "invitations": "Invitations",
-      "launch_lms": "Launch LMS",
+      "launch_lms": "Life2Launch",
       "decline": "Decline",
       "accept": "Accept",
       "help_as_name": " · Help as {{name}}"
@@ -6433,14 +6460,15 @@
     },
     "unlock_matches": {
       "unlock_your_matches_done_of": "Unlock your matches · {{done}} of {{total}}",
-      "each_one_makes_explore_more": "Each one makes Explore more about you. Finish all {{total}} to make your Explore home your own.",
-      "done_of_total_done": "{{done}} of {{total}} done",
       "done": "(done)",
-      "go": "Go",
-      "careers_that_fit_you_near": "careers that fit you, near you, with what they pay and how long training takes.",
-      "your_explore_home": "Your Explore home:",
       "preview_it": "Preview it",
-      "your_interests_and_skills_only": "Your interests and skills only show on your portfolio if you put them there. Your home base is your portfolio’s location."
+      "unlock_your_matches": "Unlock your matches",
+      "each_one_sharpens_your_matches": "Each one makes your career matches more about you.",
+      "match_accuracy": "Match accuracy",
+      "match_accuracy_done_of_total": "Match accuracy: {{done}} of {{total}} done",
+      "have_of_need": "{{have}} of {{need}}",
+      "close": "Close",
+      "finish_all_total_for_your": "Finish all {{total}} for your own Explore home."
     }
   },
   "resources": {
@@ -7085,7 +7113,7 @@
     "hub_composer": {
       "ready_to_review": "Ready to review",
       "review": "Review",
-      "ask_a_question_or_search": "Ask a question or search Launch LMS",
+      "ask_a_question_or_search": "Ask a question or search Life2Launch",
       "message_coach": "Message Coach",
       "add_a_resource_to_this": "Add a resource to this chat",
       "saved_resource": "Saved resource",
@@ -7134,8 +7162,6 @@
       "end_conversation": "End conversation",
       "close_coach": "Close Coach",
       "end": "End",
-      "about_coach_page_awareness": "About Coach page awareness",
-      "coach_can_use_saved_details": "Coach can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.",
       "scope": "Scope",
       "a_new_personal_goal": "A new personal goal",
       "your_goal_label": "Your goal: {{label}}",
@@ -7322,6 +7348,10 @@
       "making_pdf": "Making PDF…",
       "download_pdf": "Download PDF",
       "download_open_badge": "Download Open Badge",
+      "copy_link": "Copy link",
+      "link_copied": "Link copied",
+      "anyone_with_this_link": "Anyone with this link can see it.",
+      "could_not_copy_the_link": "Could not copy the link. Copy it from the address bar instead.",
       "about_this_kind": "About this {{kind}}",
       "skills": "Skills",
       "awarded_for_equivalent_work": "Awarded for equivalent work",
@@ -7329,7 +7359,7 @@
       "staff": "Staff",
       "see_the_work": "See the work",
       "issued_by": "Issued by",
-      "an_organization_no_longer_on": "an organization no longer on Launch LMS",
+      "an_organization_no_longer_on": "an organization no longer on Life2Launch",
       "signed_by_value_and_unchanged": "Signed by {{value}}, and unchanged since",
       "its_signature_could_not_be": "Its signature could not be checked",
       "revoked_by_the_issuer": "Revoked by the issuer",
@@ -8150,10 +8180,13 @@
       "guiding_a_few_people_one": "Guiding a few people one-on-one",
       "teacher_or_counselor": "Teacher or counselor",
       "supporting_a_class_or_caseload": "Supporting a class or caseload",
-      "youth_program_staff": "Youth program staff",
+      "program_staff": "Program staff",
       "school_or_district_leader": "School or district leader",
       "readiness_across_schools": "Readiness across schools",
-      "new_hires": "New hires"
+      "new_hires": "New hires",
+      "a_nonprofit_camp_club_or": "A nonprofit, camp, club or community program",
+      "workplace_or_adult_training": "Workplace or adult training",
+      "onboarding_safety_or_skills_training": "Onboarding, safety or skills training"
     },
     "start_flow": {
       "your_organization": "Your organization",
@@ -8169,7 +8202,7 @@
     },
     "tour": {
       "welcome_to_life2launch": "Welcome to Life2Launch",
-      "where_young_people_map_out": "Where young people map out what’s next and take charge of getting there.",
+      "where_people_map_out": "Where people map out what’s next and take charge of getting there.",
       "you_guide_they_go": "You guide. They go.",
       "hand_someone_a_plan_and": "Hand someone a plan and they move through it on their own. You see every step land, and know exactly when it’s your turn.",
       "step_in_right_where_it": "Step in right where it counts",

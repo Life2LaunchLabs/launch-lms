@@ -10,6 +10,7 @@ import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import { announceDemoSetupChange, demoAccountName, demoRequest, type DemoMember } from '@services/demo/demo'
 import StudioShell, { useDemoStudio, useStudioHref } from './StudioShell'
+import { inOrgWords } from '@/lib/people'
 
 type StartFrom = 'blank' | 'copy' | 'duplicate'
 type OrgRow = { slug: string; role: 'student' | 'staff' | 'admin' }
@@ -62,7 +63,7 @@ export default function StudioNewUser() {
       <div className="space-y-1.5"><Label htmlFor="nu-role">Role line</Label><Input id="nu-role" placeholder="Junior · Oregon High School" value={form.role_line} onChange={(event) => set({ role_line: event.target.value })} /></div>
       <div className="space-y-1.5"><Label htmlFor="nu-description">Who they are</Label><Textarea id="nu-description" maxLength={1000} placeholder="16, curious about healthcare. Halfway through her first badge plan." value={form.description} onChange={(event) => set({ description: event.target.value })} /><p className="text-xs text-muted-foreground">One or two sentences for the picker card. Add a photo in setup mode, from their profile.</p></div>
       <fieldset className="space-y-2"><legend className="mb-1 text-sm font-semibold">Where they belong</legend>
-        <p className="text-sm text-muted-foreground">Every demo user is a member of the main organization, like real learners. Add a school or issuer only if their story needs one.</p>
+        <p className="text-sm text-muted-foreground">{inOrgWords("Every demo user is a member of the main organization, like real learners. Add a school or issuer only if their story needs one.")}</p>
         {orgs.map((org, index) => <div key={index} className="flex gap-2"><Input aria-label="Organization slug" placeholder="organization-slug" value={org.slug} onChange={(event) => setOrgs((rows) => rows.map((row, position) => position === index ? { ...row, slug: event.target.value } : row))} /><select aria-label="Role" value={org.role} onChange={(event) => setOrgs((rows) => rows.map((row, position) => position === index ? { ...row, role: event.target.value as OrgRow['role'] } : row))} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="student">Student</option><option value="staff">Staff</option><option value="admin">Admin</option></select><Button type="button" variant="ghost" size="icon" aria-label="Remove organization" onClick={() => setOrgs((rows) => rows.filter((_, position) => position !== index))}><X className="h-4 w-4" /></Button></div>)}
         <Button type="button" variant="ghost" size="sm" onClick={() => setOrgs((rows) => [...rows, { slug: '', role: 'student' }])}><Plus className="mr-1 h-4 w-4" />Add an organization</Button>
       </fieldset>

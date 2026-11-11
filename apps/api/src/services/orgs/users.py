@@ -32,6 +32,7 @@ from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import deliver_invitation
 from src.services.orgs.membership import assigned_user_ids as learners_on_plans, cleanup_after_removal
+from src.services.orgs.staff_permissions import invitation_permissions
 from src.services.orgs.orgs import rbac_check
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.users.usergroups import create_usergroup
@@ -1036,10 +1037,7 @@ async def get_list_of_invited_users(
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
 
     if not org:
-        raise HTTPException(
-            status_code=404,
-            detail="Organization not found",
-        )
+        raise HTTPException(status_code=404, detail="Organization not found")
 
     # RBAC check
     await rbac_check(request, org.org_uuid, current_user, "read", db_session)
@@ -1077,6 +1075,7 @@ async def get_list_of_invited_users(
         "expires_at": invitation.expires_at.isoformat(),
         "role": RoleRead.model_validate(role_map[invitation.role_id]).model_dump() if invitation.role_id in role_map else None,
         "usergroup": UserGroupRead.model_validate(group_map[invitation.usergroup_id]).model_dump() if invitation.usergroup_id in group_map else None,
+        "permissions": invitation_permissions(invitation),
     } for invitation in invitations]
 
 

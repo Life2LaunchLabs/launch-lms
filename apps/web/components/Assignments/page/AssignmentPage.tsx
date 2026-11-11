@@ -20,6 +20,7 @@ import type { PeopleFilter } from '@services/assignments/people'
 import { useHub } from '@components/Hub/HubContext'
 import { threadHref } from '@components/Admin/People/PeopleList'
 import type { ThreadTarget } from '@components/Threads/ThreadView'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * One assignment: a plan handed to a group or a person. Steps shows where learners are on each
@@ -70,7 +71,7 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
   const message = () => groupId ? openThread({ kind: 'group', groupId, plan: assignmentUuid }) : detail.target.type === 'person' ? learnerOf(detail.target.person) : undefined
   const ctx = {
     detail, orgId, orgslug, token,
-    reviewHref: (stepKey: string) => getUriWithOrg(orgslug, routePaths.org.admin.planReview({ assignment: assignmentUuid, planObjective: stepKey, from: 'assignment' })),
+    reviewHref: (stepKey: string) => getUriWithOrg(orgslug, routePaths.org.admin.planReview({ assignment: assignmentUuid, objective: stepKey, from: 'assignment' })),
     onMessageStep: (stepKey: string) => groupId ? openThread({ kind: 'group', groupId, plan: assignmentUuid, step: stepKey }) : detail.target.type === 'person' ? learnerOf(detail.target.person, stepKey) : undefined,
     onMessageLearner: (person: AssignmentPerson) => learnerOf(person),
   }
@@ -86,10 +87,10 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
         onMessage: detail.learner_count || group ? message : undefined,
         onSchedule: () => setQuery({ schedule: '1' }),
         onVersion: canVersion ? () => setVersioning(true) : undefined,
-        onPause: () => void run(() => goalAdminApi.pause(orgId, assignmentUuid, token), 'Paused. Learners keep their plans and can keep working.'),
+        onPause: () => void run(() => goalAdminApi.pause(orgId, assignmentUuid, token), inOrgWords('Paused. Learners keep their plans and can keep working.')),
         onResume: () => void run(() => goalAdminApi.resume(orgId, assignmentUuid, token), 'Resumed.'),
         onEnd: () => {
-          if (!window.confirm(`End ${detail.plan.title} for ${detail.target.name}? Learners keep their plans as they are, and it can’t be resumed.`)) return
+          if (!window.confirm(inOrgWords(`End ${detail.plan.title} for ${detail.target.name}? Learners keep their plans as they are, and it can’t be resumed.`))) return
           void run(() => goalAdminApi.end(orgId, assignmentUuid, token), 'Ended. It moves to Ended on the list.')
         },
       }} />
@@ -98,9 +99,13 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
         orgId={orgId} token={token} onChanged={refresh} onMessage={learnerOf} />
         : <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <StepsTab ctx={ctx} scheduling={scheduling} setScheduling={(on) => setQuery(on ? { schedule: '1' } : {})}
-            onSave={(draft: ScheduleDraft) => run(() => assignmentApi.saveSchedule(orgId, assignmentUuid, draftToSave(draft), token), 'Schedule saved. Learners’ plans moved with it.')} />
+            onSave={(draft: ScheduleDraft) => run(() => assignmentApi.saveSchedule(orgId, assignmentUuid, draftToSave(draft), token), inOrgWords('Schedule saved. Learners’ plans moved with it.'))} />
           <Sidebar detail={detail} thread={thread} onMessage={message}
-            needsHref={(kind) => href({ tab: 'people', filter: kind })}
+            needsHref={(kind) => {
+              // Ready to review opens the review screen, at the first step with work waiting, like the step's own "to review".
+              const waiting = kind === 'review' ? detail.stages.flatMap((stage) => stage.steps).find((step) => step.counts.review > 0) : undefined
+              return waiting ? ctx.reviewHref(waiting.key) : href({ tab: 'people', filter: kind })
+            }}
             otherHref={(uuid) => getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(uuid))} />
         </div>}
     </div>

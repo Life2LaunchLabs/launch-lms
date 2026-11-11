@@ -43,11 +43,11 @@
     "help": "Bantuan",
     "help_menu": {
       "documentation": "Dokumentasi",
-      "website": "Situs Web Launch LMS",
+      "website": "Situs Web Life2Launch",
       "discord": "Discord",
       "report_feedback": "Laporkan Masalah atau Umpan Balik",
       "feedback_title": "Kirim Umpan Balik",
-      "feedback_description": "Bantu kami meningkatkan Launch LMS dengan berbagi pemikiran Anda, melaporkan bug, atau menyarankan fitur baru.",
+      "feedback_description": "Bantu kami meningkatkan Life2Launch dengan berbagi pemikiran Anda, melaporkan bug, atau menyarankan fitur baru.",
       "feedback_placeholder": "Beritahu kami apa yang Anda pikirkan...",
       "feedback_success": "Terima kasih atas umpan balik Anda!",
       "send_feedback": "Kirim Umpan Balik",
@@ -423,14 +423,14 @@
     "import": {
       "scorm_package": "Paket SCORM",
       "scorm_description": "Impor paket SCORM 1.2 atau SCORM 2004",
-      "launch-lms_courses": "Kursus Launch LMS",
-      "launch-lms_description": "Impor kursus yang diekspor dari Launch LMS",
+      "launch-lms_courses": "Kursus Life2Launch",
+      "launch-lms_description": "Impor kursus yang diekspor dari Life2Launch",
       "upload_package": "Unggah Paket",
       "configure": "Konfigurasi",
       "complete": "Selesai",
       "click_to_upload": "Klik untuk mengunggah atau seret dan lepas",
-      "launch-lms_format": "Ekspor kursus Launch LMS (.zip)",
-      "launch-lms_info": "Unggah paket ekspor kursus Launch LMS (.zip). Anda dapat memilih kursus mana yang akan diimpor dan mengkonfigurasi opsi impor.",
+      "launch-lms_format": "Ekspor kursus Life2Launch (.zip)",
+      "launch-lms_info": "Unggah paket ekspor kursus Life2Launch (.zip). Anda dapat memilih kursus mana yang akan diimpor dan mengkonfigurasi opsi impor.",
       "analyze_package": "Analisis Paket",
       "ready_to_analyze": "Siap untuk dianalisis",
       "invalid_file_format": "Silakan unggah file .zip",
@@ -1126,7 +1126,7 @@
           "description": "Konfigurasikan pengaturan pribadi, kata sandi, email Anda"
         }
       },
-      "launch-lms_university": "Universitas Launch LMS"
+      "launch-lms_university": "Universitas Life2Launch"
     },
     "courses": {
       "title": "Kursus",
@@ -1136,8 +1136,8 @@
       "import_course": "Impor kursus",
       "import_scorm": "Impor Paket SCORM",
       "import_scorm_description": "Impor paket SCORM untuk membuat kursus baru",
-      "import_launch-lms": "Impor Kursus Launch LMS",
-      "import_launch-lms_description": "Impor kursus dari paket ekspor Launch LMS",
+      "import_launch-lms": "Impor Kursus Life2Launch",
+      "import_launch-lms_description": "Impor kursus dari paket ekspor Life2Launch",
       "import_select_type": "Pilih jenis paket yang ingin diimpor",
       "no_courses": "Belum ada kursus",
       "create_course_placeholder": "Buat kursus untuk menambahkan konten",

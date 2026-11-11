@@ -15,6 +15,7 @@ import { cohortKey, goalAdminApi, type Cohort } from '@services/goals/admin'
 import { assignmentApi, assignmentKeys } from '@services/assignments/assignments'
 import { shownLearners } from '@services/assignments/people'
 import { usePeopleContext } from './usePeople'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * The group's Plans tab: the plans handed to it, one assignment's learners at a time, each with where they are and what they need.
@@ -54,7 +55,7 @@ function GroupPlans({ orgslug, groupId, cohort, refresh }: { orgslug: string; gr
       <Link href={getUriWithOrg(orgslug, assignmentHref(current))} className="inline-flex min-h-9 items-center gap-1 text-xs font-bold text-blue-700"><ArrowUpRight size={14} />Open assignment</Link>
       {assign}
     </div>
-    {error ? <p className="p-8 text-center text-sm text-muted-foreground">{error.message || 'This plan’s learners didn’t load.'}</p>
+    {error ? <p className="p-8 text-center text-sm text-muted-foreground">{error.message || inOrgWords('This plan’s learners didn’t load.')}</p>
       : !people ? <Spinner />
       : <div className="space-y-3">
         <div className="overflow-hidden rounded-2xl border border-border bg-card"><LearnerRows rows={shownLearners(people.learners, 'all', 'az')} ended={current.status === 'ended'} /></div>

@@ -28,6 +28,7 @@ from src.db.usergroups import UserGroup
 from src.security.access.access import org_access
 from src.db.users import PublicUser
 from src.security.org_auth import get_user_org
+from src.services.orgs import people_words
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS, ADMIN_ROLE_ID, LEARNER_ROLE_ID
 
 DISMISSED_KEY = "getting_started_dismissed"
@@ -73,12 +74,16 @@ def steps(db: Session, org_id: int, viewer_id: int) -> dict[str, bool]:
     return {key: count > 0 for key, count in counts(db, org_id, viewer_id).items()}
 
 
-NOTES = {"plan": "plan", "staff": "staff member", "groups": "group", "requirements": "framework", "learners": "learner"}
+NOTES = {"plan": "plan", "staff": "staff member", "groups": "group", "requirements": "framework"}
 
 
-def _note(key: str, count: int) -> str | None:
-    """What a done step has: "3 plans", "2 learners"."""
-    return _plural(count, NOTES[key]) if count and key in NOTES else None
+def _note(key: str, count: int, people: tuple[str, str]) -> str | None:
+    """What a done step has: "3 plans", and for people the org's own word, "2 trainees"."""
+    if not count:
+        return None
+    if key == "learners":
+        return f"{count} {people[0] if count == 1 else people[1]}"
+    return _plural(count, NOTES[key]) if key in NOTES else None
 
 
 def getting_started(db: Session, current_user: PublicUser, org_id: int) -> dict | None:
@@ -91,10 +96,11 @@ def getting_started(db: Session, current_user: PublicUser, org_id: int) -> dict 
     # /start already named and colored the space, so the details page is a nice-to-have.
     optional = OPTIONAL | ({"organization"} if setup else set())
     have = counts(db, org_id, current_user.id)
+    people = people_words.words(db, org_id)
     return {
         "steps": [{
             "key": key, "done": have[key] > 0, "optional": key in optional,
-            "note": _note(key, have[key]),
+            "note": _note(key, have[key], people),
         } for key in keys],
         "done": sum(have[key] > 0 for key in keys),
         "total": len(keys),

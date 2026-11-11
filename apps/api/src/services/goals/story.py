@@ -258,15 +258,17 @@ def _blocks(slide: dict, index: int) -> list[dict]:
     ]
 
 
-STORY_SECONDS = {"open": 5000, "stats": 6000, "chart": 6000, "milestones": 7000, "decisions": 8000, "quote": 8000}
+# The opening slide has no timer: it waits for Continue, so a learner who looks away doesn't miss it.
+STORY_SECONDS = {"stats": 6000, "chart": 6000, "milestones": 7000, "decisions": 8000, "quote": 8000}
 
 
 def story_document(goal: Goal, story: GoalStory) -> dict:
-    """The story as an Activity Document: one page per slide, timed, ending on the medal."""
+    """The story as an Activity Document: one page per slide, ending on the medal. The first slide waits
+    for Continue; the ones between it and the medal move on by themselves."""
     pages = []
     for index, slide in enumerate(story.slides):
         last = index == len(story.slides) - 1
-        design: dict = {"celebrate": True} if last else {"auto_advance_ms": STORY_SECONDS.get(slide["kind"], 6000)}
+        design: dict = {"celebrate": True} if last else {} if index == 0 else {"auto_advance_ms": STORY_SECONDS.get(slide["kind"], 6000)}
         pages.append({
             "page_uuid": f"{story.story_uuid}_{index}", "page_type": "standard", "title": slide.get("title") or slide["kind"].title(),
             "required": last, "design": design, "content": {"version": 2, "blocks": _blocks(slide, index), **({"action_label": "Done"} if last else {})},

@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
 from src.services import hub_advisor
+from src.services.coach import output_limits
 from src.security.access.access import access_from_config
 from src.services import hub_actions
 from src.services import hub_questions
@@ -37,11 +38,31 @@ def message(role: str, content: str) -> AdvisorMessage:
 
 
 def test_advisor_text_is_bounded_at_a_readable_break():
-    result = bound_advisor_text(("Useful sentence. " * 200).strip())
+    result = bound_advisor_text(("Useful sentence. " * 2_000).strip())
 
-    assert len(result) <= hub_advisor.MAX_ASSISTANT_CHARS
+    assert len(result) <= output_limits.MAX_ASSISTANT_CHARS
     assert result.endswith("…")
     assert result.startswith("Useful sentence.")
+
+
+def test_long_coach_reply_is_kept_whole():
+    # A full multi-part answer (path, timeline, pay, paying for it) runs well past the
+    # 1,600 characters REPLY_RULES asks for; it used to be cut mid-answer with "…" (FEED-67).
+    reply = "\n\n".join(
+        f"**Part {index}:** " + "Reapply for aid annually and keep your grades strong. " * 6
+        for index in range(1, 9)
+    ).strip()
+    assert 1_600 < len(reply) <= hub_advisor.MAX_OUTPUT_TOKENS * 4
+
+    assert bound_advisor_text(reply) == reply
+
+
+def test_reply_bound_holds_the_largest_configurable_output():
+    from src.db.coach import CoachModelSettings
+
+    largest = CoachModelSettings.model_fields["max_output_tokens"].metadata
+    ceiling = next(item.le for item in largest if getattr(item, "le", None) is not None)
+    assert output_limits.MAX_ASSISTANT_CHARS >= (ceiling + output_limits.REASONING_HEADROOM_TOKENS) * 4
 
 
 @pytest.mark.asyncio
@@ -117,6 +138,44 @@ def test_resource_grounding_ranks_matches_and_excludes_private_learner_state():
     assert "user_state" not in result[0]
     assert "user_channel_uuids" not in result[0]
     assert "private note" not in str(result)
+
+
+def test_resource_grounding_prefers_the_distinctive_word_over_everyday_words():
+    supervisors = [
+        {
+            "resource_uuid": f"resource_supervisor_{index}",
+            "title": f"First-Line Supervisor of {trade}",
+            "description": "Directly supervise and coordinate work. Career facts from O*NET.",
+            "resource_type": "career",
+            "tags": [],
+        }
+        for index, trade in enumerate(["Mechanics", "Landscaping Workers", "Non-Retail Sales", "Cooks", "Office Workers"])
+    ]
+    resources = [
+        *supervisors,
+        {
+            "resource_uuid": "resource_compensation",
+            "title": "Compensation Analyst",
+            "description": "Analyze pay and benefits. Career facts from O*NET.",
+            "resource_type": "career",
+            "tags": [],
+        },
+        {
+            "resource_uuid": "resource_dietitian",
+            "title": "Dietitian or Nutritionist",
+            "description": "Plan food and nutrition programs. Career facts from O*NET.",
+            "resource_type": "career",
+            "tags": [],
+        },
+    ]
+
+    result = relevant_advisor_resources(
+        "hi im 19 and want to go to university of oregon to become a dietitian. "
+        "what should I do first, and how do I pay for it without loans?",
+        resources,
+    )
+
+    assert [item["resource_uuid"] for item in result] == ["resource_dietitian"]
 
 
 def test_resource_grounding_serializes_enum_values_for_the_api():
@@ -205,7 +264,7 @@ async def test_openai_provider_is_stateless_and_exposes_learner_controlled_navig
     assert captured["store"] is False
     assert captured["tools"][0]["name"] == "suggest_navigation"
     assert captured["tool_choice"] == "auto"
-    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS
+    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS + output_limits.REASONING_HEADROOM_TOKENS
     assert "previous_response_id" not in captured
     assert "conversation" not in captured
 
@@ -248,7 +307,7 @@ async def test_openai_provider_applies_supported_advanced_settings():
             advanced={"max_output_tokens": 800, "reasoning_effort": "low", "verbosity": "low"},
         ).respond([message("user", "What next?")], "safe-user")
 
-    assert captured["max_output_tokens"] == 800
+    assert captured["max_output_tokens"] == 800 + output_limits.REASONING_HEADROOM_TOKENS
     assert captured["reasoning"] == {"effort": "low"}
     assert captured["text"] == {"verbosity": "low"}
 
@@ -302,7 +361,7 @@ async def test_anthropic_provider_is_stateless_and_applies_thinking_settings():
         ).respond([message("user", "What next?")], "safe-user")
 
     assert result == AdvisorResult("Try one focused experiment.", "claude-test", 9, 6)
-    assert captured["max_tokens"] == 900
+    assert captured["max_tokens"] == 900 + output_limits.REASONING_HEADROOM_TOKENS
     assert captured["thinking"] == {"type": "adaptive"}
     assert captured["output_config"] == {"effort": "low"}
     assert captured["tools"][0]["name"] == "suggest_navigation"
@@ -519,3 +578,94 @@ async def test_both_providers_offer_and_return_questions_in_any_chat():
     assert [item["kind"] for item in asked.questions] == ["single", "scale", "text"]
     replied = await DeterministicUiTestProvider(edit_scope="goal").respond([message("user", "My answers:\n- How sure? 4 of 5")], "safe")
     assert replied.questions == () and replied.goal_operations == ()
+
+
+@pytest.mark.asyncio
+async def test_openai_reasoning_model_gets_room_to_think_and_a_cut_reply_ends_on_a_sentence():
+    # FEED-67: reasoning tokens count against max_output_tokens, so a reasoning model given only the
+    # 700-token answer budget spent most of it thinking and stopped mid-sentence around 950 characters.
+    captured = {}
+    cut = "Becoming a dietitian takes a degree and a supervised internship. Some programs combine these"
+
+    async def handler(request: httpx.Request):
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={
+            "model": "gpt-test", "status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"},
+            "output": [
+                {"type": "reasoning", "summary": []},
+                {"type": "message", "content": [{"type": "output_text", "text": cut}]},
+            ],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIResponsesProvider("test-key", "gpt-test", client).respond(
+            [message("user", "How do I become a dietitian?")], "safe-user"
+        )
+
+    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS + output_limits.REASONING_HEADROOM_TOKENS
+    assert result.text == "Becoming a dietitian takes a degree and a supervised internship."
+
+
+@pytest.mark.asyncio
+async def test_openai_without_reasoning_keeps_the_plain_answer_budget():
+    captured = {}
+
+    async def handler(request: httpx.Request):
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={"output": [{"type": "message", "content": [{"type": "output_text", "text": "Done."}]}]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        await OpenAIResponsesProvider(
+            "test-key", "gpt-test", client, advanced={"reasoning_effort": "none"}
+        ).respond([message("user", "What next?")], "safe-user")
+
+    assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS
+
+
+@pytest.mark.asyncio
+async def test_anthropic_reply_cut_at_max_tokens_ends_on_a_sentence():
+    async def handler(_request: httpx.Request):
+        return httpx.Response(200, json={
+            "model": "claude-test", "stop_reason": "max_tokens",
+            "content": [{"type": "text", "text": "First, finish the degree.\n\n- Pay: most roles start near"}],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await AnthropicMessagesProvider("test-key", "claude-test", client).respond(
+            [message("user", "How do I become a dietitian?")], "safe-user"
+        )
+
+    assert result.text == "First, finish the degree."
+
+
+def test_complete_reply_is_left_alone_and_an_unbreakable_cut_is_marked():
+    assert output_limits.end_at_last_complete_sentence("All done here.") == "All done here."
+    assert output_limits.end_at_last_complete_sentence("No break at all in this") == "No break at all in this…"
+
+
+class RecordingProvider:
+    def __init__(self):
+        self.seen = ""
+
+    async def respond(self, messages, safety_identifier):
+        self.seen = messages[-1].content
+        return AdvisorResult("Yes", "fake", 5, 3)
+
+
+@pytest.mark.asyncio
+async def test_coach_knows_where_to_connect_claude_only_when_asked(monkeypatch):
+    # FEED-106: asked whether the app works with Claude, Coach guessed and sent people to account settings.
+    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: CoachRuntime(True, {"read_portfolio": False, "read_goals": False}, {}))
+    monkeypatch.setattr(hub_advisor, "require_org_membership", lambda *_args: None)
+    monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
+    monkeypatch.setattr(hub_actions, "org_access", lambda *_args: access_from_config({}))
+    monkeypatch.setattr(hub_questions, "question_context", lambda *_args: "")
+    request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
+
+    provider = RecordingProvider()
+    await ask_hub_advisor(request, 7, 11, [message("user", "Does this site work with Claude?")], object(), provider)  # type: ignore[arg-type]
+    assert "Organization › Connect Claude" in provider.seen
+    assert "badges" in provider.seen
+
+    await ask_hub_advisor(request, 7, 11, [message("user", "Help me plan my week")], object(), provider)  # type: ignore[arg-type]
+    assert "Connect Claude" not in provider.seen

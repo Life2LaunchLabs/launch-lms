@@ -1,8 +1,7 @@
 # Requirement evidence export
 
 Owner authorization: conversation, 13 October 2026. Build on merged `dev`, create
-a delivery branch and merge after checks. Jira configuration is unavailable in
-this checkout; the required Symphony workpad remains blocked on credentials.
+a delivery branch and merge after checks.
 
 ## Outcome
 

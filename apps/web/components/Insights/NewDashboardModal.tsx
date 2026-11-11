@@ -12,17 +12,18 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { SCOPE_LABELS, VISIBILITY_LABELS, insightKeys, insightsApi, type Scope, type Visibility } from '@services/insights/insights'
 import { cn } from '@/lib/utils'
 import { ScopeGlyph, useInsightsContext } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 const SCOPES: Array<{ scope: Scope; detail: string }> = [
   { scope: 'org', detail: 'The whole organization' },
   { scope: 'plan', detail: 'Any one plan, picked when you open it' },
   { scope: 'group', detail: 'Any one group, picked when you open it' },
-  { scope: 'learner', detail: 'Any one learner, picked when you open it' },
+  { scope: 'learner', get detail() { return inOrgWords('Any one learner, picked when you open it') } },
   { scope: 'framework', detail: 'Any one requirement framework, picked when you open it' },
 ]
 const VISIBILITY_DETAIL: Record<Visibility, string> = {
   me: 'Only you see it.',
-  staff: 'Every staff member sees it, each with the learners their access allows. Needs See reports.',
+  get staff() { return inOrgWords('Every staff member sees it, each with the learners their access allows. Needs See reports.') },
   admins: "Your organization's admins see it.",
 }
 

@@ -7,6 +7,7 @@ import { EditorModal, ProgressPicker, Toggle } from './EditorDialogs'
 import { pageHeading } from './PageRail'
 import { keptLabel } from './TheirInfo'
 import { FieldLabel, IconButton, TextField } from './ui'
+import { inOrgWords } from '@/lib/people'
 
 // Activity settings: title, progress, grading, what the activity keeps and the
 // learner details it writes.
@@ -69,11 +70,11 @@ export function ActivitySettingsDialog({
               <span className="min-w-0 truncate">Page {item.number}: {item.title}</span>
               <span className="shrink-0 text-xs text-gray-500">{item.targets.map((target: string) => keptLabel(target, learningVariables || [])).join(', ')}</span>
             </div>
-          )) : <p className="text-sm text-gray-500">Nothing yet. Use Keep answer on a question to keep it in their portfolio or your learner details.</p>}
+          )) : <p className="text-sm text-gray-500">{inOrgWords("Nothing yet. Use Keep answer on a question to keep it in their portfolio or your learner details.")}</p>}
         </section>
         <ActivityDesignFields activity={activity} pages={pages || []} onPatchActivity={onPatchActivity} />
         <section>
-          <h2 className="text-lg font-bold">Learner details</h2>
+          <h2 className="text-lg font-bold">{inOrgWords("Learner details")}</h2>
           <p className="mt-1 text-sm text-gray-500">Your organization&apos;s own fields, which questions can fill in.</p>
           <div className="mt-4 space-y-4">
             <VariableCreateInline value={variableDraftKey} onChange={setVariableDraftKey} onCreate={onCreateVariable} />

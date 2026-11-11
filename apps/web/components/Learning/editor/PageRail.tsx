@@ -20,6 +20,7 @@ import { backgroundLook, resolveBackground } from '@components/Learning/player/d
 import type { FlowVariable } from './flowVariables'
 import { branchVariable, opsFor, readRule, ruleSummary, valuesFor, writeRule, type RuleOp } from './branchRules'
 import { locate, orderedPageUuids, sequenceItems, type Where } from './sequence'
+import { inOrgWords } from '@/lib/people'
 
 export type RailMode = 'pages' | 'branches' | 'grid'
 
@@ -108,7 +109,7 @@ export function PageRail(props: RailProps) {
       {wide && (
         <p className="shrink-0 px-4 pt-3 text-xs text-gray-500">
           {mode === 'branches'
-            ? 'Each learner takes the first path whose rule matches, or Default, then carries on. Drag pages between paths.'
+            ? inOrgWords('Each learner takes the first path whose rule matches, or Default, then carries on. Drag pages between paths.')
             : `${order.length} pages. Click one to edit it; drag to reorder.`}
         </p>
       )}
@@ -136,7 +137,7 @@ export function PageRail(props: RailProps) {
         )}
         {unplaced.length > 0 && (
           <div className="mt-6 border-t border-gray-100 pt-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Not shown to learners</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{inOrgWords("Not shown to learners")}</p>
             <p className="mb-2 text-xs text-gray-500">Drag a page into the list to bring it back.</p>
             <div className="flex flex-col">
               {unplaced.map((page) => <PageRow key={page.page_uuid} ctx={ctx} pageUuid={page.page_uuid} width={140} where={null} muted />)}
@@ -351,7 +352,7 @@ function BranchMenu({ ctx, branch, variable, wide }: { ctx: RowContext; branch: 
               </DropdownMenuItem>
             )) : <p className="px-2 pb-2 text-xs text-gray-500">No questions or buttons come before it yet.</p>}
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-gray-500">The learner</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-gray-500">{inOrgWords("The learner")}</DropdownMenuLabel>
             {learner.map((item) => <DropdownMenuItem key={item.target} onClick={() => follow(item)}>{item.label}</DropdownMenuItem>)}
           </DropdownMenuSubContent>
         </DropdownMenuSub>

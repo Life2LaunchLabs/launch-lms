@@ -16,6 +16,7 @@ import { templatesApi } from '@services/goals/templates'
 import type { ActivityConfig, StepTypeKey, TemplateDocument, TemplateStep } from '@services/goals/types'
 import PlanDialog from './PlanDialog'
 import StepPreview from './StepPreview'
+import { inOrgWords } from '@/lib/people'
 
 /** Which step the dialog is on: a stage to add to (picking a type first), or one step to open. */
 export type StepTarget = { stageKey: string; stepKey?: string } | null
@@ -133,7 +134,7 @@ export default function StepModal({ target, setTarget, orgslug, orgId, token, ed
         {frameworks.length ? <StepRequirementLinks value={links} onChange={setLinks} frameworks={frameworks} readOnly={readOnly} planLinked={planLinked} /> : null}
       </div>
       <div className="flex min-w-0 flex-col items-center gap-3 bg-muted/60 p-[22px] md:overflow-y-auto">
-        <div className="flex w-full justify-between text-xs font-bold uppercase tracking-[.06em] text-muted-foreground"><span>What learners see</span><span>Live preview</span></div>
+        <div className="flex w-full justify-between text-xs font-bold uppercase tracking-[.06em] text-muted-foreground"><span>{inOrgWords("What learners see")}</span><span>Live preview</span></div>
         <StepPreview draft={draft} plan={plan} orgId={orgId} orgslug={orgslug} token={token} />
         {draft.staff_guide ? <div className="w-full max-w-[360px] rounded-[14px] border border-dashed border-border bg-card p-3 text-[13px]"><b className="mb-1 block">Staff see this too</b><span className="whitespace-pre-wrap text-muted-foreground">{draft.staff_guide}</span></div> : null}
       </div>

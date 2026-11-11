@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { planPalette } from '@components/Goals/planColors'
 import { badgeAwardsApi, badgeKindLabel } from '@services/badges/badges'
+import { inOrgWords } from '@/lib/people'
 
 export const runtime = 'nodejs'
 export const revalidate = 3600
@@ -28,7 +29,7 @@ export async function GET(request: Request, props: { params: Promise<{ code: str
   const base = process.env.LAUNCHLMS_INTERNAL_API_URL ? new URL(process.env.LAUNCHLMS_INTERNAL_API_URL).origin : request.url
   const source = badge.image_url ? new URL(badge.image_url.replace('/api/v1/content/', '/content/'), base).toString() : ''
   const image = source ? await inline(source) : null
-  const learner = award.learner?.name || award.learner?.username || 'A learner'
+  const learner = award.learner?.name || award.learner?.username || inOrgWords('A learner')
   const revoked = award.status === 'revoked'
   return new ImageResponse(
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', gap: 64, padding: '0 88px', background: '#fffdf8', color: '#13202a', borderTop: `18px solid ${color.deep}` }}>

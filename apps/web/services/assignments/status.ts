@@ -1,4 +1,5 @@
 import type { AssignmentPerson, Needs, StatusCategory, StatusCounts } from './assignments'
+import { inOrgWords } from '@/lib/people'
 
 /** The five places a learner can be on a step, in time order, so "now" falls between behind and open. */
 export const CATEGORIES: Array<{ key: StatusCategory; label: string }> = [
@@ -26,7 +27,7 @@ export function segmentTip(label: string, count: number, names?: string[], unit?
   return names?.length ? `${label}: ${names.join(', ')}` : `${label}: ${count}${unit ? ` ${unit}` : ''}`
 }
 
-export const plural = (count: number, word: string, words = `${word}s`) => `${count} ${count === 1 ? word : words}`
+export const plural = (count: number, word: string, words = `${word}s`) => inOrgWords(`${count} ${count === 1 ? word : words}`)
 
 export const needTotal = (needs: Needs) => needs.questions + needs.review + needs.behind
 

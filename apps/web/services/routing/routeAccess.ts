@@ -11,11 +11,12 @@ export interface RouteAccessClassification {
 }
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/start', '/reset', '/forgot', '/verify-email'])
-const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
+const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange', '/auth/test-entry']
 const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
 // A badge award (its short link, and the older /badges/<uuid> that redirects to it), the plan page that is its badge's criteria,
-// and an Insights capture's read-only link: all shared outside the app.
-const PUBLIC_SHARED_PATH_RE = /^\/(?:b\/[^/]+|badges\/[^/]+|discover\/(?:plans|collections)\/[^/]+|insights\/shared\/[^/]+)$/
+// an Insights capture's read-only link, and an organization's page (the API answers only for listed ones,
+// or for members): all shared outside the app.
+const PUBLIC_SHARED_PATH_RE = /^\/(?:b\/[^/]+|badges\/[^/]+|discover\/(?:plans|collections)\/[^/]+|insights\/shared\/[^/]+|organization\/[^/]+)$/
 // A shared portfolio and every page it links to: its experiences, projects, badges and résumé.
 const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/(?:work|timeline|projects)(?:\/[^/]+)?|\/(?:badges|resume|achievements))?$/
 const SPECIAL_PREFIXES = ['/payments/stripe/connect/oauth', '/health']

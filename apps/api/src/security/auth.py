@@ -3,10 +3,11 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from config.config import get_launchlms_config
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import PyJWTError
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.security import ALGORITHM, SECRET_KEY
@@ -166,6 +167,20 @@ def decode_refresh_token(token: str) -> dict | None:
         return None
 
 
+def _user_by_email(db_session: Session, email: str) -> User | None:
+    """The signed-in user, then the request's transaction ended so its connection goes back to the pool.
+
+    Runs on a worker thread. Database calls made on the event loop stop the whole API when the pool
+    is empty: the loop waits for a connection that only requests waiting on the loop can give back
+    (unstable, 2026-11-10: about 18 minutes at a time). Ending the transaction here keeps a request
+    from holding a connection while it waits for its turn to run the route.
+    """
+    found = db_session.exec(select(User).where(User.email == email)).first()
+    user = User(**found.model_dump()) if found else None
+    db_session.commit()
+    return user
+
+
 async def get_current_user(
     request: Request,
     db_session: Session = Depends(get_db_session),
@@ -197,6 +212,12 @@ async def get_current_user(
         if not target or not db_session.get(DemoMember, target.id):
             raise HTTPException(403, "This account is no longer a demo user.")
         validate_member(db_session, target)
+    from src.services.user_tests.sessions import is_test_session
+    if is_test_session(payload):
+        # Test personas: opened only by a platform admin's login link, rechecked every request.
+        from src.services.user_tests import sessions as test_sessions
+        persona_id, operator_id = await run_in_threadpool(test_sessions.check, db_session, payload)
+        test_sessions.mark(persona_id, operator_id, request)
 
     # Step 1: Check for API token (Bearer lh_...)
     auth_header = request.headers.get("Authorization", "").strip()
@@ -223,7 +244,7 @@ async def get_current_user(
     token_data = TokenData(username=username)
 
     if username:
-        user = await security_get_user(request, db_session, email=token_data.username)  # type: ignore # treated as an email
+        user = await run_in_threadpool(_user_by_email, db_session, token_data.username)
         if user is None:
             raise credentials_exception
         public_user = PublicUser(**user.model_dump())

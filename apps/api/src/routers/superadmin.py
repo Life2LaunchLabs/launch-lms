@@ -42,6 +42,14 @@ async def superadmin_status(current_user: PublicUser = Depends(get_current_user)
     return {"is_superadmin": True, "capabilities": CORE_CAPABILITIES}
 
 
+@router.get("/diagnostics/stalls")
+async def api_stalls():
+    """Times the API stopped answering: every thread's stack, the pools and Postgres' connections, newest first."""
+    from src.core.stall_watchdog import recent
+
+    return {"stalls": recent()}
+
+
 @router.get("/settings/welcome-message")
 async def get_welcome_message_template(
     db_session: Session = Depends(get_db_session),

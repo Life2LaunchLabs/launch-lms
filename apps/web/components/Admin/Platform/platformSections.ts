@@ -1,6 +1,6 @@
 import { getCoreCapabilities, routePaths } from '@services/config/config'
 
-export type PlatformSection = 'overview' | 'organizations' | 'users' | 'requests' | 'feedback' | 'demo' | 'coach' | 'datasets' | 'settings' | 'news'
+export type PlatformSection = 'overview' | 'organizations' | 'users' | 'requests' | 'feedback' | 'demo' | 'userTests' | 'coach' | 'datasets' | 'settings' | 'news'
 
 const paths = routePaths.owner.platform
 
@@ -13,6 +13,7 @@ const SECTIONS: { id: PlatformSection; label: string; href: string; exact?: bool
   { id: 'requests', label: 'Requests', href: paths.requests() },
   { id: 'feedback', label: 'Tester feedback', href: paths.feedback() },
   { id: 'demo', label: 'Demo', href: paths.demo() },
+  { id: 'userTests', label: 'User tests', href: paths.userTests() },
   { id: 'coach', label: 'Coach', href: paths.coach() },
   { id: 'datasets', label: 'Datasets', href: paths.datasets() },
   { id: 'settings', label: 'Settings', href: paths.settings() },

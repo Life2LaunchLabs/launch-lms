@@ -27,6 +27,8 @@ def _word(w: str) -> str:
         return w
     if low.endswith("ies"):
         return w[:-3] + "y"
+    if low.endswith("wives"):  # "Nurse Midwives" -> "Nurse Midwife"; other "-ves" ("Representatives") just drop the "s"
+        return w[:-3] + ("fe" if w[-3:].islower() else "FE")
     if low.endswith(("sses", "ches", "shes", "xes", "zes")):
         return w[:-2]
     return w[:-1]

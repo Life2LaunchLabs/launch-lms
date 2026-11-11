@@ -41,11 +41,11 @@
     "help": "Pomoc",
     "help_menu": {
       "documentation": "Dokumentacja",
-      "website": "Strona Launch LMS",
+      "website": "Strona Life2Launch",
       "discord": "Discord",
       "report_feedback": "Zgłoś problem lub opinię",
       "feedback_title": "Wyślij Opinię",
-      "feedback_description": "Pomóż nam ulepszyć Launch LMS, dzieląc się swoimi przemyśleniami, zgłaszając błędy lub sugerując nowe funkcje.",
+      "feedback_description": "Pomóż nam ulepszyć Life2Launch, dzieląc się swoimi przemyśleniami, zgłaszając błędy lub sugerując nowe funkcje.",
       "feedback_placeholder": "Powiedz nam, co myślisz...",
       "feedback_success": "Dziękujemy za opinię!",
       "send_feedback": "Wyślij Opinię",
@@ -420,14 +420,14 @@
     "import": {
       "scorm_package": "Pakiet SCORM",
       "scorm_description": "Importuj pakiety SCORM 1.2 lub SCORM 2004",
-      "launch-lms_courses": "Kursy Launch LMS",
-      "launch-lms_description": "Importuj kursy wyeksportowane z Launch LMS",
+      "launch-lms_courses": "Kursy Life2Launch",
+      "launch-lms_description": "Importuj kursy wyeksportowane z Life2Launch",
       "upload_package": "Prześlij Pakiet",
       "configure": "Konfiguruj",
       "complete": "Zakończono",
       "click_to_upload": "Kliknij, aby przesłać lub przeciągnij i upuść",
-      "launch-lms_format": "Eksport kursu Launch LMS (.zip)",
-      "launch-lms_info": "Prześlij pakiet eksportu kursów Launch LMS (.zip). Będziesz mógł wybrać, które kursy zaimportować i skonfigurować opcje importu.",
+      "launch-lms_format": "Eksport kursu Life2Launch (.zip)",
+      "launch-lms_info": "Prześlij pakiet eksportu kursów Life2Launch (.zip). Będziesz mógł wybrać, które kursy zaimportować i skonfigurować opcje importu.",
       "analyze_package": "Analizuj Pakiet",
       "ready_to_analyze": "Gotowy do analizy",
       "invalid_file_format": "Prześlij plik .zip",
@@ -1123,7 +1123,7 @@
           "description": "Skonfiguruj swoje ustawienia osobiste, hasło i email"
         }
       },
-      "launch-lms_university": "Launch LMS University"
+      "launch-lms_university": "Life2Launch University"
     },
     "courses": {
       "title": "Kursy",
@@ -1133,8 +1133,8 @@
       "import_course": "Importuj kurs",
       "import_scorm": "Importuj Pakiet SCORM",
       "import_scorm_description": "Importuj pakiet SCORM, aby utworzyć nowy kurs",
-      "import_launch-lms": "Importuj Kursy Launch LMS",
-      "import_launch-lms_description": "Importuj kursy z pakietu eksportu Launch LMS",
+      "import_launch-lms": "Importuj Kursy Life2Launch",
+      "import_launch-lms_description": "Importuj kursy z pakietu eksportu Life2Launch",
       "import_select_type": "Wybierz typ pakietu, który chcesz zaimportować",
       "no_courses": "Brak kursów",
       "create_course_placeholder": "Utwórz kurs, aby dodać zawartość",
@@ -1758,8 +1758,8 @@
         "label_placeholder": "Wybierz etykietę organizacji",
         "about": "O organizacji",
         "about_placeholder": "Szczegółowy opis Twojej organizacji",
-        "showcase_explore": "Pokaż w Launch LMS Explore",
-        "showcase_description": "Udostępnij kursy i treści swojej organizacji społeczności Launch LMS. Włącz to, aby pomóc uczniom znaleźć wartościowe zasoby edukacyjne.",
+        "showcase_explore": "Pokaż w Life2Launch Explore",
+        "showcase_description": "Udostępnij kursy i treści swojej organizacji społeczności Life2Launch. Włącz to, aby pomóc uczniom znaleźć wartościowe zasoby edukacyjne.",
         "save_changes": "Zapisz zmiany",
         "saving": "Zapisywanie...",
         "update_success": "Informacje o organizacji zostały zaktualizowane",

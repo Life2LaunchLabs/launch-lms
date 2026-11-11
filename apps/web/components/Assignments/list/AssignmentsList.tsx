@@ -17,6 +17,7 @@ import { assignmentApi, assignmentKeys, type AssignmentListItem, type Assignment
 import { byPlan, filterRows, rowDates, rowSubtitle } from '@services/assignments/list'
 import { plural } from '@services/assignments/status'
 import { templateKeys, templatesApi } from '@services/goals/templates'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * Plans › Assignments: every assignment the viewer runs, under its plan. Each row says who, where
@@ -30,8 +31,8 @@ export default function AssignmentsList({ orgslug }: { orgslug: string }) {
   if (error) return <Quiet title="Assignments unavailable" detail={error.message || 'Try again in a moment.'} />
   if (!data) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
   if (!data.length) return admin ? <PageWelcome icon={<Users size={28} />} title="Assignments: every plan you've handed out"
-    body="Each plan you hand to a learner or a group shows up here, with who's moving, who's stuck and what's waiting on you."
-    how="Assign a plan from its page. You choose when each stage opens, and learners see it in their feed."
+    body={inOrgWords("Each plan you hand to a learner or a group shows up here, with who's moving, who's stuck and what's waiting on you.")}
+    how={inOrgWords("Assign a plan from its page. You choose when each stage opens, and learners see it in their feed.")}
     actions={[{ label: 'Assign a plan', href: getUriWithOrg(orgslug, routePaths.org.admin.plans()), primary: true }, { label: 'Find a plan', href: getUriWithOrg(orgslug, routePaths.org.admin.discover()) }]} />
     : <Quiet title="Nothing to run yet" detail="Assignments you're staff on show up here." />
 

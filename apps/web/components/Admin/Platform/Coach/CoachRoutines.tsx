@@ -14,7 +14,7 @@ export const TIER_LABELS: Record<CoachTier, string> = { fast: 'Fast', standard: 
 export default function CoachRoutines({ policy }: { policy: CoachPolicy }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm leading-6 text-gray-600">Each moment has one routine: instructions Coach gets when it happens, after Knowledge, and the model tier it runs on. What each moment produces, such as a reply or a note, is fixed by Launch LMS; the routine shapes how Coach goes about it.</p>
+      <p className="text-sm leading-6 text-gray-600">Each moment has one routine: instructions Coach gets when it happens, after Knowledge, and the model tier it runs on. What each moment produces, such as a reply or a note, is fixed by Life2Launch; the routine shapes how Coach goes about it.</p>
       {policy.triggers.map((trigger) => (
         <RoutineEditor key={`${trigger.key}:${policy.routines[trigger.key]?.instructions}:${policy.routines[trigger.key]?.tier}`} trigger={trigger} saved={policy.routines[trigger.key] || { instructions: '', tier: trigger.tier }} />
       ))}

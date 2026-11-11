@@ -9,6 +9,8 @@ import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../han
 import { hasRoutableSession, SERVER_AUTH_HEADERS } from '../../auth/sessionCookies.ts'
 import { NextRequest } from 'next/server.js'
 import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
+import { signedInLanding } from '../signedInLanding.ts'
+import { acceptedInvitePath, invitationSiteSlug } from '../inviteSite.ts'
 
 function unsignedToken(exp: number): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -150,7 +152,7 @@ test('route manifest builds admin tab and owner routes', () => {
   const admin = routePaths.org.admin
   assert.equal(admin.root(), '/admin')
   assert.equal(admin.assignments(), '/admin/plans/assignments')
-  assert.equal(admin.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&objective=objective_1')
+  assert.equal(admin.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&step_key=objective_1')
   assert.equal(admin.livePlan('plan_1'), '/admin/plans/live/plan_1')
   assert.equal(admin.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1')
   assert.equal(admin.planAssignment('assignment_1', 'learners'), '/admin/plans/assignments/assignment_1/learners')
@@ -340,7 +342,7 @@ test('request policy keeps review queue links on the canonical org route', () =>
     orgSubdomainAccess: null,
   })
   assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/admin/plans/review?assignment=assignment_1&objective=objective_1')
+  assert.equal(decision.destination, '/orgs/default/admin/plans/review?assignment=assignment_1&step_key=objective_1')
 })
 
 test('old admin and dashboard URLs redirect once, in one place, keeping their query', () => {
@@ -612,6 +614,12 @@ test('route access exposes badge awards and the plan pages their badges point to
   assert.equal(classifyRoute('/discover').kind, 'protected')
 })
 
+test('route access opens an organization\'s page signed out (the API decides whether it is listed)', () => {
+  assert.equal(classifyRoute('/organization/trail-crew').kind, 'public')
+  assert.equal(classifyRoute('/organization').kind, 'protected')
+  assert.equal(classifyRoute('/organizations').kind, 'protected')
+})
+
 test('route access opens an Insights capture\'s read-only link signed out, and nothing else in Insights', () => {
   assert.equal(classifyRoute('/insights/shared/tok_123').kind, 'public')
   assert.equal(classifyRoute('/insights/shared').kind, 'protected')
@@ -777,4 +785,78 @@ test('request policy redirects non-entitled org subdomains back to the main host
 
   assert.equal(decision.action, 'redirect')
   assert.equal(decision.destination, 'https://launchlms.test/badges')
+})
+
+test('the staff welcome stays on an org subdomain without a learner site, like its admin', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/joined?tour=1',
+    pathname: '/joined',
+    search: '?tour=1',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+  })
+  assert.notEqual(decision.action, 'redirect')
+  assert.match(String(decision.destination), /^\/orgs\/acme\/joined/)
+})
+
+test('signing in on an org address without a learner site stays there (FEED-53)', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/redirect_from_auth',
+    pathname: '/redirect_from_auth',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+  })
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/auth/redirect')
+})
+
+test('after signing in on an org address, its staff land on its admin', () => {
+  const base = { staffOrgSlugs: ['acme', 'other'], preference: {}, ownerOrgSlug: 'main' }
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: 'acme' }), { orgslug: 'acme', side: 'admin' })
+  // A learner of that org, or the main site, keep the remembered side.
+  assert.deepEqual(signedInLanding({ ...base, staffOrgSlugs: [], hostOrgSlug: 'acme' }), { orgslug: 'main', side: 'learner' })
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'main', side: 'learner' })
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'other' } }), { orgslug: 'other', side: 'admin' })
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'gone' } }), { orgslug: 'acme', side: 'admin' })
+})
+
+test('an invitation opened on another site moves to its own organization (FEED-83)', () => {
+  const invitation = { kind: 'invitation', org: { slug: 'acme' } }
+  assert.equal(invitationSiteSlug(invitation, 'main'), 'acme')
+  assert.equal(invitationSiteSlug(invitation, 'acme'), null)
+  assert.equal(invitationSiteSlug({ kind: 'link', org: { slug: 'acme' } }, 'main'), null)
+  assert.equal(invitationSiteSlug(null, 'main'), null)
+  assert.equal(invitationSiteSlug(undefined, 'main'), null)
+})
+
+test('request policy lets a signed-in visitor open an invitation link instead of sending them home', () => {
+  const input = {
+    requestUrl: 'https://acme.launchlms.test/signup?invitation=abc',
+    pathname: '/signup',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  }
+  assert.equal(resolveRequestRouting({ ...input, search: '?invitation=abc' }).action, 'rewrite')
+  assert.equal(resolveRequestRouting({ ...input, search: '?inviteCode=XYZ' }).action, 'rewrite')
+  assert.equal(resolveRequestRouting({ ...input, search: '' }).action, 'redirect')
+})
+
+test('accepting a staff or admin invitation in the app opens the org welcome; learners stay put (FEED-84/95)', () => {
+  assert.equal(acceptedInvitePath('staff'), '/joined')
+  assert.equal(acceptedInvitePath('admin'), '/joined')
+  assert.equal(acceptedInvitePath(2), '/joined')
+  assert.equal(acceptedInvitePath(1), '/joined')
+  assert.equal(acceptedInvitePath('learner'), null)
+  assert.equal(acceptedInvitePath(4), null)
+  assert.equal(acceptedInvitePath(undefined), null)
 })

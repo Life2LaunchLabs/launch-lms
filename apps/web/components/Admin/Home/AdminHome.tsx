@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { TrialBanner } from '@components/Admin/Upgrade/PlanBanners'
 import { Skeleton } from '@components/ui/skeleton'
@@ -17,6 +18,7 @@ import { cn } from '@/lib/utils'
 import AssignmentBrief from './AssignmentBrief'
 import FirstSteps from './FirstSteps'
 import Glance from './Glance'
+import { homeColumns } from './layout'
 import { RequirementsWidget } from './OrgWidgets'
 import { Continue, NeedsYou, YourAssignments } from './Sections'
 import { WeekWidget } from './StaffWidgets'
@@ -84,6 +86,8 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
 
   return (
     <div className="h-full w-full bg-[#f8f8f8]">
+      {/* The admin home's tab names the organization, like the admin layout's own title. */}
+      {org?.name ? <PageTitleRegistration section="Admin" detail={org.name} /> : null}
       <div className="mx-auto w-full max-w-[1240px] px-4 pb-10 pt-8 sm:px-10">
         {data?.welcome ? <Welcome data={data} orgName={org?.name} firstName={firstName} onDismiss={() => void dismiss('welcome')} onCustomize={() => setCustomizing(!customizing)} customizing={customizing} />
           : <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -100,7 +104,7 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
         {error ? <p className="rounded-xl bg-white px-5 py-6 text-center text-sm text-gray-500 nice-shadow">Home couldn’t load. {error.message}</p>
           : !data ? <HomeSkeleton />
           : <div className="space-y-5">
-            <div className={cn('grid grid-cols-1 items-start gap-5', rail && 'xl:grid-cols-[minmax(0,1fr)_340px]')}>
+            <div className={cn('grid grid-cols-1 items-start gap-5', rail && homeColumns)}>
               <div className="min-w-0 space-y-5">
                 {data.first_steps ? <FirstSteps data={data.first_steps} orgslug={orgslug} onDismiss={() => void dismiss('first_steps')} onTick={tick} onBrief={openBrief} /> : null}
                 {settingUp ? <p className="py-2 text-center text-[13px] text-gray-500">Needs you, assignments and insights show up here once your first plan is out.</p> : <>
@@ -173,7 +177,7 @@ function Customizer({ data, onToggle, orgName }: { data: AdminHomeData; onToggle
 }
 
 function HomeSkeleton() {
-  return <div aria-hidden="true" className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+  return <div aria-hidden="true" className={cn('grid grid-cols-1 gap-5', homeColumns)}>
     {[0, 1].map((index) => <div key={index} className="rounded-xl bg-white p-5 nice-shadow">
       <Skeleton className="h-4 w-40 rounded-md" />
       <div className="mt-5 space-y-3">{[0, 1, 2].map((row) => <Skeleton key={row} className="h-9 w-full rounded-lg" />)}</div>

@@ -92,6 +92,7 @@ launch-lms/
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
 | `/users` | User profile, settings |
+| `/users/me/email_notifications`, `/notifications/unsubscribe` | Email notification switches and the no-sign-in unsubscribe page. Notifications are queued with `services/notifications/outbox.notify` and sent (batched per person and stream) by a worker started with the app; streams and kinds live in `services/notifications/catalog.py` |
 | `/school` | Threads (a person's, a group's, all staff, the organization's), the Threads list, profiles, helper requests |
 | `/connect` | Conversations: messages, staff-only notes, reactions |
 | `/orgs` | Organization CRUD, usage |
@@ -385,12 +386,6 @@ Organization
 - **Roles**: an org has three, Admin (1), Staff (2) and Learner (4). Admins can do everything; each staff member has permissions the admin sets (`build_plans`, `run_assignments`, `review_work`, `manage_learners`, `see_reports`; defaults are run_assignments and review_work), stored on `UserOrganization.permissions`. Service checks pass the permission: `require_org_admin(user_id, org_id, db, "build_plans")`; admin-only actions use `require_org_owner_admin`. The Instructor role and custom roles are retired.
 - **UserGroups** grant bulk access to courses/resources
 - **UserRoleWithOrg** links a user to a role within a specific org
-
----
-
-## Feedback Triage (FEED → BOT)
-
-FEED is the feedback intake project; BOT is the delivery queue. Follow `docs/product/feedback-operations.md`. Always open the screenshots attached to FEED items before grouping or writing BOT tasks — the report text is often meaningless without them. With the Atlassian MCP connector: `getJiraIssue` with `fields: ["attachment"]` per issue (JQL omits attachments), then `downloadJiraIssueAttachment` and run its `downloadCommand`.
 
 ---
 

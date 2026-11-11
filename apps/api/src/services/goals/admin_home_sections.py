@@ -52,7 +52,7 @@ def needs_you(db: Session, current_user: PublicUser, org_id: int, staff: bool) -
     from src.services.school import feed, threads
 
     rows, _ = feed.active_rows(db, current_user, org_id)
-    waiting = [{key: row.get(key) for key in ("key", "kind", "title", "chat_uuid", "at", "preview", "counts", "total", "person", "group", "role")}
+    waiting = [{key: row.get(key) for key in ("key", "kind", "title", "chat_uuid", "at", "preview", "counts", "total", "person", "group", "role", "review")}
                for row in rows if row["total"] > 0]
     if staff:
         waiting += [_pinned_row(row) for row in threads.pinned(db, current_user, org_id) if row.get("unread")]

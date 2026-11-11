@@ -25,11 +25,12 @@ def preview(db: Session, org_id: int, invitation: str | None = None, invite_code
     if org is None or not (invitation or invite_code):
         raise HTTPException(status_code=404, detail="Invitation not found")
     if invitation:
-        found = db.exec(select(OrganizationInvitation).where(
-            OrganizationInvitation.org_id == org_id, OrganizationInvitation.invitation_uuid == invitation,
-        )).first()
+        found = db.exec(select(OrganizationInvitation).where(OrganizationInvitation.invitation_uuid == invitation)).first()
         if found is None:
             raise HTTPException(status_code=404, detail="Invitation not found")
+        # A link opened on another organization's site (the email named the inviter's site, e.g. the
+        # main one): the card names the invitation's own organization, and the page moves there.
+        org = db.get(Organization, found.org_id) or org
         expired = found.status == "pending" and found.expires_at <= datetime.utcnow()
         status = "expired" if expired else found.status
         from src.services.orgs import staff_setup
@@ -67,3 +68,10 @@ def _card(db: Session, org: Organization, kind: str, status: str, role_id: int, 
             "user_uuid": inviter.user_uuid,
         } if inviter else None,
     }
+
+
+def accepted(db: Session, invitation: OrganizationInvitation) -> dict:
+    """What the app needs to send someone on after they accept an invitation in the app (the Connect
+    card): the organization they joined and their role there. Staff and admins open its welcome."""
+    org = db.get(Organization, invitation.org_id)
+    return {"org_slug": org.slug if org else None, "role": ROLES.get(invitation.role_id, "learner")}

@@ -11,7 +11,7 @@ router = APIRouter()
 def _unauthorized(error: str | None = None, description: str | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=401,
-        content={"error": error or "unauthorized", "error_description": description or "Connect Launch LMS to continue"},
+        content={"error": error or "unauthorized", "error_description": description or "Connect Life2Launch to continue"},
         headers={"WWW-Authenticate": www_authenticate(error, description)},
     )
 
@@ -27,6 +27,11 @@ async def mcp_endpoint(request: Request, db_session=Depends(get_db_session)):
     context = resolve_access_token(db_session, authorization[7:].strip())
     if context is None:
         return _unauthorized("invalid_token", "The access token is invalid or expired")
+    if context.test_persona_id:
+        # A test persona's connection: act as the persona, so its mail is captured and refusals reach the run's report.
+        from src.services.user_tests.sessions import current_test_persona
+
+        current_test_persona.set(context.test_persona_id)
     try:
         payload = await request.json()
     except ValueError:

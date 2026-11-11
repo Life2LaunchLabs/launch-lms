@@ -6,7 +6,7 @@ import useSWR from 'swr'
 import { AnimatePresence, motion } from 'motion/react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { useGoogleSignIn } from '@services/auth/google'
-import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, HardHat, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import '@/styles/admin-dark.css'
 import AdminSurface from '@components/Utils/AdminSurface'
@@ -23,6 +23,7 @@ import { inviteBatchUsers } from '@services/organizations/invites'
 import { createUserGroup } from '@services/usergroups/usergroups'
 import { startApi, startKeys, type SetUpResult } from '@services/onboarding/start'
 import Critter from './Critter'
+import PlanningForMyself from './PlanningForMyself'
 import SitePreview, { type PreviewPage } from './SitePreview'
 import TierCompare from './TierCompare'
 import TourScene from './TourScene'
@@ -59,7 +60,7 @@ const fresh = (): StartState => ({
 })
 
 const ROLE_ICONS: Record<StartRole, React.ReactNode> = {
-  parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, district: <Building2 size={18} />,
+  parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, training: <HardHat size={18} />, district: <Building2 size={18} />,
 }
 const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i
 // During the beta every new space is on Full, so there's no plans pick or tier step: the space is made
@@ -121,7 +122,7 @@ export default function StartFlow() {
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
     setError('')
-    try { await work() } catch (failure: any) { setError(failure?.detail?.message || failure?.detail || failure?.message || tr('lit.start_flow.something_went_wrong_try_again', 'Something went wrong. Try again.')) } finally { setBusy(false) }
+    try { await work() } catch (failure: any) { setError(failure?.detail?.message || failure?.detail || failure?.message || `${tr('lit.start_flow.something_went_wrong_try_again', 'Something went wrong. Try again.')}${failure?.status ? ` (${failure.status})` : ''}`) } finally { setBusy(false) }
   }
 
   const setUp = (trial: boolean) => run(async () => {
@@ -218,7 +219,8 @@ export default function StartFlow() {
           <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border', state.role === id ? 'border-transparent bg-[var(--rc)] text-white' : 'border-border')}>{state.role === id ? <Check size={12} /> : null}</span>
         </button>)}
       </div>
-      <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} /></>
+      <Nav back={() => move(-1)} next={() => move(1)} disabled={!state.role} />
+      <PlanningForMyself /></>
     if (step === 'reqs') return <><Eyebrow>{tr('onboarding.start_flow.optional', 'Optional')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.working_toward_requirements', 'Working toward requirements?')}</h1>
       <p className={LEDE}>{tr('onboarding.start_flow.pick_the_standards_or_graduation', 'Pick the standards or graduation requirements you report on. We’ll track who’s met what.')}</p>
       <div role="radiogroup" aria-label={tr('onboarding.start_flow.requirements_to_track', 'Requirements to track')} className="mt-6 space-y-2">{frameworks.length ? frameworks.map((item) => { const on = state.framework === item.framework_uuid; return <button key={item.framework_uuid} type="button" role="radio" aria-checked={on}
@@ -285,7 +287,7 @@ export default function StartFlow() {
         <Nav back={() => move(-1)} next={() => void finishStep(step)} busy={busy} label={list.some((item) => !state.sent.includes(`${step}:${item}`)) ? tr('onboarding.start_flow.send_invites', 'Send invites') : list.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     }
     if (step === 'groups') {
-      const suggestions = groupSuggestions()
+      const suggestions = groupSuggestions(new Date(), state.role)
       return <><Eyebrow>{tr('onboarding.start_flow.your_team', 'Your team')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.set_up_your_groups', 'Set up your groups')}</h1><p className={LEDE}>{tr('onboarding.start_flow.cohorts_classes_or_teams_hand', 'Cohorts, classes or teams. Hand a plan to a whole group at once. Learners can join later.')}</p>
         <AddList placeholder={tr('onboarding.start_flow.name_a_group', 'Name a group')} items={state.groups} onChange={(groups) => patch({ groups })} chips={suggestions} />
         <Nav back={() => move(-1)} next={() => void finishStep('groups')} busy={busy} label={state.groups.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>

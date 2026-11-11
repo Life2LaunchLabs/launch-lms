@@ -15,7 +15,8 @@ from src.security.auth import (
     create_refresh_token,
     decode_refresh_token,
 )
-from src.services.auth.handoff import issue_ticket, redeem_ticket
+from src.services.auth.handoff import issue_ticket, redeem_ticket_payload
+from src.services.user_tests import sessions as test_sessions
 
 router = APIRouter()
 
@@ -38,8 +39,13 @@ def issue_handoff(request: Request, body: HandoffRequest, response: Response,
     email = payload.get("sub") if payload else None
     if not email or not db_session.exec(select(User).where(User.email == email)).first():
         raise HTTPException(status_code=401, detail="Authentication required")
+    test = None
+    if test_sessions.is_test_session(payload):
+        # A persona moving to another org's host stays a persona: same claims, same end time.
+        test_sessions.validate(db_session, payload)
+        test = {key: payload[key] for key in ("test_operator", "test_cohort", "exp")}
     try:
-        ticket = issue_ticket(email, body.target_host, body.state, body.return_path)
+        ticket = issue_ticket(email, body.target_host, body.state, body.return_path, test)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except (redis.RedisError, RuntimeError) as error:
@@ -52,12 +58,15 @@ def issue_handoff(request: Request, body: HandoffRequest, response: Response,
 def redeem_handoff(body: RedemptionRequest, response: Response,
                    db_session: Session = Depends(get_db_session)):
     try:
-        email = redeem_ticket(body.ticket, body.target_host, body.state, body.return_path)
+        ticket = redeem_ticket_payload(body.ticket, body.target_host, body.state, body.return_path)
     except (redis.RedisError, RuntimeError) as error:
         raise HTTPException(status_code=503, detail="Session handoff unavailable") from error
+    email = ticket.get("email") if ticket else None
     if not email or not db_session.exec(select(User).where(User.email == email)).first():
         raise HTTPException(status_code=401, detail="Invalid or expired handoff")
     response.headers["Cache-Control"] = "no-store"
+    if ticket and ticket.get("test"):
+        return test_sessions.handoff_tokens(db_session, {"sub": email, **ticket["test"]})
     return {
         "access_token": create_access_token({"sub": email}),
         "refresh_token": create_refresh_token({"sub": email}),

@@ -17,6 +17,7 @@ import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { AsideCard, Tag } from './AsideCard'
 import PlanBadgeCard from './PlanBadgeCard'
 import { plural } from './planVersions'
+import { inOrgWords } from '@/lib/people'
 
 type Props = { orgslug: string; orgId: number; token?: string; editing: TemplateEditing; document: TemplateDocument; canAssign: boolean; canEdit: boolean }
 
@@ -90,14 +91,14 @@ function AssignmentsCard({ orgslug, orgId, token, template, canAssign }: { orgsl
   return <AsideCard icon={<Users size={16} />} title="Assignments" tag={learners ? <Tag tone="live">{plural(learners, 'learner')}</Tag> : null}>
     {active.length ? <ul className="mt-2.5 divide-y divide-border">{active.map((row) => {
       const group = row.cohort
-      const label = group ? group.name : row.user ? personName(row.user) : row.subject_email || 'Learner'
+      const label = group ? group.name : row.user ? personName(row.user) : row.subject_email || inOrgWords('Learner')
       const progress = Math.round(row.progress_percent || 0)
       return <li key={row.assignment_uuid}><Link href={getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(row.assignment_uuid))} className="flex items-center gap-3 py-2.5 hover:opacity-80">
         {group ? <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted"><Users size={15} aria-hidden="true" /></span> : <PersonAvatar person={row.user} size={32} />}
-        <span className="min-w-0 flex-1"><b className="block truncate text-sm">{label}</b><span className="block truncate text-xs text-muted-foreground">{group ? plural(row.learner_count, 'learner') : row.status === 'paused' ? 'Paused' : 'One learner'}</span></span>
+        <span className="min-w-0 flex-1"><b className="block truncate text-sm">{label}</b><span className="block truncate text-xs text-muted-foreground">{group ? plural(row.learner_count, 'learner') : row.status === 'paused' ? 'Paused' : inOrgWords('One learner')}</span></span>
         <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground"><span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted sm:w-[72px]"><span className="block h-full rounded-full bg-emerald-600" style={{ width: `${progress}%` }} /></span>{progress}%</span>
       </Link></li>
-    })}</ul> : <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">{live ? 'No one has this plan yet. Assign it to a group or to learners one by one.' : 'Publish a live version to start assigning it.'}</p>}
+    })}</ul> : <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">{live ? inOrgWords('No one has this plan yet. Assign it to a group or to learners one by one.') : 'Publish a live version to start assigning it.'}</p>}
     {canAssign ? live ? <AssignFlow initialTemplateUuid={template.template_uuid} onAssigned={async () => { await mutate() }}
       trigger={<button type="button" className={cn(active.length ? smallActionClass : smallPrimaryClass, 'mt-3')}><Plus />Assign</button>} />
       : <button type="button" disabled title="No live version" className={smallActionClass + ' mt-3'}><Plus />Assign</button> : null}

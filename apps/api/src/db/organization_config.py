@@ -24,6 +24,9 @@ class GeneralCustomization(BaseModel):
     color: str = ""
     dark_color: str = ""
     footer_text: str = ""
+    # What the org calls the people it supports ("trainee"/"trainees"); empty means "participant". services/orgs/people_words.py
+    people_one: str = ""
+    people_many: str = ""
     favicon_image: str = ""
     hide_org_name: bool = False
     # Off, the one logo shows in both themes; on, dark_logo_image replaces it in dark mode.

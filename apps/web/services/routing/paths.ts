@@ -112,6 +112,8 @@ export const routePaths = {
       requests: () => '/admin/platform/requests',
       feedback: () => '/admin/platform/feedback',
       demo: () => '/admin/platform/demo',
+      userTests: () => '/admin/platform/user-tests',
+      userTestCohort: (cohortUuid: string) => `/admin/platform/user-tests/${encodeURIComponent(cohortUuid)}`,
       coach: () => '/admin/platform/coach',
       settings: () => '/admin/platform/settings',
       datasets: () => '/admin/platform/datasets',
@@ -162,6 +164,7 @@ export const routePaths = {
     /** One phase of the learner's plan, and its budget. */
     phase: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}`,
     phaseBudget: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/budget`,
+    phaseSuggestions: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/suggestions`,
     /** Someone's plan they shared with you in their My people. */
     sharedPlan: (userUuid: string) => `/plans/shared/${encodeURIComponent(userUuid)}`,
     /** A plan learners can join, as Discover shows it; also the criteria page of the badge it earns. */
@@ -190,9 +193,10 @@ export const routePaths = {
       /** One Plans tab's page; with no tab, the org's plans. */
       plans: (tab: PlansTabId = 'plans') => PLANS_TAB_PATHS[tab],
       assignments: () => PLANS_TAB_PATHS.assignments,
-      // The grading stack; from 'assignment' goes back to the assignment rather than the list.
+      // The grading stack: `objective` is a step's template key (step_key), `planObjective` one goal step's uuid.
+      // From 'assignment' it goes back to the assignment rather than the list.
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
-        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
+        withQuery('/admin/plans/review', { assignment: params.assignment, step_key: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
       // One assignment (a template handed to a group or a person): its plan, or its learners.
       planAssignment: (assignmentUuid: string, subpage: 'plan' | 'learners' = 'plan') => subpage === 'plan'
         ? `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}` : `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${subpage}`,
@@ -276,11 +280,15 @@ export const routePaths = {
       organization: {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
+        /** The organization's public page: story, highlights, links, which plans show, and listing in Discover. */
+        publicPage: () => '/admin/org/settings/public-page',
         sso: () => '/admin/org/settings/sso',
         messaging: () => '/admin/org/settings/messaging',
         /** The carousel learners see on Discover. */
         discover: () => '/admin/org/settings/discover',
         plan: () => '/admin/org/settings/plan',
+        /** The server address and steps for connecting Claude, and the admin's connections. */
+        claude: () => '/admin/org/settings/claude',
       },
       payments: {
         overview: () => '/admin/payments/overview',

@@ -1,4 +1,6 @@
 'use client'
+import { authenticatedOrgHref } from '@services/auth/handoff'
+import { errorDetailMessage } from '@/lib/errorDetail'
 import { useFormik } from 'formik'
 import SignupNames, { welcomeSignupNamesKey } from './SignupNames'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -116,7 +118,7 @@ function OpenSignUpComponent({
           return
         }
 
-        window.location.href = callbackUrl
+        window.location.href = authenticatedOrgHref(callbackUrl, true)
         return
       } else if (
         res.status == 401 ||
@@ -124,7 +126,7 @@ function OpenSignUpComponent({
         res.status == 404 ||
         res.status == 409
       ) {
-        setError(result.detail)
+        setError(errorDetailMessage(result, t('auth.signup_failed')))
         setIsSubmitting(false)
       } else {
         setError(t('common.something_went_wrong'))
@@ -169,7 +171,7 @@ function OpenSignUpComponent({
         })
         const data = await res.json().catch(() => null)
         if (!res.ok) {
-          setEmailError(data?.detail || t('auth.signup_failed'))
+          setEmailError(errorDetailMessage(data, t('auth.signup_failed')))
           setIsSubmitting(false)
           return
         }

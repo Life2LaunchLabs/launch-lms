@@ -6,6 +6,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import type { TemplateDocument, TemplateRole } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import type { TemplateEditing } from './useTemplate'
+import { inOrgWords } from '@/lib/people'
 
 // The goal capabilities a role can hold (apps/api/src/db/goal_sharing.py ALL_CAPABILITIES), grouped for the checklist.
 const CAPABILITY_GROUPS: Array<{ label: string; items: Array<[string, string]> }> = [
@@ -15,7 +16,7 @@ const CAPABILITY_GROUPS: Array<{ label: string; items: Array<[string, string]> }
 ]
 const FIXED = ['subject', 'reviewer', 'plan_admin', 'viewer']
 const DEFAULT_ROLES: NonNullable<TemplateDocument['roles']> = { definitions: [], subject_role_key: 'subject', staff_role_key: 'reviewer' }
-const roleName = (role: TemplateRole) => role.key === 'subject' ? 'Learner' : role.name || role.key
+const roleName = (role: TemplateRole) => role.key === 'subject' ? inOrgWords('Learner') : role.name || role.key
 
 /** The template's goal roles: permission bundles copied onto every goal handed out from it. */
 export default function TemplateRoles({ editing }: { editing: TemplateEditing }) {
@@ -48,7 +49,7 @@ export default function TemplateRoles({ editing }: { editing: TemplateEditing })
       <span className="flex items-center gap-3"><span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">{role.key}</span><ChevronRight size={15} className="text-muted-foreground" /></span>
     </button>)}</div>
     <div className="mt-5 grid gap-4 sm:grid-cols-2">
-      <label className="block text-xs font-bold"><span className="mb-2 block">Learner role</span><select value={roles.subject_role_key} onChange={(event) => setRoles({ ...roles, subject_role_key: event.target.value })} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm">{roles.definitions.map((role) => <option key={role.key} value={role.key}>{roleName(role)}</option>)}</select></label>
+      <label className="block text-xs font-bold"><span className="mb-2 block">{inOrgWords("Learner role")}</span><select value={roles.subject_role_key} onChange={(event) => setRoles({ ...roles, subject_role_key: event.target.value })} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm">{roles.definitions.map((role) => <option key={role.key} value={role.key}>{roleName(role)}</option>)}</select></label>
       <label className="block text-xs font-bold"><span className="mb-2 block">Default staff role</span><select value={roles.staff_role_key} onChange={(event) => setRoles({ ...roles, staff_role_key: event.target.value })} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm">{roles.definitions.filter((role) => role.key !== 'subject').map((role) => <option key={role.key} value={role.key}>{roleName(role)}</option>)}</select></label>
     </div>
     <button type="button" onClick={() => void editing.save((document) => ({ ...document, roles }), 'Goal roles saved.')} disabled={editing.saving || editing.stale} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{editing.saving ? <Loader2 size={14} className="animate-spin" /> : null}Save roles</button>

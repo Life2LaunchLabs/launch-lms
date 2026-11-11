@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { downloadCourseSummary, downloadRequirementEvidence, type EvidenceExportScope } from '@services/goals/requirements'
+import { inOrgWords } from '@/lib/people'
 
 /** Downloads the evidence CSV, or the SB 3 course summary PDF, for the learners in view, with optional course context. */
 export default function RequirementEvidenceExport({ orgId, token, scope }: { orgId: number; token?: string; scope: EvidenceExportScope }) {
@@ -20,13 +21,13 @@ export default function RequirementEvidenceExport({ orgId, token, scope }: { org
     setSaving(kind)
     try {
       await (kind === 'csv' ? downloadRequirementEvidence : downloadCourseSummary)(orgId, { ...scope, ...context }, token)
-      toast.success(kind === 'csv' ? `Exported evidence for ${count} learner${count === 1 ? '' : 's'}.` : `Made the course summary for ${count} learner${count === 1 ? '' : 's'}.`)
+      toast.success(kind === 'csv' ? inOrgWords(`Exported evidence for ${count} learner${count === 1 ? '' : 's'}.`) : inOrgWords(`Made the course summary for ${count} learner${count === 1 ? '' : 's'}.`))
       setOpen(false)
     } catch (error: any) {
       toast.error(error?.message || 'Could not export requirement evidence.')
     } finally { setSaving(null) }
   }
-  return <Dialog open={open} onOpenChange={(next) => { if (!saving) setOpen(next) }}><DialogTrigger asChild><Button variant="outline" size="sm" disabled={Boolean(saving) || !count} aria-label={`Export evidence for ${count} filtered learner${count === 1 ? '' : 's'}`}>
+  return <Dialog open={open} onOpenChange={(next) => { if (!saving) setOpen(next) }}><DialogTrigger asChild><Button variant="outline" size="sm" disabled={Boolean(saving) || !count} aria-label={inOrgWords(`Export evidence for ${count} filtered learner${count === 1 ? '' : 's'}`)}>
     {saving ? <Loader2 className="animate-spin" /> : <Download />}Export evidence ({count})
   </Button></DialogTrigger><DialogContent className="left-4 max-h-[90dvh] w-[calc(100vw-2rem)] min-w-0 translate-x-0 overflow-y-auto sm:left-1/2 sm:-translate-x-1/2 [&>*]:min-w-0"><DialogHeader><DialogTitle>Export requirement evidence</DialogTitle><DialogDescription>
     Evidence, approval records and gaps for {count} learner{count === 1 ? '' : 's'} in the current filter, as a spreadsheet or as an SB 3 course summary (a class grid, then a page per learner). Add optional course context for your school’s records.

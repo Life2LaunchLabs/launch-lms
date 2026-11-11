@@ -64,8 +64,8 @@ describe('staff over one learner’s shoulder', () => {
     expect(html).toContain('aria-label="Finish"')
     // Staff's side of the open step.
     expect(html).toContain('Mark done for them')
-    expect(html).toContain('Staff notes · learners never see these')
-    expect(html.match(/Staff notes · learners/g)).toHaveLength(1)
+    expect(html).toContain('Staff notes · participants never see these')
+    expect(html.match(/Staff notes · participants/g)).toHaveLength(1)
   })
   test('without the review capability, no staff controls or notes', () => {
     const html = render(<StaffGoalPath goal={makeGoal()} orgslug="school" orgId={1} token="token" viewerUserId={STAFF} />)

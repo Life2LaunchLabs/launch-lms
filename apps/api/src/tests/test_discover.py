@@ -127,12 +127,16 @@ def test_start_suggests_open_plans_for_a_role_and_sets_up_a_space_once():
         assert [plan["title"] for plan in onboarding.suggested(db, "parent")] == ["Money basics", "Careers"]
         with pytest.raises(HTTPException):
             onboarding.suggested(db, "astronaut")
+        # Workplace and adult training is a role of its own, with work-based plans first.
+        assert {plan["title"] for plan in onboarding.suggested(db, "training")} == {"Money basics", "Careers"}
 
         payload = onboarding.SetUpRequest(role="parent", name="Dana Ruiz", color="#2F66D6", plan_uuids=[money.template_uuid])
         first = asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))
         assert first["org"]["name"] == "Dana’s space" and [item["status"] for item in first["added"]] == ["added"]
         config = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == first["org"]["id"])).one().config
         assert (config["setup"]["role"], config["setup"]["solo"], config["customization"]["general"]["color"]) == ("parent", True, "#2F66D6")
+        # The space calls the people it supports by the role's word (lib/people.ts on the web).
+        assert (config["customization"]["general"]["people_one"], config["customization"]["general"]["people_many"]) == ("kid", "kids")
         # During the beta a new space is on Full, free, with no trial.
         assert (config["tier"], config["beta"], config.get("trial")) == ("full", True, None)
         # Again (a refresh): the same space, nothing new made.
@@ -230,3 +234,36 @@ def test_an_outside_partners_collection_is_featured_before_the_platforms_own():
         # The platform's own collection is bigger, but the outside partner's leads and is featured.
         assert [item["name"] for item in page["collections"]] == ["Employability skills", "Job ready"]
         assert page["featured"]["name"] == "Employability skills"
+
+
+def test_a_set_up_that_failed_partway_is_finished_on_the_next_try_never_doubled(monkeypatch):
+    import asyncio
+
+    import src.routers.users as users_router
+    from src.db.organization_config import OrganizationConfig
+    from src.db.organizations import Organization
+    from src.services.orgs import onboarding
+
+    db = _world()
+    OrganizationConfig.__table__.create(db.get_bind(), checkfirst=True)
+    db.add(User(id=NEWCOMER, user_uuid="user_20", username="dana", email="dana@example.com", first_name="", last_name="", creation_date=NOW, update_date=NOW))
+    db.commit()
+    real = users_router._invalidate_session_cache
+    calls = {"n": 0}
+
+    def flaky(user_id):  # the session cache is out for a moment, after the space was saved
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("cache unavailable")
+        return real(user_id)
+
+    monkeypatch.setattr(users_router, "_invalidate_session_cache", flaky)
+    with db:
+        payload = onboarding.SetUpRequest(role="teacher", name="Robin Park", org_name="Park Safety Training", color="#F97316")
+        with pytest.raises(RuntimeError):
+            asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))
+        done = asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))
+        assert done["org"]["slug"] == "park-safety-training"
+        assert db.exec(select(Organization).where(Organization.name == "Park Safety Training")).all().__len__() == 1
+        config = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == done["org"]["id"])).one().config
+        assert config["setup"]["created_by_user_id"] == NEWCOMER and config["customization"]["general"]["color"] == "#F97316"

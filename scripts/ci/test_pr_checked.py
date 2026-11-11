@@ -35,6 +35,63 @@ class PullRequestCheckTests(unittest.TestCase):
         self.assertEqual(('', ''), checked.reusable_image({'image_digest': 'latest', 'sha': 'a' * 40}))
         self.assertEqual(('', ''), checked.reusable_image({'image_digest': digest, 'sha': 'short'}))
 
+    def test_the_merge_queue_run_for_this_commit_is_tried_before_the_pull_request_run(self):
+        sha = 'a' * 40
+        answers = {
+            'merge_group': {'workflow_runs': [{'id': 7, 'head_branch': 'gh-readonly-queue/dev/pr-1-' + 'c' * 40,
+                                               'status': 'completed', 'conclusion': 'success'},
+                                              {'id': 8, 'head_branch': 'someone-elses-branch',
+                                               'status': 'completed', 'conclusion': 'success'}]},
+            'pulls': [pull()],
+            'pull_request': {'workflow_runs': [{'id': 9, 'head_branch': 'fix'}]},
+        }
+
+        def fake_gh(*args):
+            url = args[1]
+            key = 'pulls' if url.endswith('/pulls') else url.split('event=')[1].split('&')[0]
+            return checked.json.dumps(answers[key])
+
+        original, checked.gh = checked.gh, fake_gh
+        try:
+            found = [(run['id'], source) for run, source in checked.checked_runs(REPO, 'build-community.yaml', sha)]
+        finally:
+            checked.gh = original
+        self.assertEqual([(7, 'Merge queue'), (9, 'Pull request #1')], found)
+
+    def test_a_queue_run_still_recording_is_waited_for_and_a_failed_one_is_skipped(self):
+        queue = 'gh-readonly-queue/dev/pr-1-' + 'c' * 40
+        later = {5: [{'id': 5, 'status': 'in_progress'}, {'id': 5, 'status': 'completed', 'conclusion': 'success', 'head_branch': queue}],
+                 6: [{'id': 6, 'status': 'completed', 'conclusion': 'failure', 'head_branch': queue}]}
+
+        def fake_gh(*args):
+            url = args[1]
+            if '/actions/runs/' in url:
+                return checked.json.dumps(later[int(url.rsplit('/', 1)[1])].pop(0))
+            if url.endswith('/pulls'):
+                return '[]'
+            return checked.json.dumps({'workflow_runs': [{'id': 5, 'status': 'queued', 'head_branch': queue},
+                                                         {'id': 6, 'status': 'in_progress', 'head_branch': queue}]})
+
+        slept = []
+        original, checked.gh = checked.gh, fake_gh
+        try:
+            found = [run['id'] for run, _ in checked.checked_runs(REPO, 'build-community.yaml', 'a' * 40, sleep=slept.append)]
+        finally:
+            checked.gh = original
+        self.assertEqual([5], found)
+        self.assertEqual(3, len(slept))
+
+    def test_waiting_gives_up_after_the_limit(self):
+        def fake_gh(*args):
+            return checked.json.dumps({'id': 5, 'status': 'in_progress'})
+
+        original, checked.gh = checked.gh, fake_gh
+        try:
+            run = checked.finished(REPO, {'id': 5, 'status': 'queued'}, wait=60, poll=20, sleep=lambda _: None)
+        finally:
+            checked.gh = original
+        self.assertEqual('in_progress', run['status'])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -22,6 +22,7 @@ import PendingInvites from './PendingInvites'
 import { RoleTag } from './RoleTag'
 import type { PeopleSelection } from './PeopleView'
 import { usePeopleContext, usePeopleFeed, useRefreshPeople } from './usePeople'
+import { inOrgWords } from '@/lib/people'
 
 const threads = routePaths.org.admin.threads
 
@@ -124,11 +125,11 @@ export default function PeopleList({ orgslug, selection, onOpen, panel = false }
             <RestRows rows={data.rest} orgslug={orgslug} selection={selection} label={active.length ? 'Everyone else' : 'Everyone'} />
             <MoreRows orgslug={orgslug} query={needle} status={status} next={data.offset + data.rest.length} total={data.total} selection={selection} />
           </> : active.length ? null
-            : needle || status === 'alumni' || !isAdmin || panel || kind !== 'all' ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : kind !== 'all' ? 'Nobody here yet.' : status === 'alumni' ? 'No alumni yet. Mark learners who have moved on as alumni from their page or their group.' : 'Nobody here yet.'}</p>
-            : <PageWelcome className="mx-1 mt-2 px-4 py-8 sm:px-5 sm:py-8" icon={<Users size={26} />} title="People: your learners and staff"
+            : needle || status === 'alumni' || !isAdmin || panel || kind !== 'all' ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : kind !== 'all' ? 'Nobody here yet.' : status === 'alumni' ? inOrgWords('No alumni yet. Mark learners who have moved on as alumni from their page or their group.') : 'Nobody here yet.'}</p>
+            : <PageWelcome className="mx-1 mt-2 px-4 py-8 sm:px-5 sm:py-8" icon={<Users size={26} />} title={inOrgWords("People: your learners and staff")}
               body="Everyone in your organization, with their chats and anything waiting on you."
-              how="Learners use their own accounts and join by email invite or a join link. Staff help run plans and review work.">
-              <button type="button" onClick={() => { setInviteRole('learner'); setInviting(true) }} className={primaryActionClass}>Invite learners</button>
+              how={inOrgWords("Learners use their own accounts and join by email invite or a join link. Staff help run plans and review work.")}>
+              <button type="button" onClick={() => { setInviteRole('learner'); setInviting(true) }} className={primaryActionClass}>{inOrgWords("Invite learners")}</button>
               <button type="button" onClick={() => { setInviteRole('staff'); setInviting(true) }} className={secondaryActionClass}>Add staff</button>
             </PageWelcome>}
           {isAdmin && !needle && !panel ? <PendingInvites /> : null}
@@ -162,7 +163,7 @@ function PinnedThread({ row, selection }: { row: PinnedRow; selection: PeopleSel
   </li>
 }
 
-const KINDS: Array<{ value: ThreadKind; label: string }> = [{ value: 'all', label: 'All' }, { value: 'learners', label: 'Learners' }, { value: 'staff', label: 'Staff' }, { value: 'groups', label: 'Groups' }]
+const KINDS: Array<{ value: ThreadKind; label: string }> = [{ value: 'all', label: 'All' }, { value: 'learners', get label() { return inOrgWords('Learners') } }, { value: 'staff', label: 'Staff' }, { value: 'groups', label: 'Groups' }]
 
 /** One kind of thread at a time: learners, staff or groups. */
 function KindFilter({ value, onChange, groups }: { value: ThreadKind; onChange: React.Dispatch<React.SetStateAction<ThreadKind>>; groups: boolean }) {

@@ -30,7 +30,7 @@ def send_plan_invitation(db: Session, goal: Goal, invitation: PlanInvitation, ro
     if who and org:
         sender = f"{who} at {org.name}"
     else:
-        sender = who or (org.name if org else "Someone on Launch LMS")
+        sender = who or (org.name if org else "Someone on Life2Launch")
     link = f"{frontend_url()}/orgs/{org.slug}/connect" if org else f"{frontend_url()}/connect"
     if not db.exec(select(User.id).where(func.lower(User.email) == str(invitation.email).strip().lower())).first():
         link = f"{frontend_url()}/signup?{urlencode({'email': invitation.email})}"  # no account yet: signup, with the address filled in
@@ -45,7 +45,7 @@ def send_plan_invitation(db: Session, goal: Goal, invitation: PlanInvitation, ro
         <p>Hello {email}</p>
         <p>{html.escape(sender)} invited you to work on <b>{title}</b> as {role}.</p>
         <p><a href="{link}">See the invitation</a></p>
-        <p>New to Launch LMS? Sign up with this email address and the invitation will be waiting for you.</p>
+        <p>New to Life2Launch? Sign up with this email address and the invitation will be waiting for you.</p>
     </body>
 </html>
 """,

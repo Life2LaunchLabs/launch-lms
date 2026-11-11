@@ -9,6 +9,7 @@ import {
   Flask,
   Newspaper,
   Sparkle,
+  TestTube,
   Tray,
   UsersThree,
 } from '@phosphor-icons/react'
@@ -26,6 +27,7 @@ const ICONS: Record<PlatformSection, React.ReactNode> = {
   requests: <Tray size={14} />,
   feedback: <Flag size={14} />,
   demo: <Flask size={14} />,
+  userTests: <TestTube size={14} />,
   coach: <Sparkle size={14} />,
   datasets: <Database size={14} />,
   settings: <Gear size={14} />,

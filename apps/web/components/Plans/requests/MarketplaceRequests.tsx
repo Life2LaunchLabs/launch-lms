@@ -11,6 +11,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isMarketplaceKey, MARKETPLACE_KEY, templateMarketplaceApi, type MarketplaceOrg, type TemplateAuthorization } from '@services/learning/marketplace'
 import type { BadgeSummary } from '@services/badges/badges'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 const STATUS_STYLES: Record<string, string> = {
   requested: 'bg-amber-100 text-amber-800',
@@ -43,7 +44,7 @@ function planRow(item: TemplateAuthorization, side: 'creator' | 'issuer', orgslu
     ? getUriWithOrg(orgslug, routePaths.org.admin.template(item.copied_template_uuid || item.template.template_uuid))
     : side === 'creator' && item.template ? getUriWithOrg(orgslug, routePaths.org.admin.template(item.template.template_uuid)) : undefined
   const counts = [
-    side === 'creator' && item.learner_count !== undefined ? `${item.learner_count} learner plan${item.learner_count === 1 ? '' : 's'}` : '',
+    side === 'creator' && item.learner_count !== undefined ? inOrgWords(`${item.learner_count} learner plan${item.learner_count === 1 ? '' : 's'}`) : '',
     item.copied_template_uuid ? 'copied into your templates' : '',
   ].filter(Boolean)
   return {
@@ -95,7 +96,7 @@ export default function MarketplaceRequests() {
       className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold disabled:opacity-50', primary ? 'bg-black text-white hover:bg-black/85' : 'border border-gray-200 bg-white hover:bg-gray-50')}>{label}</button>
 
   return <div className="space-y-8">
-    <p className="max-w-[70ch] text-sm text-gray-600">Requests to run plans in both directions, and who runs what. Learners asking for a plan show in their threads, under Requests. Running a plan that earns a badge is how an organization awards it.</p>
+    <p className="max-w-[70ch] text-sm text-gray-600">{inOrgWords("Requests to run plans in both directions, and who runs what. Learners asking for a plan show in their threads, under Requests. Running a plan that earns a badge is how an organization awards it.")}</p>
     <Section title="Asking to run yours" count={incoming.length} empty="Nobody is asking right now." testId="marketplace-incoming">
       {incoming.map((row) => <RequestRow key={row.key} row={row} lead={<><b>{row.org?.name || 'An organization'}</b> wants to run </>}>
         {button(row, 'Decline', 'reject', 'Request declined.')}

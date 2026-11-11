@@ -15,6 +15,8 @@ declare module 'bun:test' {
   export function describe(name: string, body: () => void): void
   export function beforeAll(body: Body): void
   export function afterAll(body: Body): void
+  export function afterEach(body: Body): void
+  export const mock: { module(path: string, factory: () => unknown): void }
   export function expect(value: unknown): Matchers
   export function setSystemTime(now?: Date): void
 }

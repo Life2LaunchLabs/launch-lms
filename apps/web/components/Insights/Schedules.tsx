@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { capturedOn } from './CapturedCards'
 import { dashboardHref } from './NewDashboardModal'
 import { useInsightsContext } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 // Scheduled captures: a dashboard captured weekly, monthly or once on a date, and sent to the people on it.
 
@@ -111,7 +112,7 @@ function RuleForm({ dashboard, scopeKey, objectLabel, onDone }: { dashboard: Das
           <option value="">The dashboard&apos;s own</option>{(Object.keys(RANGE_LABELS) as Preset[]).map((key) => <option key={key} value={key}>Last {RANGE_LABELS[key].toLowerCase()}</option>)}
         </select></label>
     </div>
-    <p className="text-[12px] text-muted-foreground">It runs early in the morning (6:00 UTC) and counts the learners you can see.</p>
+    <p className="text-[12px] text-muted-foreground">{inOrgWords("It runs early in the morning (6:00 UTC) and counts the learners you can see.")}</p>
     <div className="space-y-1.5">
       <Label htmlFor="rule-note">Note</Label>
       <input id="rule-note" value={note} onChange={(event) => setNote(event.target.value)} maxLength={2000} placeholder="Goes on every capture, e.g. Monthly board update" className={cn(field, 'w-full')} />

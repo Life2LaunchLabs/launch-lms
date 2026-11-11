@@ -141,7 +141,8 @@ export function resolveRequestRouting(
     if (
       input.hasSession &&
       isAuthenticatedAuthRedirectPath(pathname) &&
-      !new URLSearchParams(search).has('next')
+      // An invitation link still opens for someone signed in: signup shows the join screen.
+      !['next', 'invitation', 'inviteCode'].some((param) => new URLSearchParams(search).has(param))
     ) {
       return {
         action: 'redirect',
@@ -220,6 +221,11 @@ export function resolveRequestRouting(
     context.subdomainOrgSlug &&
     context.subdomainOrgSlug !== instanceInfo.default_org_slug &&
     !pathname.startsWith('/admin') &&
+    // The staff welcome after accepting an invite opens on the org's address, like the admin it leads to.
+    pathname !== '/joined' &&
+    // So does the step after signing in there: the session lives on this address (host-only cookies),
+    // and on the main site it'd be signed out and sent back to the login page.
+    pathname !== '/redirect_from_auth' &&
     !context.subdomainAllowed
   ) {
     return {

@@ -9,11 +9,13 @@ import InviteOnlySignUpComponent from './InviteOnlySignUp'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
+import { authenticatedOrgHref, openOrgPage } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
 import AskToJoin from './AskToJoin'
 import InviteCard, { usePrefillInvitedEmail, useInvitePreview } from './InviteCard'
 import type { InvitePreview } from '@services/organizations/invites'
+import { invitationSiteSlug } from '@services/routing/inviteSite'
 
 interface SignUpClientProps {
   org: any
@@ -29,8 +31,18 @@ function SignUpClient(props: SignUpClientProps) {
   const joinMethod = config?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
   const invitationToken = invitationParam || ''
-  const preview = useInvitePreview(props.org?.id, invitationToken, inviteCode)
+  const previewState = useInvitePreview(props.org?.id, invitationToken, inviteCode)
+  const preview = previewState ?? null
   usePrefillInvitedEmail(preview)
+  // The link opened on another organization's site: continue on the invitation's own, signed in if they are.
+  const moveTo = invitationSiteSlug(preview, props.org?.slug)
+  React.useEffect(() => {
+    if (!moveTo || session?.status === 'loading') return
+    window.location.replace(authenticatedOrgHref(getUriWithOrg(moveTo, `/signup${window.location.search}`), session?.status === 'authenticated'))
+  }, [moveTo, session?.status])
+  if (moveTo) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>
+  }
   const card = preview ? <InviteCard preview={preview} /> : null
 
   return (
@@ -38,7 +50,7 @@ function SignUpClient(props: SignUpClientProps) {
       <>
           {joinMethod == 'open' &&
             (session.status == 'authenticated' ? (
-              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
+              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={previewState} />
             ) : (
               <div className="flex-1 flex flex-row">
                 <OpenSignUpComponent header={card} />
@@ -47,7 +59,7 @@ function SignUpClient(props: SignUpClientProps) {
           {joinMethod == 'inviteOnly' &&
             (inviteCode || invitationToken ? (
               session.status == 'authenticated' ? (
-                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={preview} />
+                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} preview={previewState} />
               ) : (
                 <div className="flex-1 flex flex-row">
                   <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} header={card} postSignupUrl={joinedUrl(props.org, preview, true)} />
@@ -63,15 +75,17 @@ function SignUpClient(props: SignUpClientProps) {
 
 /** Where staff and admins go after accepting: the tour (new accounts) and profile step before Home; undefined for learners. */
 function joinedUrl(org: any, preview: InvitePreview | null, newAccount: boolean): string | undefined {
-  if (!org?.slug || !preview || preview.kind !== 'invitation' || preview.role === 'learner') return undefined
-  return getUriWithOrg(org.slug, newAccount ? '/joined?tour=1' : '/joined')
+  // The invitation names its org; the page's org is only a fallback, so the welcome always opens on the org they joined.
+  const slug = preview?.org?.slug || org?.slug
+  if (!slug || !preview || preview.kind !== 'invitation' || preview.role === 'learner') return undefined
+  return getUriWithOrg(slug, newAccount ? '/joined?tour=1' : '/joined')
 }
 
 interface JoinScreenProps {
   inviteCode: string
   invitationToken: string
   org: any
-  preview: InvitePreview | null
+  preview: InvitePreview | null | undefined
 }
 
 const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinScreenProps) => {
@@ -86,7 +100,9 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
   const [showMessage, setShowMessage] = useState(false)
   const router = useRouter()
   // Staff and admins set up their profile first; learners go straight in.
-  const after = joinedUrl(activeOrg, preview, false) || getUriWithOrg(activeOrg.slug, '/')
+  const after = joinedUrl(activeOrg, preview ?? null, false) || getUriWithOrg(preview?.org?.slug || activeOrg.slug, '/')
+  // Another org's address needs the sign-in carried over (host-only cookies), and a full page load.
+  const go = () => openOrgPage(after, router.push)
 
   const join = async () => {
     setIsSubmitting(true)
@@ -110,7 +126,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
       setSuccess(typeof res.data === 'string' ? res.data : t('auth.join_organization_success'))
       setShowMessage(true)
       setTimeout(() => {
-        router.push(after)
+        go()
       }, 2000)
     } else {
       const detail = res.data?.detail
@@ -119,7 +135,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
         setSuccess(t('auth.join_organization_success'))
         setShowMessage(true)
         setTimeout(() => {
-          router.push(after)
+          go()
         }, 1500)
         setIsSubmitting(false)
         return
@@ -135,6 +151,21 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
       setShowMessage(true)
     }
     setIsSubmitting(false)
+  }
+
+  // A link opened on another organization's site: never report a join that didn't happen.
+  if ((inviteCode || invitationToken) && preview === null) {
+    return (
+      <div className="flex-1 flex flex-row">
+        <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
+          <div role="alert" className="bg-white rounded-xl p-6 nice-shadow flex flex-col items-center gap-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center"><AlertTriangle size={28} /></div>
+            <p className="font-semibold text-gray-900">{t('auth.invite_wrong_org', { org: activeOrg?.name })}</p>
+            <p className="text-sm text-gray-500">{t('auth.invite_wrong_org_desc')}</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (isUserPartOfTheOrg) {

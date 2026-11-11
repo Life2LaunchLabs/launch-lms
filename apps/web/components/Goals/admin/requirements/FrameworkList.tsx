@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { CreateFramework } from '@components/Requirements/CreateFramework'
 import { EmptyState, PageLoader } from '../live/ui'
 import SourceChip from './SourceChip'
+import { inOrgWords } from '@/lib/people'
 
 const FILTERS: FilterSpec[] = [
   { key: 'pub', label: 'Published by', options: [{ value: '', label: 'Anyone' }, { value: 'mine', label: 'Your org' }, { value: 'others', label: 'Other publishers' }] },
@@ -32,7 +33,7 @@ function useIsOrgAdmin(orgId: number) {
   return session?.data?.user?.is_superadmin === true || ADMIN_ROLE_IDS.has(Number(membership?.role?.id))
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+const plural = (n: number, word: string) => inOrgWords(`${n} ${word}${n === 1 ? '' : 's'}`)
 
 /**
  * Plans › Requirements: the org's requirement frameworks, each with who publishes it and how much of it
@@ -65,7 +66,7 @@ export default function FrameworkList({ orgslug, orgId, token }: { orgslug: stri
     {isLoading && !data ? <PageLoader />
       : error ? <EmptyState icon={<ListBullets size={36} />} title="Requirement frameworks unavailable" detail={error?.message || 'Try again in a moment.'} />
       : !frameworks.length ? <PageWelcome icon={<ListBullets size={28} />} title="Requirements: what your plans count toward"
-        body="A framework is a list of requirements, like your state’s graduation requirements or your own competencies. Map steps in your templates to it, and you can see what each plan covers and where every learner stands."
+        body={inOrgWords("A framework is a list of requirements, like your state’s graduation requirements or your own competencies. Map steps in your templates to it, and you can see what each plan covers and where every learner stands.")}
         how="Use Add from Discover above for a published framework, or write your own." />
       : !shown.length ? <p className="rounded-xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500 nice-shadow">No frameworks match. <button type="button" onClick={filters.clearAll} className="font-semibold text-violet-700 underline underline-offset-2">Clear filters</button></p>
       : <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow" aria-label="Requirement frameworks">

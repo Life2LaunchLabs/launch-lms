@@ -172,3 +172,13 @@ def test_anyone_who_reads_a_message_can_cheer_it_but_not_a_staff_only_one_they_c
         assert reactions.toggle(db, _user(ADMIN), chat.conversation_uuid, message["message_uuid"], "👏")["reactions"] == []
         assert _denied(reactions.toggle, db, _user(LEARNER), chat.conversation_uuid, note["message_uuid"], "👏") == 404
         assert reactions.toggle(db, _user(ADMIN), chat.conversation_uuid, note["message_uuid"], "👏")["reactions"][0]["count"] == 1
+
+
+def test_stored_times_without_a_zone_reach_the_browser_as_utc():
+    from src.services.connect.inbox import _stamp
+    from src.services.school.threads import _iso
+
+    assert _stamp("2026-11-10 18:05:00.123456") == "2026-11-10T18:05:00.123456+00:00"
+    assert _stamp("2026-11-10T18:05:00-08:00") == "2026-11-10T18:05:00-08:00"
+    assert _iso("2026-11-10T18:05:00") == "2026-11-10T18:05:00+00:00"
+    assert _iso(None) == ""

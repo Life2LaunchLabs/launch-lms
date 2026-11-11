@@ -10,6 +10,7 @@ import TemplateMarketplaceListing from '@components/Plans/requests/TemplateMarke
 import { StatusPill } from '@components/Plans/requests/MarketplaceRequests'
 import type { TemplateDetail } from '@services/goals/templates'
 import { isMarketplaceKey, MARKETPLACE_KEY, templateMarketplaceApi, type TemplateAuthorization, type TemplateUsageMetrics } from '@services/learning/marketplace'
+import { inOrgWords } from '@/lib/people'
 
 /** The Publish tab shows for a template the organization owns (not a system one) once it may publish plans or badges. */
 export function showsPublishTab(template: TemplateDetail, owned: boolean, readOnly: boolean, features: Pick<Features, 'has'>) {
@@ -58,7 +59,7 @@ export default function TemplatePublish({ orgId, token, template, bare = false }
     <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     <section aria-labelledby="template-authorized-title" className="rounded-xl border border-border bg-card p-6 shadow-xs" data-testid="template-authorized-orgs">
       <h2 id="template-authorized-title" className="flex items-center gap-2 text-lg font-bold"><ShieldCheck size={18} />Authorized organizations</h2>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Organizations you authorize run this plan with their own learners, and award the badge it earns, if it has one. For a plan meant for trusted partners only, authorize only them.</p>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{inOrgWords("Organizations you authorize run this plan with their own learners, and award the badge it earns, if it has one. For a plan meant for trusted partners only, authorize only them.")}</p>
       <form className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); void invite() }}>
         <label className="block flex-1 text-xs font-bold uppercase text-muted-foreground">
           Authorize an organization by slug
@@ -71,7 +72,7 @@ export default function TemplatePublish({ orgId, token, template, bare = false }
           className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center ${item.status === 'requested' ? 'border-amber-200 bg-amber-50/60' : 'border-border'}`} data-testid="template-authorized-org">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold">{item.issuer_org?.name || 'Organization'}</p>
-            <p className="text-xs text-muted-foreground">{[item.issuer_org?.slug, item.learner_count !== undefined && item.status === 'approved' ? `${item.learner_count} learner plan${item.learner_count === 1 ? '' : 's'}` : null, item.message ? `“${item.message}”` : null].filter(Boolean).join(' · ')}</p>
+            <p className="text-xs text-muted-foreground">{[item.issuer_org?.slug, item.learner_count !== undefined && item.status === 'approved' ? inOrgWords(`${item.learner_count} learner plan${item.learner_count === 1 ? '' : 's'}`) : null, item.message ? `“${item.message}”` : null].filter(Boolean).join(' · ')}</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <StatusPill status={item.status} />
@@ -90,7 +91,7 @@ export default function TemplatePublish({ orgId, token, template, bare = false }
 function UsageMetrics({ metrics }: { metrics?: TemplateUsageMetrics }) {
   const stats: [string, number | undefined][] = [
     ['Authorized orgs', metrics?.authorized_orgs], ['Orgs running it', metrics?.orgs_running], ['Assignments', metrics?.assignments],
-    ['Active learners', metrics?.active_learners], ['Completions', metrics?.completions], ['Badges earned', metrics?.badges_earned],
+    [inOrgWords('Active learners'), metrics?.active_learners], ['Completions', metrics?.completions], ['Badges earned', metrics?.badges_earned],
   ]
   return <section aria-label="Usage" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="template-usage-metrics">
     {stats.map(([label, value]) => <div key={label} className="rounded-xl border border-border bg-card p-4 shadow-xs">

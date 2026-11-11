@@ -32,8 +32,12 @@ export const ROLES: Record<StartRole, RoleConfig> = {
     say: ['Every student, their own path', 'Give each student a plan that fits, review their work in one place, and see who needs a nudge.'],
   },
   program: {
-    get label() { return tr('lit.roles.youth_program_staff', 'Youth program staff') }, blurb: 'A nonprofit, club or community program', audience: 'youth programs', plural: 'participants', color: '#EC4F9A', dark: '#B0245F', solo: false,
+    get label() { return tr('lit.roles.program_staff', 'Program staff') }, get blurb() { return tr('lit.roles.a_nonprofit_camp_club_or', 'A nonprofit, camp, club or community program') }, audience: 'programs', plural: 'participants', color: '#EC4F9A', dark: '#B0245F', solo: false,
     say: ['Your curriculum, finished', 'Run your program as plans, give out badges people keep, and let volunteers help review.'],
+  },
+  training: {
+    get label() { return tr('lit.roles.workplace_or_adult_training', 'Workplace or adult training') }, get blurb() { return tr('lit.roles.onboarding_safety_or_skills_training', 'Onboarding, safety or skills training') }, audience: 'workplace training', plural: 'trainees', color: '#E2702B', dark: '#A8481A', solo: false,
+    say: ['Training that sticks', 'Turn onboarding and safety training into plans, sign off on each step, and give out badges your trainees keep.'],
   },
   district: {
     get label() { return tr('lit.roles.school_or_district_leader', 'School or district leader') }, get blurb() { return tr('lit.roles.readiness_across_schools', 'Readiness across schools') }, audience: 'schools and districts', plural: 'students', color: '#4C8DFF', dark: '#2257C4', solo: false,
@@ -50,13 +54,15 @@ export const PALETTE: Array<[string, string]> = [
 
 export const AVATAR_COLORS = ['#C8327D', '#0B8077', '#6B3FE0', '#C77A0E', '#1A86AE', '#C9501E', '#5E9A14', '#2F66D6']
 
-/** Group names that follow the calendar: the classes graduating next, and the season coming up. */
-export function groupSuggestions(now = new Date()): string[] {
+/** Group names that follow the calendar and fit the role: graduating classes only for schools, cohorts and new hires for everyone else. */
+export function groupSuggestions(now = new Date(), role: StartRole | null = null): string[] {
   const year = now.getFullYear()
   const month = now.getMonth()
   const grad = month >= 6 ? year + 1 : year
   const season = month >= 7 ? tr('lit.timeline.spring', 'Spring') : month <= 2 ? tr('lit.timeline.summer', 'Summer') : tr('lit.timeline.fall', 'Fall')
-  return [`Class of ${grad}`, `Class of ${grad + 1}`, `${season} workshop`, tr('lit.roles.new_hires', 'New hires')]
+  if (role === 'teacher' || role === 'district') return [`Class of ${grad}`, `Class of ${grad + 1}`, `${season} workshop`, tr('lit.roles.new_hires', 'New hires')]
+  if (role === 'training') return [tr('lit.roles.new_hires', 'New hires'), `${season} cohort`, `${season} workshop`]
+  return [`${season} cohort`, `${season} workshop`, tr('lit.roles.new_hires', 'New hires')]
 }
 
 export const initials = (text: string) => {

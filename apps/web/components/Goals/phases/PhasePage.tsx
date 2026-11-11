@@ -32,11 +32,13 @@ import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAft
 import { routeDoc, setLength, setStart, showWayTo } from './dates'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
-import { activityText, checklist, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planAsk, suggestTitle, type CheckItem } from './setup'
+import { useHub } from '@components/Hub/HubContext'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import PhaseInsights, { useCareers } from './PhaseInsights'
+import { PhaseSuggestionsCard } from './PhaseSuggestions'
 import useLifePlan from './useLifePlan'
 import Invitations from '@components/Goals/home/Invitations'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
@@ -59,6 +61,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const viewerUserId = session?.data?.user?.id !== undefined ? Number(session.data.user.id) : undefined
   const router = useRouter()
   const ask = useAsk()
+  const hub = useHub()
   const { doc: raw, isLoading, error, change } = useLifePlan(token)
   const doc = React.useMemo(() => (raw?.phases?.length ? normalize(raw) : raw), [raw])
   const { data: all = EMPTY, isLoading: goalsLoading } = useSWR<GoalSummary[]>(token ? goalsUrl('?include_finished=true') : null, () => goalsApi.list(token), { revalidateOnFocus: true })
@@ -146,6 +149,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
     if (saved) router.push(getUriWithOrg(orgslug, routePaths.org.plans()))
   }
 
+  // Planning a phase is a conversation: Coach starts from the phase (name, dates, what it's about, where).
+  const planWithCoach = hub ? () => hub.open({ prompt: planAsk(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
   const items = checklist(phase, here.length)
   const left = items.filter((i) => !i.done)
   const gaps = careerGaps(doc, phase, careers)
@@ -220,14 +225,18 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
             ? <ul className="flex flex-col gap-2.5">{active.map((goal) => <li key={goal.goal_uuid}><GoalRow goal={goal} color={getGoalColor(goal.goal_uuid)} href={hrefOf(goal)} /></li>)}</ul>
             : <div className="rounded-[22px] border-2 border-dashed border-border px-5 py-8 text-center">
               <p className="font-bold">{time.when === 'done' ? tr('goals.phase_page.no_goals_were_left_open', 'No goals were left open in {{lower}}.', { lower: lower(phase.title) }) : time.when === 'now' ? tr('goals.phase_page.what_are_you_working_toward', 'What are you working toward right now?') : tr('goals.phase_page.what_has_to_happen_first', 'What has to happen first?')}</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{tr('goals.phase_page.say_it_in_your_own', 'Say it in your own words, or pick one from Discover and earn a badge for it.')}</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{planWithCoach ? tr('goals.phase_page.plan_it_with_coach_hint', 'Plan it out with Coach, say it in your own words, or pick one from Discover and earn a badge for it.') : tr('goals.phase_page.say_it_in_your_own', 'Say it in your own words, or pick one from Discover and earn a badge for it.')}</p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {planWithCoach && time.when !== 'done' ? <Button variant="brand" size="sm" onClick={planWithCoach}><Sparkles size={15} />{tr('goals.phase_page.plan_it_with_coach', 'Plan it with Coach')}</Button> : null}
                 <Button variant="surface" size="sm" onClick={() => void startGoal(phase.id)} disabled={busy}><Plus size={15} />{tr('goals.phase_page.create_your_own', 'Create your own')}</Button>
                 <Button variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />{tr('goals.phase_page.discover', 'Discover')}</Link></Button>
               </div>
             </div>}
           {time.when === 'now' && active.length === 0 && done.length && nexts[0] ? <Button variant="surface" className="w-fit" asChild><Link href={getUriWithOrg(orgslug, routePaths.org.phase(nexts[0].id))}>{tr('goals.phase_page.all_done_here_look_at', 'All done here. Look at {{title}}', { title: nexts[0].title })}<ChevronRight size={15} /></Link></Button> : null}
-          {active.length ? <Button variant="ghost" size="sm" className="w-fit" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />{tr('goals.phase_page.find_a_goal_in_discover', 'Find a goal in Discover')}</Link></Button> : null}
+          {active.length ? <div className="flex flex-wrap gap-1">
+            {planWithCoach ? <Button variant="ghost" size="sm" className="w-fit" onClick={planWithCoach}><Sparkles size={15} />{tr('goals.phase_page.plan_it_with_coach', 'Plan it with Coach')}</Button> : null}
+            <Button variant="ghost" size="sm" className="w-fit" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />{tr('goals.phase_page.find_a_goal_in_discover', 'Find a goal in Discover')}</Link></Button>
+          </div> : null}
           {done.length ? <div className="mt-4 flex flex-col gap-2.5">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('goals.phase_page.finished', 'Finished')}</h3>
             <ul className="flex flex-col gap-2.5">{done.map((goal) => <li key={goal.goal_uuid}><GoalRow goal={goal} color={getGoalColor(goal.goal_uuid)} href={hrefOf(goal)} /></li>)}</ul>
@@ -237,6 +246,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
           {waiting ? <button type="button" onClick={() => setEst({ mode: 'change', base: waiting })} className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--org-primary-color)_14%,transparent)] px-3 py-1.5 text-sm font-bold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Sparkles size={15} aria-hidden="true" />{tr('goals.phase_page.budget_changes_to_look_at', 'Budget changes to look at')}</button> : null}
           <BudgetCard doc={line} phase={byId(line, phase.id) || phase} ends={time.ends} projection={projection} href={getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))} onStart={() => setEst({ mode: 'start', base: null })} />
           {doc.auto_estimates ? <p className="-mt-2 px-1 text-xs text-muted-foreground">{tr('goals.phase_page.estimate_changes_update_your_budget', 'Estimate changes update your budget without asking.')}{' '}<button type="button" className="font-bold text-[var(--org-primary-color)] underline-offset-2 hover:underline" onClick={() => { void change((next) => { next.auto_estimates = false }) }}>{tr('goals.phase_page.ask_me_next_time', 'Ask me next time')}</button></p> : null}
+          <PhaseSuggestionsCard phaseId={phase.id} orgslug={orgslug} />
           <PhaseInsights phase={phase} token={token} careers={careers} />
         </aside>
       </div>
@@ -312,7 +322,7 @@ function Cover({ time, span, menu, photos, uploading, pop, setPop, onRename }: {
     <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2"><span className="flex flex-wrap gap-1.5"><PhaseStatus when={when} />{phase.idea ? <span className="inline-flex items-center rounded-full bg-white/90 px-3 py-1.5 text-xs font-extrabold text-[#15232c] outline-dashed outline-2 -outline-offset-4 outline-[#15232c]/40">{tr('goals.phase_page.idea', 'Idea')}</span> : null}</span>{menu}</div>
     <div className="absolute inset-x-5 bottom-5 grid gap-2 pr-8 sm:inset-x-7 sm:bottom-6">
       <button type="button" onClick={() => toggle('doing')} className="inline-flex w-fit items-center gap-1.5 rounded-lg text-left text-sm font-extrabold opacity-95 hover:outline hover:outline-2 hover:outline-offset-4 hover:outline-dashed hover:outline-white/70">
-        {acts.length ? acts.map(activityText).join(' + ') : <span className="opacity-80">{tr('goals.phase_page.what_are_you_doing', 'What are you doing?')}</span>}
+        {acts.length ? eyebrowFor(acts, phase.title) : <span className="opacity-80">{tr('goals.phase_page.what_are_you_doing', 'What are you doing?')}</span>}
       </button>
       {pop === 'name'
          

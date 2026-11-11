@@ -23,6 +23,7 @@ import { peopleApi, peopleKeys, type Directory } from '@services/school/people'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 import { tr } from '@/lib/tr'
+import { inOrgWords } from '@/lib/people'
 const STEPS = ['Badge', 'Learners', 'Sign-off', 'Review'] as const
 const quiet = { revalidateOnFocus: false, keepPreviousData: true }
 const today = () => new Date().toISOString().slice(0, 10)
@@ -127,7 +128,7 @@ export default function AwardFlow({ trigger, initialTemplateUuid = '', initialPe
   const eyebrow = plan ? `Award ${plan.name} · ${step + 1} of ${STEPS.length}` : tr('lit.award_flow.award_a_badge', 'Award a badge')
 
   const left = !plan ? null : step === 1 ? <>
-    <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.who_earned_it', 'Who earned it?')} lede={`Add learners${canGroups ? ' and groups' : ''} who did work equal to ${plan.title} somewhere else. Groups bring their active learners.`} />
+    <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.who_earned_it', 'Who earned it?')} lede={inOrgWords(`Add learners${canGroups ? ' and groups' : ''} who did work equal to ${plan.title} somewhere else. Groups bring their active learners.`)} />
     <WhoStep award picks={picks} setPicks={setPicks} query={query} setQuery={setQuery} groups={groups.data || []} people={learners} canGroups={canGroups} taken={taken} />
   </> : step === 2 ? <>
     <StepHead eyebrow={eyebrow} title={tr('badges.award_flow.sign_off', 'Sign off')} lede={tr('lit.award_flow.what_you_write_goes_on', 'What you write goes on their badge, where anyone checking it can read it.')} />
@@ -203,7 +204,7 @@ export function SignOff({ plan, statement, setStatement, evidenceUrl, setEvidenc
   setNotes: (notes: Record<number, string>) => void; confirmed: boolean; setConfirmed: (value: boolean) => void; picks: Recipient[]; signer: string; orgName: string // eslint-disable-line no-unused-vars
 }) {
   const input = 'h-[42px] w-full rounded-[10px] border-[1.5px] border-border bg-card px-3 text-[15px] focus:border-brand focus:outline-none'
-  const who = picks.length === 1 && picks[0].kind === 'member' ? picks[0].name : 'these learners'
+  const who = picks.length === 1 && picks[0].kind === 'member' ? picks[0].name : inOrgWords('these learners')
   return <div className="mt-[22px] flex flex-col gap-3.5">
     <p className="flex gap-2.5 rounded-xl bg-brand-soft px-3.5 py-3 text-[13.5px] leading-[1.45] text-brand-ink"><Info size={17} className="mt-px shrink-0" aria-hidden="true" />
       <span>{tr('badges.award_flow.you_re_confirming_they_did', 'You’re confirming they did work equal to the {{title}} plan outside it.', { title: plan.title })}</span></p>

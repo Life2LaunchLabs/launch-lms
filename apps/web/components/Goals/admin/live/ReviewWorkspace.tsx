@@ -15,6 +15,7 @@ import { ActivityAggregateGradeForm } from '@components/Goals/admin/live/Activit
 import { decideLearningRun } from '@services/learning/learning'
 import ReviewEvidence from './ReviewEvidence'
 import { EmptyState, gradeActivityReview, PageLoader, PersonAvatar, pendingScores, personName, StatusPill, timeAgo } from './ui'
+import { inOrgWords } from '@/lib/people'
 
 type Decision = 'confirm' | 'flag'
 
@@ -119,7 +120,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
   return <div className="flex h-full min-h-screen w-full flex-col bg-[#f8f8f8]">
     {header}
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <nav aria-label="Learners" className="shrink-0 border-b border-gray-100 bg-white p-2 lg:w-56 lg:border-b-0 lg:border-r">
+      <nav aria-label={inOrgWords('Learners')} className="shrink-0 border-b border-gray-100 bg-white p-2 lg:w-56 lg:border-b-0 lg:border-r">
         <p className="px-2.5 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{done} of {items.length} done</p>
         <div className="flex gap-1 overflow-x-auto lg:flex-col">{items.map((entry) => {
           const mark = decided[entry.step_uuid]
@@ -139,7 +140,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
             <Link href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(item.goal_uuid))} className="-mr-2 inline-flex min-h-10 min-w-10 items-center justify-center px-2 text-xs font-bold text-gray-900 hover:text-blue-700 md:mr-0 md:min-h-0 md:min-w-0 md:px-0">Plan</Link>
           </div>
           {state ? <StatusPill tone={state === 'confirm' ? 'green' : 'amber'}>{state === 'confirm' ? 'Approved' : 'Sent back'}</StatusPill> : null}
-          {item.learner_note ? <Block title="From the learner"><p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-800">{item.learner_note}</p></Block> : null}
+          {item.learner_note ? <Block title={inOrgWords("From the learner")}><p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-800">{item.learner_note}</p></Block> : null}
           {guidance.length ? <Block title="What to look for"><ul className="space-y-1.5">{guidance.map((line, lineIndex) => <li key={lineIndex}><button type="button" onClick={() => setChecks({ ...checks, [lineIndex]: !checks[lineIndex] })} className="flex w-full items-start gap-2.5 text-left text-sm text-gray-800">{checks[lineIndex] ? <SquareCheckBig size={16} className="mt-0.5 shrink-0 text-green-700" /> : <Square size={16} className="mt-0.5 shrink-0 text-gray-400" />}<span>{line}</span></button></li>)}</ul></Block> : null}
           {data.step.requirements.length ? <div className="flex flex-wrap gap-1.5">{data.step.requirements.map((node) => <span key={node.node_uuid} title={node.framework_name} className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-700">{[node.code, node.title].filter(Boolean).join(' ')}</span>)}</div> : null}
           {item.feedback_history.length ? <Block title="Earlier feedback"><div className="space-y-1.5">{item.feedback_history.map((entry, entryIndex) => <p key={entryIndex} className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">{entry.message}</p>)}</div></Block> : null}
@@ -147,7 +148,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
             <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={3} className="mt-1.5 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal outline-none focus:border-gray-400" placeholder={confirmOnly ? 'Optional' : 'Needed if you send it back'} />
           </label>
           <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs font-bold text-amber-900">Staff notes · learners never see these</p>
+            <p className="text-xs font-bold text-amber-900">{inOrgWords("Staff notes · learners never see these")}</p>
             {staffNotes.map((note, noteIndex) => <p key={note.note_uuid || noteIndex} className="text-xs leading-5 text-gray-900"><strong>{note.author ? personName(note.author) : 'Staff'}:</strong> {note.message}</p>)}
             <div className="flex gap-1.5">
               <label className="sr-only" htmlFor="staff-note">Add a staff note</label>
@@ -186,7 +187,7 @@ function ActivityGrading({ orgId, token, assignment, activity, back, orgslug }: 
   return <div className="min-h-screen w-full bg-[#f8f8f8]">
     <Header back={back} title={review?.activity?.title || 'Activity'}><span className="text-xs text-gray-600">{reviews.length} waiting</span></Header>
     {!review ? <div className="p-10"><EmptyState icon={<CheckCircle2 size={36} className="text-green-500" />} title="All graded" detail={<Link href={back.href} className="font-bold text-blue-700">Back to {back.label === 'Assignments' ? 'assignments' : 'the assignment'}</Link>} /></div> : <div className="flex flex-col lg:flex-row">
-      <nav aria-label="Learners" className="shrink-0 border-b border-gray-100 bg-white p-2 lg:min-h-[calc(100vh-56px)] lg:w-56 lg:border-b-0 lg:border-r">
+      <nav aria-label={inOrgWords('Learners')} className="shrink-0 border-b border-gray-100 bg-white p-2 lg:min-h-[calc(100vh-56px)] lg:w-56 lg:border-b-0 lg:border-r">
         {reviews.map((item) => <button key={item.review_id} type="button" onClick={() => setCurrent(item.review_id)} className={cn('flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px]', item.review_id === review.review_id ? 'bg-gray-100 font-bold' : 'font-medium hover:bg-gray-50')}><span className="h-2 w-2 rounded-full bg-gray-300" />{personName(item.user)}</button>)}
       </nav>
       <section className="min-w-0 flex-1 p-6">

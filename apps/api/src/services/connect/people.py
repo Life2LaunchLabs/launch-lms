@@ -145,7 +145,10 @@ def search(db: Session, current_user: PublicUser, query: str) -> list[dict]:
     rows.sort(key=lambda item: item["name"].lower())
     seen = {item["id"] for item in rows} | hidden
     escaped = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    for user in db.exec(select(User).where(col(User.username).ilike(f"{escaped}%", escape="\\")).order_by(col(User.username)).limit(100)).all():
+    from src.services.user_tests.visibility import visible_people  # personas stay out of real users' searches
+
+    found = select(User).where(col(User.username).ilike(f"{escaped}%", escape="\\"), visible_people(db, current_user.id, User.id))
+    for user in db.exec(found.order_by(col(User.username)).limit(100)).all():
         if len(rows) >= MAX_RESULTS:
             break
         if user.id in seen or not discoverable(user) or blocked(db, current_user.id, int(user.id)):  # type: ignore[arg-type]

@@ -316,6 +316,11 @@ def respond(db: Session, current_user: PublicUser, goal_uuid: str, accept: bool)
         raise HTTPException(status_code=404, detail="Goal not found")
     if _value(goal.status) != GoalStatus.PENDING.value:
         raise HTTPException(status_code=409, detail="This goal isn't waiting for an answer")
+    if accept and goal.org_id and goal.assignment_id:
+        # A plan an organization gives someone makes them its learner, as when accepting by invitation.
+        from src.services.goals.plan_joining import ensure_learner
+
+        ensure_learner(db, int(goal.org_id), int(current_user.id))  # type: ignore[arg-type]
     goal.status = GoalStatus.ACTIVE if accept else GoalStatus.ARCHIVED
     goal.update_date = _now()
     db.add(goal)

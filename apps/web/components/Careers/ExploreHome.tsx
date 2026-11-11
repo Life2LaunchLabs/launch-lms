@@ -19,7 +19,7 @@ import UnlockMatches from './UnlockMatches'
 import { tr } from '@/lib/tr'
 // The learner's own Explore home: careers ranked for them (interest fit, nudged by the skills a job uses), each
 // with pay near their home base and how long training takes, then the careers they saved, ready to compare.
-// Until the "Unlock your matches" quest is done, its open items sit on top and the page says what's missing.
+// Until the "Unlock your matches" quest is done, its bar sits on top (open to its list) and the page says what's missing.
 
 type Sort = 'fit' | 'pay' | 'quick'
 const SORTS = (): Array<[Sort, string]> => ([['fit', tr('careers.explore_home.best_fit', 'Best fit')], ['pay', tr('careers.explore_home.highest_pay', 'Highest pay')], ['quick', tr('careers.explore_home.quickest_to_start', 'Quickest to start')]])
@@ -87,7 +87,7 @@ export default function ExploreHome({ orgslug }: { orgslug: string }) {
     const shown = all ? careers : careers.slice(0, SHOWN)
     const based = [data.has_quiz ? 'your interests' : '', data.has_skills ? 'the skills you picked' : '', data.home ? 'pay near home' : ''].filter(Boolean)
     body = <>
-      {!data.quest.complete && org?.id ? <UnlockMatches quest={data.quest} orgslug={orgslug} orgId={org.id} token={token} compact /> : null}
+      {!data.quest.complete && org?.id ? <UnlockMatches quest={data.quest} orgslug={orgslug} orgId={org.id} token={token} /> : null}
       <p className="m-0 text-[14px] leading-snug text-muted-foreground">
         {based.length ? tr('careers.explore_home.from_value', 'From {{value}}.', { value: based.length > 1 ? `${based.slice(0, -1).join(', ')} and ${based[based.length - 1]}` : based[0] }) : tr('careers.explore_home.finish_a_few_of_the', 'Finish a few of the steps above to see your closest matches first.')}
       </p>

@@ -19,8 +19,33 @@ SCOPES = {
     "resources:write": "Add, change and remove resources and resource channels",
     "coach:read": "Platform admins: see the Coach policy",
     "coach:write": "Platform admins: edit the Coach draft (a person releases it)",
+    "user_tests:read": "Platform admins: see user test runs, their board, report and test email",
+    "user_tests:write": "Platform admins: run user tests with test personas",
 }
 DEFAULT_SCOPE = " ".join(SCOPES)
+PLATFORM_SCOPES = {"coach:read", "coach:write", "user_tests:read", "user_tests:write"}
+
+# What a connected app can do, in plain words, for the consent page and Organization › Connect Claude.
+# Each line shows when any of its scopes is granted. Platform lines show only to platform admins, the only
+# people whose connection can use those tools (protocol.py lists platform tools to them alone).
+ABILITIES = (
+    (("plans:read", "plans:write"), "Build plans: the steps people follow, and the badge they earn when they finish"),
+    (("activities:read", "activities:write"), "Make interactive steps for a plan, like quizzes, videos and short lessons"),
+    (("plans:read", "plans:write"), "Set up requirement lists, such as standards or skills your plans count toward"),
+    (("resources:read", "resources:write"), "Add links, videos and guides to your Discover library"),
+    (("insights:read", "insights:write"), "Make report dashboards and save snapshots of them"),
+    (("coach:read", "coach:write"), "Platform admins: draft changes to Coach's instructions, which a person then releases"),
+    (("user_tests:read", "user_tests:write"), "Platform admins: run user tests with practice accounts"),
+)
+
+
+def ability_lines(scope: str, platform_admin: bool) -> list[str]:
+    """The plain-words lines for a granted scope string, leaving out lines this person can't use."""
+    granted = set(scope.split())
+    return [
+        line for scopes, line in ABILITIES
+        if granted & set(scopes) and (platform_admin or not set(scopes) <= PLATFORM_SCOPES)
+    ]
 CODE_TTL_SECONDS = 600
 ACCESS_TTL_SECONDS = 3600
 REFRESH_TTL_SECONDS = 30 * 24 * 3600
@@ -85,7 +110,7 @@ def check_resource(resource: str | None) -> str:
     if not resource:
         return expected
     if resource.rstrip("/") != expected:
-        raise OAuthError("invalid_target", "This authorization server only issues tokens for the Launch LMS MCP server")
+        raise OAuthError("invalid_target", "This authorization server only issues tokens for the Life2Launch MCP server")
     return expected
 
 
@@ -115,7 +140,7 @@ def protected_resource_metadata() -> dict:
         "authorization_servers": [issuer()],
         "scopes_supported": list(SCOPES),
         "bearer_methods_supported": ["header"],
-        "resource_name": "Launch LMS",
+        "resource_name": "Life2Launch",
     }
 
 

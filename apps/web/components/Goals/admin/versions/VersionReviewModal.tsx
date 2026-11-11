@@ -10,6 +10,7 @@ import EditSheet from '@components/Goals/edit/EditSheet'
 import { isTemplatesKey } from '@services/goals/templates'
 import { assignmentVersionsApi, versionChangesKey, type StepChange, type VersionChanges, type VersionStageChange } from '@services/goals/versions'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 const CHANGE: Record<StepChange, { label: string; tone: string; Icon: typeof Plus }> = {
   added: { label: 'Added', tone: 'bg-green-50 text-green-700', Icon: Plus },
@@ -51,7 +52,7 @@ export default function VersionReviewModal({ orgId, token, assignmentUuid, open,
     } catch (failure: any) { toast.error(failure?.message || 'Could not apply the version.') } finally { setSaving(false) }
   }
   const title = data ? `Version ${data.target.number} of this template` : 'New template version'
-  const description = 'Nothing changes for learners until you apply it. Steps a learner has started or finished stay as they are, answers and all.'
+  const description = inOrgWords('Nothing changes for learners until you apply it. Steps a learner has started or finished stay as they are, answers and all.')
   const changes = isLoading || (!data && !error) ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div>
     : !data ? <p className="py-8 text-center text-sm text-muted-foreground">Could not load the changes.</p>
       : <>
@@ -82,8 +83,8 @@ function BadgeNote({ changes }: { changes: VersionChanges }) {
   const now = changes.badge?.name
   const next = changes.target.badge?.name
   if (now === next) return null
-  const text = !next ? `Version ${changes.target.number} no longer earns ${now}. Learners who already earned it keep it.`
-    : !now ? `Learners who finish version ${changes.target.number} earn ${next}.`
+  const text = !next ? inOrgWords(`Version ${changes.target.number} no longer earns ${now}. Learners who already earned it keep it.`)
+    : !now ? inOrgWords(`Learners who finish version ${changes.target.number} earn ${next}.`)
     : `Version ${changes.target.number} earns ${next} instead of ${now}.`
   return <p className="rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-900">{text}</p>
 }
@@ -103,7 +104,7 @@ function StageChanges({ stage }: { stage: VersionStageChange }) {
             <p className="text-sm font-semibold">{step.title || step.step_key}</p>
             <p className="text-xs text-muted-foreground">
               {step.moved_from ? `From ${step.moved_from}. ` : ''}{step.fields?.length ? `${step.fields.join(', ')} changed. ` : ''}
-              {step.started_count ? `${step.started_count} learner${step.started_count === 1 ? ' has' : 's have'} started it and keep${step.started_count === 1 ? 's' : ''} their version.` : ''}
+              {step.started_count ? inOrgWords(`${step.started_count} learner${step.started_count === 1 ? ' has' : 's have'} started it and keep${step.started_count === 1 ? 's' : ''} their version.`) : ''}
             </p>
           </div>
         </li>

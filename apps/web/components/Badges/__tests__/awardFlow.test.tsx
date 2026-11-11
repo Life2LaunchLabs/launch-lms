@@ -33,14 +33,14 @@ describe('awarding a badge directly', () => {
     const html = renderToStaticMarkup(<SignOff plan={plan} statement="" setStatement={noop} evidenceUrl="" setEvidenceUrl={noop} earnedOn="2026-10-24" setEarnedOn={noop}
       people={[maya]} notes={{}} setNotes={noop} confirmed={false} setConfirmed={noop} picks={[maya]} signer="Ana Ortiz" orgName="Riverside" />)
     expect(html).toContain('I confirm Maya Rivera completed work equal to <b>Launch Ready plan</b>: finishing all 6 steps of the plan. I’m signing off as Ana Ortiz for Riverside.')
-    expect(html).toContain('Add a line for one learner')
+    expect(html).toContain('Add a line for one participant')
   })
 
   test('reviews who gets it and who is skipped', () => {
     const html = renderToStaticMarkup(<Review plan={plan} statement="Built a portfolio" earnedOn="2026-10-24" evidenceUrl="" signer="Ana Ortiz" orgName="Riverside" goTo={noop}
       reach={{ learners: [{ user_id: 9, name: 'Maya Rivera', username: 'maya' }], skipped: [{ user_id: 3, name: 'Noah Kim', username: 'noah', reason: 'already_has_badge' }] }} />)
     expect(html).toContain('Maya Rivera')
-    expect(html).toContain('1 learner skipped, they already have it: Noah Kim.')
+    expect(html).toContain('1 participant skipped, they already have it: Noah Kim.')
     expect(html).toContain('Signed off by Ana Ortiz · Riverside')
   })
 })

@@ -8,6 +8,7 @@ import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { chatTime } from '@components/Connect/ConnectView'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { schoolApi, schoolKeys } from '@services/school/school'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * Students with something for staff: unread school chat messages, mentions, and steps to review.
@@ -26,9 +27,9 @@ export default function WaitingOnYou({ orgId, orgslug, token, everyone = false }
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
         <div>
           <h2 className="text-[15px] font-semibold text-gray-900">{mine ? 'Waiting on you' : 'Waiting on staff'}</h2>
-          <p className="text-xs text-gray-500">{mine ? 'Your students with new messages, mentions or work to review.' : 'Every student with new messages, mentions or work to review.'}</p>
+          <p className="text-xs text-gray-500">{inOrgWords(mine ? 'Your learners with new messages, mentions or work to review.' : 'Every learner with new messages, mentions or work to review.')}</p>
         </div>
-        {data.can_see_everyone && !everyone ? <div role="group" aria-label="Whose students" className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
+        {data.can_see_everyone && !everyone ? <div role="group" aria-label={inOrgWords('Whose learners')} className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
           {[{ value: true, label: 'Mine' }, { value: false, label: 'Everyone' }].map((option) => <button key={option.label} type="button" aria-pressed={mine === option.value} onClick={() => setMine(option.value)}
             className={`rounded-md px-3 py-1.5 ${mine === option.value ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500'}`}>{option.label}</button>)}
         </div> : null}

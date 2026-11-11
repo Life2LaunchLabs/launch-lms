@@ -7,14 +7,15 @@ import { routePaths } from '@services/config/config'
 import { gradeLearningResponse } from '@services/learning/learning'
 import type { ActivityReview, StaffPerson } from '@services/goals/admin'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 /** Signing off steps: the capability staff review with. */
 export const REVIEW_CAPABILITY = 'complete_restricted_objectives'
 
 /** The staff views' shared bits: people, empty and loading states, pills and the review link. */
 export function personName(person?: Partial<StaffPerson> & { name?: string } | null) {
-  if (!person) return 'Learner'
-  return person.name || [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || 'Learner'
+  if (!person) return inOrgWords('Learner')
+  return person.name || [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || inOrgWords('Learner')
 }
 
 /** A photo when the person has one, else their initials, like the avatars in People. */

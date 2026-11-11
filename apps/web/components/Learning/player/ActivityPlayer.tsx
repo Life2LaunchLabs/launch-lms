@@ -2,7 +2,7 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import { footerButtons, isQuestionResponseRequired, LearningPageContent } from '@components/Learning/LearningBadgeViews'
+import { footerButtons, isQuestionResponseRequired, isVideoGatedPage, LearningPageContent } from '@components/Learning/LearningBadgeViews'
 import { allowsNoAnswer } from './OptionSources'
 import { LearningActivitySurface } from './ActivitySurface'
 import useAutoAdvance from './useAutoAdvance'
@@ -113,7 +113,9 @@ export function ActivityPlayer({
       .at(-1)
     if (shownPage.current === page?.page_uuid && !prior) return
     shownPage.current = page?.page_uuid
-    setUnlocked(Boolean(page) && (!isQuestionResponseRequired(page) || allowsNoAnswer(page)))
+    // This runs after the page's own effects, so a video page must stay locked here too, or the
+    // learner gets Continue at once and never sees the play controls (FEED-113).
+    setUnlocked(Boolean(page) && !isVideoGatedPage(page) && (!isQuestionResponseRequired(page) || allowsNoAnswer(page)))
     setAnswer(prior?.answer || {})
   }, [page, baseline, run?.attempts])
 

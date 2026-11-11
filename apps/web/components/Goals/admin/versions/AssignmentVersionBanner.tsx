@@ -5,6 +5,7 @@ import { Sparkles } from 'lucide-react'
 import { needsVersionDecision, type AssignmentVersionStatus } from '@services/goals/versions'
 import { cn } from '@/lib/utils'
 import VersionReviewModal from './VersionReviewModal'
+import { inOrgWords } from '@/lib/people'
 
 type Assignment = AssignmentVersionStatus & { assignment_uuid: string; status?: string }
 
@@ -25,7 +26,7 @@ export default function AssignmentVersionBanner({ orgId, token, assignment, comp
   const message = `Version ${assignment.latest_version} of this template is out. You're on version ${assignment.version}.`
   return <div className={cn('flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900', className)} role="status">
     <Sparkles size={14} className="shrink-0" />
-    <span className="min-w-0 flex-[1_1_12rem] font-semibold">{message}{compact ? '' : ' Nothing changes for learners until you apply it.'}</span>
+    <span className="min-w-0 flex-[1_1_12rem] font-semibold">{message}{compact ? '' : inOrgWords(' Nothing changes for learners until you apply it.')}</span>
     {assignment.update_available ? <button type="button" onClick={() => setOpen(true)} className="min-h-10 shrink-0 rounded-md bg-white/80 px-2.5 py-1 font-black text-foreground shadow-xs hover:bg-white md:min-h-0">Review changes</button> : null}
     {open ? <VersionReviewModal orgId={orgId} token={token} assignmentUuid={assignment.assignment_uuid} open={open} onOpenChange={setOpen} onApplied={onApplied} /> : null}
   </div>

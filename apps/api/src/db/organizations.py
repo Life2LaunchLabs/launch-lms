@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
+from pydantic import Field as PydanticField
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 from src.db.organization_config import OrganizationConfig
@@ -62,10 +63,41 @@ class OrganizationRead(OrganizationBase):
     update_date: str
 
 
+class PublicPage(BaseModel):
+    """What an organization's public page adds to its stored fields (config ``page`` block)."""
+    city: str = ""
+    website: str = ""
+    highlights: list[str] = []
+    # Plan template uuids: up to three shown first, and any the admin keeps off the page.
+    pinned_plans: list[str] = []
+    hidden_plans: list[str] = []
+
+
 class OrganizationDiscoverRead(OrganizationRead):
+    """An organization as its public page and Discover show it. Outside the org there is no
+    contact email, no config and no head count: the page is about what it offers, not its people."""
     signup_mode: str = "open"
     is_member: bool = False
-    member_count: int = 0
+    page: PublicPage = PublicPage()
+    plan_count: int = 0
+    badge_count: int = 0
+    # The page meets Discover's bar: a cover, a tagline and a plan anyone can join or request.
+    complete: bool = False
+    # Turned on "List us in Discover" (Organization.explore) and complete: it shows on the shelf.
+    listed: bool = False
+
+
+class PublicPageUpdate(BaseModel):
+    """The Public page settings tab. Unset fields stay as they are."""
+    description: str | None = PydanticField(default=None, max_length=100)
+    about: str | None = PydanticField(default=None, max_length=1500)
+    city: str | None = PydanticField(default=None, max_length=80)
+    website: str | None = PydanticField(default=None, max_length=300)
+    socials: dict[str, str] | None = None
+    highlights: list[str] | None = PydanticField(default=None, max_length=3)
+    pinned_plans: list[str] | None = PydanticField(default=None, max_length=3)
+    hidden_plans: list[str] | None = PydanticField(default=None, max_length=200)
+    listed: bool | None = None
 
 
 class OrganizationUser(BaseModel):

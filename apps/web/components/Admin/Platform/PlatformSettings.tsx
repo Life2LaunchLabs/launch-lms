@@ -67,7 +67,7 @@ export default function PlatformSettings() {
           <label className="block"><span className="text-sm font-bold text-gray-900">Message</span><textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={10000} rows={7} className="mt-2 w-full resize-y rounded-xl border border-black/15 p-3 text-sm leading-6 outline-none focus:border-black" /></label>
         </div>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-5">
-          <p className="text-xs text-gray-500">{data?.customized ? 'Using customized copy.' : 'Using the Launch LMS default copy.'}</p>
+          <p className="text-xs text-gray-500">{data?.customized ? 'Using customized copy.' : 'Using the Life2Launch default copy.'}</p>
           <div className="flex gap-2"><button type="button" onClick={() => void reset()} disabled={busy !== null || !data?.customized} className="inline-flex h-10 items-center gap-2 rounded-xl border border-black/15 px-4 text-sm font-bold text-gray-700 disabled:opacity-40"><RotateCcw size={15} />Reset</button><button type="button" onClick={() => void save()} disabled={busy !== null || !subject.trim() || !body.trim()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gray-950 px-4 text-sm font-bold text-white disabled:opacity-40">{busy === 'save' ? <Loader2 className="animate-spin" size={15} /> : <Save size={15} />}Save</button></div>
         </div>
       </div>
