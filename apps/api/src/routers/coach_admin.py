@@ -10,7 +10,7 @@ from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services import hub_launch
 from src.services.coach import keys, policy, releases, reports, scenarios
-from src.services.hub_launch import HubLaunchCardsUpdate
+from src.services.hub_launch import Audience, HubLaunchCardsUpdate
 
 router = APIRouter(dependencies=[Depends(require_superadmin)])
 
@@ -134,11 +134,11 @@ def review_coach_report(report_uuid: str, db_session: Session = Depends(get_db_s
 
 
 @router.get("/launch-cards")
-def get_coach_launch_cards(db_session: Session = Depends(get_db_session)):
-    return hub_launch.launch_cards_settings(db_session)
+def get_coach_launch_cards(audience: Audience = "learner", db_session: Session = Depends(get_db_session)):
+    return hub_launch.launch_cards_settings(db_session, audience)
 
 
 @router.put("/launch-cards")
-def update_coach_launch_cards(payload: HubLaunchCardsUpdate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
-    """Save the cards, or send cards: null to restore the defaults."""
-    return hub_launch.save_launch_cards(db_session, current_user, payload.cards)
+def update_coach_launch_cards(payload: HubLaunchCardsUpdate, audience: Audience = "learner", current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    """Save one audience's cards (learner or staff), or send cards: null to restore its defaults."""
+    return hub_launch.save_launch_cards(db_session, current_user, payload.cards, audience)
