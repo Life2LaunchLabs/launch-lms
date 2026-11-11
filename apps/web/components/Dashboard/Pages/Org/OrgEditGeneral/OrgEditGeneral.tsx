@@ -20,38 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
+import { ORG_LABELS } from '@/lib/orgLabels'
 
-const ORG_LABELS = [
-  { value: 'languages', label: '🌐 Languages' },
-  { value: 'business', label: '💰 Business' },
-  { value: 'ecommerce', label: '🛍 E-commerce' },
-  { value: 'gaming', label: '🎮 Gaming' },
-  { value: 'music', label: '🎸 Music' },
-  { value: 'sports', label: '⚽ Sports' },
-  { value: 'cars', label: '🚗 Cars' },
-  { value: 'sales_marketing', label: '🚀 Sales & Marketing' },
-  { value: 'tech', label: '💻 Tech' },
-  { value: 'photo_video', label: '📸 Photo & Video' },
-  { value: 'pets', label: '🐕 Pets' },
-  { value: 'personal_development', label: '📚 Personal Development' },
-  { value: 'real_estate', label: '🏠 Real Estate' },
-  { value: 'beauty_fashion', label: '👠 Beauty & Fashion' },
-  { value: 'travel', label: '✈️ Travel' },
-  { value: 'productivity', label: '⏳ Productivity' },
-  { value: 'health_fitness', label: '🍎 Health & Fitness' },
-  { value: 'finance', label: '📈 Finance' },
-  { value: 'arts_crafts', label: '🎨 Arts & Crafts' },
-  { value: 'education', label: '📚 Education' },
-  { value: 'stem', label: '🔬 STEM' },
-  { value: 'humanities', label: '📖 Humanities' },
-  { value: 'professional_skills', label: '💼 Professional Skills' },
-  { value: 'digital_skills', label: '💻 Digital Skills' },
-  { value: 'creative_arts', label: '🎨 Creative Arts' },
-  { value: 'social_sciences', label: '🌍 Social Sciences' },
-  { value: 'test_prep', label: '✍️ Test Preparation' },
-  { value: 'vocational', label: '🔧 Vocational Training' },
-  { value: 'early_education', label: '🎯 Early Education' },
-] as const
 
 const validationSchema = Yup.object().shape({
   name: Yup.string()
@@ -62,7 +32,7 @@ const validationSchema = Yup.object().shape({
     .max(100, 'Short description must be 100 characters or less'),
   about: Yup.string()
     .optional()
-    .max(400, 'About text must be 400 characters or less'),
+    .max(1500, 'About text must be 1,500 characters or less'),
   label: Yup.string().optional(),
   email: Yup.string()
     .optional()
@@ -225,7 +195,7 @@ const OrgEditGeneral: React.FC = () => {
                       <Label htmlFor="about">
                         {t('dashboard.organization.settings.about')}
                         <span className="text-gray-500 text-sm ml-2">
-                          ({400 - (values.about?.length || 0)} characters left)
+                          ({1500 - (values.about?.length || 0)} characters left)
                         </span>
                       </Label>
                       <Textarea
@@ -235,7 +205,7 @@ const OrgEditGeneral: React.FC = () => {
                         onChange={handleChange}
                         placeholder={t('dashboard.organization.settings.about_placeholder')}
                         className="min-h-[250px]"
-                        maxLength={400}
+                        maxLength={1500}
                       />
                       {touched.about && errors.about && (
                         <p className="text-red-500 text-sm mt-1">{errors.about}</p>

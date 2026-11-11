@@ -41,7 +41,8 @@ export const emptyTemplateBadge = (): TemplateBadge => ({
   human_code: '', field_of_study: '', specialization: '', credits_available: null, in_language: '',
 })
 
-export interface BadgeOrg { id: number; org_uuid?: string; slug: string; name: string; logo_image?: string | null }
+/** ``listed``: the organization's public page is open to anyone, so its name can link there. */
+export interface BadgeOrg { id: number; org_uuid?: string; slug: string; name: string; logo_image?: string | null; listed?: boolean }
 
 /** A badge as the plan earns it: the block with the plan's details filled in. */
 export interface Achievement {

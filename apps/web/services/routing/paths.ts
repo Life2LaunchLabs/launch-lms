@@ -280,6 +280,8 @@ export const routePaths = {
       organization: {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
+        /** The organization's public page: story, highlights, links, which plans show, and listing in Discover. */
+        publicPage: () => '/admin/org/settings/public-page',
         sso: () => '/admin/org/settings/sso',
         messaging: () => '/admin/org/settings/messaging',
         /** The carousel learners see on Discover. */
