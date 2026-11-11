@@ -4,7 +4,9 @@ from sqlmodel import SQLModel, Session, create_engine
 
 from src.db.coach import CoachPolicy
 from src.db.users import PublicUser, User
-from src.services.hub_launch import DEFAULT_LAUNCH_CARDS, HubLaunchCard, effective_launch_cards, launch_cards_settings, save_launch_cards
+from src.services.hub_launch import (
+    DEFAULT_LAUNCH_CARDS, DEFAULT_STAFF_LAUNCH_CARDS, HubLaunchCard, effective_launch_cards, launch_card_audience, launch_cards_settings, save_launch_cards,
+)
 
 
 def _db() -> Session:
@@ -88,3 +90,52 @@ def test_admin_routes_are_superadmin_only_and_served_under_superadmin():
     assert any(dep.dependency is require_superadmin for dep in admin_router.dependencies)
     paths = {route.path for route in v1_router.routes}
     assert "/api/v1/superadmin/coach/launch-cards" in paths and "/api/v1/hub/launch-cards" in paths
+
+
+def test_staff_get_their_own_default_starters():
+    db = _db()
+    learner = [card["label"] for card in effective_launch_cards(db, "learner")]
+    staff = [card["label"] for card in effective_launch_cards(db, "staff")]
+    assert staff == [card.label for card in DEFAULT_STAFF_LAUNCH_CARDS]
+    assert not set(staff) & set(learner)
+    assert launch_cards_settings(db, "staff") == {"audience": "staff", "cards": effective_launch_cards(db, "staff"), "is_default": True}
+
+
+def test_each_audience_is_saved_and_reset_on_its_own():
+    db = _db()
+    save_launch_cards(db, _admin(), [_card("Learner card")], "learner")
+    result = save_launch_cards(db, _admin(), [_card("Staff card")], "staff")
+    assert result["is_default"] is False and [c["label"] for c in result["cards"]] == ["Staff card"]
+    assert [c["label"] for c in effective_launch_cards(db, "learner")] == ["Learner card"]
+
+    save_launch_cards(db, _admin(), None, "staff")
+    assert [c["label"] for c in effective_launch_cards(db, "learner")] == ["Learner card"]
+    assert launch_cards_settings(db, "staff")["is_default"] is True
+
+
+def test_cards_stored_as_a_bare_list_stay_the_learner_set():
+    db = _db()
+    db.add(CoachPolicy(id=1, launch_cards=[{"label": "Old", "hint": "", "first_message": "Hi"}]))
+    db.commit()
+    assert [c["label"] for c in effective_launch_cards(db, "learner")] == ["Old"]
+    assert launch_cards_settings(db, "staff")["is_default"] is True
+    save_launch_cards(db, _admin(), [_card("Staff card")], "staff")
+    assert [c["label"] for c in effective_launch_cards(db, "learner")] == ["Old"]
+
+
+def test_audience_follows_the_role_in_that_organization():
+    from src.db.roles import Role
+    from src.db.user_organizations import UserOrganization
+    from src.security.rbac.constants import ADMIN_ROLE_ID
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(engine, tables=[Role.__table__, UserOrganization.__table__])
+    db = Session(engine)
+    db.add(UserOrganization(user_id=1, org_id=10, role_id=ADMIN_ROLE_ID, creation_date="", update_date=""))
+    db.add(UserOrganization(user_id=2, org_id=10, role_id=4, creation_date="", update_date=""))
+    db.add(UserOrganization(user_id=1, org_id=20, role_id=4, creation_date="", update_date=""))
+    db.commit()
+    assert launch_card_audience(db, 1, 10) == "staff"
+    assert launch_card_audience(db, 2, 10) == "learner"
+    assert launch_card_audience(db, 1, 20) == "learner"
+    assert launch_card_audience(db, 1, None) == "learner"

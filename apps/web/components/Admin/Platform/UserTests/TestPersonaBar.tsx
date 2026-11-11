@@ -4,12 +4,34 @@ import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { signOut } from '@components/Contexts/AuthContext'
-import { fetchMyRun, readTestPersonaCookie, switchPersona } from '@services/userTests/userTests'
+import { fetchMyRun, fetchRunOpen, readTestPersonaCookie, switchPersona } from '@services/userTests/userTests'
 
 const PersonaPanel = dynamic(() => import('./PersonaPanel'), {
   ssr: false,
   loading: () => <div role="status" className="absolute right-2 top-full mt-1 rounded-xl border bg-card p-4 text-sm text-muted-foreground shadow-xl">Loading…</div>,
 })
+
+// A session can drop while the run is still open: a redeploy answers 5xx for a minute and the page
+// loads signed out, though the refresh cookie still works. Saying "the run ended" then sent testers
+// off for no reason (UT-3). So "ended" is said only when the run really closed; otherwise the page
+// reloads a few times to let the site come back, and only then says the session dropped.
+const RETRY_KEY = 'launchlms_test_persona_retries'
+const RETRIES = 6
+const RETRY_MS = 10000
+
+/** True when the run is closed, false when open, null when the site couldn't say (it may be restarting). */
+async function runClosed(userId: number): Promise<boolean | null> {
+  try { return !(await fetchRunOpen(userId)) } catch (failure) { return (failure as { status?: number })?.status === 404 ? true : null }
+}
+
+function retries(next?: number): number {
+  try {
+    if (next === undefined) return Number(window.sessionStorage.getItem(RETRY_KEY) || 0)
+    if (next === 0) window.sessionStorage.removeItem(RETRY_KEY)
+    else window.sessionStorage.setItem(RETRY_KEY, String(next))
+    return next
+  } catch { return RETRIES }
+}
 
 function clearMarker() {
   const expire = 'launchlms_test_persona=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
@@ -30,23 +52,42 @@ export default function TestPersonaBar() {
 
   const userId = session?.data?.user?.id
   const active = Boolean(marker && userId && marker.userId === userId)
-  // Shared with the panel. A 401 means the run closed (or the session ended): sign out, never show broken pages.
+  const markerUserId = marker?.userId
+  // Shared with the panel. A 401 when the run closed: sign out, never show broken pages.
   const { data: run } = useSWR(active ? 'user_tests/me' : null, fetchMyRun, {
     refreshInterval: 30000,
     shouldRetryOnError: false,
     onError: (error: { status?: number }) => {
-      if (error?.status !== 401) return
-      clearMarker()
-      void signOut({ callbackUrl: '/auth/test-entry?closed=1' })
+      if (error?.status !== 401 || !markerUserId) return
+      void runClosed(markerUserId).then((closed) => {
+        if (!closed) return  // still open: the session refresh sorts out the token, or the effect below takes over
+        clearMarker()
+        void signOut({ callbackUrl: '/auth/test-entry?closed=1' })
+      })
     },
   })
-  // The session ended on its own (a background refresh after the run closed): say so, not the org's login page.
-  const ended = Boolean(marker && session?.status === 'unauthenticated')
+  useEffect(() => { if (active) retries(0) }, [active])
+  // The page loaded signed out while the marker says a persona was here: find out why before saying anything.
+  const ended = Boolean(markerUserId && session?.status === 'unauthenticated')
   useEffect(() => {
-    if (!ended) return
-    clearMarker()
-    if (!window.location.pathname.startsWith('/auth/test-entry')) window.location.replace('/auth/test-entry?closed=1')
-  }, [ended])
+    if (!ended || !markerUserId || window.location.pathname.startsWith('/auth/test-entry')) return
+    let cancelled = false
+    void runClosed(markerUserId).then((closed) => {
+      if (cancelled) return
+      const tried = retries()
+      if (closed === false || closed === null) {
+        if (tried < RETRIES) {
+          retries(tried + 1)
+          window.setTimeout(() => { if (!cancelled) window.location.reload() }, RETRY_MS)
+          return
+        }
+      }
+      retries(0)
+      clearMarker()
+      window.location.replace(closed ? '/auth/test-entry?closed=1' : '/auth/test-entry?dropped=1')
+    })
+    return () => { cancelled = true }
+  }, [ended, markerUserId])
   async function switchTo(otherId: number) {
     if (!otherId) return
     try {

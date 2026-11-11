@@ -12,7 +12,7 @@ from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
-from src.db.user_tests import TestMail, TestPersona
+from src.db.user_tests import TestCohort, TestMail, TestPersona
 from src.db.users import User
 from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, replays, stories, tickets
 from src.services.user_tests.sessions import current_test_operator, current_test_persona, is_platform_admin
@@ -258,6 +258,20 @@ def login_link(
     if not allowed:
         raise HTTPException(429, f"Too many login links this hour. Try again in {retry} seconds.")
     return tickets.mint(db, actor.id, user_id, body.target_path)
+
+
+@router.get("/personas/{user_id}/run")
+def persona_run_state(user_id: int, request: Request, response: Response, db: Session = Depends(get_db_session)):
+    """Whether a persona's run is still open. No sign-in: a persona whose session dropped asks this to
+    tell "the run ended" apart from a session lost for another reason (a redeploy, an expired refresh)."""
+    require_enabled()
+    allowed, _, retry = check_rate_limit(f"user-tests-run-state:{get_client_ip(request)}", 120, 600)
+    if not allowed:
+        raise HTTPException(429, f"Too many checks. Try again in {retry} seconds.")
+    response.headers["Cache-Control"] = "no-store"
+    persona = db.get(TestPersona, user_id)
+    cohort = db.get(TestCohort, persona.cohort_id) if persona else None
+    return {"open": bool(cohort and cohorts.is_open(cohort))}
 
 
 @router.post("/redeem")

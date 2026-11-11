@@ -3,7 +3,7 @@
 import { type ReactNode, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { LookId, SectionType } from '@services/portfolio/records'
 import { type Row, type Slot, copyRows, lift, place, rangeOf, resizeGap } from './model'
-import { SIZING, type Level, applyLevel, capOf, cardLevels, levelFor, naturalHeight, snap } from './fit'
+import { SIZING, type Level, applyLevel, capOf, cardLevels, floorOf, levelFor, naturalHeight, snap } from './fit'
 
 import { tr } from '@/lib/tr'
 // The section stack, laid out and edited in place. Every section sits in one CSS grid of six columns, placed
@@ -101,9 +101,11 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
       const type = sec.dataset.sec as SectionType
       const items = Array.from(sec.querySelectorAll<HTMLElement>('[data-item]'))
       items.forEach((item) => item.removeAttribute('data-fit-hidden'))
-      const sizing = SIZING[type], h = heights[type]
+      const sizing = SIZING[type]
       if (sizing === 'cards') applyLevel(sec)
-      if (!sec.hasAttribute('data-fixed') || !h) return
+      if (!sec.hasAttribute('data-fixed') || !heights[type]) return
+      // Never shorter than its content allows, even when a saved height says so (FEED-63).
+      const h = Math.max(heights[type]!, floorOf(sec, sizing))
       sec.style.height = `${h}px`
       // Alone in its row, a section takes its own tidy height; beside a taller one it keeps space below.
       const alone = phone || (shown[Number(sec.dataset.r)]?.length || 1) === 1
@@ -258,8 +260,10 @@ export function SectionStack({ look, rows, editing, render, context, heightOf, o
       // No taller than the fullest member of the row can use.
       const members = types.map((one) => box.current!.querySelector<HTMLElement>(`[data-sec="${one}"]`)).filter((node): node is HTMLElement => Boolean(node))
       const cap = Math.max(lo, ...members.map((node) => capOf(node, SIZING[node.dataset.sec as SectionType], hi)))
-      const levels = SIZING[type] === 'cards' ? cardLevels(sec).filter((level) => level.h >= lo && level.h <= cap) : []
-      drag.current = { kind: 'height', types, lo, hi: cap, y: event.clientY, h0, h: Math.round(h0), levels }
+      // No shorter than any member can go before its content overlaps (FEED-63).
+      const least = Math.min(cap, Math.max(lo, ...members.map((node) => floorOf(node, SIZING[node.dataset.sec as SectionType]))))
+      const levels = SIZING[type] === 'cards' ? cardLevels(sec).filter((level) => level.h >= least && level.h <= cap) : []
+      drag.current = { kind: 'height', types, lo: least, hi: cap, y: event.clientY, h0, h: Math.round(h0), levels }
     } else if (sec && target.closest('[data-grip]')) drag.current = { kind: 'pending', type: sec.dataset.sec as SectionType, x: event.clientX, y: event.clientY }
     else return
     event.preventDefault()

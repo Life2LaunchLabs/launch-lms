@@ -16,7 +16,6 @@ import RunBoard from './RunBoard'
 import { useAsk } from '@components/ui/ask-dialog'
 import UserTestsInbox from './UserTestsInbox'
 import UserTestsShell, { StatusPill, formatWhen, useUserTestsHref } from './UserTestsShell'
-import { inOrgWords } from '@/lib/people'
 
 function AddPersonasForm({ cohort, onAdded }: { cohort: TestCohortDetail; onAdded: () => void }) {
   const [text, setText] = useState('')
@@ -32,7 +31,7 @@ function AddPersonasForm({ cohort, onAdded }: { cohort: TestCohortDetail; onAdde
   }
 
   return <form onSubmit={submit} className="space-y-3 rounded-xl border bg-card p-5">
-    <div><h2 className="text-lg font-semibold">Add personas</h2><p className="text-sm text-muted-foreground">One per line: a name, then <code>|</code> and a short brief. Start a line with <code>owner:</code> to also give them a new test org they run, or <code>new:</code>{inOrgWords(" for someone who just signed up (their first link opens sign-up onboarding: role, org setup, first steps). Everyone joins the main org as a learner.")}</p></div>
+    <div><h2 className="text-lg font-semibold">Add personas</h2><p className="text-sm text-muted-foreground">One per line: a name, then <code>|</code> and a short brief. Start a line with <code>owner:</code> to also give them a new test org they run, <code>new:</code> for someone who just signed up (their first link lands where a sign-up does: their first phase), or <code>creator:</code> for someone who just signed up to set up an org (their first link opens org set-up). Everyone joins the main org as a learner.</p></div>
     <Label htmlFor="persona-lines" className="sr-only">Personas, one per line</Label>
     <Textarea id="persona-lines" rows={5} value={text} onChange={(event) => setText(event.target.value)} placeholder={'Maya Lopez | 9th grader, new to the app, uses a phone\nowner: Dana Rivera | High school counselor setting up her school'} />
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -93,7 +92,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
         {data.personas.length ? <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full text-sm">
           <thead><tr className="border-b text-left text-[11px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2.5 font-bold">Persona</th><th className="px-4 py-2.5 font-bold">Brief</th><th className="px-4 py-2.5 font-bold">Mail</th><th className="px-4 py-2.5 font-bold">Last active</th><th className="px-4 py-2.5"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>{data.personas.map((persona) => <tr key={persona.user_id} className="border-b last:border-0 align-top">
-            <td className="px-4 py-3"><span className="block font-semibold">{personaName(persona)}</span><span className="block break-all text-xs text-muted-foreground">{persona.email}</span>{persona.orgs?.length ? <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">Runs {persona.orgs.map((org) => org.name).join(', ')}</span> : persona.start_state === 'org_owner' ? <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">Runs a test org</span> : persona.start_state === 'new_signup' ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">Starts at sign-up</span> : null}</td>
+            <td className="px-4 py-3"><span className="block font-semibold">{personaName(persona)}</span><span className="block break-all text-xs text-muted-foreground">{persona.email}</span>{persona.orgs?.length ? <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">Runs {persona.orgs.map((org) => org.name).join(', ')}</span> : persona.start_state === 'org_owner' ? <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">Runs a test org</span> : persona.start_state === 'new_signup' ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">Starts at sign-up</span> : persona.start_state === 'org_creator' ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">Starts at org set-up</span> : null}</td>
             <td className="max-w-80 px-4 py-3 text-xs text-muted-foreground">{persona.brief || '—'}</td>
             <td className="px-4 py-3 text-xs tabular-nums">{persona.unread_mail ? <b>{persona.unread_mail} unread</b> : '—'}</td>
             <td className="px-4 py-3 text-xs text-muted-foreground">{formatWhen(persona.last_active_at)}</td>

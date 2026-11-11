@@ -4273,6 +4273,12 @@
       "partner": "Yo y mi pareja",
       "with_kids": "Yo y {{kids}}",
       "me": "Solo yo"
+    },
+    "purpose": {
+      "gap": "Año sabático",
+      "saving": "Trabajar y ahorrar",
+      "career": "Empezar mi carrera",
+      "next": "Descubrir qué sigue"
     }
   },
   "onboarding": {
@@ -4326,6 +4332,9 @@
     "living_sub": "Esto ayuda con tu presupuesto. Puedes cambiarlo cuando quieras.",
     "doing": "¿Qué estás haciendo estos días?",
     "doing_sub": "Escuela, un trabajo o los dos. Agrega todo lo que quieras.",
+    "purpose": "¿Para qué es esta etapa?",
+    "purpose_sub": "Así se llamará tu etapa. Puedes cambiarlo después.",
+    "purpose_own": "¿Otra cosa? Dilo con tus palabras",
     "since": "¿Desde cuándo?",
     "since_sub": "Más o menos está bien. Una etapa dura hasta que empieza la siguiente.",
     "card": "Esta es tu primera etapa",

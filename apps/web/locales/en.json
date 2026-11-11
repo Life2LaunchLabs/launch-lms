@@ -4267,6 +4267,12 @@
       "partner": "Me and a partner",
       "with_kids": "Me and {{kids}}",
       "me": "Just me"
+    },
+    "purpose": {
+      "gap": "Gap year",
+      "saving": "Working and saving",
+      "career": "Starting my career",
+      "next": "Figuring out what’s next"
     }
   },
   "onboarding": {
@@ -4320,6 +4326,9 @@
     "living_sub": "It helps with your budget. You can change it any time.",
     "doing": "What are you doing these days?",
     "doing_sub": "School, a job or both. Add as many as you like.",
+    "purpose": "What is this time for?",
+    "purpose_sub": "This names your phase. You can change it later.",
+    "purpose_own": "Something else? Say it in your own words",
     "since": "Since when?",
     "since_sub": "Roughly is fine. A phase lasts until the next one starts.",
     "card": "Here’s your first phase",

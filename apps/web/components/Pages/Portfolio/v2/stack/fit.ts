@@ -97,3 +97,53 @@ export function snap(levels: Level[], h: number): number {
   if (!levels.length) return h
   return levels.reduce((best, level) => Math.abs(level.h - h) < Math.abs(best - h) ? level.h : best, levels[0].h)
 }
+
+// The least a section can be (FEED-63): below it something would overlap, inside the section or into the
+// next one. A card section's shortest tidy layout; a text section's heading and first item; the banner's
+// tallest slide, its words plus the picture's own floor when the picture sits above them.
+
+/** A featured slide's picture never gets shorter than this when it sits above the words (FeatureSection). */
+export const MEDIA_FLOOR = 140
+
+export type Slide = { text: number; mediaAbove: boolean }
+export type FloorParts = { head: number; first: number; tail: number; smallest?: number; chrome: number; slides: Slide[] }
+
+/** The least height from what was measured. */
+export function floorFrom(sizing: Sizing, parts: FloorParts): number {
+  if (sizing === 'cards' && parts.smallest) return Math.ceil(parts.smallest)
+  if (sizing === 'free') return parts.slides.length ? Math.ceil(parts.chrome + Math.max(...parts.slides.map((slide) => (slide.mediaAbove ? MEDIA_FLOOR : 0) + slide.text))) : 0
+  return Math.ceil(parts.head + parts.first + parts.tail)
+}
+
+/** How tall an element's own content is: its padding and the span of its children, whatever height it has. */
+function contentHeight(el: HTMLElement): number {
+  const style = getComputedStyle(el)
+  const kids = Array.from(el.children).map((kid) => kid.getBoundingClientRect()).filter((rect) => rect.height > 0)
+  const span = kids.length ? Math.max(...kids.map((rect) => rect.bottom)) - Math.min(...kids.map((rect) => rect.top)) : 0
+  return span + (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0)
+}
+
+/** The least height a section can be before its content overlaps. */
+export function floorOf(sec: HTMLElement, sizing: Sizing): number {
+  const secRect = sec.getBoundingClientRect()
+  const tile = sec.querySelector<HTMLElement>('[data-tile]')
+  const tileStyle = tile ? getComputedStyle(tile) : null
+  const tail = tileStyle ? (parseFloat(tileStyle.paddingBottom) || 0) + (parseFloat(tileStyle.borderBottomWidth) || 0) : 0
+  const box = sec.querySelector<HTMLElement>('[data-fit-box]')
+  const head = box ? box.getBoundingClientRect().top - secRect.top : 0
+  const item = box?.querySelector<HTMLElement>('[data-item]')
+  const first = item ? item.getBoundingClientRect().height : 0
+  const frame = sec.querySelector<HTMLElement>('[data-feature-frame]')
+  let chrome = 0
+  const slides: Slide[] = []
+  if (sizing === 'free' && frame) {
+    const frameRect = frame.getBoundingClientRect(), nav = sec.querySelector<HTMLElement>('[data-feature-nav]')
+    chrome = frameRect.top - secRect.top + frame.offsetHeight - frame.clientHeight + (nav ? nav.getBoundingClientRect().bottom - frameRect.bottom : 0)
+    frame.querySelectorAll<HTMLElement>('[data-feature-slide]').forEach((slide) => {
+      const text = slide.querySelector<HTMLElement>('[data-feature-text]'), media = slide.querySelector<HTMLElement>('[data-feature-media]')
+      if (!text || !media) { slides.push({ text: contentHeight(slide), mediaAbove: false }); return }
+      slides.push({ text: contentHeight(text), mediaAbove: media.getBoundingClientRect().bottom <= text.getBoundingClientRect().top + 1 })
+    })
+  }
+  return floorFrom(sizing, { head, first, tail, smallest: sizing === 'cards' ? cardLevels(sec)[0]?.h : undefined, chrome, slides })
+}

@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBody, errorHandling } from '@services/utils/ts/requests'
+import type { NewPersona, StartState } from './personaLines'
 
 /* Platform › User tests: /api/v1/user_tests. Platform admins only, except redeemLoginLink. */
 
@@ -25,7 +26,7 @@ export type TestPersona = {
   email: string
   handle: string
   brief: string
-  start_state: 'has_account' | 'new_signup' | 'org_owner'
+  start_state: StartState
   orgs?: { id: number; name: string; slug: string }[]
   last_active_at: string | null
   unread_mail: number
@@ -50,7 +51,7 @@ export type TestMail = {
   html?: string
 }
 
-export type NewPersona = { first_name: string; last_name?: string; brief?: string; start_state?: 'has_account' | 'new_signup' | 'org_owner'; org_name?: string }
+export type { NewPersona, StartState }
 
 export type LoginLink = { path: string; expires_at: string }
 
@@ -82,6 +83,8 @@ export const setPersonaProgress = (userId: number, stageKey: string, status: Sta
 export type MyRun = { persona: { user_id: number; name: string; handle: string }; cohort: { name: string }; stages: (Pick<TestStage, 'key' | 'title' | 'goal'> & Pick<BoardCell, 'note' | 'waiting_on'> & { status: StageStatus })[]; unread_mail: number; others?: { user_id: number; name: string }[] }
 export type NewFinding = { kind: 'bug' | 'confusion' | 'wish'; severity?: 'low' | 'medium' | 'high'; stage_key?: string | null; page?: string; what_happened: string; what_wanted?: string }
 export const fetchMyRun = () => call<MyRun>('me')
+/** Whether a persona's run is still open; needs no sign-in, so it works after the session dropped. */
+export const fetchRunOpen = (userId: number) => call<{ open: boolean }>(`personas/${userId}/run`).then((state) => state.open)
 /** A one-use login link for another persona of the same run. */
 export const switchPersona = (userId: number) => call<{ path: string; url: string; expires_at: string }>('me/switch', 'POST', { user_id: userId })
 export const fetchMyMail = () => call<{ mail: TestMail[] }>('me/mail')
@@ -110,16 +113,7 @@ export function personaName(persona: Pick<TestPersona, 'first_name' | 'last_name
   return `${persona.first_name} ${persona.last_name}`.trim() || persona.username
 }
 
-/** "First Last | brief" per line; "owner:" also gets a test org, "new:" starts at sign-up onboarding. */
-export function parsePersonaLines(text: string): NewPersona[] {
-  return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const prefix = line.match(/^(owner|new):\s*/i)
-    const kind = prefix?.[1].toLowerCase()
-    const [name, ...rest] = line.slice(prefix?.[0].length ?? 0).split('|')
-    const [first_name, ...last] = name.trim().split(/\s+/)
-    return { first_name, last_name: last.join(' '), brief: rest.join('|').trim(), start_state: kind === 'owner' ? 'org_owner' : kind === 'new' ? 'new_signup' : 'has_account' }
-  })
-}
+export { parsePersonaLines } from './personaLines'
 
 /** The persona banner's cookie: "userId:name:cohort", set when a login link is redeemed. */
 export { readTestPersonaCookie } from './marker'

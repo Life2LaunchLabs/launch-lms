@@ -52,6 +52,33 @@ def is_open(cohort: TestCohort) -> bool:
     return cohort.status == "open" and cohort.expires_at > datetime.utcnow()
 
 
+# How long a run holds unstable's redeploys after its first persona signs in, if nobody closes it first.
+HOLD_HOURS = 3
+
+
+def deploy_blockers(db: Session) -> list[dict]:
+    """Open runs that have started (a persona signed in) and are inside their hold window.
+
+    Explicit, not guessed from activity: a run holds deploys from its first sign-in until it is
+    closed, and never longer than HOLD_HOURS, so a run left open blocks at most once."""
+    from src.db.user_tests import TestLoginTicket
+
+    now = datetime.utcnow()
+    rows = db.exec(
+        select(TestCohort, func.min(TestLoginTicket.used_at))
+        .join(TestPersona, TestPersona.cohort_id == TestCohort.id)
+        .join(TestLoginTicket, TestLoginTicket.persona_user_id == TestPersona.user_id)
+        .where(TestCohort.status == "open", TestCohort.expires_at > now, TestLoginTicket.used_at.is_not(None))  # type: ignore[union-attr]
+        .group_by(TestCohort.id)
+    ).all()
+    blockers = []
+    for cohort, started in rows:
+        until = started + timedelta(hours=HOLD_HOURS)
+        if until > now:
+            blockers.append({"kind": "user_test", "run": cohort.name, "started_at": started.isoformat() + "Z", "holds_until": until.isoformat() + "Z"})
+    return blockers
+
+
 def create_cohort(db: Session, actor_id: int, body: CreateCohort) -> dict:
     now = datetime.utcnow()
     open_count = db.exec(
