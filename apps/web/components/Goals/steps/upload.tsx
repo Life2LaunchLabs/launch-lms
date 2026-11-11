@@ -40,6 +40,30 @@ function UploadRow({ step }: { step: Step<'upload'> }) {
   </div>
 }
 
+/** One upload slot. While it's empty and open, the whole box, name and type are one button that opens the picker, not just the small box. */
+export function UploadSlotRow({ slot, entry, open, onChoose, onPick, onLink, onRemove }: { slot: UploadSlot; entry?: StepEntry; open: boolean; onChoose: () => void; onPick: React.Dispatch<MediaType>; onLink: () => void; onRemove: React.Dispatch<StepEntry> }) {
+  const kinds = `${kindText(slot)}${slot.optional ? tr('goals.upload.optional', ' · optional') : ''}`
+  return <li className="flex items-center gap-3 rounded-xl border bg-background p-2">
+    {open && !entry ? <button type="button" onClick={onChoose} aria-label={`Add ${slot.label}`} className="-m-1 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg p-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-accent)]">
+      <Thumb slot={slot} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-bold">{slot.label}</span>
+        <span className="block text-xs font-semibold text-muted-foreground">{kinds}</span>
+      </span>
+    </button> : <>
+      <Thumb entry={entry} slot={slot} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold">{slot.label}</p>
+        {entry ? <a href={normalizeMediaUrl(entry.url)} target="_blank" rel="noreferrer" className="block truncate text-xs font-semibold text-[var(--plan-accent)] hover:underline">{entry.title || tr('goals.upload.open', 'Open')}</a> : <p className="text-xs font-semibold text-muted-foreground">{kinds}</p>}
+      </div>
+    </>}
+    {open && entry ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => onRemove(entry)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+    {/* The picker takes one kind at a time: a slot open to photos and documents offers each, so a PDF is never refused. */}
+    {open && !entry ? mediaKinds(slot).length > 1 && mediaKinds(slot).map((kind) => <button key={kind} type="button" onClick={() => onPick(kind)} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
+    {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={onLink} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
+  </li>
+}
+
 function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: StepCardProps<'upload'>) {
   const [picking, setPicking] = React.useState<{ slot: UploadSlot; type: MediaType } | null>(null)
   const [linkSlot, setLinkSlot] = React.useState<UploadSlot | null>(null)
@@ -58,21 +82,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
     <StepIntro step={step} />
     <Feedback step={step} />
     <ul className="flex flex-col gap-2">
-      {step.config.slots.map((slot) => {
-        const entry = filled(step, slot)
-        return <li key={slot.key} className="flex items-center gap-3 rounded-xl border bg-background p-2">
-          <button type="button" disabled={!open || !!entry} onClick={() => choose(slot)} aria-label={`Add ${slot.label}`}><Thumb entry={entry} slot={slot} /></button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{slot.label}</p>
-            {entry ? <a href={normalizeMediaUrl(entry.url)} target="_blank" rel="noreferrer" className="block truncate text-xs font-semibold text-[var(--plan-accent)] hover:underline">{entry.title || tr('goals.upload.open', 'Open')}</a>
-              : <p className="text-xs font-semibold text-muted-foreground">{kindText(slot)}{slot.optional ? tr('goals.upload.optional', ' · optional') : ''}</p>}
-          </div>
-          {open && entry ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => actions.deleteEntry(entry.entry_uuid)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
-          {/* The picker takes one kind at a time: a slot open to photos and documents offers each, so a PDF is never refused. */}
-          {open && !entry ? mediaKinds(slot).length > 1 && mediaKinds(slot).map((kind) => <button key={kind} type="button" onClick={() => setPicking({ slot, type: kind })} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
-          {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={() => setLinkSlot(slot)} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
-        </li>
-      })}
+      {step.config.slots.map((slot) => <UploadSlotRow key={slot.key} slot={slot} entry={filled(step, slot)} open={open} onChoose={() => choose(slot)} onPick={(kind) => setPicking({ slot, type: kind })} onLink={() => setLinkSlot(slot)} onRemove={(entry) => actions.deleteEntry(entry.entry_uuid)} />)}
     </ul>
     {linkSlot ? <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); if (!link.trim()) return; await actions.addEntry({ kind: 'link', slot: linkSlot.key, url: link.trim(), title: link.trim() }); setLink(''); setLinkSlot(null) }}>
       <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={tr('goals.upload.link_for_label', 'Link for {{label}}', { label: linkSlot.label })} />
