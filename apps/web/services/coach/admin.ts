@@ -1,6 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
-import type { HubLaunchCard, HubLaunchCardsSettings } from '@services/hub/launchCards'
+import type { HubLaunchCard, HubLaunchCardsSettings, LaunchCardAudience } from '@services/hub/launchCards'
 
 // Platform › Coach: the one coaching policy every learner's Coach runs on.
 
@@ -142,7 +142,7 @@ export const coachAdminApi = {
   reports: (token?: string) => call<CoachReport[]>('/reports', token),
   reviewReport: (uuid: string, token?: string) => call<unknown>(`/reports/${uuid}/review`, token, 'POST'),
 
-  launchCards: (token?: string) => call<HubLaunchCardsSettings>('/launch-cards', token),
+  launchCards: (audience: LaunchCardAudience, token?: string) => call<HubLaunchCardsSettings>(`/launch-cards?audience=${audience}`, token),
   // Passing null restores the platform defaults.
-  saveLaunchCards: (cards: HubLaunchCard[] | null, token?: string) => call<HubLaunchCardsSettings>('/launch-cards', token, 'PUT', { cards }),
+  saveLaunchCards: (audience: LaunchCardAudience, cards: HubLaunchCard[] | null, token?: string) => call<HubLaunchCardsSettings>(`/launch-cards?audience=${audience}`, token, 'PUT', { cards }),
 }
