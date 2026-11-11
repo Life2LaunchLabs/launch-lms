@@ -369,7 +369,7 @@ const LoginClient = (props: LoginClientProps) => {
                 {t('auth.sign_up')}
               </button>
             ) : (
-              <Link href="/signup" className="font-semibold text-gray-950 hover:underline">
+              <Link href={nextUrl ? `/signup?next=${encodeURIComponent(nextUrl)}` : '/signup'} className="font-semibold text-gray-950 hover:underline">
                 {t('auth.sign_up')}
               </Link>
             )}
