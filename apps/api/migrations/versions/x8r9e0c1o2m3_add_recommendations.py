@@ -1,7 +1,7 @@
 """Suggestions: the event log the engine learns from, and each life-plan phase's Library list
 
 Revision ID: x8r9e0c1o2m3
-Revises: x1n2t3f4y5e6
+Revises: x8w9i0f1e2t3
 Create Date: 2026-11-11
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "x8r9e0c1o2m3"
-down_revision = "x1n2t3f4y5e6"
+down_revision = "x8w9i0f1e2t3"
 branch_labels = None
 depends_on = None
 
