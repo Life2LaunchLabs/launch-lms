@@ -15,6 +15,7 @@ import AuthLayout from '@components/Auth/AuthLayout'
 import AskToJoin from './AskToJoin'
 import InviteCard, { usePrefillInvitedEmail, useInvitePreview } from './InviteCard'
 import type { InvitePreview } from '@services/organizations/invites'
+import { invitationSiteSlug } from '@services/routing/inviteSite'
 
 interface SignUpClientProps {
   org: any
@@ -33,6 +34,15 @@ function SignUpClient(props: SignUpClientProps) {
   const previewState = useInvitePreview(props.org?.id, invitationToken, inviteCode)
   const preview = previewState ?? null
   usePrefillInvitedEmail(preview)
+  // The link opened on another organization's site: continue on the invitation's own, signed in if they are.
+  const moveTo = invitationSiteSlug(preview, props.org?.slug)
+  React.useEffect(() => {
+    if (!moveTo || session?.status === 'loading') return
+    window.location.replace(authenticatedOrgHref(getUriWithOrg(moveTo, `/signup${window.location.search}`), session?.status === 'authenticated'))
+  }, [moveTo, session?.status])
+  if (moveTo) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>
+  }
   const card = preview ? <InviteCard preview={preview} /> : null
 
   return (

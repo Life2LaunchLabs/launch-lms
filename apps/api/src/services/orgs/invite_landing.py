@@ -25,11 +25,12 @@ def preview(db: Session, org_id: int, invitation: str | None = None, invite_code
     if org is None or not (invitation or invite_code):
         raise HTTPException(status_code=404, detail="Invitation not found")
     if invitation:
-        found = db.exec(select(OrganizationInvitation).where(
-            OrganizationInvitation.org_id == org_id, OrganizationInvitation.invitation_uuid == invitation,
-        )).first()
+        found = db.exec(select(OrganizationInvitation).where(OrganizationInvitation.invitation_uuid == invitation)).first()
         if found is None:
             raise HTTPException(status_code=404, detail="Invitation not found")
+        # A link opened on another organization's site (the email named the inviter's site, e.g. the
+        # main one): the card names the invitation's own organization, and the page moves there.
+        org = db.get(Organization, found.org_id) or org
         expired = found.status == "pending" and found.expires_at <= datetime.utcnow()
         status = "expired" if expired else found.status
         from src.services.orgs import staff_setup

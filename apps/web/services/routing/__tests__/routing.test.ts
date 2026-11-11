@@ -10,6 +10,7 @@ import { hasRoutableSession, SERVER_AUTH_HEADERS } from '../../auth/sessionCooki
 import { NextRequest } from 'next/server.js'
 import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
 import { signedInLanding } from '../signedInLanding.ts'
+import { invitationSiteSlug } from '../inviteSite.ts'
 
 function unsignedToken(exp: number): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -818,6 +819,15 @@ test('after signing in on an org address, its staff land on its admin', () => {
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'main', side: 'learner' })
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'other' } }), { orgslug: 'other', side: 'admin' })
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'gone' } }), { orgslug: 'acme', side: 'admin' })
+})
+
+test('an invitation opened on another site moves to its own organization (FEED-83)', () => {
+  const invitation = { kind: 'invitation', org: { slug: 'acme' } }
+  assert.equal(invitationSiteSlug(invitation, 'main'), 'acme')
+  assert.equal(invitationSiteSlug(invitation, 'acme'), null)
+  assert.equal(invitationSiteSlug({ kind: 'link', org: { slug: 'acme' } }, 'main'), null)
+  assert.equal(invitationSiteSlug(null, 'main'), null)
+  assert.equal(invitationSiteSlug(undefined, 'main'), null)
 })
 
 test('request policy lets a signed-in visitor open an invitation link instead of sending them home', () => {
