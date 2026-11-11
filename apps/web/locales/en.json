@@ -4476,7 +4476,9 @@
       "add_your_first_value": "Add your first {{value}}",
       "covers_covers_of_of": "Covers {{covers}} of {{of}}",
       "step_value_of_length": "Step {{value}} of {{length}}",
-      "v_learners": "learners"
+      "v_learners": "learners",
+      "planning_for_yourself": "Planning your own future?",
+      "go_to_your_own_space": "Go to your own space"
     },
     "tier_compare": {
       "for_one_person_helping_a": "For one person helping a few learners.",
