@@ -22,8 +22,8 @@ from src.services.requirement_documents.models import requirement_framework_json
 from src.services.oauth.server import AccessContext
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
-SERVER_INFO = {"name": "launch-lms", "title": "Launch LMS", "version": "1.1.0"}
-INSTRUCTIONS = """Launch LMS holds plans, the requirements they count toward, and the badges they earn. Everything belongs to an organization: tools act in the organization chosen when connecting; list_organizations shows every organization this admin manages, and any tool takes `org` (a slug) to act in another one. Say which organization you are working in when it is not the default.
+SERVER_INFO = {"name": "launch-lms", "title": "Life2Launch", "version": "1.1.0"}
+INSTRUCTIONS = """Life2Launch holds plans, the requirements they count toward, and the badges they earn. Everything belongs to an organization: tools act in the organization chosen when connecting; list_organizations shows every organization this admin manages, and any tool takes `org` (a slug) to act in another one. Say which organization you are working in when it is not the default.
 
 Requirement frameworks (standards, competencies, state mandates) are hierarchies of requirement nodes. Turn a requirements write-up into one with get_requirement_framework_schema, validate_requirement_framework and create_requirement_framework (or edit an existing one from list_requirement_frameworks / get_requirement_framework). Frameworks are versioned: saves edit a draft; publish_requirement_framework only when the admin asks.
 
@@ -54,7 +54,7 @@ RESOURCES = [
         "uri": "launch-lms://activity-document/guide",
         "name": "activity-authoring-guide",
         "title": "Activity authoring guide",
-        "description": "How Launch LMS activities, blocks, questions and branches are written.",
+        "description": "How Life2Launch activities, blocks, questions and branches are written.",
         "mimeType": "text/markdown",
     },
     {
@@ -68,7 +68,7 @@ RESOURCES = [
         "uri": "launch-lms://plan-template-document/guide",
         "name": "plan-template-authoring-guide",
         "title": "Plan template authoring guide",
-        "description": "How Launch LMS plan templates (goal templates: stages of typed steps) are written.",
+        "description": "How Life2Launch plan templates (goal templates: stages of typed steps) are written.",
         "mimeType": "text/markdown",
     },
     {
@@ -82,7 +82,7 @@ RESOURCES = [
         "uri": "launch-lms://requirement-framework-document/guide",
         "name": "requirement-framework-authoring-guide",
         "title": "Requirement framework authoring guide",
-        "description": "How Launch LMS requirement frameworks, categories, numbering, rules and versions work.",
+        "description": "How Life2Launch requirement frameworks, categories, numbering, rules and versions work.",
         "mimeType": "text/markdown",
     },
     {
@@ -96,7 +96,7 @@ RESOURCES = [
         "uri": PREVIEW_APP_URI,
         "name": "activity-preview",
         "title": "Activity preview",
-        "description": "Interactive preview of an activity, rendered by the Launch LMS learner player.",
+        "description": "Interactive preview of an activity, rendered by the Life2Launch learner player.",
         "mimeType": APP_MIME_TYPE,
     },
 ]

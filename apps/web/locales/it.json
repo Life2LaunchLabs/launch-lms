@@ -43,11 +43,11 @@
     "help": "Aiuto",
     "help_menu": {
       "documentation": "Documentazione",
-      "website": "Sito web Launch LMS",
+      "website": "Sito web Life2Launch",
       "discord": "Discord",
       "report_feedback": "Segnala problema o feedback",
       "feedback_title": "Invia Feedback",
-      "feedback_description": "Aiutaci a migliorare Launch LMS condividendo i tuoi pensieri, segnalando bug o suggerendo nuove funzionalità.",
+      "feedback_description": "Aiutaci a migliorare Life2Launch condividendo i tuoi pensieri, segnalando bug o suggerendo nuove funzionalità.",
       "feedback_placeholder": "Dicci cosa pensi...",
       "feedback_success": "Grazie per il tuo feedback!",
       "send_feedback": "Invia Feedback",
@@ -431,14 +431,14 @@
     "import": {
       "scorm_package": "Pacchetto SCORM",
       "scorm_description": "Importa pacchetti SCORM 1.2 o SCORM 2004",
-      "launch-lms_courses": "Corsi Launch LMS",
-      "launch-lms_description": "Importa corsi esportati da Launch LMS",
+      "launch-lms_courses": "Corsi Life2Launch",
+      "launch-lms_description": "Importa corsi esportati da Life2Launch",
       "upload_package": "Carica Pacchetto",
       "configure": "Configura",
       "complete": "Completato",
       "click_to_upload": "Clicca per caricare o trascina",
-      "launch-lms_format": "Esportazione corso Launch LMS (.zip)",
-      "launch-lms_info": "Carica un pacchetto di esportazione corsi Launch LMS (.zip). Potrai selezionare quali corsi importare e configurare le opzioni di importazione.",
+      "launch-lms_format": "Esportazione corso Life2Launch (.zip)",
+      "launch-lms_info": "Carica un pacchetto di esportazione corsi Life2Launch (.zip). Potrai selezionare quali corsi importare e configurare le opzioni di importazione.",
       "analyze_package": "Analizza Pacchetto",
       "ready_to_analyze": "Pronto per l'analisi",
       "invalid_file_format": "Carica un file .zip",
@@ -1134,7 +1134,7 @@
           "description": "Configura le tue impostazioni personali, password, email"
         }
       },
-      "launch-lms_university": "Università Launch LMS"
+      "launch-lms_university": "Università Life2Launch"
     },
     "courses": {
       "title": "Corsi",
@@ -1144,8 +1144,8 @@
       "import_course": "Importa corso",
       "import_scorm": "Importa Pacchetto SCORM",
       "import_scorm_description": "Importa un pacchetto SCORM per creare un nuovo corso",
-      "import_launch-lms": "Importa Corsi Launch LMS",
-      "import_launch-lms_description": "Importa corsi da un pacchetto di esportazione Launch LMS",
+      "import_launch-lms": "Importa Corsi Life2Launch",
+      "import_launch-lms_description": "Importa corsi da un pacchetto di esportazione Life2Launch",
       "import_select_type": "Seleziona il tipo di pacchetto che vuoi importare",
       "no_courses": "Ancora nessun corso",
       "create_course_placeholder": "Crea un corso per aggiungere contenuti",

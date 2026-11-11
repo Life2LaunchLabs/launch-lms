@@ -43,11 +43,11 @@
     "help": "ヘルプ",
     "help_menu": {
       "documentation": "ドキュメント",
-      "website": "Launch LMS ウェブサイト",
+      "website": "Life2Launch ウェブサイト",
       "discord": "Discord",
       "report_feedback": "問題の報告またはフィードバック",
       "feedback_title": "フィードバックを送信",
-      "feedback_description": "ご意見の共有、バグの報告、新機能のご提案で Launch LMS の改善にご協力ください。",
+      "feedback_description": "ご意見の共有、バグの報告、新機能のご提案で Life2Launch の改善にご協力ください。",
       "feedback_placeholder": "お気づきの点をお聞かせください...",
       "feedback_success": "フィードバックありがとうございます！",
       "send_feedback": "フィードバックを送信",
@@ -440,14 +440,14 @@
     "import": {
       "scorm_package": "SCORMパッケージ",
       "scorm_description": "SCORM 1.2 または SCORM 2004 パッケージをインポート",
-      "launch-lms_courses": "Launch LMSコース",
-      "launch-lms_description": "Launch LMSからエクスポートしたコースをインポート",
+      "launch-lms_courses": "Life2Launchコース",
+      "launch-lms_description": "Life2Launchからエクスポートしたコースをインポート",
       "upload_package": "パッケージをアップロード",
       "configure": "設定",
       "complete": "完了",
       "click_to_upload": "クリックしてアップロードまたはドラッグ＆ドロップ",
-      "launch-lms_format": "Launch LMSコースエクスポート (.zip)",
-      "launch-lms_info": "Launch LMSコースエクスポートパッケージ (.zip) をアップロードします。インポートするコースを選択し、インポートオプションを設定できます。",
+      "launch-lms_format": "Life2Launchコースエクスポート (.zip)",
+      "launch-lms_info": "Life2Launchコースエクスポートパッケージ (.zip) をアップロードします。インポートするコースを選択し、インポートオプションを設定できます。",
       "analyze_package": "パッケージを分析",
       "ready_to_analyze": "分析準備完了",
       "invalid_file_format": ".zip ファイルをアップロードしてください",
@@ -1143,7 +1143,7 @@
           "description": "個人設定、パスワード、メールの構成"
         }
       },
-      "launch-lms_university": "Launch LMS University"
+      "launch-lms_university": "Life2Launch University"
     },
     "courses": {
       "title": "コース",
@@ -1153,8 +1153,8 @@
       "import_course": "コースをインポート",
       "import_scorm": "SCORMパッケージをインポート",
       "import_scorm_description": "SCORMパッケージをインポートして新しいコースを作成",
-      "import_launch-lms": "Launch LMSコースをインポート",
-      "import_launch-lms_description": "Launch LMSエクスポートパッケージからコースをインポート",
+      "import_launch-lms": "Life2Launchコースをインポート",
+      "import_launch-lms_description": "Life2Launchエクスポートパッケージからコースをインポート",
       "import_select_type": "インポートするパッケージの種類を選択",
       "no_courses": "コースがまだありません",
       "create_course_placeholder": "コースを作成してコンテンツを追加しましょう",

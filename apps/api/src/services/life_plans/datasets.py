@@ -179,7 +179,7 @@ COMPOSITES: list[dict] = [
     {
         "kind": "majors_map",
         "title": "Majors map",
-        "publisher": "Launch LMS (built by us)",
+        "publisher": "Life2Launch (built by us)",
         "description": "Links each of the Census's 174 college majors (the ACS field of degree) to the school program families (4-digit CIP codes) it covers. No official crosswalk exists, so we drafted it from matching names and the jobs graduates hold, then checked it by hand. Each Census major has one primary program and sometimes others it also covers.",
         "used_for": "One merged list of majors: a major page shows school programs, and, through this map, what jobs people with that Census major hold and what they earn.",
         "license": "Ours. Built from public-domain lists: Census ACS PUMS field of degree and NCES CIP 2020.",

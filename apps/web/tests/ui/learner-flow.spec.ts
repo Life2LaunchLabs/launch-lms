@@ -177,7 +177,7 @@ test('goals.path: pending work looks finished and activity plays without navigat
   await active.getByRole('button', { name: /^Practice activity(, |$)/ }).first().click()
   await active.getByRole('button', { name: 'Ask Coach', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Coach', exact: true })).toBeVisible()
-  const composer = page.getByLabel('Ask a question or search Launch LMS')
+  const composer = page.getByLabel('Ask a question or search Life2Launch')
   await expect(composer).toBeVisible()
   await composer.fill('A draft to keep while practicing')
   // Tuck Coach, then enter through the real activity action using client navigation.

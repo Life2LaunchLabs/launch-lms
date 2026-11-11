@@ -101,7 +101,7 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
       {conversationStarted ? <HubResourceTrayHandle resources={contextResources} onOpen={onOpenTray} /> : null}
       <form onSubmit={onSubmit} className="flex flex-col justify-end">
         <div className="hub-composer-shell rounded-[1.4rem] p-2">
-          <label htmlFor="hub-composer" className="sr-only">{tr('coach.hub_composer.ask_a_question_or_search', 'Ask a question or search Launch LMS')}</label>
+          <label htmlFor="hub-composer" className="sr-only">{tr('coach.hub_composer.ask_a_question_or_search', 'Ask a question or search Life2Launch')}</label>
           <div className="relative overflow-hidden rounded-xl">
             <Textarea
               ref={textareaRef}

@@ -43,11 +43,11 @@
     "help": "Hilfe",
     "help_menu": {
       "documentation": "Dokumentation",
-      "website": "Launch LMS Webseite",
+      "website": "Life2Launch Webseite",
       "discord": "Discord",
       "report_feedback": "Problem melden oder Feedback geben",
       "feedback_title": "Feedback senden",
-      "feedback_description": "Helfen Sie uns, Launch LMS zu verbessern, indem Sie Ihre Gedanken teilen, Fehler melden oder neue Funktionen vorschlagen.",
+      "feedback_description": "Helfen Sie uns, Life2Launch zu verbessern, indem Sie Ihre Gedanken teilen, Fehler melden oder neue Funktionen vorschlagen.",
       "feedback_placeholder": "Teilen Sie uns mit, was Sie denken...",
       "feedback_success": "Vielen Dank für Ihr Feedback!",
       "send_feedback": "Feedback senden",
@@ -468,14 +468,14 @@
     "import": {
       "scorm_package": "SCORM-Paket",
       "scorm_description": "SCORM 1.2 oder SCORM 2004 Pakete importieren",
-      "launch-lms_courses": "Launch LMS-Kurse",
-      "launch-lms_description": "Aus Launch LMS exportierte Kurse importieren",
+      "launch-lms_courses": "Life2Launch-Kurse",
+      "launch-lms_description": "Aus Life2Launch exportierte Kurse importieren",
       "upload_package": "Paket hochladen",
       "configure": "Konfigurieren",
       "complete": "Abgeschlossen",
       "click_to_upload": "Klicken zum Hochladen oder per Drag & Drop",
-      "launch-lms_format": "Launch LMS-Kursexport (.zip)",
-      "launch-lms_info": "Laden Sie ein Launch LMS-Kursexport-Paket (.zip) hoch. Sie können auswählen, welche Kurse importiert werden sollen, und Import-Optionen konfigurieren.",
+      "launch-lms_format": "Life2Launch-Kursexport (.zip)",
+      "launch-lms_info": "Laden Sie ein Life2Launch-Kursexport-Paket (.zip) hoch. Sie können auswählen, welche Kurse importiert werden sollen, und Import-Optionen konfigurieren.",
       "analyze_package": "Paket analysieren",
       "ready_to_analyze": "Bereit zur Analyse",
       "invalid_file_format": "Bitte laden Sie eine .zip-Datei hoch",
@@ -1272,7 +1272,7 @@
           "description": "Konfigurieren Sie Ihre persönlichen Einstellungen, Passwörter, E-Mail"
         }
       },
-      "launch-lms_university": "Launch LMS Universität"
+      "launch-lms_university": "Life2Launch Universität"
     },
     "courses": {
       "title": "Kurse",
@@ -1282,8 +1282,8 @@
       "import_course": "Kurs importieren",
       "import_scorm": "SCORM-Paket importieren",
       "import_scorm_description": "Ein SCORM-Paket importieren, um einen neuen Kurs zu erstellen",
-      "import_launch-lms": "Launch LMS-Kurse importieren",
-      "import_launch-lms_description": "Kurse aus einem Launch LMS-Exportpaket importieren",
+      "import_launch-lms": "Life2Launch-Kurse importieren",
+      "import_launch-lms_description": "Kurse aus einem Life2Launch-Exportpaket importieren",
       "import_select_type": "Wählen Sie den Pakettyp aus, den Sie importieren möchten",
       "no_courses": "Noch keine Kurse",
       "create_course_placeholder": "Erstellen Sie einen Kurs, um Inhalte hinzuzufügen",
@@ -3371,7 +3371,7 @@
   "embed": {
     "not_supported_description": "Diese Art von Aktivität erfordert eine Authentifizierung und kann nicht eingebettet werden.",
     "not_supported_title": "Diese Aktivität wird nicht unterstützt",
-    "powered_by": "Betrieben von Launch LMS",
+    "powered_by": "Betrieben von Life2Launch",
     "visit_activity": "Aktivitätsseite besuchen"
   },
   "analytics": {

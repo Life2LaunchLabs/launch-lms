@@ -11,7 +11,7 @@ router = APIRouter()
 def _unauthorized(error: str | None = None, description: str | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=401,
-        content={"error": error or "unauthorized", "error_description": description or "Connect Launch LMS to continue"},
+        content={"error": error or "unauthorized", "error_description": description or "Connect Life2Launch to continue"},
         headers={"WWW-Authenticate": www_authenticate(error, description)},
     )
 

@@ -263,7 +263,7 @@ TOOLS = [
     Tool(
         "search_library",
         "Search the global library",
-        "Search the plan templates or requirement frameworks published to the shared Launch LMS library.",
+        "Search the plan templates or requirement frameworks published to the shared Life2Launch library.",
         {"properties": {"kind": _LIBRARY_KIND, "query": {"type": "string"}}, "required": ["kind"]},
         goal_library.search_library,
         scope="plans:read",

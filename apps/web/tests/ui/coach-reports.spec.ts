@@ -16,7 +16,7 @@ test('coach.reports: a learner reports a Coach reply and the coaching team turns
   await page.goto(environment.hubPath)
   await assertActualApp(page)
   const opening = `thinking about quitting culinary school ${Date.now().toString(36)}`
-  await page.getByLabel('Ask a question or search Launch LMS').fill(opening)
+  await page.getByLabel('Ask a question or search Life2Launch').fill(opening)
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect(page.getByText('Thinking…')).toHaveCount(0, { timeout: 30_000 })
 

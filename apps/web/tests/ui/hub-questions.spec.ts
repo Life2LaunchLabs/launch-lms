@@ -11,7 +11,7 @@ test('hub.questions: Coach asks structured questions and the answers come back a
 
   await page.goto(environment.hubPath)
   await assertActualApp(page)
-  const composer = page.getByLabel('Ask a question or search Launch LMS')
+  const composer = page.getByLabel('Ask a question or search Life2Launch')
   await composer.fill('Ask me a few questions so you can help me plan')
   await page.getByRole('button', { name: 'Send message' }).click()
 

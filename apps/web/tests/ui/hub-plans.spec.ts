@@ -6,7 +6,7 @@ import { launchGoal, nameGoal } from './goalLaunch'
 const environment = loadUiTestEnvironment({ requireCredentials: false })
 
 async function askHub(page: import('@playwright/test').Page, prompt: string) {
-  const composer = page.getByLabel('Ask a question or search Launch LMS')
+  const composer = page.getByLabel('Ask a question or search Life2Launch')
   await expect(composer).toBeVisible()
   await composer.fill(prompt)
   await page.getByRole('button', { name: 'Send message' }).click()

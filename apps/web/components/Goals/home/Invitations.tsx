@@ -27,7 +27,7 @@ export default function Invitations({ token }: { token?: string }) {
     {orgGoals.map((goal) => <div key={goal.goal_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
       <div className="min-w-0 flex-1">
         <p className="font-bold">{goal.title}</p>
-        <p className="text-sm text-muted-foreground">{goal.organization?.name || tr('goals.invitations.launch_lms', 'Launch LMS')}</p>
+        <p className="text-sm text-muted-foreground">{goal.organization?.name || tr('goals.invitations.launch_lms', 'Life2Launch')}</p>
       </div>
       <Button size="sm" variant="ghost" disabled={busy === goal.goal_uuid} onClick={() => void respondGoal(goal, false)}>{tr('goals.invitations.decline', 'Decline')}</Button>
       <Button size="sm" variant="brand" disabled={busy === goal.goal_uuid} onClick={() => void respondGoal(goal, true)}>{tr('goals.invitations.accept', 'Accept')}</Button>
@@ -35,7 +35,7 @@ export default function Invitations({ token }: { token?: string }) {
     {invitations.map((invite) => <div key={invite.invitation_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
       <div className="min-w-0 flex-1">
         <p className="font-bold">{invite.goal.title}</p>
-        <p className="text-sm text-muted-foreground">{invite.organization?.name || invite.invited_by?.name || invite.invited_by?.username || tr('goals.invitations.launch_lms', 'Launch LMS')}{invite.kind !== 'subject' ? tr('goals.invitations.help_as_name', ' · Help as {{name}}', { name: invite.role.name }) : ''}</p>
+        <p className="text-sm text-muted-foreground">{invite.organization?.name || invite.invited_by?.name || invite.invited_by?.username || tr('goals.invitations.launch_lms', 'Life2Launch')}{invite.kind !== 'subject' ? tr('goals.invitations.help_as_name', ' · Help as {{name}}', { name: invite.role.name }) : ''}</p>
       </div>
       <Button size="sm" variant="ghost" disabled={busy === invite.invitation_uuid} onClick={() => void respond(invite.invitation_uuid, false)}>{tr('goals.invitations.decline', 'Decline')}</Button>
       <Button size="sm" variant="brand" disabled={busy === invite.invitation_uuid} onClick={() => void respond(invite.invitation_uuid, true)}>{tr('goals.invitations.accept', 'Accept')}</Button>

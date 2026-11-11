@@ -22,7 +22,7 @@ _HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Launch LMS preview</title>
+<title>Life2Launch preview</title>
 <style>
   :root { color-scheme: light dark; font-family: var(--font-sans, system-ui, -apple-system, sans-serif); }
   html, body { margin: 0; height: 100%; background: transparent; }
@@ -37,7 +37,7 @@ _HTML = """<!doctype html>
 </head>
 <body>
 <div id="shell">
-  <div id="bar"><span id="title">Launch LMS preview</span><span class="spacer"></span>
+  <div id="bar"><span id="title">Life2Launch preview</span><span class="spacer"></span>
     <button id="open" type="button" hidden>Open in new tab</button>
     <button id="full" type="button" hidden>Full screen</button></div>
   <div id="status">Preparing preview…</div>
@@ -73,7 +73,7 @@ _HTML = """<!doctype html>
       return;
     }
     if (new URL(data.embed_url).origin !== PREVIEW_ORIGIN) {
-      statusEl.textContent = "Preview link is not from this Launch LMS site.";
+      statusEl.textContent = "Preview link is not from this Life2Launch site.";
       return;
     }
     previewUrl = data.preview_url;
@@ -145,7 +145,7 @@ _HTML = """<!doctype html>
 
   request("ui/initialize", {
     protocolVersion: "2026-01-26",
-    appInfo: { name: "Launch LMS activity preview", version: "1.0.0" },
+    appInfo: { name: "Life2Launch activity preview", version: "1.0.0" },
     appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
   }).then((result) => {
     const modes = (result && result.hostContext && result.hostContext.availableDisplayModes) || [];

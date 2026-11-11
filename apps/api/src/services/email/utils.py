@@ -144,7 +144,7 @@ def send_email(to: EmailStr, subject: str, body: str, *, idempotency_key: str | 
         return captured
     lh_config = get_launchlms_config()
     mailing = lh_config.mailing_config
-    sender = f"Launch LMS <{mailing.system_email_address}>"
+    sender = f"Life2Launch <{mailing.system_email_address}>"
 
     if mailing.email_provider == "smtp":
         try:
