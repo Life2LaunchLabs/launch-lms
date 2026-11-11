@@ -47,10 +47,15 @@ IGNORED_COLUMNS = {("badge_award", "creator_org_id")}
 # Writes a test world never makes: they publish, bill or hand out access beyond the cohort.
 # Discover listings are allowed (Discover shows a test org's listings only to its own run), and so
 # are access requests: a platform admin approves a test org's partner application as a real one's.
+# Connected apps (OAuth) are allowed: a persona's grant names the persona and the org it was given
+# for, so the seal keeps it inside the cohort, and STRICT_ORG_COLUMNS keeps it off the main org.
 TEST_FORBIDDEN_TABLES = {
     "paymentsconfig", "paymentsoffer", "paymentsenrollment",
-    "apitoken", "oauthgrant", "oauthauthorizationcode", "ssoconnection",
+    "apitoken", "ssoconnection",
 }
+# Org columns that hand out access to that org: here the main org counts as real, not shared, so a
+# persona can connect an app only to its own test org.
+STRICT_ORG_COLUMNS = {("oauthgrant", "org_id"), ("oauthauthorizationcode", "org_id")}
 TEST_FORBIDDEN_COLUMNS = {("goal_template", "library_published_at")}
 # A persona can't change who it is: no new address, password or platform role.
 PERSONA_LOCKED_COLUMNS = ("email", "password", "is_superadmin")
@@ -149,7 +154,7 @@ def collect(session: Session, table, get, row: _Row, follow: bool = True, strict
             row.users.add(int(value))
     for name in orgs:
         if (value := get(name)) is not None:
-            (row.strict_orgs if strict else row.orgs).add(int(value))
+            (row.strict_orgs if strict or (table.name, name) in STRICT_ORG_COLUMNS else row.orgs).add(int(value))
     if (email_column := EMAIL_COLUMNS.get(table.name)) and (email := get(email_column)):
         row.emails.add(str(email).strip().lower())
     if not follow:
