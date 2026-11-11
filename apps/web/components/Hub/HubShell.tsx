@@ -10,6 +10,7 @@ import type { Resource } from '@services/resources/resources'
 import { HubContext, type HubCoachIntent, type HubCoachState, type HubContextValue, type HubEditContinuation, type HubEditReviewItem, type HubSurface, type HubTab } from './HubContext'
 import HubConversation from './conversation/HubConversation'
 import useHubGestures from './useHubGestures'
+import { tuckOnNavigation } from './hubLayout'
 import { tr } from '@/lib/tr'
 import './hub.css'
 
@@ -115,6 +116,17 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
   const toggle = useCallback(() => (state === 'open' && tab === 'coach' ? tuck() : open()), [open, state, tab, tuck])
   const attach = useCallback((resource: Resource) => open({ resource: resource.resource_uuid }), [open])
   const onReply = useCallback(() => setUnread((current) => current || state !== 'open'), [state])
+
+  // On a phone, moving to another page (the tab bar, a link) puts Coach back so the page shows.
+  // This runs before the URL hand-off below, so a link that asks for Coach still opens it.
+  const lastPath = useRef<string | null>(null)
+  useEffect(() => {
+    const from = lastPath.current
+    lastPath.current = pathname
+    // The route is the external change here: Coach steps aside for the page that was opened.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (tuckOnNavigation({ phone, state, from, to: pathname })) tuck()
+  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Other pages and old links hand work to Coach through the URL; take it once and tidy the URL.
   useEffect(() => {
