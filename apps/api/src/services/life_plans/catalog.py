@@ -3,7 +3,8 @@
 An item names the metric its estimate comes from, if any. Items without a metric
 still work: the learner enters their own number. Settings are the knobs that pick
 which fact applies (bedrooms) or turn a fact into a monthly amount (hours a week,
-how many people share the rent).
+how many people share the rent). `resources` names the resource tags (with weights) whose links help the
+learner find their number, shown on the line (aid_resources.py).
 """
 
 from __future__ import annotations
@@ -31,8 +32,8 @@ ITEMS = [
     {"key": "job", "cat": "work", "title": "A job", "icon": "briefcase", "metric": "wage", "settings": [{"key": "soc", "title": "Job", "kind": "occupation"}], "hourly": True},
     {"key": "side_gig", "cat": "work", "title": "Side gig", "icon": "sparkles"},
     {"key": "family_help", "cat": "aid", "title": "Help from family", "icon": "users"},
-    {"key": "grant", "cat": "aid", "title": "Grant", "icon": "award"},
-    {"key": "scholarship", "cat": "aid", "title": "Scholarship", "icon": "medal"},
+    {"key": "grant", "cat": "aid", "title": "Grant", "icon": "award", "resources": {"Grants": 3, "FAFSA": 2, "Financial aid": 1}},
+    {"key": "scholarship", "cat": "aid", "title": "Scholarship", "icon": "medal", "resources": {"Scholarships": 3, "Financial aid": 1}},
     {"key": "allowance", "cat": "aid", "title": "Allowance", "icon": "piggy-bank"},
     # Home
     {"key": "rent", "cat": "home", "title": "Rent", "icon": "house", "metric": "rent", "settings": [BEDROOMS, SHARE]},

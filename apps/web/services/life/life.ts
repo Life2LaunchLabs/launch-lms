@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+import type { Resource } from '@services/resources/resources'
 
 export const lifeUrl = (path = '') => `${getAPIUrl()}life${path}`
 
@@ -120,7 +121,8 @@ export interface Estimate {
 export interface EstimateQuery { id: string; metric: string; place?: string | null; dims: Record<string, any> }
 
 export interface Setting { key: string; title: string; kind: 'choice' | 'occupation'; default?: any; choices?: [any, string][] }
-export interface CatalogItem { key: string; cat: string; title: string; icon: string; metric?: string; settings?: Setting[]; hourly?: boolean }
+/** `resources`: resource tags (with weights) whose links help find the number, shown on the line. */
+export interface CatalogItem { key: string; cat: string; title: string; icon: string; metric?: string; settings?: Setting[]; hourly?: boolean; resources?: Record<string, number> }
 export interface Category { key: string; side: Side; title: string; icon: string; expected?: boolean }
 export interface Catalog {
   categories: Category[]
@@ -161,6 +163,9 @@ export const lifeApi = {
   school: (unitid: string, token?: string) => request<{ school: School }>(lifeUrl(`/schools/${q(unitid)}`), token),
   metrics: (place: string | null | undefined, token?: string) => request<{ metrics: string[] }>(lifeUrl(`/metrics${place ? `?place=${q(place)}` : ''}`), token),
   estimates: (queries: EstimateQuery[], token?: string) => request<{ estimates: Record<string, Estimate | null> }>(lifeUrl('/estimates'), token, 'POST', { queries }),
+  /** Resources that help find a line's number (grant aid, scholarships), best fit for the phase's state first. */
+  lineResources: (item: string, orgId: number | null | undefined, place: string | null | undefined, token?: string) =>
+    request<{ resources: Resource[]; state: string | null }>(lifeUrl(`/lines/${q(item)}/resources?${[orgId ? `org_id=${orgId}` : '', place ? `place=${q(place)}` : ''].filter(Boolean).join('&')}`), token),
 }
 
 /** A source of estimate facts or catalog entries (careers, schools), with how many it has by status, for platform admins. */
