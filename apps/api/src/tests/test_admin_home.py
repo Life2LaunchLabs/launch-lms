@@ -62,7 +62,9 @@ def test_staff_home_is_built_from_their_permissions_and_assignments():
         assert items[1]["date"] == TODAY + timedelta(days=6) and items[1]["counts"]["learners"] == 2
 
         # The hand-in waits in the learner's thread.
-        assert any(row["kind"] == "person" and row["counts"]["turn_ins"] == 1 for row in home["needs"]["rows"])
+        handed = next(row for row in home["needs"]["rows"] if row["kind"] == "person" and row["counts"]["turn_ins"] == 1)
+        # It carries that hand-in, so the row opens its review rather than the thread.
+        assert handed["review"]["assignment_uuid"] == uuid and handed["review"]["step_key"] == ESSAY["key"] and handed["review"]["step_uuid"]
 
         steps = home["first_steps"]
         assert steps["kind"] == "staff" and [step["key"] for step in steps["steps"]] == ["profile", "brief", "try", "hello", "review"]

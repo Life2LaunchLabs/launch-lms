@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { BarChart3, Bell, Building2, Check, GraduationCap, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
+import { BarChart3, Bell, Building2, Check, ClipboardCheck, GraduationCap, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { ChatMessage, ChatTopic, InvitationCard, MessageRef, ProgressCard, StepReminderCard } from '@services/connect/connect'
@@ -17,6 +17,10 @@ import { PlanTag, StepMark } from './tags'
 import { tr } from '@/lib/tr'
 const VERBS: Record<string, string> = { get finished() { return tr('lit.chat_cards.finished', 'Finished') }, get turned_in() { return tr('lit.chat_cards.turned_in', 'Turned in') }, get approved() { return tr('lit.chat_cards.approved', 'Approved') }, get changes() { return tr('lit.chat_cards.asked_for_changes', 'Asked for changes') }, get marked_done() { return tr('lit.chat_cards.marked_done', 'Marked done') }, get excused() { return tr('lit.step_text.excused', 'Excused') } }
 const ANSWERED: Record<string, string> = { get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get declined() { return tr('lit.chat_cards.declined', 'Declined') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') }, get revoked() { return tr('lit.chat_cards.withdrawn', 'Withdrawn') } }
+
+/** Where a step waiting on review opens its review, for staff who review it; undefined when the viewer doesn't. */
+// eslint-disable-next-line no-unused-vars
+export const ReviewLinks = React.createContext<((goalUuid: string, stepUuid: string) => string | undefined) | undefined>(undefined)
 
 /** A card the app posted into the chat, or null for an ordinary message. */
 // eslint-disable-next-line no-unused-vars
@@ -143,6 +147,7 @@ function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCa
 // eslint-disable-next-line no-unused-vars
 function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; who: string; time: string; topic?: ChatTopic; onTag: (ref: MessageRef) => void }) {
   const progress = topic?.progress
+  const reviewLink = React.useContext(ReviewLinks)
   const statuses = topic?.steps.map((item) => item.status === 'completed' || item.status === 'excused' ? 'done' : item.status === 'submitted' ? 'review' : item.behind ? 'behind' : 'todo') || []
   // The app's own note, so it sits on the surface without a bubble, as Coach's replies do.
   return <div className="w-full max-w-[460px] py-0.5">
@@ -158,7 +163,12 @@ function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; w
         <button type="button" onClick={() => onTag({ kind: 'step', key: `step:${card.goal_uuid}/${event.step_uuid}`, goal_uuid: card.goal_uuid, step_uuid: event.step_uuid, title: event.title, plan_title: card.goal_title, status })}
           className="min-w-0 truncate text-left hover:underline">{event.title}</button>
         {card.events.length > 1 ? <span className="shrink-0 text-xs text-muted-foreground">{VERBS[event.event]}</span> : null}
-        {status === 'submitted' ? <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{tr('connect.chat_cards.awaiting_review', 'Awaiting review')}</span> : null}
+        {status === 'submitted' ? (() => {
+          // Staff who review it go straight to the review (the work, Send back and Approve); anyone else sees where it stands.
+          const href = reviewLink?.(card.goal_uuid, event.step_uuid)
+          return href ? <Link href={href} className="ml-auto flex h-7 shrink-0 items-center gap-1 rounded-full bg-foreground px-3 text-xs font-bold text-background hover:opacity-90"><ClipboardCheck size={13} aria-hidden="true" />{tr('connect.chat_cards.review', 'Review')}</Link>
+            : <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{tr('connect.chat_cards.awaiting_review', 'Awaiting review')}</span>
+        })() : null}
       </div>
       {event.note ? <p className="ml-6 mt-0.5 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-xs text-muted-foreground">{event.note}</p> : null}
       </li>

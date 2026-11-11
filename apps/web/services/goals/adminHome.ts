@@ -3,6 +3,7 @@ import type { AssignmentListItem, AssignmentPerson, AssignmentRole, AssignmentTa
 import type { CardOutcome, DashboardCard, Scope } from '@services/insights/insights'
 import type { StaffPermission } from '@services/organizations/membership'
 import type { FeedRow, PinnedRow } from '@services/school/people'
+import type { ReviewItem } from '@services/school/threads'
 import { goalAdminUrl } from './admin'
 import type { GoalIcon, StepCompleter, StepTypeKey } from './types'
 
@@ -64,7 +65,8 @@ export interface StaffFirstSteps {
 export type FirstSteps = AdminFirstSteps | StaffFirstSteps
 
 /** A Threads row with something waiting on the viewer, or the staff or organization thread with something unread. */
-export type NeedsRow = Omit<FeedRow, 'kind' | 'total' | 'counts'> & { kind: FeedRow['kind'] | PinnedRow['kind']; title?: string; total: number; counts: { messages: number; turn_ins: number; approvals: number } }
+/** `review`: the oldest hand-in waiting on the viewer in that thread, when there is one. */
+export type NeedsRow = Omit<FeedRow, 'kind' | 'total' | 'counts'> & { kind: FeedRow['kind'] | PinnedRow['kind']; title?: string; total: number; counts: { messages: number; turn_ins: number; approvals: number }; review?: ReviewItem }
 
 export type HomeAssignmentRow = AssignmentListItem & { my_role: AssignmentRole | null }
 
