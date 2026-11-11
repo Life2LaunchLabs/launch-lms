@@ -22,6 +22,6 @@ test('the checklist names what the page still needs before listing', () => {
 
 test('a name links to the organization page only when the page is listed', () => {
   expect(orgPageHref('acme', { slug: 'crew', name: 'Crew', listed: true })).toContain('/organization/crew')
-  expect(orgPageHref('acme', { slug: 'crew', name: 'Crew', listed: false })).toBeNull()
-  expect(orgPageHref('acme', null)).toBeNull()
+  expect(orgPageHref('acme', { slug: 'crew', name: 'Crew', listed: false })).toBe(null)
+  expect(orgPageHref('acme', null)).toBe(null)
 })
