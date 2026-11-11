@@ -149,6 +149,24 @@ def test_the_plan_page_is_public_for_a_plan_with_a_badge_and_lists_who_offers_it
         assert [card["org"]["id"] for card in plan_joining.plan_page(db, AnonymousUser(), first.template_uuid, PARTNER)["offers"]] == [PARTNER]
 
 
+def test_an_organizations_open_plan_reaches_its_own_learners_on_the_main_site():
+    # FEED-109: an organization without a site of its own set a plan to "Open to everyone"; on the main site's Discover
+    # its learners didn't find it, and its plan page said nobody offers it.
+    db, (_, second) = _setup()
+    with db:
+        _offer(db, second, PARTNER, "open")
+        assert second.template_uuid not in _listed(db)  # not to everyone on the main site
+        assert second.template_uuid not in _listed(db, _user(NEWCOMER))  # nor to someone outside Partner
+        card = _listed(db, _user(LEARNER))[second.template_uuid]
+        assert card["org"]["id"] == PARTNER and card["access"] == "open" and card["state"] == "none"
+        page = plan_joining.plan_page(db, _user(LEARNER), second.template_uuid, 1)
+        assert [offer["org"]["id"] for offer in page["offers"]] == [PARTNER]
+        assert plan_joining.plan_page(db, _user(NEWCOMER), second.template_uuid, 1)["offers"] == []
+        joined = plan_joining.join(db, _user(LEARNER), second.template_uuid, PlanJoin(org_id=PARTNER))
+        assert joined["status"] == "joined"
+        assert _listed(db, _user(LEARNER)).get(second.template_uuid) is None  # now in Keep going, not the list
+
+
 def test_template_learners_shows_the_badge_and_is_the_running_orgs_own_setting():
     db, (first, _) = _setup()
     with db:
