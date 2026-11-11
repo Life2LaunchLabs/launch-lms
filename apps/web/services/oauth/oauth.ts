@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader } from '@services/utils/ts/requests'
+import { oauthErrorCode, oauthErrorMessage } from '@services/oauth/errors'
 
 export interface OAuthAuthorizationParams {
   client_id: string
@@ -12,12 +13,13 @@ export interface OAuthAuthorizationParams {
   resource?: string | null
 }
 
-// OAuth endpoints answer with RFC 6749 `{error, error_description}` bodies.
+// OAuth endpoints answer with RFC 6749 `{error, error_description}` bodies;
+// app-level checks answer with `{detail}` (see errors.ts).
 async function oauthResult(result: Response) {
   const body = await result.json().catch(() => ({}))
   if (!result.ok) {
-    const error: any = new Error(body.error_description || body.detail || 'The request could not be completed.')
-    error.code = body.error
+    const error: any = new Error(oauthErrorMessage(body))
+    error.code = oauthErrorCode(body)
     error.status = result.status
     throw error
   }
