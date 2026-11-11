@@ -12,7 +12,8 @@ const PENDING_PLAN = 'Organization invitation test'
 async function openChat(page: Page, title: string) {
   await page.goto(`${orgPath}/connect`)
   await assertActualApp(page)
-  await page.getByRole('region', { name: 'Chats' }).getByRole('link', { name: new RegExp(title) }).first().click()
+  // Match the row's title, not its preview: a preview can mention the same name ("A Life2Launch member invited you").
+  await page.getByRole('region', { name: 'Chats' }).getByRole('link').filter({ has: page.getByText(title, { exact: true }) }).first().click()
   await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
   // Nothing on the page scrolls sideways, on desktop or phone.
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
