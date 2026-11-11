@@ -190,12 +190,12 @@ def summary(name: str, result: dict) -> str | None:
     if name in {"create_dashboard", "save_dashboard"}:
         verb = "Created" if name == "create_dashboard" else ("Saved your own copy of" if result.get("copied") else "Saved")
         return (f"{verb} dashboard \"{result['title']}\" ({result['scope']}, {result['card_count']} cards, shared with {result['visibility']}). "
-                f"Revision: {result['revision']}. Open it in Launch LMS: {result['editor_url']}")
+                f"Revision: {result['revision']}. Open it in Life2Launch: {result['editor_url']}")
     if name == "capture_dashboard":
-        return f"Captured \"{result['title']}\" ({result.get('object_label') or result['scope']}). Open it in Launch LMS: {result['url']}"
+        return f"Captured \"{result['title']}\" ({result.get('object_label') or result['scope']}). Open it in Life2Launch: {result['url']}"
     if name == "save_capture_rule":
         state = f"next on {result['next_run_at']}" if result.get("enabled") and result.get("next_run_at") else "turned off"
-        return f"Scheduled captures of \"{result['title']}\": {result['summary']}, {state}. Manage them in Launch LMS: {result['insights_url']}"
+        return f"Scheduled captures of \"{result['title']}\": {result['summary']}, {state}. Manage them in Life2Launch: {result['insights_url']}"
     if name == "validate_dashboard" and not result.get("valid"):
         lines = "".join(f"\n{item.get('card', 'dashboard')}.{item.get('field', '')}: {item['message']}" for item in result["errors"])
         return f"The dashboard isn't valid:{lines}"

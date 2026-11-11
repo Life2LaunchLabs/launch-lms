@@ -349,7 +349,7 @@ const LaunchLMSLogo = () => {
   return (
     <Image
       src="/logo-text.svg"
-      alt="Launch LMS logo"
+      alt="Life2Launch logo"
       width={133}
       height={40}
       style={{ height: 'auto' }}
@@ -361,7 +361,7 @@ const LaunchLMSIcon = () => {
   return (
     <Image
       src="/logo-icon.svg"
-      alt="Launch LMS logo"
+      alt="Life2Launch logo"
       width={40}
       height={40}
       className="h-10 w-10"

@@ -18,7 +18,7 @@ async function load(orgslug: string, uuid: string) {
 export async function generateMetadata(props: PlanPageProps): Promise<Metadata> {
   const { orgslug, uuid } = await props.params
   const { org, page } = await load(orgslug, uuid)
-  if (!page) return { title: `Plan - ${org?.name || 'Launch LMS'}` }
+  if (!page) return { title: `Plan - ${org?.name || 'Life2Launch'}` }
   const seoConfig = getOrgSeoConfig(org)
   const title = buildPageTitle(page.title, org?.name, seoConfig)
   const fallbackImage = seoConfig.default_og_image ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image) : null

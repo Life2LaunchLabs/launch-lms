@@ -46,11 +46,11 @@
     "help": "Help",
     "help_menu": {
       "documentation": "Documentation",
-      "website": "Launch LMS Website",
+      "website": "Life2Launch Website",
       "discord": "Discord",
       "report_feedback": "Report Issue or Feedback",
       "feedback_title": "Send Feedback",
-      "feedback_description": "Help us improve Launch LMS by sharing your thoughts, reporting bugs, or suggesting new features.",
+      "feedback_description": "Help us improve Life2Launch by sharing your thoughts, reporting bugs, or suggesting new features.",
       "feedback_placeholder": "Tell us what's on your mind...",
       "feedback_success": "Thank you for your feedback!",
       "send_feedback": "Send Feedback",
@@ -317,14 +317,14 @@
     "create_free_account": "Create your free account",
     "continue": "Continue",
     "sign_in": "Sign in",
-    "agree_prefix": "By continuing, you agree to Launch LMS’s",
+    "agree_prefix": "By continuing, you agree to Life2Launch’s",
     "terms_of_service": "Terms of Service",
     "agree_and": "and",
     "privacy_policy": "Privacy Policy",
     "agree_suffix": ".",
     "name_you_go_by_optional": "Name you go by (optional)",
     "name_you_go_by": "Name you go by",
-    "age_required": "Launch LMS is for people 15 and older. Confirm your age to continue.",
+    "age_required": "Life2Launch is for people 15 and older. Confirm your age to continue.",
     "age_confirm": "I’m 15 or older"
   },
   "validation": {
@@ -501,14 +501,14 @@
     "import": {
       "scorm_package": "SCORM Package",
       "scorm_description": "Import SCORM 1.2 or SCORM 2004 packages",
-      "launch-lms_courses": "Launch LMS Courses",
-      "launch-lms_description": "Import courses exported from Launch LMS",
+      "launch-lms_courses": "Life2Launch Courses",
+      "launch-lms_description": "Import courses exported from Life2Launch",
       "upload_package": "Upload Package",
       "configure": "Configure",
       "complete": "Complete",
       "click_to_upload": "Click to upload or drag and drop",
-      "launch-lms_format": "Launch LMS course export (.zip)",
-      "launch-lms_info": "Upload a Launch LMS course export package (.zip). You'll be able to select which courses to import and configure import options.",
+      "launch-lms_format": "Life2Launch course export (.zip)",
+      "launch-lms_info": "Upload a Life2Launch course export package (.zip). You'll be able to select which courses to import and configure import options.",
       "analyze_package": "Analyze Package",
       "ready_to_analyze": "Ready to analyze",
       "invalid_file_format": "Please upload a .zip file",
@@ -1186,7 +1186,7 @@
     "not_supported_title": "This activity is not supported",
     "not_supported_description": "This type of activity requires authentication and cannot be embedded.",
     "visit_activity": "Visit Activity Page",
-    "powered_by": "Powered by Launch LMS"
+    "powered_by": "Powered by Life2Launch"
   },
   "assignments": {
     "submit_assignment": "Submit Assignment",
@@ -1557,7 +1557,7 @@
           "description": "Configure your personal settings, passwords, email"
         }
       },
-      "launch-lms_university": "Launch LMS Academy"
+      "launch-lms_university": "Life2Launch Academy"
     },
     "courses": {
       "title": "Courses",
@@ -1664,7 +1664,7 @@
         },
         "export": {
           "title": "Export Course",
-          "description": "Download this course as a ZIP file to back it up or import it into another Launch LMS instance.",
+          "description": "Download this course as a ZIP file to back it up or import it into another Life2Launch instance.",
           "button": "Export Course",
           "exporting": "Exporting..."
         },
@@ -4938,7 +4938,7 @@
       "previous_look": "Previous look",
       "next_look": "Next look",
       "your_look": "Your look",
-      "your_theme_for_all_of": "Your theme for all of Launchpad. Visitors see your portfolio in it too. Nothing moves when you change it.",
+      "your_theme_for_all_of": "Your theme for all of Life2Launch. Visitors see your portfolio in it too. Nothing moves when you change it.",
       "look": "Look",
       "you_haven_t_picked_one": "You haven’t picked one yet.",
       "wear_name": "Wear {{name}}",
@@ -5845,7 +5845,7 @@
       "could_not_respond_to_this": "Could not respond to this invitation",
       "goal_invitations": "Goal invitations",
       "invitations": "Invitations",
-      "launch_lms": "Launch LMS",
+      "launch_lms": "Life2Launch",
       "decline": "Decline",
       "accept": "Accept",
       "help_as_name": " · Help as {{name}}"
@@ -7113,7 +7113,7 @@
     "hub_composer": {
       "ready_to_review": "Ready to review",
       "review": "Review",
-      "ask_a_question_or_search": "Ask a question or search Launch LMS",
+      "ask_a_question_or_search": "Ask a question or search Life2Launch",
       "message_coach": "Message Coach",
       "add_a_resource_to_this": "Add a resource to this chat",
       "saved_resource": "Saved resource",

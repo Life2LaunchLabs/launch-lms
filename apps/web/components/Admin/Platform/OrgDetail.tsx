@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getOrgPublicPageUri, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -358,16 +358,6 @@ function OverviewTab({
 // Badges
 // ============================================================================
 
-function getFrontendDomain(): string {
-  if (typeof window === 'undefined') return 'localhost:3000'
-  return (
-    document.cookie
-      .split('; ')
-      .find((c) => c.startsWith('launchlms_frontend_domain='))
-      ?.split('=')[1] || 'localhost:3000'
-  )
-}
-
 function BadgesTab({
   orgId,
   accessToken,
@@ -380,7 +370,6 @@ function BadgesTab({
   const { searchParams, updateParams } = useUrlParams()
   const page = Number(searchParams.get('page')) || 1
   const setPage = (p: number) => updateParams({ tab: 'badges', page: p })
-  const domain = getFrontendDomain()
 
   const { data, isLoading } = useSWR(
     accessToken
@@ -405,8 +394,6 @@ function BadgesTab({
     )
   }
 
-  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:'
-
   return (
     <div className="bg-white border border-gray-100 rounded-xl nice-shadow overflow-hidden">
       <table className="w-full text-left">
@@ -425,7 +412,7 @@ function BadgesTab({
         <tbody>
           {items.map((item: any) => {
             // A badge is part of its plan: the plan's public page is also the badge's criteria page.
-            const planUrl = `${protocol}//${orgSlug}.${domain}/discover/plans/${item.template_uuid}`
+            const planUrl = getOrgPublicPageUri(orgSlug, routePaths.org.discoverPlan(item.template_uuid))
             return (
               <tr
                 key={item.template_uuid}

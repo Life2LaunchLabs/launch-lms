@@ -40,7 +40,7 @@ function DashMobileMenu() {
   const showPlatform = org?.slug === getDefaultOrg() && features.isSuperadmin
   const logo = org?.logo_image
     ? <OrgLogo org={org} surface="dark" alt={org?.name} className="h-8 w-8 rounded-lg object-contain" />
-    : <img src="/logo-icon.svg" alt="Launch LMS logo" className="h-8 w-8" />
+    : <img src="/logo-icon.svg" alt="Life2Launch logo" className="h-8 w-8" />
 
   return (
     <>

@@ -276,5 +276,5 @@ def summary(name: str, result: dict) -> str | None:
     warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
     return (
         f"{verb} plan template \"{document['template']['title']}\" ({stage_count} stages, {step_count} steps). "
-        f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
+        f"New etag: {result['etag']}. Review in Life2Launch: {result['editor_url']}{warnings}"
     )

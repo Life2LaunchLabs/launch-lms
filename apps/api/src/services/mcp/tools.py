@@ -26,7 +26,7 @@ def _summary(name: str, result: dict) -> str:
         document = result["document"]
         return (
             f"Saved \"{document['activity']['title']}\" ({len(document['pages'])} pages) in \"{result['context'].get('template_name')}\". "
-            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}"
+            f"New etag: {result['etag']}. Review in Life2Launch: {result['editor_url']}"
         )
     if (text := coach_mcp.summary(name, result)) is not None:
         return text
@@ -41,7 +41,7 @@ def _summary(name: str, result: dict) -> str:
         warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
         return (
             f"{verb} plan template \"{document['template']['name']}\" ({len(document['phases'])} phases, {objectives} objectives). "
-            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
+            f"New etag: {result['etag']}. Review in Life2Launch: {result['editor_url']}{warnings}"
         )
     if name in {"save_requirement_framework", "create_requirement_framework", "publish_requirement_framework"}:
         document, context = result["document"], result["context"]
@@ -49,7 +49,7 @@ def _summary(name: str, result: dict) -> str:
         warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
         return (
             f"{verb} requirement framework \"{document['framework']['name']}\" version {context['version']} ({context['status']}, {len(document['nodes'])} requirements). "
-            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
+            f"New etag: {result['etag']}. Review in Life2Launch: {result['editor_url']}{warnings}"
         )
     return json.dumps(result, ensure_ascii=False, default=str)
 
@@ -66,7 +66,7 @@ async def call_tool(request: Request, db_session: Session, ctx: AccessContext, n
     if tool is None:
         return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}
     if tool.scope not in ctx.scopes:
-        return {"content": [{"type": "text", "text": f"This connection was not granted {tool.scope}. Reconnect Launch LMS to allow it."}], "isError": True}
+        return {"content": [{"type": "text", "text": f"This connection was not granted {tool.scope}. Reconnect Life2Launch to allow it."}], "isError": True}
     args = dict(args or {})
     org_ref = args.pop("org", None) if tool.org_scoped else None
     if org_ref:

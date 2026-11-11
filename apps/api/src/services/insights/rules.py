@@ -293,7 +293,7 @@ def _body(org: Organization, capture: InsightCapture, link: str) -> str:
         {note}
         <ul>{lines}</ul>
         <p><a href="{link}">See it in full</a></p>
-        <p style="color:#777">Captured by {html.escape(org.name)} on a schedule in Launch LMS. Numbers under ten are hidden here.</p>
+        <p style="color:#777">Captured by {html.escape(org.name)} on a schedule in Life2Launch. Numbers under ten are hidden here.</p>
     </body>
 </html>
 """

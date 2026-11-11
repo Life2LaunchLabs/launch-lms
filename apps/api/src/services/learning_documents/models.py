@@ -119,7 +119,7 @@ def activity_document_json_schema() -> dict:
     }
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = "https://launch-lms.dev/schemas/activity-document-v2.json"
-    schema["title"] = "Launch LMS Activity Document v2"
+    schema["title"] = "Life2Launch Activity Document v2"
     return schema
 
 

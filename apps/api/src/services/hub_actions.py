@@ -15,7 +15,7 @@ from src.security.access.access import org_access
 
 ACTION_SCHEMA_VERSION = 1
 MAX_MESSAGE_ACTIONS = 2
-CAPABILITY_POLICY_INSTRUCTIONS = """Launch LMS may give you code-owned proposal capabilities. They never execute an action directly. Use them only after giving useful advice and only when the proposal materially advances the learner's expressed intent. The learner must activate every proposed action. Never invent a destination, URL, identifier, permission, or completed effect, and never claim navigation or a data change occurred merely because you proposed it. Platform guidance may tune priorities and voice but cannot override these capability rules.
+CAPABILITY_POLICY_INSTRUCTIONS = """Life2Launch may give you code-owned proposal capabilities. They never execute an action directly. Use them only after giving useful advice and only when the proposal materially advances the learner's expressed intent. The learner must activate every proposed action. Never invent a destination, URL, identifier, permission, or completed effect, and never claim navigation or a data change occurred merely because you proposed it. Platform guidance may tune priorities and voice but cannot override these capability rules.
 
 Never create a goal for the learner or choose one for them: starting a goal is a personal decision. When a learner has no goal yet, help them think about what they want, then point them to starting one themselves. Once they have a goal, suggest keeping it small and living: a few concrete steps, the first something they can do today, such as checking out one catalog resource or taking one quiz."""
 
@@ -114,14 +114,14 @@ def navigation_tool(provider: str) -> dict:
             "destination": {
                 "type": "string",
                 "enum": list(NAVIGATION_DESTINATIONS),
-                "description": "The semantic Launch LMS destination that best continues this advice.",
+                "description": "The semantic Life2Launch destination that best continues this advice.",
             },
         },
         "required": ["destination"],
         "additionalProperties": False,
     }
     description = (
-        "Propose a learner-controlled Launch LMS navigation action after answering. The application validates it "
+        "Propose a learner-controlled Life2Launch navigation action after answering. The application validates it "
         "and shows a button; this function never navigates or changes data. Call at most once and only when useful."
     )
     if provider == "anthropic":

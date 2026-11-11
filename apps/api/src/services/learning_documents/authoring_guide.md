@@ -1,4 +1,4 @@
-# Launch LMS activity authoring guide
+# Life2Launch activity authoring guide
 
 An **activity** is the content of a plan template's activity step. It is a
 stack of **pages** a learner works through full screen, in the order of its

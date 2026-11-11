@@ -4,13 +4,12 @@ import React from 'react'
 import toast from 'react-hot-toast'
 import { Copy, Link2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getOrgPublicPageUri, routePaths } from '@services/config/config'
 import type { LearnerAccess } from '@services/goals/templateLearners'
 
-/** The plan's Discover page on this organization's address, as a full link to send people. */
-export function planShareUrl(orgslug: string, templateUuid: string, origin: string): string {
-  // getUriWithOrg is already absolute on an organization's own host.
-  return new URL(getUriWithOrg(orgslug, routePaths.org.discoverPlan(templateUuid)), origin).toString()
+/** The plan's Discover page for this organization, as a full link to send people. */
+export function planShareUrl(orgslug: string, templateUuid: string): string {
+  return getOrgPublicPageUri(orgslug, routePaths.org.discoverPlan(templateUuid))
 }
 
 /** What someone opening the link can do, by who can start the plan here. */
@@ -29,7 +28,7 @@ export default function PlanShare({ orgslug, orgName, templateUuid, access, onVi
 }) {
   const [open, setOpen] = React.useState(false)
   const [href, setHref] = React.useState('')
-  React.useEffect(() => { if (open) setHref(planShareUrl(orgslug, templateUuid, window.location.origin)) }, [open, orgslug, templateUuid])
+  React.useEffect(() => { if (open) setHref(planShareUrl(orgslug, templateUuid)) }, [open, orgslug, templateUuid])
   const copy = async () => {
     try { await navigator.clipboard.writeText(href); toast.success('Link copied') } catch { toast.error('Couldn’t copy. Select the link and copy it.') }
   }
