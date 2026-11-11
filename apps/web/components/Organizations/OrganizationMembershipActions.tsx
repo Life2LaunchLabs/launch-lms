@@ -8,7 +8,8 @@ import toast from 'react-hot-toast'
 import { ArrowUpRight, Check, Loader2, LogIn, LogOut, Lock, ShieldCheck, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg } from '@services/config/config'
-import { authenticatedOrgHref } from '@services/auth/handoff'
+import { authenticatedOrgHref, openOrgPage } from '@services/auth/handoff'
+import { acceptedInvitePath } from '@services/routing/inviteSite'
 import {
   DiscoverOrganization,
   OrganizationInvitation,
@@ -118,6 +119,9 @@ export default function OrganizationMembershipActions({
     try {
       await invitationState.respond(invitation.invitation_uuid, accept)
       toast.success(accept ? 'Organization joined.' : 'Invitation declined.')
+      // Staff and admins who joined open the organization's welcome, then its admin home (FEED-84/95).
+      const path = accept ? acceptedInvitePath(invitation.role?.id) : null
+      if (path) return openOrgPage(getUriWithOrg(organization.slug, path), router.push)
       await refreshOrganizationState()
     } catch (error: any) {
       toast.error(error?.message || 'Could not update the invitation.')
