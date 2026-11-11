@@ -1,7 +1,8 @@
 """Personas: accounts made fresh by the console, on the test domain, with no usable password.
 
 Every persona joins the main (owner) org as a learner, like every account does at signup.
-An org-owner persona also gets a new test org they administer. Personas are never given
+An org-owner persona also gets a new test org they administer. A new_signup or org_creator
+persona starts like an account the front page's sign-up just made. Personas are never given
 staff or admin roles in a real org.
 """
 
@@ -24,11 +25,16 @@ from src.services.user_tests.cohorts import MAX_PERSONAS, get_cohort, is_open, p
 from src.services.user_tests.settings import email_domain
 
 
+StartState = Literal["has_account", "new_signup", "org_creator", "org_owner"]
+# Just made their account: they start with the profile a welcome signup gives (routers/auth.py).
+JUST_SIGNED_UP = ("new_signup", "org_creator")
+
+
 class CreatePersona(BaseModel):
     first_name: str = Field(min_length=1, max_length=60)
     last_name: str = Field(default="", max_length=60)
     brief: str = Field(default="", max_length=4000)
-    start_state: Literal["has_account", "new_signup", "org_owner"] = "has_account"
+    start_state: StartState = "has_account"
     org_name: str = Field(default="", max_length=100)
 
     @field_validator("first_name", "last_name", "brief", "org_name")
@@ -89,9 +95,13 @@ def record_org(db: Session, user_id: int | None, org_id: int | None, email: str 
 
 
 def _create_user(db: Session, cohort: TestCohort, body: CreatePersona, main_org_id: int) -> tuple[User, TestPersona]:
+    from src.services.auth.welcome import signup_profile
+
     handle = _unique_handle(db, cohort, body.first_name)
     username = _unique_username(db, f"{handle}-{cohort.slug}")
     now = str(datetime.now())
+    started_at = datetime.now(timezone.utc).isoformat()
+    just_signed_up = body.start_state in JUST_SIGNED_UP
     user = User(
         username=username,
         first_name=body.first_name,
@@ -103,6 +113,8 @@ def _create_user(db: Session, cohort: TestCohort, body: CreatePersona, main_org_
         email_verified=True,
         email_verified_at=datetime.now(timezone.utc).isoformat(),
         signup_method="test_persona",
+        details={"onboarding": {"started_at": started_at}} if just_signed_up else {},
+        profile=signup_profile(started_at) if just_signed_up else {},
         creation_date=now,
         update_date=now,
     )
