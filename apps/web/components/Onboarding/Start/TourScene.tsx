@@ -100,7 +100,7 @@ function Profile({ beat }: { beat: number }) {
     <div className="bg-gradient-to-b from-[#2F66D6] to-[#5B8DEF] px-5 pb-5 pt-10 text-center text-white">
       <motion.div {...at(1)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/25 text-xl font-black">{tr('onboarding.tour_scene.mr', 'MR')}</motion.div>
       <motion.b {...at(2)} className="mt-2 block text-lg">{tr('onboarding.tour_scene.maya_rivera', 'Maya Rivera')}</motion.b>
-      <motion.span {...at(2)} className="block text-xs text-white/80">{tr('onboarding.tour_scene.building_my_launch_class_of', 'Building my launch · Class of 2027')}</motion.span>
+      <motion.span {...at(2)} className="block text-xs text-white/80">{tr('onboarding.tour_scene.building_my_launch', 'Building my launch')}</motion.span>
     </div>
     <div className="space-y-2.5 p-4">
       <motion.div {...at(3)} className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3"><Target size={18} className="text-amber-600" />

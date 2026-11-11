@@ -2,6 +2,7 @@ import type { GoalAssignmentRequest } from '@services/goals/templates'
 import type { TemplateDocument } from '@services/goals/types'
 import type { AssignmentListItem, AssignmentRole } from './assignments'
 import type { StepDates } from './status'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * The assign flow's state and rules, apart from its screens: who it's for, the schedule, the
@@ -24,9 +25,9 @@ export interface StaffPick { id: number; name: string; role: AssignmentRole; ava
 
 export const ROLES: Record<AssignmentRole, string> = { lead: 'Lead', review: 'Review', comment: 'Comment' }
 export const ROLE_DO: Record<AssignmentRole, string> = {
-  lead: 'Changes dates, learners and settings. Reviews work.',
-  review: 'Reviews work and messages learners.',
-  comment: 'Messages learners and sees progress.',
+  get lead() { return inOrgWords('Changes dates, learners and settings. Reviews work.') },
+  get review() { return inOrgWords('Reviews work and messages learners.') },
+  get comment() { return inOrgWords('Messages learners and sees progress.') },
 }
 
 export type Pacing = 'pace' | 'sched'

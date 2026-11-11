@@ -6,8 +6,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Clock, Mail } from 'lucide-react'
 import { getInvitePreview, InvitePreview } from '@services/organizations/invites'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
+import { inOrgWords } from '@/lib/people'
 
-const ROLE = { learner: 'a learner', staff: 'staff', admin: 'an admin' }
+const ROLE = { get learner() { return inOrgWords('a learner') }, staff: 'staff', admin: 'an admin' }
 const CLOSED: Record<string, string> = {
   accepted: 'This invitation has already been used.',
   declined: 'This invitation was declined.',

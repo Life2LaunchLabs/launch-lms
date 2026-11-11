@@ -16,6 +16,7 @@ import { badgeKindLabel } from '@services/badges/badges'
 import { normalizeMediaUrl } from '@services/media/media'
 import { plural } from '@components/Plans/plan/planVersions'
 import { ByLine, OwnerCard, PlanAction, discoverCollectionHref, discoverHref, useDiscoverContext } from './parts'
+import { inOrgWords } from '@/lib/people'
 
 /** A plan another organization shares, as Discover shows it: its live steps, Add or Request, and who keeps it up to date. */
 export default function DiscoverPlanPage({ orgslug, templateUuid }: { orgslug: string; templateUuid: string }) {
@@ -54,7 +55,7 @@ export default function DiscoverPlanPage({ orgslug, templateUuid }: { orgslug: s
         {plan.status === 'none' ? <p className="mt-2.5 max-w-xl text-[13px] text-muted-foreground">{note(plan)}</p> : null}
         <div className="mb-3 mt-[30px] flex items-center justify-between gap-3 border-b border-border pb-2.5">
           <h2 className="text-xl font-bold tracking-tight">Steps</h2>
-          {plan.status === 'added' ? null : <span className="text-[13px] text-muted-foreground">Preview of what learners get</span>}
+          {plan.status === 'added' ? null : <span className="text-[13px] text-muted-foreground">{inOrgWords("Preview of what learners get")}</span>}
         </div>
         <div className="flex flex-col gap-2">
           {stages.map((stage, index) => <React.Fragment key={stage.key}>
@@ -68,7 +69,7 @@ export default function DiscoverPlanPage({ orgslug, templateUuid }: { orgslug: s
         {plan.badge ? <AsideCard icon={<Medal size={16} />} title="Badge">
           <div className="mt-3 flex items-center gap-3.5">
             <BadgeMedal badge={{ ...plan.badge, image_url: normalizeMediaUrl(plan.badge.image_url) || '' }} size={64} />
-            <span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(plan.badge.kind)}</span><b className="block truncate text-sm">{plan.badge.name}</b><span className="block text-[12.5px] leading-snug text-muted-foreground">Learners who finish every step earn it, with a certificate. Running the plan lets you award it.</span></span>
+            <span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(plan.badge.kind)}</span><b className="block truncate text-sm">{plan.badge.name}</b><span className="block text-[12.5px] leading-snug text-muted-foreground">{inOrgWords("Learners who finish every step earn it, with a certificate. Running the plan lets you award it.")}</span></span>
           </div>
         </AsideCard> : null}
         {plan.frameworks.length ? <AsideCard icon={<ListChecks size={16} />} title="Requirements">

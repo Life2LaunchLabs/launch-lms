@@ -14,6 +14,7 @@ import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/actions'
 import PlanDialog, { ToggleRow } from './PlanDialog'
 import { plural, semverProblem, versionLabel } from './planVersions'
+import { inOrgWords } from '@/lib/people'
 
 type Props = {
   open: boolean
@@ -88,7 +89,7 @@ export default function PublishFlow({ open, setOpen, orgId, token, editing, chan
           : <p className="text-[13px] text-muted-foreground">{changes.summary.stages_changed ? 'Only stage changes.' : 'No step changes.'}</p>}
       </div>
       <ToggleRow title="Make it the live version" checked={makeLive} onChange={setMakeLive}
-        detail={live ? learners ? `${plural(learners, 'learner')} in progress move to v${semver || draft.semver} and keep their answers. Anyone who finished stays complete.` : `It replaces ${versionLabel(live)} for anyone you assign it to.` : 'Then you can start assigning it.'} />
+        detail={live ? learners ? inOrgWords(`${plural(learners, 'learner')} in progress move to v${semver || draft.semver} and keep their answers. Anyone who finished stays complete.`) : `It replaces ${versionLabel(live)} for anyone you assign it to.` : 'Then you can start assigning it.'} />
       <p className="text-[12.5px] text-muted-foreground">Once published, this version is locked. Future changes go in a new draft.</p>
     </div>
   </PlanDialog>
@@ -113,7 +114,7 @@ function Celebration({ open, setOpen, title, done, canAssign, templateUuid, onVi
 }) {
   const detail = !done.live ? 'It’s locked and in the version list. Make it live whenever you’re ready.'
     : done.first ? 'You built a plan. Now put it in someone’s hands.'
-    : done.moved ? `${plural(done.moved, 'learner plan')} moved to it and kept their answers. Anyone who finished stays complete.` : 'New assignments get this version.'
+    : done.moved ? inOrgWords(`${plural(done.moved, 'learner plan')} moved to it and kept their answers. Anyone who finished stays complete.`) : 'New assignments get this version.'
   return <PlanDialog open={open} onOpenChange={setOpen} bare title={`v${done.semver} published`}
     footer={<button type="button" className={smallGhostClass + ' h-10 px-4 text-sm'} onClick={() => setOpen(false)}>Back to plan</button>}>
     <div className="relative overflow-hidden px-[26px] pb-[26px] pt-[34px] text-center" data-testid="plan-published">
@@ -126,11 +127,11 @@ function Celebration({ open, setOpen, title, done, canAssign, templateUuid, onVi
       {done.live && (canAssign || onVisibility) ? <div className="relative mt-[22px] flex flex-col gap-2 text-left">
         {canAssign ? <AssignFlow initialTemplateUuid={templateUuid} trigger={<button type="button" className="flex items-center gap-3.5 rounded-2xl border border-brand bg-brand-soft p-3.5 text-left">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white"><Users size={20} aria-hidden="true" /></span>
-          <span><b className="block text-[14.5px]">{done.first ? 'Assign it to your first learners' : 'Assign it'}</b><span className="text-[13px] text-muted-foreground">To a group, or to learners one by one</span></span>
+          <span><b className="block text-[14.5px]">{done.first ? inOrgWords('Assign it to your first learners') : 'Assign it'}</b><span className="text-[13px] text-muted-foreground">{inOrgWords("To a group, or to learners one by one")}</span></span>
         </button>} /> : null}
         {onVisibility ? <button type="button" onClick={() => { setOpen(false); onVisibility() }} className="flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5 text-left hover:border-brand">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted"><Globe size={20} aria-hidden="true" /></span>
-          <span><b className="block text-[14.5px]">Choose who can find it</b><span className="text-[13px] text-muted-foreground">Other organizations, or learners looking for it</span></span>
+          <span><b className="block text-[14.5px]">Choose who can find it</b><span className="text-[13px] text-muted-foreground">{inOrgWords("Other organizations, or learners looking for it")}</span></span>
         </button> : null}
       </div> : null}
     </div>

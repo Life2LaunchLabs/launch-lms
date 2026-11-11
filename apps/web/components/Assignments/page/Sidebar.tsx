@@ -7,6 +7,7 @@ import { TargetTile } from '@components/Assignments/Pair'
 import type { AssignmentDetail, AssignmentThread } from '@services/assignments/assignments'
 import { needLines } from '@services/assignments/page'
 import { needTotal } from '@services/assignments/status'
+import { inOrgWords } from '@/lib/people'
 
 const ICONS = { questions: CircleHelp, review: ClipboardCheck, behind: Clock } as const
 
@@ -61,12 +62,12 @@ export default function Sidebar({ detail, thread, needsHref, otherHref, onMessag
         </span>
       </button>
       <p className="mt-2 flex gap-2 text-[13px] leading-snug text-muted-foreground"><Lock size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <span>Mark a message <b className="text-foreground">Staff only</b> to keep it from learners. Works here and in any learner’s messages.</span></p>
+        <span>Mark a message <b className="text-foreground">Staff only</b>{inOrgWords(" to keep it from learners. Works here and in any learner’s messages.")}</span></p>
     </Card> : null}
     {others.length ? <Card icon={<Layers />} title={`Also on ${detail.plan.title}`}>
       <div className="mt-1.5 divide-y divide-border">{others.map((other) => <Link key={other.assignment_uuid} href={otherHref(other.assignment_uuid)} className="flex items-center gap-2.5 py-2 hover:opacity-80">
         <TargetTile target={other.target} size="sm" />
-        <span className="min-w-0"><b className="block truncate text-[13.5px]">{other.target.name}</b><span className="text-xs text-muted-foreground">{other.target.type === 'group' ? 'Group' : 'One learner'}</span></span>
+        <span className="min-w-0"><b className="block truncate text-[13.5px]">{other.target.name}</b><span className="text-xs text-muted-foreground">{other.target.type === 'group' ? 'Group' : inOrgWords('One learner')}</span></span>
       </Link>)}</div>
     </Card> : null}
   </aside>

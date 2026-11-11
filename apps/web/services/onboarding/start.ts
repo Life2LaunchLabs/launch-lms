@@ -2,7 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
 /** Who's setting up at /start (apps/api/src/services/orgs/onboarding.py ROLES). */
-export type StartRole = 'parent' | 'mentor' | 'teacher' | 'program' | 'district'
+export type StartRole = 'parent' | 'mentor' | 'teacher' | 'program' | 'training' | 'district'
 
 /** A plan /start suggests for a role (apps/api/src/services/orgs/onboarding.py). */
 export interface SuggestedPlan {

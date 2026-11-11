@@ -12,6 +12,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { peopleKeys, type Profile } from '@services/school/people'
 import { STATUS_LABELS, membershipKeys, setMemberStatus, setStaffPermissions, statusLine, type MemberStatus, type StaffPermission, type StaffPermissionInfo } from '@services/organizations/membership'
 import { useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
+import { inOrgWords } from '@/lib/people'
 
 const SELECT = 'h-9 rounded-lg border border-border bg-background px-2.5 text-sm font-medium disabled:opacity-50'
 
@@ -88,7 +89,7 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
     {manage.status ? <label className="flex items-center justify-between gap-4 text-sm">
       <span>
         <span className="block font-semibold text-foreground">Status</span>
-        <span className="block text-xs text-muted-foreground">{profile.status === 'alumni' ? statusLine('alumni', profile.status_since) + '. Alumni don’t count toward your learner limit.' : 'Mark learners who have moved on as alumni to free their place.'}</span>
+        <span className="block text-xs text-muted-foreground">{profile.status === 'alumni' ? statusLine('alumni', profile.status_since) + inOrgWords('. Alumni don’t count toward your learner limit.') : inOrgWords('Mark learners who have moved on as alumni to free their place.')}</span>
       </span>
       <select aria-label="Status" className={SELECT} value={profile.status || 'active'} disabled={busy} onChange={(event) => changeStatus(event.target.value as MemberStatus)}>
         {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}

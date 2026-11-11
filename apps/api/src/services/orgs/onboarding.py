@@ -22,9 +22,10 @@ from src.db.organizations import Organization, OrganizationCreate
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services import requirement_library, requirements as requirement_service
+from src.services.orgs import people_words
 from src.services.goals import discover, template_marketplace
 
-ROLES = ("parent", "mentor", "teacher", "program", "district")
+ROLES = ("parent", "mentor", "teacher", "program", "training", "district")
 SOLO_ROLES = {"parent", "mentor"}
 # The plan categories each role sees first (services/goals/collections.CATEGORIES).
 ROLE_CATEGORIES = {
@@ -32,6 +33,8 @@ ROLE_CATEGORIES = {
     "mentor": ["Career exploration", "Portfolio", "Life skills"],
     "teacher": ["College and training", "Career exploration", "Portfolio"],
     "program": ["Work-based learning", "Career exploration", "Civic and community", "Wellbeing"],
+    # Workplace and adult training: onboarding, safety and skills training for people of any age.
+    "training": ["Work-based learning", "Career exploration", "Life skills"],
     "district": ["College and training", "Career exploration", "Work-based learning"],
 }
 SUGGESTED = 6
@@ -168,6 +171,11 @@ async def set_up(request: Request, db: Session, current_user: PublicUser, payloa
     if payload.color:
         customization["general"] = {**(customization.get("general") or {}), "color": payload.color}
     setup = dict(config.get("setup") or {})
+    general = customization.get("general") or {}
+    if not (general.get("people_one") and general.get("people_many")):
+        # What the space calls the people it supports, from the role; admins change it in Settings.
+        one, many = people_words.ROLE_WORDS[role]
+        customization["general"] = {**general, "people_one": one, "people_many": many}
     setup.update({"role": role, "solo": role in SOLO_ROLES and not payload.org_name.strip(), "created_by_user_id": user.id,
                   "completed_at": setup.get("completed_at") or datetime.now(timezone.utc).isoformat()})
     row.config = {**config, "customization": customization, "setup": setup}

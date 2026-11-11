@@ -16,6 +16,7 @@ import RunBoard from './RunBoard'
 import { useAsk } from '@components/ui/ask-dialog'
 import UserTestsInbox from './UserTestsInbox'
 import UserTestsShell, { StatusPill, formatWhen, useUserTestsHref } from './UserTestsShell'
+import { inOrgWords } from '@/lib/people'
 
 function AddPersonasForm({ cohort, onAdded }: { cohort: TestCohortDetail; onAdded: () => void }) {
   const [text, setText] = useState('')
@@ -31,7 +32,7 @@ function AddPersonasForm({ cohort, onAdded }: { cohort: TestCohortDetail; onAdde
   }
 
   return <form onSubmit={submit} className="space-y-3 rounded-xl border bg-card p-5">
-    <div><h2 className="text-lg font-semibold">Add personas</h2><p className="text-sm text-muted-foreground">One per line: a name, then <code>|</code> and a short brief. Start a line with <code>owner:</code> to also give them a new test org they run, or <code>new:</code> for someone who just signed up (their first link opens sign-up onboarding: role, org setup, first steps). Everyone joins the main org as a learner.</p></div>
+    <div><h2 className="text-lg font-semibold">Add personas</h2><p className="text-sm text-muted-foreground">One per line: a name, then <code>|</code> and a short brief. Start a line with <code>owner:</code> to also give them a new test org they run, or <code>new:</code>{inOrgWords(" for someone who just signed up (their first link opens sign-up onboarding: role, org setup, first steps). Everyone joins the main org as a learner.")}</p></div>
     <Label htmlFor="persona-lines" className="sr-only">Personas, one per line</Label>
     <Textarea id="persona-lines" rows={5} value={text} onChange={(event) => setText(event.target.value)} placeholder={'Maya Lopez | 9th grader, new to the app, uses a phone\nowner: Dana Rivera | High school counselor setting up her school'} />
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

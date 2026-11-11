@@ -4,6 +4,7 @@ import OrganizationsLanding, { DEFAULT_TIER_FACTS, type TierFacts } from '@compo
 import { getAccessCatalog } from '@services/plans/access'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
+import { inOrgWords } from '@/lib/people'
 
 type PageProps = { params: Promise<{ orgslug: string }> }
 
@@ -12,7 +13,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const org = await getOrganizationContextInfo(orgslug, { revalidate: 60, tags: ['organizations'] })
   return {
     title: `For organizations${org?.name ? ` — ${org.name}` : ''}`,
-    description: 'Hand out plans, review learners’ work in one place, and show which requirements they’ve met.',
+    description: inOrgWords('Hand out plans, review learners’ work in one place, and show which requirements they’ve met.'),
   }
 }
 

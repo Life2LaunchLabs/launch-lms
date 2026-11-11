@@ -19,6 +19,7 @@ import type { TemplateDocument } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import { AsideCard, Tag } from './AsideCard'
 import PlanDialog from './PlanDialog'
+import { inOrgWords } from '@/lib/people'
 
 type Props = { orgslug: string; orgId: number; token?: string; editing: TemplateEditing; document: TemplateDocument; canEdit: boolean }
 
@@ -48,7 +49,7 @@ export default function PlanBadgeCard({ orgslug, orgId, token, editing, document
   if (!block) {
     if (!canEdit) return null
     return <AsideCard icon={<Medal size={16} />} title="Badge" tag={draftChanged ? <Tag>Changed in draft</Tag> : <Tag>Off</Tag>}>
-      <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">Give learners who finish an Open Badge and a certificate they keep.</p>
+      <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">{inOrgWords("Give learners who finish an Open Badge and a certificate they keep.")}</p>
       <button type="button" className={smallActionClass + ' mt-3'} onClick={() => setOpen('edit')}><Plus />Add a badge</button>
       <BadgeDialog open={open} setOpen={setOpen} orgslug={orgslug} orgId={orgId} token={token} editing={editing} canEdit={canEdit} />
     </AsideCard>
@@ -60,7 +61,7 @@ export default function PlanBadgeCard({ orgslug, orgId, token, editing, document
       <span className="min-w-0">
         <span className="block text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(block.kind)}</span>
         <b className="block truncate text-sm">{badge.name}</b>
-        <span className="block text-[12.5px] leading-snug text-muted-foreground">Awarded when a learner finishes every step.</span>
+        <span className="block text-[12.5px] leading-snug text-muted-foreground">{inOrgWords("Awarded when a learner finishes every step.")}</span>
       </span>
     </button>
     {block.skills.length ? <div className="mt-2.5 flex flex-wrap gap-1">{block.skills.slice(0, 6).map((skill) => <span key={skill} className="rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-semibold">{skill}</span>)}</div> : null}
@@ -110,7 +111,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
   }
   const save = async () => {
     const ok = await editing.save((doc) => ({ ...doc, badge: { ...draft, name: draft.name.trim() === (doc.template.title || '').trim() ? '' : draft.name.trim() } }),
-      current ? 'Badge saved to the draft. It changes for learners when this version goes live.' : 'Badge added to the draft. Learners earn it once this version goes live.')
+      current ? inOrgWords('Badge saved to the draft. It changes for learners when this version goes live.') : inOrgWords('Badge added to the draft. Learners earn it once this version goes live.'))
     if (ok) setOpen(null)
   }
   const remove = async () => {
@@ -143,7 +144,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
   ]
   const filledExtras = extras.filter((extra) => shownBlock?.[extra.key])
   const footer = edit ? removing
-    ? <><span className="mr-auto text-[13px] font-semibold text-destructive">Remove this badge? Learners stop earning it once this version is live. Anyone who has it keeps theirs.</span>
+    ? <><span className="mr-auto text-[13px] font-semibold text-destructive">{inOrgWords("Remove this badge? Learners stop earning it once this version is live. Anyone who has it keeps theirs.")}</span>
       <button type="button" className={smallGhostClass} onClick={() => setRemoving(false)}>Keep it</button>
       <button type="button" className={cn(smallPrimaryClass, 'bg-destructive text-white')} disabled={editing.saving} onClick={() => void remove()}>Remove</button></>
     : <>{current ? <button type="button" className={cn(smallGhostClass, 'mr-auto text-destructive')} onClick={() => setRemoving(true)}>Remove badge</button> : null}
@@ -151,7 +152,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
       <button type="button" className={smallPrimaryClass} disabled={editing.saving} onClick={() => void save()}>{current ? 'Save' : 'Add badge'}</button></>
     : null
 
-  return <PlanDialog open={!!open} onOpenChange={(next) => { if (!next) setOpen(null) }} size="md" bare title={badge.name} description="The badge learners earn by finishing this plan" footer={footer} bodyClassName="p-0">
+  return <PlanDialog open={!!open} onOpenChange={(next) => { if (!next) setOpen(null) }} size="md" bare title={badge.name} description={inOrgWords("The badge learners earn by finishing this plan")} footer={footer} bodyClassName="p-0">
     <div className="h-16 opacity-25" style={{ background: medalColor(badge) }} aria-hidden="true" />
     <div className="-mt-10 flex flex-wrap items-end gap-4 px-6">
       <BadgeMedal badge={badge} size={104} />
@@ -168,9 +169,9 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
     </div>
     <div className="p-6 pt-4">
       {certificate ? <>
-        <Certificate badge={badge} style={(current || draft).style} learner="Sample Learner" awardedBy={{ name: org?.name || 'Your organization', logo_url: org?.logo_image && org.org_uuid ? getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) : null }}
+        <Certificate badge={badge} style={(current || draft).style} learner={inOrgWords("Sample Learner")} awardedBy={{ name: org?.name || 'Your organization', logo_url: org?.logo_image && org.org_uuid ? getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) : null }}
           date={new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })} code="SAMPLE-CODE" />
-        <p className="mt-3 text-center text-[12.5px] text-muted-foreground">An example with a sample learner. Each learner’s certificate has a QR code that opens a page verifying it.</p>
+        <p className="mt-3 text-center text-[12.5px] text-muted-foreground">{inOrgWords("An example with a sample learner. Each learner’s certificate has a QR code that opens a page verifying it.")}</p>
       </> : <>
         {edit && !current ? <p className="mb-3 rounded-xl bg-muted px-3.5 py-2.5 text-[13px]">It starts with the plan’s image and title. The description and how it’s earned come from the plan itself.</p> : null}
         <div className="overflow-hidden rounded-[14px] border border-border">

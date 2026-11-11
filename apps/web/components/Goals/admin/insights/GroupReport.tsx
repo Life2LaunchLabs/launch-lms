@@ -15,6 +15,7 @@ import { getUserGroups } from '@services/usergroups/usergroups'
 import { groupReportKey, reportsApi, type GroupReport as Report, type GroupReportIncludedFramework, type GroupReportLearner, type OrgMembership } from '@services/goals/reports'
 import { EmptyState, PageLoader, personName } from '../live/ui'
 import { insightsRoutes } from './reportRoutes'
+import { inOrgWords } from '@/lib/people'
 
 type Group = { id: number; name: string }
 
@@ -70,7 +71,7 @@ function Section({ title, tag, children }: { title: string; tag?: React.ReactNod
 
 /** Requirements a learner still needs, for paper: the code when there is one, else the title. */
 function FrameworkTable({ framework }: { framework: GroupReportIncludedFramework }) {
-  return <Table cols={3} head={['Learner', 'Met', 'Still needs']} empty={framework.learners.length ? null : 'No one in this group is on this framework.'}>
+  return <Table cols={3} head={[inOrgWords('Learner'), 'Met', 'Still needs']} empty={framework.learners.length ? null : 'No one in this group is on this framework.'}>
     {framework.learners.map((learner) => <tr key={learner.id} className="border-b border-gray-50 align-top last:border-0">
       <td className="whitespace-nowrap px-3 py-2 font-bold text-gray-900">{personName(learner)}</td>
       <td className="whitespace-nowrap px-3 py-2 tabular-nums">{learner.met} of {learner.total}</td>
@@ -90,7 +91,7 @@ export function ReportBody({ report, orgslug, variant }: { report: Report; orgsl
     <div className="grid gap-3 sm:grid-cols-2 print:grid-cols-2">
       <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-100 bg-white p-5 nice-shadow print:border-gray-300 print:p-3 print:shadow-none">
         <Stat value={`${summary.progress_percent}%`} label="of plan steps done" />
-        <Stat value={`${summary.behind_count} of ${summary.learners_on_plans}`} label="learners behind pace" />
+        <Stat value={`${summary.behind_count} of ${summary.learners_on_plans}`} label={inOrgWords("learners behind pace")} />
       </div>
       <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-100 bg-white p-5 nice-shadow print:border-gray-300 print:p-3 print:shadow-none">
         <Stat value={summary.plan_count} label={`plan${summary.plan_count === 1 ? '' : 's'} in progress`} />
@@ -99,7 +100,7 @@ export function ReportBody({ report, orgslug, variant }: { report: Report; orgsl
     </div>
 
     <Section title="Plans and badges">
-      <Table cols={6} head={['Plan', 'Learners', 'Average progress', 'Finished', 'Pace', 'Badge']} empty={report.plans.length ? null : 'This group has no plans in progress.'}>
+      <Table cols={6} head={['Plan', inOrgWords('Learners'), 'Average progress', 'Finished', 'Pace', 'Badge']} empty={report.plans.length ? null : 'This group has no plans in progress.'}>
         {report.plans.map((plan) => <tr key={plan.assignment_uuid} className="border-b border-gray-50 last:border-0">
           <td className="px-3 py-2.5">{screen ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(plan.assignment_uuid, 'learners'))} className="font-bold text-gray-900 underline-offset-2 hover:text-blue-700 hover:underline">{plan.template_title}</Link> : <b>{plan.template_title}</b>}
             <span className="ml-1.5 text-[11px] text-gray-500">{plan.version ? `v${plan.version}` : ''}{plan.status === 'paused' ? ' · paused' : ''}</span></td>
@@ -113,7 +114,7 @@ export function ReportBody({ report, orgslug, variant }: { report: Report; orgsl
     </Section>
 
     <Section title="Who's behind and what's left">
-      <Table cols={5} head={['Learner', 'Plan', 'Steps done', 'Status', "What's left next"]} empty={report.learners.length ? null : 'Nobody here is on a plan yet.'}>
+      <Table cols={5} head={[inOrgWords('Learner'), 'Plan', 'Steps done', 'Status', "What's left next"]} empty={report.learners.length ? null : 'Nobody here is on a plan yet.'}>
         {report.learners.map((learner) => <tr key={`${learner.goal_uuid}`} className="border-b border-gray-50 align-top last:border-0">
           <td className="whitespace-nowrap px-3 py-2.5">{learnerCell(learner)}</td>
           <td className="px-3 py-2.5 text-gray-700">{learner.template_title}</td>
@@ -125,7 +126,7 @@ export function ReportBody({ report, orgslug, variant }: { report: Report; orgsl
     </Section>
 
     {report.included_frameworks.length ? <>
-      <p className="mt-8 flex items-start gap-2 rounded-xl bg-blue-50/70 p-3 text-[13px] text-blue-900 print:border print:border-gray-300 print:bg-transparent print:text-gray-700"><Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />Requirements reporting is still being worked out. These sections show which mapped requirements each learner has met through their plan steps.</p>
+      <p className="mt-8 flex items-start gap-2 rounded-xl bg-blue-50/70 p-3 text-[13px] text-blue-900 print:border print:border-gray-300 print:bg-transparent print:text-gray-700"><Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{inOrgWords("Requirements reporting is still being worked out. These sections show which mapped requirements each learner has met through their plan steps.")}</p>
       {report.included_frameworks.map((framework) => <Section key={framework.framework_uuid} title={framework.name} tag={<DraftTag />}>
         <p className="mb-2.5 text-xs text-gray-500">{framework.met_percent}% of this group&rsquo;s {framework.requirement_count} requirements are met. Met means the learner finished a step mapped to it, or staff credited it.{framework.not_enrolled ? ` ${framework.not_enrolled} member${framework.not_enrolled === 1 ? ' isn’t' : 's aren’t'} on any framework yet.` : ''}</p>
         <FrameworkTable framework={framework} />
@@ -183,7 +184,7 @@ function SendPanel({ report, frameworks, orgId, token, userId, onClose }: { repo
           <li>{summary.learners_on_plans} learner{summary.learners_on_plans === 1 ? '' : 's'} on {summary.plan_count} plan{summary.plan_count === 1 ? '' : 's'}{report.plans.length ? `: ${report.plans.map((plan) => plan.template_title).join(', ')}` : ''}.</li>
           <li>{summary.progress_percent}% of plan steps done. {summary.badges_earned} badge{summary.badges_earned === 1 ? '' : 's'} earned.</li>
           <li>{summary.behind_count ? `${summary.behind_count} behind pace: ${summary.behind_names.join(', ')}.` : 'Nobody is behind pace.'}</li>
-          <li>Who&rsquo;s behind and what&rsquo;s left, by learner.</li>
+          <li>{inOrgWords("Who’s behind and what’s left, by learner.")}</li>
           {report.included_frameworks.map((framework) => <li key={framework.framework_uuid}>Requirements: {framework.name} (draft section)</li>)}
         </ul>
       </div>

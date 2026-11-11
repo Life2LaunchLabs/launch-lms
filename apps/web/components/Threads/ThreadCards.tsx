@@ -15,6 +15,7 @@ import { joinRequestsApi, type OrgJoinRequest } from '@services/organizations/jo
 import { shortDate } from '@services/assignments/status'
 import type { PersonSummary } from '@services/goals/types'
 import type { AskedItem, PastDueItem, ReviewItem, ThreadRequest } from '@services/school/threads'
+import { inOrgWords } from '@/lib/people'
 
 const button = 'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold disabled:opacity-60'
 const primary = cn(button, 'bg-[var(--org-primary-color)] text-white hover:opacity-90')
@@ -157,7 +158,7 @@ export function JoinRequestCard({ request, token, onDone }: { request: OrgJoinRe
     setBusy(true)
     try {
       const answered = await joinRequestsApi.answer(request.request_uuid, approve, token)
-      toast.success(!approve ? 'Declined. They’ve been emailed.' : answered.invited ? `Invited ${request.email} to sign up.` : `${name} is a learner now.`)
+      toast.success(!approve ? 'Declined. They’ve been emailed.' : answered.invited ? `Invited ${request.email} to sign up.` : inOrgWords(`${name} is a learner now.`))
       onDone()
     } catch (error: any) {
       toast.error(error?.message || 'That didn’t go through')
@@ -178,7 +179,7 @@ export function JoinRequestCard({ request, token, onDone }: { request: OrgJoinRe
 /** In a group's thread: who asked about a step in their own thread, to answer there. */
 export function AskedCard({ item, onPerson }: { item: AskedItem; onPerson: (person: PersonSummary) => void }) { // eslint-disable-line no-unused-vars
   return <Notice icon={MessageCircleQuestion} tone="warn">
-    <span>{item.learners.length === 1 ? `${item.learners[0].name} asked` : `${item.learners.length} learners asked`} about <b>{item.title}</b></span>
+    <span>{item.learners.length === 1 ? inOrgWords(`${item.learners[0].name} asked`) : inOrgWords(`${item.learners.length} learners asked`)} about <b>{item.title}</b></span>
     <span className="flex items-center gap-3"><Faces people={item.learners} onPerson={onPerson} /><span className="text-xs text-muted-foreground">Open one to answer in their thread</span></span>
   </Notice>
 }

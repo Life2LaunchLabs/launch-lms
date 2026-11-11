@@ -13,6 +13,7 @@ import { plural, shortDate } from '@services/assignments/status'
 import type { StepTypeKey, TemplateDocument } from '@services/goals/types'
 import { RecipientTile } from './FlowSteps'
 import { Frame, PreviewCaption } from './flowUi'
+import { inOrgWords } from '@/lib/people'
 
 const NOT_STARTED = { done: 0, review: 0, behind: 0, open: 1, locked: 2 }
 
@@ -99,7 +100,7 @@ export function StaffPreview({ plan, picks, staff, slug }: { plan: AssignmentPla
           <span className="min-w-0"><b className="block truncate text-xs">{item.name}</b><span className="block truncate text-[10.5px] text-muted-foreground">{ROLE_DO[item.role]}</span></span>
           <span className={cn('rounded-full px-2 py-0.5 text-[10.5px] font-bold', item.role === 'lead' ? 'bg-foreground text-background' : 'bg-muted')}>{ROLES[item.role]}</span>
         </div>) : <p className="p-3.5 text-muted-foreground">No staff yet</p>}</div>
-        <h2 className="mt-[18px] text-[15px] font-bold">Learners</h2>
+        <h2 className="mt-[18px] text-[15px] font-bold">{inOrgWords('Learners')}</h2>
         <div className="mt-2 rounded-[14px] border border-border opacity-50">{[0, 1].map((index) => <div key={index} className="flex items-center gap-2.5 border-b border-border px-3 py-2.5 last:border-b-0">
           <span className="grid h-8 w-8 place-items-center rounded-full border-[1.5px] border-dashed border-border bg-muted text-muted-foreground"><User size={14} /></span><span className="h-2 w-28 rounded bg-muted" />
         </div>)}</div>

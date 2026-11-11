@@ -1,6 +1,7 @@
 import type { AccessRequest, FeatureAccess } from '../../services/plans/plans.ts'
 import { routePaths } from '../../services/routing/paths.ts'
 import type { HomeSectionId } from '../../services/goals/adminHome.ts'
+import { inOrgWords } from '../people.ts'
 
 /**
  * The one list of admin tabs and Home widgets. The sidebar, the mobile menu, page titles and the
@@ -81,7 +82,7 @@ export const ADMIN_TABS: AdminTab[] = [
     children: [
       { id: 'general', label: 'General', labelKey: 'dashboard.organization.settings.tabs.general', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
       { id: 'branding', label: 'Branding', labelKey: 'dashboard.organization.settings.tabs.branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
-      { id: 'discover', label: 'Learner Discover', href: admin.organization.discover(), match: [admin.organization.discover()], requires: {} },
+      { id: 'discover', get label() { return inOrgWords('Learner Discover') }, href: admin.organization.discover(), match: [admin.organization.discover()], requires: {} },
       { id: 'messaging', label: 'Messaging', href: admin.organization.messaging(), match: [admin.organization.messaging()], requires: {} },
       { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
       { id: 'plan', label: 'Plan & access', href: admin.organization.plan(), match: [admin.organization.plan()], requires: {} },
@@ -106,11 +107,11 @@ export function adminTab(id: AdminTabId): AdminTab {
 /** Home's sections as Customize lists them, in page order. `GET /goal-admin/home` says which ones a viewer gets. */
 export const HOME_SECTIONS: Array<{ id: HomeSectionId; label: string; description: string }> = [
   { id: 'needs', label: 'Needs you', description: 'Threads with something waiting on you.' },
-  { id: 'assignments', label: 'Your assignments', description: 'Where learners are on the assignments you’re on.' },
+  { id: 'assignments', label: 'Your assignments', get description() { return inOrgWords('Where learners are on the assignments you’re on.') } },
   { id: 'continue', label: 'Continue', description: 'Plans, requirements and resources edited last.' },
   { id: 'week', label: 'This week', description: 'Steps closing and stages opening on your assignments.' },
   { id: 'glance', label: 'At a glance', description: 'Insight cards you pinned.' },
-  { id: 'requirements', label: 'Requirements', description: 'How learners are doing on each requirement framework.' },
+  { id: 'requirements', label: 'Requirements', get description() { return inOrgWords('How learners are doing on each requirement framework.') } },
 ]
 
 export type { AccessRequest }

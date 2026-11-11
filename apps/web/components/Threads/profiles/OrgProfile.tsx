@@ -17,6 +17,7 @@ import { TIER_LABELS } from '@services/plans/plans'
 import type { FeedRow } from '@services/school/people'
 import type { OrgTab } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
+import { inOrgWords } from '@/lib/people'
 
 const people = routePaths.org.admin.people
 
@@ -62,10 +63,10 @@ function Overview({ orgslug, usage, onAddStaff, openStaff, openGroup }: { orgslu
   return <>
     <Card title="Seats">
       <div className="grid gap-5 @lg:grid-cols-2">
-        <Meter label="active learners" usage={usage?.learners} />
+        <Meter label={inOrgWords("active learners")} usage={usage?.learners} />
         <Meter label="staff seats" usage={usage?.staff_seats} />
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">Alumni don&rsquo;t count toward your learners.</p>
+      <p className="mt-3 text-xs text-muted-foreground">{inOrgWords("Alumni don’t count toward your learners.")}</p>
     </Card>
     <Card title="Staff" aside={onAddStaff ? <button type="button" onClick={onAddStaff} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-semibold hover:bg-muted"><UserPlus size={14} />Add staff</button> : null}>
       {staffRows.length ? <ul className="divide-y divide-border">{staffRows.map((row) => <li key={row.key} className="flex items-center gap-3 py-2.5">
@@ -114,7 +115,7 @@ function JoinLinks() {
   const groupsEnabled = features.has('groups')
   const { data: groups } = useOrgGroups(groupsEnabled)
   return <Card title="Join links">
-    <p className="-mt-1 mb-4 text-sm text-muted-foreground">A link or QR code learners use to join. Pick a group and they join it too.</p>
+    <p className="-mt-1 mb-4 text-sm text-muted-foreground">{inOrgWords("A link or QR code learners use to join. Pick a group and they join it too.")}</p>
     <JoinLinkPanel org={org} accessToken={token || ''} usergroups={groups || []} groupsEnabled={groupsEnabled} bulkInvites={features.has('bulk_invites')} />
   </Card>
 }

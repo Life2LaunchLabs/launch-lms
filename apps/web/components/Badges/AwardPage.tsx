@@ -13,6 +13,7 @@ import { badgeAwardsApi, badgeKindLabel, type AwardCheck, type BadgeAward } from
 import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
+import { inOrgWords } from '@/lib/people'
 const longDate = (value: string) => {
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -43,7 +44,7 @@ function CheckLine({ ok, children }: { ok: boolean; children: React.ReactNode })
  */
 export default function AwardPage({ orgslug, award, check = null, pageUrl }: { orgslug: string; award: BadgeAward; check?: AwardCheck | null; pageUrl: string }) {
   const badge = award.achievement
-  const learner = award.learner?.name || award.learner?.username || 'A learner'
+  const learner = award.learner?.name || award.learner?.username || inOrgWords('A learner')
   const org = award.issuing_org
   const kind = badgeKindLabel(badge.kind).toLowerCase()
   const revoked = award.status === 'revoked' || Boolean(check?.revoked)

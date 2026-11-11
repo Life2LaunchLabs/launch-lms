@@ -8,6 +8,7 @@ import { Checkbox } from '@components/ui/checkbox'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { RoleTag } from '@components/Admin/People/RoleTag'
 import { schoolApi, schoolKeys, type GroupStaff, type GroupStaffMember, type StaffRole } from '@services/school/school'
+import { inOrgWords } from '@/lib/people'
 
 export const SELECT = 'h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-medium text-gray-900'
 
@@ -34,7 +35,7 @@ export function useGroupStaff(orgId: number, groupId: number, token?: string) {
     }
   }
   const remove = async (member: GroupStaffMember) => {
-    if (!confirm(`Remove ${member.user.name} from this group's staff? They leave its plans and its learners' school chats.`)) return false
+    if (!confirm(inOrgWords(`Remove ${member.user.name} from this group's staff? They leave its plans and its learners' school chats.`))) return false
     setBusy(member.user.id)
     try {
       await mutate(await schoolApi.removeStaff(orgId, groupId, member.user.id, token), false)

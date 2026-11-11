@@ -2,6 +2,7 @@ import React from 'react'
 import { Building2, GraduationCap, Mail, MapPin, UserRound } from 'lucide-react'
 
 import { tr } from '@/lib/tr'
+import { inOrgWords } from '@/lib/people'
 /** Opportunities before it exists: what it will be, laid out like the Plans welcome. */
 export default function OpportunitiesComingSoon() {
   return <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -18,17 +19,17 @@ export default function OpportunitiesComingSoon() {
       </div>
       <div className="grid gap-3.5">
         <Feature tone="bg-[hsl(30_100%_94%)] text-[hsl(20_70%_18%)] dark:bg-[hsl(25_45%_16%)] dark:text-[hsl(30_90%_90%)]" color="#E0650F" icon={<MapPin size={19} />} title={tr('access.opportunities_coming_soon.local_not_a_job_board', 'Local, not a job board')}
-          detail="A short list of nearby people and places: a talk, a visit, a project, a job. Learners ask with a note, not a hundred applications."
+          detail={inOrgWords("A short list of nearby people and places: a talk, a visit, a project, a job. Learners ask with a note, not a hundred applications.")}
           art={<Mini>{([['#E0650F', 'Ask a welder anything', '4 mi'], ['#C77A0E', 'Equipment yard tour', '7 mi'], ['#C8327D', 'Design the 5K shirt', '$150']] as const).map(([color, label, meta]) =>
             <div key={label} className="flex items-center gap-2 rounded-lg bg-[hsl(200_22%_96%)] dark:bg-muted p-1.5"><i className="h-5 w-5 shrink-0 rounded-md" style={{ background: color }} />{label}<span className="ml-auto text-[10.5px] font-medium text-muted-foreground">{meta}</span></div>)}</Mini>} />
         <Feature flip tone="bg-[hsl(190_60%_94%)] text-[hsl(195_60%_14%)] dark:bg-[hsl(190_40%_14%)] dark:text-[hsl(185_60%_88%)]" color="#0B8077" icon={<Mail size={19} />} title={tr('access.opportunities_coming_soon.hosts_answer_from_email', 'Hosts answer from email')}
-          detail="A small business owner gets one email when a learner reaches out, and answers with a tap. No account needed."
+          detail={inOrgWords("A small business owner gets one email when a learner reaches out, and answers with a tap. No account needed.")}
           art={<Mini chat>
             <span>{tr('access.opportunities_coming_soon.maya_would_like_20_minutes', 'Maya would like 20 minutes of your time')}</span>
             <span className="grid grid-cols-2 gap-1.5"><b className="rounded-md bg-[#E0650F] py-1 text-center text-white">{tr('access.opportunities_coming_soon.yes_let_s_talk', 'Yes, let’s talk')}</b><b className="rounded-md bg-[hsl(200_22%_94%)] dark:bg-muted py-1 text-center">{tr('access.opportunities_coming_soon.not_right_now', 'Not right now')}</b></span>
           </Mini>} />
         <Feature tone="bg-[hsl(255_70%_95%)] text-[hsl(255_40%_20%)] dark:bg-[hsl(255_30%_18%)] dark:text-[hsl(255_80%_92%)]" color="#6B3FE0" icon={<UserRound size={19} />} title={tr('access.opportunities_coming_soon.the_portfolio_does_the_introducing', 'The portfolio does the introducing')}
-          detail="Learners choose the projects and badges a host sees, so the work they’ve put in is what opens the door."
+          detail={inOrgWords("Learners choose the projects and badges a host sees, so the work they’ve put in is what opens the door.")}
           art={<Mini>
             <div className="flex items-center gap-2 p-1"><span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-[#6B3FE0] text-[9px] font-bold text-white">{tr('access.opportunities_coming_soon.mt', 'MT')}</span>{tr('access.opportunities_coming_soon.maya_torres_junior', 'Maya Torres, junior')}</div>
             {['Trailer hitch rebuild', 'Intro to MIG Welding badge'].map((label) => <div key={label} className="rounded-lg bg-[hsl(200_22%_96%)] dark:bg-muted p-1.5">{label}</div>)}

@@ -13,6 +13,7 @@ import InsightsShell from './InsightsShell'
 import { ScheduleList } from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 const chip = (on: boolean) => cn('h-8 rounded-full px-3 text-[13px] font-semibold', on ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground')
 const ghostButton = 'inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-semibold hover:bg-muted'
@@ -168,7 +169,7 @@ export function CaptureView({ captureUuid }: { captureUuid: string }) {
         </div>
         <p className="text-[12.5px] text-muted-foreground">
           Captured {capturedOn(capture.creation_date)} by {capture.captured_by}{capture.scheduled ? ' on a schedule' : ''}.{' '}
-          {capture.whole_org ? 'Counts every learner in the organization.' : `Counts the ${capture.learners} learners ${capture.mine ? 'you' : 'they'} work with.`}
+          {capture.whole_org ? inOrgWords('Counts every learner in the organization.') : inOrgWords(`Counts the ${capture.learners} learners ${capture.mine ? 'you' : 'they'} work with.`)}
         </p>
         <Note capture={capture} />
       </header>

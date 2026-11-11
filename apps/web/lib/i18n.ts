@@ -5,6 +5,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import en from '../locales/en.json';
 import { READY_LANGUAGES } from './languages';
+import { peoplePostProcessor } from './people';
 
 const LOCALE_LOADERS: Record<string, () => Promise<{ default: any }>> = {
   fr: () => import('../locales/fr.json'),
@@ -49,8 +50,11 @@ export async function loadLocale(code: string) {
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
+  .use(peoplePostProcessor)
   .init({
     resources,
+    // "learner" in any English string becomes the organization's own word (lib/people.ts).
+    postProcess: ['people'],
     fallbackLng: 'en',
     // Only finished languages are used; "es-MX" resolves to "es", and anything else to English.
     supportedLngs: [...READY_LANGUAGES],

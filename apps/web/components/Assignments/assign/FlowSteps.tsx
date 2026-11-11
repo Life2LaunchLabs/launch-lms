@@ -14,6 +14,7 @@ import type { TemplateDetail } from '@services/goals/templates'
 import type { TemplateDocument } from '@services/goals/types'
 import { Field, Segmented } from './flowUi'
 import type { GroupOption } from './useAssignData'
+import { inOrgWords } from '@/lib/people'
 
 const longDate = (value?: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : ''
 
@@ -67,7 +68,7 @@ export function WhoStep({ picks, setPicks, query, setQuery, groups, people, canG
     <PickerField picks={picks} tokenKey={recipientKey} tokenTile={(pick) => <RecipientTile pick={pick} />} tokenLabel={recipientName} tokenExtra={tokenExtra}
       onRemove={(pick) => setPicks(picks.filter((item) => recipientKey(item) !== recipientKey(pick)))} query={query} onQuery={setQuery} groups={options}
       placeholder={picks.length ? 'Add more' : award ? canGroups ? 'Name or group' : 'Name' : canGroups ? 'Name, email or group' : 'Name or email'} label={canGroups ? 'Add people or groups' : 'Add people'}
-      empty={q ? award ? 'No learner by that name here.' : 'No one by that name. Type their email to invite them.' : null} />
+      empty={q ? award ? inOrgWords('No learner by that name here.') : 'No one by that name. Type their email to invite them.' : null} />
     {picks.length > 1 && !award ? <p className="flex items-start gap-2 text-[13px] leading-[1.45] text-muted-foreground"><Layers size={16} className="mt-px shrink-0" aria-hidden="true" />
       <span>{picks.length} assignments, one for each. They share the plan but get their own dates, staff and messages.</span></p> : null}
   </div>

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import badgesImage from 'public/landing/badges.png'
 import heroImage from 'public/landing/hero.png'
 import { AssignmentMock, ChecklistMock, CoverageMock, FeedMock, MarketplaceMock } from './OrganizationsLandingMocks'
+import { inOrgWords } from '@/lib/people'
 
 export type OrganizationsLandingLinks = { createOrg: string; learnerHome: string; login: string }
 
@@ -19,24 +20,24 @@ const H2 = 'text-balance text-[32px] font-black leading-[1.08] tracking-[-0.03em
 const LEAD = 'mt-5 text-pretty text-lg leading-8 text-gray-600'
 
 const PROBLEMS = [
-  { problem: "Everyone is on a different page, and you can't tell who's stuck.", answer: 'Every learner works through the same stages, and you see where each one is at a glance.' },
-  { problem: 'Work arrives by email, text and shared docs, and feedback gets lost.', answer: 'Turn-ins land in one feed per learner. Review, comment and approve right there.' },
-  { problem: 'Proving requirements means a scramble at report time.', answer: 'Plan steps link to your requirements, so coverage and evidence build up as learners work.' },
+  { problem: "Everyone is on a different page, and you can't tell who's stuck.", get answer() { return inOrgWords('Every learner works through the same stages, and you see where each one is at a glance.') } },
+  { problem: 'Work arrives by email, text and shared docs, and feedback gets lost.', get answer() { return inOrgWords('Turn-ins land in one feed per learner. Review, comment and approve right there.') } },
+  { problem: 'Proving requirements means a scramble at report time.', get answer() { return inOrgWords('Plan steps link to your requirements, so coverage and evidence build up as learners work.') } },
 ]
 
 const STEPS = [
   { title: 'Name your organization', body: "Sign in with Google or email and give it a name. That's the whole setup." },
   { title: 'Pick a plan', body: 'Grab one from the Marketplace or build your own.' },
-  { title: 'Add your learners', body: 'Invite by email or share a join link. Each learner gets their own copy of the plan.' },
+  { get title() { return inOrgWords('Add your learners') }, get body() { return inOrgWords('Invite by email or share a join link. Each learner gets their own copy of the plan.') } },
 ]
 
 const count = (value: number, word: string) => (value ? `${value} ${word}` : `Unlimited ${word}`)
 
 function tierCards({ free, full, trialDays }: TierFacts) {
   return [
-    { name: 'Free', blurb: 'For one person helping a few learners.', items: [count(free.learners, 'active learners'), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', 'A feed with every learner’s work', 'Requirements and coverage reports', 'Badges learners keep'], cta: 'Create your organization' },
-    { name: 'Full', blurb: 'For programs with groups and several staff.', items: [count(full.learners, 'active learners'), count(full.staff_seats, 'staff'), 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'], cta: `Start free, try Full for ${trialDays} days`, featured: true },
-    { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: ['Unlimited learners and staff', 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'], cta: 'Start free, then ask us' },
+    { name: 'Free', blurb: inOrgWords('For one person helping a few learners.'), items: [count(free.learners, inOrgWords('active learners')), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', inOrgWords('A feed with every learner’s work'), 'Requirements and coverage reports', inOrgWords('Badges learners keep')], cta: 'Create your organization' },
+    { name: 'Full', blurb: 'For programs with groups and several staff.', items: [count(full.learners, inOrgWords('active learners')), count(full.staff_seats, 'staff'), 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'], cta: `Start free, try Full for ${trialDays} days`, featured: true },
+    { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: [inOrgWords('Unlimited learners and staff'), 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'], cta: 'Start free, then ask us' },
   ]
 }
 
@@ -72,7 +73,7 @@ export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS
               <span className="h-2 w-2 rounded-full bg-[#2e9d6a]" />For parents, teachers, coaches and programs
             </p>
             <h1 className="mt-5 text-balance text-[40px] font-black leading-[1.02] tracking-[-0.035em] sm:text-[60px] lg:text-[66px]">
-              Hand out one plan. <span className="text-[var(--org-primary-color)]">See every learner</span> move.
+              Hand out one plan. <span className="text-[var(--org-primary-color)]">{inOrgWords("See every learner")}</span> move.
             </h1>
             <p className="mt-6 max-w-[540px] text-pretty text-lg leading-8 text-gray-600 sm:text-[19px]">
               Give your learners a plan with clear steps, review their work in one place, and show which requirements they've met, with the evidence attached.
@@ -110,15 +111,15 @@ export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS
             ))}
           </ul>
         </Feature>
-        <Feature flip eyebrow="Stay close" title="One feed per learner. Every turn-in, every note." picture={<FeedMock />}>
-          <p className={LEAD}>Learners turn in work from their plan. It shows up in their feed, where you review, approve or send it back with a note. Staff, parents and mentors you invite see the same conversation.</p>
+        <Feature flip eyebrow="Stay close" title={inOrgWords("One feed per learner. Every turn-in, every note.")} picture={<FeedMock />}>
+          <p className={LEAD}>{inOrgWords("Learners turn in work from their plan. It shows up in their feed, where you review, approve or send it back with a note. Staff, parents and mentors you invite see the same conversation.")}</p>
           <p className="mt-4 leading-7 text-gray-600">Home shows what's waiting on you today, so nothing sits for a week.</p>
         </Feature>
         <Feature eyebrow="Show the proof" title="Requirements covered, with the evidence attached." picture={<CoverageMock />}>
-          <p className={LEAD}>Add your state standards or your own competencies, link plan steps to them, and see coverage before anyone starts. As learners finish steps, their work becomes the evidence. Print a report for a learner or a whole group when you need it.</p>
+          <p className={LEAD}>{inOrgWords("Add your state standards or your own competencies, link plan steps to them, and see coverage before anyone starts. As learners finish steps, their work becomes the evidence. Print a report for a learner or a whole group when you need it.")}</p>
         </Feature>
-        <Feature flip eyebrow="Make it count" title="Badges your learners keep." picture={<img src={badgesImage.src} alt="Hand-drawn badges: a star, a crown and a lightning bolt" className="mx-auto h-auto w-full max-w-[420px]" />}>
-          <p className={LEAD}>Finishing a plan can earn a badge. It lands in the learner's own portfolio, which they own and can share long after they've moved on from your program.</p>
+        <Feature flip eyebrow="Make it count" title={inOrgWords("Badges your learners keep.")} picture={<img src={badgesImage.src} alt="Hand-drawn badges: a star, a crown and a lightning bolt" className="mx-auto h-auto w-full max-w-[420px]" />}>
+          <p className={LEAD}>{inOrgWords("Finishing a plan can earn a badge. It lands in the learner's own portfolio, which they own and can share long after they've moved on from your program.")}</p>
         </Feature>
       </div>
 
@@ -165,8 +166,8 @@ export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS
           </div>
           <dl className="mx-auto mt-12 grid max-w-[960px] gap-6 text-[15px] leading-7 text-gray-600 md:grid-cols-3">
             <div><dt className="font-bold text-gray-900">Upgrading is a request</dt><dd className="mt-1">There&rsquo;s no checkout. Ask for Full or Enterprise from your dashboard and we&rsquo;ll turn it on.</dd></div>
-            <div><dt className="font-bold text-gray-900">When the trial ends</dt><dd className="mt-1">You&rsquo;re back on Free unless you&rsquo;ve asked for Full. Nothing is deleted: groups turn read-only and learners keep their plans.</dd></div>
-            <div><dt className="font-bold text-gray-900">Learners own their accounts</dt><dd className="mt-1">Everyone 15 and older signs up with their own email or Google account, and keeps their work and badges.</dd></div>
+            <div><dt className="font-bold text-gray-900">When the trial ends</dt><dd className="mt-1">{inOrgWords("You’re back on Free unless you’ve asked for Full. Nothing is deleted: groups turn read-only and learners keep their plans.")}</dd></div>
+            <div><dt className="font-bold text-gray-900">{inOrgWords("Learners own their accounts")}</dt><dd className="mt-1">Everyone 15 and older signs up with their own email or Google account, and keeps their work and badges.</dd></div>
           </dl>
         </div>
       </section>
@@ -175,15 +176,15 @@ export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-8 overflow-hidden rounded-[40px] bg-[var(--org-primary-color)] p-8 text-[var(--org-on-primary-color)] sm:p-14">
           <div className="min-w-0 flex-[1_1_420px]">
             <h2 className="text-balance text-[36px] font-black leading-[1.02] tracking-[-0.035em] sm:text-[56px]">Your first plan is a minute away.</h2>
-            <p className="mt-4 max-w-[480px] text-lg leading-8 opacity-85">Create your organization, pick a plan, and send your learners the link today.</p>
+            <p className="mt-4 max-w-[480px] text-lg leading-8 opacity-85">{inOrgWords("Create your organization, pick a plan, and send your learners the link today.")}</p>
             <Link href={links.createOrg} className={buttonVariants({ variant: 'surface', size: 'cta', className: 'mt-8 border-0 text-[15px]' })}>Create your organization, free</Link>
           </div>
           <div className="flex min-w-0 flex-[1_1_320px] justify-center">
-            <img src={heroImage.src} alt="Hand-drawn laptop showing a learner profile with badges and projects" className="h-auto w-full max-w-[360px] rotate-3" />
+            <img src={heroImage.src} alt={inOrgWords("Hand-drawn laptop showing a learner profile with badges and projects")} className="h-auto w-full max-w-[360px] rotate-3" />
           </div>
         </div>
         <p className="mx-auto mt-8 max-w-[1200px] text-center text-sm text-gray-500">
-          Here to learn yourself? <Link href={links.learnerHome} className="font-bold text-[var(--org-primary-color)] underline-offset-4 hover:underline">Go to the learner site</Link>
+          Here to learn yourself? <Link href={links.learnerHome} className="font-bold text-[var(--org-primary-color)] underline-offset-4 hover:underline">{inOrgWords("Go to the learner site")}</Link>
           <span aria-hidden="true"> · </span>
           <Link href={links.login} className="font-semibold text-gray-600 underline-offset-4 hover:underline">Sign in</Link>
         </p>

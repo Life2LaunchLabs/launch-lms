@@ -14,6 +14,7 @@ import { rowDates, rowSubtitle } from '@services/assignments/list'
 import type { AdminHome, ContinueItem, HomeAssignmentRow, NeedsRow } from '@services/goals/adminHome'
 import { cn } from '@/lib/utils'
 import { Chip, WidgetCard, WidgetEmpty, plural } from './WidgetCard'
+import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
 const NEEDS_SHOWN = 5
@@ -131,7 +132,7 @@ export function Continue({ items, orgslug }: { items: ContinueItem[]; orgslug: s
                 {item.kind === 'framework' ? <ListChecks size={16} aria-hidden="true" /> : <Library size={16} aria-hidden="true" />}</span>}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-bold text-gray-900">{item.title}</span>
-              <span className="block truncate text-xs text-gray-500">{KIND_LABEL[item.kind]}{item.update_date ? ` · edited ${chatTime(item.update_date)}` : ''}{item.running ? ' · learners on it' : ''}</span>
+              <span className="block truncate text-xs text-gray-500">{KIND_LABEL[item.kind]}{item.update_date ? ` · edited ${chatTime(item.update_date)}` : ''}{item.running ? inOrgWords(' · learners on it') : ''}</span>
             </span>
             <Chip tone={item.state === 'live' ? 'green' : 'amber'}>{item.state === 'live' ? 'Live' : 'Draft'}</Chip>
             <ChevronRight size={16} className="hidden shrink-0 text-gray-400 sm:block" aria-hidden="true" />

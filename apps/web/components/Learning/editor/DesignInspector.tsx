@@ -3,6 +3,7 @@
 import React from 'react'
 import { SCENES } from '@components/Learning/player/design'
 import { FieldLabel, InspectorSection, SegmentedControl, TextField } from './ui'
+import { inOrgWords } from '@/lib/people'
 
 /* eslint-disable no-unused-vars */
 
@@ -81,7 +82,7 @@ export function PageDesignFields({ page, onPatchPage }: { page: any; onPatchPage
       <input type="checkbox" checked={Boolean(design.celebrate)} onChange={(event) => patchDesign({ celebrate: event.target.checked || undefined })} />
     </label>
     <TextField label="Move on after (seconds)" type="number" value={seconds} onChange={(value) => patchDesign({ auto_advance_ms: Number(value) > 0 ? Math.round(Number(value) * 1000) : undefined })} />
-    {seconds ? <p className="text-xs leading-5 text-gray-500">Learners tap to skip ahead or go back, and hold to pause. Pages with questions wait for an answer.</p> : null}
+    {seconds ? <p className="text-xs leading-5 text-gray-500">{inOrgWords("Learners tap to skip ahead or go back, and hold to pause. Pages with questions wait for an answer.")}</p> : null}
   </>
 }
 
@@ -125,7 +126,7 @@ export function ActivityDesignFields({ activity, pages, onPatchActivity }: { act
       <TextField label="Exit button label" value={exit.label || ''} onChange={(label) => patchExit({ label })} />
       <TextField label="Ask before leaving" value={exit.confirm || ''} onChange={(confirm) => patchExit({ confirm })} />
       <SelectField label="Exit goes to" value={exit.to_page_uuid || ''} options={[{ value: '', label: 'Close the activity' }, ...pages.map((page: any) => ({ value: page.page_uuid, label: page.title || 'Untitled page' }))]} onChange={(to_page_uuid) => patchExit({ to_page_uuid })} />
-      <p className="text-xs leading-5 text-gray-500">Leave the label empty for a plain X. Jumping to a page works when that page is still ahead of the learner.</p>
+      <p className="text-xs leading-5 text-gray-500">{inOrgWords("Leave the label empty for a plain X. Jumping to a page works when that page is still ahead of the learner.")}</p>
     </div>
   </section>
 }

@@ -9,6 +9,7 @@ import { goalAdminApi, type AssignmentSummary } from '@services/goals/admin'
 import { membershipKeys, PERMISSION_NAMES, type StaffPermission, type StaffPermissionInfo } from '@services/organizations/membership'
 import type { AssignmentRoleKey, InviteAssignment } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
+import { inOrgWords } from '@/lib/people'
 
 /** What a staff or admin invitation carries besides the role. */
 export interface StaffSetup { permissions: StaffPermission[] | null; assignments: InviteAssignment[]; note: string }
@@ -25,7 +26,7 @@ export const ASSIGNMENT_ROLES: Array<{ key: AssignmentRoleKey; label: string; bl
 export function assignedTo(assignment: AssignmentSummary): string {
   if (assignment.cohort) return assignment.cohort.name
   const person = assignment.user
-  return [person?.first_name, person?.last_name].filter(Boolean).join(' ') || person?.username || assignment.subject_email || 'One learner'
+  return [person?.first_name, person?.last_name].filter(Boolean).join(' ') || person?.username || assignment.subject_email || inOrgWords('One learner')
 }
 
 /**

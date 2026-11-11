@@ -11,6 +11,7 @@ import { AwardBadgeButton } from '@components/Badges/award/AwardFlow'
 import type { AssignmentDetail, AssignmentPerson } from '@services/assignments/assignments'
 import { dateRange, statusPill, type PillTone } from '@services/assignments/page'
 import { firstName, personLabel, plural } from '@services/assignments/status'
+import { inOrgWords } from '@/lib/people'
 
 const PILL: Record<PillTone, string> = {
   running: 'bg-good-soft text-good',
@@ -74,7 +75,7 @@ export default function Header({ detail, tab, links, invited, people, unread, ac
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px] text-muted-foreground">
         <span className={cn('inline-flex h-[30px] items-center gap-2 rounded-full px-3 text-[12.5px] font-bold', PILL[pill.tone])}><i className="h-[7px] w-[7px] rounded-full bg-current" />{pill.text}</span>
         <span className="inline-flex items-center gap-1.5"><CalendarDays size={16} aria-hidden="true" />{dateRange(detail)}</span>
-        <span className="inline-flex items-center gap-1.5"><Users size={16} aria-hidden="true" />{group ? plural(detail.learner_count, 'learner') : detail.learner_count ? 'One learner' : 'Invited'}{group && invited ? ` · ${invited} invited` : ''}</span>
+        <span className="inline-flex items-center gap-1.5"><Users size={16} aria-hidden="true" />{group ? plural(detail.learner_count, 'learner') : detail.learner_count ? inOrgWords('One learner') : 'Invited'}{group && invited ? ` · ${invited} invited` : ''}</span>
         {leads.length ? <span className="inline-flex items-center gap-2">
           <span className="flex -space-x-1.5">{leads.slice(0, 3).map((member) => <span key={member.person!.id} className="rounded-full ring-2 ring-background"><PersonTile person={member.person} size="sm" /></span>)}</span>
           {leads.map((member) => firstName(member.person)).join(', ')}

@@ -1,14 +1,15 @@
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { BadgeSummary } from '@services/badges/badges'
 import { templateUrl } from './templates'
+import { inOrgWords } from '@/lib/people'
 
 /** Who may start a plan in the organization running it: anyone (open), by request, or only learners the team adds. */
 export type LearnerAccess = 'open' | 'request' | 'invite'
 
 export const LEARNER_ACCESS_OPTIONS: Array<{ value: LearnerAccess; label: string; description: string }> = [
-  { value: 'open', label: 'Open to everyone', description: 'Any learner can find it on Discover and start right away.' },
-  { value: 'request', label: 'By request', description: 'Learners find it on Discover, ask to join, and your team accepts them.' },
-  { value: 'invite', label: 'Invite only', description: 'Not on Discover: only learners your team assigns get it.' },
+  { value: 'open', label: 'Open to everyone', get description() { return inOrgWords('Any learner can find it on Discover and start right away.') } },
+  { value: 'request', label: 'By request', get description() { return inOrgWords('Learners find it on Discover, ask to join, and your team accepts them.') } },
+  { value: 'invite', label: 'Invite only', get description() { return inOrgWords('Not on Discover: only learners your team assigns get it.') } },
 ]
 
 export const learnerAccessLabel = (access?: string) => LEARNER_ACCESS_OPTIONS.find((option) => option.value === access)?.label || 'Invite only'

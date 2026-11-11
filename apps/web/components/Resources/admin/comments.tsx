@@ -14,6 +14,7 @@ import { isResourcesKey, type ChannelDetail, type ResourceDetail } from '@servic
 import { cn } from '@/lib/utils'
 import { Loading } from './listing'
 import { TypeTile, resourceHref, useResourcesContext } from './pieces'
+import { inOrgWords } from '@/lib/people'
 
 const xsButton = 'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[12.5px] font-semibold [&_svg]:size-3.5'
 const tagClass = 'rounded-full px-2 py-px text-[11.5px] font-bold'
@@ -113,7 +114,7 @@ export function ResourceComments({ resource }: { resource: ResourceDetail }) {
     </div>
     {closed ? <p className="flex items-center gap-2 rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground"><Lock size={15} aria-hidden="true" />Comments are turned off for this resource.</p>
       : <div className="rounded-2xl border-[1.5px] border-border bg-card px-3 py-2.5 focus-within:border-foreground/40">
-        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Write a comment" placeholder="Say how you use it, or what learners should know…"
+        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Write a comment" placeholder={inOrgWords("Say how you use it, or what learners should know…")}
           className="min-h-[46px] w-full resize-none border-0 bg-transparent text-[14.5px] leading-normal outline-none [field-sizing:content]" />
         <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
           {!hasRated ? <span className="inline-flex" role="group" aria-label="Rating (optional)">{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" aria-label={plural(n, 'star')} aria-pressed={n <= stars}

@@ -9,6 +9,7 @@ import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { cn } from '@/lib/utils'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { versionLabel } from './planVersions'
+import { inOrgWords } from '@/lib/people'
 
 export type PlanMenu = {
   settings?: () => void
@@ -51,7 +52,7 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
       <div className="min-w-0 flex-1">
         {editMode ? <EditableText editing={editing} field="title" value={shown.title} placeholder="Name your plan" className="text-[clamp(26px,3vw,36px)] font-extrabold leading-[1.15] tracking-[-0.035em]" />
           : <h1 className="break-words text-[clamp(26px,3vw,36px)] font-extrabold leading-[1.15] tracking-[-0.035em] text-foreground">{shown.title || 'Untitled plan'}</h1>}
-        {editMode ? <EditableText editing={editing} field="description" value={shown.description || ''} placeholder="Add a short description learners will see" className="mt-1.5 text-base leading-normal text-muted-foreground focus:text-foreground" />
+        {editMode ? <EditableText editing={editing} field="description" value={shown.description || ''} placeholder={inOrgWords("Add a short description learners will see")} className="mt-1.5 text-base leading-normal text-muted-foreground focus:text-foreground" />
           : shown.description ? <p className="mt-1.5 text-base leading-normal text-muted-foreground">{shown.description}</p> : null}
         <div className="mt-3.5 flex flex-wrap items-center gap-2">
           <span className="inline-flex min-w-0 items-center gap-2 pr-1 text-[13px] font-semibold"><OrgMark org={by} className="h-[22px] w-[22px]" /><span className="truncate">By {by.name || 'another organization'}</span></span>

@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { membershipKeys, statusLine, type Relationship } from '@services/organizations/membership'
+import { inOrgWords } from '@/lib/people'
 
 const MAX_FACES = 6
 
@@ -15,7 +16,7 @@ export default function YourRelationship({ orgId, token }: { orgId: number; toke
   const shown = data.staff.slice(0, MAX_FACES)
   return <div className="mb-4 space-y-2 text-sm">
     <p className="font-semibold text-foreground">
-      {data.role === 'staff' ? 'Staff' : `Learner · ${statusLine(data.status, data.status_since)}`}
+      {data.role === 'staff' ? 'Staff' : inOrgWords(`Learner · ${statusLine(data.status, data.status_since)}`)}
     </p>
     {since ? <p className="text-muted-foreground">Member since {since}{data.plans.length ? ` · ${data.plans.length} ${data.plans.length === 1 ? 'plan' : 'plans'} from them` : ''}</p> : null}
     {data.status === 'alumni' ? <p className="text-muted-foreground">You keep your plans and records. Ask the organization if you&rsquo;d like to be active again.</p> : null}

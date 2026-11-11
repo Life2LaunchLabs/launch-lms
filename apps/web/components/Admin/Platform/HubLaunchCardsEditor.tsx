@@ -9,6 +9,7 @@ import { COACH_POLICY_PATH, coachAdminApi } from '@services/coach/admin'
 import { LAUNCH_CARD_LIMITS, MAX_LAUNCH_CARDS, launchCardsProblem, type HubLaunchCard, type HubLaunchCardsSettings } from '@services/hub/launchCards'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
+import { inOrgWords } from '@/lib/people'
 
 const blankCard = (): HubLaunchCard => ({ label: '', hint: '', first_message: '' })
 
@@ -51,7 +52,7 @@ export default function HubLaunchCardsEditor() {
       <h2 id="hub-launch-cards-heading" className="text-base font-black text-gray-950">Starter cards on Coach home</h2>
       <p className="mt-1 text-sm leading-6 text-gray-600">Shown to learners who have no plan work yet. Clicking a card sends its opening message to Coach, which replies following the Method. Up to {MAX_LAUNCH_CARDS} cards.</p>
 
-      {error ? <p className="mt-5 text-sm text-red-700" role="alert">Could not load the cards. Learners still see the default set.</p> : null}
+      {error ? <p className="mt-5 text-sm text-red-700" role="alert">{inOrgWords("Could not load the cards. Learners still see the default set.")}</p> : null}
       {isLoading ? <p className="mt-5 text-sm text-gray-500" role="status">Loading cards…</p> : null}
 
       <ol className="mt-6 space-y-4">
@@ -63,7 +64,7 @@ export default function HubLaunchCardsEditor() {
               <label className="block"><span className="text-xs font-bold text-gray-900">Subtitle <span className="font-normal text-gray-500">(optional)</span></span>
                 <Input value={card.hint} maxLength={LAUNCH_CARD_LIMITS.hint} onChange={(event) => update(index, { hint: event.target.value })} className="mt-1.5" /></label>
             </div>
-            <label className="mt-3 block"><span className="text-xs font-bold text-gray-900">Opening message <span className="font-normal text-gray-500">(sent as the learner)</span></span>
+            <label className="mt-3 block"><span className="text-xs font-bold text-gray-900">Opening message <span className="font-normal text-gray-500">{inOrgWords("(sent as the learner)")}</span></span>
               <Input value={card.first_message} maxLength={LAUNCH_CARD_LIMITS.first_message} onChange={(event) => update(index, { first_message: event.target.value })} className="mt-1.5" /></label>
             <div className="mt-3 flex justify-end gap-1">
               <Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move card ${index + 1} up`}><ArrowUp size={15} /></Button>

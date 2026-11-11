@@ -6,12 +6,13 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { getAccessCatalog, getOrgUsage } from '@services/plans/access'
 import UpgradeBanner, { useCanUpgrade } from './UpgradeBanner'
+import { inOrgWords } from '@/lib/people'
 
 // Show the learner-limit prompt once the org has used this share of its active learners.
 const NEAR_LIMIT = 0.8
 
 function plural(count: number, word: string) {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
+  return inOrgWords(`${count} ${word}${count === 1 ? '' : 's'}`)
 }
 
 /** Free's and Full's learner and staff limits, from the public tier catalog (with today's values until it loads). */
@@ -69,7 +70,7 @@ export function PeopleBanners({ className }: { className?: string }) {
   if (limit && learners && learners.usage >= limit * NEAR_LIMIT) {
     return (
       <UpgradeBanner id={`learner-limit-${limit}`} className={className}
-        title={learners.limit_reached ? `You've reached ${limit} active learners` : `${learners.usage} of ${limit} active learners`}>
+        title={learners.limit_reached ? inOrgWords(`You've reached ${limit} active learners`) : inOrgWords(`${learners.usage} of ${limit} active learners`)}>
         Mark learners who&rsquo;ve moved on as alumni to free their spots{(access.base_tier || access.tier) === 'free' ? `, or get room for ${full.learners} on Full` : ''}.
       </UpgradeBanner>
     )

@@ -18,6 +18,7 @@ import { goalLifecycleApi } from '@services/goals/lifecycle'
 import { can, type Goal } from '@services/goals/types'
 import StaffGoalPath from './StaffGoalPath'
 import { PageLoader } from './ui'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * One learner's plan from the staff side: its header card (who it's shared with, settings, the
@@ -73,7 +74,7 @@ function ArchivePlan({ goal, token, onArchived }: { goal: Goal; token?: string; 
   const [saving, setSaving] = React.useState(false)
   if (!can(goal, 'archive_plan') || goal.status === 'archived') return null
   const archive = async () => {
-    if (!window.confirm(`Archive “${goal.title}”? It comes off ${goal.subject?.name || 'the learner'}’s list; the template and other learners don’t change.`)) return
+    if (!window.confirm(inOrgWords(`Archive “${goal.title}”? It comes off ${goal.subject?.name || 'the learner'}’s list; the template and other learners don’t change.`))) return
     setSaving(true)
     try { await goalLifecycleApi.archive(goal.goal_uuid, token); await mutate((key) => isGoalsKey(key)); toast.success('Plan archived.'); onArchived() } catch (problem: any) { toast.error(problem?.message || 'Could not archive the plan.') } finally { setSaving(false) }
   }

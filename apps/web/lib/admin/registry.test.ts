@@ -68,7 +68,7 @@ test('a free org gets every job tab open', () => {
 test('labels translate through their existing keys and fall back to English', () => {
   const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
   const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: { ...FULL_FEATURES, payments: on } })).find((tab) => tab.id === 'organization')!
-  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Learner Discover', 'Messaging', 'Single Sign-On', 'Plan & access', 'Payments'])
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Participant Discover', 'Messaging', 'Single Sign-On', 'Plan & access', 'Payments'])
 })
 
 test('an enabled feature opens, and one nobody can turn on is hidden rather than requested', () => {

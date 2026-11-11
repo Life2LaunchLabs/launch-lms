@@ -22,6 +22,7 @@ import { ListPreview, MessagePreview, StaffPreview, StagesPanel } from './FlowPr
 import { FlowButton, FlowProgress, FlowStage, StepHead } from './flowUi'
 import DonePanel, { type Made } from './DonePanel'
 import PlanChooser from './PlanChooser'
+import { inOrgWords } from '@/lib/people'
 
 type Props = {
   trigger: React.ReactNode
@@ -131,7 +132,7 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
     <StepHead eyebrow={eyebrow} title="Who is it for?" lede={`Add people${canGroups ? ' and groups' : ''}. Type an email to invite someone new${canGroups ? ', or a new name to create a group' : ''}. Each one gets its own assignment.`} />
     <WhoStep picks={picks} setPicks={setPicks} query={query} setQuery={setQuery} groups={data.groups} people={data.people} canGroups={canGroups} taken={taken} />
   </> : step === 1 ? <>
-    <StepHead eyebrow={eyebrow} title="Schedule" lede={schedule.mode === 'sched' ? 'Set when each stage starts. Steps follow their stage unless you give them dates.' : 'Learners go through the steps in order, at their own pace.'} />
+    <StepHead eyebrow={eyebrow} title="Schedule" lede={schedule.mode === 'sched' ? 'Set when each stage starts. Steps follow their stage unless you give them dates.' : inOrgWords('Learners go through the steps in order, at their own pace.')} />
     <ScheduleStep schedule={schedule} setSchedule={setSchedule} onStart={(start) => setSchedule(moveStart(schedule, start))} />
   </> : step === 2 ? <>
     <StepHead eyebrow={eyebrow} title="Staff" lede="Who answers questions and reviews work day to day. Admins can always open it." />

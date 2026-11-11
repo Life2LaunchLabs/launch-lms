@@ -6,8 +6,9 @@ import { PlanCover, coverPalette } from '@components/Plans/shared/PlanCover'
 import type { CoveragePlan } from '@services/goals/requirements'
 import type { Gauge } from '@services/goals/requirementTree'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+const plural = (n: number, word: string) => inOrgWords(`${n} ${word}${n === 1 ? '' : 's'}`)
 
 /**
  * A group's coverage as a ring: each selected plan's share in its color, grey for what's still needed. An "any N"

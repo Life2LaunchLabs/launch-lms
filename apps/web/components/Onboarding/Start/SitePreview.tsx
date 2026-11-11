@@ -9,6 +9,7 @@ import type { StartState } from './StartFlow'
 import type { StartFramework, SuggestedPlan } from '@services/onboarding/start'
 
 import { tr } from '@/lib/tr'
+import { inOrgWords } from '@/lib/people'
 export type PreviewPage = 'plans' | 'people' | 'groups' | 'requirements' | 'invite'
 
 const hue = (title: string) => [...title].reduce((total, char) => total + char.charCodeAt(0), 0) % 360
@@ -74,7 +75,7 @@ function PlansPage({ picked }: { picked: SuggestedPlan[] }) {
 
 function PeoplePage({ full, people, name }: { full: boolean; people: string[]; name: string }) {
   return <>
-    <Head title={tr('onboarding.site_preview.people', 'People')} sub={full ? `${people.length + 1} of 12 staff · 0 of 200 learners` : `${people.length} of 25 learners`} action={tr('lit.site_preview.invite', 'Invite')} />
+    <Head title={tr('onboarding.site_preview.people', 'People')} sub={full ? inOrgWords(`${people.length + 1} of 12 staff · 0 of 200 learners`) : inOrgWords(`${people.length} of 25 learners`)} action={tr('lit.site_preview.invite', 'Invite')} />
     <div className="space-y-1.5">
       {full ? <Row label={name || tr('onboarding.site_preview.you', 'You')} pill={tr('lit.site_preview.admin', 'Admin')} color="#2F66D6" /> : null}
       <AnimatePresence>{people.map((person, index) => <motion.div key={person} layout {...enter}><Row label={person} pill={full ? tr('lit.site_preview.staff', 'Staff') : tr('lit.site_preview.ready_to_invite', 'Ready to invite')} color={AVATAR_COLORS[index % AVATAR_COLORS.length]} /></motion.div>)}</AnimatePresence>

@@ -16,6 +16,7 @@ import type { AssignmentDetail, AssignmentPerson, AssignmentStep, StatusCategory
 import { stepNeeds, stepWhen } from '@services/assignments/page'
 import { CATEGORIES, firstName, personLabel, plural } from '@services/assignments/status'
 import type { StepMaterial, StepTypeKey } from '@services/goals/types'
+import { inOrgWords } from '@/lib/people'
 
 export interface StepCardContext {
   detail: AssignmentDetail
@@ -65,7 +66,7 @@ export default function StepCard({ step, open, onToggle, ctx }: { step: Assignme
         {learners ? <>
           <span className="flex justify-end text-xs text-muted-foreground">{learners > 1 ? <span><b className="text-foreground">{step.counts.done}</b>/{learners} complete</span> : only}</span>
           <StatusBar counts={step.counts} names={learners > 1 ? names : undefined} now={false} label={step.title} />
-        </> : <span className="text-right text-xs text-muted-foreground">No learners yet</span>}
+        </> : <span className="text-right text-xs text-muted-foreground">{inOrgWords("No learners yet")}</span>}
       </span>
     </button>
     {open ? <div className="pb-4 pl-4 pr-4 md:pl-[68px]">

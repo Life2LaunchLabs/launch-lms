@@ -9,9 +9,10 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { PlansTabId } from '@services/routing/paths'
 import { cn } from '@/lib/utils'
 import { usePlansSummary } from './usePlansSummary'
+import { inOrgWords } from '@/lib/people'
 
 const LEDE: Record<PlansTabId, string> = {
-  plans: 'Paths of steps you assign to learners.',
+  get plans() { return inOrgWords('Paths of steps you assign to learners.') },
   discover: 'Ready-made plans and collections from Life2Launch and partners.',
   assignments: 'Who has which plan, and how far along they are.',
   requirements: 'The standards your plans count toward.',

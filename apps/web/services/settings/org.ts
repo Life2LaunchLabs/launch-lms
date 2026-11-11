@@ -106,6 +106,19 @@ export async function updateOrgFooterTextConfig(
   return res
 }
 
+/** What the org calls the people it supports, such as "trainee" and "trainees" (lib/people.ts). */
+export async function updateOrgPeopleWords(
+  org_id: string,
+  words: { one: string; many: string },
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/people`,
+    RequestBodyWithAuthHeader('PUT', words, null, access_token)
+  )
+  return errorHandling(result)
+}
+
 export async function updateOrgHideOrgNameConfig(
   org_id: string,
   hide_org_name: boolean,

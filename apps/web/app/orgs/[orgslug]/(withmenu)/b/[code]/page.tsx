@@ -5,6 +5,7 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { routePaths } from '@services/config/config'
 import { badgeAwardsApi } from '@services/badges/badges'
 import AwardPage from '@components/Badges/AwardPage'
+import { inOrgWords } from '@/lib/people'
 
 type AwardPageProps = { params: Promise<{ orgslug: string; code: string }> }
 
@@ -14,7 +15,7 @@ export async function generateMetadata(props: AwardPageProps): Promise<Metadata>
   const { orgslug, code } = await props.params
   const [org, award] = await Promise.all([getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] }).catch(() => null), load(code)])
   if (!award) return { title: `Badge - ${org?.name || 'Launch LMS'}` }
-  const learner = award.learner?.name || award.learner?.username || 'A learner'
+  const learner = award.learner?.name || award.learner?.username || inOrgWords('A learner')
   const title = buildPageTitle(`${learner} earned ${award.achievement.name}`, org?.name, getOrgSeoConfig(org))
   const issuer = award.issuing_org?.name
   const description = award.status === 'revoked'

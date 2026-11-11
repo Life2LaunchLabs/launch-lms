@@ -2,6 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 /** One Home widget: a titled card with an optional count and a link to the full view. */
 export function WidgetCard({ title, count, more, children, className }: { title: string; count?: number; more?: { href: string; label?: string }; children: React.ReactNode; className?: string }) {
@@ -57,4 +58,4 @@ export function dayLabel(day: string, now = new Date()) {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
+export const plural = (count: number, word: string) => inOrgWords(`${count} ${word}${count === 1 ? '' : 's'}`)

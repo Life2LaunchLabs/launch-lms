@@ -12,6 +12,7 @@ import { peopleKeys, type DirectoryPerson, type GroupPerson, type OrgRole } from
 import type { PersonSummary } from '@services/goals/types'
 import { RoleTag } from './RoleTag'
 import { useDirectory, useGroupDetail, usePeopleContext } from './usePeople'
+import { inOrgWords } from '@/lib/people'
 
 /** What someone is in a group: staff (who work with its learners) or one of its learners. */
 export type GroupRole = 'staff' | 'learner'
@@ -57,7 +58,7 @@ function PickRow({ person, busy, onAdd }: { person: DirectoryPerson; busy?: bool
       <span className="block truncate text-xs text-muted-foreground">@{person.user.username}</span>
     </span>
     {staffable ? <select aria-label={`Add ${person.user.name} as`} value={as} onChange={(event) => setAs(event.target.value as GroupRole)} className={cn(SELECT, 'h-8')}>
-      <option value="staff">Staff</option><option value="learner">Learner</option>
+      <option value="staff">Staff</option><option value="learner">{inOrgWords('Learner')}</option>
     </select> : <RoleTag role="learner" />}
     <button type="button" disabled={busy} onClick={() => onAdd({ user: person.user, role: person.role, as })} aria-label={`Add ${person.user.name}`}
       className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-gray-900 px-2.5 text-xs font-bold text-white disabled:opacity-50"><Plus size={13} />Add</button>
@@ -80,7 +81,7 @@ export function PersonLine({ user, tag, detail, busy, onRemove, children }: { us
 function Heading({ count }: { count: number }) {
   return <div>
     <h3 className="text-sm font-bold">People{count ? ` · ${count}` : ''}</h3>
-    <p className="mt-0.5 text-xs text-muted-foreground">Staff are listed first. They join each learner&rsquo;s school chat and the plans they cover.</p>
+    <p className="mt-0.5 text-xs text-muted-foreground">{inOrgWords("Staff are listed first. They join each learner’s school chat and the plans they cover.")}</p>
   </div>
 }
 
@@ -134,7 +135,7 @@ export function GroupPeople({ groupId, onChanged }: { groupId: number; onChanged
       {staff.data.staff.map((member) => <StaffRow key={`staff-${member.user.id}`} member={member} data={staff.data!} busy={staff.busy === member.user.id} save={saveStaff} remove={removeStaff} />)}
       {members.map((item) => <PersonLine key={`member-${item.user.id}`} user={item.user} tag={memberTag(item)} detail={item.status === 'alumni' ? 'Alumni' : undefined}
         busy={busy === item.user.id} onRemove={() => void removeMember(item)} />)}
-    </ul> : <p className="rounded-lg border border-dashed border-gray-200 p-5 text-center text-sm text-muted-foreground">Nobody in this group yet. Add a teacher or counselor as staff, then its learners.</p>}
+    </ul> : <p className="rounded-lg border border-dashed border-gray-200 p-5 text-center text-sm text-muted-foreground">{inOrgWords("Nobody in this group yet. Add a teacher or counselor as staff, then its learners.")}</p>}
   </section>
 }
 
@@ -150,7 +151,7 @@ export function DraftPeople({ value, onChange }: { value: PersonToAdd[]; onChang
       {ordered.map((item) => <PersonLine key={item.user.id} user={item.user} tag={<RoleTag role={item.as === 'staff' ? 'staff' : 'learner'} />}
         detail={item.as === 'staff' ? 'Commenter on all plans' : undefined} onRemove={() => onChange(value.filter((other) => other.user.id !== item.user.id))}>
         {canStaff(item.role) ? <select aria-label={`${item.user.name} joins as`} value={item.as} onChange={(event) => set(item.user.id, event.target.value as GroupRole)} className={SELECT}>
-          <option value="staff">Staff</option><option value="learner">Learner</option>
+          <option value="staff">Staff</option><option value="learner">{inOrgWords('Learner')}</option>
         </select> : null}
       </PersonLine>)}
     </ul> : null}

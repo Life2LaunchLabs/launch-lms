@@ -3,6 +3,7 @@ import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/req
 import type { Chat, ChatSummary } from '@services/connect/connect'
 import type { PersonSummary } from '@services/goals/types'
 import type { MemberStatus, StaffPermission } from '@services/organizations/membership'
+import { inOrgWords } from '@/lib/people'
 
 const q = encodeURIComponent
 const base = (orgId: number, path: string) => `${getAPIUrl()}school/orgs/${orgId}${path}`
@@ -193,4 +194,4 @@ export const peopleApi = {
     request<HelperRequest>(helperBase(`/${q(invitationUuid)}/${approve ? 'approve' : 'decline'}?org_id=${orgId}`), token, 'POST'),
 }
 
-export const ROLE_LABELS: Record<OrgRole, string> = { admin: 'Admin', staff: 'Staff', learner: 'Learner', helper: 'Helper', applicant: 'Asking for a plan' }
+export const ROLE_LABELS: Record<OrgRole, string> = { admin: 'Admin', staff: 'Staff', get learner() { return inOrgWords('Learner') }, helper: 'Helper', applicant: 'Asking for a plan' }

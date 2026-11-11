@@ -22,6 +22,7 @@ import type { PersonTab } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
 import SchoolSupport from './SchoolSupport'
 import CoursePlan from './CoursePlan'
+import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
 
@@ -209,13 +210,13 @@ function Access({ orgslug, orgId, token, profile, refresh }: { orgslug: string; 
     {canManage ? <PersonManage orgslug={orgslug} profile={profile} refresh={refresh} /> : <About profile={profile} />}
     {profile.helpers.length ? <Helpers profile={profile} refresh={refresh} /> : null}
     {learner ? <LearnerTeam orgId={orgId} userId={profile.user.id} token={token} /> : null}
-    {learner && manage.status ? <LearnerAccessibility orgId={orgId} userId={profile.user.id} name={profile.user.name || 'this learner'} token={token} /> : null}
+    {learner && manage.status ? <LearnerAccessibility orgId={orgId} userId={profile.user.id} name={profile.user.name || inOrgWords('this learner')} token={token} /> : null}
   </>
 }
 
 function HelpingOn({ orgslug, profile }: { orgslug: string; profile: Profile }) {
   return <Card title="Helping on">
-    <p className="-mt-1 mb-3 text-xs text-muted-foreground">A learner brought them onto these plans. They see only these plans, and are reached only in each plan&rsquo;s feed.</p>
+    <p className="-mt-1 mb-3 text-xs text-muted-foreground">{inOrgWords("A learner brought them onto these plans. They see only these plans, and are reached only in each plan’s feed.")}</p>
     {profile.helping_on.length ? <ul className="space-y-2">{profile.helping_on.map((item) => <li key={item.collaborator_uuid} className="flex items-center justify-between gap-3 text-sm">
       <span className="min-w-0 truncate"><span className="font-semibold">{item.title}</span>{item.learner ? <span className="text-muted-foreground"> · {item.learner.name}</span> : null}</span>
       <Link href={getUriWithOrg(orgslug, admin.learnerFeed(item.goal_uuid))} className="shrink-0 text-xs font-bold underline">Open feed</Link>
