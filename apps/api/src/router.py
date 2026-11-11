@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from src.routers import accessibility as accessibility_router_module
+from src.routers import notifications as notifications_router_module
 from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
@@ -96,6 +97,8 @@ async def get_non_api_token_user(user = Depends(get_current_user)):
 
 # API Routes
 v1_router.include_router(accessibility_router_module.router, dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(notifications_router_module.router, dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(notifications_router_module.public_router)
 v1_router.include_router(
     users.router,
     prefix="/users",
