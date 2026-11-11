@@ -92,6 +92,7 @@ launch-lms/
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
 | `/users` | User profile, settings |
+| `/users/me/email_notifications`, `/notifications/unsubscribe` | Email notification switches and the no-sign-in unsubscribe page. Notifications are queued with `services/notifications/outbox.notify` and sent (batched per person and stream) by a worker started with the app; streams and kinds live in `services/notifications/catalog.py` |
 | `/school` | Threads (a person's, a group's, all staff, the organization's), the Threads list, profiles, helper requests |
 | `/connect` | Conversations: messages, staff-only notes, reactions |
 | `/orgs` | Organization CRUD, usage |

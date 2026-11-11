@@ -134,7 +134,7 @@ oauthauthorizationcode oauthclient oauthgrant org_signing_key platformsecret con
 coach_note coach_playbook coach_policy coach_provider_key coach_release coach_report
 coach_test coach_test_run conversationreport userblock
 insight_dashboard insight_capture insight_capture_rule learningactivitypreview learningcontentbackup
-organization_join_request plan_request
+organization_join_request plan_request notification_event
 democheckpoint democonfiguration demomember demosession demousage
 test_cohort test_persona test_cohort_org test_mail test_login_ticket test_event test_checkpoint
 """.split()
