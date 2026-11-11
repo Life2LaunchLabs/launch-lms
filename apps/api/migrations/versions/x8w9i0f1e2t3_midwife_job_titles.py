@@ -6,7 +6,7 @@ before that still say "Midwive". This fixes them in place. It only touches words
 which no occupation title uses on purpose, so running it again changes nothing.
 
 Revision ID: x8w9i0f1e2t3
-Revises: w7c8k9p0t1s2
+Revises: x1n2t3f4y5e6
 Create Date: 2026-11-11
 """
 
@@ -17,7 +17,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "x8w9i0f1e2t3"
-down_revision = "w7c8k9p0t1s2"
+down_revision = "x1n2t3f4y5e6"
 branch_labels = None
 depends_on = None
 
