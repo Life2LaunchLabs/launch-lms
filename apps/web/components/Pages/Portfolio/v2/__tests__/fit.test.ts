@@ -15,6 +15,12 @@ describe('section floors (FEED-63)', () => {
     expect(floorFrom('free', { ...none, chrome: 4, slides: [{ text: 180.4, mediaAbove: false }] })).toBe(185)
   })
 
+  test("a slide's own min-height counts, so words laid over the bottom of a tall photo slide stay in view", () => {
+    // Volt sets photo slides to 300 px and puts the title, meta line and "See it" over the bottom of the picture.
+    expect(floorFrom('free', { ...none, chrome: 18, slides: [{ text: 210, mediaAbove: false, least: 300 }] })).toBe(318)
+    expect(floorFrom('free', { ...none, chrome: 18, slides: [{ text: 320, mediaAbove: false, least: 300 }] })).toBe(338)
+  })
+
   test('a banner with nothing measured has no floor of its own', () => {
     expect(floorFrom('free', none)).toBe(0)
   })

@@ -6451,14 +6451,15 @@
     },
     "unlock_matches": {
       "unlock_your_matches_done_of": "Unlock your matches · {{done}} of {{total}}",
-      "each_one_makes_explore_more": "Each one makes Explore more about you. Finish all {{total}} to make your Explore home your own.",
-      "done_of_total_done": "{{done}} of {{total}} done",
       "done": "(done)",
-      "go": "Go",
-      "careers_that_fit_you_near": "careers that fit you, near you, with what they pay and how long training takes.",
-      "your_explore_home": "Your Explore home:",
       "preview_it": "Preview it",
-      "your_interests_and_skills_only": "Your interests and skills only show on your portfolio if you put them there. Your home base is your portfolio’s location."
+      "unlock_your_matches": "Unlock your matches",
+      "each_one_sharpens_your_matches": "Each one makes your career matches more about you.",
+      "match_accuracy": "Match accuracy",
+      "match_accuracy_done_of_total": "Match accuracy: {{done}} of {{total}} done",
+      "have_of_need": "{{have}} of {{need}}",
+      "close": "Close",
+      "finish_all_total_for_your": "Finish all {{total}} for your own Explore home."
     }
   },
   "resources": {
@@ -7338,6 +7339,10 @@
       "making_pdf": "Making PDF…",
       "download_pdf": "Download PDF",
       "download_open_badge": "Download Open Badge",
+      "copy_link": "Copy link",
+      "link_copied": "Link copied",
+      "anyone_with_this_link": "Anyone with this link can see it.",
+      "could_not_copy_the_link": "Could not copy the link. Copy it from the address bar instead.",
       "about_this_kind": "About this {{kind}}",
       "skills": "Skills",
       "awarded_for_equivalent_work": "Awarded for equivalent work",

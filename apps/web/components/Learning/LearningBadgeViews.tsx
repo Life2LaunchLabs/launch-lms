@@ -7,7 +7,7 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { ArrowLeft, ArrowRight, Copy, Loader2, Pause, Play, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Copy, Loader2, Upload } from 'lucide-react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -38,6 +38,7 @@ import { BlockMotion } from './player/design'
 import PageBlock, { PAGE_BLOCKS } from './player/PageBlocks'
 import BlockLayout from './player/BlockLayout'
 import WordCountHint from './player/WordCountHint'
+import { VideoPlayButton } from './player/VideoControls'
 import { useBlockSetters } from './player/blockSetters'
 import { AnswerVoiceTools, SpokenQuestion, SpokenRichText } from '@components/Accessibility/ReadAloud'
 
@@ -584,6 +585,11 @@ function isLearningQuestionPage(page: any) {
   return page?.page_type === 'multiple_choice' || page?.page_type === 'text_input' || page?.page_type === 'image_upload'
 }
 
+/** A video page with a video stays locked until it ends, so its play controls show (FEED-113). */
+export function isVideoGatedPage(page: any) {
+  return page?.page_type === 'video' && Boolean(page.content?.video_url)
+}
+
 export function isQuestionResponseRequired(page: any) {
   if (!page) return false
   if (page.page_type === 'standard') return Boolean(findQuestionBlock(page))
@@ -715,7 +721,7 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
     const togglePlayback = () => {
       const video = videoRef.current
       if (video) {
-        if (video.paused) void video.play()
+        if (video.paused) video.play()?.catch(() => undefined)
         else video.pause()
         return
       }
@@ -774,7 +780,7 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
     return () => window.clearInterval(interval)
   }, [setAnswer, youtubeId])
 
-  const updateNativeProgress = () => {
+  const updateNativeProgress = (playing?: boolean) => {
     const video = videoRef.current
     if (!video) return
     const duration = Number.isFinite(video.duration) ? video.duration : 0
@@ -784,8 +790,17 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
       videoProgress: duration > 0 ? current / duration : 0,
       videoCurrentTime: current,
       videoDuration: duration,
-      videoPlaying: !video.paused,
+      videoPlaying: playing ?? !video.paused,
     })
+  }
+
+  // Ask to play once the video loads: a blocked autoplay fires no event, only this rejection,
+  // and that's what shows the play button (FEED-113).
+  const startNative = () => {
+    const video = videoRef.current
+    if (!video) return
+    updateNativeProgress(true)
+    video.play()?.catch(() => updateNativeProgress(false))
   }
 
   return (
@@ -823,11 +838,12 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
             src={videoUrl}
             autoPlay
             playsInline
-            className="h-full w-full object-contain"
-            onPlay={updateNativeProgress}
-            onPause={updateNativeProgress}
-            onTimeUpdate={updateNativeProgress}
-            onLoadedMetadata={updateNativeProgress}
+            className="h-full w-full cursor-pointer object-contain"
+            onClick={() => window.dispatchEvent(new Event(toggleEventName))}
+            onPlay={() => updateNativeProgress()}
+            onPause={() => updateNativeProgress()}
+            onTimeUpdate={() => updateNativeProgress()}
+            onLoadedMetadata={startNative}
             onEnded={() => {
               setUnlocked(true)
               setAnswer?.({
@@ -845,59 +861,11 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
           </div>
         )}
       </div>
+      {/* The browser can block autoplay (sound on, no tap yet): show a play button whenever it's paused. */}
+      {!youtubeId && videoUrl && answer?.videoPlaying === false && (
+        <VideoPlayButton onClick={() => window.dispatchEvent(new Event(toggleEventName))} />
+      )}
       <CaptionOverlay captions={page.content?.captions} time={answer?.videoCurrentTime} />
-    </div>
-  )
-}
-
-export function VideoPlaybackStatus({ interactionState, pageUuid, allowScrubbing = true }: { interactionState: any; pageUuid?: string; allowScrubbing?: boolean }) {
-  const progress = Math.max(0, Math.min(1, interactionState?.videoProgress || 0))
-  const seekFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!allowScrubbing || !pageUuid) return
-    const rect = event.currentTarget.getBoundingClientRect()
-    const nextProgress = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)))
-    window.dispatchEvent(new CustomEvent(`learning-video-seek-${pageUuid}`, { detail: { progress: nextProgress } }))
-  }
-
-  const startScrub = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!allowScrubbing || !pageUuid) return
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    seekFromPointer(event)
-  }
-
-  return (
-    <div className="w-full max-w-2xl text-white drop-shadow">
-      <div
-        className={`relative mb-4 h-4 rounded-full ${allowScrubbing ? 'cursor-pointer touch-none' : ''}`}
-        onPointerDown={startScrub}
-        onPointerMove={(event) => {
-          if (event.buttons !== 1) return
-          seekFromPointer(event)
-        }}
-        title={allowScrubbing ? 'Seek video' : 'Seeking disabled'}
-      >
-        <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/30">
-          <div className="h-full rounded-full bg-card transition-all" style={{ width: `${progress * 100}%` }} />
-        </div>
-        {allowScrubbing && (
-          <div
-            className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card shadow"
-            style={{ left: `${progress * 100}%` }}
-          />
-        )}
-      </div>
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => pageUuid && window.dispatchEvent(new Event(`learning-video-toggle-${pageUuid}`))}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25"
-        >
-          {interactionState?.videoPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
-        </button>
-        <span className="text-sm font-bold">
-          {formatTime(interactionState?.videoCurrentTime || 0)} / {formatTime(interactionState?.videoDuration || 0)}
-        </span>
-      </div>
     </div>
   )
 }
@@ -906,11 +874,4 @@ function getYouTubeId(url: string) {
   if (!url) return ''
   const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/)
   return match?.[1] || ''
-}
-
-function formatTime(seconds: number) {
-  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
-  const minutes = Math.floor(safeSeconds / 60)
-  const remaining = Math.floor(safeSeconds % 60)
-  return `${minutes}:${String(remaining).padStart(2, '0')}`
 }

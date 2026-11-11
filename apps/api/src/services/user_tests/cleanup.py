@@ -133,13 +133,22 @@ def _delete(db: Session, cohort: TestCohort, users: set[int], orgs: set[int]) ->
     from src.services.superadmin.users import _invalidate_session_cache
 
     from src.db.api_tokens import APIToken
-    from src.db.goals import Goal, GoalAssignment
+    from src.db.badges import BadgeAward
+    from src.db.goals import Goal, GoalAssignment, GoalTemplate
     from src.db.requirements import RequirementAssignmentBatch, RequirementEnrollment
 
     for ticket in db.execute(select(TestLoginTicket).where(TestLoginTicket.persona_user_id.in_(users))).scalars() if users else []:  # type: ignore[attr-defined]
         db.delete(ticket)
     # Rows whose keys RESTRICT (or don't cascade) would stop the user and org deletes below, so they
     # go first. The clean audit means every one of them belongs to this cohort.
+    # Badge awards point at the plan they were earned from, so a persona's earned badge stopped the
+    # org delete (FEED-104). They go before the plans, the orgs and the personas do.
+    award_owners = [BadgeAward.user_id.in_(users)] if users else []  # type: ignore[attr-defined]
+    if orgs:
+        cohort_templates = select(GoalTemplate.id).where(GoalTemplate.org_id.in_(orgs))  # type: ignore[attr-defined]
+        award_owners += [BadgeAward.template_id.in_(cohort_templates), BadgeAward.issuing_org_id.in_(orgs), BadgeAward.creator_org_id.in_(orgs)]  # type: ignore[attr-defined]
+    if award_owners:
+        db.execute(delete(BadgeAward).where(or_(*award_owners)))
     if users:
         db.execute(delete(Goal).where(Goal.owner_user_id.in_(users)))  # type: ignore[attr-defined]
         db.execute(delete(APIToken).where(APIToken.created_by_user_id.in_(users)))  # type: ignore[attr-defined]

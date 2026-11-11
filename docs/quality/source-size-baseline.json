@@ -10,7 +10,7 @@
     "apps/api/src/services/analytics/queries.py": 1159,
     "apps/api/src/services/api_tokens/api_tokens.py": 510,
     "apps/api/src/services/candidate_jira.py": 567,
-    "apps/api/src/services/hub_advisor.py": 663,
+    "apps/api/src/services/hub_advisor.py": 652,
     "apps/api/src/services/learning_portfolio_actions.py": 503,
     "apps/api/src/services/orgs/orgs.py": 1226,
     "apps/api/src/services/orgs/users.py": 1172,

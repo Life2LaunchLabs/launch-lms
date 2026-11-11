@@ -6,6 +6,8 @@ import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ErrorUI from '@components/Objects/StyledElements/Error/Error'
 import { peopleWordsOf, setPeopleWords } from '@/lib/people'
+import { OrgShellSkeleton } from '@components/Objects/Loaders/OrgShellSkeleton'
+import { usePathname } from 'next/navigation'
 
 interface OrgContextValue {
   org: any
@@ -15,7 +17,12 @@ interface OrgContextValue {
 
 export const OrgContext = createContext<OrgContextValue | null>(null)
 
-export function OrgProvider({ children, orgslug }: { children: React.ReactNode, orgslug: string }) {
+/**
+ * ``loadingShell`` shows placeholder cards in the page's shape while the org loads (the org's own
+ * pages); without it the wait is an empty box (sign-in and embeds, which have their own look).
+ */
+export function OrgProvider({ children, orgslug, loadingShell = false }: { children: React.ReactNode, orgslug: string, loadingShell?: boolean }) {
+  const pathname = usePathname()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const isAuthenticated = session?.status === 'authenticated'
@@ -66,8 +73,9 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
 
   // A failed refetch (a sign-in refresh hiccup, a busy server) keeps the org already loaded.
   if (orgError && !org) return <ErrorUI message='An error occurred while fetching data' />
-  if (!org || !session) return <div></div>
-  if (isAuthenticated && sessionRoles.length === 0 && isResolvingMembership) return <div></div>
+  const loading = loadingShell ? <OrgShellSkeleton pathname={pathname} /> : <div></div>
+  if (!org || !session) return loading
+  if (isAuthenticated && sessionRoles.length === 0 && isResolvingMembership) return loading
   if (!isOrgActive) return <ErrorUI message='This organization is no longer active' />
 
   // Copy says this org's word for the people it supports (lib/people.ts).

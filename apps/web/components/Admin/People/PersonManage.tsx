@@ -10,7 +10,8 @@ import { removeUserFromOrg, updateUserRole } from '@services/organizations/orgs'
 import { linkUserToUserGroup, unLinkUserToUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { peopleKeys, type Profile } from '@services/school/people'
-import { STATUS_LABELS, membershipKeys, setMemberStatus, setStaffPermissions, statusLine, type MemberStatus, type StaffPermission, type StaffPermissionInfo } from '@services/organizations/membership'
+import { STATUS_LABELS, setMemberStatus, setStaffPermissions, statusLine, type MemberStatus, type StaffPermission } from '@services/organizations/membership'
+import StaffPermissionSwitches from './StaffPermissionSwitches'
 import { useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
 import { inOrgWords } from '@/lib/people'
 
@@ -28,8 +29,6 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
   const { data: groups } = useOrgGroups(manage.groups)
   const memberOf = new Set(profile.groups.filter((group) => group.as === 'member').map((group) => group.id))
   const addable = (groups || []).filter((group) => !memberOf.has(group.id))
-  const { data: catalog } = useSWR<{ permissions: StaffPermissionInfo[] }>(manage.permissions && token ? membershipKeys.staffPermissions(orgId) : null,
-    (url: string) => swrFetcher(url, token), { revalidateOnFocus: false })
   const [adding, setAdding] = React.useState('')
   if (!manage.change_role && !manage.remove && !manage.groups && !manage.status && !manage.permissions) return null
 
@@ -55,10 +54,7 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
   const changeRole = (roleUuid: string) => void run(() => updateUserRole(orgId, user.id, roleUuid, token as string), 'Role changed')
   const changeStatus = (status: MemberStatus) => void run(() => setMemberStatus(orgId, user.id, status, token as string),
     status === 'alumni' ? `${user.name} is now alumni` : `${user.name} is active again`)
-  const togglePermission = (key: StaffPermission, on: boolean) => {
-    const next = on ? [...profile.permissions, key] : profile.permissions.filter((item) => item !== key)
-    void run(() => setStaffPermissions(orgId, user.id, next, token as string), 'Permissions saved')
-  }
+  const savePermissions = (next: StaffPermission[]) => void run(() => setStaffPermissions(orgId, user.id, next, token as string), 'Permissions saved')
   const addToGroup = async () => {
     if (await run(() => linkUserToUserGroup(Number(adding), user.id, orgId, token as string), 'Added to the group')) setAdding('')
   }
@@ -79,13 +75,7 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
         {(roles || []).map((role: any) => <option key={role.role_uuid} value={role.role_uuid}>{role.name}</option>)}
       </select>
     </label> : null}
-    {manage.permissions ? <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold text-foreground">What they may do</legend>
-      {(catalog?.permissions || []).map((item) => <label key={item.key} className="flex items-center gap-2 text-sm text-foreground">
-        <input type="checkbox" className="h-4 w-4" checked={profile.permissions.includes(item.key)} disabled={busy} onChange={(event) => togglePermission(item.key, event.target.checked)} />
-        {item.label}
-      </label>)}
-    </fieldset> : null}
+    {manage.permissions && token ? <StaffPermissionSwitches orgId={orgId} token={token} value={profile.permissions} disabled={busy} onChange={savePermissions} /> : null}
     {manage.status ? <label className="flex items-center justify-between gap-4 text-sm">
       <span>
         <span className="block font-semibold text-foreground">Status</span>

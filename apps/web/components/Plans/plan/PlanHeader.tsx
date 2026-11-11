@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Archive, BarChart3, ArchiveRestore, ChevronDown, Clock, Compass, Globe, History, ImageIcon, Info, Lock, MoreVertical, Settings2 } from 'lucide-react'
+import { Archive, BarChart3, ArchiveRestore, ChevronDown, Clock, Compass, Eye, Globe, History, ImageIcon, Info, Lock, MoreVertical, Settings2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { OrgMark, type OrgMarkSource } from '@components/Plans/shared/OrgMark'
 import { PlanCover } from '@components/Plans/shared/PlanCover'
@@ -18,6 +18,8 @@ export type PlanMenu = {
   discover?: string | null
   /** The plan's Insights dashboards. */
   insights?: string | null
+  /** Opens Preview: the plan as someone assigned it sees it. */
+  preview?: () => void
   archive?: { archived: boolean; run: () => void } | null
 }
 
@@ -33,11 +35,13 @@ type Props = {
   collections?: React.ReactNode
   /** Another organization's plan: why it can't be edited here. */
   note?: React.ReactNode
+  /** The Share button: a link to the plan's Discover page. */
+  share?: React.ReactNode
   menu: PlanMenu
 }
 
 /** What's live: cover, title and description, then who made it, the live version and who can find it; collections under them. */
-export default function PlanHeader({ editing, editMode, by, canSwitchLive, visibility, collections, note, menu }: Props) {
+export default function PlanHeader({ editing, editMode, by, canSwitchLive, visibility, collections, note, share, menu }: Props) {
   const template = editing.template!
   const live = template.live_version
   const hadVersions = !!template.versions?.length
@@ -47,9 +51,10 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
     {editMode && menu.settings ? <span className="absolute -bottom-1.5 -right-1.5 grid h-[26px] w-[26px] place-items-center rounded-full border border-border bg-card text-foreground"><ImageIcon size={13} aria-hidden="true" /></span> : null}
   </PlanCover>
   return <header>
-    <div className="flex items-start gap-3.5 sm:gap-[18px]">
+    {/* Phones put the buttons on their own row so the title keeps its width. */}
+    <div className="flex flex-wrap items-start gap-3.5 sm:flex-nowrap sm:gap-[18px]">
       {editMode && menu.settings ? <button type="button" onClick={menu.settings} aria-label="Change the cover" className="relative shrink-0 overflow-visible rounded-[18px]">{cover}</button> : cover}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-[calc(100%-74px)] sm:basis-0">
         {editMode ? <EditableText editing={editing} field="title" value={shown.title} placeholder="Name your plan" className="text-[clamp(26px,3vw,36px)] font-extrabold leading-[1.15] tracking-[-0.035em]" />
           : <h1 className="break-words text-[clamp(26px,3vw,36px)] font-extrabold leading-[1.15] tracking-[-0.035em] text-foreground">{shown.title || 'Untitled plan'}</h1>}
         {editMode ? <EditableText editing={editing} field="description" value={shown.description || ''} placeholder={inOrgWords("Add a short description learners will see")} className="mt-1.5 text-base leading-normal text-muted-foreground focus:text-foreground" />
@@ -67,7 +72,10 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
         </div>
         {collections ? <div className="mt-2.5 flex flex-wrap gap-1.5">{collections}</div> : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+        {share}
+        {menu.preview ? <button type="button" onClick={menu.preview} title="See it as someone you assign it to" className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
+          <Eye size={16} aria-hidden="true" /><span className="hidden sm:inline">Preview</span><span className="sr-only sm:hidden">Preview</span></button> : null}
         {menu.insights ? <Link href={menu.insights} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
           <BarChart3 size={16} aria-hidden="true" /><span className="hidden sm:inline">Insights</span><span className="sr-only sm:hidden">Insights</span></Link> : null}
         <MoreMenu menu={menu} />

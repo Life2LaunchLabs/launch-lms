@@ -11,11 +11,12 @@ import AccountPreferences from '@components/Objects/Account/subpages/AccountPref
 import AccountLanguage from '@components/Objects/Account/subpages/AccountLanguage'
 import AccountAccessibility from '@components/Objects/Account/subpages/AccountAccessibility'
 import AccountData from '@components/Objects/Account/subpages/AccountData'
+import AccountEmailNotifications from '@components/Objects/Account/subpages/AccountEmailNotifications'
 import { signOut } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 
 /** Where each old account tab now sits on the one Settings page. */
-const SECTIONS: Record<string, string> = { preferences: 'appearance', language: 'language', accessibility: 'accessibility', memory: 'memory', data: 'data' }
+const SECTIONS: Record<string, string> = { preferences: 'appearance', language: 'language', accessibility: 'accessibility', memory: 'memory', data: 'data', emails: 'emails' }
 
 const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
   const { t } = useTranslation()
@@ -29,6 +30,7 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
     <AccountPageShell>
       <div className="space-y-6">
         <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountLearnerName /><AccountSecurity /></section>
+        <section id="emails" className="scroll-mt-6"><AccountEmailNotifications /></section>
         <section id="language" className="scroll-mt-6"><AccountLanguage /></section>
         <section id="accessibility" className="scroll-mt-6"><AccountAccessibility /></section>
         <section id="appearance" className="scroll-mt-6"><AccountPreferences /></section>

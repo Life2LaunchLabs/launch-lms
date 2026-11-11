@@ -85,6 +85,7 @@ export const ADMIN_TABS: AdminTab[] = [
       { id: 'discover', get label() { return inOrgWords('Learner Discover') }, href: admin.organization.discover(), match: [admin.organization.discover()], requires: {} },
       { id: 'messaging', label: 'Messaging', href: admin.organization.messaging(), match: [admin.organization.messaging()], requires: {} },
       { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
+      { id: 'claude', label: 'Connect Claude', href: admin.organization.claude(), match: [admin.organization.claude()], requires: {} },
       { id: 'plan', label: 'Plan & access', href: admin.organization.plan(), match: [admin.organization.plan()], requires: {} },
       { id: 'payments', label: 'Payments', labelKey: 'common.payments', href: admin.payments.overview(), match: ['/admin/payments'], requires: { feature: 'payments' } },
     ],

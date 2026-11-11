@@ -164,6 +164,7 @@ export const routePaths = {
     /** One phase of the learner's plan, and its budget. */
     phase: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}`,
     phaseBudget: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/budget`,
+    phaseSuggestions: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/suggestions`,
     /** Someone's plan they shared with you in their My people. */
     sharedPlan: (userUuid: string) => `/plans/shared/${encodeURIComponent(userUuid)}`,
     /** A plan learners can join, as Discover shows it; also the criteria page of the badge it earns. */
@@ -284,6 +285,8 @@ export const routePaths = {
         /** The carousel learners see on Discover. */
         discover: () => '/admin/org/settings/discover',
         plan: () => '/admin/org/settings/plan',
+        /** The server address and steps for connecting Claude, and the admin's connections. */
+        claude: () => '/admin/org/settings/claude',
       },
       payments: {
         overview: () => '/admin/payments/overview',

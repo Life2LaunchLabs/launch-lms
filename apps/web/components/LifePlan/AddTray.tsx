@@ -131,6 +131,7 @@ function Confirm({ item, side, estimable, onDone }: { item: CatalogItem; side: S
             <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" aria-label={tr('budget.add_tray.hours_a_week', 'Hours a week')} className="h-10 w-14 rounded-xl border border-border bg-background px-2 text-right text-foreground outline-none" />{' '}{tr('budget.add_tray.hrs_a_week', 'hrs a week')}
           </span>}
         </div>
+        {item.resources && !item.metric && <span className="text-xs font-normal text-muted-foreground">{tr('budget.add_tray.not_sure_leave_empty', 'Not sure yet? Leave it empty: once it\'s added, we\'ll show where to find out.')}</span>}
         {item.metric && <span className="text-xs font-normal text-muted-foreground">{estimable ? tr('budget.add_tray.we_only_show_an_estimate', 'We only show an estimate when we have a published source for {{value}}.', { value: phase.place_label || tr('budget.add_tray.v_this_place', 'this place') }) : tr('budget.add_tray.we_don_t_have_a', 'We don\'t have a published estimate for {{value}} yet, so put in your own number.', { value: phase.place_label || 'this place' })}</span>}
       </div>
       <label className="grid gap-1 text-sm font-semibold">{tr('budget.add_tray.starts', 'Starts')}

@@ -54,7 +54,7 @@ export default async function RootLayout(props: {
 
   return (
     <div>
-      <OrgProvider orgslug={params.orgslug}>
+      <OrgProvider orgslug={params.orgslug} loadingShell>
         <PageTitleProvider><OrgThemeVariables>
           <NextTopLoader color="#2e2e2e" initialPosition={0.3} height={4} easing={'ease'} speed={500} showSpinner={false} />
           <Toast />

@@ -192,7 +192,18 @@ async def publish_plan_template(request: Request, db_session: Session, ctx: Acce
     if current is not None and current.content_hash == templates.fingerprint(db_session, template):
         raise HTTPException(status_code=409, detail=f"Nothing to publish: the draft matches version {current.number}")
     templates.publish(db_session, ctx.user, ctx.org_id, template.template_uuid, str(args.get("note") or ""))
-    return _version_result(db_session, ctx, template)
+    return {**_version_result(db_session, ctx, template), **_who_can_find(db_session, ctx, template)}
+
+
+def _who_can_find(db: Session, ctx: AccessContext, template: GoalTemplate) -> dict:
+    """Publishing doesn't change who can find the plan: say so, so nobody calls an invite-only plan shared."""
+    from src.services.goals import plan_access
+
+    access = plan_access.access_of(db, int(template.id), ctx.org_id)  # type: ignore[arg-type]
+    if access != "invite":
+        return {"who_can_find": access}
+    return {"who_can_find": access, "sharing": "Invite only: only people your team assigns can start it, and it isn't on Discover. "
+            "If the admin wants people to find it and start it themselves, set_plan_access sets that and returns the link to share."}
 
 
 async def restore_plan_template_version(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:

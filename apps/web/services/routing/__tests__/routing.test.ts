@@ -10,7 +10,7 @@ import { hasRoutableSession, SERVER_AUTH_HEADERS } from '../../auth/sessionCooki
 import { NextRequest } from 'next/server.js'
 import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
 import { signedInLanding } from '../signedInLanding.ts'
-import { invitationSiteSlug } from '../inviteSite.ts'
+import { acceptedInvitePath, invitationSiteSlug } from '../inviteSite.ts'
 
 function unsignedToken(exp: number): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -843,4 +843,14 @@ test('request policy lets a signed-in visitor open an invitation link instead of
   assert.equal(resolveRequestRouting({ ...input, search: '?invitation=abc' }).action, 'rewrite')
   assert.equal(resolveRequestRouting({ ...input, search: '?inviteCode=XYZ' }).action, 'rewrite')
   assert.equal(resolveRequestRouting({ ...input, search: '' }).action, 'redirect')
+})
+
+test('accepting a staff or admin invitation in the app opens the org welcome; learners stay put (FEED-84/95)', () => {
+  assert.equal(acceptedInvitePath('staff'), '/joined')
+  assert.equal(acceptedInvitePath('admin'), '/joined')
+  assert.equal(acceptedInvitePath(2), '/joined')
+  assert.equal(acceptedInvitePath(1), '/joined')
+  assert.equal(acceptedInvitePath('learner'), null)
+  assert.equal(acceptedInvitePath(4), null)
+  assert.equal(acceptedInvitePath(undefined), null)
 })

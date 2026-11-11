@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from src.db.organization_invitations import OrganizationInvitation
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser
 from src.security.org_auth import DEFAULT_STAFF_PERMISSIONS, STAFF_PERMISSIONS, require_org_admin, require_org_owner_admin, staff_permissions
@@ -42,3 +43,34 @@ def set_permissions(db: Session, current_user: PublicUser, org_id: int, user_id:
     db.add(membership)
     db.commit()
     return {"user_id": user_id, "permissions": sorted(staff_permissions(membership))}
+
+
+def invitation_permissions(invitation: OrganizationInvitation) -> list[str] | None:
+    """What a staff invitation will let them do once accepted (the defaults when the admin chose none); None for other roles."""
+    if invitation.role_id != STAFF_ROLE_ID:
+        return None
+    keys = invitation.permissions if invitation.permissions is not None else DEFAULT_STAFF_PERMISSIONS
+    return [key for key in STAFF_PERMISSIONS if key in keys]
+
+
+def set_invitation_permissions(db: Session, current_user: PublicUser, org_id: int, invitation_uuid: str, permissions: list[str]) -> dict:
+    """Change what someone invited as staff will be able to do, before they accept (admins only)."""
+    require_org_owner_admin(current_user.id, org_id, db)
+    unknown = sorted(set(permissions) - set(STAFF_PERMISSIONS))
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown permissions: {', '.join(unknown)}")
+    invitation = db.exec(select(OrganizationInvitation).where(
+        OrganizationInvitation.org_id == org_id,
+        OrganizationInvitation.invitation_uuid == invitation_uuid,
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Active invitation not found")
+    if invitation.role_id != STAFF_ROLE_ID:
+        raise HTTPException(status_code=422, detail="Only staff invitations take permissions; admins can do everything")
+    invitation.permissions = [key for key in STAFF_PERMISSIONS if key in permissions]
+    invitation.updated_at = datetime.utcnow()
+    db.add(invitation)
+    db.commit()
+    return {"invitation_uuid": invitation_uuid, "permissions": invitation.permissions}
