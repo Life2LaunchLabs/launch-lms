@@ -308,6 +308,19 @@ export const getMainDomainUri = (path: string) => {
   return `${protocol}${domain}${path}`
 }
 
+/**
+ * A learner-facing page of an organization as a full link to send people (a plan's share link, a badge's
+ * criteria page). Organization addresses no longer serve learner pages (they redirect to the main site and
+ * drop the org), so other organizations' pages live on the main site under /orgs/<slug>, like the API's links.
+ */
+export const getOrgPublicPageUri = (orgslug: string, path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (orgslug === getDefaultOrg()) return getUriWithOrg(orgslug, normalizedPath)
+  const orgPath = `/orgs/${encodeURIComponent(orgslug)}${normalizedPath}`
+  const protocol = typeof window !== 'undefined' ? `${window.location.protocol}//` : getLAUNCHLMS_HTTP_PROTOCOL()
+  return `${protocol}${getLAUNCHLMS_DOMAIN()}${orgPath}`
+}
+
 export const getCoreCapabilities = () => ({
   multi_org: true,
   superadmin: true,

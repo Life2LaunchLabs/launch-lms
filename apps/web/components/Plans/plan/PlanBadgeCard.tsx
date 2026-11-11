@@ -11,7 +11,7 @@ import OrgMediaPicker from '@components/Objects/Media/OrgMediaPicker'
 import { useTemplateLearners } from '@components/Plans/editor/TemplateLearnersCard'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { smallActionClass, smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/actions'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getOrgPublicPageUri, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { BADGE_KINDS, CERTIFICATE_STYLES, badgeKindLabel, emptyTemplateBadge, type TemplateBadge } from '@services/badges/badges'
 import type { TemplateDetail } from '@services/goals/templates'
@@ -119,7 +119,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
     if (ok) setOpen(null)
   }
   const shownBlock = edit ? draft : current
-  const criteriaPage = getUriWithOrg(orgslug, routePaths.org.discoverPlan(template.template_uuid))
+  const criteriaPage = getOrgPublicPageUri(orgslug, routePaths.org.discoverPlan(template.template_uuid))
   const rows: Array<{ label: string; view: React.ReactNode; editor?: React.ReactNode }> = [
     { label: 'Image', view: <span className="flex items-center gap-2.5"><BadgeMedal badge={badge} size={36} />{shownBlock?.image_url ? 'Its own image' : 'The plan’s image'}</span>,
       editor: <span className="flex flex-wrap items-center gap-2.5"><BadgeMedal badge={badge} size={36} /><button type="button" className={smallActionClass} onClick={() => setPicking(true)}><Upload />Upload</button>{draft.image_url ? <button type="button" className={smallGhostClass} onClick={() => set({ image_url: '' })}>Use the plan’s image</button> : null}</span> },
