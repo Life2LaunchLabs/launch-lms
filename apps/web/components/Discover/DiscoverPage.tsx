@@ -27,7 +27,7 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const query = params.get('q') || ''
   const filters: DiscoverFilters = React.useMemo(() => ({
     // Old links ask for badges: badges are earned through plans.
-    type: params.get('type') === 'badges' ? 'plans' : params.get('type') === 'plans' || params.get('type') === 'resources' ? params.get('type') as DiscoverFilters['type'] : '',
+    type: params.get('type') === 'badges' ? 'plans' : ['plans', 'organizations', 'resources'].includes(params.get('type') || '') ? params.get('type') as DiscoverFilters['type'] : '',
     resourceTypes: (params.get('resource_types') || '').split(',').filter(Boolean),
     saved: params.get('saved') === '1',
   }), [params])

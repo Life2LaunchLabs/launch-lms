@@ -14,6 +14,7 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { badgeKindLabel } from '@services/badges/badges'
 import { DISCOVER_FEED_KEY, planJoiningApi, type PlanOfferCard, type PublicPlanPage } from '@services/goals/planJoining'
 import { CHUNKY, PlanArt } from './PlanArt'
+import OrgLink, { orgPageHref } from '@components/Organizations/OrgLink'
 import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
@@ -33,7 +34,7 @@ function OrgLogo({ org }: { org: NonNullable<PlanOfferCard['org']> }) {
 
 const stepCount = (page: PublicPlanPage) => page.stages.reduce((total, stage) => total + stage.steps.length, 0)
 
-function Hero({ page, action, note }: { page: PublicPlanPage; action: Action; note?: string }) {
+function Hero({ page, action, note, orgslug }: { page: PublicPlanPage; action: Action; note?: string; orgslug: string }) {
   const steps = stepCount(page)
   const chips = [steps ? `${steps} step${steps === 1 ? '' : 's'}` : '', page.stages.length > 1 ? `${page.stages.length} stages` : '', page.badge ? `Earns a ${badgeKindLabel(page.badge.kind).toLowerCase()}` : ''].filter(Boolean)
   const art = { template_uuid: page.template_uuid, title: page.title, thumbnail_image: page.thumbnail_image, icon: page.icon, color: page.color, badge: page.badge }
@@ -42,7 +43,7 @@ function Hero({ page, action, note }: { page: PublicPlanPage; action: Action; no
     <div className="relative mx-auto max-w-[1056px] px-4 pb-16 pt-6 sm:px-6">
       <div className="mt-3 flex flex-wrap-reverse items-center gap-10">
         <div className="flex min-w-0 flex-[999_1_460px] flex-col gap-[18px]">
-          {page.creator ? <span className="self-start rounded-full bg-card px-3 py-1.5 text-xs font-black uppercase tracking-[.08em] text-foreground">{tr('discover.plan_page.by_name', 'By {{name}}', { name: page.creator.name })}</span> : null}
+          {page.creator ? <OrgLink org={page.creator} orgslug={orgslug} className="self-start rounded-full bg-card px-3 py-1.5 text-xs font-black uppercase tracking-[.08em] text-foreground">{tr('discover.plan_page.by_name', 'By {{name}}', { name: page.creator.name })}</OrgLink> : null}
           <h1 className="m-0 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">{page.title}</h1>
           {page.description ? <p className="m-0 max-w-[520px] text-base leading-relaxed text-[#EAF0FF]">{page.description}</p> : null}
           {chips.length ? <div className="flex flex-wrap gap-2">{chips.map((chip) => <span key={chip} className="rounded-full border border-white/30 bg-card/15 px-3 py-1.5 text-sm font-bold text-white">{chip}</span>)}</div> : null}
@@ -134,10 +135,11 @@ function accessLabel(offer: PlanOfferCard): string {
 }
 
 /** Who offers the plan: the learner picks one when more than one organization runs it. */
-function JoinWith({ page, selected, onSelect, action }: { page: PublicPlanPage; selected: PlanOfferCard; onSelect: React.Dispatch<PlanOfferCard>; action: Action }) {
+function JoinWith({ page, selected, onSelect, action, orgslug }: { page: PublicPlanPage; selected: PlanOfferCard; onSelect: React.Dispatch<PlanOfferCard>; action: Action; orgslug: string }) {
   const [changing, setChanging] = React.useState(false)
   const others = page.offers.length - 1
   const org = selected.org!
+  const orgHref = orgPageHref(orgslug, org)
   return <section aria-labelledby="join-title" className="flex flex-col gap-4">
     <h2 id="join-title" className="m-0 text-2xl font-semibold leading-tight tracking-tight">{tr('discover.plan_page.who_you_ll_do_it', 'Who you’ll do it with')}</h2>
     <div className="overflow-hidden rounded-[28px] bg-card">
@@ -146,6 +148,7 @@ function JoinWith({ page, selected, onSelect, action }: { page: PublicPlanPage; 
         <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-0.5">
           <strong className="text-2xl leading-tight">{tr('discover.plan_page.with_name', 'With {{name}}', { name: org.name })}</strong>
           <span className="text-[15px] text-muted-foreground">{selected.access === 'open' ? tr('discover.plan_page.start_right_away', 'Start right away') : tr('discover.plan_page.name_says_yes_first', '{{name}} says yes first', { name: org.name })}{page.badge ? tr('discover.plan_page.they_award_the_tolowercase', ' · they award the {{toLowerCase}}', { toLowerCase: badgeKindLabel(page.badge.kind).toLowerCase() }) : ''}</span>
+          {orgHref ? <Link href={orgHref} className="mt-1 self-start text-sm font-bold text-[#2B5FD9]">{tr('discover.plan_page.see_their_page', 'See their page')}</Link> : null}
         </div>
         {others > 0 && !page.goal ? <button type="button" onClick={() => setChanging(!changing)} aria-expanded={changing}
           className="min-h-11 px-2 text-[15px] font-black text-[#2B5FD9]">{changing ? tr('discover.plan_page.done', 'Done') : (others === 1 ? tr('discover.plan_page.one_other_option', '1 other option') : tr('discover.plan_page.others_other_options', '{{others}} other options', { others }))}</button> : null}
@@ -227,11 +230,11 @@ export default function PlanPage({ orgslug, orgId, initialPage }: { orgslug: str
 
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
     <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel={tr('lit.plan_page.discover', 'Discover')} onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
-    <Hero page={page} action={action} note={note} />
+    <Hero page={page} action={action} note={note} orgslug={orgslug} />
     <main className="mx-auto flex max-w-[1056px] flex-col gap-8 px-4 pb-24 pt-6 sm:px-6">
       <Outline page={page} />
       <BadgeFacts page={page} />
-      {selected ? <JoinWith page={page} selected={selected} onSelect={(offer) => setSelectedOrg(offer.org?.id ?? null)} action={action} /> : null}
+      {selected ? <JoinWith page={page} selected={selected} onSelect={(offer) => setSelectedOrg(offer.org?.id ?? null)} action={action} orgslug={orgslug} /> : null}
     </main>
   </div>
 }

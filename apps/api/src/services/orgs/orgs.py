@@ -5,7 +5,7 @@ from typing import Literal
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, select
 from src.db.organization_config import (
     AuthBrandingConfig,
     OrganizationConfig,
@@ -26,7 +26,8 @@ from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
 from src.security.access.access import access_from_config, is_staff_role, owner_org_id
-from src.services.user_tests.visibility import discoverable_orgs, org_is_discoverable
+from src.db.user_tests import TestCohortOrg
+from src.services.user_tests.visibility import discoverable_orgs, viewer_cohort
 from src.services.orgs.uploads import (
     upload_org_auth_background,
     upload_org_favicon,
@@ -553,18 +554,15 @@ def _extract_signup_mode_from_config(org_config: OrganizationConfig | None) -> s
 
 
 def _build_discover_org_read(
+    db_session: Session,
     org: Organization,
     org_config: OrganizationConfig | None,
     is_member: bool,
-    member_count: int,
     owner_id: int | None,
 ) -> OrganizationDiscoverRead:
-    org_read = _build_org_read_with_access(org, org_config, owner_id)
-    payload = org_read.model_dump()
-    payload["signup_mode"] = _extract_signup_mode_from_config(org_config)
-    payload["is_member"] = is_member
-    payload["member_count"] = member_count
-    return OrganizationDiscoverRead.model_validate(payload)
+    from src.services.orgs.public_page import discover_read
+
+    return discover_read(db_session, org, org_config, is_member, owner_id)
 
 
 async def list_discoverable_orgs(
@@ -573,9 +571,16 @@ async def list_discoverable_orgs(
     page: int = 1,
     limit: int = 24,
     query: str = "",
+    listed: bool = False,
 ) -> list[OrganizationDiscoverRead]:
+    """Organizations a person can find: listed ones (they opted in to discovery) and their own.
+    With ``listed``, only Discover's shelf: listed organizations whose page is complete."""
+    from src.services.orgs.public_page import listed_orgs
+
     limit = min(limit, 100)
     page = max(page, 1)
+    if listed:
+        return listed_orgs(db_session, current_user, query, limit * page)[(page - 1) * limit:]
 
     statement = (
         select(Organization, OrganizationConfig)
@@ -585,6 +590,14 @@ async def list_discoverable_orgs(
 
     if isinstance(current_user, AnonymousUser):
         statement = statement.where(Organization.explore == True)
+    else:
+        # Unlisted organizations are members-only; a test run's personas still find their own run's orgs.
+        mine = select(UserOrganization.org_id).where(UserOrganization.user_id == current_user.id)
+        cohort = viewer_cohort(db_session, current_user.id)
+        visible = (Organization.explore == True) | col(Organization.id).in_(mine)
+        if cohort is not None:
+            visible = visible | col(Organization.id).in_(select(TestCohortOrg.org_id).where(TestCohortOrg.cohort_id == cohort))
+        statement = statement.where(visible)
     statement = statement.where(discoverable_orgs(db_session, current_user, Organization.id))
 
     if query.strip():
@@ -604,16 +617,6 @@ async def list_discoverable_orgs(
         return []
 
     org_ids = [org.id for org, _ in org_rows if org.id is not None]
-
-    member_counts_map: dict[int, int] = {}
-    if org_ids:
-        member_counts_rows = db_session.exec(
-            select(UserOrganization.org_id, func.count(UserOrganization.id))
-            .where(UserOrganization.org_id.in_(org_ids))  # type: ignore[arg-type]
-            .group_by(UserOrganization.org_id)
-        ).all()
-        member_counts_map = {org_id: count for org_id, count in member_counts_rows}
-
     visible_member_org_ids: set[int] = set()
     if not isinstance(current_user, AnonymousUser) and org_ids:
         member_rows = db_session.exec(
@@ -627,10 +630,10 @@ async def list_discoverable_orgs(
     owner_id = owner_org_id(db_session)
     return [
         _build_discover_org_read(
+            db_session,
             org,
             org_config,
             org.id in visible_member_org_ids if org.id is not None else False,
-            member_counts_map.get(org.id or 0, 0),
             owner_id,
         )
         for org, org_config in org_rows
@@ -642,6 +645,9 @@ async def get_discoverable_org_by_slug(
     current_user: PublicUser | AnonymousUser,
     org_slug: str,
 ) -> OrganizationDiscoverRead:
+    """An organization's public page. Listed pages are public; unlisted ones open only for members."""
+    from src.services.orgs.public_page import can_view, is_member
+
     statement = (
         select(Organization, OrganizationConfig)
         .outerjoin(OrganizationConfig, OrganizationConfig.org_id == Organization.id)
@@ -657,24 +663,11 @@ async def get_discoverable_org_by_slug(
         )
 
     org, org_config = row
-    is_member = False
-    if not isinstance(current_user, AnonymousUser):
-        membership = db_session.exec(
-            select(UserOrganization.id).where(
-                UserOrganization.user_id == current_user.id,
-                UserOrganization.org_id == org.id,
-            )
-        ).first()
-        is_member = membership is not None
-
-    if (isinstance(current_user, AnonymousUser) and not org.explore) or not org_is_discoverable(db_session, current_user, org.id):
+    member = is_member(db_session, current_user, org.id)
+    if not can_view(db_session, current_user, org, member):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
-    member_count = db_session.exec(
-        select(func.count()).where(UserOrganization.org_id == org.id)
-    ).one()
-
-    return _build_discover_org_read(org, org_config, is_member, member_count, owner_org_id(db_session))
+    return _build_discover_org_read(db_session, org, org_config, member, owner_org_id(db_session))
 
 
 # Config related

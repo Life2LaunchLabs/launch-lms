@@ -13,6 +13,7 @@ import { badgeAwardsApi, badgeKindLabel, type AwardCheck, type BadgeAward } from
 import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
+import OrgLink from '@components/Organizations/OrgLink'
 const longDate = (value: string) => {
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -128,7 +129,7 @@ export default function AwardPage({ orgslug, award, check = null, pageUrl }: { o
           </section> : null}
         </div>
         <aside aria-labelledby="issuer-title" className="flex flex-col gap-3 self-start rounded-[28px] bg-card p-6">
-          <h2 id="issuer-title" className="m-0 text-base font-semibold">{tr('badges.award_page.issued_by', 'Issued by')}{' '}{org?.name || tr('badges.award_page.an_organization_no_longer_on', 'an organization no longer on Life2Launch')}</h2>
+          <h2 id="issuer-title" className="m-0 text-base font-semibold">{tr('badges.award_page.issued_by', 'Issued by')}{' '}{org ? <OrgLink org={org} orgslug={orgslug} /> : tr('badges.award_page.an_organization_no_longer_on', 'an organization no longer on Life2Launch')}</h2>
           <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm">
             <CheckLine ok={Boolean(check?.proof)}>{check?.proof ? tr('badges.award_page.signed_by_value_and_unchanged', 'Signed by {{value}}, and unchanged since', { value: org?.name || tr('badges.award_page.v_the_issuer', 'the issuer') }) : tr('badges.award_page.its_signature_could_not_be', 'Its signature could not be checked')}</CheckLine>
             <CheckLine ok={!revoked}>{revoked ? tr('badges.award_page.revoked_by_the_issuer', 'Revoked by the issuer') : tr('badges.award_page.not_revoked', 'Not revoked')}</CheckLine>

@@ -138,14 +138,42 @@ export interface DiscoverOrganization {
   explore?: boolean | null
   label?: string | null
   slug: string
+  /** Only for its members; empty for everyone else. */
   email: string
-  config?: any
   creation_date: string
   update_date: string
   signup_mode: 'open' | 'inviteOnly' | string
   is_member: boolean
-  member_count: number
+  page: PublicPage
+  /** Plans it offers on its page (hidden ones left out), and how many earn a badge. */
+  plan_count: number
+  badge_count: number
+  /** Has a cover, a tagline and a plan anyone can join or request. */
+  complete: boolean
+  /** Turned on "List us in Discover" and complete: it shows on Discover's Organizations shelf. */
+  listed: boolean
 }
+
+/** What an organization's public page adds to its stored fields. */
+export interface PublicPage {
+  city: string
+  website: string
+  highlights: string[]
+  pinned_plans: string[]
+  hidden_plans: string[]
+}
+
+export type PublicPageUpdate = Partial<Pick<PublicPage, 'city' | 'website' | 'highlights' | 'pinned_plans' | 'hidden_plans'>> & {
+  description?: string
+  about?: string
+  socials?: Record<string, string>
+  listed?: boolean
+}
+
+/** What a page still needs before Discover can list it. */
+export type PublicPageGap = 'cover' | 'tagline' | 'plan'
+
+export const PUBLIC_PAGE_LIMITS = { tagline: 100, story: 1500, highlights: 3, highlight: 60, pinned: 3 } as const
 
 export interface OrganizationInvitation {
   invitation_uuid: string
@@ -180,7 +208,7 @@ export async function markOrganizationInvitationsViewed(accessToken: string) {
 }
 
 export async function getDiscoverOrganizations(
-  args: { page?: number; limit?: number; query?: string },
+  args: { page?: number; limit?: number; query?: string; listed?: boolean },
   next?: any,
   access_token?: string
 ) {
@@ -190,6 +218,7 @@ export async function getDiscoverOrganizations(
   if (args.query?.trim()) {
     params.set('query', args.query.trim())
   }
+  if (args.listed) params.set('listed', 'true')
 
   const result = await fetch(
     `${getAPIUrl()}orgs/discover?${params.toString()}`,
@@ -207,6 +236,16 @@ export async function getDiscoverOrganizationBySlug(
   const result = await fetch(
     `${getAPIUrl()}orgs/discover/${org_slug}`,
     RequestBodyWithAuthHeader('GET', null, next, access_token)
+  )
+  const res = await errorHandling(result)
+  return res as DiscoverOrganization
+}
+
+/** Save the Public page settings tab. Listing needs a complete page (409 with what's missing). */
+export async function updatePublicPage(orgId: number, body: PublicPageUpdate, accessToken: string) {
+  const result = await fetch(
+    `${getAPIUrl()}orgs/${orgId}/public_page`,
+    RequestBodyWithAuthHeader('PUT', body, null, accessToken)
   )
   const res = await errorHandling(result)
   return res as DiscoverOrganization

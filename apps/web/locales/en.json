@@ -4269,6 +4269,13 @@
       "saving": "Working and saving",
       "career": "Starting my career",
       "next": "Figuring out what’s next"
+    },
+    "plan_ask": {
+      "doing": "What I’ll be doing: {{doing}}.",
+      "place": "Where: {{place}}.",
+      "head_span": "Help me plan this phase of my plan: “{{title}}” ({{span}}).",
+      "head": "Help me plan this phase of my plan: “{{title}}”.",
+      "ask": "What goals should I set for it, and what should I do first?"
     }
   },
   "onboarding": {
@@ -5759,7 +5766,9 @@
       "start_your_budget": "Start your budget",
       "start_it": "Start it",
       "no_goals_were_left_open": "No goals were left open in {{lower}}.",
-      "done_of_total_steps": "{{done}} of {{total}} steps"
+      "done_of_total_steps": "{{done}} of {{total}} steps",
+      "plan_it_with_coach": "Plan it with Coach",
+      "plan_it_with_coach_hint": "Plan it out with Coach, say it in your own words, or pick one from Discover and earn a badge for it."
     },
     "phase_sheet": {
       "idea": "Idea · ",
