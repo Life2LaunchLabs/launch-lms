@@ -14,6 +14,7 @@ _STOP_WORDS = {
     "to", "with",
 }
 
+_MIN_CANDIDATE_PREFIX_LENGTH = 5
 _FIELD_WEIGHTS = {"title": 8.0, "tags": 6.0, "resource_type": 5.0, "provider": 4.0, "description": 2.0}
 _IRREGULAR_LEMMAS = {
     "children": "child",
@@ -77,7 +78,13 @@ def _term_similarity(query_term: str, candidate: str) -> float:
     if query_term == candidate:
         return 1.0
     shorter = min(len(query_term), len(candidate))
-    if shorter >= 3 and (query_term.startswith(candidate) or candidate.startswith(query_term)):
+    # A query term still being typed matches longer words ("diet" finds "dietitian"). An indexed word
+    # inside a longer query term counts only when it is a real stem ("assistance" finds "assist"), so
+    # "oregon" no longer matches "ore" and "dietitian" no longer matches "die".
+    if shorter >= 3 and (
+        candidate.startswith(query_term)
+        or (query_term.startswith(candidate) and len(candidate) >= _MIN_CANDIDATE_PREFIX_LENGTH)
+    ):
         return 0.82
     if shorter < 4:
         return 0.0

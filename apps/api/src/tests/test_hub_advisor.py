@@ -139,6 +139,44 @@ def test_resource_grounding_ranks_matches_and_excludes_private_learner_state():
     assert "private note" not in str(result)
 
 
+def test_resource_grounding_prefers_the_distinctive_word_over_everyday_words():
+    supervisors = [
+        {
+            "resource_uuid": f"resource_supervisor_{index}",
+            "title": f"First-Line Supervisor of {trade}",
+            "description": "Directly supervise and coordinate work. Career facts from O*NET.",
+            "resource_type": "career",
+            "tags": [],
+        }
+        for index, trade in enumerate(["Mechanics", "Landscaping Workers", "Non-Retail Sales", "Cooks", "Office Workers"])
+    ]
+    resources = [
+        *supervisors,
+        {
+            "resource_uuid": "resource_compensation",
+            "title": "Compensation Analyst",
+            "description": "Analyze pay and benefits. Career facts from O*NET.",
+            "resource_type": "career",
+            "tags": [],
+        },
+        {
+            "resource_uuid": "resource_dietitian",
+            "title": "Dietitian or Nutritionist",
+            "description": "Plan food and nutrition programs. Career facts from O*NET.",
+            "resource_type": "career",
+            "tags": [],
+        },
+    ]
+
+    result = relevant_advisor_resources(
+        "hi im 19 and want to go to university of oregon to become a dietitian. "
+        "what should I do first, and how do I pay for it without loans?",
+        resources,
+    )
+
+    assert [item["resource_uuid"] for item in result] == ["resource_dietitian"]
+
+
 def test_resource_grounding_serializes_enum_values_for_the_api():
     result = relevant_advisor_resources("career guide", [{
         "resource_uuid": "resource_career",
