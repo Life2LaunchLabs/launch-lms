@@ -345,3 +345,19 @@ def test_only_a_verified_persona_refresh_token_gets_its_own_refresh_limit(db):
     assert refresh_test_persona(create_refresh_token({"sub": "admin@example.com"})) is None
     assert refresh_test_persona("forged.token.value") is None
     assert refresh_test_persona(None) is None
+
+
+def test_a_dropped_persona_can_tell_an_open_run_from_a_closed_one(db, monkeypatch):
+    """No sign-in needed: a persona whose session dropped asks before being told the run ended (UT-3)."""
+    from starlette.requests import Request
+    from starlette.responses import Response
+    from src.routers.user_tests import persona_run_state
+
+    monkeypatch.setattr("src.routers.user_tests.check_rate_limit", lambda *args: (True, 0, 0))
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": [], "query_string": b"", "client": ("1.2.3.4", 1)})
+    cohort = _cohort(db)
+    maya = _persona(db, cohort["cohort_uuid"])
+    assert persona_run_state(maya["user_id"], request, Response(), db) == {"open": True}
+    assert persona_run_state(2, request, Response(), db) == {"open": False}  # a real account says nothing more
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    assert persona_run_state(maya["user_id"], request, Response(), db) == {"open": False}
