@@ -164,6 +164,7 @@ export const routePaths = {
     /** One phase of the learner's plan, and its budget. */
     phase: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}`,
     phaseBudget: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/budget`,
+    phaseSuggestions: (phaseId: string) => `/plans/phase/${encodeURIComponent(phaseId)}/suggestions`,
     /** Someone's plan they shared with you in their My people. */
     sharedPlan: (userUuid: string) => `/plans/shared/${encodeURIComponent(userUuid)}`,
     /** A plan learners can join, as Discover shows it; also the criteria page of the badge it earns. */

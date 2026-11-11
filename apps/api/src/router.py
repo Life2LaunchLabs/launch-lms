@@ -53,6 +53,7 @@ from src.routers import (
     users,
 )
 from src.routers import life_plans as life_plans_router_module
+from src.routers import recommend as recommend_router_module
 from src.routers import data_export as data_export_router_module
 from src.routers import user_language as user_language_router_module
 from src.routers import user_tests as user_tests_router_module
@@ -121,6 +122,7 @@ for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_stor
 for module in (goal_admin, goal_requirements, goal_reports, goal_helper_requests):
     v1_router.include_router(module.router, prefix="/goal-admin", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(life_plans_router_module.router, prefix="/life", tags=["life plans"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(recommend_router_module.router, prefix="/recommend", tags=["suggestions"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(insights.router, prefix="/insights", tags=["insights"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(insights.public_router, prefix="/insights", tags=["insights"])
 v1_router.include_router(assignments_router.router, prefix="/plan-assignments", tags=["assignments"], dependencies=[Depends(get_non_api_token_user)])
