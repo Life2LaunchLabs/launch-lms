@@ -363,22 +363,24 @@ def test_a_dropped_persona_can_tell_an_open_run_from_a_closed_one(db, monkeypatc
     assert persona_run_state(maya["user_id"], request, Response(), db) == {"open": False}
 
 
-def test_a_test_counts_as_active_only_while_an_open_runs_persona_is_busy(db):
-    """Unstable's deploy waits while this is true, so a run isn't cut off by a redeploy."""
+
+def test_a_started_run_holds_deploys_until_it_closes_or_its_window_ends(db):
+    """Unstable's deploy waits while /health/deploy-ready says no, so a run isn't cut off by a redeploy."""
+    from src.services.health.health import deploy_ready
+
     cohort = _cohort(db)
     maya = _persona(db, cohort["cohort_uuid"])
-    assert cohorts.tests_active(db)["active"] is False  # made, never used
-    persona = db.get(TestPersona, maya["user_id"])
-    persona.last_active_at = datetime.utcnow() - timedelta(minutes=5)
-    db.add(persona)
+    assert deploy_ready(db) == {"ready": True, "reasons": []}  # made, nobody signed in yet
+    _session_payload(db, maya)  # Maya signs in: the run has started
+    held = deploy_ready(db)
+    assert held["ready"] is False and held["reasons"][0]["run"] == "Riverside onboarding"
+    ticket = db.exec(select(TestLoginTicket)).first()
+    ticket.used_at = datetime.utcnow() - timedelta(hours=cohorts.HOLD_HOURS, minutes=1)
+    db.add(ticket)
     db.commit()
-    assert cohorts.tests_active(db)["active"] is True
-    persona.last_active_at = datetime.utcnow() - timedelta(minutes=cohorts.ACTIVE_MINUTES + 1)
-    db.add(persona)
-    db.commit()
-    assert cohorts.tests_active(db)["active"] is False  # left open but idle
-    persona.last_active_at = datetime.utcnow()
-    db.add(persona)
+    assert deploy_ready(db)["ready"] is True  # left open past its window: holds no longer
+    ticket.used_at = datetime.utcnow()
+    db.add(ticket)
     db.commit()
     cohorts.close_cohort(db, cohort["cohort_uuid"])
-    assert cohorts.tests_active(db)["active"] is False  # closed
+    assert deploy_ready(db)["ready"] is True  # closed

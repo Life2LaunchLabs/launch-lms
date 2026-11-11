@@ -260,19 +260,6 @@ def login_link(
     return tickets.mint(db, actor.id, user_id, body.target_path)
 
 
-@router.get("/active")
-def tests_active(request: Request, response: Response, db: Session = Depends(get_db_session)):
-    """Whether a test is going on right now: a persona of an open run was active in the last
-    ACTIVE_MINUTES. No sign-in: unstable's deploy asks this from its host and waits while it is true,
-    so a run isn't cut off by a redeploy."""
-    require_enabled()
-    allowed, _, retry = check_rate_limit(f"user-tests-active:{get_client_ip(request)}", 120, 600)
-    if not allowed:
-        raise HTTPException(429, f"Too many checks. Try again in {retry} seconds.")
-    response.headers["Cache-Control"] = "no-store"
-    return cohorts.tests_active(db)
-
-
 @router.get("/personas/{user_id}/run")
 def persona_run_state(user_id: int, request: Request, response: Response, db: Session = Depends(get_db_session)):
     """Whether a persona's run is still open. No sign-in: a persona whose session dropped asks this to
