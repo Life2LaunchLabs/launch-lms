@@ -1,7 +1,6 @@
 'use client'
 import React from 'react'
 import { Form, Formik } from 'formik'
-import * as Yup from 'yup'
 import {
   updateOrganization,
   updateOrgFooterTextConfig,
@@ -21,23 +20,8 @@ import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { ORG_LABELS } from '@/lib/orgLabels'
+import { blockedSaveMessage, orgGeneralSchema } from './orgGeneralForm'
 
-
-const validationSchema = Yup.object().shape({
-  name: Yup.string()
-    .required('Name is required')
-    .max(60, 'Organization name must be 60 characters or less'),
-  description: Yup.string()
-    .required('Short description is required')
-    .max(100, 'Short description must be 100 characters or less'),
-  about: Yup.string()
-    .optional()
-    .max(1500, 'About text must be 1,500 characters or less'),
-  label: Yup.string().optional(),
-  email: Yup.string()
-    .optional()
-    .email('Must be a valid email address'),
-})
 
 interface OrganizationValues {
   name: string
@@ -89,7 +73,7 @@ const OrgEditGeneral: React.FC = () => {
       <Formik
         enableReinitialize
         initialValues={initialValues}
-        validationSchema={validationSchema}
+        validationSchema={orgGeneralSchema}
         onSubmit={(values, { setSubmitting }) => {
           setTimeout(() => {
             setSubmitting(false)
@@ -97,7 +81,7 @@ const OrgEditGeneral: React.FC = () => {
           }, 400)
         }}
       >
-        {({ isSubmitting, values, handleChange, errors, touched, setFieldValue }) => (
+        {({ isSubmitting, values, handleChange, errors, touched, setFieldValue, submitCount }) => (
           <Form>
             <div className="flex flex-col gap-0">
               <div className="flex flex-col bg-gray-50 -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
@@ -246,7 +230,10 @@ const OrgEditGeneral: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-row-reverse mt-0 mx-5 mb-5">
+              <div className="flex flex-row-reverse items-center gap-3 mt-0 mx-5 mb-5">
+                {submitCount > 0 && blockedSaveMessage(errors) && (
+                  <p role="alert" className="text-red-500 text-sm">{blockedSaveMessage(errors)}</p>
+                )}
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
