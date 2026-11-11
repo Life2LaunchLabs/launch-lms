@@ -34,11 +34,13 @@ type Props = {
   collections?: React.ReactNode
   /** Another organization's plan: why it can't be edited here. */
   note?: React.ReactNode
+  /** The Share button: a link to the plan's Discover page. */
+  share?: React.ReactNode
   menu: PlanMenu
 }
 
 /** What's live: cover, title and description, then who made it, the live version and who can find it; collections under them. */
-export default function PlanHeader({ editing, editMode, by, canSwitchLive, visibility, collections, note, menu }: Props) {
+export default function PlanHeader({ editing, editMode, by, canSwitchLive, visibility, collections, note, share, menu }: Props) {
   const template = editing.template!
   const live = template.live_version
   const hadVersions = !!template.versions?.length
@@ -69,6 +71,7 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
         {collections ? <div className="mt-2.5 flex flex-wrap gap-1.5">{collections}</div> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {share}
         {menu.preview ? <button type="button" onClick={menu.preview} title="See it as someone you assign it to" className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
           <Eye size={16} aria-hidden="true" /><span className="hidden sm:inline">Preview</span><span className="sr-only sm:hidden">Preview</span></button> : null}
         {menu.insights ? <Link href={menu.insights} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">

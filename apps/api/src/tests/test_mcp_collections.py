@@ -73,3 +73,30 @@ def test_listing_needs_a_live_version_and_keeps_mode_and_access():
     listing = call(db, tools.set_plan_listing, {"template_uuid": uuid, "mode": "locked", "access": "open"})
     assert (listing["listed"], listing["mode"], listing["access"]) == (True, "locked", "open")
     assert call(db, tools.set_plan_listing, {"template_uuid": uuid, "listed": False})["listed"] is False
+
+
+def test_plan_access_sets_who_can_start_it_and_gives_the_share_link():
+    db = _session()
+    uuid = _plan(db, "Flat tire fix")
+    opened = call(db, tools.set_plan_access, {"template_uuid": uuid, "access": "open"})
+    assert opened["access"] == "open" and "can_edit" not in opened
+    assert opened["share_url"].endswith(f"/discover/plans/{uuid}") and "/orgs/" in opened["share_url"]
+    assert "Anyone with the link" in opened["note"]
+    closed = call(db, tools.set_plan_access, {"template_uuid": uuid, "access": "invite"})
+    assert closed["access"] == "invite" and closed["note"].startswith("Invite only")
+    with pytest.raises(HTTPException) as error:
+        call(db, tools.set_plan_access, {"template_uuid": uuid, "access": "everyone"})
+    assert error.value.status_code == 422
+
+
+def test_publishing_says_who_can_find_the_plan():
+    from src.services.goals import mcp_templates
+
+    db = _session()
+    uuid = _plan(db, "Flat tire fix")
+    published = call(db, mcp_templates.publish_plan_template, {"template_uuid": uuid})
+    assert published["who_can_find"] == "invite" and "set_plan_access" in published["sharing"]
+    other = _plan(db, "Patch kit basics")
+    call(db, tools.set_plan_access, {"template_uuid": other, "access": "open"})
+    again = call(db, mcp_templates.publish_plan_template, {"template_uuid": other})
+    assert again["who_can_find"] == "open" and "sharing" not in again
