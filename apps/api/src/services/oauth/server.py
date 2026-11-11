@@ -30,13 +30,17 @@ from src.services.oauth.config import (
     CLIENT_PREFIX,
     CODE_PREFIX,
     CODE_TTL_SECONDS,
+    DEFAULT_SCOPE,
     REFRESH_PREFIX,
     REFRESH_TTL_SECONDS,
     SCOPES,
     OAuthError,
+    ability_lines,
     check_resource,
+    connector_enabled,
     hash_secret,
     issuer,
+    mcp_resource,
     new_secret,
     normalize_scope,
 )
@@ -161,6 +165,7 @@ def validate_authorization(db_session: Session, request: AuthorizationRequest, u
     return {
         "client": {"name": client.client_name, "client_uri": client.client_uri, "logo_uri": client.logo_uri, "redirect_host": urlparse(request.redirect_uri).netloc},
         "scopes": [{"name": name, "description": SCOPES[name]} for name in scope.split()],
+        "abilities": ability_lines(scope, bool(getattr(user, "is_superadmin", False))),
         "orgs": [{"id": org.id, "slug": org.slug, "name": org.name} for org in orgs],
         "user": {"username": user.username, "email": user.email},
     }
@@ -414,6 +419,15 @@ def list_grants(db_session: Session, user: PublicUser) -> list[dict]:
         }
         for family_id, grant in active.items()
     ]
+
+
+def connector_info(user: PublicUser) -> dict:
+    """What Organization › Connect Claude shows: the server address to paste into Claude, and what it can do."""
+    return {
+        "enabled": connector_enabled(),
+        "server_url": mcp_resource(),
+        "abilities": ability_lines(DEFAULT_SCOPE, bool(getattr(user, "is_superadmin", False))),
+    }
 
 
 def disconnect(db_session: Session, user: PublicUser, connection_id: str) -> None:

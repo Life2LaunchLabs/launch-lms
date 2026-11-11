@@ -39,3 +39,34 @@ export async function decideOAuthAuthorization(
   return oauthResult(result)
 }
 
+
+export interface ConnectorInfo {
+  enabled: boolean
+  /** The address to paste into Claude as a custom connector. */
+  server_url: string
+  /** What Claude can do, in plain words; lines this person can't use are left out. */
+  abilities: string[]
+}
+
+export interface AppConnection {
+  connection_id: string
+  client_name: string
+  org_id: number
+  scope: string
+  last_used_at: string | null
+}
+
+export async function getConnectorInfo(accessToken?: string): Promise<ConnectorInfo> {
+  const result = await fetch(`${getAPIUrl()}oauth/connector`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return oauthResult(result)
+}
+
+export async function listAppConnections(accessToken?: string): Promise<AppConnection[]> {
+  const result = await fetch(`${getAPIUrl()}oauth/connections`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return oauthResult(result)
+}
+
+export async function disconnectApp(connectionId: string, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}oauth/connections/${encodeURIComponent(connectionId)}`, RequestBodyWithAuthHeader('DELETE', null, null, accessToken))
+  return oauthResult(result)
+}

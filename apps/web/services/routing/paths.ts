@@ -284,6 +284,8 @@ export const routePaths = {
         /** The carousel learners see on Discover. */
         discover: () => '/admin/org/settings/discover',
         plan: () => '/admin/org/settings/plan',
+        /** The server address and steps for connecting Claude, and the admin's connections. */
+        claude: () => '/admin/org/settings/claude',
       },
       payments: {
         overview: () => '/admin/payments/overview',

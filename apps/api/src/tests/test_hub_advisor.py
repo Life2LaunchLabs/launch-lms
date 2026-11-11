@@ -641,3 +641,31 @@ async def test_anthropic_reply_cut_at_max_tokens_ends_on_a_sentence():
 def test_complete_reply_is_left_alone_and_an_unbreakable_cut_is_marked():
     assert output_limits.end_at_last_complete_sentence("All done here.") == "All done here."
     assert output_limits.end_at_last_complete_sentence("No break at all in this") == "No break at all in this…"
+
+
+class RecordingProvider:
+    def __init__(self):
+        self.seen = ""
+
+    async def respond(self, messages, safety_identifier):
+        self.seen = messages[-1].content
+        return AdvisorResult("Yes", "fake", 5, 3)
+
+
+@pytest.mark.asyncio
+async def test_coach_knows_where_to_connect_claude_only_when_asked(monkeypatch):
+    # FEED-106: asked whether the app works with Claude, Coach guessed and sent people to account settings.
+    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: CoachRuntime(True, {"read_portfolio": False, "read_goals": False}, {}))
+    monkeypatch.setattr(hub_advisor, "require_org_membership", lambda *_args: None)
+    monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
+    monkeypatch.setattr(hub_actions, "org_access", lambda *_args: access_from_config({}))
+    monkeypatch.setattr(hub_questions, "question_context", lambda *_args: "")
+    request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
+
+    provider = RecordingProvider()
+    await ask_hub_advisor(request, 7, 11, [message("user", "Does this site work with Claude?")], object(), provider)  # type: ignore[arg-type]
+    assert "Organization › Connect Claude" in provider.seen
+    assert "badges" in provider.seen
+
+    await ask_hub_advisor(request, 7, 11, [message("user", "Help me plan my week")], object(), provider)  # type: ignore[arg-type]
+    assert "Connect Claude" not in provider.seen

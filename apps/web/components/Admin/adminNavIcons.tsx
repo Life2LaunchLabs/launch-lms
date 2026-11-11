@@ -18,6 +18,7 @@ import {
   ListChecks,
   Newspaper,
   Palette,
+  PlugsConnected,
   ShieldCheck,
   Sparkle,
   StackSimple,
@@ -50,6 +51,7 @@ export const ADMIN_NAV_ICONS: Record<string, Icon> = {
   branding: Palette,
   messaging: ChatsCircle,
   sso: ShieldCheck,
+  claude: PlugsConnected,
   plan: CreditCard,
   payments: CurrencyCircleDollar,
 }
