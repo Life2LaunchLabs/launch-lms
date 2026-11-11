@@ -32,7 +32,7 @@ import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAft
 import { routeDoc, setLength, setStart, showWayTo } from './dates'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
-import { activityText, checklist, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
@@ -312,7 +312,7 @@ function Cover({ time, span, menu, photos, uploading, pop, setPop, onRename }: {
     <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2"><span className="flex flex-wrap gap-1.5"><PhaseStatus when={when} />{phase.idea ? <span className="inline-flex items-center rounded-full bg-white/90 px-3 py-1.5 text-xs font-extrabold text-[#15232c] outline-dashed outline-2 -outline-offset-4 outline-[#15232c]/40">{tr('goals.phase_page.idea', 'Idea')}</span> : null}</span>{menu}</div>
     <div className="absolute inset-x-5 bottom-5 grid gap-2 pr-8 sm:inset-x-7 sm:bottom-6">
       <button type="button" onClick={() => toggle('doing')} className="inline-flex w-fit items-center gap-1.5 rounded-lg text-left text-sm font-extrabold opacity-95 hover:outline hover:outline-2 hover:outline-offset-4 hover:outline-dashed hover:outline-white/70">
-        {acts.length ? acts.map(activityText).join(' + ') : <span className="opacity-80">{tr('goals.phase_page.what_are_you_doing', 'What are you doing?')}</span>}
+        {acts.length ? eyebrowFor(acts, phase.title) : <span className="opacity-80">{tr('goals.phase_page.what_are_you_doing', 'What are you doing?')}</span>}
       </button>
       {pop === 'name'
          
