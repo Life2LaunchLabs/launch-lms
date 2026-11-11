@@ -117,6 +117,12 @@ def _num(text: str | None) -> float | None:
         return None
 
 
+def _pay(text: str | None) -> float | None:
+    """A wage, or None for a blank, a footnote mark or a withheld-value code (anything not above zero)."""
+    n = _num(text)
+    return n if n is not None and n > 0 else None
+
+
 def upsert_source(db: Session, *, key: str, publisher: str, title: str, dataset: str, url: str, released: str, license: str = "", notes: str = "") -> EstimateSource:
     src = db.exec(select(EstimateSource).where(EstimateSource.key == key)).first()
     if not src:
@@ -317,8 +323,8 @@ def import_bls_oews(db: Session, data: bytes, filename: str, *, year: int, url: 
             if code not in oregon_areas:
                 continue
             place = f"area:{code}"
-        hourly = {k: _num(r.get(f"h_{c}")) for k, c in OEWS_PCTS}
-        annual = {k: _num(r.get(f"a_{c}")) for k, c in OEWS_PCTS}
+        hourly = {k: _pay(r.get(f"h_{c}")) for k, c in OEWS_PCTS}
+        annual = {k: _pay(r.get(f"a_{c}")) for k, c in OEWS_PCTS}
         if hourly["p50"] is not None:
             pct, period = hourly, "hr"
         elif annual["p50"] is not None:
