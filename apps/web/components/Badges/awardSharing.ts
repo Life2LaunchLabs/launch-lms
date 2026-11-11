@@ -8,6 +8,17 @@ export function certificateFileName(award: BadgeAward): string {
   return `${base || tr('lit.award_sharing.certificate', 'Certificate')}.pdf`
 }
 
+/** Puts the award page's link on the clipboard; false when the browser won't allow it. */
+export async function copyLink(url: string): Promise<boolean> {
+  try {
+    if (!globalThis.navigator?.clipboard?.writeText) return false
+    await globalThis.navigator.clipboard.writeText(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
 // US Letter, landscape, in points: the certificate's own 11 x 8.5 shape.
 const PAGE = { width: 792, height: 612 }
 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='

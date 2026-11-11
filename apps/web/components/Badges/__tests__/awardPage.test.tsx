@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import AwardPage from '@components/Badges/AwardPage'
-import { certificateFileName } from '@components/Badges/awardSharing'
+import { certificateFileName, copyLink } from '@components/Badges/awardSharing'
 import type { BadgeAward } from '@services/badges/badges'
 
 import { tr } from '@/lib/tr'
@@ -42,10 +42,34 @@ describe('a badge award’s public page', () => {
     expect(html).toContain('Awarded by mistake')
     expect(html).toContain('Revoked by the issuer')
     expect(html).not.toContain('Download PDF')
+    expect(html).not.toContain('Copy link')
+    expect(html).not.toContain('Anyone with this link')
     expect(html).not.toContain('Verified Open Badge')
   })
 
   test('names the PDF after the badge and who earned it', () => {
     expect(certificateFileName({ ...award, achievement: { ...award.achievement, name: 'Launch: Ready/Set' } })).toBe('Launch ReadySet - Maya Rivera.pdf')
+  })
+
+  test('offers its own link to share, and says who can open it', () => {
+    const html = page()
+    expect(html).toContain('Copy link')
+    expect(html).toContain('Anyone with this link can see it.')
+  })
+
+  test('copies the page link, and reports when the browser won’t allow it', async () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+    const written: string[] = []
+    try {
+      Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: { writeText: async (text: string) => { written.push(text) } } } })
+      expect(await copyLink('https://riverside.example/b/K7M2Q9XB')).toBe(true)
+      expect(written).toEqual(['https://riverside.example/b/K7M2Q9XB'])
+      Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: { writeText: async () => { throw new Error('denied') } } } })
+      expect(await copyLink('https://riverside.example/b/K7M2Q9XB')).toBe(false)
+      Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} })
+      expect(await copyLink('https://riverside.example/b/K7M2Q9XB')).toBe(false)
+    } finally {
+      if (original) Object.defineProperty(globalThis, 'navigator', original)
+    }
   })
 })
