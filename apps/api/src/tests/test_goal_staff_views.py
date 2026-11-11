@@ -249,3 +249,24 @@ def test_staff_materials_are_web_links_kept_to_what_the_app_reads():
         document["stages"][0]["steps"][0]["staff_materials"] = [{"kind": "link", "title": "Bad", "url": "javascript:alert(1)"}]
         with pytest.raises(HTTPException):
             validate_document(db, document, 1)
+
+
+def test_links_to_uploaded_media_are_kept_as_files():
+    """FEED-111: the connector added an uploaded video as a link with a /content path, so the editor showed the bare path."""
+    from src.services.goals.document import empty_document, validate_document
+
+    video = "/content/orgs/org_1/media/demo.mp4"
+    with _session() as db:
+        document = empty_document("Flat Tire Fix")
+        document["stages"] = [{"title": "One", "steps": [{**FAIR, "materials": [
+            {"kind": "link", "title": "Flat fix demo video", "url": video},
+            {"kind": "link", "title": "Packet", "url": "/api/v1/content/orgs/org_1/media/packet.pdf"},
+            {"kind": "link", "title": "Elsewhere", "url": "https://example.com/guide"},
+        ], "staff_materials": [{"kind": "link", "title": "Answer key", "url": "/content/orgs/org_1/media/key.pdf"}]}]}]
+        step = validate_document(db, document, 1)["stages"][0]["steps"][0]
+        assert step["materials"] == [
+            {"kind": "file", "title": "Flat fix demo video", "url": video, "media_type": "video"},
+            {"kind": "file", "title": "Packet", "url": "/content/orgs/org_1/media/packet.pdf", "media_type": "document"},
+            {"kind": "link", "title": "Elsewhere", "url": "https://example.com/guide"},
+        ]
+        assert step["staff_materials"] == [{"kind": "file", "url": "/content/orgs/org_1/media/key.pdf", "title": "Answer key", "media_type": "document"}]

@@ -219,7 +219,8 @@ def validate_document(db: Session, raw: dict, org_id: int | None, *, requirement
             raise HTTPException(status_code=422, detail=f"{step['title']}: due_week needs the stage's duration_weeks")
         if step["due_week"] and stage.get("duration_weeks") and step["due_week"] > stage["duration_weeks"]:
             raise HTTPException(status_code=422, detail=f"{step['title']}: due_week is past the end of its stage")
-        step["staff_materials"] = [_staff_material(step["title"], item) for item in step["staff_materials"]]
+        step["materials"] = [_uploaded_as_file(item) for item in step["materials"]]
+        step["staff_materials"] = [_staff_material(step["title"], _uploaded_as_file(item)) for item in step["staff_materials"]]
         step["requirement_node_uuids"] = list(dict.fromkeys(step["requirement_node_uuids"]))
         if requirement_nodes is not None:
             missing = [node for node in step["requirement_node_uuids"] if node not in requirement_nodes]
@@ -234,6 +235,23 @@ def _clean_badge(badge: dict) -> dict:
     if image and not image.startswith(("https://", "/")):
         raise HTTPException(status_code=422, detail="badge.image_url: use an https address or an uploaded image")
     return {**badge, "skills": skills, "image_url": image, **{key: badge[key].strip() for key in ("name", "human_code", "field_of_study", "specialization", "in_language")}}
+
+
+_MEDIA_TYPES = {"pdf": "document", "mp4": "video", "webm": "video", "mov": "video", "jpg": "image", "jpeg": "image", "png": "image", "gif": "image", "webp": "image"}
+
+
+def _uploaded_as_file(item):
+    """A link to the organization's own uploaded media (a /content/... path, as the connector's upload_media returns) is a file, so it reads "Open file"."""
+    if not isinstance(item, dict) or item.get("kind") != "link":
+        return item
+    url = str(item.get("url") or "").strip()
+    if url.startswith("/api/v1/content/"):
+        url = url.removeprefix("/api/v1")
+    if not url.startswith("/content/"):
+        return item
+    extension = url.rsplit(".", 1)[-1].lower() if "." in url.rsplit("/", 1)[-1] else ""
+    media_type = item.get("media_type") or _MEDIA_TYPES.get(extension)
+    return {**item, "kind": "file", "url": url, **({"media_type": media_type} if media_type else {})}
 
 
 def _staff_material(step_title: str, item: dict) -> dict:
