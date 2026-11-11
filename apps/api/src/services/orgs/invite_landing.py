@@ -68,3 +68,10 @@ def _card(db: Session, org: Organization, kind: str, status: str, role_id: int, 
             "user_uuid": inviter.user_uuid,
         } if inviter else None,
     }
+
+
+def accepted(db: Session, invitation: OrganizationInvitation) -> dict:
+    """What the app needs to send someone on after they accept an invitation in the app (the Connect
+    card): the organization they joined and their role there. Staff and admins open its welcome."""
+    org = db.get(Organization, invitation.org_id)
+    return {"org_slug": org.slug if org else None, "role": ROLES.get(invitation.role_id, "learner")}

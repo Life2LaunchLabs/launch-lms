@@ -21,6 +21,7 @@ async def respond_to_message(
     if message.action_status != "pending" or not message.action_kind:
         raise HTTPException(status_code=409, detail="This message no longer needs a response")
     action_data = message.action_data or {}
+    joined = None
 
     if message.action_kind == "organization_invitation":
         from src.services.orgs.join import JoinOrg, join_org
@@ -32,6 +33,9 @@ async def respond_to_message(
         invitation_uuid = str(action_data.get("invitation_uuid") or "")
         invitation = get_my_pending_invitation(invitation_uuid, current_user, db_session)
         if payload.accept:
+            from src.services.orgs import invite_landing
+
+            joined = invite_landing.accepted(db_session, invitation)
             result = await join_org(
                 request,
                 JoinOrg(
@@ -58,4 +62,5 @@ async def respond_to_message(
     messages_service.resolve_message_action(
         message, accepted=payload.accept, db_session=db_session
     )
-    return {"message_uuid": message_uuid, "action_status": message.action_status, "result": result}
+    # An accepted organization invitation names the org and role, so the app can open its welcome.
+    return {"message_uuid": message_uuid, "action_status": message.action_status, "result": result, "joined": joined}
