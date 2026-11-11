@@ -5,6 +5,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, Mail, MessageCircle, Users, X } from 'lucide-react'
 import { useChatList } from '@components/Connect/useConnect'
+import { ListRowSkeleton } from '@components/Objects/Loaders/OrgShellSkeleton'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
 import YourRelationship from '@components/Organizations/YourRelationship'
@@ -162,7 +163,7 @@ export default function OrganizationDetailClient({
         </div>
         {token ? <section className="rounded-[28px] border border-border bg-card p-6 nice-shadow md:p-8">
           <div><p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Learning relationship</p><h2 className="mt-1 text-xl font-black text-foreground">Your goals with {organization.name}</h2><p className="mt-1 text-sm text-muted-foreground">Direct and group assignments appear here from invitation through completion.</p></div>
-          {goalsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div> : organizationGoals.length ? <div className="mt-5 space-y-3">{organizationGoals.map((item) => {
+          {goalsLoading ? <div className="mt-5 space-y-3" role="status" aria-label="Loading"><ListRowSkeleton /><ListRowSkeleton /></div> : organizationGoals.length ? <div className="mt-5 space-y-3">{organizationGoals.map((item) => {
             const invited = item.status === 'pending'
             const statusLabel = invited ? 'Invited' : item.assignment.status !== 'ended' ? 'Active' : 'Completed'
             return <article key={item.goal_uuid} className="flex flex-col gap-4 rounded-2xl border border-border p-4 sm:flex-row sm:items-center">
