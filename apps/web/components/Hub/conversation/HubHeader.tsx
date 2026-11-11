@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, Check, ChevronDown, ChevronRight, CircleHelp, Loader2, MoreHorizontal, Pencil, Plus, Radio, X } from 'lucide-react'
+import { Archive, Check, ChevronDown, ChevronRight, Loader2, MoreHorizontal, Pencil, Plus, Radio, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@components/ui/tooltip'
 import { Input } from '@components/ui/input'
 import type { HubConversationSummary, HubEditRun } from '@services/hub/advisor'
 import HubConversationHistory from './HubConversationHistory'
@@ -31,7 +30,6 @@ export default function HubHeader({
   onOpenResources,
   onRename,
   onArchive,
-  contextUnavailable = false,
   editRun,
   onStopEditing,
   onUpdateEditGoal,
@@ -54,7 +52,6 @@ export default function HubHeader({
   // eslint-disable-next-line no-unused-vars
   onRename: (_title: string) => Promise<void>
   onArchive: () => Promise<void>
-  contextUnavailable?: boolean
   editRun?: HubEditRun | null
   onStopEditing?: () => void
   // eslint-disable-next-line no-unused-vars
@@ -166,14 +163,6 @@ export default function HubHeader({
             <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'session' ? 'rotate-180' : ''}`} />
           </button>
           <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={tr('coach.hub_header.end_focused_session_for_label', 'End focused session for {{label}}', { label: editRun.scope.label })}>{tr('coach.hub_header.end', 'End')}</button>
-        </div> : contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
-          <span>I can&apos;t read this page yet.</span>
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild><button type="button" aria-label={tr('coach.hub_header.about_coach_page_awareness', 'About Coach page awareness')} className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><CircleHelp className="h-3.5 w-3.5" /></button></TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-72 text-xs leading-5">{tr('coach.hub_header.coach_can_use_saved_details', 'Coach can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.')}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div> : null}
 
         {panel === 'session' && editRun?.status === 'active' ? <div className="absolute inset-x-4 top-[4.75rem] z-[var(--z-popover)] rounded-xl border border-border bg-popover p-3 shadow-lg sm:inset-x-5">

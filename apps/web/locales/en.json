@@ -7139,8 +7139,6 @@
       "end_conversation": "End conversation",
       "close_coach": "Close Coach",
       "end": "End",
-      "about_coach_page_awareness": "About Coach page awareness",
-      "coach_can_use_saved_details": "Coach can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.",
       "scope": "Scope",
       "a_new_personal_goal": "A new personal goal",
       "your_goal_label": "Your goal: {{label}}",
