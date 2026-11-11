@@ -614,6 +614,12 @@ test('route access exposes badge awards and the plan pages their badges point to
   assert.equal(classifyRoute('/discover').kind, 'protected')
 })
 
+test('route access opens an organization\'s page signed out (the API decides whether it is listed)', () => {
+  assert.equal(classifyRoute('/organization/trail-crew').kind, 'public')
+  assert.equal(classifyRoute('/organization').kind, 'protected')
+  assert.equal(classifyRoute('/organizations').kind, 'protected')
+})
+
 test('route access opens an Insights capture\'s read-only link signed out, and nothing else in Insights', () => {
   assert.equal(classifyRoute('/insights/shared/tok_123').kind, 'public')
   assert.equal(classifyRoute('/insights/shared').kind, 'protected')

@@ -7,7 +7,18 @@ import {
   getOrganizationContextInfo,
 } from '@services/organizations/orgs'
 import OrganizationDetailClient from './organization'
+import PrivateOrganization from '@components/Organizations/PrivateOrganization'
 import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
+
+// An unlisted organization's page is members-only: the API answers 404 to everyone else.
+async function findOrganization(slug: string, accessToken?: string) {
+  try {
+    return await getDiscoverOrganizationBySlug(slug, { revalidate: 0, tags: ['organizations'] }, accessToken)
+  } catch (error: any) {
+    if (error?.status === 404) return null
+    throw error
+  }
+}
 
 type OrganizationDetailPageProps = {
   params: Promise<{ orgslug: string; discoverOrgSlug: string }>
@@ -21,16 +32,15 @@ export async function generateMetadata(props: OrganizationDetailPageProps): Prom
     revalidate: 0,
     tags: ['organizations'],
   })
-  const organization = await getDiscoverOrganizationBySlug(
-    params.discoverOrgSlug,
-    { revalidate: 0, tags: ['organizations'] },
-    accessToken ?? undefined
-  )
+  const organization = await findOrganization(params.discoverOrgSlug, accessToken ?? undefined)
   const seoConfig = getOrgSeoConfig(currentOrg)
+  if (!organization) return { title: buildPageTitle('Organization', currentOrg.name, seoConfig), robots: { index: false } }
 
   return {
     title: buildPageTitle(organization.name, currentOrg.name, seoConfig),
     description: organization.description || organization.about || `Explore ${organization.name}.`,
+    // Only listed pages are meant to be found.
+    robots: organization.explore ? undefined : { index: false },
     alternates: {
       canonical: getCanonicalUrl(params.orgslug, `/organization/${organization.slug}`),
     },
@@ -41,15 +51,12 @@ export default async function OrganizationDetailPage(props: OrganizationDetailPa
   const params = await props.params
   const session = await getServerSession()
   const accessToken = session?.tokens?.access_token
-  const organization = await getDiscoverOrganizationBySlug(
-    params.discoverOrgSlug,
-    { revalidate: 0, tags: ['organizations'] },
-    accessToken ?? undefined
-  )
+  const organization = await findOrganization(params.discoverOrgSlug, accessToken ?? undefined)
+  if (!organization) return <PrivateOrganization orgslug={params.orgslug} signedIn={Boolean(accessToken)} />
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(params.orgslug, '/') },
-    { name: 'Organizations', url: getCanonicalUrl(params.orgslug, '/organizations') },
+    { name: 'Discover', url: getCanonicalUrl(params.orgslug, '/discover') },
     { name: organization.name, url: getCanonicalUrl(params.orgslug, `/organization/${organization.slug}`) },
   ])
 

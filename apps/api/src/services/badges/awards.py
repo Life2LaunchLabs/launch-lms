@@ -77,7 +77,8 @@ def new_award(template: GoalTemplate, version: GoalTemplateVersion | None, earne
 
 def _org(db: Session, org_id: int | None) -> dict | None:
     org = db.get(Organization, org_id) if org_id else None
-    return {"id": org.id, "org_uuid": org.org_uuid, "slug": org.slug, "name": org.name, "logo_image": org.logo_image} if org else None
+    return {"id": org.id, "org_uuid": org.org_uuid, "slug": org.slug, "name": org.name, "logo_image": org.logo_image,
+            "listed": bool(org.explore)} if org else None
 
 
 def award_dict(db: Session, award: BadgeAward) -> dict:

@@ -12,6 +12,7 @@ import { getResources } from '@services/resources/resources'
 import type { PlanOfferCard } from '@services/goals/planJoining'
 import { usePlanFeed } from './DiscoverFeed'
 import { ResourceTile } from './ResourceShelves'
+import { OrganizationCard, useListedOrganizations } from './OrganizationShelf'
 import type { DiscoverFilters } from './DiscoverSearchBar'
 
 import { tr } from '@/lib/tr'
@@ -28,16 +29,19 @@ export default function DiscoverResults({ orgslug, query, filters, showPlans, sh
   const session = useLHSession() as any
   const hub = useHub()
   const token = session?.data?.tokens?.access_token
-  const wantPlans = showPlans && filters.type !== 'resources' && !filters.resourceTypes.length && !filters.saved
-  const wantResources = showResources && filters.type !== 'plans'
+  const wantPlans = showPlans && (filters.type === '' || filters.type === 'plans') && !filters.resourceTypes.length && !filters.saved
+  const wantOrgs = (filters.type === '' || filters.type === 'organizations') && !filters.resourceTypes.length && !filters.saved
+  const wantResources = showResources && (filters.type === '' || filters.type === 'resources')
   const { data: feed } = usePlanFeed(wantPlans)
   const resourceParams = { query: query || undefined, resource_types: filters.resourceTypes.join(',') || undefined, saved_only: filters.saved || undefined, limit: 50 }
   const { data: resources, error: resourcesError, isLoading: resourcesLoading } = useSWR(wantResources && org?.id ? ['discover-search', org.id, token || 'public', JSON.stringify(resourceParams)] : null, () => getResources(org.id, resourceParams, token), { keepPreviousData: true })
+  const { data: orgData, isLoading: orgsLoading } = useListedOrganizations(query, wantOrgs)
+  const orgs = wantOrgs ? orgData || [] : []
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
   const plans = wantPlans && feed ? [...feed.keep_going, ...feed.plans].filter((card, index, all) => all.findIndex((other) => other.template_uuid === card.template_uuid) === index && matches(card, terms)) : []
-  const loading = (wantPlans && !feed) || (wantResources && resourcesLoading && !resources)
+  const loading = (wantPlans && !feed) || (wantResources && resourcesLoading && !resources) || (wantOrgs && orgsLoading && !orgData)
   const resourceList = wantResources ? resources || [] : []
-  const empty = !loading && !resourcesError && !plans.length && !resourceList.length
+  const empty = !loading && !resourcesError && !plans.length && !orgs.length && !resourceList.length
   const askHub = hub && query ? () => hub.open({ prompt: query }) : undefined
 
   return <div className="flex flex-col gap-9" aria-live="polite">
@@ -56,6 +60,10 @@ export default function DiscoverResults({ orgslug, query, filters, showPlans, sh
     {plans.length ? <section aria-label={tr('discover.discover_results.plans', 'Plans')} className="flex flex-col gap-4">
       <h2 className="text-xl font-extrabold tracking-tight">{tr('discover.discover_results.plans', 'Plans')}{' '}<span className="text-muted-foreground">· {plans.length}</span></h2>
       <div className={GRID}>{plans.map((card) => <PlanTile key={card.template_uuid} card={card} orgslug={orgslug} fill />)}</div>
+    </section> : null}
+    {orgs.length ? <section aria-label={tr('discover.organizations.title', 'Organizations')} className="flex flex-col gap-4">
+      <h2 className="text-xl font-extrabold tracking-tight">{tr('discover.organizations.title', 'Organizations')}{' '}<span className="text-muted-foreground">· {orgs.length}</span></h2>
+      <div className={GRID}>{orgs.map((item) => <OrganizationCard key={item.org_uuid} org={item} orgslug={orgslug} fill />)}</div>
     </section> : null}
     {resourceList.length ? <section aria-label={tr('discover.discover_results.resources', 'Resources')} className="flex flex-col gap-4">
       <h2 className="text-xl font-extrabold tracking-tight">{tr('discover.discover_results.resources', 'Resources')}{' '}<span className="text-muted-foreground">· {resourceList.length}</span></h2>

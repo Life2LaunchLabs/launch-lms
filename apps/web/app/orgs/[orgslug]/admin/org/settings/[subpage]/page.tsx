@@ -6,6 +6,7 @@ import { motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEditGeneral'
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
+import OrgEditPublicPage from '@components/Dashboard/Pages/Org/OrgEditPublicPage/OrgEditPublicPage'
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditMessaging from '@components/Dashboard/Pages/Org/OrgEditMessaging/OrgEditMessaging'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
@@ -72,6 +73,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
       >
         {params.subpage == 'general' ? <OrgEditGeneral /> : ''}
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
+        {params.subpage == 'public-page' ? <OrgEditPublicPage /> : ''}
         {params.subpage == 'messaging' ? <OrgEditMessaging /> : ''}
         {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
         {params.subpage == 'claude' ? <OrgConnectClaude /> : ''}

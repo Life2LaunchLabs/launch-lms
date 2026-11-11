@@ -3,7 +3,7 @@ from typing import TypeVar
 from fastapi import Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import true as sa_true
-from sqlmodel import Session, and_, func, or_, select, text
+from sqlmodel import Session, and_, or_, select, text
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannelRead
@@ -137,12 +137,12 @@ async def search_across_org(
         organizations_query = organizations_query.where(Organization.explore == sa_true())
         organizations = [
             _build_discover_org_read(
+                db_session,
                 discover_org,
                 db_session.exec(
                     select(OrganizationConfig).where(OrganizationConfig.org_id == discover_org.id)
                 ).first(),
                 False,
-                db_session.exec(select(func.count()).where(UserOrganization.org_id == discover_org.id)).one(),
                 owner_id,
             )
             for discover_org in db_session.exec(organizations_query.offset(offset).limit(limit)).all()
@@ -177,17 +177,11 @@ async def search_across_org(
             })
             for ch in raw_channels
         ]
+        # Unlisted organizations are members-only (services/orgs/public_page.py).
+        mine = select(UserOrganization.org_id).where(UserOrganization.user_id == current_user.id)
+        organizations_query = organizations_query.where(or_(Organization.explore == sa_true(), Organization.id.in_(mine)))  # type: ignore[union-attr]
         discover_orgs = db_session.exec(organizations_query.offset(offset).limit(limit)).all()
         discover_org_ids = [discover_org.id for discover_org in discover_orgs if discover_org.id is not None]
-        member_counts_map: dict[int, int] = {}
-        if discover_org_ids:
-            member_count_rows = db_session.exec(
-                select(UserOrganization.org_id, func.count(UserOrganization.id))
-                .where(UserOrganization.org_id.in_(discover_org_ids))  # type: ignore[arg-type]
-                .group_by(UserOrganization.org_id)
-            ).all()
-            member_counts_map = {org_id: count for org_id, count in member_count_rows}
-
         member_org_ids: set[int] = set()
         if discover_org_ids:
             member_org_ids = set(
@@ -206,10 +200,10 @@ async def search_across_org(
             ).first()
             organizations.append(
                 _build_discover_org_read(
+                    db_session,
                     discover_org,
                     org_config,
                     discover_org.id in member_org_ids if discover_org.id is not None else False,
-                    member_counts_map.get(discover_org.id or 0, 0),
                     owner_id,
                 )
             )
