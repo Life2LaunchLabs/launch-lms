@@ -84,3 +84,9 @@ export async function getInvitePreview(org_id: number, token: { invitation?: str
   const result = await fetch(`${getAPIUrl()}orgs/${org_id}/invite-preview?${query}`)
   return result.ok ? result.json() : null
 }
+
+/** Change what someone invited as staff will be able to do once they accept (admins only). */
+export async function setInvitationPermissions(org_id: number, invitation_uuid: string, permissions: string[], access_token: string) {
+  const result = await fetch(`${getAPIUrl()}orgs/${org_id}/invites/users/${invitation_uuid}/permissions`, RequestBodyWithAuthHeader('PUT', { permissions }, null, access_token))
+  return getResponseMetadata(result)
+}
