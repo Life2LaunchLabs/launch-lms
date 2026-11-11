@@ -53,7 +53,7 @@ export default function PlanShare({ orgslug, orgName, templateUuid, access, onVi
             <Copy size={15} aria-hidden="true" />Copy link
           </button>
         </div>
-        <p role="status" className={invite ? 'rounded-xl bg-amber-50 px-3 py-2.5 text-[13px] text-amber-900 dark:bg-amber-500/15 dark:text-amber-200' : 'text-[13px] text-muted-foreground'}>
+        <p role="status" className={invite ? 'rounded-xl border-l-4 border-amber-500 bg-muted px-3 py-2.5 text-[13px] text-foreground' : 'text-[13px] text-muted-foreground'}>
           {shareNote(access, orgName)}
           {onVisibility ? <> <button type="button" onClick={() => { setOpen(false); onVisibility() }} className="font-semibold text-foreground underline underline-offset-2">
             {invite ? 'Open it to people' : 'Change who can find it'}</button></> : null}
