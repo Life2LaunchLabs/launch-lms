@@ -17,6 +17,7 @@ import DraftBar from './DraftBar'
 import LiveVersionModal from './LiveVersionModal'
 import PlanCollections from './PlanCollections'
 import PlanHeader, { type PlanMenu } from './PlanHeader'
+import PlanPreview from './PlanPreview'
 import PlanSettings from './PlanSettings'
 import PlanSidebar from './PlanSidebar'
 import PlanSteps from './PlanSteps'
@@ -50,6 +51,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
   const [versionsOpen, setVersionsOpen] = React.useState(panel === 'versions')
   const [settingsOpen, setSettingsOpen] = React.useState(panel === 'settings')
   const [visibilityOpen, setVisibilityOpen] = React.useState(panel === 'visibility')
+  const [previewOpen, setPreviewOpen] = React.useState(false)
   const owned = Number(template.org_id) === orgId
   const readOnly = !!template.read_only
   // System plans are synced from code each release, except page templates, which are edited here.
@@ -76,6 +78,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
     versions: canEdit && template.versions?.length ? () => setVersionsOpen(true) : undefined,
     visibility: visibility.shown ? () => setVisibilityOpen(true) : undefined,
     discover: owned ? null : getUriWithOrg(orgslug, routePaths.org.admin.discoverPlan(template.template_uuid)),
+    preview: () => setPreviewOpen(true),
     insights: owned ? getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('plan', template.template_uuid)) : null,
     archive: canEdit ? { archived, run: () => void toggleArchived() } : null,
   }
@@ -100,6 +103,8 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
       </div>
     </div>
     <LiveVersionModal open={versionsOpen} setOpen={setVersionsOpen} orgId={orgId} token={token} editing={editing} canSwitch={canEdit} />
+    <PlanPreview open={previewOpen} setOpen={setPreviewOpen} template={template} document={document} orgId={orgId} orgslug={orgslug} token={token}
+      orgName={by.name} liveDocument={canEdit && template.has_unpublished_changes && template.live_document ? template.live_document : null} />
     {owned ? <PlanSettings open={settingsOpen} setOpen={setSettingsOpen} orgId={orgId} token={token} editing={editing} runOnly={readOnly} /> : null}
   </div>
 }

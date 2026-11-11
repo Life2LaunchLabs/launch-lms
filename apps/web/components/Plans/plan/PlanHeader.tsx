@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Archive, BarChart3, ArchiveRestore, ChevronDown, Clock, Compass, Globe, History, ImageIcon, Info, Lock, MoreVertical, Settings2 } from 'lucide-react'
+import { Archive, BarChart3, ArchiveRestore, ChevronDown, Clock, Compass, Eye, Globe, History, ImageIcon, Info, Lock, MoreVertical, Settings2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { OrgMark, type OrgMarkSource } from '@components/Plans/shared/OrgMark'
 import { PlanCover } from '@components/Plans/shared/PlanCover'
@@ -17,6 +17,8 @@ export type PlanMenu = {
   discover?: string | null
   /** The plan's Insights dashboards. */
   insights?: string | null
+  /** Opens Preview: the plan as someone assigned it sees it. */
+  preview?: () => void
   archive?: { archived: boolean; run: () => void } | null
 }
 
@@ -67,6 +69,8 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
         {collections ? <div className="mt-2.5 flex flex-wrap gap-1.5">{collections}</div> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {menu.preview ? <button type="button" onClick={menu.preview} title="See it as someone you assign it to" className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
+          <Eye size={16} aria-hidden="true" /><span className="hidden sm:inline">Preview</span><span className="sr-only sm:hidden">Preview</span></button> : null}
         {menu.insights ? <Link href={menu.insights} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
           <BarChart3 size={16} aria-hidden="true" /><span className="hidden sm:inline">Insights</span><span className="sr-only sm:hidden">Insights</span></Link> : null}
         <MoreMenu menu={menu} />
