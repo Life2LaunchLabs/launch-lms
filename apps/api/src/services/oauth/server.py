@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from urllib.parse import urlencode, urlparse
 
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.oauth import OAuthAuthorizationCode, OAuthClient, OAuthGrant
@@ -29,13 +30,17 @@ from src.services.oauth.config import (
     CLIENT_PREFIX,
     CODE_PREFIX,
     CODE_TTL_SECONDS,
+    DEFAULT_SCOPE,
     REFRESH_PREFIX,
     REFRESH_TTL_SECONDS,
     SCOPES,
     OAuthError,
+    ability_lines,
     check_resource,
+    connector_enabled,
     hash_secret,
     issuer,
+    mcp_resource,
     new_secret,
     normalize_scope,
 )
@@ -160,6 +165,7 @@ def validate_authorization(db_session: Session, request: AuthorizationRequest, u
     return {
         "client": {"name": client.client_name, "client_uri": client.client_uri, "logo_uri": client.logo_uri, "redirect_host": urlparse(request.redirect_uri).netloc},
         "scopes": [{"name": name, "description": SCOPES[name]} for name in scope.split()],
+        "abilities": ability_lines(scope, bool(getattr(user, "is_superadmin", False))),
         "orgs": [{"id": org.id, "slug": org.slug, "name": org.name} for org in orgs],
         "user": {"username": user.username, "email": user.email},
     }
@@ -218,7 +224,22 @@ def _pkce_matches(verifier: str, challenge: str) -> bool:
     return hmac.compare_digest(digest, challenge)
 
 
+def _persona_id(db_session: Session, user: User | PublicUser | None) -> int | None:
+    """The test persona behind a connection, or None for a real account.
+
+    A persona's connection lives only as long as its test run: once the run closes (or user tests are
+    turned off) no token is issued, refreshed or accepted. The cohort seal keeps the grant in its org.
+    """
+    from src.services.user_tests.sessions import connector_persona
+
+    try:
+        return connector_persona(db_session, user)  # type: ignore[arg-type]
+    except HTTPException as exc:
+        raise OAuthError("invalid_grant", "This test run has ended, so its connections are closed") from exc
+
+
 def _issue(db_session: Session, *, family_id: str, client_id: str, user_id: int, org_id: int, scope: str, resource: str) -> dict:
+    _persona_id(db_session, db_session.get(User, user_id))
     access, refresh = new_secret(ACCESS_PREFIX), new_secret(REFRESH_PREFIX)
     now = _now()
     db_session.add(
@@ -341,6 +362,8 @@ class AccessContext:
     client_name: str
     # The organization chosen at consent; tools may act in any other organization the user administers.
     default_org_id: int | None = None
+    # Set when the user is a test persona: the request then acts as that persona (mail capture, seal reports).
+    test_persona_id: int | None = None
 
 
 def resolve_access_token(db_session: Session, token: str) -> AccessContext | None:
@@ -352,6 +375,10 @@ def resolve_access_token(db_session: Session, token: str) -> AccessContext | Non
         return None
     user = db_session.get(User, grant.user_id)
     if not user:
+        return None
+    try:
+        test_persona_id = _persona_id(db_session, user)
+    except OAuthError:
         return None
     public_user = PublicUser(**user.model_dump())
     grant.last_used_at = now
@@ -365,6 +392,7 @@ def resolve_access_token(db_session: Session, token: str) -> AccessContext | Non
         client_id=grant.client_id,
         client_name=client.client_name if client else "Connected app",
         default_org_id=grant.org_id,
+        test_persona_id=test_persona_id,
     )
 
 
@@ -391,6 +419,15 @@ def list_grants(db_session: Session, user: PublicUser) -> list[dict]:
         }
         for family_id, grant in active.items()
     ]
+
+
+def connector_info(user: PublicUser) -> dict:
+    """What Organization › Connect Claude shows: the server address to paste into Claude, and what it can do."""
+    return {
+        "enabled": connector_enabled(),
+        "server_url": mcp_resource(),
+        "abilities": ability_lines(DEFAULT_SCOPE, bool(getattr(user, "is_superadmin", False))),
+    }
 
 
 def disconnect(db_session: Session, user: PublicUser, connection_id: str) -> None:

@@ -15,9 +15,16 @@ async function request(path: string, token?: string, method = 'GET', body: unkno
   return errorHandling(response)
 }
 
+/** An answered invitation; `joined` names the organization and role when it was an accepted organization invitation. */
+export interface InvitationAnswer {
+  message_uuid: string
+  action_status: string
+  joined?: { org_slug: string | null; role: 'admin' | 'staff' | 'learner' } | null
+}
+
 /** Answering an invitation card in a chat; the card's inbox_uuid names the message. */
 export const messagesApi = {
-  respond: (messageUuid: string, accept: boolean, token?: string) => request(`/me/${encodeURIComponent(messageUuid)}/respond`, token, 'POST', { accept }),
+  respond: (messageUuid: string, accept: boolean, token?: string): Promise<InvitationAnswer> => request(`/me/${encodeURIComponent(messageUuid)}/respond`, token, 'POST', { accept }),
 }
 
 async function platformTemplateRequest(token?: string, method = 'GET', body: unknown = null) {

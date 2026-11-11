@@ -327,6 +327,18 @@ TOOLS = [
         read_only=False,
     ),
     Tool(
+        "set_plan_access",
+        "Set who can find a plan",
+        "Who in this organization can find and start the plan (the plan page's \"Who can find it\"): `access` open (anyone finds it on Discover and starts right away), "
+        "request (they ask and your team accepts) or invite (only people your team assigns). Returns `share_url`, the plan's Discover page to send people to. "
+        "Also works on another organization's plan you run. Only when the admin asks.",
+        {"properties": {"template_uuid": {"type": "string"}, "access": {"type": "string", "enum": ["open", "request", "invite"]}},
+         "required": ["template_uuid", "access"]},
+        goal_collections.set_plan_access,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
         "set_plan_cover",
         "Set a plan's cover",
         "Set the plan's cover image (a url from upload_media, or \"\" to go back to the icon), icon or color. Covers aren't versioned: every version shows the current one.",

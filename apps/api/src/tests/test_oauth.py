@@ -215,3 +215,40 @@ def test_cookieless_connector_endpoints_are_csrf_exempt():
     assert middleware._is_csrf_exempt(request("/api/v1/oauth/token"))
     assert middleware._is_csrf_exempt(request("/api/v1/mcp"))
     assert not middleware._is_csrf_exempt(request("/api/v1/oauth/authorize/decision"))
+
+
+def _validate(client, client_id, challenge):
+    response = client.post("/api/v1/oauth/authorize/validate", json={"client_id": client_id, "redirect_uri": REDIRECT, "code_challenge": challenge})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_consent_lists_plain_abilities_and_hides_platform_lines_from_org_admins(world):
+    client, _, state, users = world
+    registered = _register(client)
+    _, challenge = _pkce()
+    abilities = _validate(client, registered["client_id"], challenge)["abilities"]
+    assert any("badge" in line for line in abilities)
+    assert not any(line.startswith("Platform admins") for line in abilities)
+    state["user"] = users["alice"].model_copy(update={"is_superadmin": True})
+    abilities = _validate(client, registered["client_id"], challenge)["abilities"]
+    assert sum(line.startswith("Platform admins") for line in abilities) == 2
+
+
+def test_consent_lists_only_the_requested_scopes(world):
+    client, *_ = world
+    registered = _register(client, scope="resources:read")
+    _, challenge = _pkce()
+    body = {"client_id": registered["client_id"], "redirect_uri": REDIRECT, "code_challenge": challenge, "scope": "resources:read"}
+    abilities = client.post("/api/v1/oauth/authorize/validate", json=body).json()["abilities"]
+    assert abilities == ["Add links, videos and guides to your Discover library"]
+
+
+def test_connector_info_gives_the_server_address_even_when_off(world, monkeypatch):
+    client, *_ = world
+    info = client.get("/api/v1/oauth/connector").json()
+    assert info["enabled"] is True and info["server_url"] == mcp_resource()
+    assert any("badge" in line for line in info["abilities"])
+    assert not any(line.startswith("Platform admins") for line in info["abilities"])
+    monkeypatch.setenv("LAUNCHLMS_MCP_ENABLED", "false")
+    assert client.get("/api/v1/oauth/connector").json()["enabled"] is False

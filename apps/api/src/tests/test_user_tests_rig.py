@@ -15,11 +15,25 @@ def _target(session, link: dict) -> str:
     return session.get(TestLoginTicket, tickets._hash(token)).target_path
 
 
-def test_a_new_sign_up_persona_first_opens_sign_up_onboarding(db):  # noqa: F811
+def test_a_new_sign_up_persona_lands_where_a_front_page_sign_up_does(db):  # noqa: F811
+    cohort = cohorts.create_cohort(db, 1, cohorts.CreateCohort(name="New learners"))
+    (jo, sam) = asyncio.run(personas.create_personas(db, cohort["cohort_uuid"], personas.CreatePersonas(personas=[
+        personas.CreatePersona(first_name="Jo", brief="Just found the site", start_state="new_signup"),
+        personas.CreatePersona(first_name="Sam", brief="Has used it for a while")])))
+    assert _target(db, tickets.mint(db, 1, jo["user_id"])) == "/welcome"  # sends them on to their first phase
+    assert _target(db, tickets.mint(db, 1, sam["user_id"])) == "/"
+    new_account, existing = db.get(User, jo["user_id"]), db.get(User, sam["user_id"])
+    assert new_account.profile["onboarding"]["started_at"] == new_account.details["onboarding"]["started_at"]
+    assert new_account.profile["timelineEnabled"] is True  # the profile a welcome signup starts with
+    assert not existing.profile and not existing.details
+
+
+def test_an_org_creator_persona_first_opens_org_set_up(db):  # noqa: F811
     cohort = cohorts.create_cohort(db, 1, cohorts.CreateCohort(name="Badge creators"))
     (robin,) = asyncio.run(personas.create_personas(db, cohort["cohort_uuid"], personas.CreatePersonas(
-        personas=[personas.CreatePersona(first_name="Robin", brief="Wants to make a badge", start_state="new_signup")])))
+        personas=[personas.CreatePersona(first_name="Robin", brief="Wants to make a badge", start_state="org_creator")])))
     assert _target(db, tickets.mint(db, 1, robin["user_id"])) == "/start"
+    assert db.get(User, robin["user_id"]).profile["onboarding"]["started_at"]
     assert _target(db, tickets.mint(db, 1, robin["user_id"], "/plans")) == "/plans"  # a chosen page wins
     from src.db.user_tests import TestCohortOrg
     db.add(TestCohortOrg(org_id=1, cohort_id=db.get(TestPersona, robin["user_id"]).cohort_id, created_by_user_id=robin["user_id"]))

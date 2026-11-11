@@ -148,6 +148,12 @@ async def api_authorization_decision(
     return {"redirect_to": redirect_to}
 
 
+@router.get("/connector")
+async def api_connector_info(current_user=Depends(get_current_user)):
+    """Answers even when the connector is off, so Organization › Connect Claude can say so."""
+    return server.connector_info(_user(current_user))
+
+
 @router.get("/connections")
 async def api_list_connections(current_user=Depends(get_current_user), db_session=Depends(get_db_session)):
     _require_enabled()

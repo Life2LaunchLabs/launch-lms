@@ -13,7 +13,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import PhaseCover, { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { ActivityPicker, LivingPicker, MonthPicker, chip } from '@components/Goals/phases/PhasePickers'
-import { activityText, kindFor, suggestTitle } from '@components/Goals/phases/setup'
+import { activityText, eyebrowFor, kindFor, purposeOptions, suggestTitle } from '@components/Goals/phases/setup'
 import { routeWaiting } from '@components/Goals/phases/MapParts'
 import { monthText, normalize, phaseId } from '@components/Goals/phases/graph'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -24,7 +24,7 @@ import { tr } from '@/lib/tr'
 import { useTranslation } from 'react-i18next'
 import { MicButton, ReadToMeToggle, SpokenQuestion } from '@components/Accessibility/ReadAloud'
 
-type Draft = { place: PlaceOption | null; living: string | null; activities: Activity[]; starts: string; title: string; titleTouched: boolean; cover: string | null }
+type Draft = { place: PlaceOption | null; living: string | null; activities: Activity[]; purpose: string; starts: string; title: string; titleTouched: boolean; cover: string | null }
 
 /** Goal ideas for a first phase, by what it's about. */
 const IDEAS: Record<string, [string, string][]> = {
@@ -45,7 +45,8 @@ const ideasFor = (acts: Activity[]) => {
 
 /**
  * A new learner's first phase, set up as part of joining: where they are and how they live there,
- * what they're doing (a school, a job, or both), since when, its name and picture, then what they
+ * what they're doing (a school, a job, or both), what this time is for (which names it: "Gap year",
+ * not "Cashier"), since when, its name and picture, then what they
  * want to work toward. Every pick is a tap or a search. An organization's invitation needs a phase
  * to land in, so this comes before anything else.
  */
@@ -65,7 +66,7 @@ export default function FirstPhaseFlow() {
     const now = new Date()
     // School years start in September: before then, the one that started last fall.
     const fall = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
-    return { place: null, living: null, activities: [], starts: `${fall}-09`, title: '', titleTouched: false, cover: null }
+    return { place: null, living: null, activities: [], purpose: '', starts: `${fall}-09`, title: '', titleTouched: false, cover: null }
   })
   const [addingAct, setAddingAct] = React.useState(true)
   const [goals, setGoals] = React.useState<string[]>([])
@@ -80,11 +81,12 @@ export default function FirstPhaseFlow() {
   // Someone who already has a plan doesn't need this.
   React.useEffect(() => { if (!isLoading && doc?.phases?.length && !busy) router.replace(home()) }, [isLoading, doc, busy]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const title = d.titleTouched ? d.title : suggestTitle({ activities: d.activities, living: d.living, place_label: d.place?.label || '' })
+  const suggested = d.purpose.trim() || suggestTitle({ activities: d.activities, living: d.living, place_label: d.place?.label || '' })
+  const title = d.titleTouched ? d.title : suggested
   const preview: Phase = { id: 'new', title, kind: kindFor(d.activities), place: d.place?.key || null, place_label: d.place?.label || '', months: 12, lines: [], cover: d.cover ? { url: d.cover } : null }
-  const steps = ['where', 'living', 'doing', 'since', 'card', 'goal'] as const
+  const steps = ['where', 'living', 'doing', 'purpose', 'since', 'card', 'goal'] as const
   const s = steps[step]
-  const canNext = s === 'where' ? Boolean(d.place) : s === 'living' ? Boolean(d.living) : s === 'doing' ? d.activities.length > 0 : true
+  const canNext = s === 'where' ? Boolean(d.place) : s === 'living' ? Boolean(d.living) : s === 'doing' ? d.activities.length > 0 : s === 'purpose' ? Boolean(d.purpose.trim()) : true
 
   const finish = async (skipGoals = false) => {
     if (busy) return
@@ -117,6 +119,7 @@ export default function FirstPhaseFlow() {
     where: { q: firstName ? t('onboarding.where_hi', { name: firstName }) : t('onboarding.where'), sub: t('onboarding.where_sub') },
     living: { q: t('onboarding.living'), sub: t('onboarding.living_sub') },
     doing: { q: t('onboarding.doing'), sub: t('onboarding.doing_sub') },
+    purpose: { q: t('onboarding.purpose'), sub: t('onboarding.purpose_sub') },
     since: { q: t('onboarding.since'), sub: t('onboarding.since_sub') },
     card: { q: t('onboarding.card'), sub: t('onboarding.card_sub') },
     goal: { q: t('onboarding.goal'), sub: t('onboarding.goal_sub') },
@@ -142,19 +145,20 @@ export default function FirstPhaseFlow() {
           ? <ActivityPicker key={d.activities.length} token={token} onPick={(a) => { setD({ ...d, activities: [...d.activities, a] }); setAddingAct(false) }} />
           : <button type="button" onClick={() => setAddingAct(true)} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[var(--org-primary-color)]"><Plus size={15} aria-hidden="true" />{t('onboarding.add_else')}</button>}
       </div> : null}
+      {s === 'purpose' ? <PurposePicker options={purposeOptions(d.activities)} value={d.purpose} onChange={(purpose) => setD({ ...d, purpose })} onPick={(purpose) => { setD({ ...d, purpose }); setTimeout(() => setStep(steps.indexOf('since')), 160) }} /> : null}
       {s === 'since' ? <MonthPicker value={d.starts} onChange={(starts) => setD({ ...d, starts })} to={new Date().getFullYear() + 1} /> : null}
       {s === 'card' ? <div className="grid gap-3">
         <div className="relative h-[260px] overflow-hidden rounded-[28px] bg-muted text-white">
           <PhaseCover phase={preview} photos={photos} className={cn('absolute inset-0 h-full w-full', uploading && 'animate-pulse')} />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgb(8_20_30/0.65))]" aria-hidden="true" />
           <div className="absolute inset-x-5 bottom-5 grid gap-1.5">
-            <span className="text-sm font-extrabold opacity-95">{d.activities.map(activityText).join(' + ')}</span>
+            <span className="text-sm font-extrabold opacity-95">{eyebrowFor(d.activities, title)}</span>
             <input aria-label={t('onboarding.phase_name')} value={title} onChange={(e) => setD({ ...d, title: e.target.value, titleTouched: true })} className="w-full rounded-xl bg-black/25 px-2.5 py-0.5 text-[clamp(28px,7vw,42px)] font-extrabold text-white outline outline-2 outline-white/60 focus:outline-white" />
             <span className="inline-flex items-center gap-1.5 text-xs font-extrabold"><MapPin size={13} aria-hidden="true" />{d.place?.label} · {t('onboarding.since_month', { month: monthText(d.starts) })}</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {d.titleTouched ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, titleTouched: false, title: '' })}>{t('phases.use_typed', { text: suggestTitle({ activities: d.activities, living: d.living, place_label: d.place?.label || '' }) })}</button> : null}
+          {d.titleTouched ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, titleTouched: false, title: '' })}>{t('phases.use_typed', { text: suggested })}</button> : null}
           <button type="button" className={chip(false)} onClick={() => fileInput.current?.click()} disabled={uploading}><Upload size={14} className="mr-1 inline" aria-hidden="true" />{d.cover ? t('onboarding.another_photo') : t('onboarding.own_photo')}</button>
           {d.cover ? <button type="button" className={chip(false)} onClick={() => setD({ ...d, cover: null })}>{t('onboarding.use_ours')}</button> : null}
         </div>
@@ -178,6 +182,18 @@ export default function FirstPhaseFlow() {
             : <Button variant="brand" size="lg" disabled={!canNext} onClick={() => { setStep(step + 1); setAddingAct(false) }}>{t('onboarding.next')}<ArrowRight size={16} aria-hidden="true" /></Button>}
       </div>
     </div>
+  </div>
+}
+
+/** What this time is for: a tap on one we offer, or their own words. Their pick names the phase. */
+function PurposePicker({ options, value, onChange, onPick }: { options: string[]; value: string; onChange: (v: string) => void; onPick: (v: string) => void }) {
+  const { t } = useTranslation()
+  const typed = value && !options.includes(value) ? value : ''
+  return <div className="grid gap-3">
+    <div className="flex flex-wrap gap-2">{options.map((o) => <button key={o} type="button" aria-pressed={value === o} onClick={() => onPick(o)} className={chip(value === o)}>{o}</button>)}</div>
+    <label className="flex h-12 items-center gap-2 rounded-2xl bg-muted px-3">
+      <input value={typed} onChange={(e) => onChange(e.target.value)} placeholder={t('onboarding.purpose_own')} aria-label={t('onboarding.purpose_own')} className="h-full w-full bg-transparent text-base font-bold outline-none" />
+      <MicButton value={typed} onChange={onChange} size="sm" label={t('onboarding.purpose_own')} /></label>
   </div>
 }
 

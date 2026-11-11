@@ -255,6 +255,7 @@ def _policy(db: Session) -> CoachPolicy:
 
 
 def built_in_rules() -> list[dict]:
+    from src.services.coach.app_notes import APP_NOTES
     from src.services.goals.check_ins import NOTE_WRITER_INSTRUCTIONS
     from src.services.goals.story import STORY_WRITER_INSTRUCTIONS
     from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
@@ -266,6 +267,7 @@ def built_in_rules() -> list[dict]:
         {"title": "Planning sessions", "text": PLANNING_SESSION_RULES.strip()},
         {"title": "Check-in notes (output format)", "text": NOTE_WRITER_INSTRUCTIONS.strip()},
         {"title": "Finish story (output format)", "text": STORY_WRITER_INSTRUCTIONS.strip()},
+        *({"title": f"App note: {note.title} (added when a message mentions it)", "text": note.text} for note in APP_NOTES),
     ]
 
 

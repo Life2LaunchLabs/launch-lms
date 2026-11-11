@@ -28,8 +28,8 @@ class CoachPolicy(SQLModel, table=True):
     tiers: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # One routine per trigger: {trigger: {"instructions", "tier"}}; a trigger that's missing has no instructions and its default tier.
     routines: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
-    # Conversation-starter cards on Coach home; NULL means the code defaults.
-    launch_cards: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # Conversation-starter cards on Coach home: {"learner": [...], "staff": [...]} (or a bare learner list, as first stored); NULL means the code defaults.
+    launch_cards: list | dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     # The release learners get. Edits on the tabs change the draft; NULL (no release yet) means Coach runs the draft.
     live_release_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("coach_release.id", ondelete="SET NULL"), nullable=True))
     updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))

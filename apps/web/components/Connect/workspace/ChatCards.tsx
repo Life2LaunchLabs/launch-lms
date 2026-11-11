@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { BarChart3, Bell, Building2, Check, ClipboardCheck, GraduationCap, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,9 @@ import type { GroupReportCard } from '@services/goals/reports'
 import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import { goalsApi } from '@services/goals/goals'
 import { messagesApi } from '@services/messages/messages'
+import { openOrgPage } from '@services/auth/handoff'
+import { acceptedInvitePath } from '@services/routing/inviteSite'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { supportApi, type SupportRequestCard } from '@services/school/support'
 import { PlanTag, StepMark } from './tags'
 
@@ -75,11 +79,22 @@ export function CardMessage({ message, orgslug, token, topics, time, first, onTa
 /** An invitation, answered right here: join the organization, start the plan, or help on it. */
 function InvitationView({ card, orgslug, token, time, onAnswered }: { card: InvitationCard; orgslug: string; token?: string; time: string; onAnswered: () => void }) {
   const [busy, setBusy] = React.useState<'accept' | 'decline' | ''>('')
+  const router = useRouter()
+  const session = useLHSession() as any
   const answer = async (accept: boolean) => {
     setBusy(accept ? 'accept' : 'decline')
     try {
       if (card.source === 'goal' && card.goal_uuid) await goalsApi.respond(card.goal_uuid, accept, token)
-      else if (card.inbox_uuid) await messagesApi.respond(card.inbox_uuid, accept, token)
+      else if (card.inbox_uuid) {
+        const answered = await messagesApi.respond(card.inbox_uuid, accept, token)
+        // Staff and admins who joined open the organization's welcome, then its admin home (FEED-84/95).
+        const path = acceptedInvitePath(answered?.joined?.role)
+        if (path && answered?.joined?.org_slug) {
+          await session?.update?.(true)
+          openOrgPage(getUriWithOrg(answered.joined.org_slug, path), router.push)
+          return
+        }
+      }
       onAnswered()
     } catch (error: any) {
       toast.error(error?.message || tr('connect.chat_cards.that_didn_t_go_through', 'That didn’t go through'))

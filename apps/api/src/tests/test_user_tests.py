@@ -345,3 +345,42 @@ def test_only_a_verified_persona_refresh_token_gets_its_own_refresh_limit(db):
     assert refresh_test_persona(create_refresh_token({"sub": "admin@example.com"})) is None
     assert refresh_test_persona("forged.token.value") is None
     assert refresh_test_persona(None) is None
+
+
+def test_a_dropped_persona_can_tell_an_open_run_from_a_closed_one(db, monkeypatch):
+    """No sign-in needed: a persona whose session dropped asks before being told the run ended (UT-3)."""
+    from starlette.requests import Request
+    from starlette.responses import Response
+    from src.routers.user_tests import persona_run_state
+
+    monkeypatch.setattr("src.routers.user_tests.check_rate_limit", lambda *args: (True, 0, 0))
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": [], "query_string": b"", "client": ("1.2.3.4", 1)})
+    cohort = _cohort(db)
+    maya = _persona(db, cohort["cohort_uuid"])
+    assert persona_run_state(maya["user_id"], request, Response(), db) == {"open": True}
+    assert persona_run_state(2, request, Response(), db) == {"open": False}  # a real account says nothing more
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    assert persona_run_state(maya["user_id"], request, Response(), db) == {"open": False}
+
+
+
+def test_a_started_run_holds_deploys_until_it_closes_or_its_window_ends(db):
+    """Unstable's deploy waits while /health/deploy-ready says no, so a run isn't cut off by a redeploy."""
+    from src.services.health.health import deploy_ready
+
+    cohort = _cohort(db)
+    maya = _persona(db, cohort["cohort_uuid"])
+    assert deploy_ready(db) == {"ready": True, "reasons": []}  # made, nobody signed in yet
+    _session_payload(db, maya)  # Maya signs in: the run has started
+    held = deploy_ready(db)
+    assert held["ready"] is False and held["reasons"][0]["run"] == "Riverside onboarding"
+    ticket = db.exec(select(TestLoginTicket)).first()
+    ticket.used_at = datetime.utcnow() - timedelta(hours=cohorts.HOLD_HOURS, minutes=1)
+    db.add(ticket)
+    db.commit()
+    assert deploy_ready(db)["ready"] is True  # left open past its window: holds no longer
+    ticket.used_at = datetime.utcnow()
+    db.add(ticket)
+    db.commit()
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    assert deploy_ready(db)["ready"] is True  # closed

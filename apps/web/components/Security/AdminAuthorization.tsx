@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import useAdminStatus from '@components/Hooks/useAdminStatus';
 import { usePathname, useRouter } from 'next/navigation';
+import { OrgShellSkeleton } from '@components/Objects/Loaders/OrgShellSkeleton'
 import PageLoading from '@components/Objects/Loaders/PageLoading';
 import { getUriWithOrg, routePaths } from '@services/config/config';
 import { useOrg } from '@components/Contexts/OrgContext';
@@ -75,6 +76,9 @@ const AdminAuthorization: React.FC<AuthorizationProps> = ({ children, authorizat
   useEffect(() => {
     authorizeUser();
   }, [authorizeUser]);
+
+  // A page keeps the admin placeholder it showed while the org loaded, instead of swapping to a spinner.
+  if (loading && authorizationMode === 'page') return <OrgShellSkeleton pathname="/admin" />
 
   if (loading) {
     return (

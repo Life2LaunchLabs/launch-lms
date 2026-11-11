@@ -108,6 +108,10 @@ def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, vers
     )
     if user_id is None:
         _invite_subject(db, goal, assignment, version, int(owner_id))  # type: ignore[arg-type]
+    else:
+        from src.services.goals.notifications import on_plan_assigned
+
+        on_plan_assigned(db, goal)  # someone with an account hears about it by email too
     _apply(db, assignment, goal)
     return goal
 

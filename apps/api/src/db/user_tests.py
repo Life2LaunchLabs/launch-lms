@@ -46,7 +46,7 @@ class TestPersona(SQLModel, table=True):
     handle: str
     # Who they are: role, goals, tech comfort, starting situation.
     brief: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
-    start_state: str = "has_account"  # has_account | new_signup (lands in sign-up onboarding) | org_owner
+    start_state: str = "has_account"  # has_account | new_signup (lands where a sign-up does) | org_creator (lands on org set-up) | org_owner
     # Where the persona is in each stage: {stage_key: {status, note, updated_at}}.
     stage_state: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     last_active_at: datetime | None = None

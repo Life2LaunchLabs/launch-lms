@@ -6,23 +6,30 @@ import { ArrowDown, ArrowUp, Loader2, Plus, RotateCcw, Save, Trash2 } from 'luci
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { COACH_POLICY_PATH, coachAdminApi } from '@services/coach/admin'
-import { LAUNCH_CARD_LIMITS, MAX_LAUNCH_CARDS, launchCardsProblem, type HubLaunchCard, type HubLaunchCardsSettings } from '@services/hub/launchCards'
+import { LAUNCH_CARD_LIMITS, MAX_LAUNCH_CARDS, launchCardsProblem, type HubLaunchCard, type HubLaunchCardsSettings, type LaunchCardAudience } from '@services/hub/launchCards'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 
 const blankCard = (): HubLaunchCard => ({ label: '', hint: '', first_message: '' })
 
+const AUDIENCES: { key: LaunchCardAudience; label: string; description: string; sender: string }[] = [
+  { key: 'learner', label: 'Learners', description: 'Shown to learners who have no plan work yet.', sender: 'sent as the learner' },
+  { key: 'staff', label: 'Staff and admins', description: "Shown to an organization's staff and admins when they open Coach there.", sender: 'sent as the staff member' },
+]
+
 export default function HubLaunchCardsEditor() {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
+  const [audience, setAudience] = React.useState<LaunchCardAudience>('learner')
+  const current = AUDIENCES.find((entry) => entry.key === audience) ?? AUDIENCES[0]
   const { data, error, isLoading, mutate } = useSWR<HubLaunchCardsSettings>(
-    token ? [COACH_POLICY_PATH, 'launch-cards', token] : null,
-    () => coachAdminApi.launchCards(token),
+    token ? [COACH_POLICY_PATH, 'launch-cards', audience, token] : null,
+    () => coachAdminApi.launchCards(audience, token),
   )
   const [cards, setCards] = React.useState<HubLaunchCard[]>([])
   const [busy, setBusy] = React.useState<'save' | 'reset' | null>(null)
 
-  React.useEffect(() => { if (data) setCards(data.cards) }, [data])
+  React.useEffect(() => { setCards(data?.cards ?? []) }, [data])
 
   const problem = launchCardsProblem(cards)
   const dirty = JSON.stringify(cards) !== JSON.stringify(data?.cards ?? [])
@@ -34,10 +41,10 @@ export default function HubLaunchCardsEditor() {
   })
 
   const run = async (kind: 'save' | 'reset', payload: HubLaunchCard[] | null, done: string) => {
-    if (kind === 'reset' && !window.confirm('Replace the cards with the Life2Launch defaults?')) return
+    if (kind === 'reset' && !window.confirm(`Replace the ${current.label.toLowerCase()} cards with the defaults?`)) return
     setBusy(kind)
     try {
-      await mutate(await coachAdminApi.saveLaunchCards(payload, token), { revalidate: false })
+      await mutate(await coachAdminApi.saveLaunchCards(audience, payload, token), { revalidate: false })
       toast.success(done)
     } catch (saveError: any) {
       toast.error(saveError?.message || 'Could not update the cards.')
@@ -49,9 +56,22 @@ export default function HubLaunchCardsEditor() {
   return (
     <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="hub-launch-cards-heading">
       <h2 id="hub-launch-cards-heading" className="text-base font-black text-gray-950">Starter cards on Coach home</h2>
-      <p className="mt-1 text-sm leading-6 text-gray-600">Shown to learners who have no plan work yet. Clicking a card sends its opening message to Coach, which replies following the Method. Up to {MAX_LAUNCH_CARDS} cards.</p>
+      <p className="mt-1 text-sm leading-6 text-gray-600">Learners and staff each get their own set. Clicking a card sends its opening message to Coach, which replies following the Method. Up to {MAX_LAUNCH_CARDS} cards per set.</p>
 
-      {error ? <p className="mt-5 text-sm text-red-700" role="alert">Could not load the cards. Learners still see the default set.</p> : null}
+      <div role="tablist" aria-label="Who sees these cards" className="mt-5 inline-flex rounded-xl border border-black/10 bg-gray-50 p-1">
+        {AUDIENCES.map((entry) => (
+          <button key={entry.key} type="button" role="tab" aria-selected={audience === entry.key}
+            disabled={busy !== null || (dirty && audience !== entry.key)}
+            title={dirty && audience !== entry.key ? 'Save or undo your changes first' : undefined}
+            onClick={() => setAudience(entry.key)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${audience === entry.key ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600 hover:text-gray-950 disabled:opacity-50'}`}>
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-sm text-gray-600">{current.description}</p>
+
+      {error ? <p className="mt-5 text-sm text-red-700" role="alert">Could not load the cards. People still see the default set.</p> : null}
       {isLoading ? <p className="mt-5 text-sm text-gray-500" role="status">Loading cards…</p> : null}
 
       <ol className="mt-6 space-y-4">
@@ -63,7 +83,7 @@ export default function HubLaunchCardsEditor() {
               <label className="block"><span className="text-xs font-bold text-gray-900">Subtitle <span className="font-normal text-gray-500">(optional)</span></span>
                 <Input value={card.hint} maxLength={LAUNCH_CARD_LIMITS.hint} onChange={(event) => update(index, { hint: event.target.value })} className="mt-1.5" /></label>
             </div>
-            <label className="mt-3 block"><span className="text-xs font-bold text-gray-900">Opening message <span className="font-normal text-gray-500">(sent as the learner)</span></span>
+            <label className="mt-3 block"><span className="text-xs font-bold text-gray-900">Opening message <span className="font-normal text-gray-500">({current.sender})</span></span>
               <Input value={card.first_message} maxLength={LAUNCH_CARD_LIMITS.first_message} onChange={(event) => update(index, { first_message: event.target.value })} className="mt-1.5" /></label>
             <div className="mt-3 flex justify-end gap-1">
               <Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move card ${index + 1} up`}><ArrowUp size={15} /></Button>
@@ -77,7 +97,7 @@ export default function HubLaunchCardsEditor() {
       <div className="mt-4"><Button type="button" variant="outline" onClick={() => setCards((current) => [...current, blankCard()])} disabled={cards.length >= MAX_LAUNCH_CARDS}><Plus size={15} />Add card</Button></div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-5">
-        <p className="text-xs text-gray-500" aria-live="polite">{problem && dirty ? problem : data?.is_default ? 'Using the Life2Launch default cards.' : 'Using customized cards.'}</p>
+        <p className="text-xs text-gray-500" aria-live="polite">{problem && dirty ? problem : data?.is_default ? 'Using the default cards.' : 'Using customized cards.'}</p>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={() => void run('reset', null, 'Default cards restored.')} disabled={busy !== null || data?.is_default}>{busy === 'reset' ? <Loader2 className="animate-spin" size={15} /> : <RotateCcw size={15} />}Reset to defaults</Button>
           <Button type="button" onClick={() => void run('save', cards, 'Starter cards updated.')} disabled={busy !== null || !dirty || Boolean(problem)}>{busy === 'save' ? <Loader2 className="animate-spin" size={15} /> : <Save size={15} />}Save cards</Button>

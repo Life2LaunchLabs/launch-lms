@@ -7,7 +7,11 @@ import { cn } from '@/lib/utils'
 import type { OrgMenuNavItem } from './OrgMenuLinks'
 import { useTranslation } from 'react-i18next'
 
-export const NAV_ACTIVE_CLASS = 'bg-[color-mix(in_srgb,var(--org-primary-color)_16%,transparent)] text-foreground ring-2 ring-[var(--org-primary-color)]'
+/**
+ * The current destination. The ring sits inside the item: the collapsed sidebar is exactly
+ * one item wide and clips what spills past it, so an outside ring lost its sides there.
+ */
+export const NAV_ACTIVE_CLASS = 'bg-[color-mix(in_srgb,var(--org-primary-color)_16%,transparent)] text-foreground ring-2 ring-inset ring-[var(--org-primary-color)]'
 
 /** A primary destination, or Coach toggle, in the phone bar or the desktop sidebar. */
 export function NavItemControl({ item, orgslug, className, children, dot = false }: { item: OrgMenuNavItem; orgslug: string; className: string; children: React.ReactNode; dot?: boolean }) {

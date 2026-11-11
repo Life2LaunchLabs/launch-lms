@@ -62,13 +62,15 @@ def test_a_finished_goal_gets_its_story_as_an_activity():
         assert written.slides[4]["items"] == [{"question": "Which race?", "choice": "City 10k"}]
         assert written.slides[5]["text"].startswith("I ran the whole thing")
 
-        # The served activity is a valid Activity Document with the story blocks, timed except the last page.
+        # The served activity is a valid Activity Document with the story blocks. The opening slide waits
+        # for Continue (FEED-97), the slides after it are timed, and the medal ends it.
         document = story.story_document(goal, written)
         prepared = prepare_document(document, existing_page_uuids={page["page_uuid"] for page in document["pages"]}, allow_system_blocks=False)
         assert prepared.ok, prepared.errors
         types = {block["type"] for page in document["pages"] for block in page["content"]["blocks"]}
         assert {"stat", "chart", "quote", "medal"} <= types
-        assert all(page["design"].get("auto_advance_ms") for page in document["pages"][:-1]) and document["pages"][-1]["required"]
+        assert "auto_advance_ms" not in document["pages"][0]["design"]
+        assert all(page["design"].get("auto_advance_ms") for page in document["pages"][1:-1]) and document["pages"][-1]["required"]
 
         # Asking again reuses the story; a change to the goal writes a new version.
         assert story.ensure_story(db, goal, writer).story_uuid == written.story_uuid and writer.calls == 1

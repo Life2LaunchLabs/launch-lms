@@ -102,8 +102,11 @@ way for a test to email, impersonate or change a real person.
   reports only its own stages, the board shows a dash for the rest, and a stage counts as finished
   (and is captured as a checkpoint) once the personas it is for are done. Run again keeps the
   assignment. In the story editor: `Title | goal | for maya, sam | after dana/stage-key`.
-- A `new_signup` persona has an account and no org; until it makes one, a link to `/` opens
-  `/start` (role, "Make it yours", org setup, first steps). The account form itself stays untested.
+- A `new_signup` or `org_creator` persona has an account and no org, with the profile a welcome
+  sign-up gives. Until it makes an org, a link to `/` opens where that account goes next:
+  `new_signup` gets `/welcome`, which sends it on like the front page's sign-up (its first phase);
+  `org_creator` gets `/start` (role, "Make it yours", org setup, first steps). In the console,
+  start a line with `new:` or `creator:`. The account form itself stays untested.
 - The banner's "Switch to…" asks the API (`POST /user_tests/me/switch`) for a one-use link to
   another persona of the same run, minted for the admin who opened this session, then signs this
   browser out and opens it: one browser can play every persona in turn.

@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import OAuthConsent from './OAuthConsent'
 
 export const metadata: Metadata = {
-  title: 'Connect an app — Life2Launch',
+  title: 'Connect an app',
   robots: { index: false, follow: false },
 }
 
