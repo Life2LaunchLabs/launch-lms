@@ -4275,6 +4275,13 @@
       "saving": "Trabajar y ahorrar",
       "career": "Empezar mi carrera",
       "next": "Descubrir qué sigue"
+    },
+    "plan_ask": {
+      "doing": "Lo que haré: {{doing}}.",
+      "place": "Dónde: {{place}}.",
+      "head_span": "Ayúdame a planear esta etapa de mi plan: “{{title}}” ({{span}}).",
+      "head": "Ayúdame a planear esta etapa de mi plan: “{{title}}”.",
+      "ask": "¿Qué metas debería ponerme y qué debería hacer primero?"
     }
   },
   "onboarding": {
@@ -5771,7 +5778,9 @@
       "start_your_budget": "Empezar tu presupuesto",
       "start_it": "Empezarlo",
       "no_goals_were_left_open": "No quedaron metas abiertas en {{lower}}.",
-      "done_of_total_steps": "{{done}} de {{total}} pasos"
+      "done_of_total_steps": "{{done}} de {{total}} pasos",
+      "plan_it_with_coach": "Planear con Coach",
+      "plan_it_with_coach_hint": "Planéala con Coach, dila con tus propias palabras, o elige una de Descubrir y gana una insignia por ella."
     },
     "phase_sheet": {
       "idea": "Idea ·",

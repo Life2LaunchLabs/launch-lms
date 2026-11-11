@@ -132,3 +132,20 @@ export function checklist(p: Phase, goals: number): CheckItem[] {
     { key: 'goals', title: tr('phases.check.goals', 'A goal'), done: goals > 0 },
   ]
 }
+
+/**
+ * What "Plan it with Coach" sends: the phase's name, when it is, what it's about and where, so Coach
+ * starts from the phase instead of a blank chat. Parts the learner hasn't set are left out.
+ */
+export function planAsk(p: Pick<Phase, 'title' | 'activities' | 'place_label'>, span?: string): string {
+  const doing = (p.activities || []).map(activityText).filter(Boolean).join(', ')
+  const place = p.place_label?.split(',')[0]?.trim()
+  const about = [
+    doing ? tr('phases.plan_ask.doing', 'What I’ll be doing: {{doing}}.', { doing }) : '',
+    place ? tr('phases.plan_ask.place', 'Where: {{place}}.', { place }) : '',
+  ].filter(Boolean).join(' ')
+  const head = span
+    ? tr('phases.plan_ask.head_span', 'Help me plan this phase of my plan: “{{title}}” ({{span}}).', { title: p.title, span })
+    : tr('phases.plan_ask.head', 'Help me plan this phase of my plan: “{{title}}”.', { title: p.title })
+  return [head, about, tr('phases.plan_ask.ask', 'What goals should I set for it, and what should I do first?')].filter(Boolean).join(' ')
+}
