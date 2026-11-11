@@ -21,6 +21,7 @@ import { peopleKeys, type GroupDetail } from '@services/school/people'
 import { setGroupStatus, type MemberStatus } from '@services/organizations/membership'
 import type { GroupView } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
+import { inOrgWords } from '@/lib/people'
 
 const people = routePaths.org.admin.people
 type GroupTab = 'people' | 'plans' | 'join'
@@ -47,7 +48,7 @@ export default function GroupProfile({ orgslug, groupId, view, compact }: { orgs
   const learners = group.learner_count
   return <ProfileFrame orgslug={orgslug} compact={compact} title={group.name}
     art={<span className={cn('grid shrink-0 place-items-center rounded-2xl bg-muted text-foreground', compact ? 'h-12 w-12' : 'h-20 w-20')}><Users size={compact ? 22 : 34} /></span>}
-    sub={`${learners} ${learners === 1 ? 'learner' : 'learners'}${group.alumni_count ? ` (${group.alumni_count} alumni)` : ''} · ${group.staff_count} staff`}
+    sub={`${learners} ${inOrgWords(learners === 1 ? 'learner' : 'learners')}${group.alumni_count ? ` (${group.alumni_count} alumni)` : ''} · ${group.staff_count} staff`}
     actions={compact ? null : <>
       <ThreadButton primary onClick={() => openThread({ kind: 'group', groupId })} label="Group thread" />
       {canManage ? <button type="button" onClick={() => setManaging(true)} aria-haspopup="dialog" aria-label="Manage group" title="Rename or delete"
@@ -61,7 +62,7 @@ export default function GroupProfile({ orgslug, groupId, view, compact }: { orgs
     </>
       : current === 'plans' ? <GroupWork orgslug={orgslug} groupId={groupId} bare />
       : <Card title="Join link">
-        <p className="-mt-1 mb-4 text-sm text-muted-foreground">Learners who use a link made here join the organization and this group.</p>
+        <p className="-mt-1 mb-4 text-sm text-muted-foreground">{inOrgWords("Learners who use a link made here join the organization and this group.")}</p>
         <JoinLinkPanel org={org} accessToken={token || ''} usergroups={[]} groupsEnabled={features.has('groups')} bulkInvites={features.has('bulk_invites')} fixedGroupId={groupId} />
       </Card>}
     {canManage ? <ManageGroup orgslug={orgslug} groupId={groupId} open={managing} onOpenChange={setManaging} /> : null}
@@ -139,8 +140,8 @@ function GroupStatus({ groupId, onChanged }: { groupId: number; onChanged: () =>
   const active = group.learner_count - group.alumni_count
   const mark = async (status: MemberStatus) => {
     const question = status === 'alumni'
-      ? `Mark ${group.name}'s ${active} active ${active === 1 ? 'learner' : 'learners'} as alumni? They keep their plans and records and stop counting toward your learner limit.`
-      : `Make ${group.name}'s ${group.alumni_count} alumni active again? They count toward your learner limit.`
+      ? inOrgWords(`Mark ${group.name}'s ${active} active ${active === 1 ? 'learner' : 'learners'} as alumni? They keep their plans and records and stop counting toward your learner limit.`)
+      : inOrgWords(`Make ${group.name}'s ${group.alumni_count} alumni active again? They count toward your learner limit.`)
     if (!token || busy || !confirm(question)) return
     setBusy(true)
     const response = await setGroupStatus(orgId, groupId, status, token)

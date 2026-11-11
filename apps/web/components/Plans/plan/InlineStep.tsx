@@ -17,6 +17,7 @@ import type { StepTypeKey } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import PlanDialog from './PlanDialog'
 import { plural } from './planVersions'
+import { inOrgWords } from '@/lib/people'
 
 /** A step open on the plan page: what's typed, kept here until it saves (a new step saves once it has a title). */
 export type OpenStep = { key: string; draft: StepDraft; links: string[]; isNew: boolean; activityUuid: string }
@@ -109,11 +110,11 @@ export default function InlineStep({ value, onChange, onClose, onDuplicate, onDe
     </div>
 
     <div className="flex flex-col gap-3.5 px-4 pb-3 sm:pl-[72px]">
-      <textarea ref={instructions} rows={1} value={draft.description} onChange={(event) => set({ description: event.target.value })} placeholder="Instructions for the learner (optional)" aria-label="Instructions for the learner"
+      <textarea ref={instructions} rows={1} value={draft.description} onChange={(event) => set({ description: event.target.value })} placeholder={inOrgWords("Instructions for the learner (optional)")} aria-label={inOrgWords("Instructions for the learner")}
         className="w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60" />
       {isActivity ? <ActivityPages orgId={orgId} token={token} templateUuid={templateUuid} activityUuid={value.activityUuid} href={activityHref} onOpen={onOpenActivity} saving={saving} />
         : ConfigPanel ? <ConfigPanel config={draft.config} onChange={(config: StepDraft['config']) => set({ config })} orgId={orgId} token={token} personal={false} /> : null}
-      {shown.materials ? <Section title="Materials" detail="Files and links learners open">
+      {shown.materials ? <Section title="Materials" detail={inOrgWords("Files and links learners open")}>
         <MaterialsEditor id={`step-materials-${value.key}`} value={draft.materials || []} onChange={(materials) => set({ materials })} orgId={orgId} token={token} addLabel="Add a file or link" />
       </Section> : null}
       {shown.staff ? <Section title="Staff guide" detail="Only staff see this">
@@ -130,7 +131,7 @@ export default function InlineStep({ value, onChange, onClose, onDuplicate, onDe
         {definition.finishesItself ? null : <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Who marks it done</span>
           <div className="inline-flex flex-wrap gap-0.5 self-start rounded-xl bg-muted p-[3px]">
             {(['learner', 'staff'] as const).map((person) => <button key={person} type="button" aria-pressed={draft.completed_by === person} onClick={() => set({ completed_by: person, review_required: person === 'staff' ? false : draft.review_required })}
-              className={cn('rounded-[9px] px-3 py-[7px] text-[13px] font-semibold', draft.completed_by === person ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{person === 'learner' ? 'The learner' : 'Staff, like a meeting'}</button>)}
+              className={cn('rounded-[9px] px-3 py-[7px] text-[13px] font-semibold', draft.completed_by === person ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{person === 'learner' ? inOrgWords('The learner') : 'Staff, like a meeting'}</button>)}
           </div></div>}
         {others.length ? <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Starts after</span><div className="flex flex-wrap gap-1.5">
           {others.map((other) => { const on = draft.after.includes(other.id); return <button key={other.id} type="button" aria-pressed={on} onClick={() => set({ after: on ? draft.after.filter((id) => id !== other.id) : [...draft.after, other.id] })}

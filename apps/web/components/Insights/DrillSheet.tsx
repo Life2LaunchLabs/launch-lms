@@ -8,6 +8,7 @@ import { Download, Loader2, MessageCircle, X } from 'lucide-react'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { insightsApi, type CardSpec, type DateRange, type DrillPerson, type Scope } from '@services/insights/insights'
+import { inOrgWords } from '@/lib/people'
 
 export type DrillTarget = { title: string; spec: CardSpec; drill: string }
 
@@ -48,7 +49,7 @@ export default function DrillSheet({ target, onClose, orgId, orgslug, token, sco
           <div className="min-w-0 flex-1">
             <Dialog.Title className="text-[17px] font-bold leading-snug tracking-tight text-foreground">{target?.title}</Dialog.Title>
             <Dialog.Description className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {data ? `${data.total.toLocaleString()} learner${data.total === 1 ? '' : 's'}${rate ? ', finished first' : ''}. Only learners you can see are listed.` : 'The learners behind this number.'}
+              {data ? inOrgWords(`${data.total.toLocaleString()} learner${data.total === 1 ? '' : 's'}${rate ? ', finished first' : ''}. Only learners you can see are listed.`) : inOrgWords('The learners behind this number.')}
             </Dialog.Description>
           </div>
           <Dialog.Close className="rounded-full p-1.5 text-muted-foreground hover:bg-muted" aria-label="Close"><X size={18} /></Dialog.Close>

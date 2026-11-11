@@ -18,6 +18,7 @@ import { isTemplatesKey, templatesApi } from '@services/goals/templates'
 import type { GoalIcon } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import PlanDialog from './PlanDialog'
+import { inOrgWords } from '@/lib/people'
 
 type Props = { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>>; orgId: number; token?: string; editing: TemplateEditing; runOnly: boolean }
 
@@ -36,7 +37,7 @@ export default function PlanSettings({ open, setOpen, orgId, token, editing, run
       <Instructions editing={editing} />
       {template.system_type ? null : <TemplateLearnersCard orgId={orgId} templateUuid={template.template_uuid} token={token} />}
       <details className="group rounded-xl border border-border">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-bold">Goal roles<span className="text-xs font-normal text-muted-foreground">Who can do what on each learner’s goal ▾</span></summary>
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-bold">Goal roles<span className="text-xs font-normal text-muted-foreground">{inOrgWords("Who can do what on each learner’s goal ▾")}</span></summary>
         <div className="border-t border-border p-4"><TemplateRoles editing={editing} /></div>
       </details>
     </div>

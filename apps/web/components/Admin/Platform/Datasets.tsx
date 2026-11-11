@@ -10,6 +10,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { routePaths } from '@services/routing/paths'
 import { lifeAdminApi, lifeUrl, type Dataset, type EstimateFileKind } from '@services/life/life'
 import { EmptyState, LoadingRows, StatusBadge } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 // Platform › Datasets: the published files behind life plan estimates, careers and schools.
 // A file loads as drafts; learners see a release only once it is approved on its dataset's page.
@@ -87,7 +88,7 @@ export default function Datasets() {
   const datasets = data?.datasets || []
   const href = (kind: string) => org?.slug ? getUriWithOrg(org.slug, routePaths.owner.platform.dataset(kind)) : routePaths.owner.platform.dataset(kind)
   return <div className="flex flex-col gap-6">
-    <p className="max-w-3xl text-sm text-gray-600">The published files behind life plan estimates, careers and schools, and the tables we build from them. Open one to browse its rows by year, see where it comes from and how we use it, and export it. Learners only see a release once you approve it.</p>
+    <p className="max-w-3xl text-sm text-gray-600">{inOrgWords("The published files behind life plan estimates, careers and schools, and the tables we build from them. Open one to browse its rows by year, see where it comes from and how we use it, and export it. Learners only see a release once you approve it.")}</p>
     {isLoading ? <LoadingRows /> : error ? <p className="p-5 text-sm text-red-700" role="alert">The datasets could not load.</p>
       : !datasets.length ? <EmptyState icon={<Database size={32} />} message="No datasets yet." />
       : <div className="grid gap-4 md:grid-cols-2">{datasets.map((dataset) => <DatasetCard key={dataset.kind} dataset={dataset} href={href(dataset.kind)} />)}</div>}

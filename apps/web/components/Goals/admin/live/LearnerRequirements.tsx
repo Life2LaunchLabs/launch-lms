@@ -11,6 +11,7 @@ import type { StepTypeKey } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import { PageLoader, SectionCard, StatusPill } from './ui'
 import RequirementEvidenceExport from './RequirementEvidenceExport'
+import { inOrgWords } from '@/lib/people'
 
 /** One learner's requirement standing, read from the steps in their goals. */
 export function useLearnerRequirements(orgId: number, userId: number, token?: string) {
@@ -94,7 +95,7 @@ function GapAction({ orgId, userId, token, goals, action, learnerName, onClose, 
   </div> : <div className="space-y-4 p-1">
     {isLoading ? <PageLoader /> : <fieldset className="space-y-2"><legend className="mb-2 text-xs font-bold text-gray-700">Steps that also meet {label}</legend>
       {options.map((option) => <Choice key={`${option.template_uuid}:${option.step_key}`} on={choice === `${option.template_uuid}:${option.step_key}`} onClick={() => setChoice(`${option.template_uuid}:${option.step_key}`)} title={option.title} detail={option.template?.title} type={option.type} />)}
-      <Choice on={choice === 'custom'} onClick={() => setChoice('custom')} title="Something else" detail="Name a step for this learner" />
+      <Choice on={choice === 'custom'} onClick={() => setChoice('custom')} title="Something else" detail={inOrgWords("Name a step for this learner")} />
       {choice === 'custom' ? <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Informational interview with a nurse" className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm" /> : null}
     </fieldset>}
     <div className="grid gap-3 sm:grid-cols-2">
@@ -124,7 +125,7 @@ export function LearnerRequirementTree({ orgId, userId, token }: { orgId: number
   const [open, setOpen] = React.useState<Record<string, boolean>>({})
   if (isLoading) return <PageLoader />
   const frameworks: LearnerFramework[] = data?.frameworks || []
-  if (!frameworks.length) return <SectionCard><p className="text-sm text-gray-500">No requirement framework is assigned to this learner.</p></SectionCard>
+  if (!frameworks.length) return <SectionCard><p className="text-sm text-gray-500">{inOrgWords("No requirement framework is assigned to this learner.")}</p></SectionCard>
   return <div className="space-y-5">{frameworks.map((framework) => {
     const byParent = new Map<string | null, LearnerNode[]>()
     framework.nodes.forEach((node) => { const key = node.parent_node_uuid || null; byParent.set(key, [...(byParent.get(key) || []), node]) })

@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ErrorUI from '@components/Objects/StyledElements/Error/Error'
+import { peopleWordsOf, setPeopleWords } from '@/lib/people'
 import { OrgShellSkeleton } from '@components/Objects/Loaders/OrgShellSkeleton'
 import { usePathname } from 'next/navigation'
 
@@ -76,6 +77,9 @@ export function OrgProvider({ children, orgslug, loadingShell = false }: { child
   if (!org || !session) return loading
   if (isAuthenticated && sessionRoles.length === 0 && isResolvingMembership) return loading
   if (!isOrgActive) return <ErrorUI message='This organization is no longer active' />
+
+  // Copy says this org's word for the people it supports (lib/people.ts).
+  setPeopleWords(peopleWordsOf(org))
 
   const contextValue: OrgContextValue = {
     org,

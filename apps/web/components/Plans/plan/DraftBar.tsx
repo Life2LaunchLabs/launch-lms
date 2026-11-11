@@ -12,6 +12,7 @@ import { smallGhostClass, smallPrimaryClass } from '@components/Plans/shared/act
 import PlanDialog from './PlanDialog'
 import PublishFlow from './PublishFlow'
 import { plural, semverProblem, suggestSemver, versionLabel } from './planVersions'
+import { inOrgWords } from '@/lib/people'
 
 type Props = {
   orgId: number
@@ -54,7 +55,7 @@ export default function DraftBar({ orgId, token, editing, canAssign, onVisibilit
   }
 
   const draftName = draft ? `v${draft.semver}${draft.note ? ` · ${draft.note}` : ''}` : ''
-  const learnersSee = live ? ` · learners still see ${versionLabel(live)}` : ''
+  const learnersSee = live ? inOrgWords(` · learners still see ${versionLabel(live)}`) : ''
   const bar = draft
     ? <Bar tone="editing" detail={editing.saving ? 'Saving…' : <>{changeSummary(changes, first) || <Loader2 size={12} className="inline animate-spin" />}{learnersSee}</>}
       title={<>Draft <button type="button" onClick={() => setMetaOpen(true)} title="Version number and note" className="inline-flex max-w-full items-center gap-1 rounded-md px-1 hover:bg-brand/10"><span className="truncate">{draftName}</span><Pencil size={12} aria-hidden="true" /></button></>}>
@@ -108,7 +109,7 @@ function DraftMetaModal({ open, setOpen, orgId, token, editing }: { open: boolea
     footer={<><button type="button" className={smallGhostClass + ' h-10 px-4 text-sm'} onClick={() => setOpen(false)}>Cancel</button>
       <button type="submit" form="plan-draft-meta" className={smallPrimaryClass + ' h-10 px-4 text-sm'} disabled={busy || !!problem}>{busy ? <Loader2 className="animate-spin" /> : null}Save</button></>}>
     <form id="plan-draft-meta" className="flex flex-col gap-3.5" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-      <p className="text-sm text-muted-foreground">The number and note this draft will publish with. Learners keep the live version until you publish.</p>
+      <p className="text-sm text-muted-foreground">{inOrgWords("The number and note this draft will publish with. Learners keep the live version until you publish.")}</p>
       <div className="grid gap-2.5 sm:grid-cols-[140px_minmax(0,1fr)]">
         <label className="flex flex-col gap-1.5 text-[13px] font-bold">Version<Input autoFocus value={semver} onChange={(event) => setSemver(event.target.value)} aria-invalid={!!problem} className="font-mono" autoComplete="off" /></label>
         <label className="flex flex-col gap-1.5 text-[13px] font-bold">Note<Input value={note} onChange={(event) => setNote(event.target.value)} maxLength={1000} placeholder="What’s changing?" autoComplete="off" /></label>

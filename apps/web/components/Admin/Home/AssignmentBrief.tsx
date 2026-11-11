@@ -10,13 +10,14 @@ import { rowDates, rowSubtitle } from '@services/assignments/list'
 import { needTotal, needsText, plural } from '@services/assignments/status'
 import type { HomeAssignmentRow } from '@services/goals/adminHome'
 import { ROLE_LABEL } from './Sections'
+import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
 
 /** How the viewer works with an assignment, by their role on it. */
 const HOW: Record<NonNullable<HomeAssignmentRow['my_role']>, string> = {
-  lead: 'You run it: its dates, reminders and reviews. Learners see you as their lead.',
-  review: 'You review what learners hand in and answer their questions. Both land in Needs you on Home.',
+  get lead() { return inOrgWords('You run it: its dates, reminders and reviews. Learners see you as their lead.') },
+  get review() { return inOrgWords('You review what learners hand in and answer their questions. Both land in Needs you on Home.') },
   comment: 'You can see the plan and where everyone is, and comment in its threads.',
 }
 

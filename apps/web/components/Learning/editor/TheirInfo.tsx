@@ -19,6 +19,7 @@ import { findQuestionBlocks } from '@components/Learning/schema'
 import { THEIR_INFO_EVENT } from '@components/Learning/displayBindingNode'
 import { pageHeading } from './PageRail'
 import { button, on } from './toolbarParts'
+import { inOrgWords } from '@/lib/people'
 
 // "Their info": what an activity can show about the learner (inserted into text as a chip), and
 // where a question keeps its answer: their Portfolio (they see it, Coach reads it) or the
@@ -50,9 +51,9 @@ export function infoGroups(variables: any[], pages: any[], pageOrder: string[], 
     })) : []
   })
   return [
-    { name: 'The learner', items: [v('user.first_name', 'First name'), v('user.last_name', 'Last name')] },
+    { name: inOrgWords('The learner'), items: [v('user.first_name', 'First name'), v('user.last_name', 'Last name')] },
     { name: 'Their portfolio', items: [v('user.portfolio.headline', 'Headline'), v('user.portfolio.strengths', 'Strengths'), v('user.portfolio.values', 'Values')] },
-    { name: 'Learner details', items: [...variables].sort((a, b) => String(a.label || a.key).localeCompare(String(b.label || b.key))).map((variable) => v(`${DETAIL}${variable.key}`, variable.label || variable.key)) },
+    { name: inOrgWords('Learner details'), items: [...variables].sort((a, b) => String(a.label || a.key).localeCompare(String(b.label || b.key))).map((variable) => v(`${DETAIL}${variable.key}`, variable.label || variable.key)) },
     { name: 'This plan', items: [v('goal.title', 'Plan title'), v('goal.why', 'Why it matters to them')] },
     { name: 'Answers in this activity', items: answers },
   ]
@@ -89,7 +90,7 @@ export function TheirInfoMenu({ editor, groups }: { editor: any; groups: Group[]
                   <span className="font-bold">{item.label}</span>
                   {item.hint && <span className="text-xs text-gray-500">{item.hint}</span>}
                 </DropdownMenuItem>
-              )) : <p className="px-2 py-1.5 text-xs text-gray-500">{group.name === 'Learner details' ? 'None yet. A question can keep its answer as a new learner detail.' : 'No questions before this page.'}</p>}
+              )) : <p className="px-2 py-1.5 text-xs text-gray-500">{group.name === inOrgWords('Learner details') ? inOrgWords('None yet. A question can keep its answer as a new learner detail.') : 'No questions before this page.'}</p>}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         ))}
@@ -119,7 +120,7 @@ export function keptLabel(target: string, variables: any[]): string {
   if (portfolio) return `Portfolio › ${portfolio.label}`
   if (target.startsWith(DETAIL)) {
     const key = target.slice(DETAIL.length)
-    return `Learner details › ${variables.find((variable) => variable.key === key)?.label || key}`
+    return inOrgWords(`Learner details › ${variables.find((variable) => variable.key === key)?.label || key}`)
   }
   return target
 }
@@ -158,15 +159,15 @@ export function KeepMenu({ block, variables, onPatch, onCreateDetail }: { block:
         <DropdownMenuLabel>Portfolio<span className="block text-xs font-normal text-gray-500">Theirs to see and edit. Coach reads it.</span></DropdownMenuLabel>
         {PORTFOLIO_KEEPS.map((keepItem) => item(keepItem.target, keepItem.label))}
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Learner details<span className="block text-xs font-normal text-gray-500">Your organization&apos;s fields. Staff, Insights and Coach see them.</span></DropdownMenuLabel>
+        <DropdownMenuLabel>{inOrgWords("Learner details")}<span className="block text-xs font-normal text-gray-500">Your organization&apos;s fields. Staff, Insights and Coach see them.</span></DropdownMenuLabel>
         {[...variables].sort((a, b) => String(a.label || a.key).localeCompare(String(b.label || b.key))).map((variable) => item(`${DETAIL}${variable.key}`, variable.label || variable.key))}
         <div className="flex gap-1.5 p-1.5" onKeyDown={(event) => { event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); void create() } }}>
-          <input value={naming} onChange={(event) => setNaming(event.target.value)} placeholder="New learner detail" aria-label="New learner detail" className="h-8 min-w-0 flex-1 rounded-md border border-gray-200 bg-transparent px-2 text-sm outline-none focus:border-sky-400" />
-          <button type="button" onClick={() => void create()} disabled={!naming.trim()} aria-label="Add learner detail" className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 disabled:opacity-40"><Plus size={14} /></button>
+          <input value={naming} onChange={(event) => setNaming(event.target.value)} placeholder={inOrgWords("New learner detail")} aria-label={inOrgWords("New learner detail")} className="h-8 min-w-0 flex-1 rounded-md border border-gray-200 bg-transparent px-2 text-sm outline-none focus:border-sky-400" />
+          <button type="button" onClick={() => void create()} disabled={!naming.trim()} aria-label={inOrgWords("Add learner detail")} className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 disabled:opacity-40"><Plus size={14} /></button>
         </div>
         {target && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => keep('')}>Don&apos;t keep it</DropdownMenuItem></>}
         {other.length > 0 && <><DropdownMenuSeparator /><DropdownMenuLabel className="text-xs font-normal text-gray-500">Also saved to (older setup): {other.join(', ')}</DropdownMenuLabel></>}
-        <p className="px-2 pb-2 pt-1 text-xs text-gray-500">Learners see a small note when an answer is kept, so nothing is saved without them knowing.</p>
+        <p className="px-2 pb-2 pt-1 text-xs text-gray-500">{inOrgWords("Learners see a small note when an answer is kept, so nothing is saved without them knowing.")}</p>
       </DropdownMenuContent>
     </DropdownMenu>
   )

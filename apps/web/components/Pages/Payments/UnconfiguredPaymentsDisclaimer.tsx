@@ -1,6 +1,7 @@
 import { CreditCard, Settings, ShoppingBag, Users } from 'lucide-react'
 import React from 'react'
 import Link from 'next/link'
+import { inOrgWords } from '@/lib/people'
 
 const STEPS = [
   {
@@ -15,8 +16,8 @@ const STEPS = [
   },
   {
     icon: Users,
-    title: 'Sell to your learners',
-    description: 'Learners can purchase access directly from your course pages.',
+    get title() { return inOrgWords('Sell to your learners') },
+    get description() { return inOrgWords('Learners can purchase access directly from your course pages.') },
   },
 ]
 

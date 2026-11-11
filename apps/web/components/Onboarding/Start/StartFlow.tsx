@@ -6,7 +6,7 @@ import useSWR from 'swr'
 import { AnimatePresence, motion } from 'motion/react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { useGoogleSignIn } from '@services/auth/google'
-import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, HardHat, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import '@/styles/admin-dark.css'
 import AdminSurface from '@components/Utils/AdminSurface'
@@ -60,7 +60,7 @@ const fresh = (): StartState => ({
 })
 
 const ROLE_ICONS: Record<StartRole, React.ReactNode> = {
-  parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, district: <Building2 size={18} />,
+  parent: <Heart size={18} />, mentor: <Compass size={18} />, teacher: <GraduationCap size={18} />, program: <Megaphone size={18} />, training: <HardHat size={18} />, district: <Building2 size={18} />,
 }
 const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i
 // During the beta every new space is on Full, so there's no plans pick or tier step: the space is made
@@ -287,7 +287,7 @@ export default function StartFlow() {
         <Nav back={() => move(-1)} next={() => void finishStep(step)} busy={busy} label={list.some((item) => !state.sent.includes(`${step}:${item}`)) ? tr('onboarding.start_flow.send_invites', 'Send invites') : list.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     }
     if (step === 'groups') {
-      const suggestions = groupSuggestions()
+      const suggestions = groupSuggestions(new Date(), state.role)
       return <><Eyebrow>{tr('onboarding.start_flow.your_team', 'Your team')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.set_up_your_groups', 'Set up your groups')}</h1><p className={LEDE}>{tr('onboarding.start_flow.cohorts_classes_or_teams_hand', 'Cohorts, classes or teams. Hand a plan to a whole group at once. Learners can join later.')}</p>
         <AddList placeholder={tr('onboarding.start_flow.name_a_group', 'Name a group')} items={state.groups} onChange={(groups) => patch({ groups })} chips={suggestions} />
         <Nav back={() => move(-1)} next={() => void finishStep('groups')} busy={busy} label={state.groups.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>

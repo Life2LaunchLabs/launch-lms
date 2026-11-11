@@ -23,6 +23,7 @@ import CaptureButton from './CaptureModal'
 import SchedulesModal from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 const PRESETS = Object.keys(RANGE_LABELS) as Preset[]
 const ghostButton = 'inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-semibold hover:bg-muted'
@@ -164,15 +165,15 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
 }
 
 const EMPTY_ONE: Record<ObjectScope, string> = {
-  plan: 'Its dashboards fill in once your learners start it.',
-  group: 'You can see a group here once it has learners you work with.',
-  learner: 'You can see a learner here while they are active and you work with them.',
+  get plan() { return inOrgWords('Its dashboards fill in once your learners start it.') },
+  get group() { return inOrgWords('You can see a group here once it has learners you work with.') },
+  get learner() { return inOrgWords('You can see a learner here while they are active and you work with them.') },
   framework: 'This framework isn’t one of your organization’s.',
 }
 const EMPTY_ALL: Record<ObjectScope, string> = {
-  plan: 'Once your learners start plans, each plan gets these dashboards.',
+  get plan() { return inOrgWords('Once your learners start plans, each plan gets these dashboards.') },
   group: 'Make a group in Threads, and each group gets these dashboards.',
-  learner: 'Once learners join, each one gets these dashboards.',
+  get learner() { return inOrgWords('Once learners join, each one gets these dashboards.') },
   framework: 'Track a requirement framework under Plans › Requirements, and each one gets these dashboards.',
 }
 
@@ -214,7 +215,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
             <div className="min-w-0">
               {scope === 'org' ? <h1 className="truncate text-[26px] font-extrabold leading-tight tracking-tight">{chosen.title}</h1>
                 : <ObjectSwitcher scope={scope} objects={objects!} current={object!} onPick={(key) => router.push(scopeHref(key, chosen.dashboard_uuid))} />}
-              <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : scope === 'learner' ? object!.detail : `${object!.learners} learner${object!.learners === 1 ? '' : 's'}${scope === 'framework' ? ' tracked' : ''}${object!.external ? ' · from another organization' : ''}`}</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">{scope === 'org' ? SCOPE_LABELS.org.many : scope === 'learner' ? object!.detail : inOrgWords(`${object!.learners} learner${object!.learners === 1 ? '' : 's'}${scope === 'framework' ? ' tracked' : ''}${object!.external ? ' · from another organization' : ''}`)}</p>
               {scope === 'learner' ? <LearnerDetails learnerKey={object!.key} /> : null}
             </div>
           </div>
@@ -249,7 +250,7 @@ function LearnerDetails({ learnerKey }: { learnerKey: string }) {
   const { orgId, token, ready } = useInsightsContext()
   const { data } = useSWR(ready ? insightKeys.learnerDetails(orgId, learnerKey) : null, () => insightsApi.learnerDetails(orgId, learnerKey, token), { revalidateOnFocus: false })
   if (!data?.length) return null
-  return <dl aria-label="Learner details" className="mt-2 flex flex-wrap gap-1.5">
+  return <dl aria-label={inOrgWords("Learner details")} className="mt-2 flex flex-wrap gap-1.5">
     {data.map((item) => <div key={item.key} className="flex max-w-xs items-baseline gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs"><dt className="shrink-0 text-muted-foreground">{item.label}</dt><dd className="truncate font-bold">{item.value}</dd></div>)}
   </dl>
 }

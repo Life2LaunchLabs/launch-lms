@@ -5,7 +5,9 @@ import * as Yup from 'yup'
 import {
   updateOrganization,
   updateOrgFooterTextConfig,
+  updateOrgPeopleWords,
 } from '@services/settings/org'
+import { peopleWordsOf } from '@/lib/people'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -52,6 +54,9 @@ const OrgEditGeneral: React.FC = () => {
   const org = useOrg() as any
   // Footer text state
   const [footerText, setFooterText] = React.useState<string>(org?.config?.config?.customization?.general?.footer_text || org?.config?.config?.general?.footer_text || '')
+  // What the org calls the people it supports; the app says it wherever it would say "learners".
+  const [peopleOne, setPeopleOne] = React.useState<string>(() => peopleWordsOf(org).one)
+  const [peopleMany, setPeopleMany] = React.useState<string>(() => peopleWordsOf(org).many)
 
   const initialValues: OrganizationValues = {
     name: org?.name,
@@ -67,6 +72,10 @@ const OrgEditGeneral: React.FC = () => {
       await updateOrganization(org.id, { ...values, label: values.label === '__none__' ? '' : values.label }, access_token)
       // Also save footer text
       await updateOrgFooterTextConfig(org.id, footerText, access_token)
+      const words = peopleWordsOf(org)
+      if (peopleOne.trim() && peopleMany.trim() && (peopleOne.trim() !== words.one || peopleMany.trim() !== words.many)) {
+        await updateOrgPeopleWords(org.id, { one: peopleOne.trim(), many: peopleMany.trim() }, access_token)
+      }
       await revalidateTags(['organizations'], org.slug)
       mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
       toast.success(t('dashboard.organization.settings.update_success'), { id: loadingToast })
@@ -220,6 +229,19 @@ const OrgEditGeneral: React.FC = () => {
                       />
                       <p className="text-gray-500 text-sm mt-1">{t('dashboard.organization.settings.footer_text_desc')}</p>
                     </div>
+
+                    <fieldset>
+                      <legend className="text-sm font-medium">{t('dashboard.organization.settings.people_words', 'What you call the people you support')}</legend>
+                      <div className="mt-2 grid grid-cols-2 gap-3">
+                        <label className="text-xs text-gray-500">{t('dashboard.organization.settings.people_one', 'One')}
+                          <Input value={peopleOne} onChange={(e) => setPeopleOne(e.target.value)} maxLength={30} placeholder="participant" className="mt-1" />
+                        </label>
+                        <label className="text-xs text-gray-500">{t('dashboard.organization.settings.people_many', 'Several')}
+                          <Input value={peopleMany} onChange={(e) => setPeopleMany(e.target.value)} maxLength={30} placeholder="participants" className="mt-1" />
+                        </label>
+                      </div>
+                      <p className="text-gray-500 text-sm mt-1">{t('dashboard.organization.settings.people_words_desc', 'Staff screens use these words, like students, trainees, campers or team members.')}</p>
+                    </fieldset>
 
                   </div>
                 </div>

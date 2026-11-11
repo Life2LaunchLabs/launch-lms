@@ -1,4 +1,5 @@
 import type { TemplateVersion } from '@services/goals/types'
+import { inOrgWords } from '@/lib/people'
 
 /** Client mirror of apps/api/src/services/goals/drafts.py: versions are three numbers that only go up. */
 export type Semver = [number, number, number]
@@ -33,4 +34,4 @@ export const versionLabel = (version?: Pick<TemplateVersion, 'semver' | 'number'
 
 export const shortDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 
-export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
+export const plural = (count: number, word: string) => inOrgWords(`${count} ${word}${count === 1 ? '' : 's'}`)

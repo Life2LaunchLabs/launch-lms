@@ -22,6 +22,7 @@ import { ChannelComments, NeedsLookCard } from './comments'
 import { ImportModal } from './ImportModal'
 import { ResourceModal } from './modals'
 import { AudienceIcon, ChannelCover, OrgChip, ResourceListRow, SaveButton, listClass, useResourcesContext } from './pieces'
+import { inOrgWords } from '@/lib/people'
 
 const chipClass = 'inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13.5px] font-semibold hover:bg-muted'
 
@@ -195,7 +196,7 @@ function LibraryMenu({ channel, orgName, onChange }: { channel: ChannelDetail; o
     </button></DropdownMenuTrigger>
     <DropdownMenuContent align="start" className="w-72 rounded-[14px] p-1.5">
       <DropdownMenuItem onSelect={() => onChange(false)} className="items-start"><Lock className="mt-0.5" /><span className="flex-1"><b className="block font-semibold">Only {orgName}</b><span className="text-xs text-muted-foreground">Who sees it is set above.</span></span>{!channel.listed ? <Check size={15} /> : null}</DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onChange(true)} disabled={!channel.can_list} className="items-start"><Globe className="mt-0.5" /><span className="flex-1"><b className="block font-semibold">In the Library</b><span className="text-xs text-muted-foreground">Every organization can find it and save it, and their learners can open it.</span></span>{channel.listed ? <Check size={15} /> : null}</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onChange(true)} disabled={!channel.can_list} className="items-start"><Globe className="mt-0.5" /><span className="flex-1"><b className="block font-semibold">In the Library</b><span className="text-xs text-muted-foreground">{inOrgWords("Every organization can find it and save it, and their learners can open it.")}</span></span>{channel.listed ? <Check size={15} /> : null}</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 }

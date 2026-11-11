@@ -13,6 +13,7 @@ import { assignmentApi, type AssignmentDetail, type AssignmentLearner, type Assi
 import { ROLES, ROLE_DO } from '@services/assignments/assignFlow'
 import { invitedRows, shownLearners, SORTS, type PeopleFilter, type PeopleSort } from '@services/assignments/people'
 import { personLabel, shortDate } from '@services/assignments/status'
+import { inOrgWords } from '@/lib/people'
 
 const SELECT = 'h-[34px] rounded-[10px] border-[1.5px] border-border bg-card px-2.5 text-[13px] font-semibold focus:border-brand focus:outline-none'
 const ROW = 'flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-border px-4 py-3 last:border-b-0 sm:flex-nowrap'
@@ -72,7 +73,7 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
         </div> : null)}
       </div>
     </Section>
-    <Section title={group ? 'Learners' : 'Learner'} count={people?.learners.length ?? detail.learner_count}>
+    <Section title={inOrgWords(group ? 'Learners' : 'Learner')} count={people?.learners.length ?? detail.learner_count}>
       {group ? <div className="mb-3 flex flex-wrap items-center gap-2">
         {chip('all', 'Everyone', undefined, people?.learners.filter((row) => row.person).length)}
         {chip('questions', 'Questions', <CircleHelp />, needs.questions)}
@@ -81,11 +82,11 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
         <span className="flex-1" />
         <label className="relative flex items-center">
           <Search size={14} className="absolute left-2.5 text-muted-foreground" aria-hidden="true" />
-          <input aria-label="Search learners" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search learners"
+          <input aria-label={inOrgWords("Search learners")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={inOrgWords("Search learners")}
             className="h-[34px] w-44 rounded-[10px] border-[1.5px] border-border bg-card pl-8 pr-2.5 text-[13px] focus:border-brand focus:outline-none" />
         </label>
         <label className="flex items-center gap-2 text-[13px] text-muted-foreground">Sort
-          <select className={SELECT} value={sort} aria-label="Sort learners" onChange={(event) => setSort(event.target.value as PeopleSort)}>
+          <select className={SELECT} value={sort} aria-label={inOrgWords("Sort learners")} onChange={(event) => setSort(event.target.value as PeopleSort)}>
             {SORTS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>

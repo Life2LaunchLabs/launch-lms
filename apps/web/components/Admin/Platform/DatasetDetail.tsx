@@ -13,6 +13,7 @@ import { routePaths } from '@services/routing/paths'
 import { lifeAdminApi, lifeUrl, type Dataset, type DatasetRelease, type DatasetTableName } from '@services/life/life'
 import { EmptyState, FilterSelect, LoadingRows, Pagination, SearchInput, useDebounced, useListParams } from './shared'
 import { StatusCounts } from './Datasets'
+import { inOrgWords } from '@/lib/people'
 
 const PER_PAGE = 50
 const FILTER_LABELS: Record<string, string> = { metric: 'Metric', level: 'Place level', status: 'Status', job_zone: 'Job zone', state: 'State', control: 'Control' }
@@ -58,7 +59,7 @@ function ReviewActions({ release, token, onDone }: { release: DatasetRelease; to
   }
   const { reviewed = 0, draft = 0, retired = 0 } = release.by_status
   return <div className="flex flex-wrap gap-2">
-    {draft || retired ? <button type="button" disabled={busy} onClick={() => void set('reviewed')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Approve for learners</button> : null}
+    {draft || retired ? <button type="button" disabled={busy} onClick={() => void set('reviewed')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{inOrgWords("Approve for learners")}</button> : null}
     {reviewed ? <button type="button" disabled={busy} onClick={() => void set('draft')} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Back to draft</button> : null}
     {reviewed || draft ? <button type="button" disabled={busy} onClick={() => void set('retired')} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-50">Retire</button> : null}
   </div>

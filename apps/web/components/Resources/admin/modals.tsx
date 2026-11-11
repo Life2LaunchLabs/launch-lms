@@ -14,6 +14,7 @@ import { getResourceUrlPreview, type ResourceType } from '@services/resources/re
 import { AUDIENCE_LABELS, RESOURCE_TYPES, isResourcesKey, resourcesApi, type ChannelAudience, type ChannelCard, type ResourceInput } from '@services/resources/workspace'
 import { cn } from '@/lib/utils'
 import { AudienceIcon, channelHref, resourceHref, useResourcesContext } from './pieces'
+import { inOrgWords } from '@/lib/people'
 
 const fieldClass = 'space-y-1.5'
 const normalizeUrl = (value: string) => {
@@ -110,7 +111,7 @@ function ResourceForm({ channels, presetChannel, resource, close }: { channels: 
       </div>
       <div className={fieldClass}>
         <Label htmlFor="resource-description">Description</Label>
-        <Textarea id="resource-description" rows={3} value={form.description || ''} placeholder="What it is, and when learners should use it" onChange={(event) => set({ description: event.target.value })} />
+        <Textarea id="resource-description" rows={3} value={form.description || ''} placeholder={inOrgWords("What it is, and when learners should use it")} onChange={(event) => set({ description: event.target.value })} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className={fieldClass}>
@@ -148,7 +149,7 @@ function ResourceForm({ channels, presetChannel, resource, close }: { channels: 
 }
 
 const AUDIENCE_HINTS: Record<ChannelAudience, string> = {
-  org: 'Every learner and staff member in your org',
+  get org() { return inOrgWords('Every learner and staff member in your org') },
   groups: 'Only the groups you pick',
   staff: 'Only your staff',
 }
@@ -167,7 +168,7 @@ export function AudienceChoices({ value, onChange, orgName }: { value: ChannelAu
 
 /** Start a channel: its name, a line about it, and who sees it. */
 export function NewChannelModal({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<boolean> }) {
-  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="sm" dialogTitle="New channel" dialogDescription="A channel groups resources for a topic or a group of learners."
+  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="sm" dialogTitle="New channel" dialogDescription={inOrgWords("A channel groups resources for a topic or a group of learners.")}
     dialogContent={<NewChannelForm close={() => setOpen(false)} />} />
 }
 

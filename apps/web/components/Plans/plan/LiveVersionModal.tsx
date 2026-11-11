@@ -11,6 +11,7 @@ import type { TemplateVersion } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import type { TemplateEditing } from '@components/Plans/editor/useTemplate'
 import { parseSemver, plural, shortDate, versionLabel } from './planVersions'
+import { inOrgWords } from '@/lib/people'
 
 /**
  * The version stack, newest on top: pick which one is live (rolling back or forward moves active
@@ -35,7 +36,7 @@ export default function LiveVersionModal({ open, setOpen, orgId, token, editing,
       await editing.replace(result)
       await globalMutate(isTemplatesKey)
       toast.success(confirming === 'off' ? 'The plan is inactive. Assignments keep running the version they’re on.'
-        : `${versionLabel(confirming)} is live${result.moved?.plans ? `; ${plural(result.moved.plans, 'learner plan')} moved to it` : ''}.`)
+        : `${versionLabel(confirming)} is live${result.moved?.plans ? `; ${plural(result.moved.plans, inOrgWords('learner plan'))} moved to it` : ''}.`)
       setOpen(false)
     } catch (error: any) { toast.error(error?.message || 'Could not change the live version.') } finally { setBusy(false) }
   }
@@ -44,7 +45,7 @@ export default function LiveVersionModal({ open, setOpen, orgId, token, editing,
     const a = parseSemver(version.semver), b = parseSemver(live?.semver)
     return a && b && (a[0] - b[0] || a[1] - b[1] || a[2] - b[2]) < 0 ? 'Roll back to' : 'Make live:'
   }
-  const moving = preview?.open_plans ? `${plural(preview.open_plans, 'learner plan')} in ${plural(preview.assignments, 'active assignment')} will move to it. Steps learners already started stay as they were; finished plans don’t change.` : 'No active assignments to move.'
+  const moving = preview?.open_plans ? inOrgWords(`${plural(preview.open_plans, 'learner plan')} in ${plural(preview.assignments, 'active assignment')} will move to it. Steps learners already started stay as they were; finished plans don’t change.`) : 'No active assignments to move.'
 
   return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="sm" dialogTitle="Versions"
     dialogDescription={canSwitch ? 'The live version is what new assignments get. Published versions are locked.' : 'Published versions are locked.'}

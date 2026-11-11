@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils'
 import InsightCard from './InsightCard'
 import { useInsightsContext } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 // Add or edit one card: pick a question from the library, or set what it shows piece by piece and watch the
 // card redraw. Every choice maps to one field of the spec (services/insights/spec.py), so what the editor
@@ -20,7 +21,7 @@ export const SIZES: Array<{ span: number; label: string }> = [{ span: 3, label: 
 const CHART_LABELS: Record<string, string> = { number: 'Number', line: 'Line', columns: 'Columns', bars: 'Bars', stacked: 'Stacked', heatmap: 'Heatmap', table: 'Table' }
 const COMPARE: Array<{ key: 'prior' | 'year' | 'none'; label: string }> = [{ key: 'prior', label: 'Period before' }, { key: 'year', label: 'Last year' }, { key: 'none', label: 'Nothing' }]
 const STATUS_FILTERS: Array<{ key: string; label: string; values: string[] | null }> = [
-  { key: 'active', label: 'Active learners', values: null }, { key: 'alumni', label: 'Alumni', values: ['alumni'] }, { key: 'both', label: 'Both', values: ['active', 'alumni'] },
+  { key: 'active', get label() { return inOrgWords('Active learners') }, values: null }, { key: 'alumni', label: 'Alumni', values: ['alumni'] }, { key: 'both', label: 'Both', values: ['active', 'alumni'] },
 ]
 
 export type EditorTarget = { card: DashboardCard | null }
@@ -192,7 +193,7 @@ export default function CardEditor({ target, onClose, onSave, onRemove, scope, s
           <div className="min-w-0 flex-1">
             <Dialog.Title className="text-[17px] font-bold tracking-tight">{target?.card ? 'Edit card' : 'Add a card'}</Dialog.Title>
             <Dialog.Description className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {scope === 'org' ? 'Counts the learners you can see.' : `Answers for whichever ${scope} the dashboard shows.`}
+              {scope === 'org' ? inOrgWords('Counts the learners you can see.') : `Answers for whichever ${scope} the dashboard shows.`}
             </Dialog.Description>
           </div>
           <Dialog.Close className="rounded-full p-1.5 text-muted-foreground hover:bg-muted" aria-label="Close"><X size={18} /></Dialog.Close>

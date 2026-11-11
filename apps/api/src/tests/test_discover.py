@@ -127,12 +127,16 @@ def test_start_suggests_open_plans_for_a_role_and_sets_up_a_space_once():
         assert [plan["title"] for plan in onboarding.suggested(db, "parent")] == ["Money basics", "Careers"]
         with pytest.raises(HTTPException):
             onboarding.suggested(db, "astronaut")
+        # Workplace and adult training is a role of its own, with work-based plans first.
+        assert {plan["title"] for plan in onboarding.suggested(db, "training")} == {"Money basics", "Careers"}
 
         payload = onboarding.SetUpRequest(role="parent", name="Dana Ruiz", color="#2F66D6", plan_uuids=[money.template_uuid])
         first = asyncio.run(onboarding.set_up(None, db, _user(NEWCOMER), payload))
         assert first["org"]["name"] == "Dana’s space" and [item["status"] for item in first["added"]] == ["added"]
         config = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == first["org"]["id"])).one().config
         assert (config["setup"]["role"], config["setup"]["solo"], config["customization"]["general"]["color"]) == ("parent", True, "#2F66D6")
+        # The space calls the people it supports by the role's word (lib/people.ts on the web).
+        assert (config["customization"]["general"]["people_one"], config["customization"]["general"]["people_many"]) == ("kid", "kids")
         # During the beta a new space is on Full, free, with no trial.
         assert (config["tier"], config["beta"], config.get("trial")) == ("full", True, None)
         # Again (a refresh): the same space, nothing new made.

@@ -10,6 +10,7 @@ import { Label } from '@components/ui/label'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { RANGE_LABELS, insightsApi, type Dashboard, type DateRange, type Scope } from '@services/insights/insights'
 import { useInsightsContext } from './shared'
+import { inOrgWords } from '@/lib/people'
 
 // The dashboards a capture can carry each learner's requirement evidence on (the API's ATTACHMENTS scopes).
 const EVIDENCE_SCOPES: Scope[] = ['framework', 'group', 'learner']
@@ -65,9 +66,9 @@ function CaptureForm({ dashboard, scopeKey, objectLabel, range, close }: { dashb
     </div>
     {evidenceOffered ? <label className="flex items-start gap-2.5 text-[13.5px]">
       <input type="checkbox" checked={evidence} onChange={(event) => setEvidence(event.target.checked)} className="mt-0.5 h-4 w-4 accent-foreground" />
-      <span><b className="block font-semibold">Include requirement evidence</b><span className="text-muted-foreground">Each learner&apos;s credited requirements with the plan and step that credited them, to read or download as a spreadsheet. A read-only link leaves it out.</span></span>
+      <span><b className="block font-semibold">Include requirement evidence</b><span className="text-muted-foreground">{inOrgWords("Each learner's credited requirements with the plan and step that credited them, to read or download as a spreadsheet. A read-only link leaves it out.")}</span></span>
     </label> : null}
-    <p className="text-[12px] text-muted-foreground">It counts the learners you can see. Unsaved edits to the dashboard aren&apos;t included.</p>
+    <p className="text-[12px] text-muted-foreground">{inOrgWords("It counts the learners you can see. Unsaved edits to the dashboard aren't included.")}</p>
     <div className="flex justify-end gap-2">
       <button type="button" onClick={close} className="inline-flex h-10 items-center rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-muted">Cancel</button>
       <button type="submit" disabled={saving || !ready} className="inline-flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-60">

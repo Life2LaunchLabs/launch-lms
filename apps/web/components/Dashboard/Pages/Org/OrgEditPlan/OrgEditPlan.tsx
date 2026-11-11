@@ -10,6 +10,7 @@ import { getOrgPlanRequests, type PlanRequest } from '@services/plans/plan_reque
 import { getAccessCatalog, getOrgUsage, type LimitUsage } from '@services/plans/access'
 import { FEATURE_LABELS, TIERS, accessRequestLabel, tierLabel, type AccessRequest } from '@services/plans/plans'
 import { Check, CheckCircle, Hourglass, SealCheck, X } from '@phosphor-icons/react'
+import { inOrgWords } from '@/lib/people'
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'approved') return (
@@ -79,7 +80,7 @@ export default function OrgEditPlan({ orgslug }: { orgslug: string }) {
           {access.trial && !access.trial.running && base === 'free' ? <p className="text-sm text-gray-500">Your Full trial has ended. Groups and their plans are still here, read-only.</p> : null}
           {access.trial_available ? <div className="flex flex-wrap items-center gap-3 rounded-lg bg-indigo-50/70 p-3"><p className="flex-1 basis-56 text-sm text-gray-700">Try Full free for {catalog?.trial?.days ?? 30} days: groups, bulk invites and more room.</p><UpgradeAction /></div> : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <Meter label="Active learners" usage={usage?.limits.learners} />
+            <Meter label={inOrgWords("Active learners")} usage={usage?.limits.learners} />
             <Meter label="Staff seats" usage={usage?.limits.staff_seats} />
           </div>
           {current && current.features.length > 0 && (
@@ -104,7 +105,7 @@ export default function OrgEditPlan({ orgslug }: { orgslug: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="font-bold">{tier.label}</div>
                   <p className="mt-1 text-xs text-gray-500">
-                    {tier.limits.learners ? `${tier.limits.learners} active learners` : 'Unlimited learners'}
+                    {tier.limits.learners ? inOrgWords(`${tier.limits.learners} active learners`) : inOrgWords('Unlimited learners')}
                     {' · '}
                     {tier.limits.staff_seats ? `${tier.limits.staff_seats} staff seats` : 'unlimited staff'}
                   </p>
@@ -120,7 +121,7 @@ export default function OrgEditPlan({ orgslug }: { orgslug: string }) {
       {catalog && (
         <section>
           <h2 className="text-lg font-bold tracking-tight mb-1">Partner programs</h2>
-          <p className="text-sm text-gray-500 mb-3">Programs open your work to learners and organizations beyond your own. Apply and we'll review it.</p>
+          <p className="text-sm text-gray-500 mb-3">{inOrgWords("Programs open your work to learners and organizations beyond your own. Apply and we'll review it.")}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {catalog.partner_programs.map((program) => {
               const active = access.owner || access.partners.includes(program.key)

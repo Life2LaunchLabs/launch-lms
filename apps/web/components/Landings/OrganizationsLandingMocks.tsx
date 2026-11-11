@@ -1,5 +1,6 @@
 import { Check, Compass, FileText, Hammer, Star, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 /*
  * Small, static pictures of the admin screens for the organizations landing. They show what the
@@ -39,7 +40,7 @@ export function AssignmentMock() {
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#bfe3d1]"><Compass size={22} className="text-gray-900" /></span>
             <div className="min-w-0">
               <p className="font-bold text-gray-900">Career exploration</p>
-              <p className="text-[13px] text-gray-500">Fall group · 4 learners · week 3 of 8</p>
+              <p className="text-[13px] text-gray-500">{inOrgWords("Fall group · 4 learners · week 3 of 8")}</p>
             </div>
             <span className="ml-auto"><Chip tone="amber">3 to review</Chip></span>
           </div>
@@ -154,7 +155,7 @@ export function CoverageMock() {
     <div className="rounded-[32px] bg-[#f3f6fc] p-5 sm:p-8">
       <div className="rounded-[22px] bg-white p-5 shadow-[0_24px_48px_-24px_rgba(23,35,80,0.35)]">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0"><p className="font-bold text-gray-900">Higher Education and Career Path Skills</p><p className="text-[13px] text-gray-500">Fall group · 4 learners</p></div>
+          <div className="min-w-0"><p className="font-bold text-gray-900">Higher Education and Career Path Skills</p><p className="text-[13px] text-gray-500">{inOrgWords("Fall group · 4 learners")}</p></div>
           <span className="ml-auto rounded-xl bg-gray-900 px-3 py-2 text-[13px] font-extrabold text-white">Print report</span>
         </div>
         <div className="mt-4 overflow-x-auto">
@@ -188,7 +189,7 @@ export function CoverageMock() {
 const CHECKLIST = [
   { label: 'Find your first plan', done: true },
   { label: 'Set up your organization', done: true },
-  { label: 'Add your learners', done: false, current: true },
+  { get label() { return inOrgWords('Add your learners') }, done: false, current: true },
   { label: 'Hand out your first plan', done: false },
   { label: 'Review your first turn-in', done: false },
 ]

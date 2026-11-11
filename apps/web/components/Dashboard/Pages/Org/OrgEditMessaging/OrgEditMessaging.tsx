@@ -6,11 +6,12 @@ import toast from 'react-hot-toast'
 import { Switch } from '@components/ui/switch'
 import { usePeopleContext } from '@components/Admin/People/usePeople'
 import { peopleApi, peopleKeys, type MessagingPolicy } from '@services/school/people'
+import { inOrgWords } from '@/lib/people'
 
 const SETTINGS: Array<{ key: keyof MessagingPolicy; title: string; hint: string }> = [
-  { key: 'staff_dm_learners', title: 'Staff can message learners directly', hint: 'On by default. Off keeps every staff and learner conversation in a plan feed, where other staff can see it. Staff on a learner’s group always talk with them in their plan feed.' },
-  { key: 'min_two_staff_on_feeds', title: 'At least two staff on every plan feed', hint: 'A learner’s plan feed takes messages only once a second staff member is on their group or plan.' },
-  { key: 'helper_approval', title: 'Approve helpers on your plans', hint: 'When a learner asks for a helper, such as a parent, on a plan you gave them, the helper joins only after an admin approves.' },
+  { key: 'staff_dm_learners', get title() { return inOrgWords('Staff can message learners directly') }, get hint() { return inOrgWords('On by default. Off keeps every staff and learner conversation in a plan feed, where other staff can see it. Staff on a learner’s group always talk with them in their plan feed.') } },
+  { key: 'min_two_staff_on_feeds', title: 'At least two staff on every plan feed', get hint() { return inOrgWords('A learner’s plan feed takes messages only once a second staff member is on their group or plan.') } },
+  { key: 'helper_approval', title: 'Approve helpers on your plans', get hint() { return inOrgWords('When a learner asks for a helper, such as a parent, on a plan you gave them, the helper joins only after an admin approves.') } },
 ]
 
 /** The Organization tab's messaging policy: who can message whom, and how helpers join. */

@@ -5,6 +5,7 @@ import { ArrowRight, Check, X } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { AdminFirstSteps, FirstSteps as FirstStepsData, GettingStartedStepKey, StaffFirstSteps, StaffStepKey, TickableStep } from '@services/goals/adminHome'
 import { cn } from '@/lib/utils'
+import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
 
@@ -24,7 +25,7 @@ const ADMIN_STEPS: Record<GettingStartedStepKey, { title: string; detail: string
   staff: { title: 'Add your staff', detail: 'Pick their permissions and assignments.', action: 'Invite', space: 'Threads', href: () => admin.people.root({ invite: 'staff' }) },
   groups: { title: 'Set up groups', detail: 'Cohorts, classes or teams.', action: 'Add', space: 'Threads', href: () => admin.people.root() },
   requirements: { title: 'Add requirements', detail: 'Link steps to what you report on.', action: 'Add', space: 'Plans', href: () => admin.requirements() },
-  learners: { title: 'Bring in learners', detail: 'Send an email invite or share a join link.', action: 'Invite', space: 'Threads', href: () => admin.people.root({ invite: 'learner' }) },
+  learners: { get title() { return inOrgWords('Bring in learners') }, detail: 'Send an email invite or share a join link.', action: 'Invite', space: 'Threads', href: () => admin.people.root({ invite: 'learner' }) },
   assign: { title: 'Hand out your first plan', detail: 'They get their own copy and start on step one.', action: 'Assign', space: 'Assignments', href: () => admin.plans() },
 }
 
@@ -41,14 +42,14 @@ function staffRows(data: StaffFirstSteps, orgslug: string, onTick: (step: Tickab
     profile: { title: 'Set up your profile', detail: 'Your photo and name, beside your messages and reviews.', space: 'Profile', action: 'Edit', href: routePaths.org.account.root() },
     brief: { title: focus && focus.count > 1 ? `Look through your ${focus.count} assignments` : `Get to know ${target?.name || 'your assignment'}`,
       detail: 'Where they are, what’s next and how you work with them.', space: 'Assignments', action: 'Open', onOpen: () => { onBrief(); onTick('brief') } },
-    try: { title: 'Try the step they’re on', detail: `See ${focus?.plan || 'the plan'} the way learners do.`, space: 'Plans', action: 'Try it',
+    try: { title: 'Try the step they’re on', detail: inOrgWords(`See ${focus?.plan || 'the plan'} the way learners do.`), space: 'Plans', action: 'Try it',
       href: focus ? admin.template(focus.template_uuid) : admin.plans(), onOpen: () => onTick('try') },
     hello: { title: target?.type === 'group' ? `Say hello to ${target.name}` : 'Say hello to the team',
-      detail: target?.type === 'group' ? 'Learners’ progress and questions land in their threads.' : 'Post in the Staff thread, where staff talk.', space: 'Threads', action: 'Write', href: threadOf },
+      detail: target?.type === 'group' ? inOrgWords('Learners’ progress and questions land in their threads.') : 'Post in the Staff thread, where staff talk.', space: 'Threads', action: 'Write', href: threadOf },
     review: { title: 'Review a hand-in', detail: 'Hand-ins waiting on you show in Needs you, below.', space: 'Assignments', action: 'Review', href: admin.assignments() },
     plans: { title: 'Open a draft in Plans', detail: 'Your library, drafts and Discover live there.', space: 'Plans', action: 'Open', href: admin.plans(), onOpen: () => onTick('plans') },
-    preview: { title: 'Try a plan as a learner', detail: 'Preview any step the way learners see it.', space: 'Plans', action: 'Preview', href: admin.plans(), onOpen: () => onTick('preview') },
-    people: { title: 'Find your learners', detail: 'Profiles, groups and invites are in Threads.', space: 'Threads', action: 'Open', href: admin.threads.root(), onOpen: () => onTick('people') },
+    preview: { title: inOrgWords('Try a plan as a learner'), detail: inOrgWords('Preview any step the way learners see it.'), space: 'Plans', action: 'Preview', href: admin.plans(), onOpen: () => onTick('preview') },
+    people: { title: inOrgWords('Find your learners'), detail: 'Profiles, groups and invites are in Threads.', space: 'Threads', action: 'Open', href: admin.threads.root(), onOpen: () => onTick('people') },
     insights: { title: 'Pin an insight to Home', detail: 'Open Insights and pin a card you want every day.', space: 'Insights', action: 'Open', href: admin.insights() },
   }
   return data.steps.map((step) => {
@@ -73,7 +74,7 @@ export default function FirstSteps({ data, orgslug, onDismiss, onTick, onBrief }
   const next = rows.find((row) => !row.done && !row.optional) || rows.find((row) => !row.done)
   const circumference = 2 * Math.PI * 21
   const sub = all ? 'All done. Dismiss this when you’re ready.' : data.kind === 'admin'
-    ? data.from_setup ? 'Picked up from your setup. A few steps to your first learner on a plan.' : 'A few steps to your first learner on a plan.'
+    ? data.from_setup ? inOrgWords('Picked up from your setup. A few steps to your first learner on a plan.') : inOrgWords('A few steps to your first learner on a plan.')
     : 'A quick lap of the places you’ll work. It ticks itself off as you go.'
   return (
     <section aria-labelledby="first-steps-title" className="overflow-hidden rounded-2xl border border-gray-100 bg-white nice-shadow">

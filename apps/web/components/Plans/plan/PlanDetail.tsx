@@ -24,6 +24,7 @@ import PlanSidebar from './PlanSidebar'
 import PlanSteps from './PlanSteps'
 import VisibilityChip, { useVisibility } from './VisibilityChip'
 import { PAGE_TEMPLATES_SYSTEM_TYPE } from '@services/learning/pageTemplates'
+import { inOrgWords } from '@/lib/people'
 
 /** Panels the old template tabs open on the plan page (links to /<plan>/settings keep working). */
 export type PlanPanel = 'settings' | 'versions' | 'visibility' | null
@@ -66,7 +67,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
   const note = readOnly && !owned ? <><b className="text-foreground">{by.name} keeps this plan up to date.</b> You can assign it; your assignments move when you apply a new version.</> : null
   const archived = template.status === 'archived'
   const toggleArchived = async () => {
-    if (!archived && !window.confirm('Archive this plan? It leaves your Plans list and can’t be assigned. Learners who have it keep going.')) return
+    if (!archived && !window.confirm(inOrgWords('Archive this plan? It leaves your Plans list and can’t be assigned. Learners who have it keep going.'))) return
     try {
       const next = archived ? await templatesApi.unarchive(orgId, template.template_uuid, token) : await templatesApi.archive(orgId, template.template_uuid, token)
       await editing.replace({ status: next.status })

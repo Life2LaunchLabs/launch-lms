@@ -2122,7 +2122,11 @@
         "updating": "Actualizando organización...",
         "footer_text": "Texto del pie de página",
         "footer_text_placeholder": "Introduce el texto del pie de página...",
-        "footer_text_desc": "Texto personalizado que se muestra en la parte inferior de las páginas de tu organización"
+        "footer_text_desc": "Texto personalizado que se muestra en la parte inferior de las páginas de tu organización",
+        "people_words": "Cómo llamas a las personas que apoyas",
+        "people_one": "Una",
+        "people_many": "Varias",
+        "people_words_desc": "Las pantallas del personal usan estas palabras, como estudiantes, aprendices, campistas o miembros del equipo."
       },
       "images": {
         "title": "Imágenes y vistas previas",
@@ -4518,7 +4522,7 @@
       "maya_asked_a_question": "Maya hizo una pregunta",
       "mr": "MR",
       "maya_rivera": "Maya Rivera",
-      "building_my_launch_class_of": "Construyendo mi lanzamiento · Generación 2027",
+      "building_my_launch": "Construyendo mi lanzamiento",
       "my_goal": "Mi meta",
       "become_a_registered_nurse": "Ser enfermera registrada",
       "my_plans": "Mis planes",
@@ -8188,10 +8192,13 @@
       "guiding_a_few_people_one": "Guío a algunas personas una a una",
       "teacher_or_counselor": "Maestro o consejero",
       "supporting_a_class_or_caseload": "Apoyo a una clase o grupo de casos",
-      "youth_program_staff": "Personal de programa juvenil",
+      "program_staff": "Personal de programa",
       "school_or_district_leader": "Líder escolar o de distrito",
       "readiness_across_schools": "Preparación en varias escuelas",
-      "new_hires": "Nuevos empleados"
+      "new_hires": "Nuevos empleados",
+      "a_nonprofit_camp_club_or": "Una organización sin fines de lucro, campamento, club o programa comunitario",
+      "workplace_or_adult_training": "Capacitación laboral o para adultos",
+      "onboarding_safety_or_skills_training": "Inducción, seguridad o capacitación de habilidades"
     },
     "start_flow": {
       "your_organization": "Tu organización",
@@ -8207,7 +8214,7 @@
     },
     "tour": {
       "welcome_to_life2launch": "Bienvenido a Life2Launch",
-      "where_young_people_map_out": "Donde los jóvenes trazan lo que sigue y toman el control para llegar ahí.",
+      "where_people_map_out": "Donde las personas trazan lo que sigue y toman el control para llegar ahí.",
       "you_guide_they_go": "Tú guías. Ellos avanzan.",
       "hand_someone_a_plan_and": "Dale un plan a alguien y lo recorre por su cuenta. Ves cada paso que completa y sabes exactamente cuándo te toca.",
       "step_in_right_where_it": "Interviene justo donde importa",

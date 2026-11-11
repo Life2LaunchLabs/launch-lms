@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
 import { LEARNER_ACCESS_OPTIONS, learnerAccessLabel, templateLearnersApi, templateLearnersKey, type LearnerAccess, type TemplateLearners } from '@services/goals/templateLearners'
+import { inOrgWords } from '@/lib/people'
 
 /** The plan's learner setting for this organization, shared by the badge card and the Settings card. */
 export function useTemplateLearners(orgId: number, templateUuid: string, token?: string) {
@@ -28,10 +29,10 @@ export default function TemplateLearnersCard({ orgId, templateUuid, token }: { o
   }
   const selected = LEARNER_ACCESS_OPTIONS.find((option) => option.value === data?.access)
   return <section aria-labelledby="template-learners-title" className="rounded-xl border border-border bg-card p-6 shadow-xs">
-    <h2 id="template-learners-title" className="text-lg font-bold">Learners</h2>
+    <h2 id="template-learners-title" className="text-lg font-bold">{inOrgWords('Learners')}</h2>
     {!data ? <Loader2 className="mt-4 animate-spin text-muted-foreground" /> : <>
       <p className="mt-1 text-sm text-muted-foreground">
-        {data.owned ? 'Learners can find this plan on Discover and start it with your organization.' : 'This setting is your organization’s own. The plan’s owner keeps the steps up to date.'}
+        {data.owned ? inOrgWords('Learners can find this plan on Discover and start it with your organization.') : 'This setting is your organization’s own. The plan’s owner keeps the steps up to date.'}
         {data.badge ? data.earns_badge ? ' Finishing it here earns its badge.' : ' Its badge isn’t awarded here.' : ''}
       </p>
       <div className="mt-5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">

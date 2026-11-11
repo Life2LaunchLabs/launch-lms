@@ -1,5 +1,6 @@
 import type { AssignmentDetail, AssignmentStep, ScheduleSave } from './assignments'
 import { shortDate, type StepDates } from './status'
+import { inOrgWords } from '@/lib/people'
 
 export const todayIso = () => new Date().toISOString().slice(0, 10)
 const day = (value?: string | null) => (value ? value.slice(0, 10) : '')
@@ -44,7 +45,7 @@ export function needLines(needs: AssignmentDetail['needs']) {
   return [
     { key: 'questions' as const, count: needs.questions, label: needs.questions === 1 ? 'question' : 'questions' },
     { key: 'review' as const, count: needs.review, label: 'ready to review' },
-    { key: 'behind' as const, count: needs.behind, label: needs.behind === 1 ? 'learner past due' : 'learners past due' },
+    { key: 'behind' as const, count: needs.behind, label: needs.behind === 1 ? inOrgWords('learner past due') : inOrgWords('learners past due') },
   ].filter((line) => line.count > 0)
 }
 

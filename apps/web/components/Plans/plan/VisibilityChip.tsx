@@ -10,6 +10,7 @@ import { MARKETPLACE_KEY, templateMarketplaceApi } from '@services/learning/mark
 import { cn } from '@/lib/utils'
 import TemplateLearnersCard, { useTemplateLearners } from '@components/Plans/editor/TemplateLearnersCard'
 import TemplatePublish from '@components/Plans/editor/TemplatePublish'
+import { inOrgWords } from '@/lib/people'
 
 /** Whether this viewer sees who can find the plan, and what they'd see. */
 export function useVisibility(orgId: number, token: string | undefined, template: TemplateDetail) {
@@ -34,7 +35,7 @@ export default function VisibilityChip({ orgId, token, template, open, setOpen }
   if (!shown) return null
   const orgs = !!listing?.listed
   const live = !!template.live_version
-  const label = !live ? 'Not visible' : orgs && learnersStart ? 'Orgs + learners' : orgs ? 'Visible to orgs' : learnersStart ? 'Learners can start' : 'Not visible'
+  const label = !live ? 'Not visible' : orgs && learnersStart ? 'Orgs + learners' : orgs ? 'Visible to orgs' : learnersStart ? inOrgWords('Learners can start') : 'Not visible'
   return <>
     <button type="button" onClick={() => setOpen(true)} data-testid="visibility-chip"
       className={cn('inline-flex h-[30px] items-center gap-1.5 rounded-full border px-2.5 text-[12.5px]', live && (orgs || learnersStart)

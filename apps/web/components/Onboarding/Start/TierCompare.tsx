@@ -6,11 +6,12 @@ import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
+import { inOrgWords } from '@/lib/people'
 /** The same tiers as the for-organizations page, side by side while someone decides about the trial. */
 const TIERS = [
-  { name: 'Free', get blurb() { return tr('onboarding.tier_compare.for_one_person_helping_a', 'For one person helping a few learners.') }, items: ['25 active learners', '2 staff', 'Build plans or add them from Discover', 'A feed with every learner’s work', 'Requirements and coverage reports', 'Badges learners keep'] },
-  { name: 'Full', get blurb() { return tr('onboarding.tier_compare.for_programs_with_groups_and', 'For programs with groups and several staff.') }, items: ['200 active learners', '12 staff', 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'], featured: true },
-  { name: 'Enterprise', get blurb() { return tr('onboarding.tier_compare.for_schools_districts_and_employers', 'For schools, districts and employers at scale.') }, items: ['Unlimited learners and staff', 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'] },
+  { name: 'Free', get blurb() { return tr('onboarding.tier_compare.for_one_person_helping_a', 'For one person helping a few learners.') }, get items() { return [inOrgWords('25 active learners'), '2 staff', 'Build plans or add them from Discover', inOrgWords('A feed with every learner’s work'), 'Requirements and coverage reports', inOrgWords('Badges learners keep')] } },
+  { name: 'Full', get blurb() { return tr('onboarding.tier_compare.for_programs_with_groups_and', 'For programs with groups and several staff.') }, get items() { return [inOrgWords('200 active learners'), '12 staff', 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'] }, featured: true },
+  { name: 'Enterprise', get blurb() { return tr('onboarding.tier_compare.for_schools_districts_and_employers', 'For schools, districts and employers at scale.') }, get items() { return [inOrgWords('Unlimited learners and staff'), 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'] } },
 ]
 
 export default function TierCompare() {

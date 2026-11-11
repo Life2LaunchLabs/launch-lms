@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import FrameworkEdit, { draftOf, draftPayload, type FrameworkDraft } from './FrameworkEdit'
 import FrameworkView from './FrameworkView'
 import { plural } from './Marks'
+import { inOrgWords } from '@/lib/people'
 
 type Props = { orgslug: string; orgId: number; token?: string; frameworkUuid: string; editing: boolean }
 
@@ -65,7 +66,7 @@ export default function FrameworkPage({ orgslug, orgId, token, frameworkUuid, ed
       const result = await requirementsApi.publish(orgId, frameworkUuid, token)
       toast.success(`Version ${result.version} is live.`)
       const waiting = result.active_incomplete_enrollments || 0
-      if (waiting && window.confirm(`Move ${plural(waiting, 'learner')} still working toward an earlier version onto version ${result.version}? Learners who finished keep the version they finished.`)) {
+      if (waiting && window.confirm(inOrgWords(`Move ${plural(waiting, 'learner')} still working toward an earlier version onto version ${result.version}? Learners who finished keep the version they finished.`))) {
         const moved = await requirementsApi.migrateActive(orgId, frameworkUuid, null, token)
         toast.success(`${plural(moved.updated, 'learner')} moved to version ${result.version}.`)
       }
@@ -119,7 +120,7 @@ export default function FrameworkPage({ orgslug, orgId, token, frameworkUuid, ed
     {editing && canEdit ? <>
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
         <div className="min-w-0 flex-1 text-sm"><b className="text-gray-900">{isDraft ? `Editing the draft of version ${framework.version}` : `Editing starts version ${framework.version + 1}`}</b>
-          <span className="block text-gray-600">{live ? `Plans and learners keep counting toward version ${live} until you publish. Links to requirements you keep carry over.` : 'Nothing counts toward this framework until you publish it.'}</span></div>
+          <span className="block text-gray-600">{live ? inOrgWords(`Plans and learners keep counting toward version ${live} until you publish. Links to requirements you keep carry over.`) : 'Nothing counts toward this framework until you publish it.'}</span></div>
         <button type="button" onClick={leave} className={cn(btn, 'text-gray-700 hover:bg-white')}>{dirty ? 'Cancel' : 'Done'}</button>
         <button type="button" onClick={() => void save()} disabled={!dirty || Boolean(busy)} className={cn(btn, 'border border-gray-200 bg-white text-gray-900')}>{busy === 'save' ? <Loader2 size={14} className="animate-spin" /> : null}{dirty ? 'Save draft' : 'Saved'}</button>
         <button type="button" onClick={() => void publish()} disabled={Boolean(busy) || (!dirty && !isDraft) || !(draft?.nodes.length)} className={cn(btn, 'bg-black text-white hover:bg-black/85')}>{busy === 'publish' ? <Loader2 size={14} className="animate-spin" /> : null}Publish version {isDraft || dirty ? (isDraft ? framework.version : framework.version + 1) : framework.version}</button>

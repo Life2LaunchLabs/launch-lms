@@ -2354,7 +2354,11 @@
         "updating": "Updating organization...",
         "footer_text": "Footer Text",
         "footer_text_placeholder": "Enter footer text...",
-        "footer_text_desc": "Custom text displayed at the bottom of your organization pages"
+        "footer_text_desc": "Custom text displayed at the bottom of your organization pages",
+        "people_words": "What you call the people you support",
+        "people_one": "One",
+        "people_many": "Several",
+        "people_words_desc": "Staff screens use these words, like students, trainees, campers or team members."
       },
       "images": {
         "title": "Images & Previews",
@@ -4512,7 +4516,7 @@
       "maya_asked_a_question": "Maya asked a question",
       "mr": "MR",
       "maya_rivera": "Maya Rivera",
-      "building_my_launch_class_of": "Building my launch · Class of 2027",
+      "building_my_launch": "Building my launch",
       "my_goal": "My goal",
       "become_a_registered_nurse": "Become a registered nurse",
       "my_plans": "My plans",
@@ -8176,10 +8180,13 @@
       "guiding_a_few_people_one": "Guiding a few people one-on-one",
       "teacher_or_counselor": "Teacher or counselor",
       "supporting_a_class_or_caseload": "Supporting a class or caseload",
-      "youth_program_staff": "Youth program staff",
+      "program_staff": "Program staff",
       "school_or_district_leader": "School or district leader",
       "readiness_across_schools": "Readiness across schools",
-      "new_hires": "New hires"
+      "new_hires": "New hires",
+      "a_nonprofit_camp_club_or": "A nonprofit, camp, club or community program",
+      "workplace_or_adult_training": "Workplace or adult training",
+      "onboarding_safety_or_skills_training": "Onboarding, safety or skills training"
     },
     "start_flow": {
       "your_organization": "Your organization",
@@ -8195,7 +8202,7 @@
     },
     "tour": {
       "welcome_to_life2launch": "Welcome to Life2Launch",
-      "where_young_people_map_out": "Where young people map out what’s next and take charge of getting there.",
+      "where_people_map_out": "Where people map out what’s next and take charge of getting there.",
       "you_guide_they_go": "You guide. They go.",
       "hand_someone_a_plan_and": "Hand someone a plan and they move through it on their own. You see every step land, and know exactly when it’s your turn.",
       "step_in_right_where_it": "Step in right where it counts",

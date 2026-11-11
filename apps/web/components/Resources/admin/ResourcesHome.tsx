@@ -15,6 +15,7 @@ import { ExportModal } from './ExportModal'
 import { ImportModal } from './ImportModal'
 import { NewChannelModal, ResourceModal } from './modals'
 import { ChannelTile, NewChannelTile, ResourceListRow, listClass, useResourcesContext } from './pieces'
+import { inOrgWords } from '@/lib/people'
 
 type Tab = 'mine' | 'library'
 
@@ -34,7 +35,7 @@ export default function ResourcesHome({ tab }: { tab: Tab }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[32px] font-extrabold leading-tight tracking-tight">Resources</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">Links your team shares with learners, and an open library of more.</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">{inOrgWords("Links your team shares with learners, and an open library of more.")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setImporting(true)} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-muted"><FileSpreadsheet size={16} aria-hidden="true" />Import a spreadsheet</button>
@@ -82,7 +83,7 @@ function YourResources({ workspace, onAdd }: { workspace: Workspace; onAdd: () =
       </ul> : <p className="rounded-[22px] border-[1.5px] border-dashed border-border px-5 py-8 text-center text-muted-foreground">Nothing matches.</p>
         : <div className="flex flex-col items-center gap-2.5 rounded-[22px] border-[1.5px] border-dashed border-border px-6 py-12 text-center">
           <h2 className="text-[20px] font-bold tracking-tight">No resources yet</h2>
-          <p className="max-w-[420px] leading-normal text-muted-foreground">Add the links your team sends learners, or save channels and resources from the Library.</p>
+          <p className="max-w-[420px] leading-normal text-muted-foreground">{inOrgWords("Add the links your team sends learners, or save channels and resources from the Library.")}</p>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <button type="button" onClick={onAdd} className={primaryActionClass}><Plus size={16} aria-hidden="true" />Add resource</button>
             <Link href={getUriWithOrg(orgslug, routePaths.org.admin.resources.library())} className="inline-flex h-10 items-center rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-muted">Browse the Library</Link>

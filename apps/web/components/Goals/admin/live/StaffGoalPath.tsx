@@ -15,6 +15,7 @@ import { goalAdminApi, type StaffNoteView } from '@services/goals/admin'
 import { goalUrl } from '@services/goals/goals'
 import { can, type Goal, type Step } from '@services/goals/types'
 import { dateTime, personName, REVIEW_CAPABILITY } from './ui'
+import { inOrgWords } from '@/lib/people'
 
 /** The learner's path as staff work it: the learner's own view of it, with staff controls on each card, staff notes under the open one, and each step and stage edited from its own menu. */
 export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserId, header }: {
@@ -49,7 +50,7 @@ function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color, intro }: 
   const reviewer = can(goal, REVIEW_CAPABILITY)
   return <div className="mx-auto max-w-3xl space-y-6">
     {intro ? <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><h2 className="text-lg font-black text-gray-950">Steps</h2><p className="mt-1 text-sm text-gray-500">The same path the learner sees. Open a step to review it, sign it off or leave a staff note; change one from its menu.</p></div>
+      <div><h2 className="text-lg font-black text-gray-950">Steps</h2><p className="mt-1 text-sm text-gray-500">{inOrgWords("The same path the learner sees. Open a step to review it, sign it off or leave a staff note; change one from its menu.")}</p></div>
       {editing ? <Button type="button" variant="surface" onClick={() => editing.open({ kind: 'settings' })}><Settings2 size={15} aria-hidden="true" />Goal settings</Button> : null}
     </div> : null}
     <GoalPath goal={goal} color={color} perspective="staff" viewer={{ orgslug, token, viewerUserId }} selectedUuid={selected} onSelect={setSelected}
@@ -76,7 +77,7 @@ export function StaffNotes({ goal, step, orgId, token, initial }: { goal: Goal; 
     } catch (error: any) { toast.error(error?.message || 'Could not save the note.') } finally { setSaving(false) }
   }
   return <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-    <p className="flex items-center gap-1.5 text-xs font-bold text-amber-900"><Lock size={12} />Staff notes · learners never see these</p>
+    <p className="flex items-center gap-1.5 text-xs font-bold text-amber-900"><Lock size={12} />{inOrgWords("Staff notes · learners never see these")}</p>
     {notes.map((note, index) => <p key={note.note_uuid || index} className="text-xs leading-5 text-gray-900"><strong>{note.author ? personName(note.author) : 'Staff'}:</strong> {note.message} <span className="text-[10px] text-gray-500">{dateTime(note.created_at)}</span></p>)}
     <div className="flex gap-1.5">
       <label className="sr-only" htmlFor={`staff-note-${step.step_uuid}`}>Add a staff note</label>
