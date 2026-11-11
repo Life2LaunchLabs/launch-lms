@@ -43,11 +43,11 @@
     "help": "Ayuda",
     "help_menu": {
       "documentation": "Documentación",
-      "website": "Sitio web de Launch LMS",
+      "website": "Sitio web de Life2Launch",
       "discord": "Discord",
       "report_feedback": "Reportar problema o comentario",
       "feedback_title": "Enviar comentarios",
-      "feedback_description": "Ayúdanos a mejorar Launch LMS compartiendo tus opiniones, reportando errores o sugiriendo nuevas funciones.",
+      "feedback_description": "Ayúdanos a mejorar Life2Launch compartiendo tus opiniones, reportando errores o sugiriendo nuevas funciones.",
       "feedback_placeholder": "Cuéntanos qué piensas...",
       "feedback_success": "¡Gracias por tu comentario!",
       "send_feedback": "Enviar comentarios",
@@ -319,10 +319,10 @@
     "terms_of_service": "Términos de servicio",
     "agree_and": "y la",
     "privacy_policy": "Política de privacidad",
-    "agree_suffix": " de Launch LMS.",
+    "agree_suffix": " de Life2Launch.",
     "name_you_go_by_optional": "Nombre que usas (opcional)",
     "name_you_go_by": "Nombre que usas",
-    "age_required": "Launch LMS es para personas de 15 años o más. Confirma tu edad para continuar.",
+    "age_required": "Life2Launch es para personas de 15 años o más. Confirma tu edad para continuar.",
     "age_confirm": "Tengo 15 años o más",
     "email_verification_required": "Verifica tu correo",
     "email_verification_required_join": "Verifica tu correo antes de unirte a una organización. Busca el correo de verificación en tu bandeja de entrada."
@@ -512,14 +512,14 @@
     "import": {
       "scorm_package": "Paquete SCORM",
       "scorm_description": "Importar paquetes SCORM 1.2 o SCORM 2004",
-      "launch-lms_courses": "Cursos de Launch LMS",
-      "launch-lms_description": "Importar cursos exportados desde Launch LMS",
+      "launch-lms_courses": "Cursos de Life2Launch",
+      "launch-lms_description": "Importar cursos exportados desde Life2Launch",
       "upload_package": "Subir paquete",
       "configure": "Configurar",
       "complete": "Completado",
       "click_to_upload": "Haz clic para subir o arrastra y suelta",
-      "launch-lms_format": "Exportación de curso Launch LMS (.zip)",
-      "launch-lms_info": "Sube un paquete de exportación de cursos Launch LMS (.zip). Podrás seleccionar qué cursos importar y configurar las opciones de importación.",
+      "launch-lms_format": "Exportación de curso Life2Launch (.zip)",
+      "launch-lms_info": "Sube un paquete de exportación de cursos Life2Launch (.zip). Podrás seleccionar qué cursos importar y configurar las opciones de importación.",
       "analyze_package": "Analizar paquete",
       "ready_to_analyze": "Listo para analizar",
       "invalid_file_format": "Por favor sube un archivo .zip",
@@ -1321,7 +1321,7 @@
           "description": "Configura tus ajustes personales, contraseñas, email"
         }
       },
-      "launch-lms_university": "Universidad Launch LMS"
+      "launch-lms_university": "Universidad Life2Launch"
     },
     "courses": {
       "title": "Cursos",
@@ -1331,8 +1331,8 @@
       "import_course": "Importar curso",
       "import_scorm": "Importar paquete SCORM",
       "import_scorm_description": "Importar un paquete SCORM para crear un nuevo curso",
-      "import_launch-lms": "Importar cursos de Launch LMS",
-      "import_launch-lms_description": "Importar cursos desde un paquete de exportación de Launch LMS",
+      "import_launch-lms": "Importar cursos de Life2Launch",
+      "import_launch-lms_description": "Importar cursos desde un paquete de exportación de Life2Launch",
       "import_select_type": "Selecciona el tipo de paquete que deseas importar",
       "no_courses": "Aún no hay cursos",
       "create_course_placeholder": "Crea un curso para añadir contenido",
@@ -1427,7 +1427,7 @@
         },
         "export": {
           "title": "Exportar curso",
-          "description": "Descarga este curso como archivo ZIP para guardarlo o importarlo en otra instalación de Launch LMS.",
+          "description": "Descarga este curso como archivo ZIP para guardarlo o importarlo en otra instalación de Life2Launch.",
           "button": "Exportar curso",
           "exporting": "Exportando..."
         }
@@ -3472,7 +3472,7 @@
   "embed": {
     "not_supported_description": "Este tipo de actividad requiere autenticación y no puede ser incrustada.",
     "not_supported_title": "Esta actividad no es compatible",
-    "powered_by": "Desarrollado por Launch LMS",
+    "powered_by": "Desarrollado por Life2Launch",
     "visit_activity": "Visitar página de actividad"
   },
   "analytics": {
@@ -4930,7 +4930,7 @@
       "previous_look": "Estilo anterior",
       "next_look": "Siguiente estilo",
       "your_look": "Tu estilo",
-      "your_theme_for_all_of": "Tu tema para todo Launchpad. Los visitantes también ven tu portafolio con él. Nada se mueve cuando lo cambias.",
+      "your_theme_for_all_of": "Tu tema para todo Life2Launch. Los visitantes también ven tu portafolio con él. Nada se mueve cuando lo cambias.",
       "look": "Estilo",
       "you_haven_t_picked_one": "Todavía no elegiste uno.",
       "wear_name": "Usar {{name}}",
@@ -5835,7 +5835,7 @@
       "could_not_respond_to_this": "No se pudo responder a esta invitación",
       "goal_invitations": "Invitaciones a metas",
       "invitations": "Invitaciones",
-      "launch_lms": "Launch LMS",
+      "launch_lms": "Life2Launch",
       "decline": "Rechazar",
       "accept": "Aceptar",
       "help_as_name": " · Ayudar como {{name}}"
@@ -7102,7 +7102,7 @@
     "hub_composer": {
       "ready_to_review": "Listo para revisar",
       "review": "Revisar",
-      "ask_a_question_or_search": "Haz una pregunta o busca en Launch LMS",
+      "ask_a_question_or_search": "Haz una pregunta o busca en Life2Launch",
       "message_coach": "Escribirle a Coach",
       "add_a_resource_to_this": "Agregar un recurso a este chat",
       "saved_resource": "Recurso guardado",
@@ -7344,7 +7344,7 @@
       "staff": "Personal",
       "see_the_work": "Ver el trabajo",
       "issued_by": "Emitida por",
-      "an_organization_no_longer_on": "una organización que ya no está en Launch LMS",
+      "an_organization_no_longer_on": "una organización que ya no está en Life2Launch",
       "signed_by_value_and_unchanged": "Firmada por {{value}}, y sin cambios desde entonces",
       "its_signature_could_not_be": "Su firma no se pudo verificar",
       "revoked_by_the_issuer": "Revocada por el emisor",

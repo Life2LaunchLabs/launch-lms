@@ -27,7 +27,7 @@ def resend(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
     if not goals:
         return {"sent": 0}
     org = db.get(Organization, org_id)
-    sender = org.name if org else "A Launch LMS member"
+    sender = org.name if org else "A Life2Launch member"
     now = datetime.now().isoformat()
     sent = 0
     for invitation in db.exec(select(PlanInvitation).where(col(PlanInvitation.goal_id).in_(list(goals)), PlanInvitation.kind == PlanInvitationKind.SUBJECT,

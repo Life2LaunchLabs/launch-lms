@@ -49,7 +49,7 @@ export default function CoachAbilities({ policy }: { policy: CoachPolicy }) {
 
       <HubLaunchCardsEditor />
 
-      <Panel title="Built-in rules" description="Fixed by Launch LMS so the app can read Coach's output and keep learners safe. Shown so the coaching team knows exactly what Coach is told; ask the product team to change them.">
+      <Panel title="Built-in rules" description="Fixed by Life2Launch so the app can read Coach's output and keep learners safe. Shown so the coaching team knows exactly what Coach is told; ask the product team to change them.">
         <div className="space-y-2">
           {policy.built_in_rules.map((rule) => (
             <details key={rule.title} className="group rounded-xl border border-black/10 bg-gray-50/60">

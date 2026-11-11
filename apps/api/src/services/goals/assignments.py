@@ -132,7 +132,7 @@ def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version
     db.add(invitation)
     db.flush()
     org = db.get(Organization, goal.org_id) if goal.org_id else None
-    sender = org.name if org else "A Launch LMS member"
+    sender = org.name if org else "A Life2Launch member"
     create_inbox_message(
         db, recipient_user_id=None, recipient_email=email, sender_org_id=int(org.id) if org and org.id else None, sender_user_id=owner_id,
         message_type="invitation", subject=f"Invitation to {goal.title}", body=f"{sender} invited you to work on {goal.title} as {role.name}.",

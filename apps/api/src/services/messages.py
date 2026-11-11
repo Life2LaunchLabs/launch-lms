@@ -12,9 +12,9 @@ from src.db.users import PublicUser
 logger = logging.getLogger(__name__)
 
 WELCOME_TEMPLATE_KEY = "account_welcome"
-DEFAULT_WELCOME_SUBJECT = "Welcome to Launch LMS"
+DEFAULT_WELCOME_SUBJECT = "Welcome to Life2Launch"
 DEFAULT_WELCOME_BODY = (
-    "Welcome! Launch LMS is still a work in progress. You may encounter things "
+    "Welcome! Life2Launch is still a work in progress. You may encounter things "
     "that are unfinished or changing as we continue building. Thanks for joining "
     "us early."
 )

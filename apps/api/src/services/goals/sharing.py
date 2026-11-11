@@ -55,7 +55,7 @@ def _dedupe(invitation: PlanInvitation) -> str:
 
 def _invitation_message(db: Session, goal: Goal, invitation: PlanInvitation, role_name: str) -> None:
     organization = db.get(Organization, goal.org_id) if goal.org_id and _value(goal.ownership) == "external" else None
-    sender = organization.name if organization else "A Launch LMS member"
+    sender = organization.name if organization else "A Life2Launch member"
     create_inbox_message(
         db, recipient_user_id=invitation.target_user_id, recipient_email=invitation.email,
         sender_org_id=int(organization.id) if organization and organization.id else None, sender_user_id=invitation.invited_by_user_id,

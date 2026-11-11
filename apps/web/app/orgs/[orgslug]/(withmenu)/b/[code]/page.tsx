@@ -13,7 +13,7 @@ const load = (code: string) => badgeAwardsApi.byCode(code, { revalidate: 0 }).ca
 export async function generateMetadata(props: AwardPageProps): Promise<Metadata> {
   const { orgslug, code } = await props.params
   const [org, award] = await Promise.all([getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] }).catch(() => null), load(code)])
-  if (!award) return { title: `Badge - ${org?.name || 'Launch LMS'}` }
+  if (!award) return { title: `Badge - ${org?.name || 'Life2Launch'}` }
   const learner = award.learner?.name || award.learner?.username || 'A learner'
   const title = buildPageTitle(`${learner} earned ${award.achievement.name}`, org?.name, getOrgSeoConfig(org))
   const issuer = award.issuing_org?.name

@@ -67,7 +67,7 @@ export default function AuthMobileHeader({ org }: AuthMobileHeaderProps) {
               width={40}
               height={40}
               src={appIcon}
-              alt="Launch LMS"
+              alt="Life2Launch"
               className="object-contain"
             />
           )}

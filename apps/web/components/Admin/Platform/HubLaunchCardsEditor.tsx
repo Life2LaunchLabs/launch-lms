@@ -34,7 +34,7 @@ export default function HubLaunchCardsEditor() {
   })
 
   const run = async (kind: 'save' | 'reset', payload: HubLaunchCard[] | null, done: string) => {
-    if (kind === 'reset' && !window.confirm('Replace the cards with the Launch LMS defaults?')) return
+    if (kind === 'reset' && !window.confirm('Replace the cards with the Life2Launch defaults?')) return
     setBusy(kind)
     try {
       await mutate(await coachAdminApi.saveLaunchCards(payload, token), { revalidate: false })
@@ -77,7 +77,7 @@ export default function HubLaunchCardsEditor() {
       <div className="mt-4"><Button type="button" variant="outline" onClick={() => setCards((current) => [...current, blankCard()])} disabled={cards.length >= MAX_LAUNCH_CARDS}><Plus size={15} />Add card</Button></div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-5">
-        <p className="text-xs text-gray-500" aria-live="polite">{problem && dirty ? problem : data?.is_default ? 'Using the Launch LMS default cards.' : 'Using customized cards.'}</p>
+        <p className="text-xs text-gray-500" aria-live="polite">{problem && dirty ? problem : data?.is_default ? 'Using the Life2Launch default cards.' : 'Using customized cards.'}</p>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={() => void run('reset', null, 'Default cards restored.')} disabled={busy !== null || data?.is_default}>{busy === 'reset' ? <Loader2 className="animate-spin" size={15} /> : <RotateCcw size={15} />}Reset to defaults</Button>
           <Button type="button" onClick={() => void run('save', cards, 'Starter cards updated.')} disabled={busy !== null || !dirty || Boolean(problem)}>{busy === 'save' ? <Loader2 className="animate-spin" size={15} /> : <Save size={15} />}Save cards</Button>

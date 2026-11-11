@@ -87,7 +87,7 @@ def check_resource(resource: str | None) -> str:
     if not resource:
         return expected
     if resource.rstrip("/") != expected:
-        raise OAuthError("invalid_target", "This authorization server only issues tokens for the Launch LMS MCP server")
+        raise OAuthError("invalid_target", "This authorization server only issues tokens for the Life2Launch MCP server")
     return expected
 
 
@@ -117,7 +117,7 @@ def protected_resource_metadata() -> dict:
         "authorization_servers": [issuer()],
         "scopes_supported": list(SCOPES),
         "bearer_methods_supported": ["header"],
-        "resource_name": "Launch LMS",
+        "resource_name": "Life2Launch",
     }
 
 

@@ -79,7 +79,7 @@ export default function OAuthConsent() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <h1 className="mt-4 text-2xl font-black leading-tight">Connect {consent.client.name} to Launch LMS</h1>
+            <h1 className="mt-4 text-2xl font-black leading-tight">Connect {consent.client.name} to Life2Launch</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Signed in as <span className="font-semibold text-foreground">{consent.user.email}</span>
             </p>

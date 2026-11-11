@@ -97,7 +97,7 @@ export function LookDialog({ open, onOpenChange, layout, mode, dark, onChange, o
   const step = (by: number) => onChange({ look: LOOKS[(((index + by) % LOOKS.length) + LOOKS.length) % LOOKS.length].id })
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[90dvh] max-w-xl gap-6 overflow-y-auto">
-      <DialogHeader><DialogTitle>{tr('portfolio.look_dialog.your_look', 'Your look')}</DialogTitle><DialogDescription>{tr('portfolio.look_dialog.your_theme_for_all_of', 'Your theme for all of Launchpad. Visitors see your portfolio in it too. Nothing moves when you change it.')}</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{tr('portfolio.look_dialog.your_look', 'Your look')}</DialogTitle><DialogDescription>{tr('portfolio.look_dialog.your_theme_for_all_of', 'Your theme for all of Life2Launch. Visitors see your portfolio in it too. Nothing moves when you change it.')}</DialogDescription></DialogHeader>
       <section aria-label={tr('portfolio.look_dialog.look', 'Look')} className={`rounded-2xl ${spot ? 'p-1 ring-4 ring-[#2F66D6]/25' : ''}`}>
         <LookCard look={LOOKS[index]} dark={dark} index={index} count={LOOKS.length} onStep={step} />
         {!layout.look ? <p className="mt-2 text-center text-xs font-bold text-muted-foreground">{tr('portfolio.look_dialog.you_haven_t_picked_one', 'You haven’t picked one yet.')}{' '}<button type="button" className="underline" onClick={() => onChange({ look: LOOKS[index].id })}>{tr('portfolio.look_dialog.wear_name', 'Wear {{name}}', { name: LOOKS[index].name })}</button></p> : null}
