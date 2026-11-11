@@ -8,7 +8,9 @@ building another. The image keeps the commit it was built from (`build_commit_sh
 records both, and the deploy checks the image against the commit it was built from.
 
 Through dev's merge queue, the commit pushed to dev is the very commit the queue's `merge_group` run
-checked, so that run is looked up first; the pull request's own run usually checked older code.
+checked, so that run is looked up first; the pull request's own run usually checked older code. The
+queue merges as soon as the required checks pass, before the run has recorded what it checked, so a
+queue run still going is waited for (up to QUEUE_WAIT seconds) instead of skipped.
 
   record PATH     write this run's checked tree and image (pull request and merge queue runs, after every check)
   find WORKFLOW   print `run_id=`, `image_digest=` and `build_commit=` lines (empty when nothing fits)
@@ -19,11 +21,14 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ARTIFACT = 'checked-tree'
 SHA = re.compile(r'[0-9a-f]{40}')
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
+QUEUE_WAIT = 20 * 60
+QUEUE_POLL = 20
 
 
 def git_tree():
@@ -54,12 +59,24 @@ def gh(*args):
     return subprocess.run(['gh', *args], check=True, capture_output=True, text=True).stdout
 
 
-def checked_runs(repo, workflow, sha):
+def finished(repo, run, wait=QUEUE_WAIT, poll=QUEUE_POLL, sleep=time.sleep):
+    """The run once it has completed, waiting up to `wait` seconds for one still going."""
+    waited = 0
+    while run.get('status') != 'completed' and waited < wait:
+        sleep(poll)
+        waited += poll
+        run = json.loads(gh('api', f"repos/{repo}/actions/runs/{run['id']}"))
+    return run
+
+
+def checked_runs(repo, workflow, sha, **waiting):
     """Successful runs that may have checked this commit's code: its merge queue run, then its pull request's."""
-    runs = json.loads(gh('api', f"repos/{repo}/actions/workflows/{workflow}/runs?event=merge_group&head_sha={sha}&status=success&per_page=20"))
+    runs = json.loads(gh('api', f"repos/{repo}/actions/workflows/{workflow}/runs?event=merge_group&head_sha={sha}&per_page=20"))
     for run in runs.get('workflow_runs', []):
         if str(run.get('head_branch') or '').startswith('gh-readonly-queue/'):
-            yield run, 'Merge queue'
+            run = finished(repo, run, **waiting)
+            if run.get('conclusion') == 'success':
+                yield run, 'Merge queue'
     pull = merged_pull(json.loads(gh('api', f'repos/{repo}/commits/{sha}/pulls')), sha, repo)
     if pull:
         runs = json.loads(gh('api', f"repos/{repo}/actions/workflows/{workflow}/runs?event=pull_request&head_sha={pull['head']['sha']}&status=success&per_page=20"))

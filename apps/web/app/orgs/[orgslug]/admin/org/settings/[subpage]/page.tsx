@@ -10,6 +10,7 @@ import OrgEditPublicPage from '@components/Dashboard/Pages/Org/OrgEditPublicPage
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditMessaging from '@components/Dashboard/Pages/Org/OrgEditMessaging/OrgEditMessaging'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
+import OrgConnectClaude from '@components/Dashboard/Pages/Org/OrgConnectClaude/OrgConnectClaude'
 import DiscoverSettingsPanel from '@components/Discover/DiscoverSettingsPanel'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useFeatures } from '@components/Hooks/useFeatures'
@@ -75,6 +76,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
         {params.subpage == 'public-page' ? <OrgEditPublicPage /> : ''}
         {params.subpage == 'messaging' ? <OrgEditMessaging /> : ''}
         {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
+        {params.subpage == 'claude' ? <OrgConnectClaude /> : ''}
         {params.subpage == 'plan' ? <OrgEditPlan orgslug={params.orgslug} /> : ''}
         {params.subpage == 'discover' && org?.id ? <DiscoverSettingsPanel orgId={org.id} /> : ''}
       </motion.div>

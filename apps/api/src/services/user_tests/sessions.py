@@ -89,8 +89,26 @@ BLOCKED = (
     (WRITES | {"GET"}, re.compile(r"/api/v1/orgs/[^/]+/api-tokens")),
     (WRITES, re.compile(r"/api/v1/payments/")),
     (WRITES, re.compile(r"/api/v1/auth/(google|sso)/")),
-    (WRITES, re.compile(r"/api/v1/oauth/")),
+    # Personas may connect an app (the consent screen) and disconnect it; the seal keeps the grant
+    # inside the cohort and the connection ends with the run (connector_persona).
+    (WRITES, re.compile(r"/api/v1/oauth/(?!authorize/(validate|decision)$|connections/[^/]+$)")),
 )
+
+
+def connector_persona(db: Session, user: User | None) -> int | None:
+    """For a connected app's token: the persona's user id when ``user`` is a test persona, None for a real account.
+
+    Raises 401 once the persona's run has closed or expired, or user tests are off, so its tokens die with the run.
+    """
+    if not user or not user.id or not is_test_address(user.email):
+        return None
+    if not enabled():
+        raise HTTPException(401, "User tests are turned off, so test personas are signed out.")
+    persona = persona_for(db, user)
+    if not persona:
+        raise HTTPException(403, "This account is not a test persona.")
+    open_cohort(db, persona.cohort_id)
+    return int(user.id)
 
 
 def refuse_blocked(method: str, path: str) -> None:

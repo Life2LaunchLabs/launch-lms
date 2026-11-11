@@ -8,6 +8,7 @@ import { Input } from '@components/ui/input'
 import { ResourcePickerModal } from '@components/Resources/admin/ResourcePicker'
 import { uploadMediaAsset, type MediaType } from '@services/media/library'
 import type { StepMaterial } from '@services/goals/types'
+import { isUploadedFile } from './materialKind'
 
 import { tr } from '@/lib/tr'
 const FILES = 'application/pdf,image/*,video/*'
@@ -53,12 +54,13 @@ export default function MaterialsEditor({ id, value, onChange, orgId, token, add
   return <div className="flex flex-col gap-2">
     {value.length ? <ul className="flex flex-col gap-1.5">
       {value.map((item, index) => {
-        const Icon = item.kind === 'file' ? FileText : item.kind === 'resource' ? Library : Link2
+        const file = isUploadedFile(item)
+        const Icon = file ? FileText : item.kind === 'resource' ? Library : Link2
         return <li key={`${item.url}-${index}`} className="flex items-center gap-2 rounded-lg border bg-background px-2 py-1.5">
           <Icon size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <Input aria-label={tr('goals.explore_board.title', 'Title')} value={item.title || ''} onChange={(event) => rename(index, event.target.value)} placeholder={item.url} className="h-7 border-0 px-1 font-semibold shadow-none focus-visible:ring-1" />
-            {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="block truncate px-1 text-[11px] text-muted-foreground hover:underline">{item.kind === 'file' ? tr('goals.materials_editor.open_file', 'Open file') : item.url}</a> : null}
+            {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="block truncate px-1 text-[11px] text-muted-foreground hover:underline">{file ? tr('goals.materials_editor.open_file', 'Open file') : item.url}</a> : null}
           </div>
           <button type="button" onClick={() => onChange(value.filter((_, at) => at !== index))} aria-label={`Remove ${item.title || item.url}`} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X size={14} /></button>
         </li>

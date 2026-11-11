@@ -145,18 +145,10 @@ async def complete_welcome_signup(
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
 
+    from src.services.auth import welcome
+
     started_at = datetime.now(timezone.utc).isoformat()
-    profile_preset = {
-        "header": {"socials": []},
-        "featured": {"cards": [], "publicVisible": True},
-        "achievements": {"featuredIds": [], "publicVisible": True},
-        "timelineEnabled": True,
-        "timelinePublicVisible": True,
-        "timeline": [],
-        "layout": [],
-        "sections": [],
-        "onboarding": {"started_at": started_at},
-    }
+    profile_preset = welcome.signup_profile(started_at)
     user_create = UserCreate(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
@@ -167,7 +159,6 @@ async def complete_welcome_signup(
         profile=profile_preset,
     )
 
-    from src.services.auth import welcome
     from src.services.users.users import create_user
 
     org = welcome.invited_org(db_session, body.invitation_token, body.invite_code, body.org_id)

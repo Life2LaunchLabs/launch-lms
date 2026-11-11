@@ -47,7 +47,7 @@ USER_TEST_TOOLS = [
         "personas": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"type": "object", "properties": {
             "first_name": {"type": "string", "maxLength": 60}, "last_name": {"type": "string", "maxLength": 60},
             "brief": {"type": "string", "maxLength": 4000, "description": "Who they are and how they use technology. Only the console and the tester see it."},
-            "start_state": {"type": "string", "enum": ["has_account", "new_signup", "org_owner"], "description": "has_account: an existing learner. new_signup: just signed up, so their first link opens sign-up onboarding (role, org setup). org_owner: already runs an org."}, "org_name": {"type": "string", "maxLength": 100},
+            "start_state": {"type": "string", "enum": ["has_account", "new_signup", "org_creator", "org_owner"], "description": "has_account: an existing learner. new_signup: just signed up from the front page, so their first link lands where a real sign-up does (their first phase). org_creator: just signed up to set up an organization, so their first link opens org set-up (/start). org_owner: already runs an org."}, "org_name": {"type": "string", "maxLength": 100},
         }, "required": ["first_name"]}},
     }, ["cohort_uuid", "personas"], tests_mcp.add_test_personas, write=True),
     _tool("replay_test_cohort", "Run a test story again", "Start a new cohort with fresh personas like this one's (names, briefs, starting state, test orgs) and the same stages, for example to retest after a fix. Nothing the first run did is copied.", {

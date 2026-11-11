@@ -35,6 +35,11 @@ def safe_path(path: str | None) -> str:
 
 
 START_PATH = "/start"
+WELCOME_PATH = "/welcome"
+# Where a persona that just signed up first lands, until it makes an org of its own:
+# new_signup where the front page's sign-up sends a new account (its first phase),
+# org_creator on org set-up (role, "Make it yours", org details, first steps).
+FIRST_LANDING = {"new_signup": WELCOME_PATH, "org_creator": START_PATH}
 ADMIN_PATH = "/admin"
 
 
@@ -67,8 +72,9 @@ def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str =
     if not user or not persona:
         raise HTTPException(403, "Login links can only be made for test personas.")
     sessions.open_cohort(db, persona.cohort_id)
-    if persona.start_state == "new_signup" and safe_path(target_path) == "/" and not _owns_test_org(db, persona):
-        target_path = START_PATH  # just signed up: the onboarding a new account goes through next
+    first_landing = FIRST_LANDING.get(persona.start_state)
+    if first_landing and safe_path(target_path) == "/" and not _owns_test_org(db, persona):
+        target_path = first_landing  # just signed up: where a new account goes next
     token = secrets.token_urlsafe(32)
     expires_at = datetime.utcnow() + min(max(ttl, TICKET_TTL), MAX_TICKET_TTL)
     db.add(

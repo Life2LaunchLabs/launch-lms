@@ -15,7 +15,8 @@ import { generateLearningCaptions } from '@services/learning/learning'
 
 // A video page on the canvas: the video with its captions over it (drag them to move them; phone
 // and desktop each keep their own spot), and under it one card per caption to fix words and
-// timing, split, merge and style with the toolbar.
+// timing, split, merge and style with the toolbar. Opening or playing the video never edits the
+// page: only a change the admin makes may save, or the plan would show a draft nobody made.
 
 const id = () => `cap_${Math.random().toString(36).slice(2, 12)}`
 const youTubeId = (url: string) => String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/)?.[1] || ''
@@ -103,8 +104,7 @@ export function VideoCaptionsCanvas({ page, device, onRequestVideo, onPatchPage,
         {youtube ? (
           <div className="pointer-events-none h-full w-full"><YouTube videoId={youtube} className="h-full" iframeClassName="h-full w-full" opts={{ height: '100%', width: '100%', playerVars: { controls: 0, playsinline: 1 } }} /></div>
         ) : videoUrl ? (
-          <video ref={videoRef} src={videoUrl} controls muted preload="metadata" className="h-full w-full object-contain" onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
-            onLoadedMetadata={(event) => { const duration = Math.round(event.currentTarget.duration || 0); if (duration > 0 && duration !== Number(content.video_duration_seconds || 0)) onPatchPage({ content: { ...content, video_duration_seconds: duration } }) }} />
+          <video ref={videoRef} src={videoUrl} controls muted preload="metadata" className="h-full w-full object-contain" onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)} />
         ) : (
           <button type="button" onClick={onRequestVideo} className="flex h-full w-full flex-col items-center justify-center gap-2 text-sm font-bold text-white/60 hover:text-white"><Upload size={20} />Choose a video</button>
         )}

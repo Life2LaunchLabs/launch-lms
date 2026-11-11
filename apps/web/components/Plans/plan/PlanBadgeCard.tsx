@@ -19,6 +19,7 @@ import type { TemplateDocument } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import { AsideCard, Tag } from './AsideCard'
 import PlanDialog from './PlanDialog'
+import { awardedWhen, earnedBy, needsReview, reviewNote } from './badgeWording'
 
 type Props = { orgslug: string; orgId: number; token?: string; editing: TemplateEditing; document: TemplateDocument; canEdit: boolean }
 
@@ -60,7 +61,7 @@ export default function PlanBadgeCard({ orgslug, orgId, token, editing, document
       <span className="min-w-0">
         <span className="block text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(block.kind)}</span>
         <b className="block truncate text-sm">{badge.name}</b>
-        <span className="block text-[12.5px] leading-snug text-muted-foreground">Awarded when a learner finishes every step.</span>
+        <span className="block text-[12.5px] leading-snug text-muted-foreground">{awardedWhen(document)}</span>
       </span>
     </button>
     {block.skills.length ? <div className="mt-2.5 flex flex-wrap gap-1">{block.skills.slice(0, 6).map((skill) => <span key={skill} className="rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-semibold">{skill}</span>)}</div> : null}
@@ -119,23 +120,23 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
   }
   const shownBlock = edit ? draft : current
   const criteriaPage = getUriWithOrg(orgslug, routePaths.org.discoverPlan(template.template_uuid))
-  const rows: Array<{ label: string; spec: string; view: React.ReactNode; editor?: React.ReactNode }> = [
-    { label: 'Image', spec: 'image', view: <span className="flex items-center gap-2.5"><BadgeMedal badge={badge} size={36} />{shownBlock?.image_url ? 'Its own image' : 'The plan’s image'}</span>,
+  const rows: Array<{ label: string; view: React.ReactNode; editor?: React.ReactNode }> = [
+    { label: 'Image', view: <span className="flex items-center gap-2.5"><BadgeMedal badge={badge} size={36} />{shownBlock?.image_url ? 'Its own image' : 'The plan’s image'}</span>,
       editor: <span className="flex flex-wrap items-center gap-2.5"><BadgeMedal badge={badge} size={36} /><button type="button" className={smallActionClass} onClick={() => setPicking(true)}><Upload />Upload</button>{draft.image_url ? <button type="button" className={smallGhostClass} onClick={() => set({ image_url: '' })}>Use the plan’s image</button> : null}</span> },
-    { label: 'Name', spec: 'name', view: <>{badge.name}{!(current?.name) ? <span className="text-muted-foreground"> (the plan’s title)</span> : null}</>,
+    { label: 'Name', view: <>{badge.name}{!(current?.name) ? <span className="text-muted-foreground"> (the plan’s title)</span> : null}</>,
       editor: <input value={draft.name} onChange={(event) => set({ name: event.target.value })} maxLength={120} placeholder={document.template.title || 'The plan’s title'} className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-sm" /> },
-    { label: 'Kind', spec: 'achievementType', view: badgeKindLabel(badge.kind),
+    { label: 'Kind', view: badgeKindLabel(badge.kind),
       editor: <select value={draft.kind} onChange={(event) => set({ kind: event.target.value as TemplateBadge['kind'] })} className="h-9 rounded-lg border border-border bg-background px-2 text-sm">{BADGE_KINDS.map((kind) => <option key={kind.key} value={kind.key}>{kind.label}</option>)}</select> },
-    { label: 'Description', spec: 'description', view: badge.description || <span className="text-muted-foreground">The plan’s description (none yet)</span> },
-    { label: 'How it’s earned', spec: 'criteria.narrative', view: <span className="whitespace-pre-line">{achievement?.criteria_narrative || `Finish every step of ${document.template.title || template.title}.`}</span> },
-    { label: 'Skills', spec: 'tag', view: shownBlock?.skills.length ? <span className="flex flex-wrap gap-1">{shownBlock.skills.map((item) => <span key={item} className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">{item}</span>)}</span> : <span className="text-muted-foreground">None yet</span>,
+    { label: 'Description', view: badge.description || <span className="text-muted-foreground">The plan’s description (none yet)</span> },
+    { label: 'How it’s earned', view: <><span className="whitespace-pre-line">{achievement?.criteria_narrative || `Finish every step of ${document.template.title || template.title}.`}</span>{needsReview(document) ? <span className="mt-1 block text-[12.5px] text-muted-foreground">{reviewNote}</span> : null}</> },
+    { label: 'Skills', view: shownBlock?.skills.length ? <span className="flex flex-wrap gap-1">{shownBlock.skills.map((item) => <span key={item} className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">{item}</span>)}</span> : <span className="text-muted-foreground">None yet</span>,
       editor: <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-background p-1.5">
         {draft.skills.map((item) => <span key={item} className="inline-flex items-center gap-1 rounded-full bg-muted py-0.5 pl-2 pr-1 text-xs font-semibold">{item}<button type="button" aria-label={`Remove ${item}`} onClick={() => set({ skills: draft.skills.filter((other) => other !== item) })} className="grid h-4 w-4 place-items-center rounded-full hover:bg-background"><X size={11} /></button></span>)}
         <input value={skill} onChange={(event) => setSkill(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); addSkill() } }} onBlur={addSkill} placeholder="Add a skill and press Enter" className="min-w-[160px] flex-1 bg-transparent px-1 text-sm outline-none" aria-label="Add a skill" />
       </div> },
-    { label: 'Certificate', spec: 'style', view: `${CERTIFICATE_STYLES.find((style) => style.key === (shownBlock || draft).style)?.label || 'Modern'} style, in the plan’s color`,
+    { label: 'Certificate', view: `${CERTIFICATE_STYLES.find((style) => style.key === (shownBlock || draft).style)?.label || 'Modern'} style, in the plan’s color`,
       editor: <select value={draft.style} onChange={(event) => set({ style: event.target.value as TemplateBadge['style'] })} className="h-9 rounded-lg border border-border bg-background px-2 text-sm">{CERTIFICATE_STYLES.map((style) => <option key={style.key} value={style.key}>{style.label}</option>)}</select> },
-    { label: 'Criteria page', spec: 'criteria.id', view: <Link href={criteriaPage} className="break-all font-mono text-xs text-muted-foreground underline">{criteriaPage}</Link> },
+    { label: 'Criteria page', view: <Link href={criteriaPage} className="break-all font-mono text-xs text-muted-foreground underline">{criteriaPage}</Link> },
   ]
   const extras: Array<{ key: 'human_code' | 'field_of_study' | 'specialization' | 'in_language'; label: string; spec: string }> = [
     { key: 'human_code', label: 'Code', spec: 'humanCode' }, { key: 'field_of_study', label: 'Field of study', spec: 'fieldOfStudy' },
@@ -158,7 +159,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
       <div className="min-w-0 flex-1 pb-1">
         <span className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{badgeKindLabel(badge.kind)} · Open Badge</span>
         <h2 className="m-0 truncate text-2xl font-bold tracking-tight">{badge.name}</h2>
-        <p className="m-0 text-sm text-muted-foreground">Earned by finishing every step of {document.template.title || template.title}</p>
+        <p className="m-0 text-sm text-muted-foreground">{earnedBy(document, document.template.title || template.title)}</p>
       </div>
     </div>
     <div className="flex flex-wrap gap-2 px-6 pt-4">
@@ -176,7 +177,7 @@ function BadgeDialog({ open, setOpen, orgslug, orgId, token, editing, canEdit }:
         <div className="overflow-hidden rounded-[14px] border border-border">
           <table className="w-full text-sm"><tbody>
             {rows.map((row) => <tr key={row.label} className="border-b border-border last:border-0 align-top">
-              <th scope="row" className="w-[34%] bg-muted/50 px-3.5 py-2.5 text-left font-semibold"><span className="block">{row.label}</span><span className="block font-mono text-[11px] font-normal text-muted-foreground">{row.spec}</span></th>
+              <th scope="row" className="w-[34%] bg-muted/50 px-3.5 py-2.5 text-left font-semibold">{row.label}</th>
               <td className="px-3.5 py-2.5">{edit && row.editor ? row.editor : row.view}</td>
             </tr>)}
             {(edit && more ? extras : filledExtras).map((extra) => <tr key={extra.key} className="border-b border-border last:border-0 align-top">

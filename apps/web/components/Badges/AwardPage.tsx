@@ -3,10 +3,10 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { Ban, Check, Download, FileDown, Route, ShieldCheck, X } from 'lucide-react'
+import { Ban, Check, Download, FileDown, Link2, Route, ShieldCheck, X } from 'lucide-react'
 import Certificate from '@components/Badges/Certificate'
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
-import { certificateFileName, downloadCertificatePdf } from '@components/Badges/awardSharing'
+import { certificateFileName, copyLink, downloadCertificatePdf } from '@components/Badges/awardSharing'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { badgeAwardsApi, badgeKindLabel, type AwardCheck, type BadgeAward } from '@services/badges/badges'
@@ -51,6 +51,16 @@ export default function AwardPage({ orgslug, award, check = null, pageUrl }: { o
   const direct = award.source === 'direct_award'
   const certificate = React.useRef<HTMLDivElement>(null)
   const [saving, setSaving] = React.useState(false)
+  const [copied, setCopied] = React.useState(false)
+
+  const copyPageLink = async () => {
+    if (await copyLink(pageUrl)) {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } else {
+      toast.error(tr('badges.award_page.could_not_copy_the_link', 'Could not copy the link. Copy it from the address bar instead.'))
+    }
+  }
 
   const savePdf = async () => {
     const element = certificate.current?.querySelector<HTMLElement>('.cert')
@@ -92,9 +102,11 @@ export default function AwardPage({ orgslug, award, check = null, pageUrl }: { o
           verified={!revoked}
         />
       </div>
-      {!revoked ? <div className="flex flex-wrap gap-2.5">
+      {!revoked ? <div className="flex flex-wrap items-center gap-2.5">
+        <button type="button" onClick={copyPageLink} className={ACTION}>{copied ? <Check size={16} aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}{copied ? tr('badges.award_page.link_copied', 'Link copied') : tr('badges.award_page.copy_link', 'Copy link')}</button>
         <button type="button" onClick={savePdf} disabled={saving} className={ACTION}><FileDown size={16} aria-hidden="true" />{saving ? tr('badges.award_page.making_pdf', 'Making PDF…') : tr('badges.award_page.download_pdf', 'Download PDF')}</button>
         <a href={badgeAwardsApi.credentialUrl(award.award_uuid)} download={`${badge.name}.json`} className={ACTION}><Download size={16} aria-hidden="true" />{tr('badges.award_page.download_open_badge', 'Download Open Badge')}</a>
+        <p className="m-0 basis-full text-sm text-muted-foreground">{tr('badges.award_page.anyone_with_this_link', 'Anyone with this link can see it.')}</p>
       </div> : null}
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">

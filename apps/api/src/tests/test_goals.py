@@ -39,6 +39,7 @@ from src.db.organizations import Organization
 from src.db.portfolio import Portfolio
 from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
 from src.db.roles import Role
+from src.db.notifications import NotificationEvent
 from src.db.school import UserGroupStaff
 from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateLearnerAccess, GoalTemplateListing
 from src.db.user_organizations import UserOrganization
@@ -68,6 +69,8 @@ def _session() -> Session:
         GoalTemplateListing.__table__, GoalTemplateAuthorization.__table__, GoalTemplateLearnerAccess.__table__,
         # Learners asking for a plan show in Threads (services/school/plan_requests.py).
         PlanJoinRequest.__table__, OrganizationJoinRequest.__table__,
+        # Hand-ins and reviews queue email notifications (services/notifications).
+        NotificationEvent.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))

@@ -9,7 +9,7 @@ import InviteOnlySignUpComponent from './InviteOnlySignUp'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
-import { authenticatedOrgHref } from '@services/auth/handoff'
+import { authenticatedOrgHref, openOrgPage } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
 import AskToJoin from './AskToJoin'
@@ -102,11 +102,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
   // Staff and admins set up their profile first; learners go straight in.
   const after = joinedUrl(activeOrg, preview ?? null, false) || getUriWithOrg(preview?.org?.slug || activeOrg.slug, '/')
   // Another org's address needs the sign-in carried over (host-only cookies), and a full page load.
-  const go = () => {
-    const target = authenticatedOrgHref(after, true)
-    if (new URL(target, window.location.origin).origin === window.location.origin) router.push(target)
-    else window.location.assign(target)
-  }
+  const go = () => openOrgPage(after, router.push)
 
   const join = async () => {
     setIsSubmitting(true)

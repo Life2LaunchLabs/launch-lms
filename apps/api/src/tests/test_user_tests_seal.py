@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, select
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage
 from src.db.messages import InboxMessage
+from src.db.oauth import OAuthAuthorizationCode, OAuthGrant
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
@@ -187,7 +188,8 @@ def test_inbox_messages_from_staff_to_personas_are_refused(db):
     ("GET", "/api/v1/orgs/3/api-tokens"),
     ("POST", "/api/v1/payments/3/offers/abc/checkout"),
     ("POST", "/api/v1/auth/google/token"),
-    ("POST", "/api/v1/oauth/authorize/decision"),
+    ("POST", "/api/v1/oauth/revoke"),
+    ("POST", "/api/v1/oauth/authorize/decision/extra"),
     ("DELETE", "/api/v1/users/user_id/5"),
 ])
 def test_persona_sessions_cant_reach_past_the_cohort(method, path):
@@ -197,8 +199,79 @@ def test_persona_sessions_cant_reach_past_the_cohort(method, path):
 
 
 def test_persona_sessions_use_the_app_normally():
-    for method, path in [("GET", "/api/v1/plans"), ("POST", "/api/v1/goals/start"), ("GET", "/api/v1/payments/3/offers")]:
+    for method, path in [("GET", "/api/v1/plans"), ("POST", "/api/v1/goals/start"), ("GET", "/api/v1/payments/3/offers"),
+                         ("POST", "/api/v1/oauth/authorize/validate"), ("POST", "/api/v1/oauth/authorize/decision"),
+                         ("DELETE", "/api/v1/oauth/connections/code:4")]:
         sessions.refuse_blocked(method, path)
+
+
+def _connect(db: Session, user_id: int, org_id: int):
+    """Run a connected app's consent and code exchange for a user, as the Claude connector does."""
+    import base64
+    import hashlib
+    import secrets
+    from urllib.parse import parse_qs, urlparse
+
+    from src.db.users import PublicUser
+    from src.services.oauth import server
+
+    redirect = "https://claude.ai/api/mcp/auth_callback"
+    client = server.register_client(db, {"client_name": "Claude", "redirect_uris": [redirect]})
+    verifier = secrets.token_urlsafe(48)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    request = server.AuthorizationRequest(client_id=client["client_id"], redirect_uri=redirect, code_challenge=challenge, state="s")
+    user = PublicUser(**db.get(User, user_id).model_dump())
+    redirect_to = server.decide_authorization(db, request, user, approve=True, org_id=org_id)
+    code = parse_qs(urlparse(redirect_to).query)["code"][0]
+    return server.exchange_token(db, {"grant_type": "authorization_code", "client_id": client["client_id"], "code": code,
+                                      "redirect_uri": redirect, "code_verifier": verifier}, None)
+
+
+def test_a_persona_connects_an_app_to_its_own_test_org_until_the_run_closes(db):
+    from src.services.oauth import server
+
+    cohort = _cohort(db)
+    dana = _persona(db, cohort, first_name="Dana", start_state="org_owner", org_name="Riverside High")
+    test_org = db.exec(select(TestCohortOrg)).one().org_id
+    assert [org.id for org in server.admin_orgs(db, db.get(User, dana["user_id"]))] == [test_org]
+    tokens = _connect(db, dana["user_id"], test_org)
+    context = server.resolve_access_token(db, tokens["access_token"])
+    assert context is not None and context.org_id == test_org and context.test_persona_id == dana["user_id"]
+    # A real admin's connection is not a persona's.
+    real = server.resolve_access_token(db, _connect(db, 1, 1)["access_token"])
+    assert real is not None and real.test_persona_id is None
+    # Closing the run ends the connection: the token stops working and can't be refreshed.
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    assert server.resolve_access_token(db, tokens["access_token"]) is None
+    client_id = db.exec(select(OAuthGrant).where(OAuthGrant.user_id == dana["user_id"])).one().client_id
+    with pytest.raises(server.OAuthError):
+        server.exchange_token(db, {"grant_type": "refresh_token", "client_id": client_id, "refresh_token": tokens["refresh_token"]}, None)
+
+
+def test_a_persona_connection_is_refused_when_user_tests_are_turned_off(db, monkeypatch):
+    from src.services.oauth import server
+
+    cohort = _cohort(db)
+    dana = _persona(db, cohort, first_name="Dana", start_state="org_owner", org_name="Riverside High")
+    tokens = _connect(db, dana["user_id"], db.exec(select(TestCohortOrg)).one().org_id)
+    monkeypatch.setenv("LAUNCHLMS_USER_TESTS_ENABLED", "false")
+    assert server.resolve_access_token(db, tokens["access_token"]) is None
+
+
+def test_a_persona_grant_never_reaches_the_main_org_or_a_real_org(db):
+    maya = _persona(db, _cohort(db))
+    now = datetime.utcnow()
+    for org_id in (1, 2):
+        grant = OAuthGrant(family_id=f"f{org_id}", access_token_hash=f"a{org_id}", refresh_token_hash=f"r{org_id}", client_id="c",
+                           user_id=maya["user_id"], org_id=org_id, access_expires_at=now, refresh_expires_at=now)
+        assert _refused(db, grant).detail["code"] == "test_cohort_sealed"
+        code = OAuthAuthorizationCode(code_hash=f"h{org_id}", client_id="c", user_id=maya["user_id"], org_id=org_id,
+                                      redirect_uri="https://claude.ai/cb", code_challenge="x", expires_at=now)
+        _refused(db, code)
+    # Real admins still connect the main org.
+    db.add(OAuthGrant(family_id="real", access_token_hash="a", refresh_token_hash="r", client_id="c", user_id=1, org_id=1,
+                      access_expires_at=now, refresh_expires_at=now))
+    db.commit()
 
 
 def test_real_users_never_see_personas_or_test_orgs(db):
@@ -326,3 +399,55 @@ def test_org_search_hides_test_orgs_from_real_users_and_other_runs(db):
         asyncio.run(get_discoverable_org_by_slug(db, viewer(2), test_org.slug))
     assert hidden.value.status_code == 404
     assert asyncio.run(get_discoverable_org_by_slug(db, viewer(dana["user_id"]), test_org.slug)).slug == test_org.slug
+
+
+def test_purge_removes_badge_awards_before_the_plans_they_were_earned_from(db):
+    # FEED-104: a persona's badge from a test org's plan stopped the purge (badge_award_template_id_fkey),
+    # so the awards have to be gone before the org (and its plans) are deleted.
+    from datetime import date
+
+    from sqlalchemy import event, func, text
+    from src.db.badges import BadgeAward
+    from src.db.goals import Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion
+
+    cohort = _cohort(db)
+    dana = _persona(db, cohort, first_name="Dana", start_state="org_owner", org_name="Riverside High")
+    maya = _persona(db, cohort)
+    test_org = db.exec(select(TestCohortOrg)).one().org_id
+    template = GoalTemplate(template_uuid="gt_1", org_id=test_org, title="Bike safety")
+    real_plan = GoalTemplate(template_uuid="gt_real", org_id=1, title="First aid")
+    db.add_all([template, real_plan])
+    db.commit()
+    version = GoalTemplateVersion(version_uuid="gtv_1", template_id=template.id, org_id=test_org)
+    db.add(version)
+    db.commit()
+    assignment = GoalAssignment(assignment_uuid="ga_1", org_id=test_org, template_id=template.id, version_id=version.id, user_id=maya["user_id"])
+    db.add(assignment)
+    db.commit()
+    goal = Goal(goal_uuid="g_1", owner_user_id=maya["user_id"], org_id=test_org, assignment_id=assignment.id, version_id=version.id, title="Bike safety")
+    db.add(goal)
+    db.commit()
+    db.add_all([
+        BadgeAward(award_uuid="ba_1", template_id=template.id, version_id=version.id, user_id=maya["user_id"], issuing_org_id=test_org,
+                   creator_org_id=test_org, goal_id=goal.id, earned_on=date(2026, 11, 10), status_list_index=0),
+        BadgeAward(award_uuid="ba_2", template_id=template.id, user_id=dana["user_id"], issuing_org_id=test_org, creator_org_id=test_org,
+                   source="direct_award", awarded_by_user_id=dana["user_id"], earned_on=date(2026, 11, 10), status_list_index=1),
+        BadgeAward(award_uuid="ba_real", template_id=real_plan.id, user_id=2, issuing_org_id=1, creator_org_id=1, earned_on=date(2026, 11, 1), status_list_index=0),
+    ])
+    db.commit()
+    awards_at_org_delete: list[int] = []
+
+    def count_awards(mapper, connection, org):
+        templates = select(GoalTemplate.id).where(GoalTemplate.org_id == org.id)
+        awards_at_org_delete.append(connection.execute(select(func.count()).select_from(BadgeAward).where(BadgeAward.template_id.in_(templates))).scalar())
+
+    event.listen(Organization, "before_delete", count_awards)
+    try:
+        db.execute(text("PRAGMA foreign_keys=ON"))
+        cohorts.close_cohort(db, cohort["cohort_uuid"])
+        assert cleanup.purge(db, cohort["cohort_uuid"], dry_run=False)["status"] == "purged"
+    finally:
+        event.remove(Organization, "before_delete", count_awards)
+    assert awards_at_org_delete == [0]
+    assert db.get(User, maya["user_id"]) is None and db.get(Organization, test_org) is None
+    assert [award.award_uuid for award in db.exec(select(BadgeAward)).all()] == ["ba_real"]

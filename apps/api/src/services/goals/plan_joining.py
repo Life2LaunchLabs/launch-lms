@@ -65,10 +65,12 @@ class Offer:
         self.template, self.version, self.org_id, self.access = template, version, int(org_id), access
 
 
-def offers(db: Session, org_id: int | None = None, site_org_id: int | None = None, template_ids: list[int] | None = None) -> list[Offer]:
+def offers(db: Session, org_id: int | None = None, site_org_id: int | None = None, template_ids: list[int] | None = None,
+           viewer_id: int | None = None) -> list[Offer]:
     """The plans learners may join: offered open or by request, with a live release that has steps, by an
     organization that runs them. ``org_id`` narrows to that organization's offers; without it, the site
-    organization's offers and verified publishers' offers of their own plans."""
+    organization's offers, the offers of organizations ``viewer_id`` belongs to, and verified publishers'
+    offers of their own plans."""
     from src.security.access.access import orgs_with_feature, owner_org_id
     from src.services.user_tests.visibility import listed_for_viewer
 
@@ -84,8 +86,11 @@ def offers(db: Session, org_id: int | None = None, site_org_id: int | None = Non
     if org_id is None:
         site = site_org_id if site_org_id is not None else owner_org_id(db)
         publishers = orgs_with_feature({int(template.org_id) for _, template in rows}, PUBLISHING, db)
+        # A learner's own organizations offer to them wherever they browse: most organizations have no site
+        # of their own, so their learners use Discover on the main one.
+        member_of = {int(item) for item in db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == viewer_id)).all()} if viewer_id else set()
         rows = [(access, template) for access, template in rows
-                if access.org_id == site or (access.org_id == template.org_id and template.org_id in publishers)]
+                if access.org_id == site or access.org_id in member_of or (access.org_id == template.org_id and template.org_id in publishers)]
     versions = {int(row.id): row for row in db.exec(select(GoalTemplateVersion).where(
         col(GoalTemplateVersion.id).in_([int(template.published_version_id) for _, template in rows] or [0]))).all()}  # type: ignore[arg-type]
     result = []
@@ -176,7 +181,7 @@ def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_i
     from src.services.discover_featured import hero_slides
 
     user_id = _user_id(current_user)
-    items = offers(db, org_id, site_org_id)
+    items = offers(db, org_id, site_org_id, viewer_id=user_id)
     cards = _cards(db, items, user_id)
     # One card per plan: the learner's own offer first, else the site's, else the first.
     plans: dict[str, dict] = {}
@@ -221,7 +226,7 @@ def plan_page(db: Session, current_user: PublicUser | AnonymousUser | None, temp
 
     template = _template_or_404(db, template_uuid)
     version = db.get(GoalTemplateVersion, template.published_version_id)
-    items = offers(db, template_ids=[int(template.id)]) + [  # type: ignore[arg-type]
+    items = offers(db, template_ids=[int(template.id)], viewer_id=_user_id(current_user)) + [  # type: ignore[arg-type]
         item for item in (offers(db, org_id, template_ids=[int(template.id)]) if org_id is not None else [])]  # type: ignore[arg-type]
     unique = list({item.org_id: item for item in items}.values())
     badge = live_achievement(db, template)

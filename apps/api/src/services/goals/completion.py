@@ -174,6 +174,10 @@ def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgres
         "step_uuid": step.step_uuid, "from": previous, "to": _value(progress.status), "method": _value(method),
         **({"note": note} if note else {}),
     })
+    from src.services.goals.notifications import on_step_status
+
+    # Hand-ins email their reviewers; reviews email the person whose work it is.
+    on_step_status(db, goal, step, progress, previous, actor_user_id, note)
     if step.stage_id is not None and _value(progress.status) in DONE_STEP_STATUSES and previous not in DONE_STEP_STATUSES:
         # Finishing a stage brings Coach's next check-in forward.
         stage_steps = [int(item.id) for item in db.exec(select(GoalStep).where(GoalStep.stage_id == step.stage_id)).all()]  # type: ignore[arg-type]

@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, MapPin, MessageCircle, PencilLine, Sparkles, X } from 'lucide-react'
 import { useChatList } from '@components/Connect/useConnect'
+import { ListRowSkeleton } from '@components/Objects/Loaders/OrgShellSkeleton'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
 import YourRelationship from '@components/Organizations/YourRelationship'
@@ -48,7 +49,7 @@ function YouAndOrg({ organization, token }: { organization: DiscoverOrganization
   return <section aria-labelledby="you-and-org" className="flex flex-col gap-4 rounded-[28px] bg-card p-6 nice-shadow md:p-7">
     <h2 id="you-and-org" className="m-0 text-xl font-extrabold tracking-tight">{tr('organizations.page.you_and_name', 'You and {{name}}', { name: organization.name })}</h2>
     <YourRelationship orgId={organization.id} token={token} showStaff={false} />
-    {isLoading ? <div className="flex justify-center py-6"><Loader2 className="animate-spin text-muted-foreground" /></div> : goals.length ? <div className="flex flex-col gap-3">{goals.map((item) => {
+    {isLoading ? <div className="flex flex-col gap-3" role="status" aria-label="Loading"><ListRowSkeleton /><ListRowSkeleton /></div> : goals.length ? <div className="flex flex-col gap-3">{goals.map((item) => {
       const invited = item.status === 'pending'
       const status = invited ? tr('organizations.page.invited', 'Invited') : item.assignment.status !== 'ended' ? tr('organizations.page.active', 'Active') : tr('organizations.page.completed', 'Completed')
       return <article key={item.goal_uuid} className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center">

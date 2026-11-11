@@ -14,6 +14,21 @@ from src.db.users import AnonymousUser, UserCreate, UserRead
 LEARNER_ROLE_ID = 4
 
 
+def signup_profile(started_at: str) -> dict:
+    """The profile a welcome signup starts with; user tests give it to personas that just signed up too."""
+    return {
+        "header": {"socials": []},
+        "featured": {"cards": [], "publicVisible": True},
+        "achievements": {"featuredIds": [], "publicVisible": True},
+        "timelineEnabled": True,
+        "timelinePublicVisible": True,
+        "timeline": [],
+        "layout": [],
+        "sections": [],
+        "onboarding": {"started_at": started_at},
+    }
+
+
 def invited_org(db_session: Session, invitation_token: str | None, invite_code: str | None, org_id: int | None) -> Organization | None:
     """The organization an invitation or join link in the signup is for; None for a plain signup."""
     if invitation_token:

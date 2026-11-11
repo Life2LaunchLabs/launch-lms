@@ -32,11 +32,12 @@ import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAft
 import { routeDoc, setLength, setStart, showWayTo } from './dates'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
-import { activityText, checklist, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, suggestTitle, type CheckItem } from './setup'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import PhaseInsights, { useCareers } from './PhaseInsights'
+import { PhaseSuggestionsCard } from './PhaseSuggestions'
 import useLifePlan from './useLifePlan'
 import Invitations from '@components/Goals/home/Invitations'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
@@ -237,6 +238,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
           {waiting ? <button type="button" onClick={() => setEst({ mode: 'change', base: waiting })} className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--org-primary-color)_14%,transparent)] px-3 py-1.5 text-sm font-bold text-[var(--org-primary-color)] dark:text-[color-mix(in_srgb,var(--org-primary-color)_45%,white)]"><Sparkles size={15} aria-hidden="true" />{tr('goals.phase_page.budget_changes_to_look_at', 'Budget changes to look at')}</button> : null}
           <BudgetCard doc={line} phase={byId(line, phase.id) || phase} ends={time.ends} projection={projection} href={getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))} onStart={() => setEst({ mode: 'start', base: null })} />
           {doc.auto_estimates ? <p className="-mt-2 px-1 text-xs text-muted-foreground">{tr('goals.phase_page.estimate_changes_update_your_budget', 'Estimate changes update your budget without asking.')}{' '}<button type="button" className="font-bold text-[var(--org-primary-color)] underline-offset-2 hover:underline" onClick={() => { void change((next) => { next.auto_estimates = false }) }}>{tr('goals.phase_page.ask_me_next_time', 'Ask me next time')}</button></p> : null}
+          <PhaseSuggestionsCard phaseId={phase.id} orgslug={orgslug} />
           <PhaseInsights phase={phase} token={token} careers={careers} />
         </aside>
       </div>
@@ -312,7 +314,7 @@ function Cover({ time, span, menu, photos, uploading, pop, setPop, onRename }: {
     <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2"><span className="flex flex-wrap gap-1.5"><PhaseStatus when={when} />{phase.idea ? <span className="inline-flex items-center rounded-full bg-white/90 px-3 py-1.5 text-xs font-extrabold text-[#15232c] outline-dashed outline-2 -outline-offset-4 outline-[#15232c]/40">{tr('goals.phase_page.idea', 'Idea')}</span> : null}</span>{menu}</div>
     <div className="absolute inset-x-5 bottom-5 grid gap-2 pr-8 sm:inset-x-7 sm:bottom-6">
       <button type="button" onClick={() => toggle('doing')} className="inline-flex w-fit items-center gap-1.5 rounded-lg text-left text-sm font-extrabold opacity-95 hover:outline hover:outline-2 hover:outline-offset-4 hover:outline-dashed hover:outline-white/70">
-        {acts.length ? acts.map(activityText).join(' + ') : <span className="opacity-80">{tr('goals.phase_page.what_are_you_doing', 'What are you doing?')}</span>}
+        {acts.length ? eyebrowFor(acts, phase.title) : <span className="opacity-80">{tr('goals.phase_page.what_are_you_doing', 'What are you doing?')}</span>}
       </button>
       {pop === 'name'
          
