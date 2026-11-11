@@ -4,7 +4,7 @@ import Link from 'next/link'
 import React from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowLeft, ChevronRight, X } from 'lucide-react'
-import { VideoPlaybackStatus } from '@components/Learning/LearningBadgeViews'
+import { VideoPlaybackStatus } from './VideoControls'
 import { useAsk } from '@components/ui/ask-dialog'
 import { backgroundLook, Celebration, pageTransition, resolveBackground, Scene } from './design'
 
