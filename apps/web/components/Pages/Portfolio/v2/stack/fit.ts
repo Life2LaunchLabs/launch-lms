@@ -100,18 +100,19 @@ export function snap(levels: Level[], h: number): number {
 
 // The least a section can be (FEED-63): below it something would overlap, inside the section or into the
 // next one. A card section's shortest tidy layout; a text section's heading and first item; the banner's
-// tallest slide, its words plus the picture's own floor when the picture sits above them.
+// tallest slide, its words plus the picture's own floor when the picture sits above them, and never less than
+// the slide's own min-height (a look can set one, like Volt's photo slides, whose words sit at its bottom).
 
 /** A featured slide's picture never gets shorter than this when it sits above the words (FeatureSection). */
 export const MEDIA_FLOOR = 140
 
-export type Slide = { text: number; mediaAbove: boolean }
+export type Slide = { text: number; mediaAbove: boolean; least?: number }
 export type FloorParts = { head: number; first: number; tail: number; smallest?: number; chrome: number; slides: Slide[] }
 
 /** The least height from what was measured. */
 export function floorFrom(sizing: Sizing, parts: FloorParts): number {
   if (sizing === 'cards' && parts.smallest) return Math.ceil(parts.smallest)
-  if (sizing === 'free') return parts.slides.length ? Math.ceil(parts.chrome + Math.max(...parts.slides.map((slide) => (slide.mediaAbove ? MEDIA_FLOOR : 0) + slide.text))) : 0
+  if (sizing === 'free') return parts.slides.length ? Math.ceil(parts.chrome + Math.max(...parts.slides.map((slide) => Math.max(slide.least || 0, (slide.mediaAbove ? MEDIA_FLOOR : 0) + slide.text)))) : 0
   return Math.ceil(parts.head + parts.first + parts.tail)
 }
 
@@ -141,8 +142,10 @@ export function floorOf(sec: HTMLElement, sizing: Sizing): number {
     chrome = frameRect.top - secRect.top + frame.offsetHeight - frame.clientHeight + (nav ? nav.getBoundingClientRect().bottom - frameRect.bottom : 0)
     frame.querySelectorAll<HTMLElement>('[data-feature-slide]').forEach((slide) => {
       const text = slide.querySelector<HTMLElement>('[data-feature-text]'), media = slide.querySelector<HTMLElement>('[data-feature-media]')
-      if (!text || !media) { slides.push({ text: contentHeight(slide), mediaAbove: false }); return }
-      slides.push({ text: contentHeight(text), mediaAbove: media.getBoundingClientRect().bottom <= text.getBoundingClientRect().top + 1 })
+      // A slide taller than the frame is cut at the bottom, where Volt puts the meta line and "See it" (FEED-63).
+      const least = parseFloat(getComputedStyle(slide).minHeight) || 0
+      if (!text || !media) { slides.push({ text: contentHeight(slide), mediaAbove: false, least }); return }
+      slides.push({ text: contentHeight(text), mediaAbove: media.getBoundingClientRect().bottom <= text.getBoundingClientRect().top + 1, least })
     })
   }
   return floorFrom(sizing, { head, first, tail, smallest: sizing === 'cards' ? cardLevels(sec)[0]?.h : undefined, chrome, slides })
