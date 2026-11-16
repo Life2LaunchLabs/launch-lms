@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import { Clipboard, ExternalLink, FileText, Image as ImageIcon, Link2, Loader2, LockKeyhole, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ClipboardEvent, DragEvent, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
@@ -410,7 +411,7 @@ export default function ResourceNotes({ resourceUuid, compact = false, onNotesCh
                     {note.preview_image_url ? (
                       <div
                         className={`${compact ? 'h-12 w-14 rounded-md' : 'h-20 w-24 rounded-xl'} shrink-0 bg-muted bg-cover bg-center`}
-                        style={{ backgroundImage: `url("${note.preview_image_url.replace(/"/g, '%22')}")` }}
+                        style={{ backgroundImage: `url("${String(ownServerImage(note.preview_image_url)).replace(/"/g, '%22')}")` }}
                         role="img"
                         aria-label=""
                       />

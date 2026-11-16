@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import { Dispatch, useEffect, useMemo, useState } from 'react'
 import { Library, Loader2, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -222,7 +223,7 @@ export default function HubResourceLibrary({
                 {visibleResources.map((resource) => {
                   const imageSrc = resource.thumbnail_image && resource.owner_org_uuid
                     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
-                    : resource.cover_image_url
+                    : ownServerImage(resource.cover_image_url)
                   return (
                     <div
                       key={resource.resource_uuid}

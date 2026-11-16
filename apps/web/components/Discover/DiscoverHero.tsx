@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import { Tx } from '@components/Utils/useContentTranslation'
 import React from 'react'
 import Link from 'next/link'
@@ -13,7 +14,7 @@ import { tr } from '@/lib/tr'
 const DURATION_MS = 7000
 
 function HeroArtwork({ slide }: { slide: DiscoverHeroSlide }) {
-  if (slide.image_url) return <><img src={slide.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/5 md:bg-gradient-to-r" /></>
+  if (slide.image_url) return <><img src={ownServerImage(slide.image_url)} alt="" className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/5 md:bg-gradient-to-r" /></>
   if (slide.kind === 'plan' && slide.plan) return <>
     <div className="absolute inset-0 bg-[url('/rough_blue_background.png')] bg-cover opacity-40" />
     <div className="absolute right-4 top-6 -rotate-6 md:right-10 md:top-1/2 md:-translate-y-1/2" aria-hidden="true"><PlanArt card={slide.plan} size={170} /></div>
