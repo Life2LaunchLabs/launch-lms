@@ -77,3 +77,26 @@ def test_install_makes_drafts_and_a_learner_shows_met_planned_and_gap(db):
     assert [step.step_uuid for step in found] == [written["step_uuid"]]
     assert content.steps_for_code(db, LEARNER, 1, "EPP.INTERESTS.STRENGTHS") == []
     assert content.steps_for_code(db, LEARNER, 2, "EPP.INTERESTS.ASSESSMENTS") == []
+
+
+def test_setup_gives_a_school_the_published_plan_once(db):
+    from fastapi import HTTPException
+
+    assert content.installed(db, 1) is None
+    with pytest.raises(HTTPException):
+        content.setup(db, _user(LEARNER), 1)
+    made = content.setup(db, _user(ADMIN), 1)
+    assert made["published"] and made["template_uuid"] and made["framework_uuid"]
+    framework = db.exec(select(RequirementFramework).where(RequirementFramework.framework_uuid == made["framework_uuid"])).one()
+    template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == made["template_uuid"])).one()
+    assert framework.published_version and template.published_version_id
+    # Pressing it again keeps what the school has, with no second copy.
+    assert content.setup(db, _user(ADMIN), 1) == made
+    assert len(db.exec(select(RequirementFramework).where(RequirementFramework.org_id == 1)).all()) == 1
+    # A school that archived the plan gets a new one linked to the same framework.
+    template.status = "archived"
+    db.add(template)
+    db.commit()
+    again = content.setup(db, _user(ADMIN), 1)
+    assert again["framework_uuid"] == made["framework_uuid"] and again["template_uuid"] != made["template_uuid"] and again["published"]
+    assert len(db.exec(select(RequirementFramework).where(RequirementFramework.org_id == 1)).all()) == 1

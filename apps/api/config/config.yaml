@@ -66,8 +66,3 @@ payments_config:
     # Connect endpoint:   POST /payments/stripe/webhook/connect
     stripe_webhook_connect_secret: ""    # whsec_...
 
-tinybird_config:
-  # Set api_url to enable analytics automatically
-  api_url: ""
-  ingest_token: ""
-  read_token: ""

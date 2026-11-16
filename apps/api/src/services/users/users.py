@@ -29,8 +29,6 @@ from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
 from src.security.security import security_hash_password, security_verify_password
-from src.services.analytics import events as analytics_events
-from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
 from src.services.epp.records import freeze_exits
 from src.services.orgs.invites import get_invite_code, redeem_join_link
@@ -179,14 +177,6 @@ async def create_user(
     db_session.refresh(user_organization)
 
     user_read = UserRead.model_validate(user)
-
-    # Track user signup
-    await track(
-        event_name=analytics_events.USER_SIGNED_UP,
-        org_id=org_id,
-        user_id=user.id if user.id else 0,
-        properties={"signup_method": signup_provider},
-    )
 
     # Send verification email for non-OAuth users, account creation email for OAuth users
     if is_oauth:

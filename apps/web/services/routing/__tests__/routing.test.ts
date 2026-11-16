@@ -604,6 +604,7 @@ test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/').kind, 'public')
   assert.equal(classifyRoute('/welcome').kind, 'public')
   assert.equal(classifyRoute('/for-organizations').kind, 'public')
+  assert.equal(classifyRoute('/data').kind, 'public')
 })
 
 test('request policy serves the Privacy Policy and Terms of Use signed out on any address (DEV-23)', () => {
@@ -668,6 +669,22 @@ test('request policy serves welcome onboarding from the app route', () => {
   })
 
   assert.equal(decision.action, 'next')
+})
+
+test('request policy serves the student data page signed out on any address (DEV-25)', () => {
+  for (const host of ['launchlms.test', 'acme.launchlms.test']) {
+    const decision = resolveRequestRouting({
+      requestUrl: `https://${host}/data`,
+      pathname: '/data',
+      search: '',
+      host,
+      hasSession: false,
+      instanceInfo,
+      resolvedCustomDomainOrgSlug: null,
+      orgSubdomainAccess: null,
+    })
+    assert.equal(decision.action, 'next')
+  }
 })
 
 test('request policy allows unauthenticated badge entry pages', () => {

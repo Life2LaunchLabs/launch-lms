@@ -119,14 +119,12 @@ const getLAUNCHLMS_TOP_DOMAIN = () => {
   const domain = getLAUNCHLMS_DOMAIN()
   return domain.split(':')[0]
 }
-const getLAUNCHLMS_TELEMETRY_DISABLED = () => getConfig('NEXT_TELEMETRY_DISABLED', 'true').toLowerCase();
 
 // Export getter functions for dynamic runtime configuration
 export const getLAUNCHLMS_HTTP_PROTOCOL_VAL = getLAUNCHLMS_HTTP_PROTOCOL
 export const getLAUNCHLMS_BACKEND_URL_VAL = getLAUNCHLMS_BACKEND_URL
 export const getLAUNCHLMS_DOMAIN_VAL = getLAUNCHLMS_DOMAIN
 export const getLAUNCHLMS_TOP_DOMAIN_VAL = getLAUNCHLMS_TOP_DOMAIN
-export const getLAUNCHLMS_TELEMETRY_DISABLED_VAL = getLAUNCHLMS_TELEMETRY_DISABLED
 
 // Export constants for backward compatibility
 // These are computed once at module load, but getConfig uses runtime values
