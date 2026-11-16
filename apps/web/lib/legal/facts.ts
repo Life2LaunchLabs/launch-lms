@@ -27,12 +27,16 @@ export const OUTSIDE_IMAGES =
 export const LOG_RETENTION =
   'Server logs and error reports are kept for up to 90 days and then deleted. Error reports carry no names, email addresses, IP addresses or cookies.'
 
-/** Deletion: services/users/users.py delete_user_by_id removes the account and everything tied to it at once; 30 days is the policy set 2026-11-16. */
+/** Deletion: services/users/files.py delete_user_and_files removes the account, everything tied to it and its uploads (DEV-56); 30 days is the policy set 2026-11-16. */
 export const DELETION = {
   how: 'A learner, parent or school can ask for an account and its data to be deleted, through the school’s Life2Launch admin or by emailing team@life2launch.com. We confirm who is asking, then delete it within 30 days. An organization can also ask us to delete the organization and everything in it.',
   effect:
-    'Deleting an account removes it and everything tied to it (plans, work, messages, Coach conversations and memories) from the database. The one exception: a frozen Education Plan and Profile review copy that a school made with the learner’s agreement stays with that school.',
+    'Deleting an account removes it and everything tied to it (plans, work, messages, uploaded files, Coach conversations and memories). The one exception: a frozen Education Plan and Profile review copy that a school made with the learner’s agreement stays with that school.',
 }
 
 /** Download my data: services/users/data_export.py, Account › Your data. */
 export const SELF_EXPORT = 'Anyone signed in can download a copy of everything Life2Launch keeps about them, as one file, from Account › Your data.'
+
+/** Age: services/auth/age_check.py checks every self-service sign-up; accounts a school's single sign-on provisions skip it (Terms of Use). */
+export const AGE_CHECK =
+  'Accounts are only for people aged 13 and over. Every way to sign up on your own asks for a date of birth and refuses anyone younger. The date of birth itself is never stored: the account keeps only that the person is over 13 and the date this was checked. When a school signs its students in through its own single sign-on, Life2Launch does not ask again: under our Terms of Use the school confirms that everyone it enrolls is 13 or older.'

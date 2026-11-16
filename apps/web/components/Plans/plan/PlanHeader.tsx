@@ -50,11 +50,12 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
   const cover = <PlanCover plan={template} iconSize={34} className="h-[60px] w-[60px] shrink-0 rounded-2xl sm:h-[76px] sm:w-[76px] sm:rounded-[18px]">
     {editMode && menu.settings ? <span className="absolute -bottom-1.5 -right-1.5 grid h-[26px] w-[26px] place-items-center rounded-full border border-border bg-card text-foreground"><ImageIcon size={13} aria-hidden="true" /></span> : null}
   </PlanCover>
-  return <header>
-    {/* Phones put the buttons on their own row so the title keeps its width. */}
-    <div className="flex flex-wrap items-start gap-3.5 sm:flex-nowrap sm:gap-[18px]">
+  // Sized by the header's own width, not the screen's: beside the plan sidebar a wide screen still leaves a narrow column (FEED-126).
+  return <header className="@container">
+    {/* Until the header is wide enough for the title and the buttons side by side, the buttons get their own row so the title keeps its width. */}
+    <div className="flex flex-wrap items-start gap-3.5 sm:gap-[18px] @4xl:flex-nowrap">
       {editMode && menu.settings ? <button type="button" onClick={menu.settings} aria-label="Change the cover" className="relative shrink-0 overflow-visible rounded-[18px]">{cover}</button> : cover}
-      <div className="min-w-0 flex-1 basis-[calc(100%-74px)] sm:basis-0">
+      <div data-testid="plan-header-text" className="min-w-0 flex-1 basis-[calc(100%-74px)] sm:basis-[calc(100%-94px)] @4xl:basis-0">
         {editMode ? <EditableText editing={editing} field="title" value={shown.title} placeholder="Name your plan" className="text-[clamp(26px,3vw,36px)] font-extrabold leading-[1.15] tracking-[-0.035em]" />
           : <h1 className="break-words text-[clamp(26px,3vw,36px)] font-extrabold leading-[1.15] tracking-[-0.035em] text-foreground">{shown.title || 'Untitled plan'}</h1>}
         {editMode ? <EditableText editing={editing} field="description" value={shown.description || ''} placeholder={inOrgWords("Add a short description learners will see")} className="mt-1.5 text-base leading-normal text-muted-foreground focus:text-foreground" />
@@ -72,7 +73,7 @@ export default function PlanHeader({ editing, editMode, by, canSwitchLive, visib
         </div>
         {collections ? <div className="mt-2.5 flex flex-wrap gap-1.5">{collections}</div> : null}
       </div>
-      <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+      <div data-testid="plan-header-actions" className="flex w-full flex-wrap items-center gap-2 sm:pl-[94px] @4xl:w-auto @4xl:shrink-0 @4xl:pl-0">
         {share}
         {menu.preview ? <button type="button" onClick={menu.preview} title="See it as someone you assign it to" className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-semibold hover:bg-muted">
           <Eye size={16} aria-hidden="true" /><span className="hidden sm:inline">Preview</span><span className="sr-only sm:hidden">Preview</span></button> : null}

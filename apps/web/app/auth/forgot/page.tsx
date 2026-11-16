@@ -4,11 +4,12 @@ import ForgotPasswordClient from './forgot'
 import { Metadata } from 'next'
 import OrgNotFound from '@components/Objects/StyledElements/Error/OrgNotFound'
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ set?: string }> }): Promise<Metadata> {
   const orgslug = await getAuthBrandingOrgSlug()
+  const heading = (await searchParams).set === '1' ? 'Set a password' : 'Forgot Password'
 
   if (!orgslug) {
-    return { title: 'Forgot Password — Life2Launch' }
+    return { title: `${heading} — Life2Launch` }
   }
 
   const org = await getOrganizationContextInfo(orgslug, {
@@ -17,12 +18,14 @@ export async function generateMetadata(): Promise<Metadata> {
   })
 
   return {
-    title: 'Forgot Password' + ` — ${org?.name || 'Life2Launch'}`,
+    title: `${heading} — ${org?.name || 'Life2Launch'}`,
     robots: { index: false, follow: false },
   }
 }
 
-const ForgotPasswordPage = async () => {
+// "Set a password" links (?set=1) open this page for someone who never had one (DEV-42, FEED-292).
+const ForgotPasswordPage = async ({ searchParams }: { searchParams: Promise<{ set?: string }> }) => {
+  const { set } = await searchParams
   const orgslug = await getAuthBrandingOrgSlug()
 
   if (!orgslug) {
@@ -38,7 +41,7 @@ const ForgotPasswordPage = async () => {
     return <OrgNotFound />
   }
 
-  return <ForgotPasswordClient org={org} />
+  return <ForgotPasswordClient org={org} setPassword={set === '1'} />
 }
 
 export default ForgotPasswordPage

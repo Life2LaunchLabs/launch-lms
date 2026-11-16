@@ -10,7 +10,6 @@ import type { Resource } from '@services/resources/resources'
 import type { HubEditReviewItem } from '../HubContext'
 import { HubResourceTrayHandle } from '../resources/HubResourceContext'
 import HubResourceLibrary from '../resources/HubResourceLibrary'
-import HubMemoryNotice from './HubMemoryNotice'
 import { MicButton } from '@components/Accessibility/ReadAloud'
 
 import { tr } from '@/lib/tr'
@@ -36,11 +35,9 @@ type HubComposerProps = {
   loading: boolean
   // eslint-disable-next-line no-unused-vars
   onHeightChange: (height: number) => void
-  /** The whole overlay's height (notice, review bar, composer), so the thread can scroll clear of it. */
+  /** The whole overlay's height (review bar, resources, composer), so the thread can scroll clear of it. */
   // eslint-disable-next-line no-unused-vars
   onOverlayHeightChange?: (height: number) => void
-  // eslint-disable-next-line no-unused-vars
-  memory: { visible: boolean; enabled: boolean; saving: boolean; onSave: (enabled: boolean) => Promise<boolean>; onDismiss: () => Promise<void> }
   reviewItems: HubEditReviewItem[]
   // eslint-disable-next-line no-unused-vars
   onReview: (targetId: string) => void
@@ -56,8 +53,8 @@ type HubComposerProps = {
   onBrowse?: () => void
 }
 
-/** The composer and everything docked above it: memory choice, review prompt, resources in this chat. */
-const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function HubComposer({ orgslug, orgId, accessToken, draft, setDraft, onSubmit, onStop, sending, loading, onHeightChange, onOverlayHeightChange, memory, reviewItems, onReview, conversationStarted, contextResources, onOpenTray, libraryOpen, setLibraryOpen, onAddResource, onBrowse }, ref) {
+/** The composer and everything docked above it: review prompt, resources in this chat. The memory notice sits in the conversation itself (FEED-239). */
+const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function HubComposer({ orgslug, orgId, accessToken, draft, setDraft, onSubmit, onStop, sending, loading, onHeightChange, onOverlayHeightChange, reviewItems, onReview, conversationStarted, contextResources, onOpenTray, libraryOpen, setLibraryOpen, onAddResource, onBrowse }, ref) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const [fades, setFades] = useState({ top: false, bottom: false })
@@ -93,7 +90,6 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
   return <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[var(--z-sticky-header)]">
     <div aria-hidden="true" className="hub-composer-backdrop absolute bottom-0 left-0 right-2 -top-10" />
     <div ref={overlayRef} className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-3 pb-3 sm:px-4 sm:pb-4">
-      {memory.visible ? <HubMemoryNotice orgslug={orgslug} enabled={memory.enabled} saving={memory.saving} onSave={memory.onSave} onDismiss={() => void memory.onDismiss()} onLearnMore={(href) => { void memory.onDismiss().finally(() => window.location.assign(href)) }} /> : null}
       {reviewItems.length ? <div className="hub-edit-review-tray mb-2 flex items-center justify-between gap-3 rounded-2xl border-2 border-border bg-card px-3 py-2" role="status">
         <div className="min-w-0"><p className="truncate text-xs font-semibold">{tr('coach.hub_composer.ready_to_review', 'Ready to review')}</p><p className="truncate text-[11px] text-muted-foreground">{reviewItems.length === 1 ? reviewItems[0].label : tr('coach.hub_composer.length_objects_changed', '{{length}} objects changed', { length: reviewItems.length })}</p></div>
         <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => onReview(reviewItems[0].targetId)}>{tr('coach.hub_composer.review', 'Review')}{' '}<ArrowRight size={12} /></Button>

@@ -22,7 +22,7 @@ import { money, phaseOffset, short, type Projection } from '@components/LifePlan
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi, goalsUrl } from '@services/goals/goals'
 import type { GoalSummary } from '@services/goals/types'
-import type { Career, LifeDoc, Phase, PlacePhoto } from '@services/life/life'
+import type { Activity, Career, LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PhaseCover, { PhotoCredit } from './PhaseCover'
 import { uploadMediaAsset } from '@services/media/library'
 import { toast } from 'react-hot-toast'
@@ -74,6 +74,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const fileInput = React.useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = React.useState(false)
   const [pop, setPop] = React.useState<Pop>(null)
+  const actDraft = React.useRef<Activity | null>(null)
   const [showList, setShowList] = React.useState(false)
   // Estimates: open to start the budget, or after a pick changed (base = the phase before). `waiting` keeps a change put off with Not now.
   const [est, setEst] = React.useState<{ mode: EstimatesMode; base: Phase | null; auto?: boolean } | null>(null)
@@ -155,6 +156,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const left = items.filter((i) => !i.done)
   const gaps = careerGaps(doc, phase, careers)
   const nexts = kids(doc, phase.id)
+  // Done keeps a half-made pick (a job and employer not yet confirmed with the chip), as picking it would.
+  const addActivity = (a: Activity) => { actDraft.current = null; void edit((p) => { p.activities = [...(p.activities || []), a] }, { picks: true, retitle: true }); setPop(null) }
   const fixItem = (key: CheckItem['key']) => {
     if (key === 'goals') { void startGoal(phase.id); return }
     if (key === 'budget') { router.push(getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))); return }
@@ -192,8 +195,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
             {(phase.activities || []).length ? <ul className="grid gap-1.5">{phase.activities!.map((a, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 font-bold"><span className="flex-1">{activityText(a)}</span>
               <button type="button" className="text-sm font-bold text-muted-foreground hover:text-destructive" onClick={() => { void edit((p) => { p.activities = (p.activities || []).filter((_, j) => j !== i) }, { picks: true, retitle: true }) }}>{tr('goals.upload.remove', 'Remove')}</button></li>)}</ul> : null}
             <p className="text-sm font-bold text-muted-foreground">{phase.activities?.length ? tr('goals.phase_page.add_another_two_jobs_school', 'Add another (two jobs, school and a job: all fine)') : tr('goals.phase_page.pick_one', 'Pick one')}</p>
-            <ActivityPicker token={token} onPick={(a) => { void edit((p) => { p.activities = [...(p.activities || []), a] }, { picks: true, retitle: true }); setPop(null) }} /></> : null}
-          <Button size="sm" variant="surface" className="w-fit" onClick={() => setPop(null)}>{tr('goals.routine_action.done', 'Done')}</Button>
+            <ActivityPicker token={token} onDraft={(a) => { actDraft.current = a }} onPick={addActivity} /></> : null}
+          <Button size="sm" variant="surface" className="w-fit" onClick={() => { if (pop === 'doing' && actDraft.current) addActivity(actDraft.current); else setPop(null) }}>{tr('goals.routine_action.done', 'Done')}</Button>
         </div> : null}
       </div>
 

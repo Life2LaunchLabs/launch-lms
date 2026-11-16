@@ -51,7 +51,9 @@ def _owns_test_org(db: Session, persona) -> bool:
 
 
 def admin_org_slug(db: Session, persona) -> str | None:
-    """The run's org this persona runs as an admin, if any: where its day starts, not the learner Launchpad."""
+    """The run's org this persona works in as an admin or staff member, if any: where its day starts,
+    not the learner Launchpad. Staff count too, like the Login form's landing for someone with nothing
+    remembered (signedInLanding on the web), so a test link exercises the same landing (DEV-42, FEED-286)."""
     from sqlmodel import col, select
     from src.db.organizations import Organization
     from src.db.user_organizations import UserOrganization
@@ -60,7 +62,7 @@ def admin_org_slug(db: Session, persona) -> str | None:
     return db.exec(select(Organization.slug).join(TestCohortOrg, col(TestCohortOrg.org_id) == Organization.id)
                    .join(UserOrganization, col(UserOrganization.org_id) == Organization.id)
                    .where(TestCohortOrg.cohort_id == persona.cohort_id, UserOrganization.user_id == persona.user_id,
-                          UserOrganization.role_id == 1).order_by(col(TestCohortOrg.creation_date))).first()
+                          col(UserOrganization.role_id).in_((1, 2))).order_by(col(UserOrganization.role_id), col(TestCohortOrg.creation_date))).first()
 
 
 def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str = "/", ttl: timedelta = TICKET_TTL) -> dict:
@@ -118,7 +120,7 @@ def redeem(db: Session, token: str) -> dict:
     if not user or not persona or not sessions.is_platform_admin(ticket.operator_user_id, db):
         raise invalid
     cohort = sessions.open_cohort(db, persona.cohort_id)
-    # An org's admin starts on that org's admin, on its own site, and admin pages open there too.
+    # An org's admin or staff starts on that org's admin, on its own site, and admin pages open there too.
     for_org = ticket.target_path == "/" or ticket.target_path.startswith((ADMIN_PATH + "/", ADMIN_PATH + "?")) or ticket.target_path == ADMIN_PATH
     org_slug = admin_org_slug(db, persona) if for_org else None
     return {

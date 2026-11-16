@@ -15,7 +15,7 @@ export default function ActivityPreviewPage({ token, embedded }: { token: string
 
   return (
     <main className={`${embedded ? 'h-dvh bg-zinc-100 p-2' : 'h-dvh bg-zinc-950 p-4 sm:p-6'} flex flex-col`}>
-      <ActivityPreview token={token} onEvent={relay} allowFeedback={embedded} dark={!embedded} />
+      <ActivityPreview token={token} onEvent={relay} allowFeedback={embedded} appearance={embedded ? 'light' : 'dark'} />
     </main>
   )
 }

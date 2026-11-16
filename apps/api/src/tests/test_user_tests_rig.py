@@ -124,5 +124,20 @@ def test_an_org_admin_persona_lands_on_its_orgs_admin_and_links_can_wait_for_a_r
     invite = redeem(tickets.mint(db, 1, dana["user_id"], "/admin/threads?invite=staff"))
     assert invite["target_path"] == "/admin/threads?invite=staff" and invite["target_org_slug"] == landing["target_org_slug"]  # on her org's site
     assert redeem(tickets.mint(db, 1, maya["user_id"]))["target_org_slug"] is None  # a learner starts at home
+    # Invited as staff, she starts on the school's admin too, like the Login form's landing (DEV-42, FEED-286).
+    from sqlmodel import select
+    from src.db.user_organizations import UserOrganization
+    from src.db.user_tests import TestCohortOrg
+
+    school = db.exec(select(TestCohortOrg.org_id).where(TestCohortOrg.created_by_user_id == dana["user_id"])).one()
+    membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == maya["user_id"], UserOrganization.org_id == school)).first()
+    if membership:
+        membership.role_id = 2
+    else:
+        membership = UserOrganization(user_id=maya["user_id"], org_id=school, role_id=2, creation_date="", update_date="")
+    db.add(membership)
+    db.commit()
+    staff = redeem(tickets.mint(db, 1, maya["user_id"]))
+    assert staff["target_path"] == "/admin" and staff["target_org_slug"] == landing["target_org_slug"]
     later = tickets.mint(db, 1, maya["user_id"], ttl=timedelta(hours=5))
     assert datetime.fromisoformat(later["expires_at"].rstrip("Z")) - datetime.utcnow() <= timedelta(minutes=30)

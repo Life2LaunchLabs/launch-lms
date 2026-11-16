@@ -71,6 +71,24 @@ export function activityText(a?: Activity | null): string {
   return KINDS.find((k) => k.key === a.kind)?.title || ''
 }
 
+/** Where someone is in the activity picker: the kind, the school level, the career and what's typed. */
+export interface ActivityDraft { kind: Activity['kind'] | null; level: string | null; career: { code: string; title: string } | null; typed: string }
+
+/**
+ * What the activity picker holds right now, so Done can keep it (FEED-117: Done used to drop a job and
+ * employer that weren't confirmed with the chip). Null until there's something to keep: a kind alone
+ * that still needs a level or a career keeps nothing.
+ */
+export function pendingActivity({ kind, level, career, typed }: ActivityDraft): Activity | null {
+  const text = typed.trim()
+  if (kind === 'learning') return level ? (text ? { kind, level, school: text } : { kind, level }) : null
+  if (kind === 'working') {
+    if (career) return { kind, career: career.code, career_title: career.title, employer: text || null }
+    return text ? { kind, career_title: text } : null
+  }
+  return null
+}
+
 /**
  * The line above a phase's name: what you're doing, unless that just repeats the name ("Cashier" over
  * "Cashier"), then the kind of thing it is ("Working").

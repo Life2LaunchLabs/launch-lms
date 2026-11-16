@@ -268,7 +268,7 @@ function SignedOut({ orgslug, invited }: { orgslug: string; invited?: string }) 
       <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{tr('goals.goals_workspace.sign_in_to_accept', 'You already have a Life2Launch account with the address this was sent to. Sign in to accept it. Never set a password? Set one now with that address.')}</p>
       <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button asChild variant="brand"><Link href={`/login?next=${next}`}>{tr('goals.goals_workspace.sign_in_to_accept_button', 'Sign in to accept')}</Link></Button>
-        <Button asChild variant="surface"><Link href="/forgot">{tr('goals.goals_workspace.set_a_password', 'Set a password')}</Link></Button>
+        <Button asChild variant="surface"><Link href="/forgot?set=1">{tr('goals.goals_workspace.set_a_password', 'Set a password')}</Link></Button>
       </div>
     </div></GeneralWrapperStyled>
   }

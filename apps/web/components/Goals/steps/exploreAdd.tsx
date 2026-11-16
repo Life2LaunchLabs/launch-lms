@@ -9,7 +9,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { uploadMediaAsset, type MediaType } from '@services/media/library'
-import { getResourceUrlPreview, getResources, type Resource } from '@services/resources/resources'
+import { getResource, getResourceUrlPreview, getResources, type Resource } from '@services/resources/resources'
+import { getLAUNCHLMS_TOP_DOMAIN_VAL } from '@services/config/config'
+import { appLinkOf } from '@services/goals/appLinks'
+import { planJoiningApi } from '@services/goals/planJoining'
+import { normalizeMediaUrl } from '@services/media/media'
+import { resourceImage } from '@components/Discover/ResourceCover'
 import type { StepActions } from './registry'
 
 import { tr } from '@/lib/tr'
@@ -17,6 +22,23 @@ import { tr } from '@/lib/tr'
 export const BOARD_FILES = 'image/*,video/*,application/pdf'
 const mediaType = (file: File): MediaType | null => file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : file.type === 'application/pdf' ? 'document' : null
 const hostOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url } }
+const storedImage = (url?: string | null) => url && /^(https?:\/\/|\/)/i.test(url) ? normalizeMediaUrl(url) : ''
+
+/**
+ * A link to the app's own resource or plan, named from the app: fetching the page itself gives
+ * only the site's name (a resource opens as a sheet over Discover) or nothing behind a sign-in.
+ */
+async function appPreview(url: string, token?: string): Promise<{ title: string; og_image: string } | null> {
+  const link = appLinkOf(url, getLAUNCHLMS_TOP_DOMAIN_VAL())
+  if (!link) return null
+  if (link.kind === 'resource') {
+    const resource = await getResource(link.uuid, token)
+    return resource?.title ? { title: resource.title, og_image: resourceImage(resource) || '' } : null
+  }
+  const plan = await planJoiningApi.plan(link.uuid, token)
+  return plan?.title ? { title: plan.title, og_image: storedImage(plan.badge?.image_url) || storedImage(plan.thumbnail_image) } : null
+}
+
 const linkIn = (text: string) => text.trim().split(/\s+/).find((word) => /^https?:\/\/\S+$/i.test(word)) || ''
 
 /** Adding to a board from anywhere: a pasted or dropped link (titled from the page), or files. */
@@ -24,7 +46,7 @@ export function useBoardIngest(actions: StepActions, token?: string, viewerUserI
   const [adding, setAdding] = React.useState(0)
   const track = async (work: () => Promise<unknown>) => { setAdding((count) => count + 1); try { await work() } finally { setAdding((count) => count - 1) } }
   const addLink = (url: string, title = '') => track(async () => {
-    const preview = title ? null : await getResourceUrlPreview(url, token).catch(() => null)
+    const preview = title ? null : await appPreview(url, token).catch(() => null) || await getResourceUrlPreview(url, token).catch(() => null)
     const image = preview?.og_image || ''
     await actions.addEntry({ kind: 'link', url, title: title || preview?.title?.trim() || hostOf(url), data: image ? { image } : {} })
   })
