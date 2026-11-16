@@ -25,6 +25,7 @@ from src.services.shared_content import owner_org_payload
 from src.services.search.resource_search import rank_resources
 from src.services import resources as base
 from src.services.resource_comments import _author, _comment_rule, _report_counts
+from src.services.user_tests.visibility import visible_ratings
 
 
 def _orgs_by_id(org_ids: set[int], db_session: Session) -> dict[int, Organization]:
@@ -62,7 +63,7 @@ def _channel_cards(channels: list[ResourceChannel], org_id: int, db_session: Ses
         rows = db_session.exec(
             select(ResourceChannelResource.channel_id, ResourceComment.id, ResourceComment.status)
             .join(ResourceComment, ResourceComment.resource_id == ResourceChannelResource.resource_id)
-            .where(ResourceChannelResource.channel_id.in_(own_ids), ResourceComment.status != CommentStatus.hidden)
+            .where(ResourceChannelResource.channel_id.in_(own_ids), ResourceComment.status != CommentStatus.hidden, visible_ratings(db_session, ResourceComment.author_id))
         ).all()
         reports = _report_counts([comment_id for _, comment_id, _ in rows], db_session)
         for channel_id, comment_id, status in rows:
@@ -118,7 +119,7 @@ def _resource_rows(resources: list[Resource], org_id: int, db_session: Session) 
     if own_ids:
         rows = db_session.exec(
             select(ResourceComment.resource_id, ResourceComment.id, ResourceComment.status)
-            .where(ResourceComment.resource_id.in_(own_ids), ResourceComment.status != CommentStatus.hidden)
+            .where(ResourceComment.resource_id.in_(own_ids), ResourceComment.status != CommentStatus.hidden, visible_ratings(db_session, ResourceComment.author_id))
         ).all()
         reports = _report_counts([comment_id for _, comment_id, _ in rows], db_session)
         for resource_id, comment_id, status in rows:

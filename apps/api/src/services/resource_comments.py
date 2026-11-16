@@ -25,6 +25,7 @@ from src.db.users import PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
 from src.services import resources as base
+from src.services.user_tests.visibility import visible_ratings
 
 
 LINK_PATTERN = re.compile(r"https?://|www\.|\b[a-z0-9-]+\.(?:com|org|net|gov|edu|io|biz|info|co|app|ly)\b", re.IGNORECASE)
@@ -114,7 +115,7 @@ async def list_comments(request: Request, resource_uuid: str, current_user, db_s
     statement = (
         select(ResourceComment, User)
         .join(User, User.id == ResourceComment.author_id)
-        .where(ResourceComment.resource_id == resource.id)
+        .where(ResourceComment.resource_id == resource.id, visible_ratings(db_session, ResourceComment.author_id, getattr(current_user, "id", None) or None))
         .order_by(ResourceComment.creation_date.asc())
     )
     if not moderator:
@@ -311,7 +312,7 @@ async def list_channel_comments(request: Request, channel_uuid: str, current_use
         .join(User, User.id == ResourceComment.author_id)
         .join(Resource, Resource.id == ResourceComment.resource_id)
         .join(ResourceChannelResource, ResourceChannelResource.resource_id == Resource.id)
-        .where(ResourceChannelResource.channel_id == channel.id)
+        .where(ResourceChannelResource.channel_id == channel.id, visible_ratings(db_session, ResourceComment.author_id, getattr(current_user, "id", None) or None))
         .order_by(ResourceComment.creation_date.desc())
     ).all())
     out = _comments_out([(comment, user) for comment, user, _ in rows], channel.org_id, db_session, True)

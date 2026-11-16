@@ -64,6 +64,7 @@ from src.services.search.resource_search import (
 )
 from src.services.utils.link_preview import is_block_page
 from src.services.utils.upload_content import upload_file
+from src.services.user_tests.visibility import visible_ratings
 
 
 def _now() -> str:
@@ -348,7 +349,7 @@ def _resource_counts_map(
     ).all()
     comment_counts_raw = db_session.exec(
         select(ResourceComment.resource_id, func.count(ResourceComment.id))
-        .where(ResourceComment.resource_id.in_(resource_ids), ResourceComment.status == CommentStatus.live)
+        .where(ResourceComment.resource_id.in_(resource_ids), ResourceComment.status == CommentStatus.live, visible_ratings(db_session, ResourceComment.author_id))
         .group_by(ResourceComment.resource_id)
     ).all()
     rating_summaries_raw = db_session.exec(
@@ -361,6 +362,7 @@ def _resource_counts_map(
             ResourceComment.resource_id.in_(resource_ids),
             ResourceComment.rating.is_not(None),
             ResourceComment.status == CommentStatus.live,
+            visible_ratings(db_session, ResourceComment.author_id),
         )
         .group_by(ResourceComment.resource_id)
     ).all()
