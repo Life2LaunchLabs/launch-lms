@@ -2,7 +2,8 @@
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useFormik } from 'formik'
 import React, { useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
+import AccountExistsNotice, { inviteLoginHref } from './AccountExistsNotice'
 import FormLayout, {
   FormField,
   FormLabelAndMessage,
@@ -66,6 +67,9 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const { signIn } = useAuth()
   const [error, setError] = React.useState('')
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+  // Someone who already has an account: log in and come back to this invitation, email filled in (DEV-42, FEED-284/285).
+  const [accountExists, setAccountExists] = React.useState(false)
   const nextUrl = searchParams.get('next')
   const postSignupUrl =
     nextUrl || props.postSignupUrl || '/'
@@ -84,6 +88,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
     enableReinitialize: true,
     onSubmit: async (values) => {
       setError('')
+      setAccountExists(false)
       setIsSubmitting(true)
       const body = { ...values, birth_date: age.birthDate }
       let res = props.invitationToken
@@ -118,7 +123,8 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
         res.status == 404 ||
         res.status == 409
       ) {
-        setError(result.detail)
+        if (result.detail === 'Email already exists') setAccountExists(true)
+        else setError(result.detail)
         setIsSubmitting(false)
       } else {
         setError(t('common.something_went_wrong'))
@@ -128,6 +134,8 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   })
 
   useEffect(() => { }, [org])
+
+  const loginHref = inviteLoginHref(pathname, searchParams.toString(), formik.values.email)
 
   return (
     <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
@@ -145,6 +153,8 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
           <div className="font-bold text-sm">{error}</div>
         </div>
       )}
+
+      {accountExists && <AccountExistsNotice loginHref={loginHref} />}
 
       {/* Signup Form Card */}
       <div className="bg-white rounded-xl p-6 nice-shadow">
@@ -261,7 +271,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
       {/* Login Link */}
       <p className="text-center text-gray-600 mt-6">
         {t('auth.already_have_account')}{' '}
-        <Link href="/login" className="font-semibold text-gray-900 hover:underline">
+        <Link href={loginHref} className="font-semibold text-gray-900 hover:underline">
           {t('auth.login')}
         </Link>
       </p>
