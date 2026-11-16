@@ -3,7 +3,7 @@
 import React from 'react'
 import { MessageSquarePlus, Monitor, RotateCcw, Send, Smartphone, X } from 'lucide-react'
 import { getLearningPreview, stepLearningPreview } from '@services/learning/activityDocuments'
-import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from '@components/Learning/editor/constants'
+import { DEVICE_BEZEL_CLASS, DEVICE_FRAMES, MOBILE_FRAME_CAP } from '@components/Learning/editor/constants'
 import type { DeviceMode } from '@components/Learning/editor/types'
 import { ActivityPlayer, type ActivityPlayerEvent, type ActivityRuntime } from './ActivityPlayer'
 
@@ -155,7 +155,7 @@ export function ActivityPreview({
       <div ref={stageRef} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <div
           style={{ width: frame.width, height: shellHeight, minWidth: frame.width, minHeight: shellHeight, transform: `scale(${scale})`, transformOrigin: 'center center' }}
-          className={`${device === 'mobile' ? 'rounded-[2rem] bg-[#000] p-[10px]' : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-8 ring-black/5`}
+          className={`${device === 'mobile' ? `rounded-[2rem] ${DEVICE_BEZEL_CLASS} p-[10px]` : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-8 ring-black/5`}
         >
           <div
             data-learning-preview-frame

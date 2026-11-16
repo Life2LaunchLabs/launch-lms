@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import { buildActivityDocument, createLearningPreview } from '@services/learning/activityDocuments'
 import { ActivityPreview, type PreviewEvent } from './ActivityPreview'
@@ -11,6 +12,9 @@ import { ActivityPreview, type PreviewEvent } from './ActivityPreview'
 // activity as saved, as staff do to try one before their learners get to it.
 // The backdrop is the theme's own page color, so the preview reads right in light and dark.
 export const PREVIEW_SCRIM_CLASS = 'bg-background/95 text-foreground backdrop-blur-sm'
+// It renders on <body> at the modal layer: inside the editor it sat in the page's stacking
+// context, under the admin's sticky phone top bar, which hid its Close and Restart.
+export const PREVIEW_LAYER_CLASS = 'fixed inset-0 z-[var(--z-modal)]'
 
 // eslint-disable-next-line no-unused-vars
 export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEvent }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void; onEvent?: (event: PreviewEvent) => void }) {
@@ -34,8 +38,8 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEv
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
-    <div className={`fixed inset-0 z-50 flex flex-col p-4 sm:p-6 ${PREVIEW_SCRIM_CLASS}`} role="dialog" aria-modal="true" aria-label="Activity preview">
+  const dialog = (
+    <div className={`${PREVIEW_LAYER_CLASS} flex flex-col p-4 sm:p-6 ${PREVIEW_SCRIM_CLASS}`} role="dialog" aria-modal="true" aria-label="Activity preview">
       {token ? (
         <ActivityPreview token={token} onClose={onClose} onEvent={onEvent} />
       ) : (
@@ -62,4 +66,6 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEv
       )}
     </div>
   )
+  // Opened only from a click, so there is always a document; the server render (tests) stays inline.
+  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
 }
