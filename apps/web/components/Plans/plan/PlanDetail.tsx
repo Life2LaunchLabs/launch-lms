@@ -98,7 +98,7 @@ function PlanPage({ orgslug, org, orgId, token, editing, panel }: { orgslug: str
             share={template.live_version && visibility.learners ? <PlanShare orgslug={orgslug} orgName={org?.name || 'your organization'} templateUuid={template.template_uuid}
               access={visibility.learners.access} onVisibility={menu.visibility} /> : null}
             collections={owned ? <PlanCollections orgslug={orgslug} orgId={orgId} token={token} template={template} canEdit={canEdit} /> : null}
-            visibility={<VisibilityChip orgId={orgId} token={token} template={template} open={visibilityOpen} setOpen={setVisibilityOpen} />} />
+            visibility={<VisibilityChip orgId={orgId} orgName={org?.name || 'your organization'} token={token} template={template} open={visibilityOpen} setOpen={setVisibilityOpen} />} />
           {canEdit ? <DraftBar orgId={orgId} token={token} editing={editing} canAssign={canAssign} onVisibility={menu.visibility} /> : null}
           <StaleTemplateBanner editing={editing} />
           <PlanSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} document={document} editMode={canEdit} />

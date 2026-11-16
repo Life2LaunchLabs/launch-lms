@@ -269,3 +269,17 @@ def test_a_handed_plan_names_only_its_school_and_plan_before_sign_in():
         # The email links to Plans with this goal named.
         item = _plan_assigned(NotificationEvent(kind="plan_assigned", data={"goal_uuid": goal.goal_uuid, "plan_title": goal.title}), org)
         assert item.link.endswith(f"/orgs/{org.slug}/plans?invited={goal.goal_uuid}")
+
+
+def test_a_signed_out_visitor_sees_an_open_plans_offer_on_its_share_link_but_not_an_invite_only_plan():
+    # FEED-124: an open plan's share link (/orgs/<slug>/discover/plans/<uuid>) said "Not open to join" to a volunteer without an account.
+    db, _plans = _setup()
+    with db:
+        plain = _published(db, *STEPS)  # no badge, so no public criteria page
+        _offer(db, plain, 1, "invite")
+        with pytest.raises(HTTPException) as hidden:
+            plan_joining.plan_page(db, AnonymousUser(), plain.template_uuid, 1)
+        assert hidden.value.status_code == 404
+        _offer(db, plain, 1, "open")
+        offers = plan_joining.plan_page(db, AnonymousUser(), plain.template_uuid, 1)["offers"]
+        assert [(card["org"]["id"], card["access"], card["state"]) for card in offers] == [(1, "open", "none")]

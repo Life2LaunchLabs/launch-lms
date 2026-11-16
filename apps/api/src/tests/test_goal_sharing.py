@@ -316,3 +316,26 @@ def test_goal_lifecycle_archive_finish_reopen_celebrate_and_delete():
         assert not_owner.value.status_code == 403
         assert lifecycle.delete(db, _user(LEARNER), uuid)["deleted"]
         assert db.exec(select(Goal).where(Goal.goal_uuid == uuid)).first() is None
+
+
+def test_a_personal_invitation_names_the_sender_greets_by_name_and_says_what_an_editor_does(monkeypatch):
+    # FEED-134/140: a mom's invite said "A Life2Launch member", greeted her son by email address and called him an "Editor".
+    from src.services.goals import invitation_emails
+
+    sent: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(invitation_emails, "send_email", lambda to, subject, body: sent.append((to, subject, body)))
+    with _session() as db:
+        uuid = _personal(db, title="Fix a flat tire")["goal_uuid"]
+        _invite(db, uuid, OTHER_EMAIL, "editor")
+        message = db.exec(select(InboxMessage)).one()
+        assert message.body.startswith("Lee Arner invited you to work on Fix a flat tire")
+        assert "A Life2Launch member" not in message.body and "check off steps" in message.body and "Editor" in message.body
+        to, subject, body = sent[-1]
+        assert to == OTHER_EMAIL and subject == "Lee Arner invited you to Fix a flat tire"
+        assert "Hi Sam," in body and f"Hello {OTHER_EMAIL}" not in body and "check off steps" in body
+        # Someone without an account yet is greeted plainly, never by their address.
+        _invite(db, uuid, "new@example.com", "viewer")
+        assert "Hi there," in sent[-1][2] and "new@example.com" not in sent[-1][2].split("<a ")[0]
+        # The invitation list says what the role lets them do too.
+        mine = sharing.list_my_invitations(db, _user(OTHER).model_copy(update={"email": OTHER_EMAIL}))
+        assert mine[0]["role"]["means"] and mine[0]["invited_by"]["name"] == "Lee Arner"

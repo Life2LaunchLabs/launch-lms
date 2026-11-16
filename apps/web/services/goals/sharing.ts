@@ -79,7 +79,7 @@ export interface ReceivedInvitation {
   organization: OrgRef | null
   subject: GoalPerson | null
   invited_by: GoalPerson | null
-  role: { key: string; name: string }
+  role: { key: string; name: string; means?: string | null }
 }
 
 /** A goal an organization handed the learner, shown on the organization page. */

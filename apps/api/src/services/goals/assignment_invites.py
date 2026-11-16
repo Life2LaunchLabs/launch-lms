@@ -12,11 +12,10 @@ from sqlmodel import Session, col, select
 
 from src.db.goal_sharing import PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
 from src.db.goals import Goal
-from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.services.goals import access
 from src.services.goals.assignment_staff import require_assignment_manager
-from src.services.goals.invitation_emails import send_plan_invitation
+from src.services.goals.invitation_emails import invitation_text, send_plan_invitation
 from src.services.messages import create_inbox_message
 
 
@@ -26,8 +25,6 @@ def resend(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
     goals = {int(goal.id): goal for goal in db.exec(select(Goal).where(Goal.assignment_id == assignment.id, col(Goal.subject_user_id).is_(None))).all()}  # type: ignore[arg-type]
     if not goals:
         return {"sent": 0}
-    org = db.get(Organization, org_id)
-    sender = org.name if org else "A Life2Launch member"
     now = datetime.now().isoformat()
     sent = 0
     for invitation in db.exec(select(PlanInvitation).where(col(PlanInvitation.goal_id).in_(list(goals)), PlanInvitation.kind == PlanInvitationKind.SUBJECT,
@@ -35,7 +32,7 @@ def resend(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
         goal = goals[int(invitation.goal_id)]
         create_inbox_message(
             db, recipient_user_id=None, recipient_email=invitation.email, sender_org_id=org_id, sender_user_id=int(current_user.id),
-            message_type="invitation", subject=f"Invitation to {goal.title}", body=f"{sender} invited you to work on {goal.title}.",
+            message_type="invitation", subject=f"Invitation to {goal.title}", body=invitation_text(db, goal, invitation),
             action_url=f"/goals/{goal.goal_uuid}", action_kind="goal_invitation",
             action_data={"invitation_uuid": invitation.invitation_uuid, "goal_uuid": goal.goal_uuid, "goal_title": goal.title},
             dedupe_key=f"goal_invitation:{invitation.invitation_uuid}:{now}",
