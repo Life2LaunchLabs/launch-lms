@@ -3,8 +3,10 @@
 Assumption (Product lead, 2026-11-15): the bulk export is the single-learner "Download my data" workbook with
 more learners listed. Of its sheets, Profile (and About this export) hold one row per learner; every other sheet
 holds many rows per learner and needs a column that says whose row it is. We look for that column by name
-(``LEARNER_COLUMNS``), on Profile first. Until a sample bulk export confirms the real column names, a file
-without one of them is refused with a clear message rather than guessed at.
+(``LEARNER_COLUMNS``), on Profile first. If there is none, rows are matched on the learner's name (first and
+last name, or a name column), which every sheet of the download is assumed to carry too. No sample bulk export
+was available before release (Henry, 2026-11-16: ship on the assumption, patch later); a file with neither is
+refused with a clear message rather than guessed at.
 
 A single learner's download (one Profile row, no learner column) reads as a bulk export of one, so staff can
 use the same preview and send for either.
@@ -70,45 +72,76 @@ def learner_key(value: str) -> str:
     return "lrn_" + hashlib.sha1(_norm(value).encode()).hexdigest()[:16]
 
 
+def _name_columns(rows: list[dict]) -> tuple[str, ...]:
+    """The columns that together give a learner's name in a sheet: first and last name, or one name column."""
+    first, last = _column(rows, FIRST_NAME_COLUMNS), _column(rows, LAST_NAME_COLUMNS)
+    if first and last:
+        return (first, last)
+    name = _column(rows, NAME_COLUMNS)
+    return (name,) if name else ()
+
+
+def _key(row: dict, columns: tuple[str, ...]) -> str:
+    """Whose row this is, from its key columns; empty when any of them is blank."""
+    parts = [_norm(_value(row, column)) for column in columns]
+    return "|".join(parts) if columns and all(parts) else ""
+
+
 def split(sheets: dict[str, list[dict]]) -> dict:
-    """``{learners: [{key, name, email, sheets}], unmatched: {sheet: rows}, column}`` for a CIS export's sheets."""
+    """``{learners: [{key, name, email, sheets}], unmatched: {sheet: rows}, column}`` for a CIS export's sheets.
+
+    Rows are matched to learners on a learner column (``LEARNER_COLUMNS``) when the export has one, otherwise on
+    the learner's name (first and last name, or a name column) on every sheet. Two learners with the same name
+    can't be told apart that way, so neither is listed and their rows count as unmatched."""
     roster_title, roster = _roster(sheets)
     column = _column(roster, LEARNER_COLUMNS)
-    if column is None:
+    by_name = column is None
+    roster_columns = (column,) if column else _name_columns(roster)
+    if not roster_columns or (by_name and len(roster) == 1):
         if len(roster) == 1:
             # A single learner's download: every row is theirs.
             person = _identity(roster[0])
             return {"learners": [{"key": learner_key(person["email"] or person["name"] or "learner"), **person, "sheets": sheets}], "unmatched": {}, "column": None}
         raise HTTPException(
             status_code=422,
-            detail="This export lists several learners but has no column saying whose row is whose (such as Student ID or E-mail)",
+            detail="This export lists several learners but has no column saying whose row is whose (such as Student ID, E-mail or their name)",
         )
     if len(roster) > MAX_LEARNERS:
         raise HTTPException(status_code=413, detail=f"This export has more than {MAX_LEARNERS} learners. Split it and upload each part.")
     learners: dict[str, dict] = {}
+    seen: dict[str, int] = {}
     for row in roster:
-        value = _value(row, column)
+        value = _key(row, roster_columns)
         if not value:
             continue
-        key = learner_key(value)
-        if key not in learners:
-            learners[key] = {"key": key, **_identity(row), "sheets": {}, "_value": _norm(value)}
-    by_value = {learner["_value"]: learner for learner in learners.values()}
+        seen[value] = seen.get(value, 0) + 1
+        if value not in learners:
+            learners[value] = {"key": learner_key(value), **_identity(row), "sheets": {}}
+    if by_name:
+        # Two learners with the same name: we can't tell whose rows are whose, so neither comes over.
+        for value, count in seen.items():
+            if count > 1:
+                learners.pop(value)
     unmatched: dict[str, int] = {}
     for title, rows in sheets.items():
-        sheet_column = column if title == roster_title else _column(rows, (_norm(column),)) or _column(rows, LEARNER_COLUMNS)
+        if title == roster_title:
+            sheet_columns = roster_columns
+        elif by_name:
+            sheet_columns = _name_columns(rows)
+        else:
+            found = _column(rows, (_norm(column),)) or _column(rows, LEARNER_COLUMNS)
+            sheet_columns = (found,) if found else ()
         for row in rows:
-            owner = by_value.get(_norm(_value(row, sheet_column))) if sheet_column else None
+            owner = learners.get(_key(row, sheet_columns))
             if owner is None:
                 unmatched[title] = unmatched.get(title, 0) + 1
                 continue
-            # Without the learner column the slice is laid out like the learner's own download (the profiler
+            # Without the learner columns the slice is laid out like the learner's own download (the profiler
             # is re-scored from its answer columns in order, so an extra column would shift them).
-            kept = row if title == roster_title else {name: value for name, value in row.items() if name != sheet_column}
+            kept = row if title == roster_title else {name: value for name, value in row.items() if name not in sheet_columns}
             owner["sheets"].setdefault(title, []).append(kept)
-    for learner in learners.values():
-        learner.pop("_value")
-    return {"learners": list(learners.values()), "unmatched": unmatched, "column": column}
+    label = column or " + ".join(roster_columns)
+    return {"learners": list(learners.values()), "unmatched": unmatched, "column": label}
 
 
 def _problem(learner: dict, seen: set[str]) -> str | None:

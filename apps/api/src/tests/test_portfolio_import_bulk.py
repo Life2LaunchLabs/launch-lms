@@ -113,11 +113,35 @@ def test_a_single_learners_download_is_a_bulk_export_of_one():
     assert held["content"] == download and held["filename"] == "cis.zip"
 
 
-def test_several_learners_with_no_learner_column_is_refused_not_guessed():
-    content = _book(("Profile", ["Last name", "First name"], [["Rivera", "Maya"], ["Chen", "Leo"]]))
+def test_several_learners_with_no_learner_column_or_names_is_refused_not_guessed():
+    content = _book(("Profile", ["Gender", "Grade"], [["F", "9"], ["M", "10"]]))
     with pytest.raises(HTTPException) as error:
         bulk.preview(content, "bulk.xlsx")
     assert error.value.status_code == 422 and "whose row" in error.value.detail
+
+
+def test_without_a_learner_column_rows_are_matched_on_the_learners_name():
+    content = _book(
+        # No Student ID or E-mail column: staff add the emails in the preview.
+        ("Profile", ["Last name", "First name", "Grade"], [
+            ["Rivera", "Maya", "9"], ["Chen", "Leo", "10"], ["Park", "Sam", "9"], ["park", "sam ", "11"],
+        ]),
+        ("Career Bio - Work & Volunteer", ["First name", "Last name", "Type", "Employer or organization", "Title", "Start", "End"], [
+            ["Maya", "Rivera", "Job", "Pet Store", "Animal Care Helper", datetime(2026, 6, 1), "Present"],
+            ["Leo", "Chen", "Job", "Cafe", "Barista", datetime(2026, 1, 1), "Present"],
+            ["Sam", "Park", "Job", "Library", "Page", datetime(2026, 1, 1), "Present"],
+        ]),
+    )
+    preview = bulk.preview(content, "bulk.xlsx")
+    assert preview["kind"] == "bulk"
+    by_name = {learner["name"]: learner for learner in preview["learners"]}
+    # The two Sam Parks can't be told apart, so neither is listed and their rows don't come over.
+    assert set(by_name) == {"Maya Rivera", "Leo Chen"}
+    assert by_name["Maya Rivera"]["items"] == 1 and by_name["Leo Chen"]["items"] == 1
+    assert preview["unmatched"] == {"Profile": 2, "Career Bio - Work & Volunteer": 1}
+    held = {learner["name"]: learner for learner in bulk.learner_exports(content, "bulk.xlsx")}
+    maya = read_export("cis", held["Maya Rivera"]["content"], held["Maya Rivera"]["filename"])
+    assert [item["title"] for item in maya["items"]] == ["Animal Care Helper"]
 
 
 def test_a_file_that_isnt_a_cis_export_is_refused():
