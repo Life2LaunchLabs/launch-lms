@@ -4,6 +4,8 @@ Discover notes and outcome files, portfolio imports)."""
 import logging
 import re
 
+from sqlmodel import Session
+from src.db.users import User
 from src.services.utils.storage import delete_storage_directory
 
 logger = logging.getLogger(__name__)
@@ -25,3 +27,11 @@ def remove_user_files(user_uuid: str | None) -> bool:
     if not removed:
         logger.error("Some files for deleted user %s were not removed; retry with remove_user_files", user_uuid)
     return removed
+
+
+def delete_user_and_files(db_session: Session, user: User) -> None:
+    """Delete the account row (its other rows cascade), commit, then remove the person's uploaded files."""
+    user_uuid = user.user_uuid
+    db_session.delete(user)
+    db_session.commit()
+    remove_user_files(user_uuid)

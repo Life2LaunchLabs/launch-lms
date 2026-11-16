@@ -27,7 +27,7 @@ from src.services.security.password_validation import validate_password_complexi
 from src.services.users.password_reset import generate_secure_reset_code
 from src.services.orgs.owner import owner_org
 from src.services.epp.records import freeze_exits
-from src.services.users.files import remove_user_files
+from src.services.users.files import delete_user_and_files
 
 logger = logging.getLogger(__name__)
 
@@ -428,10 +428,7 @@ def delete_global_user(
         db_session.delete(membership)
     db_session.flush()
 
-    user_uuid = user.user_uuid
-    db_session.delete(user)
-    db_session.commit()
-    remove_user_files(user_uuid)  # their uploads go with the account
+    delete_user_and_files(db_session, user)  # their uploads go with the account
 
     _invalidate_session_cache(user_id)
     return {"detail": "User deleted successfully"}
