@@ -115,7 +115,7 @@ function PortfolioCard(props: StepCardProps<'portfolio'>) {
             <button type="button" onClick={() => setOpened(item)} className={cn('flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-accent)]', item.hidden && 'opacity-55')}>
               <ItemThumb item={item} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold">{item.title}</span>
+                <span className="line-clamp-2 break-words text-sm font-bold">{item.title}</span>
                 <span className="block truncate text-xs text-muted-foreground">{item.hidden ? tr('goals.portfolio.hidden_from_step', 'Hidden from this step') : [item.subtitle, item.date].filter(Boolean).join(' · ') || tr('goals.portfolio.open_it', 'Open it')}</span>
               </span>
             </button>
