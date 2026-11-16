@@ -8,7 +8,8 @@ if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: LAUNCHLMS_ENV,
-    sendDefaultPii: true,
+    // No IP addresses, cookies or request bodies go to error reporting (DEV-26).
+    sendDefaultPii: false,
     enableLogs: true,
     tracesSampleRate: LAUNCHLMS_ENV === "dev" ? 1.0 : 0.1,
     beforeSend(event, hint) {

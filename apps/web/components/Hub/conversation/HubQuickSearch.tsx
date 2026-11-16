@@ -8,7 +8,6 @@ import { Button } from '@components/ui/button'
 import { Card } from '@components/ui/card'
 import { Input } from '@components/ui/input'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
-import { trackEvent } from '@services/analytics/analytics'
 import { getResources, Resource, ResourceType } from '@services/resources/resources'
 
 import { tr } from '@/lib/tr'
@@ -129,16 +128,8 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
   const shownResources = useMemo(() => expanded ? resources : resources.slice(0, 4), [expanded, resources])
 
   const selectSearchResult = useCallback((resource: Resource) => {
-    if (orgId && accessToken) {
-      void trackEvent('resource_search_opened', orgId, {
-        resource_uuid: resource.resource_uuid,
-        search_rank: resource.search_rank,
-        search_version: resource.search_version,
-        query_fingerprint: resource.search_query_id,
-      }, accessToken)
-    }
     onSelectResource(resource)
-  }, [accessToken, onSelectResource, orgId])
+  }, [onSelectResource])
 
   useEffect(() => {
     if (selectedInitialResultRef.current || loading || selectedResourceUuids?.length || resources.length === 0) return

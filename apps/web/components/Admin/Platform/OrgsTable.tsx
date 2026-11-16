@@ -63,30 +63,6 @@ interface OrgRow {
   update_date: string
 }
 
-interface VisitRow {
-  org_id: number
-  date: string
-  views: number
-}
-
-function Sparkline({ values, max }: { values: number[]; max: number }) {
-  if (!values || values.every((v) => v === 0)) {
-    return <span className="text-xs text-gray-300">—</span>
-  }
-  const localMax = Math.max(max, 1)
-  return (
-    <div className="flex items-end gap-[2px] h-5" title={`${values.reduce((a, b) => a + b, 0)} views this week`}>
-      {values.map((v, i) => (
-        <div
-          key={i}
-          className="w-[5px] rounded-sm bg-blue-400/70"
-          style={{ height: `${Math.max(8, (v / localMax) * 100)}%`, opacity: v === 0 ? 0.2 : 1 }}
-        />
-      ))}
-    </div>
-  )
-}
-
 export default function OrgsTable() {
   const session = useLHSession() as any
   const org = useOrg() as any
@@ -118,37 +94,6 @@ export default function OrgsTable() {
     { revalidateOnFocus: true, keepPreviousData: true }
   )
 
-  const { data: visitsData } = useSWR<{ data: VisitRow[] }>(
-    accessToken ? `${getAPIUrl()}superadmin/organizations/visits` : null,
-    (url: string) => swrFetcher(url, accessToken),
-    { revalidateOnFocus: false }
-  )
-
-  const visitsByOrg = useMemo(() => {
-    const map: Record<number, number[]> = {}
-    let globalMax = 0
-    if (!visitsData?.data) return { map, globalMax }
-
-    const raw: Record<number, Record<string, number>> = {}
-    for (const row of visitsData.data) {
-      if (!raw[row.org_id]) raw[row.org_id] = {}
-      raw[row.org_id][row.date] = row.views
-    }
-    const today = new Date()
-    const dates: string[] = []
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today)
-      d.setDate(d.getDate() - i)
-      dates.push(d.toISOString().slice(0, 10))
-    }
-    for (const [orgIdStr, dateMap] of Object.entries(raw)) {
-      const orgId = Number(orgIdStr)
-      map[orgId] = dates.map((d) => dateMap[d] || 0)
-      const mx = Math.max(...map[orgId])
-      if (mx > globalMax) globalMax = mx
-    }
-    return { map, globalMax }
-  }, [visitsData])
 
   const orgs: OrgRow[] = data?.items || []
   const totalCount = data?.total ?? 0
@@ -220,7 +165,6 @@ export default function OrgsTable() {
                       currentSort={sort}
                       onSort={(s) => update({ sort: s, page: 1 })}
                     />
-                    <SortableTh label="7d visits" currentSort={sort} onSort={() => {}} />
                     <SortableTh label="Requests" currentSort={sort} onSort={() => {}} />
                     <SortableTh
                       label="Created"
@@ -255,12 +199,6 @@ export default function OrgsTable() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.user_count}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.badge_count}</td>
-                      <td className="px-4 py-3">
-                        <Sparkline
-                          values={visitsByOrg.map[row.id]}
-                          max={visitsByOrg.globalMax}
-                        />
-                      </td>
                       <td className="px-4 py-3">
                         {row.pending_request_count > 0 ? (
                           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">

@@ -9,14 +9,11 @@ if (SENTRY_DSN) {
     dsn: SENTRY_DSN,
     tunnel: '/monitoring',
     environment: LAUNCHLMS_ENV,
-    sendDefaultPii: true,
+    // No IP addresses, cookies or request bodies go to error reporting (DEV-26).
+    sendDefaultPii: false,
     enableLogs: true,
     tracesSampleRate: LAUNCHLMS_ENV === "dev" ? 1.0 : 0.1,
-    replaysSessionSampleRate: 0.0,
-    replaysOnErrorSampleRate: 0.1,
-    integrations: [
-      Sentry.replayIntegration(),
-    ],
+    // No session replays: a replay records what was on a learner's screen (DEV-26).
     beforeSend(event, hint) {
       const msg =
         (hint?.originalException as Error)?.message ??

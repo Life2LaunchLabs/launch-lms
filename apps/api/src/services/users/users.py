@@ -29,12 +29,10 @@ from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
 from src.security.security import security_hash_password, security_verify_password
-from src.services.analytics import events as analytics_events
-from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
 from src.services.epp.records import freeze_exits
 from src.services.orgs.invites import get_invite_code, redeem_join_link
-from src.services.orgs import staff_setup
+from src.services.orgs import owner as owner_orgs, staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.avatars import (
@@ -175,18 +173,10 @@ async def create_user(
         )
 
     db_session.add(user_organization)
+    owner_orgs.ensure_owner_membership(db_session, int(user.id or 0))  # an invited account belongs to Life2Launch too
     db_session.commit()
-    db_session.refresh(user_organization)
 
     user_read = UserRead.model_validate(user)
-
-    # Track user signup
-    await track(
-        event_name=analytics_events.USER_SIGNED_UP,
-        org_id=org_id,
-        user_id=user.id if user.id else 0,
-        properties={"signup_method": signup_provider},
-    )
 
     # Send verification email for non-OAuth users, account creation email for OAuth users
     if is_oauth:

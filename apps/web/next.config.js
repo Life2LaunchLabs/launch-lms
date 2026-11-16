@@ -8,20 +8,6 @@ const nextConfig = {
   // Browser verification can build beside an active developer server without
   // replacing its .next state (for example NEXT_DIST_DIR=.next-ui-test).
   distDir: process.env.NEXT_DIST_DIR || '.next',
-  async rewrites() {
-    const rewrites = [
-      {
-        source: '/umami/script.js',
-        destination: `https://eu.umami.is/script.js`,
-      },
-      {
-        source: '/umami/api/send',
-        destination: `https://eu.umami.is/api/send`,
-      },
-    ]
-
-    return rewrites
-  },
   reactStrictMode: false,
   output: 'standalone',
   images: {

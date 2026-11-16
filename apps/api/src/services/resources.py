@@ -1,5 +1,4 @@
 import re
-from time import perf_counter
 from collections.abc import Iterable
 from datetime import datetime
 from html import unescape
@@ -53,11 +52,8 @@ from src.security.access.access import ensure_feature
 from src.security.org_auth import is_org_admin, is_org_member, require_org_admin, require_org_membership
 from src.security.superadmin import is_user_superadmin
 from src.services.shared_content import owner_org_payload
-from src.services.analytics.analytics import track
-from src.services.analytics.events import RESOURCE_OPENED, RESOURCE_SAVED, RESOURCE_SEARCH_QUERY
 from src.services.search.resource_lexical import (
     RESOURCE_SEARCH_VERSION,
-    lexical_terms,
 )
 from src.services.search.resource_search import (
     query_fingerprint,
@@ -647,7 +643,6 @@ async def list_resources(
     offset: int = 0,
     limit: int | None = None,
 ) -> list[dict]:
-    search_started_at = perf_counter()
     _get_org_or_404(org_id, db_session)
     statement = select(Resource)
     requested_types = [
@@ -761,20 +756,6 @@ async def list_resources(
             serialized["search_match_quality"] = ranked_result.match_quality
             serialized["search_query_id"] = search_query_id
         serialized_resources.append(serialized)
-    if query:
-        await track(
-            event_name=RESOURCE_SEARCH_QUERY,
-            org_id=org_id,
-            user_id=getattr(current_user, "id", 0),
-            properties={
-                "query_fingerprint": search_query_id,
-                "query_terms": len(lexical_terms(query, remove_stop_words=True)),
-                "results_count": len(serialized_resources),
-                "zero_results": not serialized_resources,
-                "latency_ms": round((perf_counter() - search_started_at) * 1_000, 2),
-                "search_version": search_version,
-            },
-        )
     return serialized_resources
 
 
@@ -845,12 +826,6 @@ async def get_resource(request: Request, resource_uuid: str, current_user, db_se
     if not _resource_in_accessible_channel(resource, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this resource")
     serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
-    await track(
-        event_name=RESOURCE_OPENED,
-        org_id=resource.org_id,
-        user_id=getattr(current_user, "id", 0),
-        properties={"resource_uuid": resource.resource_uuid},
-    )
     return serialized
 
 
@@ -1015,12 +990,6 @@ async def save_resource_for_user(request: Request, resource_uuid: str, save_data
         _set_saved_resource_channels(saved_resource, channel_ids, db_session)
         db_session.commit()
     serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
-    await track(
-        event_name=RESOURCE_SAVED,
-        org_id=resource.org_id,
-        user_id=current_user.id,
-        properties={"resource_uuid": resource.resource_uuid},
-    )
     return serialized
 
 

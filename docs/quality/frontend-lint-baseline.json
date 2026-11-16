@@ -51,7 +51,6 @@
     "components/Security/AdminAuthorization.tsx|react-hooks/set-state-in-effect|error": 1,
     "components/Security/AuthenticatedClientElement.tsx|react-hooks/exhaustive-deps|warning": 1,
     "eslint.config.mjs|import/no-anonymous-default-export|warning": 1,
-    "hooks/useAnalytics.ts|react-hooks/preserve-manual-memoization|error": 1,
     "services/utils/ts/requests.ts|no-unused-vars|error": 1,
     "services/utils/ts/requests.ts|no-useless-catch|error": 1,
     "tests/ui/candidate-viewport.spec.ts|no-console|warning": 1

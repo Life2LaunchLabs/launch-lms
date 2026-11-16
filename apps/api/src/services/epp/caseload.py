@@ -19,7 +19,8 @@ from sqlmodel import Session, col, select
 from src.db.epp_records import EppRecord
 from src.db.learner_support import LearnerSupport
 from src.db.users import PublicUser, User
-from src.services.epp import pdf, records, report
+from src.security.org_auth import is_org_admin
+from src.services.epp import content, pdf, records, report
 from src.services.portfolio_identity import shown_name
 from src.services.school import roles, support
 
@@ -66,6 +67,8 @@ def caseload(db: Session, current_user: PublicUser, org_id: int, mine: bool = Fa
         "counts": {"total": len(rows), "reviewed": states.count("reviewed"), "ready": states.count("ready"),
                    "missing": states.count("missing"), "waiting": states.count("waiting")},
         "exportable": len(_reviewed_records(db, org_id, year, {row["user_id"] for row in rows})),
+        # The yearly plan the school assigns, once it has one; staff who build plans can set it up from here.
+        "plan": content.installed(db, org_id), "can_set_up": is_org_admin(current_user.id, org_id, db, "build_plans"),
     }
 
 

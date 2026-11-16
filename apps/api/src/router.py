@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from src.routers import accessibility as accessibility_router_module
 from src.routers import notifications as notifications_router_module
-from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
     auth,
@@ -72,6 +71,7 @@ from src.routers import sso as sso_router_module
 from src.routers import trending as trending_router_module
 from src.routers.audit_logs import router as audit_logs_router
 from src.routers.orgs import branding as org_branding
+from src.routers.orgs import cis_imports as org_cis_imports
 from src.routers.orgs import invite_landing as org_invite_landing
 from src.routers.orgs import join_requests as org_join_requests
 from src.routers.orgs import public_page as org_public_page
@@ -213,6 +213,7 @@ v1_router.include_router(
 v1_router.include_router(org_join_requests.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(org_public_page.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(org_staff_permissions.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(org_cis_imports.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     orgs.router,
     prefix="/orgs",
@@ -315,12 +316,6 @@ v1_router.include_router(
     news.router,
     prefix="/news",
     tags=["news"]
-)
-v1_router.include_router(
-    analytics_router_module.router,
-    prefix="/analytics",
-    tags=["analytics"],
-    dependencies=[Depends(get_non_api_token_user)],
 )
 
 v1_router.include_router(
