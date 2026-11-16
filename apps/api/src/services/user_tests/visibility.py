@@ -66,6 +66,20 @@ def listed_for_viewer(db: Session, org_id_column):
     return visible_orgs(db, current_test_persona.get(), org_id_column)
 
 
+def visible_ratings(db: Session, author_id_column, viewer_id: int | None = None):
+    """A WHERE clause for queries reading resource ratings and comments: a persona's stay in its cohort.
+
+    A persona may rate a shared catalog resource (DEV-104); its stars count only for viewers in its
+    own cohort, never for real people or other cohorts. The viewer defaults to the persona acting in
+    this request.
+    """
+    if viewer_id is None:
+        from src.services.user_tests.sessions import current_test_persona
+
+        viewer_id = current_test_persona.get()
+    return visible_people(db, viewer_id, author_id_column)
+
+
 def is_test_org(db: Session, org_id: int | None) -> bool:
     return bool(org_id) and _ready(db) and db.get(TestCohortOrg, int(org_id)) is not None  # type: ignore[arg-type]
 

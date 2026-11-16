@@ -32,6 +32,7 @@ from src.db.resources import (
 from src.db.goals import StepEntry
 from src.db.users import PublicUser
 from src.services import resources as base
+from src.services.user_tests.visibility import visible_ratings
 
 NO_CHANNEL = "none"
 SIMPLE = ["Title", "Link", "Description", "Type", "Provider", "Minutes", "Channel", "Tags", "Starred", "Resource ID"]
@@ -153,7 +154,7 @@ def export_rows(org_id: int, current_user: PublicUser, db_session: Session, deta
             usage[key] = (saves, opens + int((data or {}).get("opens") or 0))
         for resource_id, count, average in db_session.exec(
             select(ResourceComment.resource_id, func.count(ResourceComment.rating), func.avg(ResourceComment.rating))
-            .where(ResourceComment.resource_id.in_(ids), ResourceComment.rating.is_not(None), ResourceComment.status == CommentStatus.live)  # type: ignore[attr-defined, union-attr]
+            .where(ResourceComment.resource_id.in_(ids), ResourceComment.rating.is_not(None), ResourceComment.status == CommentStatus.live, visible_ratings(db_session, ResourceComment.author_id))  # type: ignore[attr-defined, union-attr]
             .group_by(ResourceComment.resource_id)
         ).all():
             reviews[int(resource_id)] = (int(count), round(float(average), 1) if average is not None else None)
