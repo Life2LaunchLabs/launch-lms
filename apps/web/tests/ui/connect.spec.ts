@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { assertActualApp } from './auth'
+import { assertActualApp, loginNormally } from './auth'
+import type { UiTestEnvironment } from './environment'
 
 // Seeded by apps/api/scripts/seed_connect.py; the learner's plans come from seed_learner_flow.py.
 const fixture = JSON.parse(readFileSync('.playwright/connect.json', 'utf8'))
@@ -116,4 +117,60 @@ test('connect.reports: admins review a chat report in People and can reopen it',
   await expect(page.getByText('Report reopened').first()).toBeVisible()
   await panel.getByRole('button', { name: 'Open', exact: true }).click()
   await expect(panel.getByRole('listitem').filter({ hasText: fixture.report.reason })).toBeVisible()
+})
+
+test('connect.plan_chat: a plan two people share is one chat, with both sides in the plan\'s Chat', async ({ page, browser }, testInfo) => {
+  const shared = fixture.shared_plan
+  // One chat with her parent in Connect: no second chat named after the plan.
+  await page.goto(`${orgPath}/connect`)
+  await assertActualApp(page)
+  const list = page.getByRole('region', { name: 'Chats' })
+  await expect(list.getByRole('link').filter({ has: page.getByText(shared.parent.name, { exact: true }) })).toHaveCount(1)
+  await expect(list.getByRole('link').filter({ has: page.getByText(shared.title, { exact: true }) })).toHaveCount(0)
+
+  // The plan's Chat shows the parent's earlier answer, and her question goes to the same chat.
+  const openPlanChat = async () => {
+    await page.goto(`${orgPath}/plans/${shared.goal_uuid}`)
+    await assertActualApp(page)
+    await page.getByRole('button', { name: /^Chat/ }).first().click()
+    const panel = page.getByRole('complementary', { name: new RegExp(`about ${shared.title}`) })
+    await expect(panel).toBeVisible()
+    return panel
+  }
+  let panel = await openPlanChat()
+  await expect(panel.getByText(shared.parent_reply)).toBeVisible()
+  const question = `Which school first? ${randomUUID().slice(0, 8)}`
+  await panel.getByRole('textbox', { name: 'Message' }).click()
+  await page.keyboard.type(question)
+  await send(page)
+  await expect(panel.getByText(question)).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+
+  // The parent answers from Connect, without tagging the plan.
+  const parentContext = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+  const parentPage = await parentContext.newPage()
+  await loginNormally(parentPage, { email: shared.parent.email, password: shared.parent.password } as UiTestEnvironment)
+  await openChat(parentPage, shared.learner_name)
+  await expect(chatPane(parentPage).getByText(question)).toBeVisible()
+  await expect(chatPane(parentPage).getByText(shared.parent_reply)).toBeVisible()
+  const answer = `Start with the closest one ${randomUUID().slice(0, 8)}`
+  await parentPage.getByRole('textbox', { name: 'Message' }).click()
+  await parentPage.keyboard.type(answer)
+  await send(parentPage)
+  await parentContext.close()
+
+  // Her plan's Chat now shows both sides.
+  panel = await openPlanChat()
+  await expect(panel.getByText(question)).toBeVisible()
+  await expect(panel.getByText(answer)).toBeVisible()
+  if (process.env.UI_TEST_CAPTURE === 'true') {
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme })
+      await page.waitForTimeout(500)
+      await page.screenshot({ path: testInfo.outputPath(`plan-chat-${scheme}.png`) })
+    }
+    await page.goto(`${orgPath}/connect`)
+    await expect(list.getByRole('link').first()).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('connect-list-dark.png') })
+  }
 })

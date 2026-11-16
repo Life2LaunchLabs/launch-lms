@@ -8,7 +8,7 @@ from src.db.conversations import ConversationMember, DirectChatOpen
 from src.db.goals import Goal, GoalStatus, GoalStep, StepStatus, StepStatusChange
 from src.db.organizations import Organization
 from src.db.goal_sharing import PlanInvitation
-from src.services.connect import chats, legacy_comments, workspace
+from src.services.connect import chats, legacy_comments, people, workspace
 from src.services.goals import goals, sharing
 from src.services.messages import create_inbox_message
 from src.services.school import chats as school_chats, views
@@ -105,18 +105,71 @@ def test_a_personal_plan_talks_in_its_own_chat_once_someone_else_is_on_it():
     with _session() as db:
         uuid = _personal(db)["goal_uuid"]
         assert workspace.goal_chat(db, _user(LEARNER), uuid)["conversation_uuid"] is None
-        _join(db, uuid, OTHER, OTHER_EMAIL, "viewer")
-        found = workspace.goal_chat(db, _user(OTHER), uuid)
+        _join(db, uuid, OTHER, OTHER_EMAIL, "commenter")
+        _join(db, uuid, ADMIN, "t@example.com", "viewer")
+        found = workspace.goal_chat(db, _user(ADMIN), uuid)
         assert found["title"] == "Earn a nursing degree" and found["can_post"] is False
         with pytest.raises(HTTPException) as viewer:
-            chats.send(db, _user(OTHER), found["conversation_uuid"], "Me too")
+            chats.send(db, _user(ADMIN), found["conversation_uuid"], "Me too")
         assert viewer.value.status_code == 403
         sent = chats.send(db, _user(LEARNER), found["conversation_uuid"], f"<plan:{uuid}> thinking about nursing school")
-        assert chats.list_chats(db, _user(OTHER))["chats"][0]["last_message"]["message_uuid"] == sent["message_uuid"]
-        member = sharing.leave(db, _user(OTHER), uuid)
+        assert chats.list_chats(db, _user(ADMIN))["chats"][0]["last_message"]["message_uuid"] == sent["message_uuid"]
+        member = sharing.leave(db, _user(ADMIN), uuid)
         assert member
         with pytest.raises(HTTPException):
-            chats.get_chat(db, _user(OTHER), found["conversation_uuid"])
+            chats.get_chat(db, _user(ADMIN), found["conversation_uuid"])
+
+
+def _direct_chats(db, user_id: int) -> list[dict]:
+    return [chat for chat in chats.list_chats(db, _user(user_id))["chats"] if chat["kind"] in ("direct", workspace.GOAL)]
+
+
+def test_a_plan_only_two_people_share_talks_in_their_direct_chat_with_both_sides():
+    with _session() as db:
+        uuid = _personal(db)["goal_uuid"]
+        # She invites her mom: the invitation is a card in their direct chat.
+        _join(db, uuid, OTHER, OTHER_EMAIL, "commenter")
+        found = workspace.goal_chat(db, _user(LEARNER), uuid)
+        direct = chats._direct(db, LEARNER, OTHER)
+        assert direct and found["conversation_uuid"] == direct.conversation_uuid and found["can_post"]
+        assert found["title"] == people.person(db, OTHER)["name"]
+        # She asks from the plan's Chat; her mom answers from Connect without tagging the plan.
+        asked = chats.send(db, _user(LEARNER), found["conversation_uuid"], "Can you help me pick a school?", scope={"goal_uuid": uuid})
+        answered = chats.send(db, _user(OTHER), direct.conversation_uuid, "Yes! Let's look tonight.")
+        on_plan = chats.get_chat(db, _user(LEARNER), found["conversation_uuid"], goal_uuid=uuid)["messages"]
+        assert [item["message_uuid"] for item in on_plan][-2:] == [asked["message_uuid"], answered["message_uuid"]]
+        assert workspace.goal_chat(db, _user(OTHER), uuid)["conversation_uuid"] == direct.conversation_uuid
+        # One chat each, with the plan as a topic.
+        for person in (LEARNER, OTHER):
+            listed = _direct_chats(db, person)
+            assert [chat["conversation_uuid"] for chat in listed] == [direct.conversation_uuid]
+        topics = chats.get_chat(db, _user(OTHER), direct.conversation_uuid)["topics"]
+        assert [topic["goal_uuid"] for topic in topics] == [uuid]
+
+
+def test_a_plan_chat_split_from_the_pairs_direct_chat_moves_into_it():
+    with _session() as db:
+        uuid = _personal(db)["goal_uuid"]
+        _join(db, uuid, OTHER, OTHER_EMAIL, "commenter")
+        goal = db.exec(select(Goal).where(Goal.goal_uuid == uuid)).first()
+        # A plan chat from before plans of two talked in the pair's direct chat.
+        from uuid import uuid4
+        from src.db.conversations import Conversation
+        old = Conversation(conversation_uuid=f"chat_{uuid4()}", kind=workspace.GOAL, direct_key=workspace._goal_key(int(goal.id)), title=goal.title,
+                           org_id=goal.org_id, created_by_user_id=LEARNER, creation_date=NOW, update_date=NOW)
+        db.add(old)
+        db.flush()
+        workspace._set_members(db, old, {LEARNER, OTHER})
+        message = chats.post(db, old, OTHER, "Her reply, in the chat named after the plan")
+        db.commit()
+        listed = _direct_chats(db, LEARNER)
+        direct = chats._direct(db, LEARNER, OTHER)
+        assert [chat["conversation_uuid"] for chat in listed] == [direct.conversation_uuid]
+        assert listed[0]["last_message"]["message_uuid"] == message.message_uuid
+        on_plan = chats.get_chat(db, _user(LEARNER), direct.conversation_uuid, goal_uuid=uuid)["messages"]
+        assert message.message_uuid in [item["message_uuid"] for item in on_plan]
+        with pytest.raises(HTTPException):
+            chats.get_chat(db, _user(OTHER), old.conversation_uuid)
 
 
 def test_tagging_someone_who_cant_see_the_plan_invites_them_as_a_commenter():
@@ -124,11 +177,14 @@ def test_tagging_someone_who_cant_see_the_plan_invites_them_as_a_commenter():
         uuid = _personal(db)["goal_uuid"]
         _join(db, uuid, ADMIN, "t@example.com", "commenter")
         chat = workspace.goal_chat(db, _user(LEARNER), uuid)["conversation_uuid"]
-        sent = chats.send(db, _user(LEARNER), chat, "<user:user_3> can you look at this?")
+        sent = chats.send(db, _user(LEARNER), chat, f"<plan:{uuid}> <user:user_3> can you look at this?")
         assert [(item["user"]["username"], item["status"]) for item in sent["mentions"]] == [("sam", "invited")]
         invitation = db.exec(select(PlanInvitation)).all()[-1]
         sharing.respond_to_invitation(db, _user(OTHER), invitation.invitation_uuid, True)
-        assert chats.send(db, _user(OTHER), chat, "Looks good!")["sender"]["username"] == "sam"
+        # Three people on it now: the plan talks in a chat of its own.
+        group = workspace.goal_chat(db, _user(OTHER), uuid)["conversation_uuid"]
+        assert group != chat
+        assert chats.send(db, _user(OTHER), group, "Looks good!")["sender"]["username"] == "sam"
 
 
 def test_the_migration_moves_older_comments_into_the_plans_chat_on_their_step():

@@ -2,7 +2,8 @@
 
 Every plan with people on it talks in one chat. A plan an organization gave a learner (an
 assignment, a badge) talks in the learner's chat with that organization, alongside their other
-plans with it; a personal plan talks in a chat of its own once someone else is on it. A message
+plans with it; a personal plan talks in a chat of its own once someone else is on it. A plan only
+two people are on talks in their direct chat, so the same two people never have two chats. A message
 tags plans, steps, people and organizations inline as tokens (``<step:goal_uuid/step_uuid>``),
 so the chat filters by plan and then by step: a comment on a step is just a message that tags
 it. The app posts each plan's progress there as cards (see progress.py), and older goal comments move in the
@@ -24,7 +25,7 @@ from src.db.organizations import Organization
 from src.db.resources import Resource
 from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
-from src.services.connect import chats, cohort, people, portfolio_talk, visibility
+from src.services.connect import chats, cohort, pairs, people, portfolio_talk, visibility
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, org_summary
 from src.services.school import chats as school_chats, roles
@@ -99,9 +100,11 @@ def _set_members(db: Session, conversation: Conversation, wanted: set[int]) -> N
 
 
 def _goal_chat(db: Session, goal: Goal, create: bool) -> Conversation | None:
-    """A personal plan's own chat, once someone besides its learner can see it."""
+    """A personal plan's own chat, once someone besides its learner can see it: their direct chat while only two people are on it."""
     conversation = db.exec(select(Conversation).where(Conversation.direct_key == _goal_key(int(goal.id)))).first()  # type: ignore[arg-type]
     wanted = _goal_people(db, goal)
+    if len(wanted) == 2 and (pair := pairs.direct_for(db, goal, conversation, wanted, create)):
+        return pair
     if not conversation:
         if not create or len(wanted) < 2:
             return None
@@ -149,6 +152,9 @@ def chat_for_goal(db: Session, goal: Goal, create: bool = True, viewer_id: int |
 def goals_in(db: Session, conversation: Conversation) -> list[Goal]:
     """The plans a chat is about, in the order they started."""
     key = conversation.direct_key or ""
+    if conversation.kind == portfolio_talk.DIRECT and ":" in key:
+        low, high = key.split(":")
+        return pairs.pair_goals(db, int(low), int(high))
     if conversation.kind == school_chats.SCHOOL and key.startswith("school:"):
         _, org_id, student_id = key.split(":")
         return org_goals(db, int(org_id), int(student_id))
@@ -344,14 +350,19 @@ def filtered(query, db: Session, conversation: Conversation, goal_uuid: str | No
     """Narrow a chat's messages to the ones about a plan, or one of its steps."""
     if conversation.kind == cohort.COHORT:
         return cohort.filtered(query, db, conversation, goal_uuid, step_uuid)
-    if conversation.kind == portfolio_talk.DIRECT:
+    if conversation.kind == portfolio_talk.DIRECT and portfolio_talk.find(db, conversation, goal_uuid):
         return portfolio_talk.filtered(query, db, conversation, goal_uuid, step_uuid)
     goal = next((item for item in goals_in(db, conversation) if item.goal_uuid == goal_uuid), None)
     if not goal:
         raise HTTPException(status_code=404, detail="That plan isn't in this chat")
     about = select(ConversationMessageRef.message_id).where(ConversationMessageRef.conversation_id == conversation.id, ConversationMessageRef.goal_id == goal.id)
     if step_uuid:
-        about = about.where(ConversationMessageRef.step_uuid == step_uuid)
+        return query.where(col(ConversationMessage.id).in_(about.where(ConversationMessageRef.step_uuid == step_uuid)))
+    if conversation.kind == GOAL:
+        # A plan's own chat is all about it: a reply that tags nothing still belongs.
+        return query
+    if conversation.kind == portfolio_talk.DIRECT:
+        return pairs.about_plan(query, conversation, about)
     return query.where(col(ConversationMessage.id).in_(about))
 
 
@@ -393,11 +404,10 @@ def topics(db: Session, conversation: Conversation, viewer_id: int | None = None
     """The plans this chat is about, each with its steps, where they stand, and how many messages the viewer can read tag them."""
     if conversation.kind == cohort.COHORT:
         return [item for item in [cohort.topic(db, conversation, viewer_id)] if item]
-    if conversation.kind == portfolio_talk.DIRECT:
-        return portfolio_talk.topics(db, conversation, viewer_id)
+    shelf = portfolio_talk.topics(db, conversation, viewer_id) if conversation.kind == portfolio_talk.DIRECT else []
     goals = goals_in(db, conversation)
     if not goals:
-        return []
+        return shelf
     by_step = {(int(goal_id), step_uuid): int(count) for goal_id, step_uuid, count in db.exec(readable_refs(
         select(ConversationMessageRef.goal_id, ConversationMessageRef.step_uuid, func.count(func.distinct(ConversationMessageRef.message_id)))
         .where(ConversationMessageRef.conversation_id == conversation.id), db, conversation, viewer_id)
@@ -407,7 +417,7 @@ def topics(db: Session, conversation: Conversation, viewer_id: int | None = None
         select(ConversationMessageRef.goal_id, func.count(func.distinct(ConversationMessageRef.message_id)))
         .where(ConversationMessageRef.conversation_id == conversation.id), db, conversation, viewer_id).group_by(ConversationMessageRef.goal_id)
     ).all()}
-    return [topic(db, goal, by_step, by_goal.get(int(goal.id), 0)) for goal in goals]  # type: ignore[arg-type]
+    return [*(topic(db, goal, by_step, by_goal.get(int(goal.id), 0)) for goal in goals), *shelf]  # type: ignore[arg-type]
 
 
 def goal_chat(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
@@ -420,7 +430,7 @@ def goal_chat(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     topic = next((item for item in topics(db, conversation, current_user.id) if item["goal_uuid"] == goal_uuid), None) if conversation else None
     return {
         "goal_uuid": goal_uuid, "conversation_uuid": conversation.conversation_uuid if member else None,  # type: ignore[union-attr]
-        "title": conversation.title if conversation else None, "can_post": bool(member) and can_post(db, conversation, current_user.id),  # type: ignore[arg-type]
+        "title": pairs.chat_name(db, conversation, current_user.id) if conversation else None, "can_post": bool(member) and can_post(db, conversation, current_user.id),  # type: ignore[arg-type]
         "counts": {row["step_uuid"]: row["count"] for row in (topic or {}).get("steps", [])}, "count": (topic or {}).get("count", 0),
     }
 
@@ -450,10 +460,11 @@ def _bring_in(db: Session, current_user: PublicUser, goal: Goal, target: User, b
 
 def after_send(db: Session, current_user: PublicUser, conversation: Conversation, message: ConversationMessage) -> list[dict]:
     """What tagging people and organizations does: bring in people who can't see the plan, and tell a tagged organization."""
-    if conversation.kind not in KINDS and not any(ref.get("kind") == "org" for ref in message.refs or []):
+    about_plans = conversation.kind in KINDS or conversation.kind == portfolio_talk.DIRECT
+    if not about_plans and not any(ref.get("kind") == "org" for ref in message.refs or []):
         return []
     members = {member.user_id for member in db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id)).all()}
-    goals = {goal.goal_uuid: goal for goal in goals_in(db, conversation)}
+    goals = {goal.goal_uuid: goal for goal in goals_in(db, conversation)} if about_plans else {}
     tagged = [goals[ref["goal_uuid"]] for ref in message.refs or [] if ref.get("goal_uuid") in goals]
     goal = tagged[0] if tagged else (next(iter(goals.values())) if len(goals) == 1 else None)
     outcomes = []

@@ -199,10 +199,13 @@ def _chat_dict(db: Session, conversation: Conversation, member: ConversationMemb
 
 
 def list_chats(db: Session, current_user: PublicUser) -> dict:
-    from src.services.connect import inbox
+    from src.services.connect import inbox, pairs
 
     # Invitations and notices are messages from whoever sent them.
     inbox.deliver(db, current_user)
+    # Two people never keep two chats: a plan chat only they are on joins their direct chat.
+    if pairs.settle_pairs(db, int(current_user.id)):  # type: ignore[arg-type]
+        db.commit()
     rows = db.exec(select(Conversation, ConversationMember).join(ConversationMember, ConversationMember.conversation_id == Conversation.id).where(
         ConversationMember.user_id == current_user.id, col(ConversationMember.status).in_(LISTED),
         col(Conversation.last_message_at).is_not(None),
