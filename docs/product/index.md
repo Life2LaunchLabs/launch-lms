@@ -859,7 +859,7 @@ Enable an organization to bring youth and other participants in, place them in t
     - `PEOPLE-G002-A005-S001` [live / core] Review the assignment matrix
     - `PEOPLE-G002-A005-S002` [live / core] Open cohort detail
     - `PEOPLE-G002-A005-S003` [live / core] Review submitted work
-    - `PEOPLE-G002-A005-S004` [live / core] Review group reports
+    - `PEOPLE-G002-A005-S004` [removed / core] Review group reports
     - `PEOPLE-G002-A005-S005` [live / core] Identify people needing intervention
 - **PEOPLE-G003 — Understand and support an individual learner**
   - `PEOPLE-G003-A001` [live] Inspect a member record

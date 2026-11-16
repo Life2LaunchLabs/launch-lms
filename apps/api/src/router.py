@@ -20,7 +20,6 @@ from src.routers import (
     goal_story,
     goal_home,
     goal_requirements,
-    goal_reports,
     goal_sharing,
     goal_templates,
     goals,
@@ -71,6 +70,7 @@ from src.routers import sso as sso_router_module
 from src.routers import trending as trending_router_module
 from src.routers.audit_logs import router as audit_logs_router
 from src.routers.orgs import branding as org_branding
+from src.routers.orgs import cis_imports as org_cis_imports
 from src.routers.orgs import invite_landing as org_invite_landing
 from src.routers.orgs import join_requests as org_join_requests
 from src.routers.orgs import public_page as org_public_page
@@ -86,11 +86,18 @@ from src.security.api_token_utils import require_non_api_token_user
 from src.security.auth import get_current_user
 from src.security.access.access import require_feature
 from src.services.dev.dev import isDevModeEnabledOrRaise
+from src.services.user_tests.settings import require_enabled as require_user_tests_enabled
 
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(demo.router, prefix="/demo", tags=["demo"])
 v1_router.include_router(demo_guide.router, prefix="/demo", tags=["demo"])
-v1_router.include_router(user_tests_router_module.router, prefix="/user_tests", tags=["user_tests"])
+# Off unless LAUNCHLMS_USER_TESTS_ENABLED: every route answers 404 before auth runs (DEV-27).
+v1_router.include_router(
+    user_tests_router_module.router,
+    prefix="/user_tests",
+    tags=["user_tests"],
+    dependencies=[Depends(require_user_tests_enabled)],
+)
 
 # Helper dependency to reject API token access
 async def get_non_api_token_user(user = Depends(get_current_user)):
@@ -119,7 +126,7 @@ v1_router.include_router(
 # Fixed paths under /goals (home, invitations) register before /goals/{goal_uuid}.
 for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_story):
     v1_router.include_router(module.router, prefix="/goals", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
-for module in (goal_admin, goal_requirements, goal_reports, goal_helper_requests):
+for module in (goal_admin, goal_requirements, goal_helper_requests):
     v1_router.include_router(module.router, prefix="/goal-admin", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(life_plans_router_module.router, prefix="/life", tags=["life plans"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(recommend_router_module.router, prefix="/recommend", tags=["suggestions"], dependencies=[Depends(get_non_api_token_user)])
@@ -212,6 +219,7 @@ v1_router.include_router(
 v1_router.include_router(org_join_requests.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(org_public_page.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(org_staff_permissions.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
+v1_router.include_router(org_cis_imports.router, prefix="/orgs", tags=["orgs"], dependencies=[Depends(get_non_api_token_user)])
 v1_router.include_router(
     orgs.router,
     prefix="/orgs",

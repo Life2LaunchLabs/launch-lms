@@ -58,9 +58,13 @@ test('insights.scopes: a group dashboard switches groups and lists its views; ol
   await expect(cards(page).first()).toBeVisible()
   await capture(page, testInfo, 'insights-group.png')
 
-  await page.goto(`${insightsPath}?group=${fixture.group_id}`)
-  await expect(page).toHaveURL(new RegExp(`/admin/insights/reports\\?group=${fixture.group_id}`))
-  await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
+  // The old group report is retired: its links, by the group's number, open that group's dashboard.
+  for (const old of [`${insightsPath}?group=${fixture.group_id}`, `${insightsPath}/reports?group=${fixture.group_id}`, `${insightsPath}/reports/${fixture.group_id}/print`]) {
+    await page.goto(old)
+    await expect(page).toHaveURL(/\/admin\/insights\/group\/usergroup_/)
+    await expect(views.getByRole('link', { name: 'Group progress' })).toBeVisible()
+  }
+  await expect((await rail(page)).getByRole('link', { name: 'Group reports' })).toHaveCount(0)
 })
 
 test('insights.new: New dashboard makes a personal one from a template, and editing adds a card from the library', async ({ page }) => {

@@ -15,6 +15,7 @@ from src.db.goals import Goal, GoalStage, GoalStep, GoalTemplate, GoalTemplateVe
 from src.db.organizations import Organization
 from src.db.requirements import RequirementFramework, RequirementNode
 from src.db.usergroups import UserGroup
+from src.db.users import User
 from src.services.insights.context import Ctx
 
 STATUS_LABELS = {"on_track": "On track", "behind": "Behind", "quiet": "Quiet", "finished": "Finished"}
@@ -47,6 +48,12 @@ def _plans(ctx: Ctx, keys: list[str]) -> dict[str, str]:
 def _groups(ctx: Ctx, keys: list[str]) -> dict[str, str]:
     rows = ctx.db.exec(select(UserGroup.usergroup_uuid, UserGroup.name).where(col(UserGroup.usergroup_uuid).in_(keys), UserGroup.org_id == ctx.org_id)).all() if keys else []
     return dict(rows)
+
+
+def _learners(ctx: Ctx, keys: list[str]) -> dict[str, str]:
+    """Learners by user uuid, named as in the learner switcher."""
+    rows = ctx.db.exec(select(User).where(col(User.user_uuid).in_(keys))).all() if keys else []
+    return {user.user_uuid: " ".join(part for part in (user.first_name, user.last_name) if part) or user.username for user in rows}
 
 
 def _versions(ctx: Ctx, keys: list[str]) -> dict[str, str]:
@@ -124,6 +131,8 @@ DIMENSIONS: dict[str, Dimension] = {dimension.key: dimension for dimension in (
     Dimension("step", "Step", "steps", order="natural", labels=_steps, sort=_step_order, scopes=("plan",)),
     Dimension("org", "Organization", "organizations", labels=_orgs, scopes=("plan",)),
     Dimension("framework", "Requirement framework", "frameworks", links_to="framework", labels=_frameworks),
+    # One row per learner (the old group report's table). Facts get this key in the engine, from their learner.
+    Dimension("learner", "Learner", "learners", links_to="learner", labels=_learners, scopes=("group", "plan")),
     # A framework's top-level categories; a requirement counts toward the category it sits under.
     Dimension("category", "Category", "categories", order="natural", labels=_categories, sort=_category_order, scopes=("framework",)),
 )}

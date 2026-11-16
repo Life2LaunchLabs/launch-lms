@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { signOut } from '@components/Contexts/AuthContext'
+import { getConfig } from '@services/config/config'
+import { testerSurfaceEnabled } from '@/lib/testerSurfaces'
 import { fetchMyRun, fetchRunOpen, readTestPersonaCookie, switchPersona } from '@services/userTests/userTests'
 
 const PersonaPanel = dynamic(() => import('./PersonaPanel'), {
@@ -42,8 +44,14 @@ function clearMarker() {
   }
 }
 
-/** A thin bar on every page while a test persona is signed in, so it is never mistaken for a real user. */
+/** A thin bar on every page while a test persona is signed in, so it is never mistaken for a real user.
+ *  Renders nothing where user tests are off, which is every production site (DEV-27). */
 export default function TestPersonaBar() {
+  if (!testerSurfaceEnabled('userTests', getConfig)) return null
+  return <ActiveTestPersonaBar />
+}
+
+function ActiveTestPersonaBar() {
   const session = useLHSession() as { status?: string; data?: { user?: { id?: number } } } | undefined
   // Cookies have no change event; the session refreshing re-renders this often enough.
   const cookie = useSyncExternalStore(() => () => {}, () => document.cookie, () => '')

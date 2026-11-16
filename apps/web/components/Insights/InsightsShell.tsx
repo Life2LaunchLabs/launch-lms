@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { BarChart3, Camera, ChevronDown, Lock, Plus } from 'lucide-react'
+import { Camera, ChevronDown, Lock, Plus } from 'lucide-react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { ObjectScope, Scope } from '@services/insights/insights'
@@ -29,7 +29,7 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
     <ScopeGlyph scope={scope} /><span className="min-w-0 flex-1"><b className="block truncate">{label}</b>
       <span className="block truncate text-[11.5px] font-medium text-muted-foreground">{count(scope)} view{count(scope) === 1 ? '' : 's'}</span></span>
   </Link>
-  const reportItem = (id: 'captures' | 'reports', label: string, path: string, Icon: typeof BarChart3) =>
+  const reportItem = (id: 'captures' | 'reports', label: string, path: string, Icon: typeof Camera) =>
     <Link key={id} href={href(path)} aria-current={place === id ? 'page' : undefined} className={cn(item, place === id && 'bg-muted')}>
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true"><Icon size={15} /></span>
       <span className="truncate">{label}</span>
@@ -53,7 +53,6 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
     </button>
     <span className={eyebrow}>Reports</span>
     {reportItem('captures', 'Captures', admin.insightsCaptures(), Camera)}
-    {reportItem('reports', 'Group reports', admin.insightsReport(), BarChart3)}
   </nav>
 }
 

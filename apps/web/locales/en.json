@@ -325,7 +325,14 @@
     "name_you_go_by_optional": "Name you go by (optional)",
     "name_you_go_by": "Name you go by",
     "age_required": "Life2Launch is for people 15 and older. Confirm your age to continue.",
-    "age_confirm": "I’m 15 or older"
+    "age_confirm": "I’m 15 or older",
+    "legal_name": "Your legal name",
+    "legal_name_help": "As on your official records. Schools and programs you join use it on their records and reports, like the Education Plan and Profile.",
+    "legal_first_name": "Legal first name",
+    "legal_last_name": "Legal last name",
+    "name_you_go_by_help": "What people see in Life2Launch. Leave it empty to use your first name.",
+    "name_you_go_by_placeholder": "e.g. Sam",
+    "optional": "(optional)"
   },
   "legal": {
     "privacy_policy": "Privacy Policy",

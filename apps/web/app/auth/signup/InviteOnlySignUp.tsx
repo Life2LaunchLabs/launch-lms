@@ -186,6 +186,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
               </Form.Control>
             </FormField>
           </div>
+          <p className="-mt-2 text-[13px] leading-snug text-gray-600">{t('auth.legal_name_help')}</p>
 
           <FormField name="password">
             <FormLabelAndMessage

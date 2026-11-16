@@ -11,7 +11,7 @@ from src.services.connect import chats
 from src.services.goals.sharing_roles import _stamp
 
 PORTFOLIO_SHARED = "portfolio_shared"
-GROUP_REPORT = "group_report"
+GROUP_REPORT = "group_report"  # old sent group reports; sending is retired (DEV-36), old cards still show
 
 
 def _summary(card: dict, school: bool = False) -> str:
@@ -76,12 +76,3 @@ def portfolio_shared(db: Session, owner_id: int, username: str, recipient_id: in
     verb = "comment on" if role == "commenter" else "see"
     card = {"type": PORTFOLIO_SHARED, "username": username, "role": role}
     return chats.post(db, conversation, owner_id, f"Added you to their portfolio, so you can {verb} it", kind="card", card=card)
-
-
-def group_report(db: Session, sender_id: int, recipient_id: int, card: dict) -> ConversationMessage | None:
-    """Send a group's progress report to a colleague, in their direct chat. The card links to the live report."""
-    conversation = chats.ensure_direct(db, sender_id, recipient_id)
-    if not conversation:
-        return None
-    body = card.get("message") or f"Progress report: {card.get('group_name') or 'a group'}"
-    return chats.post(db, conversation, sender_id, body, kind="card", card=card)
