@@ -752,7 +752,7 @@ async def preview_batch_users(
     policy = _invitation_policy(org_id, db_session)
     if invite_request.source == "csv" and not policy["csv"]:
         raise HTTPException(status_code=403, detail="CSV invitations need the Full tier")
-    if invite_request.source not in {"manual", "csv", "api"}:
+    if invite_request.source not in {"manual", "csv", "api", "cis"}:
         raise HTTPException(status_code=400, detail="Unsupported invitation source")
     if len(invite_request.emails) > int(policy["batch"]):
         raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
@@ -786,9 +786,9 @@ async def invite_batch_users(
     invite_request: InviteUsersRequest,
     db_session: Session,
     current_user: PublicUser | AnonymousUser,
+    before_delivery=None,  # given the new invitations once saved, before emails go (CIS imports hold work then)
 ):
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-
     if not org or org.id is None:
         raise HTTPException(
             status_code=404,
@@ -804,7 +804,7 @@ async def invite_batch_users(
     policy = _invitation_policy(org.id, db_session)
     if invite_request.source == "csv" and not policy["csv"]:
         raise HTTPException(status_code=403, detail="CSV invitations need the Full tier")
-    if invite_request.source not in {"manual", "csv", "api"}:
+    if invite_request.source not in {"manual", "csv", "api", "cis"}:
         raise HTTPException(status_code=400, detail="Unsupported invitation source")
     if len(invite_request.emails) > int(policy["batch"]):
         raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
@@ -998,7 +998,8 @@ async def invite_batch_users(
         results.append(InviteRecipientResult(email=validated_email, status="invited"))
 
     db_session.commit()
-
+    if before_delivery:
+        before_delivery(new_invitations)
     org_read = OrganizationRead.model_validate(org)
     user_read = UserRead.model_validate(user)
     base_url = get_base_url_from_request(request)

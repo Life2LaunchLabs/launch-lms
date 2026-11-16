@@ -49,6 +49,8 @@ def startup_app(app: FastAPI) -> Callable:
         app.state.insight_capture_rules = asyncio.create_task(run_capture_rules(engine))
         from src.services.notifications.outbox import run_forever as send_notifications
         app.state.notification_worker = asyncio.create_task(send_notifications(engine))
+        from src.services.portfolio_held_imports import run_forever as clear_held_imports
+        app.state.held_imports_cleanup = asyncio.create_task(clear_held_imports(engine))
 
         # Former EE startup work has either been folded into core startup
         # or intentionally disabled until a native rebuild lands.
@@ -59,7 +61,7 @@ def startup_app(app: FastAPI) -> Callable:
 def shutdown_app(app: FastAPI) -> Callable:
     async def close_app() -> None:
         import asyncio
-        for name in ('demo_cleanup', 'demo_preparation', 'demo_recapture', 'insight_capture_rules', 'notification_worker'):
+        for name in ('demo_cleanup', 'demo_preparation', 'demo_recapture', 'insight_capture_rules', 'notification_worker', 'held_imports_cleanup'):
             task = getattr(app.state, name, None)
             if task:
                 task.cancel()

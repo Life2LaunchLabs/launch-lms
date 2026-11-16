@@ -120,5 +120,10 @@ def describe(db: Session, invitation: OrganizationInvitation) -> dict:
         who = group.name if group else (" ".join(part for part in (person.first_name, person.last_name) if part) or person.username) if person else assignment.subject_email or ""
         rows.append({"assignment_uuid": assignment.assignment_uuid, "plan": template.title if template else "", "assigned_to": who,
                      "role": item.get("role_key"), "role_label": ROLE_LABELS.get(item.get("role_key"), "")})
+    from src.services.portfolio_held_imports import waiting_for_invitation
+
+    held = waiting_for_invitation(db, invitation)
     return {"permissions": [{"key": key, "label": STAFF_PERMISSIONS[key]} for key in keys if key in STAFF_PERMISSIONS],
-            "assignments": rows, "note": invitation.note or ""}
+            "assignments": rows, "note": invitation.note or "",
+            # A CIS invitation's email says their CIS work is waiting (services/portfolio_held_imports.py).
+            "cis": {"items": held.summary.get("items", 0)} if held else None}

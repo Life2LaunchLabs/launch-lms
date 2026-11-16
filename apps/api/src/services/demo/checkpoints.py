@@ -127,7 +127,7 @@ FORBIDDEN = frozenset(
     """
 apitoken ssoconnection auditlog recommendationevent
 paymentsconfig paymentsenrollment paymentsoffer paymentsofferresource paymentsgroup
-paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinlink
+paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinlink heldportfolioimport
 resourcecomment resourcecommentreport
 inboxmessagetemplate
 feedbackjiraconfiguration feedback_list_cache feedback_submission feedback_submission_file

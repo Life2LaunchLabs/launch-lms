@@ -4,7 +4,7 @@ import React from 'react'
 import QRCode from 'qrcode'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { AlertCircle, ArrowLeft, CheckCircle2, Copy, Download, Link2, MailPlus, Plus, QrCode, Shield, Upload, User, Users, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CheckCircle2, Copy, Download, FileSpreadsheet, Link2, MailPlus, Plus, QrCode, Shield, Upload, User, Users, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
@@ -15,6 +15,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { PERMISSION_NAMES } from '@services/organizations/membership'
 import StaffSetupFields, { emptyStaffSetup, type StaffSetup } from './StaffSetupFields'
+import CisImportPanel from './CisImportPanel'
 import { inOrgWords } from '@/lib/people'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -33,7 +34,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
   const features = useFeatures()
   const groupsEnabled = features.has('groups')
   const [recipients, setRecipients] = React.useState<string[]>([])
-  const [method, setMethod] = React.useState<'manual' | 'csv' | 'link'>('manual')
+  const [method, setMethod] = React.useState<'manual' | 'csv' | 'link' | 'cis'>('manual')
   const [previewResults, setPreviewResults] = React.useState<any[]>([])
   const [recipientInput, setRecipientInput] = React.useState('')
   const [selectedRoleId, setSelectedRoleId] = React.useState('')
@@ -193,16 +194,17 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
       <DialogContent className="max-h-[90vh] overflow-y-auto p-6 sm:max-w-2xl">
         <DialogHeader className="pr-8">
           <DialogTitle>{reviewing ? 'Review invitations' : 'Invite people'}</DialogTitle>
-          <DialogDescription>{reviewing ? 'Confirm the access these people will receive. Pending invitations reserve seats.' : inOrgWords('Invite by email, upload a CSV, or create a controlled learner link and QR code.')}</DialogDescription>
+          <DialogDescription>{reviewing ? 'Confirm the access these people will receive. Pending invitations reserve seats.' : inOrgWords('Invite by email, upload a CSV, create a controlled learner link and QR code, or bring learners over from Oregon CIS.')}</DialogDescription>
         </DialogHeader>
 
         {!reviewing ? <div className="space-y-5 py-2">
-          <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-1">
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1 sm:grid-cols-4">
             <MethodButton active={method === 'manual'} onClick={() => setMethod('manual')} icon={MailPlus} label="Emails" />
             <MethodButton active={method === 'csv'} onClick={() => setMethod('csv')} icon={Upload} label="CSV" disabled={!features.has('bulk_invites')} />
             <MethodButton active={method === 'link'} onClick={() => setMethod('link')} icon={QrCode} label="Link / QR" />
+            <MethodButton active={method === 'cis'} onClick={() => setMethod('cis')} icon={FileSpreadsheet} label="Oregon CIS" />
           </div>
-          {method === 'link' ? <JoinLinkPanel org={org} accessToken={accessToken} usergroups={usergroups || []} groupsEnabled={groupsEnabled} bulkInvites={features.has('bulk_invites')} onCreated={onInvited} /> : <>
+          {method === 'cis' ? <CisImportPanel org={org} accessToken={accessToken} usergroups={usergroups || []} groupsEnabled={groupsEnabled} onSent={onInvited} /> : method === 'link' ? <JoinLinkPanel org={org} accessToken={accessToken} usergroups={usergroups || []} groupsEnabled={groupsEnabled} bulkInvites={features.has('bulk_invites')} onCreated={onInvited} /> : <>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-medium text-gray-800"><span>Role</span><Select value={selectedRoleId} onValueChange={setSelectedRoleId}><SelectTrigger className="h-11"><SelectValue placeholder="Choose a role" /></SelectTrigger><SelectContent>{roles?.map((role: any) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent></Select></label>
             {isLearnerRole && groupsEnabled && <label className="space-y-2 text-sm font-medium text-gray-800"><span>Group <span className="font-normal text-gray-400">optional</span></span><Select value={groupChoice} onValueChange={setGroupChoice}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No group</SelectItem>{usergroups?.map((group: any) => <SelectItem key={group.id} value={`group:${group.id}`}>{group.name}</SelectItem>)}<SelectItem value="new"><span className="flex items-center gap-2"><Plus className="h-3.5 w-3.5" />Create a new group</span></SelectItem></SelectContent></Select></label>}
@@ -237,7 +239,7 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
 
         <DialogFooter className="gap-2 sm:gap-0">
           {reviewing ? <button type="button" onClick={() => setReviewing(false)} className="mr-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"><ArrowLeft className="h-4 w-4" />Edit</button> : <button type="button" onClick={close} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Cancel</button>}
-          {method !== 'link' && <button type="button" onClick={reviewing ? sendInvites : beginReview} disabled={isSending || (reviewing && !readyRecipients.length)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"><MailPlus className="h-4 w-4" />{isSending ? 'Working…' : reviewing ? `Send ${readyRecipients.length} invitation${readyRecipients.length === 1 ? '' : 's'}` : 'Review invitations'}</button>}
+          {method !== 'link' && method !== 'cis' && <button type="button" onClick={reviewing ? sendInvites : beginReview} disabled={isSending || (reviewing && !readyRecipients.length)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"><MailPlus className="h-4 w-4" />{isSending ? 'Working…' : reviewing ? `Send ${readyRecipients.length} invitation${readyRecipients.length === 1 ? '' : 's'}` : 'Review invitations'}</button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>
