@@ -62,6 +62,7 @@ from src.services.search.resource_search import (
     refresh_search_documents,
     refresh_search_documents_for_tag,
 )
+from src.services.utils.link_preview import is_block_page
 from src.services.utils.upload_content import upload_file
 
 
@@ -115,6 +116,8 @@ def enrich_resource_metadata(url: str) -> dict[str, str | None]:
         return data
 
     og = _parse_og_tags(html)
+    if is_block_page(None, og.get("title")):
+        return data
     data["title"] = og.get("title")
     data["description"] = og.get("description")
     data["cover_image_url"] = og.get("image")
