@@ -6,7 +6,7 @@ import { ArrowLeft, Baby, BookOpen, Briefcase, Building2, Heart, Home, HousePlus
 import { MicButton } from '@components/Accessibility/ReadAloud'
 import { cn } from '@/lib/utils'
 import { lifeApi, type Activity, type Career, type Household, type School } from '@services/life/life'
-import { KINDS, LEVELS, LIVING } from './setup'
+import { KINDS, LEVELS, LIVING, pendingActivity } from './setup'
 import { monthName } from './graph'
 import { useTranslation } from 'react-i18next'
 
@@ -92,11 +92,18 @@ function SearchBox({ value, onChange, placeholder, label }: { value: string; onC
  * then the employer), or one of the others. Schools and careers come from College Scorecard and O*NET;
  * a high school or an employer you can type.
  */
-export function ActivityPicker({ token, state, onPick }: { token?: string; state?: string | null; onPick: (a: Activity) => void }) {
+export function ActivityPicker({ token, state, onPick, onDraft }: { token?: string; state?: string | null; onPick: (a: Activity) => void; onDraft?: (a: Activity | null) => void }) {
   const [kind, setKind] = React.useState<Activity['kind'] | null>(null)
   const [level, setLevel] = React.useState<string | null>(null)
   const [career, setCareer] = React.useState<Career | null>(null)
   const [q, setQ] = React.useState('')
+  // What a Done or Next outside the picker should keep: the half-made pick, not nothing.
+  const draftRef = React.useRef(onDraft)
+  React.useEffect(() => { draftRef.current = onDraft })
+  const draft = pendingActivity({ kind, level, career, typed: q })
+  const draftKey = JSON.stringify(draft)
+  React.useEffect(() => { draftRef.current?.(draftKey === 'null' ? null : JSON.parse(draftKey)) }, [draftKey])
+  React.useEffect(() => () => draftRef.current?.(null), [])
   const { t } = useTranslation()
   const college = LEVELS.find((l) => l.key === level)?.college
   const schools = useSearch<School>(q, (s) => lifeApi.schools(s, state || 'OR', token).then((r) => r.schools.slice(0, 8)), kind === 'learning' && Boolean(college))
