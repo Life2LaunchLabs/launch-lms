@@ -5166,7 +5166,16 @@
       "bring_in_size": "Bring in {{size}}",
       "upload_from_title": "Upload from {{title}}",
       "v_thing": "thing",
-      "v_things": "things"
+      "v_things": "things",
+      "your_cis_work_is_waiting": "Your Oregon CIS work is waiting",
+      "cis_sent_by_at": "{{name}} at {{org}} sent over what you saved in Oregon CIS.",
+      "cis_sent_by_org": "{{org}} sent over what you saved in Oregon CIS.",
+      "cis_items_waiting": "{{count}} things can come into your portfolio. Anything already there is skipped.",
+      "cis_plan_rows_waiting": "It has your plan progress for when your plans can use it.",
+      "bring_it_in": "Bring it in",
+      "no_thanks": "No thanks",
+      "cis_waiting_private": "Only you and the staff who sent it can see it. Turning it down deletes it.",
+      "cis_work_turned_down": "Turned down. It has been deleted."
     },
     "quest_bar": {
       "have_of_need": "{{have}} of {{need}}",

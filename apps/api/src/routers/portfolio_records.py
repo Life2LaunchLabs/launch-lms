@@ -25,6 +25,7 @@ from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.db.portfolio_people import PersonAccess, PersonLink
 from src.services import interest_quiz, people_access, picture_sort, portfolio_quotes as quote_asks
+from src.services import portfolio_held_imports as held_imports
 from src.services import portfolio_display, portfolio_identity, portfolio_imports as imports, portfolio_records as records, portfolio_results as results
 
 router = APIRouter()
@@ -228,6 +229,22 @@ async def api_delete_result(result_uuid: str, current_user: PublicUser = User, d
 @router.get("/me/imports")
 async def api_list_imports(current_user: PublicUser = User, db_session: Session = Db):
     return imports.list_imports(current_user, db_session)
+
+
+@router.get("/me/imports/waiting")
+def api_waiting_imports(current_user: PublicUser = User, db_session: Session = Db):
+    """CIS work staff sent that the learner can bring in (services/portfolio_held_imports.py)."""
+    return held_imports.waiting_for_me(current_user, db_session)
+
+
+@router.post("/me/imports/waiting/{held_uuid}")
+async def api_bring_in_waiting(held_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return await held_imports.accept_mine(held_uuid, current_user, db_session)
+
+
+@router.delete("/me/imports/waiting/{held_uuid}")
+def api_decline_waiting(held_uuid: str, current_user: PublicUser = User, db_session: Session = Db):
+    return held_imports.decline_mine(held_uuid, current_user, db_session)
 
 
 @router.post("/me/imports/preview")
