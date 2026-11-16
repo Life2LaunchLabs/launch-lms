@@ -212,7 +212,11 @@ def learner_statuses(ctx: Ctx) -> dict[int, str]:
 
 def _status(ctx: Ctx, since: date | None) -> list[Fact]:
     groups = ctx.groups_of()
-    return [Fact(user_id, ctx.today, {"status": status, "group": groups.get(user_id, [])}) for user_id, status in learner_statuses(ctx).items()]
+    plans: dict[int, list[str]] = {}  # each learner's plans, so a plan dashboard keeps its own learners
+    for goal, plan, _ in _goal_rows(ctx):
+        plans.setdefault(int(goal.subject_user_id), []).append(plan)  # type: ignore[arg-type]
+    return [Fact(user_id, ctx.today, {"status": status, "group": groups.get(user_id, []), "plan": plans.get(user_id, [])})
+            for user_id, status in learner_statuses(ctx).items()]
 
 
 # Badges -------------------------------------------------------------------------------------------
@@ -277,7 +281,7 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
         "completion_rate", "Completion rate",
         f"Of plans started in the range, the share finished. Plans younger than {SETTLE_DAYS} days are still running and left out.",
         kind="rate", unit="percent", direction="up", load=_completion, dims=GOAL_DIMS, scopes=ALL_SCOPES,
-        phrase=("Completion is {v}", "Completion is {v}"), base=("plan started", "plans started"), rank="{a} finishes most often ({av}); {b} least ({bv})",
+        phrase=("Completion is {v}", "Completion is {v}"), base=(f"plan started {SETTLE_DAYS}+ days ago", f"plans started {SETTLE_DAYS}+ days ago"), rank="{a} finishes most often ({av}); {b} least ({bv})",
         settle_days=SETTLE_DAYS, keywords=("finish", "completed"),
     ),
     Measure(

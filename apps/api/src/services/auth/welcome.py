@@ -1,6 +1,7 @@
 """The welcome signup when it comes from an invitation email or a join link: the account joins that organization.
 
-A plain welcome signup joins the owner organization and starts its starter plan (routers/auth.py).
+A plain welcome signup joins the owner organization and starts its starter plan (routers/auth.py). An invited
+account also belongs to the owner organization, as a learner (services/orgs/owner.ensure_owner_membership).
 """
 
 from fastapi import HTTPException, Request

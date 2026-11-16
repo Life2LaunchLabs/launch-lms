@@ -25,6 +25,10 @@ export interface Caseload {
   learners: CaseloadLearner[]
   counts: Record<'total' | CaseloadState, number>
   exportable: number
+  /** The yearly EPP plan the school assigns, once it has one. */
+  plan: { framework_uuid: string; template_uuid: string | null; published: boolean } | null
+  /** Whether the viewer may set it up (staff who build plans). */
+  can_set_up: boolean
 }
 
 const org = (orgId: number) => `${getAPIUrl()}epp/orgs/${orgId}`
@@ -33,6 +37,11 @@ export const caseloadKey = (orgId: number, mine: boolean) => `${org(orgId)}/case
 
 export async function getCaseload(orgId: number, mine: boolean, token?: string): Promise<Caseload> {
   return errorHandling(await fetch(caseloadKey(orgId, mine), RequestBodyWithAuthHeader('GET', null, null, token)))
+}
+
+/** Give the school the Oregon EPP framework and yearly plan, published and ready to assign. */
+export async function setUpEpp(orgId: number, token?: string): Promise<NonNullable<Caseload['plan']>> {
+  return errorHandling(await fetch(`${org(orgId)}/setup`, RequestBodyWithAuthHeader('POST', null, null, token)))
 }
 
 /** The file name the API gives (Last_First_StudentID_EPP_2026-27.pdf), or the fallback. */

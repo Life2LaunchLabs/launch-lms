@@ -57,9 +57,6 @@ fly.toml
 apps/web/public/runtime-config.js
 apps/web/runtime-config.json
 
-# Tinybird CLI local state (contains tokens)
-.tinyb
-
 # Launch LMS CLI generated files
 .launch-lms/
 .ee-disabled

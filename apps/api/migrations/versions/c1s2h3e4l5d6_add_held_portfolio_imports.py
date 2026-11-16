@@ -1,7 +1,7 @@
 """Hold a learner's Oregon CIS work until they accept a staff invitation (DEV-40)
 
 Revision ID: c1s2h3e4l5d6
-Revises: y1w2a3g4e5s6
+Revises: d3v30a1b2c3d
 Create Date: 2026-11-16
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "c1s2h3e4l5d6"
-down_revision = "y1w2a3g4e5s6"
+down_revision = "d3v30a1b2c3d"
 branch_labels = None
 depends_on = None
 

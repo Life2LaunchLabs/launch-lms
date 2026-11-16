@@ -22,13 +22,20 @@ class TaskList(Config):
 
 class TaskConfig(Config):
     list: TaskList | None = None
+    # Asks the learner to show it's done with a photo ("Build it and show me"): one is needed to finish.
+    photo: bool | None = None
 
 
 class Task(StepType):
     key = "task"
     label = "Task"
     config_model = TaskConfig
-    entry_kinds = frozenset({"item"})
+    entry_kinds = frozenset({"item", "file"})
+
+    def prepare_entry(self, db: Session, step: GoalStep, done: bool, entry_kind: str, payload) -> dict:
+        if entry_kind == "file" and not (step.config or {}).get("photo"):
+            raise HTTPException(status_code=422, detail="This task doesn't ask for a photo")
+        return {}
 
     def _target(self, state: StepState) -> int:
         return int(((state.config.get("list") or {}).get("target")) or 0)
@@ -37,6 +44,8 @@ class Task(StepType):
         target = self._target(state)
         if target and len(state.entries_of("item")) < target:
             return f"Add {target} items first"
+        if state.config.get("photo") and not state.entries_of("file"):
+            return "Add a photo first"
         return None
 
     def fraction(self, state: StepState) -> float:
@@ -45,6 +54,9 @@ class Task(StepType):
 
     def result(self, state: StepState) -> dict | None:
         items = state.entries_of("item")
+        photos = state.entries_of("file")
+        if photos and not items:
+            return {"kind": "files", "files": [{"slot": None, "title": entry.title, "url": entry.url, "asset_id": entry.asset_id} for entry in photos]}
         if not items:
             return None
         return {"kind": "items", "items": [{"title": item.title, "url": item.url, "done": item.done} for item in items]}

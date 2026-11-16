@@ -473,7 +473,8 @@ class ResourceCommentUpdate(SQLModel):
 
 
 class ResourceReviewCreate(SQLModel):
-    content: str = Field(sa_column=Column(Text))
+    """A star rating, with words if the learner adds them. Stars alone are a complete rating."""
+    content: str = Field(default="", sa_column=Column(Text))
     rating: int = Field(ge=1, le=5)
 
 

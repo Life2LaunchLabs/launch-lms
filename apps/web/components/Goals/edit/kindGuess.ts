@@ -8,7 +8,8 @@ const RULES: Array<[RegExp, StepTypeKey]> = [
   [/^(research|explore|find out|look into|learn about|look up|investigate)\b|^(what|how|where|why|who)\b.*\?$/i, 'explore'],
   [/^(decide|choose|pick|select|settle on)\b|\bwhich\b.*\?$/i, 'decision'],
   [/^(write|journal|reflect|draft|describe|note down|list)\b/i, 'write'],
-  [/^(upload|photograph|scan|attach|record|submit)\b|\b(photo|screenshot|scan) of\b/i, 'upload'],
+  // "Build it and show me" and "Send Mom a picture of it" ask the learner to hand something in (FEED-145, FEED-153).
+  [/^(upload|photograph|scan|attach|record|submit)\b|\b(photo|picture|pic|screenshot|scan) of\b|\bshow (me|us|mom|dad)\b/i, 'upload'],
   [/^(meet|attend|visit|tour|interview|go to|join|call)\b|\b(meeting|appointment|open day|session|fair|interview)\b/i, 'event'],
 ]
 
