@@ -185,6 +185,10 @@ def _load(ctx: Ctx, spec: CardSpec, inherit) -> Loaded:
     other = compared(win, compare)
     since = min(day for day in (win.start, other.start if other else None) if day) if win.start else None
     facts = _kept(ctx, spec, measure, measure.load(ctx, since))
+    if "learner" in (spec.by, spec.by2):
+        uuids = ctx.learner_uuids()
+        for fact in facts:
+            fact.dims["learner"] = uuids.get(fact.user_id)
     if measure.snapshot:
         return Loaded(measure, win, None, facts, [])
     if win.start is None and facts:

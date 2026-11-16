@@ -23,11 +23,6 @@ function frameworkPage(frameworkUuid: string, subpage: FrameworkSubpage = 'detai
 }
 
 /** A framework list for a report: every framework, some, or none. */
-function frameworksParam(frameworks?: string[] | 'all' | null): string | null {
-  if (frameworks === 'all') return 'all'
-  return frameworks?.length ? frameworks.join(',') : null
-}
-
 export type QueryParamValue =
   | string
   | number
@@ -255,14 +250,9 @@ export const routePaths = {
       /** A plan, group, learner or framework dashboard, for one of them (`key`); without it the first one the viewer can open. */
       insightsScope: (scope: 'plan' | 'group' | 'learner' | 'framework', key?: string | null, dashboard?: string | null) =>
         withQuery(`/admin/insights/${scope}${key ? `/${encodeURIComponent(key)}` : ''}`, { d: dashboard || null }),
-      /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
       /** The capture log, optionally narrowed to one dashboard. */
       insightsCaptures: (dashboard?: string | null) => withQuery('/admin/insights/captures', { d: dashboard || null }),
       insightsCapture: (captureUuid: string) => `/admin/insights/captures/${encodeURIComponent(captureUuid)}`,
-      insightsReport: (groupId?: string | number | null, frameworks?: string[] | 'all' | null) =>
-        withQuery('/admin/insights/reports', { group: groupId == null ? null : String(groupId), fw: frameworksParam(frameworks) }),
-      insightsReportPrint: (groupId: string | number, frameworks?: string[] | 'all' | null) =>
-        withQuery(`/admin/insights/reports/${encodeURIComponent(String(groupId))}/print`, { fw: frameworksParam(frameworks) }),
       /** Engagement by group (a placeholder for now). */
       insightsEngagement: () => '/admin/insights/engagement',
       /** Old coverage page; it redirects to Plans › Requirements. */

@@ -187,7 +187,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
   const { data: objects } = useSWR(ready && scope !== 'org' ? insightKeys.objects(orgId, scope) : null,
     () => insightsApi.objects(orgId, scope as ObjectScope, token), { revalidateOnFocus: false })
   // A plan or group asked for by key that the viewer can't open (or that has no learners here) isn't swapped for another.
-  const object = objectKey ? objects?.find((item) => item.key === objectKey) : objects?.[0]
+  const object = objectKey ? objects?.find((item) => item.key === objectKey || (item.id != null && String(item.id) === objectKey)) : objects?.[0]
   const { data: dashboard } = useSWR(ready && chosen ? insightKeys.dashboard(orgId, chosen.dashboard_uuid) : null,
     () => insightsApi.dashboard(orgId, chosen!.dashboard_uuid, token), { revalidateOnFocus: false })
   const [range, setRange] = React.useState<DateRange | null>(null)
@@ -195,6 +195,10 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
   React.useEffect(() => { setRange(null); setDraft(null) }, [chosen?.dashboard_uuid])
   const admin = routePaths.org.admin
   const scopeHref = (key?: string | null, uuid?: string | null) => getUriWithOrg(orgslug, scope === 'org' ? admin.insights(uuid) : admin.insightsScope(scope, key, uuid))
+  // An old group report link names the group by number; settle on its key so the address matches the switcher.
+  React.useEffect(() => {
+    if (object && objectKey && object.key !== objectKey) router.replace(scopeHref(object.key, dashboardUuid))
+  }, [object?.key, objectKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const body = () => {
     if (!dashboards || (scope !== 'org' && !objects)) return <div className="space-y-4"><span className="block h-9 w-72 animate-pulse rounded-lg bg-muted" />

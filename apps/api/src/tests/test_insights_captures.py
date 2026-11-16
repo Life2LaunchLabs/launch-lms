@@ -178,3 +178,11 @@ def test_the_read_only_link_route_needs_no_sign_in():
     assert not calls & {"get_non_api_token_user", "get_current_user"}
     others = next(item for item in v1_router.routes if getattr(item, "path", "") == "/api/v1/insights/captures/{capture_uuid}" and "GET" in item.methods)  # type: ignore[attr-defined]
     assert "get_non_api_token_user" in {getattr(dep.call, "__name__", "") for dep in others.dependant.dependencies}  # type: ignore[attr-defined]
+
+
+def test_shield_never_shares_learner_rows():
+    result = {"measure": "plan_progress", "shape": "ranked", "headline": "Ana is furthest along (80%)", "auto_headline": "Ana is furthest along (80%)",
+              "value": {"v": 0.5, "n": 40, "text": "50%"}, "rows": [{"key": "user_1", "label": "Ana Diaz", "v": 0.8, "n": 5, "text": "80%", "link": {"scope": "learner", "key": "user_1"}}]}
+    out = captures.shield(result, {"measure": "plan_progress", "by": "learner"})
+    assert out["rows"] == [] and "Ana" not in str(out)
+    assert out["headline"] == "Learner names stay inside the organization"

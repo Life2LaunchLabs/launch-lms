@@ -284,3 +284,9 @@ def test_series_sentences():
     assert sentences.series(count, rising, {"v": 20, "n": 20}, None, "", "prior", "weeks") == "Plan starts rose 3 weeks running"
     flat = [{"v": 4, "period": "w"} for _ in range(6)]
     assert sentences.series(count, flat, {"v": 24, "n": 24}, {"v": 12, "n": 12}, "this time last year", "year") == "Plan starts are up 100% on this time last year"
+
+
+def test_learner_breakdown_only_fits_group_and_plan_dashboards(db):
+    from src.services.insights.spec import CardSpec, check
+    assert check(CardSpec(measure="plan_progress", by="learner"), "group", see_reports=True) == []
+    assert any(item["field"] == "by" for item in check(CardSpec(measure="plan_progress", by="learner"), "org", see_reports=True))

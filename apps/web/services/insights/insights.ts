@@ -211,7 +211,8 @@ export const ruleInput = (rule: CaptureRule): RuleInput => ({
   range: rule.range ? ('preset' in rule.range ? rule.range.preset : rule.range) : null, staff: rule.staff.map((item) => item.user_uuid), emails: rule.emails,
 })
 
-export interface InsightObject { key: string; label: string; learners: number; external?: boolean; detail?: string }
+/** `id` is a group's number, which old group report links carry. */
+export interface InsightObject { key: string; label: string; learners: number; external?: boolean; detail?: string; id?: number }
 export interface LibraryTemplate { key: string; scope: Scope; title: string; description: string; cards: DashboardCard[] }
 export interface LibraryQuestion { key: string; text: string; spec: CardSpec }
 
