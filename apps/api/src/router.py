@@ -87,11 +87,18 @@ from src.security.api_token_utils import require_non_api_token_user
 from src.security.auth import get_current_user
 from src.security.access.access import require_feature
 from src.services.dev.dev import isDevModeEnabledOrRaise
+from src.services.user_tests.settings import require_enabled as require_user_tests_enabled
 
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(demo.router, prefix="/demo", tags=["demo"])
 v1_router.include_router(demo_guide.router, prefix="/demo", tags=["demo"])
-v1_router.include_router(user_tests_router_module.router, prefix="/user_tests", tags=["user_tests"])
+# Off unless LAUNCHLMS_USER_TESTS_ENABLED: every route answers 404 before auth runs (DEV-27).
+v1_router.include_router(
+    user_tests_router_module.router,
+    prefix="/user_tests",
+    tags=["user_tests"],
+    dependencies=[Depends(require_user_tests_enabled)],
+)
 
 # Helper dependency to reject API token access
 async def get_non_api_token_user(user = Depends(get_current_user)):
