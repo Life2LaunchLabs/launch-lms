@@ -151,14 +151,23 @@ def assignment_detail(db: Session, current_user: PublicUser, org_id: int, assign
     }
 
 
-def _learner_row(learner: assignment_status.Learner, user: User | None, assignment: GoalAssignment, step_count: int) -> dict:
+def _first_review(learner: assignment_status.Learner, step_keys: list[str]) -> dict | None:
+    """The learner's first step (in plan order) waiting on review, so a click on their count opens it."""
+    key = next((key for key in step_keys if learner.cells.get(key) == "review"), None)
+    step = learner.steps.get(key) if key else None
+    return {"step_key": key, "step_uuid": step.step_uuid} if step else None
+
+
+def _learner_row(learner: assignment_status.Learner, user: User | None, assignment: GoalAssignment, step_keys: list[str]) -> dict:
     counts = learner.counts
     goal: Goal = learner.goal
+    step_count = len(step_keys)
     return {
         "person": person(user), "email": None if user else assignment.subject_email, "goal_uuid": goal.goal_uuid,
         "goal_status": getattr(goal.status, "value", goal.status), "counts": counts,
         "needs": {"questions": learner.question_count, "review": counts["review"], "behind": counts["behind"]},
         "progress_percent": round(counts["done"] * 100 / step_count) if step_count else 0, "update_date": goal.update_date,
+        "review": _first_review(learner, step_keys),
     }
 
 
@@ -168,6 +177,6 @@ def assignment_people(db: Session, current_user: PublicUser, org_id: int, assign
     board = assignment_status.board(db, assignment, int(current_user.id))
     ids = [int(item.goal.subject_user_id) for item in board.learners if item.goal.subject_user_id]
     users = {int(user.id): user for user in db.exec(select(User).where(col(User.id).in_(ids))).all()} if ids else {}  # type: ignore[arg-type]
-    step_count = len(board.step_keys())
-    rows = [_learner_row(item, users.get(int(item.goal.subject_user_id)) if item.goal.subject_user_id else None, assignment, step_count) for item in board.learners]
-    return {"assignment_uuid": assignment.assignment_uuid, "step_count": step_count, "needs": board.needs(), "learners": rows}
+    step_keys = board.step_keys()
+    rows = [_learner_row(item, users.get(int(item.goal.subject_user_id)) if item.goal.subject_user_id else None, assignment, step_keys) for item in board.learners]
+    return {"assignment_uuid": assignment.assignment_uuid, "step_count": len(step_keys), "needs": board.needs(), "learners": rows}

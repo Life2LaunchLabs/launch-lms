@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { AssignmentLearner, AssignmentStep } from '@services/assignments/assignments'
 import { draftProblem, draftToSave, needLines, statusPill, stepNeeds, stepWhen } from '@services/assignments/page'
-import { invitedRows, shownLearners } from '@services/assignments/people'
+import { invitedRows, learnerWorkHref, shownLearners } from '@services/assignments/people'
 
 const counts = (done = 0, review = 0, behind = 0, open = 0, locked = 0) => ({ done, review, behind, open, locked })
 const step = (over: Partial<AssignmentStep> = {}): AssignmentStep => ({
@@ -49,5 +49,13 @@ describe('assignment page', () => {
     expect(shownLearners(rows, 'needs', 'za').map((row) => row.goal_uuid)).toEqual(['Bo', 'Ab'])
     expect(shownLearners(rows, 'all', 'az', ' bo ').map((row) => row.goal_uuid)).toEqual(['Bo'])
     expect(invitedRows(rows).map((row) => row.email)).toEqual(['x@y.z'])
+  })
+
+  test('clicking a learner on People opens their own hand-in, or their plan when nothing waits', () => {
+    const lily = { goal_uuid: 'goal_lily', review: { step_key: 'resume', step_uuid: 'step_lily' } }
+    const marco = { goal_uuid: 'goal_marco', review: { step_key: 'resume', step_uuid: 'step_marco' } }
+    expect(learnerWorkHref('asg_1', lily)).toBe('/admin/plans/review?assignment=asg_1&step_key=resume&focus=step_lily&from=assignment')
+    expect(learnerWorkHref('asg_1', marco)).toContain('focus=step_marco')
+    expect(learnerWorkHref('asg_1', { goal_uuid: 'goal_jay', review: null })).toBe('/admin/plans/live/goal_jay')
   })
 })

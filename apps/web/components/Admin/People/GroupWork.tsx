@@ -13,7 +13,7 @@ import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { cohortKey, goalAdminApi, type Cohort } from '@services/goals/admin'
 import { assignmentApi, assignmentKeys } from '@services/assignments/assignments'
-import { shownLearners } from '@services/assignments/people'
+import { learnerWorkHref, shownLearners } from '@services/assignments/people'
 import { usePeopleContext } from './usePeople'
 import { inOrgWords } from '@/lib/people'
 
@@ -58,7 +58,7 @@ function GroupPlans({ orgslug, groupId, cohort, refresh }: { orgslug: string; gr
     {error ? <p className="p-8 text-center text-sm text-muted-foreground">{error.message || inOrgWords('This plan’s learners didn’t load.')}</p>
       : !people ? <Spinner />
       : <div className="space-y-3">
-        <div className="overflow-hidden rounded-2xl border border-border bg-card"><LearnerRows rows={shownLearners(people.learners, 'all', 'az')} ended={current.status === 'ended'} /></div>
+        <div className="overflow-hidden rounded-2xl border border-border bg-card"><LearnerRows rows={shownLearners(people.learners, 'all', 'az')} hrefFor={(row) => getUriWithOrg(orgslug, learnerWorkHref(current.assignment_uuid, row))} ended={current.status === 'ended'} /></div>
         <StatusLegend />
       </div>}
   </div>

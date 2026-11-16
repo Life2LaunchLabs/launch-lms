@@ -68,6 +68,9 @@ def test_learners_steps_are_done_review_behind_open_or_locked():
         people = {row["person"]["id"]: row for row in assignment_views.assignment_people(db, _user(ADMIN), 1, uuid)["learners"]}
         assert people[LEARNER]["needs"] == {"questions": 0, "review": 1, "behind": 0} and people[LEARNER]["progress_percent"] == 33
         assert people[OTHER]["needs"] == {"questions": 0, "review": 0, "behind": 1}
+        # The review count opens that learner's own hand-in, never someone else's.
+        assert people[LEARNER]["review"] == {"step_key": "essay", "step_uuid": essay.step_uuid}
+        assert people[OTHER]["review"] is None
 
         listed = assignment_views.list_assignments(db, _user(ADMIN), 1)
         assert [row["assignment_uuid"] for row in listed] == [uuid] and listed[0]["needs"] == detail["needs"]
