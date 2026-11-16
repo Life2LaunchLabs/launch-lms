@@ -136,7 +136,8 @@ export const routePaths = {
     epp: (school?: string) => withQuery('/epp', { org: school || null }),
     connect: () => '/connect',
     chat: (conversationUuid: string) => `/connect/${encodeURIComponent(conversationUuid)}`,
-    /** Invitations and notices from organizations, listed in Connect. */
+    /** One invitation to a plan, where its email links: opens the chat it waits in. */
+    invitation: (invitationUuid: string) => `/connect/invitation/${encodeURIComponent(invitationUuid)}`,
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',
     portfolioProjectDetail: (projectUuid: string) => `/portfolio/projects/${encodeURIComponent(projectUuid)}`,

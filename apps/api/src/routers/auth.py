@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal
+from urllib.parse import urlencode
 
 from src.services.auth import google_oauth
 from src.services.auth.usernames import generate_username as _generate_onboarding_username
@@ -65,15 +66,19 @@ class WelcomeSignupRequest(BaseModel):
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
+    next: str | None = Field(default=None, max_length=500)  # a path on this site to open once the first phase is set up (an invitation's link)
 
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
 
 
-def _portfolio_redirect_url(owner_org: Organization) -> str:
-    """Where a new learner lands: their first phase (skipped when they already have a plan)."""
-    return f"/orgs/{owner_org.slug}/first-phase"
+def _portfolio_redirect_url(owner_org: Organization, next_path: str | None = None) -> str:
+    """Where a new learner lands: their first phase (skipped when they already have a plan), then `next` if it's a path on this site."""
+    url = f"/orgs/{owner_org.slug}/first-phase"
+    if next_path and next_path.startswith("/") and not next_path.startswith("//") and "\\" not in next_path:
+        url += f"?{urlencode({'next': next_path})}"
+    return url
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -182,7 +187,7 @@ async def complete_welcome_signup(
 
     onboarding_payload = {
         "org_slug": (org or owner_org).slug,
-        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org),  # type: ignore[arg-type]
+        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org, body.next),  # type: ignore[arg-type]
     }
 
     access_token = create_access_token(
