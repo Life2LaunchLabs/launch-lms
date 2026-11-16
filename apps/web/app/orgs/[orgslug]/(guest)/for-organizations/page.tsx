@@ -5,6 +5,7 @@ import { getAccessCatalog } from '@services/plans/access'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { inOrgWords } from '@/lib/people'
+import LegalFooter from '@components/Legal/LegalFooter'
 
 type PageProps = { params: Promise<{ orgslug: string }> }
 
@@ -42,6 +43,7 @@ export default async function ForOrganizationsPage({ params }: PageProps) {
         learnerHome: getUriWithOrg(orgslug, routePaths.org.root()),
         login: getUriWithOrg(orgslug, routePaths.auth.login()),
       }} tiers={tiers} />
+      <LegalFooter />
     </div>
   )
 }

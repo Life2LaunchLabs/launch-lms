@@ -14,6 +14,7 @@ import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTr
 import CandidateExperience from '@components/Candidate/CandidateExperience'
 import OperationsSurface from '@components/Operations/OperationsSurface'
 import { isFocusedActivityPath } from '@services/routing/learnerExperience'
+import LegalFooter from '@components/Legal/LegalFooter'
 
 function OrgFooter() {
   const org = useOrg() as any
@@ -75,6 +76,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
           <GuestHeader orgslug={orgslug} />
         </div>
         {children}
+        <LegalFooter />
       </div>
     )
   }
@@ -105,6 +107,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         </div>
       </div>
       {!isFullBleedPage && <OrgFooter />}
+      {!isFullBleedPage && session?.status === 'unauthenticated' ? <LegalFooter /> : null}
     </div>
   )
 }

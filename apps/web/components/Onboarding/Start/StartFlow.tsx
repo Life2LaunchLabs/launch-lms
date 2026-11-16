@@ -15,6 +15,7 @@ import { useAuth } from '@components/Contexts/AuthContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
+import LegalAgreement from '@components/Legal/LegalAgreement'
 import { validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import { signup } from '@services/auth/auth'
 import { authenticatedOrgHref } from '@services/auth/handoff'
@@ -433,6 +434,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
       {!existing && password && !strong ? <p className="text-[12.5px] text-muted-foreground">{tr('onboarding.start_flow.use_at_least_8_characters', 'Use at least 8 characters with upper and lower case, a number and a symbol.')}</p> : null}
       <Button type="submit" size="lg" className="w-full rounded-full" disabled={!ready || busy}>{busy ? <Loader2 className="animate-spin" /> : null}{existing ? tr('onboarding.start_flow.sign_in', 'Sign in') : tr('onboarding.start_flow.create_account', 'Create account')}</Button>
       <p className="text-center text-[13px] text-muted-foreground">{existing ? tr('onboarding.start_flow.new_here', 'New here?') : tr('onboarding.start_flow.already_have_an_account', 'Already have an account?')} <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => { setExisting(!existing); setError('') }}>{existing ? tr('onboarding.start_flow.create_one_instead', 'Create one instead') : tr('onboarding.start_flow.sign_in_instead', 'Sign in instead')}</button></p>
+      <LegalAgreement className="text-center" />
     </form>
     <Nav back={back} /></>
 }
