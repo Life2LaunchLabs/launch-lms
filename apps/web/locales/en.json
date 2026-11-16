@@ -344,7 +344,8 @@
     "legal_last_name": "Legal last name",
     "name_you_go_by_help": "What people see in Life2Launch. Leave it empty to use your first name.",
     "name_you_go_by_placeholder": "e.g. Sam",
-    "optional": "(optional)"
+    "optional": "(optional)",
+    "email_help": "Use an email you check and will keep. If someone invited you, use the email the invitation went to."
   },
   "legal": {
     "privacy_policy": "Privacy Policy",
@@ -1384,7 +1385,10 @@
           "industry": "Industry",
           "expertise": "Expertise",
           "community": "Community"
-        }
+        },
+        "name_in_portfolio_title": "Your name",
+        "name_in_portfolio": "Your name and the name you go by are set in your portfolio. They show everywhere in the app.",
+        "edit_name_in_portfolio": "Edit in your portfolio"
       },
       "password": {
         "title": "Change Password",

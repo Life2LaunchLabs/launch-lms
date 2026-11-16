@@ -17,6 +17,7 @@ from src.db.portfolio import Portfolio
 from src.db.portfolio_people import PersonAccess, PersonLink, PortfolioPerson
 from src.db.portfolio_records import PortfolioContact
 from src.db.users import PublicUser, User
+from src.services.users.names import shown_name
 from src.services import portfolio as portfolio_service
 from src.services import portfolio_people
 from src.services.connect import cards, people as connect_people
@@ -28,7 +29,7 @@ def _now() -> str:
 
 
 def _display(user: User) -> str:
-    return (getattr(user, "preferred_name", "") or "").strip() or " ".join(p for p in (user.first_name, user.last_name) if p).strip() or user.username
+    return shown_name(user)
 
 
 def _account(db: Session, current_user: PublicUser, handle: str) -> User:
