@@ -18,6 +18,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
+import LegalAgreement from '@components/Legal/LegalAgreement'
 
 const validate = (values: any, t: any) => {
   const errors: any = {}
@@ -243,6 +244,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
             </Form.Submit>
           </div>
         </FormLayout>
+        <LegalAgreement className="mt-4 text-center" />
       </div>
 
       {/* Login Link */}

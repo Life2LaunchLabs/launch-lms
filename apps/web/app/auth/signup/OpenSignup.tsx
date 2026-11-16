@@ -20,6 +20,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
+import LegalAgreement from '@components/Legal/LegalAgreement'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -279,17 +280,7 @@ function OpenSignUpComponent({
             </form>
           </div>
 
-          <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
-            {t('auth.agree_prefix')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.terms_of_service')}
-            </span>{' '}
-            {t('auth.agree_and')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.privacy_policy')}
-            </span>
-            {t('auth.agree_suffix')}
-          </p>
+          <LegalAgreement className="mt-5" />
 
           <p className="mt-14 text-[15px] text-gray-600">
             {t('auth.already_have_account')}{' '}
