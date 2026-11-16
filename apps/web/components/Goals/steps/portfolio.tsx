@@ -55,13 +55,13 @@ export function portfolioAsk(config: PortfolioConfig): string {
   return tr('goals.portfolio.ask_count', 'At least {{count}} {{kind}}{{what}}', { count, kind, what: count === 1 ? words.one : words.many })
 }
 
-function ItemThumb({ item }: { item: PortfolioStepItem }) {
+export function ItemThumb({ item }: { item: PortfolioStepItem }) {
   return item.image_url ? <img src={normalizeMediaUrl(item.image_url)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
     : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-[var(--plan-accent)]"><BriefcaseBusiness size={17} aria-hidden="true" /></span>
 }
 
 /** One item, opened: what staff review, and what the learner sees they're showing. */
-function ItemDialog({ item, onClose }: { item: PortfolioStepItem | null; onClose: () => void }) {
+export function ItemDialog({ item, onClose }: { item: PortfolioStepItem | null; onClose: () => void }) {
   return <Dialog open={!!item} onOpenChange={(open) => { if (!open) onClose() }}>
     <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg overflow-auto">
       <DialogTitle className="pr-8 text-lg">{item?.title}</DialogTitle>

@@ -39,6 +39,7 @@ from src.services.goals import access, completion, schedule
 from src.services.goals.activity_reviews import activity_reviews
 from src.services.goals.document import iter_steps
 from src.services.goals.types import StepState, step_type
+from src.services.users.names import shown_name
 
 REVIEW = "complete_restricted_objectives"
 STALL_DAYS = 14
@@ -127,16 +128,26 @@ def staff_notes(db: Session, progress: StepProgress) -> list[dict]:
     return [{**note, "author": person(db.get(User, note.get("user_id")) if note.get("user_id") else None)} for note in progress.staff_notes or []]
 
 
+def learner(user: User | None) -> dict | None:
+    """The learner whose work is under review, named the way they go by (DEV-136); rosters keep ``person``."""
+    view = person(user)
+    return {**view, "name": shown_name(user)} if view else None
+
+
 def review_item(db: Session, goal: Goal, step: GoalStep, progress: StepProgress) -> dict:
     """What a reviewer needs to judge one learner's step."""
+    from src.services.goals import portfolio_steps
+
     entries = completion.entries(db, step)
     history = progress.feedback_history or []
+    # A counting portfolio step: the items that count, the learner's hidden ones left out (DEV-134).
+    counted = portfolio_steps.reference(portfolio_steps.evaluate(db, step, goal.subject_user_id, progress), learner=False) if step.type == "portfolio" else None
     return {
         "goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid, "step_key": step.template_key, "status": _value(progress.status),
-        "user": person(db.get(User, goal.subject_user_id)) if goal.subject_user_id else None,
+        "user": learner(db.get(User, goal.subject_user_id)) if goal.subject_user_id else None,
         # Every kind of evidence: files, links and items, and the notes, resources and logs of explore and routine steps.
         "entries": [entry_view(db, entry) for entry in entries],
-        "submission": progress.submission or {}, "answer": progress.answer,
+        "submission": progress.submission or {}, "answer": progress.answer, "portfolio": counted,
         "result": step_type(step.type).result(StepState(step, progress, entries)),
         "learner_note": progress.learner_note, "feedback_history": history,
         "attempt": 1 + sum(1 for item in history if item.get("action", "changes_requested") == "changes_requested"),

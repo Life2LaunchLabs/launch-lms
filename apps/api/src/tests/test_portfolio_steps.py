@@ -88,3 +88,28 @@ def test_a_step_can_count_a_kind_of_result_like_a_strengths_test():
 def test_a_filter_has_to_fit_the_part():
     with _session() as db, pytest.raises(HTTPException, match="doesn't narrow"):
         _published(db, {"type": "portfolio", "title": "Bad", "config": {"part": "projects", "filter": "strengths"}})
+
+
+def test_staff_reviewing_the_step_see_the_counted_items_and_the_name_the_learner_goes_by():
+    """DEV-134, DEV-136: the answer window and review page list what counts (hidden left out) under the learner's chosen name."""
+    from src.db.users import User
+    from src.services.goals import completion
+    from src.services.goals.review import review_item
+    from src.db.goals import GoalStep
+    from sqlmodel import select
+
+    with _session() as db:
+        learner = db.get(User, LEARNER)
+        learner.first_name, learner.last_name, learner.preferred_name = "Talia", "Legal", "Sam"
+        db.add(learner)
+        portfolio = _portfolio(db)
+        _projects(db, portfolio, "a", "b", "c", "d")
+        goal = _issue(db, _published(db, STEP, {"type": "task", "title": "Tidy up"}))
+        mine = _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Show three projects")
+        goals.hide_portfolio_items(db, _user(LEARNER), goal.goal_uuid, mine["step_uuid"], PortfolioItemsHidden(hidden=["project:prj_d"]))
+        step = db.exec(select(GoalStep).where(GoalStep.step_uuid == mine["step_uuid"])).one()
+        item = review_item(db, goal, step, completion.progress_view(db, step))
+        assert item["user"]["name"] == "Sam" and item["user"]["first_name"] == "Talia"
+        assert item["portfolio"]["needed"] == 3 and item["portfolio"]["have"] == 3
+        assert sorted(entry["key"] for entry in item["portfolio"]["items"]) == ["project:prj_a", "project:prj_b", "project:prj_c"]
+        assert all("hidden" not in entry for entry in item["portfolio"]["items"])

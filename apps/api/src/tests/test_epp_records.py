@@ -109,10 +109,11 @@ def test_the_record_and_pdf_carry_the_legal_name_and_say_who_they_go_by():
         db.add(learner)
         db.commit()
         live = report.staff_report(db, _user(TEACHER), 1, LEARNER)
-        assert (live["learner"]["name"], live["learner"]["first_name"], live["learner"]["goes_by"]) == ("Margaret Okafor", "Margaret", "Mo")
+        # The header keeps the legal name; sentences to or about the learner use the name they go by (DEV-136).
+        assert (live["learner"]["name"], live["learner"]["first_name"], live["learner"]["goes_by"]) == ("Margaret Okafor", "Mo", "Mo")
         record = records.review(db, _user(TEACHER), 1, LEARNER, EppRecordCreate(outcome="Fine."))
         assert db.exec(select(EppRecord).where(EppRecord.record_uuid == record["record_uuid"])).one().learner_name == "Margaret Okafor"
         text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf.render(live))).pages)
-        assert "Margaret Okafor" in text and "Goes by Mo" in text
+        assert "Margaret Okafor" in text and "Goes by Mo" in text and "Chosen by Mo" in text
         rows = caseload.caseload(db, _user(TEACHER), 1)["learners"]
         assert [row["name"] for row in rows if row["user_id"] == LEARNER] == ["Margaret Okafor"]

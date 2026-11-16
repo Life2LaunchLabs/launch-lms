@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from src.db.goals import Goal, GoalStep
 from src.db.learning import LearningActivity, LearningPage, LearningResponseAttempt, LearningRun
 from src.db.users import User
+from src.services.users.names import shown_name
 
 
 def _points(attempt: LearningResponseAttempt) -> float:
@@ -58,7 +59,7 @@ def activity_reviews(db: Session, goals: list[Goal]) -> list[dict]:
         result.append({
             "review_type": "activity", "review_id": f"{run.run_uuid}:{activity.activity_uuid}", "run_uuid": run.run_uuid,
             "goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid if step else None,
-            "user": {"id": user.id, "username": user.username, "first_name": user.first_name, "last_name": user.last_name, "avatar_image": user.avatar_image},
+            "user": {"id": user.id, "username": user.username, "first_name": user.first_name, "last_name": user.last_name, "avatar_image": user.avatar_image, "name": shown_name(user)},
             "activity": activity.model_dump(),
             "attempts": [{**attempt.model_dump(), "page": page.model_dump()} for page, attempt in rows],
             "attempt_history": [{**attempt.model_dump(), "page": page.model_dump()} for page, attempt in history],
