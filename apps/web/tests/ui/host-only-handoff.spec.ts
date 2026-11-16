@@ -77,8 +77,9 @@ test('signed in on an org address, a learner page on the main site keeps the ses
 
   const target = new URL(environment.baseUrl)
   const rootHost = process.env.UI_TEST_PUBLIC_HOST || 'unstable.127.0.0.1.sslip.io'
+  // Any organization's address other than the main org's (life2launch here) redirects learner pages.
   const source = new URL(target)
-  source.hostname = `life2launch.${rootHost}`
+  source.hostname = `school.${rootHost}`
 
   await page.context().clearCookies()
   const login = await page.request.post(new URL('/api/auth/login', source).toString(), {
