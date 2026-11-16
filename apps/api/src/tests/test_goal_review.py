@@ -116,3 +116,22 @@ def test_stalled_learners_are_nudged_and_ungraded_activity_answers_wait_for_a_gr
         assert grade["items"][0]["goal_uuid"] == goal.goal_uuid and grade["items"][0]["step_uuid"] == quiz["step_uuid"]
         nudge = inbox["groups"][-1]
         assert nudge["kind"] == "nudge" and nudge["items"][0]["goal_uuid"] == stalled.goal_uuid and nudge["items"][0]["open_count"] == 2
+
+
+def test_a_profile_shows_the_plan_before_and_after_its_last_hand_in_is_approved():
+    """FEED-223: approving the last hand-in finishes the plan; the profile still lists it, finished and when."""
+    from src.services.school import profile
+
+    with _session() as db:
+        _assigned(db, {"key": "goals", "type": "task", "title": "Write your goals"}, RESUME)
+        goal = _goal(db, LEARNER)
+        _status(db, LEARNER, goal, _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Write your goals"), StepStatus.COMPLETED)
+        poster = _submit_resume(db, LEARNER)
+        [partway] = profile.profile(db, _user(ADMIN), 1, "lee")["plans"]
+        assert partway["status"] == "active" and partway["finished_at"] is None
+        assert partway["progress"]["done"] == 1 and partway["progress"]["submitted"] == 1
+
+        review.decide(db, _user(ADMIN), 1, poster, "confirm")
+        [finished] = profile.profile(db, _user(ADMIN), 1, "lee")["plans"]
+        assert finished["goal_uuid"] == goal.goal_uuid and finished["status"] == "finished" and finished["finished_at"] is not None
+        assert finished["progress"]["done"] == finished["progress"]["total"] == 2
