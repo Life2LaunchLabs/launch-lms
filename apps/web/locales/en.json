@@ -3750,7 +3750,9 @@
     "collapse_sidebar": "Collapse sidebar",
     "send_feedback": "Send feedback",
     "feedback": "Feedback",
-    "settings": "Settings"
+    "settings": "Settings",
+    "education_plan": "Education Plan",
+    "new_request": "{{label}}, new request"
   },
   "settings": {
     "cancel": "Cancel",
@@ -6915,7 +6917,8 @@
       "org_name_would_like_to": "{{org_name}} would like to support your plan",
       "org_name_asked_to_support": "{{org_name}} asked to support their plan",
       "org_name_supports_you": "{{org_name}} supports you",
-      "v_them": "them"
+      "v_them": "them",
+      "you_said_not_now": "You said not now. You can still say yes."
     },
     "tag_composer": {
       "no_one_by_that_name": "No one by that name",
@@ -7757,7 +7760,8 @@
       "someone": "Someone",
       "you": "You",
       "waiting_for_an_answer": "Waiting for an answer",
-      "stopped": "Stopped"
+      "stopped": "Stopped",
+      "said_not_now": "Said not now"
     },
     "chat_workspace": {
       "everyone_in_the_group_sees": "Everyone in the group sees this",

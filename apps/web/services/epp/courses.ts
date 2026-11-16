@@ -29,11 +29,12 @@ export interface EppCourse {
   confirmed_by: PersonSummary | null
 }
 
-export interface CreditArea { subject: string; label: string; required: number; completed: number; planned: number; left: number }
+/** in_progress is missing on records frozen before it was counted on its own (it was inside planned then). */
+export interface CreditArea { subject: string; label: string; required: number; completed: number; in_progress?: number; planned: number; left: number }
 
 export interface CoursePlan {
   courses: EppCourse[]
-  tally: { areas: CreditArea[]; required: number; completed: number; planned: number; left: number; school_confirmed: number }
+  tally: { areas: CreditArea[]; required: number; completed: number; in_progress?: number; planned: number; left: number; school_confirmed: number }
   subjects: Array<{ key: string; label: string; required: number }>
   cis_courses: number
   added?: number

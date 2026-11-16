@@ -121,9 +121,41 @@ def test_staff_keep_the_school_record_and_can_end_the_link():
         fresh = _card(db)
         assert fresh["request_uuid"] != card["request_uuid"] and fresh["state"] == "pending"
         support.answer(db, _user(LEARNER), fresh["support_uuid"], False, fresh["request_uuid"])
-        assert _card(db)["state"] == "declined"
+        assert _card(db)["state"] == "not_now"
         with pytest.raises(HTTPException):
             _open(db)
+
+
+def test_not_now_keeps_the_ask_open_and_the_learner_hears_about_it_by_email():
+    """FEED-219 and FEED-220: Not now isn't a final no, and the ask arrives by email as well as in chat."""
+    from src.db.notifications import NotificationEvent
+    from src.services.notifications import kinds
+
+    with _session() as db:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[NotificationEvent.__table__])  # type: ignore[attr-defined]
+        support.request(db, _user(TEACHER), 1, LEARNER)
+        card = _card(db)
+        event = db.exec(select(NotificationEvent)).one()
+        assert (event.kind, event.recipient_user_id, event.data["request_uuid"]) == ("support_requested", LEARNER, card["request_uuid"])
+        item = kinds.RENDER["support_requested"](event, db.get(Organization, 1))
+        assert "/epp?org=" in item.link and "Studio" in item.subject
+        assert kinds.still_relevant(db, event)
+
+        later = support.answer(db, _user(LEARNER), card["support_uuid"], False, card["request_uuid"])
+        assert later["status"] == "declined" and _card(db)["state"] == "not_now"
+        # The school sees nothing yet, and the learner still has the ask on their Education Plan.
+        with pytest.raises(HTTPException):
+            _open(db)
+        mine = support.mine(db, _user(LEARNER))["supports"]
+        assert [(item["status"], item["request_uuid"]) for item in mine] == [("declined", card["request_uuid"])]
+        # Answered, so the email isn't worth sending any more.
+        assert not kinds.still_relevant(db, event)
+
+        # Later, from the same card or their Education Plan, they say yes.
+        assert support.answer(db, _user(LEARNER), card["support_uuid"], True, card["request_uuid"])["status"] == "active"
+        assert _card(db)["state"] == "accepted" and _open(db)["record"]["status"] == "active"
+        with pytest.raises(HTTPException):
+            support.answer(db, _user(LEARNER), card["support_uuid"], False, card["request_uuid"])
 
 
 def test_leaving_the_organization_stops_access():

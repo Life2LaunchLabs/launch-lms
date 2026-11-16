@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { EppReport as Report, EvidenceItem, ReportWork } from '@services/epp/report'
+import { interestsLine, type EppReport as Report, type EvidenceItem, type ReportWork } from '@services/epp/report'
 
 /**
  * The Oregon Education Plan and Profile report, laid out like the paper copy: a summary page, then who
@@ -78,7 +78,9 @@ function Evidence({ items, first }: { items: EvidenceItem[]; first: string }) {
 export default function EppReport({ report }: { report: Report }) {
   const { learner, graduation } = report
   const tally = graduation.tally
+  const going = tally.in_progress || 0
   const pct = (value: number) => `${Math.max(0, Math.min(100, (value / tally.required) * 100))}%`
+  const interests = interestsLine(report)
   const facts = [learner.grade ? `Grade ${learner.grade}` : null, learner.graduation_year ? `Class of ${learner.graduation_year}` : null, learner.diploma,
     learner.student_id ? `Student ID ${learner.student_id}` : null, learner.goes_by ? `Goes by ${learner.goes_by}` : null].filter(Boolean).join(' · ')
   return <article className="epp-report text-[#1C2433]">
@@ -97,15 +99,17 @@ export default function EppReport({ report }: { report: Report }) {
       </div>
       <div className="mt-5 grid gap-5 rounded-md bg-[#EEF3FE] px-4 py-3 sm:grid-cols-2">
         <div><p className="text-xs font-semibold text-[#1B4FCC]">Next step after high school</p><p className="mt-0.5 font-bold">{report.next_step || <span className={ATTENTION}>Not chosen yet</span>}</p></div>
-        <div><p className="text-xs font-semibold text-[#1B4FCC]">Interests</p><p className="mt-0.5 font-bold">{report.interests[0] || <span className="font-normal text-[#3C4656]">No results yet</span>}</p></div>
+        <div><p className="text-xs font-semibold text-[#1B4FCC]">Interests</p><p className="mt-0.5 font-bold">{interests || <span className="font-normal text-[#3C4656]">No results yet</span>}</p></div>
       </div>
       <h2 className="mb-2 mt-6 text-[15px] font-bold">Required plan and profile</h2>
       <Table head={['Component', 'Status', 'Detail']} rows={report.components.map((item) => [item.label,
         <span key="s" className={item.status === 'needs_attention' ? ATTENTION : ''}>{STATUS_TEXT[item.status] || item.status}</span>, item.detail])} />
       <h2 className="mb-2 mt-6 text-[15px] font-bold">Graduation progress</h2>
-      <div className="mb-1 flex flex-wrap justify-between gap-2 text-[13px]"><span><b>{credits(tally.completed)}</b> completed · <b>{credits(tally.planned)}</b> planned · <b>{credits(tally.left)}</b> not planned</span><span className="text-[#3C4656]">{tally.required} credits required</span></div>
-      <div className="flex h-3 overflow-hidden rounded-sm border border-[#1C2433] print:[print-color-adjust:exact]" role="img" aria-label={`${tally.completed} credits completed, ${tally.planned} planned, ${tally.left} not planned, of ${tally.required}`}>
-        <div className="bg-[#1B4FCC]" style={{ width: pct(tally.completed) }} /><div className="border-l border-[#1C2433] bg-[#A9C0F3]" style={{ width: pct(Math.min(tally.planned, tally.required - tally.completed)) }} />
+      <div className="mb-1 flex flex-wrap justify-between gap-2 text-[13px]"><span><b>{credits(tally.completed)}</b> completed · <b>{credits(going)}</b> in progress · <b>{credits(tally.planned)}</b> planned · <b>{credits(tally.left)}</b> not planned</span><span className="text-[#3C4656]">{tally.required} credits required</span></div>
+      <div className="flex h-3 overflow-hidden rounded-sm border border-[#1C2433] print:[print-color-adjust:exact]" role="img" aria-label={`${tally.completed} credits completed, ${going} in progress, ${tally.planned} planned, ${tally.left} not planned, of ${tally.required}`}>
+        <div className="bg-[#1B4FCC]" style={{ width: pct(tally.completed) }} />
+        {going ? <div className="border-l border-[#1C2433] bg-[#5F86E0]" style={{ width: pct(Math.min(going, tally.required - tally.completed)) }} /> : null}
+        <div className="border-l border-[#1C2433] bg-[#A9C0F3]" style={{ width: pct(Math.min(tally.planned, tally.required - tally.completed - going)) }} />
       </div>
       <div className="mt-2"><Table rows={graduation.beyond_credits.map((item) => [item.label, <span key="d" className={item.attention ? ATTENTION : ''}>{item.attention ? '! ' : ''}{item.detail}</span>])} /></div>
       {report.to_talk_about.length ? <>
@@ -130,11 +134,11 @@ export default function EppReport({ report }: { report: Report }) {
 
     <Sheet>
       <H2>3 · Course plan</H2>
-      <p className="mb-2 text-xs text-[#3C4656]"><span className="font-medium text-[#1B4FCC]">Blue</span> means planned or in progress. ✓ means school confirmed.</p>
+      <p className="mb-2 text-xs text-[#3C4656]"><span className="font-medium text-[#1B4FCC]">Blue</span> means planned or in progress, and classes underway say in progress. ✓ means school confirmed.</p>
       <div className="overflow-x-auto">
         <Table head={['Subject', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']} rows={report.courses.grid.map((row) => [row.label, ...['9', '10', '11', '12'].map((grade) =>
           <span key={grade}>{row.grades[grade].map((course, index) => <span key={index} className={course.status === 'completed' ? '' : 'font-medium text-[#1B4FCC]'}>
-            {index ? ', ' : ''}{course.title}{course.dual_credit ? ' (dual credit)' : ''}{course.school_confirmed ? ' ✓' : ''}
+            {index ? ', ' : ''}{course.title}{course.status === 'in_progress' ? ' (in progress)' : ''}{course.dual_credit ? ' (dual credit)' : ''}{course.school_confirmed ? ' ✓' : ''}
           </span>)}</span>)])} />
       </div>
       {report.courses.dual_credit.length ? <p className="mt-2 text-[13px]"><b>Dual credit:</b> {report.courses.dual_credit.map((course) =>
@@ -143,8 +147,10 @@ export default function EppReport({ report }: { report: Report }) {
 
     <Sheet>
       <H2>4 · Graduation progress</H2>
-      <Table head={['Oregon Diploma credits', 'Required', 'Completed', 'Planned', 'Left']} rows={[...tally.areas.map((area) => [area.label, credits(area.required), credits(area.completed), credits(area.planned),
-        <span key="l" className={area.left ? ATTENTION : ''}>{credits(area.left)}</span>]), ['Total', credits(tally.required), credits(tally.completed), credits(tally.planned), credits(tally.left)]]} />
+      <div className="overflow-x-auto">
+        <Table head={['Oregon Diploma credits', 'Required', 'Completed', 'In progress', 'Planned', 'Left']} rows={[...tally.areas.map((area) => [area.label, credits(area.required), credits(area.completed), credits(area.in_progress || 0), credits(area.planned),
+          <span key="l" className={area.left ? ATTENTION : ''}>{credits(area.left)}</span>]), ['Total', credits(tally.required), credits(tally.completed), credits(going), credits(tally.planned), credits(tally.left)]]} />
+      </div>
       <p className="mt-1.5 text-xs text-[#3C4656]">The transcript is the official record of credit. This school’s own requirements may add to this table.</p>
     </Sheet>
 

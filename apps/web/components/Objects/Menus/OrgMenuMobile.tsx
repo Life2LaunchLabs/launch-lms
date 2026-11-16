@@ -23,7 +23,7 @@ export function NavItemControl({ item, orgslug, className, children, dot = false
       {hub?.unread && !item.active ? <span className="absolute right-2.5 top-2 h-2.5 w-2.5 rounded-full bg-[#7cc4ff] ring-2 ring-shell" aria-hidden="true" /> : null}
     </button>
   }
-  return <Link href={getUriWithOrg(orgslug, item.href || '/')} aria-label={dot ? t('nav.unread_messages', { label: item.label }) : item.label} aria-current={item.active ? 'page' : undefined} className={cn('relative', className)}>
+  return <Link href={getUriWithOrg(orgslug, item.href || '/')} aria-label={dot ? t(item.dotLabel || 'nav.unread_messages', { label: item.label }) : item.label} aria-current={item.active ? 'page' : undefined} className={cn('relative', className)}>
     {children}
     {dot ? <span className="absolute right-2.5 top-2 h-2.5 w-2.5 rounded-full bg-[#7cc4ff] ring-2 ring-shell" aria-hidden="true" /> : null}
   </Link>

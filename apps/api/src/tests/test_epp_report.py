@@ -92,13 +92,13 @@ def test_a_heavy_learner_reports_cleanly_and_privately():
         assert (learner["student_id"], learner["grade"], learner["diploma"], learner["counselor"]) == ("400123", 11, "Oregon Diploma", "Tess Teacher")
         # The sample report's credit summary.
         tally = built["graduation"]["tally"]
-        assert (tally["completed"], tally["planned"], tally["left"]) == (13.5, 8, 2.5)
+        assert (tally["completed"], tally["in_progress"], tally["planned"], tally["left"]) == (13.5, 6.5, 1.5, 2.5)
         components = {item["key"]: item for item in built["components"]}
         assert components["courses"]["status"] == "needs_attention" and components["courses"]["detail"] == "2.5 credits have no planned course"
         assert components["interests"]["status"] == "complete"
         beyond = {item["key"]: item["detail"] for item in built["graduation"]["beyond_credits"]}
         assert beyond["personal_finance"] == "Credit recorded by school"
-        assert beyond["career_path_skills"] == "Planned: Career Seminar"
+        assert beyond["career_path_skills"] == "In progress: Career Seminar"
         assert beyond["crle"] == "1 documented, 1 reviewed" and beyond["extended_application"] == "Not chosen yet"
         assert "Pick an Extended Application." in built["to_talk_about"]
         # Work found by code, as plain text, with who reviewed it.
@@ -112,6 +112,43 @@ def test_a_heavy_learner_reports_cleanly_and_privately():
         for leaked in ("SECRET PERSONAL TEXT", "PRIVATE CARD", "STAFF-ONLY", "REVIEWER-ONLY", "asset_1", "@example.com", "budget"):
             assert leaked not in text
         assert built["evidence"] == []
+
+
+def _career(db, title: str, uuid: str) -> Resource:
+    resource = Resource(org_id=1, resource_uuid=uuid, title=title, resource_type="career", external_url="https://example.org/" + uuid)
+    db.add(resource)
+    db.flush()
+    return resource
+
+
+def test_a_saved_career_with_a_reaction_counts_under_interests():
+    """FEED-276: saving a career and picking Love it counts, even before it's put on the EPP by name."""
+    with _session() as db:
+        support.request(db, _user(TEACHER), 1, LEARNER)
+        card = _card(db)
+        support.answer(db, _user(LEARNER), card["support_uuid"], True, card["request_uuid"])
+        before = {item["key"]: item for item in report.build(db, 1, LEARNER, TODAY)["components"]}["interests"]
+        assert before["status"] == "needs_attention" and before["detail"] == "0 results, no careers explored yet"
+
+        mechanic, nurse = _career(db, "Automotive Service Technicians and Mechanics", "res_mechanic"), _career(db, "Registered Nurses", "res_nurse")
+        db.add(UserSavedResource(user_id=LEARNER, resource_id=mechanic.id, interest_level=3, show_on_epp=False, creation_date="2026-11-10T10:00:00", update_date=""))
+        # Saved without a reaction: not counted.
+        db.add(UserSavedResource(user_id=LEARNER, resource_id=nurse.id, show_on_epp=False, creation_date="2026-11-10T11:00:00", update_date=""))
+        db.commit()
+        built = report.build(db, 1, LEARNER, TODAY)
+        interests = {item["key"]: item for item in built["components"]}["interests"]
+        assert interests["status"] == "complete" and interests["detail"] == "0 results, 1 career explored"
+        # Which career, and what they wrote, stays off the report until they put it on their EPP.
+        assert built["careers"] == [] and built["careers_explored"] == 1 and "Automotive" not in json.dumps(built)
+
+        saved = db.exec(select(UserSavedResource).where(UserSavedResource.resource_id == mechanic.id)).one()
+        saved.show_on_epp = True
+        db.add(saved)
+        db.commit()
+        built = report.build(db, 1, LEARNER, TODAY)
+        assert [career["title"] for career in built["careers"]] == ["Automotive Service Technicians and Mechanics"] and built["careers_explored"] == 1
+        from src.services.epp.pdf import interests_line
+        assert interests_line(built) == "Exploring Automotive Service Technicians and Mechanics"
 
 
 def test_the_learner_picks_evidence_from_public_items_only():

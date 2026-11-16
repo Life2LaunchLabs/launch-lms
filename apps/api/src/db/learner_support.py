@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field as PydanticField
 from sqlalchemy import JSON, Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-# requested: waiting on the learner. active: they accepted. declined / ended: no access.
+# requested: waiting on the learner. active: they accepted. declined: they said not now, and can still say yes
+# to the same ask (FEED-219). ended: no access. Only active opens anything.
 SUPPORT_STATUSES = ("requested", "active", "declined", "ended")
 # Oregon's diplomas and certificate (ORS 329.451 and the modified/extended diploma rules).
 DIPLOMA_TRACKS = ("standard", "modified", "extended", "alternative_certificate")

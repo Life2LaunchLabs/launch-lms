@@ -118,13 +118,13 @@ def _summary(report: dict, styles: dict) -> list:
                  colWidths=[4.6 * inch, 2.4 * inch])
     head.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
     band = Table([[[Paragraph("Next step after high school", styles["kicker"]), _attention(report.get("next_step") or "Not chosen yet", not report.get("next_step"), styles)],
-                   [Paragraph("Interests", styles["kicker"]), Paragraph(_safe((report.get("interests") or ["No results yet"])[0]), styles["body"])]]], colWidths=[3.5 * inch] * 2)
+                   [Paragraph("Interests", styles["kicker"]), Paragraph(_safe(interests_line(report)), styles["body"])]]], colWidths=[3.5 * inch] * 2)
     band.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), TINT), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
     parts = [head, Spacer(1, 12), band, Paragraph("Required plan and profile", styles["h3"]),
              _table([[item["label"], _attention(STATUS_TEXT.get(item["status"], item["status"]), item["status"] == "needs_attention", styles), item["detail"]] for item in report["components"]],
                     ["Component", "Status", "Detail"], styles, [1.8 * inch, 1.5 * inch, 3.7 * inch]),
              Paragraph("Graduation progress", styles["h3"]),
-             Paragraph(_safe(f"{_num(tally['completed'])} completed · {_num(tally['planned'])} planned · {_num(tally['left'])} not planned, of {_num(tally['required'])} credits required"), styles["body"]),
+             Paragraph(_safe(f"{_num(tally['completed'])} completed · {_num(tally.get('in_progress') or 0)} in progress · {_num(tally['planned'])} planned · {_num(tally['left'])} not planned, of {_num(tally['required'])} credits required"), styles["body"]),
              Spacer(1, 4),
              _table([[item["label"], _attention(("! " if item.get("attention") else "") + item["detail"], bool(item.get("attention")), styles)] for item in report["graduation"]["beyond_credits"]],
                     None, styles, [2.8 * inch, 4.2 * inch])]
@@ -156,6 +156,19 @@ def _section(report: dict, key: str, heading: str, styles: dict) -> list:
 
 
 INTEREST_LEVEL = {1: "A little interested", 2: "Interested", 3: "Really interested"}
+COURSE_KEY = "Blue means planned or in progress, and classes underway say in progress. ✓ means school confirmed."
+
+
+def interests_line(report: dict) -> str:
+    """The summary's Interests line: their first interest result, else the careers they're exploring."""
+    if report.get("interests"):
+        return report["interests"][0]
+    careers, count = report.get("careers") or [], report.get("careers_explored") or 0
+    if careers:
+        return f"Exploring {careers[0]['title']}" + (f" and {count - 1} more career{'' if count == 2 else 's'}" if count > 1 else "")
+    if count:
+        return f"{count} career{'' if count == 1 else 's'} explored"
+    return "No results yet"
 
 
 def _careers(report: dict, styles: dict) -> list:
@@ -174,11 +187,12 @@ def _careers(report: dict, styles: dict) -> list:
 
 def _courses(report: dict, styles: dict) -> list:
     def cell(courses: list[dict]) -> Paragraph:
-        bits = [('<font color="#1B4FCC">%s</font>' if course["status"] != "completed" else "%s") % _safe(course["title"] + (" (dual credit)" if course.get("dual_credit") else "") + (" ✓" if course.get("school_confirmed") else ""))
+        bits = [('<font color="#1B4FCC">%s</font>' if course["status"] != "completed" else "%s") % _safe(
+            course["title"] + (" (in progress)" if course["status"] == "in_progress" else "") + (" (dual credit)" if course.get("dual_credit") else "") + (" ✓" if course.get("school_confirmed") else ""))
                 for course in courses]
         return Paragraph(", ".join(bits), styles["body"])
     rows = [[row["label"], *[cell(row["grades"].get(grade, [])) for grade in ("9", "10", "11", "12")]] for row in report["courses"]["grid"]]
-    parts = [Paragraph("3 · Course plan", styles["h2"]), Paragraph(_safe("Blue means planned or in progress. ✓ means school confirmed."), styles["muted"]), Spacer(1, 4),
+    parts = [Paragraph("3 · Course plan", styles["h2"]), Paragraph(_safe(COURSE_KEY), styles["muted"]), Spacer(1, 4),
              _table(rows, ["Subject", "Grade 9", "Grade 10", "Grade 11", "Grade 12"], styles, [1.6 * inch] + [1.35 * inch] * 4)]
     dual = report["courses"].get("dual_credit") or []
     if dual:
@@ -190,9 +204,11 @@ def _courses(report: dict, styles: dict) -> list:
 
 def _progress(report: dict, styles: dict) -> list:
     tally = report["graduation"]["tally"]
-    rows = [[area["label"], _num(area["required"]), _num(area["completed"]), _num(area["planned"]), _attention(_num(area["left"]), bool(area["left"]), styles)] for area in tally["areas"]]
-    rows.append(["Total", _num(tally["required"]), _num(tally["completed"]), _num(tally["planned"]), _num(tally["left"])])
-    return [Paragraph("4 · Graduation progress", styles["h2"]), _table(rows, ["Oregon Diploma credits", "Required", "Completed", "Planned", "Left"], styles, [3 * inch] + [1 * inch] * 4),
+    rows = [[area["label"], _num(area["required"]), _num(area["completed"]), _num(area.get("in_progress") or 0), _num(area["planned"]), _attention(_num(area["left"]), bool(area["left"]), styles)]
+            for area in tally["areas"]]
+    rows.append(["Total", _num(tally["required"]), _num(tally["completed"]), _num(tally.get("in_progress") or 0), _num(tally["planned"]), _num(tally["left"])])
+    return [Paragraph("4 · Graduation progress", styles["h2"]),
+            _table(rows, ["Oregon Diploma credits", "Required", "Completed", "In progress", "Planned", "Left"], styles, [2.5 * inch] + [0.9 * inch] * 5),
             Spacer(1, 4), Paragraph("The transcript is the official record of credit. This school's own requirements may add to this table.", styles["muted"])]
 
 

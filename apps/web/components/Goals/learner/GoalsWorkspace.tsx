@@ -7,6 +7,7 @@ import useSWR, { preload, useSWRConfig } from 'swr'
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react'
 import { useHub } from '@components/Hub/HubContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { EducationPlanEntry } from '@components/Epp/SupportAsk'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { Button } from '@components/ui/button'
@@ -213,7 +214,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const backPhase = life && isSubject && selectedUuid ? life.phases.find((item) => item.id === phaseOfGoal(life, selectedUuid)) : undefined
 
   let content: React.ReactNode
-  if (!selectedUuid) content = listError ? failed(tr('lit.goals_workspace.your_goals_could_not_load', 'Your goals could not load.'), () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} />
+  // Goals leads with the learner's Education Plan once a school supports them, or a school's ask while it waits (DEV-111).
+  if (!selectedUuid) content = listError ? failed(tr('lit.goals_workspace.your_goals_could_not_load', 'Your goals could not load.'), () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <><EducationPlanEntry orgslug={orgslug} /><GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} life={life} choose={choose} onIntent={prefetch} getGoalColor={getGoalColor} onCreate={(phaseId) => void startGoal(phaseId)} creating={startingGoal} /></>
   else if (detailError) content = failed(tr('lit.goals_workspace.this_goal_could_not_load', 'This goal could not load. It may no longer be available to you.'), () => void retryDetail())
   else {
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
