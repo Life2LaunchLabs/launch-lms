@@ -248,7 +248,8 @@ def _base(name: str) -> str:
     return name.replace("\\", "/").rsplit("/", 1)[-1]
 
 
-def read_cis(content: bytes, filename: str) -> dict:
+def read_cis_workbook(content: bytes, filename: str) -> tuple[dict[str, list[dict]], dict[str, bytes]]:
+    """The sheets of a CIS export (zip or workbook) and the other files in its zip."""
     files: dict[str, bytes] = {}
     if zipfile.is_zipfile(io.BytesIO(content)) and not filename.lower().endswith(".xlsx"):
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
@@ -263,6 +264,16 @@ def read_cis(content: bytes, filename: str) -> dict:
         sheets = _sheets(content)
     if not any(title.lower().startswith(("career bio", "assessments", "profile")) for title in sheets):
         raise HTTPException(status_code=422, detail="This doesn't look like an Oregon CIS export")
+    return sheets, files
+
+
+def read_cis(content: bytes, filename: str) -> dict:
+    sheets, files = read_cis_workbook(content, filename)
+    return cis_export(sheets, files)
+
+
+def cis_export(sheets: dict[str, list[dict]], files: dict[str, bytes]) -> dict:
+    """One learner's CIS sheets (and zip files) as the items the import preview lists."""
     items = _cis_bio(sheets) + _cis_results(sheets) + _links(_sheet(sheets, "Links"), "cis-link", "Name", "Web address")
     skipped = []
     for name, data in files.items():

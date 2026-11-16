@@ -22,6 +22,12 @@ Object.keys(env).forEach((key) => {
   }
 });
 
+// One switch for user tests (DEV-27): the API reads LAUNCHLMS_USER_TESTS_ENABLED, and the browser
+// gets the same answer, so the test-persona bar and test login links can't show where the API is off.
+const userTestsOn = ['true', '1', 'yes'].includes(String(env.LAUNCHLMS_USER_TESTS_ENABLED || '').trim().toLowerCase());
+runtimeConfig.NEXT_PUBLIC_USER_TESTS_ENABLED = userTestsOn ? 'true' : 'false';
+process.env.NEXT_PUBLIC_USER_TESTS_ENABLED = runtimeConfig.NEXT_PUBLIC_USER_TESTS_ENABLED;
+
 // Write runtime config JSON file
 const configPath = path.join(__dirname, 'runtime-config.json');
 fs.writeFileSync(configPath, JSON.stringify(runtimeConfig, null, 2), 'utf8');

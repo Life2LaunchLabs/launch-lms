@@ -266,3 +266,25 @@ def test_a_resource_tag_shows_its_title_and_link_when_the_sender_can_see_it():
         assert sent["body"] == "Have a look <resource:resource_1>"
         assert [(ref["kind"], ref["title"], ref["url"]) for ref in sent["refs"]] == [("resource", "Guide 1", "https://example.com/1")]
         assert workspace.plain(db, sent["body"], sent["refs"], LEARNER) == "Have a look Guide 1"
+
+
+def test_the_invitation_emails_link_opens_the_chat_holding_that_invitation(monkeypatch):
+    from src.services.connect import inbox
+    from src.services.goals import invitation_emails
+
+    sent: list[str] = []
+    monkeypatch.setattr(invitation_emails, "send_email", lambda to, subject, body: sent.append(body))
+    with _session() as db:
+        uuid = _personal(db)["goal_uuid"]
+        invitation = sharing.create_invitation(db, _user(LEARNER), uuid, sharing.PlanInvitationCreate(email=OTHER_EMAIL, role_key="commenter"))
+        # Sam has an account, so the email opens the invitation itself, not a list of chats.
+        assert f"/connect/invitation/{invitation['invitation_uuid']}" in sent[-1] and "/signup" not in sent[-1]
+        found = inbox.find_invitation(db, _user(OTHER), invitation["invitation_uuid"])
+        assert found["state"] == "pending"
+        messages = chats.get_chat(db, _user(OTHER), found["conversation_uuid"])["messages"]
+        card = next(item["card"] for item in messages if item["message_uuid"] == found["message_uuid"])
+        assert (card["type"], card["state"], card["for_me"]) == ("invitation", "pending", True)
+        # Nobody else can use the link to find it.
+        with pytest.raises(HTTPException) as denied:
+            inbox.find_invitation(db, _user(ADMIN), invitation["invitation_uuid"])
+        assert denied.value.status_code == 404

@@ -1,10 +1,8 @@
-import { notFound } from 'next/navigation'
-import { InsightsReportPrintPage } from '@components/Goals/admin/insights/InsightsPages'
-import { parseFrameworks } from '@components/Goals/admin/insights/reportRoutes'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/routing/paths'
 
-export default async function InsightsReportPrint({ params, searchParams }: { params: Promise<{ orgslug: string; groupId: string }>; searchParams: Promise<{ fw?: string | string[] }> }) {
-  const [{ orgslug, groupId }, { fw }] = await Promise.all([params, searchParams])
-  const id = Number(groupId)
-  if (!Number.isInteger(id) || id <= 0) notFound()
-  return <InsightsReportPrintPage orgslug={orgslug} groupId={id} frameworks={parseFrameworks(fw)} />
+// The old printable group report is retired (DEV-36); a capture of the group dashboard prints instead.
+export default async function InsightsReportPrint({ params }: { params: Promise<{ groupId: string }> }) {
+  const { groupId } = await params
+  redirect(routePaths.org.admin.insightsScope('group', groupId))
 }

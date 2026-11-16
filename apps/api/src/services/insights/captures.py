@@ -251,6 +251,11 @@ def shield(result: dict, spec: dict | None = None) -> dict:
             return _hide(cell)
         return cell
 
+    if "learner" in ((spec or {}).get("by"), (spec or {}).get("by2")):
+        # Rows named after learners never leave the organization, whatever their numbers.
+        note = "Learner names stay inside the organization"
+        value = guard(result["value"]) if result.get("value") else result.get("value")
+        return {**out, "value": value, "rows": [], "more": None, "series": None, "compare": None, "headline": note, "auto_headline": note}
     value_hidden = _small(result.get("value"))
     out["value"] = guard(result["value"]) if result.get("value") else result.get("value")
     out["rows"] = [{**guard(row), **({"cells": [guard(cell) for cell in row["cells"]]} if row.get("cells") else {})} for row in result.get("rows") or []]

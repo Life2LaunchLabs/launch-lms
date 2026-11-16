@@ -288,6 +288,12 @@ def test_series_sentences():
     assert sentences.series(count, flat, {"v": 24, "n": 24}, {"v": 12, "n": 12}, "this time last year", "year") == "Plan starts are up 100% on this time last year"
 
 
+def test_learner_breakdown_only_fits_group_and_plan_dashboards(db):
+    from src.services.insights.spec import CardSpec, check
+    assert check(CardSpec(measure="plan_progress", by="learner"), "group", see_reports=True) == []
+    assert any(item["field"] == "by" for item in check(CardSpec(measure="plan_progress", by="learner"), "org", see_reports=True))
+
+
 def test_learner_status_on_a_plan_dashboard_counts_that_plans_learners(db):
     # Status facts carry each learner's plans, so the plan scope keeps them instead of showing nobody.
     result = _run(db, {"measure": "learner_status"}, scope="plan", key=CL)

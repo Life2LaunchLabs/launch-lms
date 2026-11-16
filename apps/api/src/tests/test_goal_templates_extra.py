@@ -168,6 +168,8 @@ def test_assigning_by_email_without_an_account_issues_a_goal_waiting_for_its_lea
         # Each time, the address gets an email too, pointing at its chats on the organization's site.
         assert [to for to, _body in sent] == ["new@example.com", "new@example.com"]
         assert "/signup?email=new%40example.com" in sent[0][1] and goal.title in sent[0][1]
+        # After signing up (and setting up their first phase) they land on the invitation itself.
+        assert f"next=%2Forgs%2F{db.get(Organization, 1).slug}%2Fconnect%2Finvitation%2F{invitation.invitation_uuid}" in sent[0][1]
         # Signing up with that address and accepting makes them the organization's learner.
         from src.db.user_organizations import UserOrganization
         from src.db.users import PublicUser, User

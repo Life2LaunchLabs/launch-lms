@@ -9,7 +9,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen, ReactionToggle
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, cohort, linking, people, portfolio_talk, profile, reactions, requests, workspace
+from src.services.connect import chats, cohort, inbox, linking, people, portfolio_talk, profile, reactions, requests, workspace
 from src.services.connect.portfolio_talk import PortfolioChatOpen
 
 router = APIRouter()
@@ -37,6 +37,12 @@ async def get_chat(conversation_uuid: str, before: str | None = None, goal_uuid:
                    audience: Literal["all", "learner", "staff"] | None = None, current_user: PublicUser = USER, db_session: Session = DB):
     """A page of a chat. audience: everything, what learners read, or staff-only messages (staff only see those)."""
     return chats.get_chat(db_session, current_user, conversation_uuid, before, goal_uuid, step_uuid, audience)
+
+
+@router.get("/invitations/{invitation_uuid}")
+async def find_invitation(invitation_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
+    """The chat holding your invitation to a plan: where the link in the invitation email opens."""
+    return inbox.find_invitation(db_session, current_user, invitation_uuid)
 
 
 @router.get("/goals/{goal_uuid}/chat")
