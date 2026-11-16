@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 import type { LegalSection } from '@components/Legal/LegalPage'
 
 // The Privacy Policy's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead
@@ -82,7 +82,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: 'coppa',
     title: 'Children under 13 (COPPA)',
     body: <>
-      <p>Life2Launch does not allow accounts for anyone under 13. Sign-up asks for your age and refuses anyone younger, and we do not knowingly collect personal information from children under 13.</p>
+      <p>Life2Launch does not allow accounts for anyone under 13. We do not knowingly collect personal information from children under 13.</p>
+      <p>{AGE_CHECK}</p>
       <p>If we learn that an account belongs to a child under 13, we delete it and its data. A parent who thinks their child under 13 has an account can email <a href="mailto:team@life2launch.com">team@life2launch.com</a> and we will delete it.</p>
     </>,
   },

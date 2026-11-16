@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Badge } from '@components/ui/badge'
 import { CHECKED_ON, SUBPROCESSORS } from '@/lib/legal/subprocessors'
-import { AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, OUTSIDE_IMAGES, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, OUTSIDE_IMAGES, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 
 // The public page a school's technical reviewer reads (v0.10.0 PF-1, DEV-25). Signed out, on every
 // Life2Launch address. Its subprocessor list is lib/legal/subprocessors.ts, shared with /privacy.
@@ -27,7 +27,7 @@ const ACCESS: [string, string][] = [
   ["Their organization's staff", 'Admins see the organization’s learners and their work. Other staff see only what the admin lets them (for example reviewing work or seeing reports). Staff see school records, such as an Education Plan and Profile, only through a support link the learner agreed to.'],
   ['People the learner chooses', 'Helpers a learner invites, and anyone they share a portfolio or badge link with.'],
   ['Life2Launch staff', 'A small number of Life2Launch staff, to run the service, answer support requests and fix problems.'],
-  ['The services listed below', 'Only the data each one needs for its purpose.'],
+  ['The outside services listed above', 'Only the data each one needs for its purpose.'],
 ]
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -76,19 +76,14 @@ export default function StudentDataPage() {
         <Section id="no-ads" title="No ads, no tracking, no selling">
           <p>
             Life2Launch shows no ads, never sells or rents personal data, and loads no analytics, advertising or tracking
-            scripts. Pages, code and fonts are all served from Life2Launch itself. An organization can add its own scripts
-            to its pages; those are the organization’s choice and responsibility.
+            scripts. Pages, code and fonts are all served from Life2Launch itself, and organizations cannot add scripts
+            of their own.
           </p>
         </Section>
 
         <Section id="collected" title="What we collect">
           <Rows rows={COLLECTED} />
-          <p>
-            Accounts are only for people aged 13 and over. Sign-up asks for a date of birth and refuses anyone younger.
-            The date of birth itself is never stored: the account keeps only that the person is over 13 and the date
-            this was checked. Accounts a school creates through its own single sign-on are not asked; the school vouches
-            for their age.
-          </p>
+          <p>{AGE_CHECK}</p>
         </Section>
 
         <Section id="stored" title="Where it is stored">
