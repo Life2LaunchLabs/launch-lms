@@ -94,8 +94,8 @@ export function ColumnsBody({ result, drill, height = 190 }: { result: CardResul
 export function NumberBody({ result }: { result: CardResult }) {
   const data = seriesData(result)
   return <div className="flex items-end justify-between gap-3">
-    <b className="text-[34px] font-extrabold leading-none tracking-tight text-foreground">{result.value.text}</b>
-    {data.length > 2 ? <div className="h-9 w-28 shrink-0" aria-hidden="true">
+    <b className="whitespace-nowrap text-[34px] font-extrabold leading-none tracking-tight text-foreground">{result.value.text}</b>
+    {data.length > 2 ? <div className="h-9 w-28 min-w-0 shrink" aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
           <Line dataKey="v" stroke="var(--viz-series)" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls />

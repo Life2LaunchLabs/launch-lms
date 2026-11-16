@@ -275,7 +275,9 @@ def test_ranked_sentences():
     assert sentences.ranked(rate, rows, "plans") == "Résumé Ready finishes most often (68%); First Job Toolkit least (39%)"
     close = [{"label": "A", "v": 0.60, "n": 50}, {"label": "B", "v": 0.59, "n": 50}]
     assert sentences.ranked(rate, close, "plans") == "All 2 plans are about the same"
-    assert sentences.ranked(rate, [{"label": "A", "v": 0.6, "n": 50}, {"label": "B", "v": 0.2, "n": 3}], "plans") == "Only A has enough plans started to compare"
+    assert sentences.ranked(rate, [{"label": "A", "v": 0.6, "n": 50}, {"label": "B", "v": 0.2, "n": 3}], "plans") == "Only A has enough plans started 14+ days ago to compare"
+    # The note names what counts, so "0 plans" never reads as nobody starting one.
+    assert sentences.too_few(rate, 0) == "Too few to say yet (0 plans started 14+ days ago)"
 
 
 def test_series_sentences():
@@ -284,3 +286,9 @@ def test_series_sentences():
     assert sentences.series(count, rising, {"v": 20, "n": 20}, None, "", "prior", "weeks") == "Plan starts rose 3 weeks running"
     flat = [{"v": 4, "period": "w"} for _ in range(6)]
     assert sentences.series(count, flat, {"v": 24, "n": 24}, {"v": 12, "n": 12}, "this time last year", "year") == "Plan starts are up 100% on this time last year"
+
+
+def test_learner_status_on_a_plan_dashboard_counts_that_plans_learners(db):
+    # Status facts carry each learner's plans, so the plan scope keeps them instead of showing nobody.
+    result = _run(db, {"measure": "learner_status"}, scope="plan", key=CL)
+    assert {row["key"]: row["v"] for row in result["rows"] if row["v"]} == {"finished": 3, "quiet": 3}
