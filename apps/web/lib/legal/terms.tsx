@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { LegalSection } from '@components/Legal/LegalPage'
 
-// The Terms of Use's text, in one place (DEV-23). Draft pending legal review; the Product lead approves
+// The Terms of Use's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead approves
 // each change. When the terms change, change this file in one pull request and move TERMS_UPDATED.
 
 export const TERMS_UPDATED = '2026-11-16'

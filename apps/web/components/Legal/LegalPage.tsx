@@ -16,8 +16,7 @@ export const LEGAL_LINKS = [
 
 /**
  * A public legal page (Privacy Policy, Terms of Use): signed out, on every Life2Launch address,
- * readable on a phone. Shows that the text is a draft pending legal review, when it last changed,
- * and a contents list, then each section.
+ * readable on a phone. Shows when it last changed and a contents list, then each section.
  */
 export default function LegalPage({ title, lede, updated, sections, current }: {
   title: string
@@ -44,10 +43,7 @@ export default function LegalPage({ title, lede, updated, sections, current }: {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-6">
-        <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-          Draft, pending legal review. It describes how Life2Launch works today.
-        </p>
-        <h1 className="mt-8 text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">Last updated <time dateTime={updated}>{shown}</time></p>
         <div className="mt-4 text-[17px] leading-8 text-muted-foreground">{lede}</div>
 

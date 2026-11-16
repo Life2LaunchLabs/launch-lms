@@ -43,13 +43,13 @@ export const SUBPROCESSORS: Subprocessor[] = [
     website: 'https://resend.com',
   },
   {
-    name: 'Anthropic or OpenAI',
-    purpose: 'The AI model behind Coach, translation of plans and captions for videos.',
-    data: 'What a person types to Coach, with the plan, steps and work Coach needs to answer, and text being translated (Anthropic or OpenAI, as set for Coach). The audio of a video being captioned (OpenAI).',
+    name: 'OpenAI and Anthropic',
+    purpose: 'The AI models behind Coach and translation of plans (Coach settings choose which answers), and captions for videos (OpenAI).',
+    data: 'What a person types to Coach, with the plan, steps and work Coach needs to answer, and text being translated. The audio of a video being captioned (OpenAI). Neither trains on it; see Coach and AI.',
     location: 'United States',
     use: 'feature',
     when: 'Someone uses Coach, translates content or adds captions.',
-    website: 'https://www.anthropic.com',
+    website: 'https://openai.com',
   },
   {
     name: 'Sentry',

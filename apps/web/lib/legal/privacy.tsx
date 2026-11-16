@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 import type { LegalSection } from '@components/Legal/LegalPage'
 
-// The Privacy Policy's text, in one place (DEV-23). Draft pending legal review; the Product lead
+// The Privacy Policy's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead
 // approves each change. The outside services that handle data are listed once, on the student data
 // page (/data, lib/legal/subprocessors.ts), and this policy points there so the two never disagree.
 // When what Life2Launch collects or who sees it changes, change this file in the same pull request
@@ -37,7 +38,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         <li><strong>Plans and work:</strong> goals, steps, answers, write-ups, decisions, files and photos you hand in, badges, portfolio entries and progress toward requirements.</li>
         <li><strong>School records:</strong> when you agree to a support link with your school, the course and credit information it uses for your Education Plan and Profile.</li>
         <li><strong>Messages:</strong> your conversations in Connect. Staff can also keep notes about a learner that the learner does not see.</li>
-        <li><strong>Coach:</strong> what you ask Coach and its answers.</li>
+        <li><strong>Coach:</strong> what you ask Coach and its answers. {AI_PROVIDERS.summary} {AI_PROVIDERS.terms} {COACH_MEMORY}</li>
         <li><strong>Imported work:</strong> if your school brings over your work from Oregon CIS, that work is held for you until you accept the invitation, and is deleted if you don&rsquo;t.</li>
         <li><strong>Technical data:</strong> server logs (the page, the time and your IP address) and error reports, to keep the service running and secure. Sign-in uses cookies only to keep you signed in; we use no advertising or tracking cookies.</li>
       </ul>
@@ -58,7 +59,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     body: <ul>
       <li><strong>You:</strong> everything in your own account.</li>
       <li><strong>Your organization&rsquo;s staff:</strong> admins see the organization&rsquo;s learners and their work there. Other staff see only what the admin lets them. Staff see school records, such as an Education Plan and Profile, only through a support link you agreed to.</li>
-      <li><strong>People you choose:</strong> helpers you invite to a plan, and anyone you send a portfolio or badge link to. Uploaded files can be opened by anyone who has their link, so share those links with care.</li>
+      <li><strong>People you choose:</strong> helpers you invite to a plan, and anyone you send a portfolio or badge link to. {UPLOAD_LINKS}</li>
       <li><strong>Life2Launch staff:</strong> a small number of people who run the service, only to run it, support you and fix problems.</li>
       <li><strong>Outside services:</strong> the services that run parts of Life2Launch (hosting, email, the AI model behind Coach, error reports and a few features). Each receives only what it needs. They are listed, with what each receives, on <Link href="/data">How Life2Launch handles student data</Link>.</li>
       <li><strong>When the law requires it:</strong> we share data if a valid legal process requires us to, and tell the school or person affected when we are allowed to.</li>
@@ -89,14 +90,17 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: 'retention',
     title: 'How long we keep it',
     body: <>
-      <p>As long as your account exists. When an organization removes you, its access to your work ends; you keep your own account, portfolio and badges. Error reports and logs are kept for a limited time and then deleted.</p>
+      <p>As long as your account exists. When an organization removes you, its access to your work ends; you keep your own account, portfolio and badges.</p>
+      <p>{LOG_RETENTION}</p>
     </>,
   },
   {
     id: 'rights',
     title: 'Seeing, correcting and deleting your data',
     body: <>
-      <p>You can see and change most of your data in Life2Launch yourself. You, a parent of a learner under 18, or your school can ask us to give you a copy of your data, correct it or delete your account and its data. We confirm who is asking first. An organization can ask us to delete the organization and everything in it.</p>
+      <p>You can see and change most of your data in Life2Launch yourself. {SELF_EXPORT} You, a parent of a learner under 18, or your school can ask us to give you a copy of your data or correct it.</p>
+      <p>{DELETION.how}</p>
+      <p>{DELETION.effect}</p>
     </>,
   },
   {

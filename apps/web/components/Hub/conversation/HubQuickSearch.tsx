@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import { Dispatch, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Loader2, Search, Star } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -43,7 +44,7 @@ function ResourceSearchCard({ resource, orgUUID, selected, expanded, onSelect }:
   const ownerOrgUuid = resource.owner_org_uuid || orgUUID
   const imageSrc = resource.thumbnail_image && ownerOrgUuid
     ? getResourceThumbnailMediaDirectory(ownerOrgUuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url
+    : ownServerImage(resource.cover_image_url)
 
   return (
     <Card variant="interactive" size="none" className={`group shrink-0 snap-start rounded-2xl bg-card p-1.5 shadow-none transition-[border-color,box-shadow] ${expanded ? 'w-full' : 'w-[11rem]'} ${selected ? 'border-[var(--org-primary-color)] shadow-sm' : 'border-border/60 hover:border-border hover:shadow-sm'}`}>
