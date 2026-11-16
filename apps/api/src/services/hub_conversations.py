@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
@@ -18,6 +19,34 @@ from src.services.hub_actions import decorate_navigation_action
 from src.services.hub_advisor import AdvisorMessage
 from src.services.hub_memory import message_memory_receipts
 from src.security.org_auth import require_org_membership
+
+
+STARTER_KIND = "starter"
+
+
+class ChatStarter(BaseModel):
+    """What a page button started a chat with (DEV-113): what the page knows, never shown as the person's words,
+    and Coach's first line, shown the moment the chat opened."""
+
+    context: str = Field(min_length=1, max_length=1_000)
+    opener: str = Field(min_length=1, max_length=500)
+
+
+def starter_history(starter: ChatStarter, user_content: str) -> list[AdvisorMessage]:
+    """A page-started chat's first turn for Coach: the page's context, Coach's opener, then the person's reply."""
+    return [
+        AdvisorMessage(role="user", content=starter_turn(starter.context)),
+        AdvisorMessage(role="assistant", content=starter.opener.strip()),
+        AdvisorMessage(role="user", content=user_content),
+    ]
+
+
+def starter_turn(context: str) -> str:
+    """The hidden turn a page-started chat begins with: what the page knows, never the person's words."""
+    return (
+        "(Not written by the person: they pressed a button on this page that opened Coach, and Coach greeted them. "
+        f"What the page says: {' '.join(context.split())[:1_000]})"
+    )
 
 
 def _title(content: str) -> str:
@@ -49,6 +78,7 @@ def list_conversations(db_session: Session, org_id: int, user_id: int) -> list[d
         .where(
             latest_message.conversation_id == HubConversation.id,
             latest_message.role == "user",
+            latest_message.kind != STARTER_KIND,
         )
         .order_by(latest_message.sequence.desc())
         .limit(1)
@@ -218,12 +248,18 @@ def record_advice(
     input_tokens: int, output_tokens: int,
     page_receipt: dict | None = None,
     suggested_actions: list[dict] | None = None,
+    starter: ChatStarter | None = None,
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
         if conversation_uuid else _new_conversation(db_session, org_id, user_id, user_content)
     )
     sequence = _next_sequence(db_session, int(conversation.id))
+    if starter and not conversation_uuid:
+        # Kept so later turns have the page's context; the starter turn never shows as the person's message.
+        _add_message(db_session, conversation, sequence, "user", starter_turn(starter.context), kind=STARTER_KIND)
+        _add_message(db_session, conversation, sequence + 1, "assistant", starter.opener.strip())
+        sequence += 2
     user_message = _add_message(
         db_session, conversation, sequence, "user", user_content,
         resources=learner_resource_uuids, label="You added",
@@ -358,7 +394,8 @@ def conversation_detail(
     from src.services.goals.coach_context import visible_receipt
     resources_by_uuid = _public_resources(accessible_resources)
     messages = db_session.exec(select(HubConversationMessage).where(
-        HubConversationMessage.conversation_id == conversation.id
+        HubConversationMessage.conversation_id == conversation.id,
+        HubConversationMessage.kind != STARTER_KIND,
     ).order_by(HubConversationMessage.sequence)).all()
     associations = db_session.exec(
         select(HubConversationMessageResource)

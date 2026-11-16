@@ -225,6 +225,12 @@ async function hubRequest<T>(path: string, method: string, accessToken: string, 
   return response.json()
 }
 
+/**
+ * A chat a page button started (DEV-113): Coach's first line, shown at once, and what the page knows. The
+ * context goes to Coach with the person's first reply and is never shown as their message.
+ */
+export type HubChatStarter = { context: string; opener: string }
+
 export async function askHubAdvisor(
   orgId: number,
   messages: HubAdvisorMessage[],
@@ -234,6 +240,7 @@ export async function askHubAdvisor(
   learnerResourceUuids: string[] = [],
   surface?: HubSurfaceHint,
   signal?: AbortSignal,
+  starter?: HubChatStarter,
 ): Promise<{
   answer: string
   page_context?: HubPageReceipt
@@ -260,6 +267,7 @@ export async function askHubAdvisor(
         learner_resource_uuids: learnerResourceUuids,
         conversation_uuid: conversationUuid,
         surface,
+        ...(starter && !conversationUuid ? { starter } : {}),
       },
         null,
         accessToken

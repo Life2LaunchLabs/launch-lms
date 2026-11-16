@@ -1,3 +1,4 @@
+import type { HubChatStarter } from '@services/hub/advisor'
 import type { Activity, Household, Phase } from '@services/life/life'
 import { tr } from '@/lib/tr'
 
@@ -152,18 +153,21 @@ export function checklist(p: Phase, goals: number): CheckItem[] {
 }
 
 /**
- * What "Plan it with Coach" sends: the phase's name, when it is, what it's about and where, so Coach
- * starts from the phase instead of a blank chat. Parts the learner hasn't set are left out.
+ * How "Plan it with Coach" starts (DEV-113): Coach greets the person about this phase at once, and the
+ * phase's name, dates, what it's about and where go to Coach as context with their first reply. Nothing is
+ * written in the person's name. Parts the learner hasn't set are left out.
  */
-export function planAsk(p: Pick<Phase, 'title' | 'activities' | 'place_label'>, span?: string): string {
+export function planStarter(p: Pick<Phase, 'title' | 'activities' | 'place_label'>, span?: string): HubChatStarter {
   const doing = (p.activities || []).map(activityText).filter(Boolean).join(', ')
   const place = p.place_label?.split(',')[0]?.trim()
-  const about = [
-    doing ? tr('phases.plan_ask.doing', 'What I’ll be doing: {{doing}}.', { doing }) : '',
-    place ? tr('phases.plan_ask.place', 'Where: {{place}}.', { place }) : '',
+  const context = [
+    `Plan it with Coach, on this phase of their plan: “${p.title}”${span ? ` (${span})` : ''}.`,
+    doing ? `What they’ll be doing: ${doing}.` : '',
+    place ? `Where: ${place}.` : '',
+    'Help them set goals for this phase and pick what to do first, starting from their reply.',
   ].filter(Boolean).join(' ')
-  const head = span
-    ? tr('phases.plan_ask.head_span', 'Help me plan this phase of my plan: “{{title}}” ({{span}}).', { title: p.title, span })
-    : tr('phases.plan_ask.head', 'Help me plan this phase of my plan: “{{title}}”.', { title: p.title })
-  return [head, about, tr('phases.plan_ask.ask', 'What goals should I set for it, and what should I do first?')].filter(Boolean).join(' ')
+  const opener = place
+    ? tr('phases.plan_starter.opener_place', 'Hi! Want to set some goals for your “{{title}}” phase in {{place}}? Tell me what you have in mind, or ask me for ideas.', { title: p.title, place })
+    : tr('phases.plan_starter.opener', 'Hi! Want to set some goals for your “{{title}}” phase? Tell me what you have in mind, or ask me for ideas.', { title: p.title })
+  return { context, opener }
 }

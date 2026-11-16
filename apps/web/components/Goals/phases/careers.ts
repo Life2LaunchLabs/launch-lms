@@ -8,7 +8,19 @@ const starts = (p: { starts?: string | null }) => (p.starts ? mi(p.starts) : 0)
 
 /* ---------- careers: the usual ways in, added as ideas ---------- */
 
-export interface CareerLike { code: string; title: string; job_zone?: number | null }
+export interface CareerLike { code: string; title: string; job_zone?: number | null; education?: { level: number; pct: number }[] }
+
+/**
+ * Years of graduate school after college: 4 when most people in the job hold a professional or doctoral degree
+ * (O*NET levels 10 to 12, like a DVM, MD or PhD), else 2 (a master's). Coach states the same years
+ * (apps/api/src/services/coach/career_facts.py mirrors this file's routes; change both together).
+ */
+export function graduateYears(education?: CareerLike['education']): number {
+  const rows = (education || []).filter((row) => row && row.pct != null)
+  if (!rows.length) return 2
+  const top = rows.reduce((a, b) => (b.pct > a.pct ? b : a))
+  return top.level >= 10 ? 4 : 2
+}
 
 export interface CareerRoute { common?: boolean; why?: string; steps: RouteStep[] }
 
@@ -25,7 +37,7 @@ export function routesFor(career: CareerLike): CareerRoute[] {
   const name = careerName(career.title), jz = career.job_zone || 3
   const job: RouteStep = { title: name, years: 3, activities: [{ kind: 'working', career: career.code, career_title: career.title }], living: 'roommates' }
   const school = (title: string, years: number, level: string): RouteStep => ({ title, years, living: level === 'uni' || level === 'grad' ? 'dorm' : 'family', activities: [{ kind: 'learning', level, schools: [] }] })
-  if (jz >= 5) return [{ common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), school(tr('lit.graph.graduate_school', 'Graduate school'), 2, 'grad'), job] }]
+  if (jz >= 5) return [{ common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), school(tr('lit.graph.graduate_school', 'Graduate school'), graduateYears(career.education), 'grad'), job] }]
   if (jz === 4) return [
     { common: true, steps: [school(tr('lit.graph.college', 'College'), 4, 'uni'), job] },
     { why: tr('goals.graph.cheaper_first_two_years_then', 'Cheaper first two years, then transfer'), steps: [school(tr('lit.graph.community_college', 'Community college'), 2, 'cc'), school(tr('lit.graph.university', 'University'), 2, 'uni'), job] },

@@ -3907,12 +3907,9 @@
       "career": "Starting my career",
       "next": "Figuring out what’s next"
     },
-    "plan_ask": {
-      "doing": "What I’ll be doing: {{doing}}.",
-      "place": "Where: {{place}}.",
-      "head_span": "Help me plan this phase of my plan: “{{title}}” ({{span}}).",
-      "head": "Help me plan this phase of my plan: “{{title}}”.",
-      "ask": "What goals should I set for it, and what should I do first?"
+    "plan_starter": {
+      "opener_place": "Hi! Want to set some goals for your “{{title}}” phase in {{place}}? Tell me what you have in mind, or ask me for ideas.",
+      "opener": "Hi! Want to set some goals for your “{{title}}” phase? Tell me what you have in mind, or ask me for ideas."
     }
   },
   "onboarding": {
@@ -6791,7 +6788,8 @@
       "undo": "Undo",
       "coach_conversation": "Coach conversation",
       "loading_conversation": "Loading conversation…",
-      "thinking": "Thinking…"
+      "thinking": "Thinking…",
+      "got_it_thinking": "Got it. Let me think that through…"
     },
     "edit_run_timeline": {
       "ended_session": "ended session",

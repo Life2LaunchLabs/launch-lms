@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, type Dispatch, type SetStateAction } from 'react'
-import type { HubEditOperation, HubEditRun, HubSurfaceHint } from '@services/hub/advisor'
+import type { HubChatStarter, HubEditOperation, HubEditRun, HubSurfaceHint } from '@services/hub/advisor'
 import type { Resource } from '@services/resources/resources'
 
 export type HubSurface = {
@@ -32,9 +32,13 @@ export type HubEditContinuation = {
  */
 export type HubCoachState = 'open' | 'edge' | 'closed'
 
-/** Something to start the coach with: a message, a conversation to resume, a resource. */
+/**
+ * Something to start the coach with: a message, a conversation to resume, a resource, or a starter (a new
+ * chat Coach opens with its own first line; nothing is sent in the person's name).
+ */
 export type HubCoachIntent = {
   prompt?: string
+  starter?: HubChatStarter
   conversation?: string
   resource?: string
 }
