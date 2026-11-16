@@ -106,7 +106,8 @@ def _attention(text: str, on: bool, styles: dict) -> Paragraph:
 def _summary(report: dict, styles: dict) -> list:
     learner, tally = report["learner"], report["graduation"]["tally"]
     facts = " · ".join(part for part in [f"Grade {learner['grade']}" if learner.get("grade") else "", f"Class of {learner['graduation_year']}" if learner.get("graduation_year") else "",
-                                         learner.get("diploma") or "", f"Student ID {learner['student_id']}" if learner.get("student_id") else ""] if part)
+                                         learner.get("diploma") or "", f"Student ID {learner['student_id']}" if learner.get("student_id") else "",
+                                         f"Goes by {learner['goes_by']}" if learner.get("goes_by") else ""] if part)
     review, reviews = report.get("review"), report.get("reviews") or []
     stamp = f"Reviewed {_date(reviews[0]['date'])}" if reviews else "Saved when leaving" if review else "Not reviewed yet"
     version = f"Frozen record, version {review['version']}" if review else f"Live report, {_date(report.get('generated_at'))}"

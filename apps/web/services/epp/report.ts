@@ -34,7 +34,7 @@ export interface EppReport {
   generated_at: string
   school_year: string
   org: { name: string }
-  learner: { name: string; first_name: string; student_id: string | null; grade: number | null; graduation_year: number | null; diploma_track: string | null; diploma: string | null; counselor: string | null }
+  learner: { name: string; first_name: string; goes_by?: string | null; student_id: string | null; grade: number | null; graduation_year: number | null; diploma_track: string | null; diploma: string | null; counselor: string | null }
   next_step: string | null
   interests: string[]
   /** Careers the learner saved and chose to show here, with why. */

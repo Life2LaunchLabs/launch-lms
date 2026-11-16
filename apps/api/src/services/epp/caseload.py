@@ -21,7 +21,7 @@ from src.db.learner_support import LearnerSupport
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin
 from src.services.epp import content, pdf, records, report
-from src.services.portfolio_identity import shown_name
+from src.services.portfolio_identity import legal_name, shown_name
 from src.services.school import roles, support
 
 COMPONENTS = ("interests", "goals", "courses", "progress", "accomplishments")
@@ -29,7 +29,7 @@ COMPONENTS = ("interests", "goals", "courses", "progress", "accomplishments")
 
 def _learner_row(db: Session, link: LearnerSupport, year: str) -> dict:
     user = db.get(User, link.user_id)
-    base = {"user_id": link.user_id, "username": user.username if user else None, "name": shown_name(user) if user else "",
+    base = {"user_id": link.user_id, "username": user.username if user else None, "name": (legal_name(user) or shown_name(user)) if user else "",
             "student_id": link.student_id, "grade": report.grade_for(link.graduation_year, year), "counselor_user_id": link.counselor_user_id}
     if link.status != "active":
         return {**base, "state": "waiting", "components": {}, "evidence": 0, "last_review": None, "due": True, "open": "Hasn't said yes to sharing yet"}

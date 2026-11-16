@@ -70,7 +70,6 @@ def record_dto(db: Session, row: EppRecord) -> dict:
 
 def _freeze(db: Session, org_id: int, user_id: int, kind: str, by: User | None, outcome: str = "", staff_comment: str = "", learner_comment: str = "") -> EppRecord:
     data = report.build(db, org_id, user_id)
-    learner = db.get(User, user_id)
     now = _now()
     reviewer = shown_name(by) if by else ""
     data["review"] = {"kind": kind, "version": 1, "date": now, "reviewer": reviewer, "outcome": outcome,
@@ -80,7 +79,7 @@ def _freeze(db: Session, org_id: int, user_id: int, kind: str, by: User | None, 
         progress = next((item for item in data["components"] if item["key"] == "progress"), None)
         if progress:
             progress.update(status="reviewed", detail="Reviewed this year")
-    row = EppRecord(record_uuid=f"epprecord_{uuid4().hex}", org_id=org_id, user_id=user_id, learner_name=shown_name(learner) if learner else data["learner"]["name"],
+    row = EppRecord(record_uuid=f"epprecord_{uuid4().hex}", org_id=org_id, user_id=user_id, learner_name=data["learner"]["name"],
                     student_id=data["learner"].get("student_id"), school_year=data["school_year"], kind=kind, schema_version=data["schema_version"], data=data,
                     outcome=outcome, staff_comment=staff_comment, learner_comment=learner_comment, reviewed_by_user_id=by.id if by else None,
                     reviewed_by_name=reviewer, reviewed_at=now, creation_date=now, update_date=now)

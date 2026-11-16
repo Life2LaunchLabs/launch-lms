@@ -164,3 +164,6 @@ Found running the whole flow on unstable with a new test school (2026-11-16):
   main site's organization and told a supported learner their school didn't support them. It now takes the school
   from the learner's active support links: `/epp?org=<slug>`, else the one school that supports them (the first of
   several, with a switcher). The consent card's "My plan" links there.
+- The report, frozen record, PDF and caseload used the name a learner goes by (`shown_name`), so a learner with a
+  preferred name appeared under it on a school record. They now carry the legal name (first and last name), with
+  "Goes by …" among the report's facts when the learner set one. The SB 3 summary already used the legal name.
