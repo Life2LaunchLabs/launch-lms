@@ -21,7 +21,6 @@ from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate
 from src.db.template_marketplace import GoalTemplateAuthorization
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.organizations import Organization
-from src.db.school import UserGroupStaff
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -284,11 +283,12 @@ def group_thread(db: Session, current_user: PublicUser, org_id: int, group_id: i
                       "cover": _cover(template), "needs": len(behind)})
         if focus is None or run is focus:
             past_due += [{**line, "assignment_uuid": run.assignment_uuid} for line in behind]
-            if active:
+            if active and run is focus:
                 staff += list(run.staff_user_ids)
     db.commit()
     if focus is None:
-        staff += list(db.exec(select(UserGroupStaff.user_id).where(UserGroupStaff.usergroup_id == group_id)).all())
+        # The group's own view names the group's staff, the same people its profile counts; an assignment's staff show when it's open.
+        staff = group_chats.staff_of(db, org_id, group_id)
     asked = _asked(db, focus) if focus and _value(focus.status) == "active" else []
     learners = int(db.exec(select(func.count()).select_from(UserGroupUser).where(UserGroupUser.usergroup_id == group_id)).one())
     focus_chat = next((plan["chat_uuid"] for plan in plans if focus and plan["assignment_uuid"] == focus.assignment_uuid), None)

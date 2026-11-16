@@ -18,6 +18,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser
 from src.security.access.access import org_access
+from src.services.school import roles
 from src.services.goals.sharing_roles import _stamp
 
 GROUP = "group"
@@ -55,6 +56,14 @@ def people_of(db: Session, group_id: int) -> set[int]:
     members = db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == group_id)).all()
     staff = db.exec(select(UserGroupStaff.user_id).where(UserGroupStaff.usergroup_id == group_id)).all()
     return {int(user_id) for user_id in [*members, *staff]}
+
+
+def staff_of(db: Session, org_id: int, group_id: int) -> list[int]:
+    """The group's staff, as its profile counts them: people added as its staff, then members whose org role is staff."""
+    staff = [int(user_id) for user_id in db.exec(select(UserGroupStaff.user_id).where(UserGroupStaff.usergroup_id == group_id).order_by(col(UserGroupStaff.id))).all()]
+    members = [int(user_id) for user_id in db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == group_id).order_by(col(UserGroupUser.id))).all()]
+    on_staff = roles.staff_ids(db, org_id)
+    return [*dict.fromkeys([*staff, *(user_id for user_id in members if user_id in on_staff)])]
 
 
 def group_chat(db: Session, group: UserGroup) -> Conversation:

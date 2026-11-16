@@ -89,6 +89,29 @@ def test_a_groups_thread_lists_its_assignments_and_who_asked_about_each_step():
         assert _denied(threads.group_thread, db, _user(LEARNER), 1, 1) == 403
 
 
+def test_a_groups_header_and_profile_agree_on_its_staff():
+    """DEV-67: an assignment's staff aren't the group's staff, so the group's own header doesn't name them."""
+    from src.db.school import GroupStaffSet
+    from src.services.school import staff as group_staff
+
+    with _session() as db:
+        uuid = _assign(db, VISIT, ESSAY, staff=(ADMIN, COACH))["assignment_uuid"]
+        thread = threads.group_thread(db, _user(ADMIN), 1, 1)
+        profile = feed.group_detail(db, _user(ADMIN), 1, 1)
+        # Nobody is on the group's staff: the header names no one, the chat asks you to join, the profile counts 0.
+        assert thread["with"] == [] and thread["chat_uuid"] is None and thread["chat_note"]
+        assert profile["staff_count"] == 0
+        # The open assignment still names the staff running it.
+        assert {person["id"] for person in threads.group_thread(db, _user(ADMIN), 1, 1, uuid)["with"]} == {ADMIN, COACH}
+
+        group_staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=ADMIN, role_key="editor", assignment_uuids=[]))
+        thread = threads.group_thread(db, _user(ADMIN), 1, 1)
+        profile = feed.group_detail(db, _user(ADMIN), 1, 1)
+        assert [person["id"] for person in thread["with"]] == [ADMIN]
+        assert profile["staff_count"] == 1 and [item["user"]["id"] for item in profile["people"] if item["as"] == "staff"] == [ADMIN]
+        assert profile["in_chat"] and not (thread["chat_note"] or "").endswith("join it.")
+
+
 def _group_learners(db) -> list[int]:
     return list(db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == 1)).all())
 
