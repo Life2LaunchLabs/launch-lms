@@ -32,7 +32,6 @@ import {
   ArrowLeft,
   ArrowSquareOut,
   Buildings,
-  ChartBar,
   CreditCard,
   GearSix,
   Globe,
@@ -54,7 +53,6 @@ const TABS = [
   { id: 'overview', label: 'Overview', icon: Buildings },
   { id: 'badges', label: 'Badges', icon: Medal },
   { id: 'users', label: 'Users', icon: Users },
-  { id: 'analytics', label: 'Analytics', icon: ChartBar },
   { id: 'plan', label: 'Access', icon: CreditCard },
   { id: 'requests', label: 'Requests', icon: Tray },
   { id: 'settings', label: 'Settings', icon: GearSix },
@@ -184,7 +182,6 @@ export default function OrgDetail() {
       {activeTab === 'users' && (
         <OrgUsersTab orgId={orgId} accessToken={accessToken} currentOrgSlug={currentOrg?.slug} />
       )}
-      {activeTab === 'analytics' && <AnalyticsTab />}
       {activeTab === 'plan' && (
         <AccessTab
           orgId={orgId}
@@ -567,19 +564,6 @@ function OrgUsersTab({
         </div>
       )}
     </div>
-  )
-}
-
-// ============================================================================
-// Analytics (stub parity with legacy)
-// ============================================================================
-
-function AnalyticsTab() {
-  return (
-    <EmptyState
-      icon={<ChartBar size={40} weight="fill" />}
-      message="No analytics available in this environment"
-    />
   )
 }
 

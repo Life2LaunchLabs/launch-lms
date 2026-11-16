@@ -11,6 +11,7 @@ docs() {
   python3 "$root_dir/scripts/product-map.py" render --check
   python3 "$root_dir/scripts/source-size.py" check
   python3 "$root_dir/scripts/architecture-check.py" check
+  python3 "$root_dir/scripts/third-party-check.py"
 }
 
 frontend() {

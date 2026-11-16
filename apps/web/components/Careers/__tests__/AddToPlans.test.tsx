@@ -15,11 +15,11 @@ import { routesFor } from '@components/Goals/phases/careers'
 const router = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} }
 const dietitian = { code: '29-1031.00', title: 'Dietitians and Nutritionists', job_zone: 5 }
 
-async function render(doc: unknown) {
+async function render(doc: unknown, saved = false) {
   lifeDoc = doc
   const { default: AddToPlans } = await import('@components/Careers/AddToPlans')
   return renderToStaticMarkup(<AppRouterContext.Provider value={router as never}>
-    <AddToPlans career={dietitian} token="token" orgslug="school" onClose={() => {}} />
+    <AddToPlans career={dietitian} token="token" orgslug="school" resourceUuid="resource_1" saved={saved} onClose={() => {}} />
   </AppRouterContext.Provider>)
 }
 
@@ -29,12 +29,20 @@ afterEach(() => store.clear())
 
 test('with no plan yet, the career’s routes still show and the button starts the plan instead of leaving for an empty page', async () => {
   const html = await render(null)
-  expect(html).toContain('Start your plan with where you are now')
+  expect(html).toContain('Save it to your library now')
+  expect(html).toContain('Save it for now')
   expect(html).toContain('How to get there')
   expect(html).toContain('Graduate school')
   expect(html).toContain('Start my plan')
   expect(html).not.toContain('href=')
   expect(html).not.toContain('After which phase')
+})
+
+test('with no plan, saving needs no questions: a saved career says so instead of offering to save again', async () => {
+  const html = await render(null, true)
+  expect(html).toContain('Saved. Done')
+  expect(html).not.toContain('Save it for now')
+  expect(html).toContain('Start my plan')
 })
 
 test('a held route is what tells the first phase to open the map holding it', () => {

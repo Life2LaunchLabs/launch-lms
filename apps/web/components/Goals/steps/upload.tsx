@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-import { FileText, Film, Image as ImageIcon, Link2, Plus, Upload as UploadIcon, X } from 'lucide-react'
-import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import { FileText, Film, Image as ImageIcon, Link2, Loader2, Plus, Upload as UploadIcon, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
@@ -11,6 +10,7 @@ import type { MediaType } from '@services/media/library'
 import type { Step, StepEntry, UploadSlot } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
+import { useHandIn } from './handIn'
 
 import { tr } from '@/lib/tr'
 const KIND_ICON = { image: ImageIcon, video: Film, document: FileText, link: Link2 }
@@ -41,10 +41,13 @@ function UploadRow({ step }: { step: Step<'upload'> }) {
 }
 
 /** One upload slot. While it's empty and open, the whole box, name and type are one button that opens the picker, not just the small box. */
-export function UploadSlotRow({ slot, entry, open, onChoose, onPick, onLink, onRemove }: { slot: UploadSlot; entry?: StepEntry; open: boolean; onChoose: () => void; onPick: React.Dispatch<MediaType>; onLink: () => void; onRemove: React.Dispatch<StepEntry> }) {
+export function UploadSlotRow({ slot, entry, open, busy, onChoose, onPick, onLink, onRemove }: { slot: UploadSlot; entry?: StepEntry; open: boolean; busy?: boolean; onChoose: () => void; onPick: React.Dispatch<MediaType>; onLink: () => void; onRemove: React.Dispatch<StepEntry> }) {
   const kinds = `${kindText(slot)}${slot.optional ? tr('goals.upload.optional', ' · optional') : ''}`
   return <li className="flex items-center gap-3 rounded-xl border bg-background p-2">
-    {open && !entry ? <button type="button" onClick={onChoose} aria-label={`Add ${slot.label}`} className="-m-1 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg p-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-accent)]">
+    {busy ? <span className="flex min-w-0 flex-1 items-center gap-3" role="status">
+      <span className="grid h-14 w-14 place-items-center rounded-xl border-2 border-dashed bg-background"><Loader2 size={18} className="animate-spin text-[var(--plan-accent)]" aria-hidden="true" /></span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{slot.label}</span><span className="block text-xs font-semibold text-muted-foreground">{tr('goals.upload.adding', 'Adding…')}</span></span>
+    </span> : open && !entry ? <button type="button" onClick={onChoose} aria-label={`Add ${slot.label}`} className="-m-1 flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg p-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--plan-accent)]">
       <Thumb slot={slot} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-bold">{slot.label}</span>
@@ -59,13 +62,21 @@ export function UploadSlotRow({ slot, entry, open, onChoose, onPick, onLink, onR
     </>}
     {open && entry ? <button type="button" aria-label={tr('goals.upload.remove', 'Remove')} onClick={() => onRemove(entry)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
     {/* The picker takes one kind at a time: a slot open to photos and documents offers each, so a PDF is never refused. */}
-    {open && !entry ? mediaKinds(slot).length > 1 && mediaKinds(slot).map((kind) => <button key={kind} type="button" onClick={() => onPick(kind)} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
-    {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={onLink} className="text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
+    {open && !entry && !busy ? mediaKinds(slot).length > 1 && mediaKinds(slot).map((kind) => <button key={kind} type="button" onClick={() => onPick(kind)} className="shrink-0 py-2 text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
+    {open && !entry && !busy && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={onLink} className="shrink-0 py-2 text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
   </li>
 }
 
 function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: StepCardProps<'upload'>) {
-  const [picking, setPicking] = React.useState<{ slot: UploadSlot; type: MediaType } | null>(null)
+  // The slot being filled. Picking a file uploads it and hands it in straight away (useHandIn).
+  const target = React.useRef<UploadSlot | null>(null)
+  const [targetKey, setTargetKey] = React.useState<string | null>(null)
+  const handIn = useHandIn({ token, viewerUserId, onUploaded: async (asset, file) => {
+    const slot = target.current
+    if (!slot) return
+    await actions.addEntry({ kind: 'file', slot: slot.key, asset_uuid: asset.asset_uuid, url: asset.url, title: asset.title || asset.filename || file.name })
+  } })
+  const pick = (slot: UploadSlot, type: MediaType) => { target.current = slot; setTargetKey(slot.key); handIn.pick(type) }
   const [linkSlot, setLinkSlot] = React.useState<UploadSlot | null>(null)
   const [link, setLink] = React.useState('')
   const open = canWork && !step.locked && step.status !== 'completed' && step.status !== 'submitted'
@@ -76,21 +87,20 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const choose = (slot: UploadSlot) => {
     const media = mediaKinds(slot)
     if (!media.length) return setLinkSlot(slot)
-    setPicking({ slot, type: media[0] })
+    pick(slot, media[0])
   }
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
     <Feedback step={step} />
     <ul className="flex flex-col gap-2">
-      {step.config.slots.map((slot) => <UploadSlotRow key={slot.key} slot={slot} entry={filled(step, slot)} open={open} onChoose={() => choose(slot)} onPick={(kind) => setPicking({ slot, type: kind })} onLink={() => setLinkSlot(slot)} onRemove={(entry) => actions.deleteEntry(entry.entry_uuid)} />)}
+      {step.config.slots.map((slot) => <UploadSlotRow key={slot.key} slot={slot} entry={filled(step, slot)} open={open} busy={handIn.uploading && targetKey === slot.key} onChoose={() => choose(slot)} onPick={(kind) => pick(slot, kind)} onLink={() => setLinkSlot(slot)} onRemove={(entry) => actions.deleteEntry(entry.entry_uuid)} />)}
     </ul>
     {linkSlot ? <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); if (!link.trim()) return; await actions.addEntry({ kind: 'link', slot: linkSlot.key, url: link.trim(), title: link.trim() }); setLink(''); setLinkSlot(null) }}>
       <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={tr('goals.upload.link_for_label', 'Link for {{label}}', { label: linkSlot.label })} />
       <button type="submit" className="rounded-xl border-2 px-3 text-xs font-bold">{tr('goals.upload.add', 'Add')}</button>
     </form> : null}
     <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} blocker={blocker} />
-    {picking && viewerUserId ? <MediaPickerDialog open onOpenChange={(next) => { if (!next) setPicking(null) }} title={`Add ${picking.slot.label}`} description={tr('goals.upload.upload_something_new_or_choose', 'Upload something new or choose it from your media library.')} owner={{ type: 'user', id: viewerUserId }} mediaType={picking.type} accessToken={token}
-      onSave={async (asset) => { await actions.addEntry({ kind: 'file', slot: picking.slot.key, asset_uuid: asset.asset_uuid, url: asset.url, title: asset.title || asset.filename || '' }); setPicking(null) }} /> : null}
+    {open ? handIn.input : null}
   </div>
 }
 

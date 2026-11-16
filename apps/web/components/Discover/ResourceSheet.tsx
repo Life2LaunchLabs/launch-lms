@@ -114,7 +114,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
   const uuid = resourceUuid.startsWith('resource_') ? resourceUuid : `resource_${resourceUuid}`
   const { data: resource, error, mutate } = useSWR(session?.status === 'loading' ? null : ['discover-resource', uuid, token || 'public'], () => getResource(uuid, token))
   const [saving, setSaving] = React.useState(false)
-  // A career just saved here: its take opens fresh, with "Add to my EPP" on.
+  // A career just saved here: its take opens fresh, asking only how into it they are.
   const [fresh, setFresh] = React.useState(false)
   const [planning, setPlanning] = React.useState<{ code: string; title: string; job_zone?: number | null } | null>(null)
   // From the plan map's "Start from a career": the phase the career goes after.
@@ -158,6 +158,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
       const result: any = resource.is_saved ? await unsaveResource(resource.resource_uuid, token) : await saveResource(resource.resource_uuid, { add_to_default_channel: false }, token)
       if (!result?.success) throw new Error()
       setFresh(!resource.is_saved && resource.resource_type === 'career')
+      if (!resource.is_saved) toast.success(tr('discover.resource_sheet.saved_to_my_library', 'Saved to My library'))
       await mutate()
     } catch {
       toast.error(resource.is_saved ? tr('discover.resource_sheet.couldn_t_remove_it_try', 'Couldn’t remove it. Try again.') : tr('discover.resource_sheet.couldn_t_save_it_try', 'Couldn’t save it. Try again.'))
@@ -202,8 +203,9 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
                 <Button ref={openButton} type="button" variant="brand" size="tall" className="flex-1" onClick={() => void open()}>
                   {meta.kind.verb} {resourceSource(resource)}<ArrowUpRight size={18} aria-hidden="true" />
                 </Button>
-                {signedIn ? <Button type="button" variant={resource.is_saved ? 'default' : 'surface'} size="tall" className="w-14 px-0" aria-pressed={resource.is_saved} aria-label={resource.is_saved ? tr('discover.resource_sheet.saved_remove_from_your_library', 'Saved. Remove from your library') : tr('discover.resource_sheet.save_to_your_library', 'Save to your library')} disabled={saving} onClick={() => void toggleSave()}>
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className={cn(resource.is_saved && 'fill-current')} />}
+                {signedIn ? <Button type="button" variant={resource.is_saved ? 'default' : 'surface'} size="tall" className="shrink-0 gap-1.5 px-4" aria-pressed={resource.is_saved} aria-label={resource.is_saved ? tr('discover.resource_sheet.saved_remove_from_your_library', 'Saved. Remove from your library') : tr('discover.resource_sheet.save_to_your_library', 'Save to your library')} disabled={saving} onClick={() => void toggleSave()}>
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className={cn(resource.is_saved && 'fill-current')} aria-hidden="true" />}
+                  <span aria-hidden="true">{resource.is_saved ? tr('discover.resource_sheet.saved', 'Saved') : tr('discover.resource_sheet.save', 'Save')}</span>
                 </Button> : null}
               </div>
               {site ? <span className="px-1 text-[12.5px] font-semibold text-muted-foreground">{tr('discover.resource_sheet.opens_site_in_a_new', 'Opens {{site}} in a new tab', { site })}</span> : null}
@@ -228,5 +230,5 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
         </>}
     </div>
   </div>
-  return mounted ? createPortal(<>{sheet}{planning && token ? <AddToPlans career={planning} token={token} orgslug={orgslug} after={after} onClose={() => setPlanning(null)} /> : null}</>, document.body) : null
+  return mounted ? createPortal(<>{sheet}{planning && token && resource ? <AddToPlans career={planning} token={token} orgslug={orgslug} after={after} resourceUuid={resource.resource_uuid} saved={resource.is_saved} onSavedChange={() => void mutate()} onClose={() => setPlanning(null)} /> : null}</>, document.body) : null
 }
