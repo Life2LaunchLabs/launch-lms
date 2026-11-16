@@ -269,6 +269,8 @@ def send_direct_invitation_email(
     first = assignments[0] if assignments else None
     subject = (f"{inviter} invited you to help run {first['assigned_to']} at {org.name}" if first and first.get("assigned_to")
                else f"{inviter} invited you to join {org.name}")
+    if setup.get("cis"):
+        subject = f"{inviter} invited you to {org.name}, and your Oregon CIS work is waiting"
     note = f"<p style=\"padding:12px 14px;background:#f3f5f6;border-radius:12px\">{html.escape(setup['note'])}</p>" if setup.get("note") else ""
     if assignments:
         items = "".join(f"<li>{html.escape(row['assigned_to'])} · {html.escape(row['plan'])} ({html.escape(row['role_label'])})</li>" for row in assignments)
@@ -278,6 +280,11 @@ def send_direct_invitation_email(
         start = f"<p><b>You'll be able to</b></p><ul>{items}</ul>"
     else:
         start = ""
+    if setup.get("cis"):
+        # The learner's CIS export is held for them (services/portfolio_held_imports.py) and comes over when they accept.
+        start += ("<p><b>Your Oregon CIS work is waiting for you.</b> When you join, what you saved in CIS (your career bio, "
+                  "assessments, links and files) is brought into your portfolio, so you don't lose it when CIS closes. "
+                  "Only you and the staff who sent it can see it.</p>")
     send_email(
         to=email,
         subject=subject,
