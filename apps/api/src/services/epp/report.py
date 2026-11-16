@@ -150,6 +150,20 @@ def choices(db: Session, learner_id: int) -> list[dict]:
     return found
 
 
+def careers_explored(db: Session, learner_id: int) -> int:
+    """How many careers the learner saved from Discover and reacted to (Maybe, Into it or Love it).
+
+    Only the count: which ones, and what they wrote, show on the report only for careers they put on their EPP.
+    """
+    from sqlalchemy import func
+
+    from src.db.resources import Resource, UserSavedResource
+
+    return int(db.exec(select(func.count()).select_from(UserSavedResource).join(Resource, Resource.id == UserSavedResource.resource_id).where(
+        UserSavedResource.user_id == learner_id, Resource.resource_type == "career",
+        (UserSavedResource.interest_level.is_not(None)) | (UserSavedResource.show_on_epp == True))).one() or 0)  # noqa: E712
+
+
 def careers(db: Session, learner_id: int, limit: int = 8) -> list[dict]:
     """Careers the learner saved from Discover and chose to show on their EPP, newest first, with what they wrote about each."""
     from src.db.resources import Resource, ResourceNoteBlock, UserSavedResource
@@ -185,6 +199,9 @@ def _credit_line(plan: dict, subject: str) -> str:
         return "Credit recorded by school"
     if any(course["status"] == "completed" for course in rows):
         return "Completed, not yet confirmed by the school"
+    going = [course["title"] for course in rows if course["status"] == "in_progress"]
+    if going:
+        return "In progress: " + ", ".join(going)
     if rows:
         return "Planned: " + ", ".join(course["title"] for course in rows)
     return "Not planned yet"
@@ -234,6 +251,7 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
     evidence = _picked(db, row, learner_id)
     results = [item for item in choices(db, learner_id) if item["kind"] == "result"]
     explored = careers(db, learner_id)
+    explored_count = max(careers_explored(db, learner_id), len(explored))
     crle = work["EPP.CRLE.EXPERIENCE"]
     crle_done = [item for item in crle if item["status"] in DONE | {"submitted"}]
     crle_reviewed = [item for item in crle_done if item["source"] == "teacher_reviewed"]
@@ -243,8 +261,10 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
     reviewed = _done(work, "EPP.PROGRESS.REVIEW") or any(item.get("school_year") == year for item in history)
 
     components = [
-        _component("interests", "Interests", _done(work, "EPP.INTERESTS.ASSESSMENTS") or bool(results),
-                   f"{len(results)} result{'' if len(results) == 1 else 's'}, {'careers explored' if _done(work, 'EPP.INTERESTS.CAREERS') or explored else 'no careers explored yet'}"),
+        _component("interests", "Interests", _done(work, "EPP.INTERESTS.ASSESSMENTS") or bool(results) or bool(explored_count) or _done(work, "EPP.INTERESTS.CAREERS"),
+                   f"{len(results)} result{'' if len(results) == 1 else 's'}, " + (
+                       f"{explored_count} career{'' if explored_count == 1 else 's'} explored" if explored_count
+                       else "careers explored" if _done(work, "EPP.INTERESTS.CAREERS") else "no careers explored yet")),
         _component("goals", "Goals and next steps", all(_done(work, code) for code in ("EPP.GOALS.CAREER", "EPP.GOALS.EDUCATION", "EPP.GOALS.ACTION")),
                    "Goals, next step and action plan written" if all(_done(work, code) for code in ("EPP.GOALS.CAREER", "EPP.GOALS.EDUCATION", "EPP.GOALS.ACTION"))
                    else "Goals, next step or this year's action plan still open"),
@@ -281,8 +301,9 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
         },
         "next_step": next_step,
         "interests": [item["title"] + (f": {item['detail']}" if item["detail"] else "") for item in results][:6],
-        # Careers the learner saved in Discover and chose to show here, with why.
+        # Careers the learner saved in Discover and chose to show here, with why, and how many they saved and reacted to in all.
         "careers": explored,
+        "careers_explored": explored_count,
         "components": components,
         "to_talk_about": talk[:5],
         "graduation": {

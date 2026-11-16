@@ -3748,7 +3748,9 @@
     "collapse_sidebar": "Cerrar barra lateral",
     "send_feedback": "Enviar comentarios",
     "feedback": "Comentarios",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "education_plan": "Plan educativo",
+    "new_request": "{{label}}, solicitud nueva"
   },
   "settings": {
     "cancel": "Cancelar",
@@ -6917,7 +6919,8 @@
       "org_name_would_like_to": "{{org_name}} quiere apoyar tu plan",
       "org_name_asked_to_support": "{{org_name}} pidió apoyar su plan",
       "org_name_supports_you": "{{org_name}} te apoya",
-      "v_them": "ellos"
+      "v_them": "ellos",
+      "you_said_not_now": "Dijiste que ahora no. Todavía puedes decir que sí."
     },
     "tag_composer": {
       "no_one_by_that_name": "Nadie con ese nombre",
@@ -7759,7 +7762,8 @@
       "someone": "Alguien",
       "you": "Tú",
       "waiting_for_an_answer": "Esperando respuesta",
-      "stopped": "Detenido"
+      "stopped": "Detenido",
+      "said_not_now": "Dijo que ahora no"
     },
     "chat_workspace": {
       "everyone_in_the_group_sees": "Todos en el grupo ven esto",

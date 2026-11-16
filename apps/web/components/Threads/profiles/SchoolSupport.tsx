@@ -15,7 +15,7 @@ const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDa
 
 /**
  * The school's support link with a learner, on their profile. Staff ask; the learner gets a consent card in
- * their chat with the organization. Only once they say yes does the school record open: student ID, diploma
+ * their chat with the organization, by email and on their Education Plan. Not now leaves the ask open. Only once they say yes does the school record open: student ID, diploma
  * track, graduation year and counselor. Either side can end it, which closes the record again.
  */
 export default function SchoolSupport({ userId, name, username }: { userId: number; name: string; username: string }) {
@@ -49,12 +49,12 @@ export default function SchoolSupport({ userId, name, username }: { userId: numb
 
   if (!active) return <Card title="School record">
     <p className="mb-3 text-sm text-muted-foreground">
-      {state.status === 'requested' ? `Waiting for ${first} to say yes. A card asking them went to their chat with the organization on ${formatDate(state.requested_at)}.`
-        : state.status === 'declined' ? `${first} said not now. You can ask again.`
+      {state.status === 'requested' ? `Waiting for ${first} to say yes. We asked them by email and in their chat with the organization on ${formatDate(state.requested_at)}.`
+        : state.status === 'declined' ? `${first} said not now. The ask stays open, so they can still say yes from their Education Plan or their chat.`
         : state.status === 'ended' ? `Support ended on ${formatDate(state.ended_at)}. Ask again to open their record.`
         : `To keep ${first}'s Education Plan and Profile, ask to support them. They get a card that says what you'd see, and choose yes or not now.`}
     </p>
-    {state.status === 'requested' ? null : ask}
+    {state.status === 'requested' || state.status === 'declined' ? null : ask}
   </Card>
 
   const record = opened?.record

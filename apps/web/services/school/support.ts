@@ -36,6 +36,18 @@ export interface SupportedLearner { learner: PersonSummary; record: SupportRecor
 
 export interface SupportUpdate { student_id?: string | null; diploma_track?: DiplomaTrack | null; graduation_year?: number | null; counselor_user_id?: number | null }
 
+/**
+ * A school supporting the learner, or asking to. An ask they can still answer (requested, or declined, which
+ * means they said not now) carries its request_uuid and the text of what they'd be agreeing to.
+ */
+export interface MySupport extends SupportState {
+  org: { id: number; name: string; slug: string; org_uuid: string } | null
+  request_uuid?: string | null
+  text?: string | null
+}
+
+export const MY_SUPPORTS_KEY = 'school/support/mine'
+
 /** The consent card in a learner's chat with an organization. */
 export interface SupportRequestCard {
   type: 'support_request'
@@ -44,7 +56,8 @@ export interface SupportRequestCard {
   org_name: string
   org_slug: string
   text: string
-  state: 'pending' | 'accepted' | 'declined' | 'ended' | 'expired'
+  /** not_now: they said not now and can still say yes (older cards may still say declined). */
+  state: 'pending' | 'accepted' | 'not_now' | 'declined' | 'ended' | 'expired'
   for_me: boolean
 }
 
@@ -65,7 +78,7 @@ export const supportApi = {
   update: (orgId: number, userId: number, payload: SupportUpdate, token?: string) => request<SupportRecord>(student(orgId, userId), token, 'PUT', payload),
   end: (orgId: number, userId: number, token?: string) => request<SupportState>(student(orgId, userId), token, 'DELETE'),
   open: (orgId: number, userId: number, token?: string) => request<SupportedLearner>(student(orgId, userId, 'record'), token),
-  mine: (token?: string) => request<{ supports: Array<SupportState & { org: { id: number; name: string; slug: string; org_uuid: string } | null }> }>(mine(), token),
+  mine: (token?: string) => request<{ supports: MySupport[] }>(mine(), token),
   answer: (supportUuid: string, accept: boolean, requestUuid?: string, token?: string) =>
     request(mine(`/${encodeURIComponent(supportUuid)}/answer`), token, 'POST', { accept, request_uuid: requestUuid }),
   stop: (supportUuid: string, token?: string) => request(mine(`/${encodeURIComponent(supportUuid)}/end`), token, 'POST'),
