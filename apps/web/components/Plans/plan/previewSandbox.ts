@@ -133,3 +133,10 @@ export function applyWork(work: PreviewWork, key: string, change: WorkChange): P
   else next = { ...own, entries: own.entries.filter((entry) => entry.entry_uuid !== change.entryUuid) }
   return { ...work, [key]: next }
 }
+
+/** The saved activity an activity step plays in the preview, or null when it has none yet. */
+export function activityToPlay(step: Pick<Step, 'type' | 'config'>): string | null {
+  if (step.type !== 'activity') return null
+  const uuid = (step.config as { activity_uuid?: unknown } | null | undefined)?.activity_uuid
+  return typeof uuid === 'string' && uuid ? uuid : null
+}

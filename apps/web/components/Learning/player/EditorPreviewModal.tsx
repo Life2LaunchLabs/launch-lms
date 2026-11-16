@@ -3,13 +3,14 @@
 import React from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { buildActivityDocument, createLearningPreview } from '@services/learning/activityDocuments'
-import { ActivityPreview } from './ActivityPreview'
+import { ActivityPreview, type PreviewEvent } from './ActivityPreview'
 
 // Previews exactly what is on screen in the editor (including edits that are
 // still autosaving) through the same preview session and player used by
 // shared preview links and the Claude connector. Without pages it previews the
 // activity as saved, as staff do to try one before their learners get to it.
-export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void }) {
+// eslint-disable-next-line no-unused-vars
+export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEvent }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void; onEvent?: (event: PreviewEvent) => void }) {
   const [token, setToken] = React.useState<string | null>(null)
   const [problems, setProblems] = React.useState<Array<{ path: string; message: string }> | null>(null)
   const [message, setMessage] = React.useState<string | null>(null)
@@ -33,7 +34,7 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/90 p-4 sm:p-6" role="dialog" aria-modal="true" aria-label="Activity preview">
       {token ? (
-        <ActivityPreview token={token} onClose={onClose} />
+        <ActivityPreview token={token} onClose={onClose} onEvent={onEvent} />
       ) : (
         <div className="m-auto w-full max-w-md rounded-2xl bg-white p-6 text-zinc-900 shadow-2xl">
           <div className="flex items-start gap-3">

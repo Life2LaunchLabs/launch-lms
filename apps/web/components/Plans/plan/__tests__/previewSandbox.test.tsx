@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { SWRConfig } from 'swr'
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import GoalPath from '@components/Goals/learner/GoalPath'
-import { applyWork, finishedStatus, previewGoal, type PreviewWork } from '@components/Plans/plan/previewSandbox'
+import { activityToPlay, applyWork, finishedStatus, previewGoal, type PreviewWork } from '@components/Plans/plan/previewSandbox'
 import type { TemplateDocument } from '@services/goals/types'
 
 // Preview builds the plan as someone assigned it would get it, in the browser, and keeps what the
@@ -78,4 +78,19 @@ test('the preview renders on the learner’s own path', () => {
   expect(html).toContain('Drive the course with a trainer')
   expect(html).toContain('Opens when the goal moves on to it')
   expect(html).toContain('<p>card</p>')
+})
+
+test('Start on an activity step plays its saved activity in the preview, and finishing it finishes the step', () => {
+  // DEV-61: Start on a video (activity) step did nothing in Preview; it now opens the step's activity.
+  const withActivity: TemplateDocument = { ...document, stages: [{ key: 'watch', title: 'Watch', steps: [
+    { key: 'demo', type: 'activity', title: 'Watch the flat fix demo', config: { activity_uuid: 'activity_123' } as never, completed_by: 'learner' },
+    { key: 'draft', type: 'activity', title: 'Not saved yet', config: { activity_uuid: '' } as never, completed_by: 'learner' },
+  ] }] }
+  const goal = previewGoal({ document: withActivity, orgId: 1, icon: null, work: {}, stageIndex: 0 })
+  const [demo, draft] = goal.stages[0].steps
+  expect(activityToPlay(demo)).toBe('activity_123')
+  expect(activityToPlay(draft)).toBe(null)
+  expect(activityToPlay(build().stages[0].steps[0])).toBe(null)
+  const finished = previewGoal({ document: withActivity, orgId: 1, icon: null, work: applyWork({}, 'demo', { kind: 'status', status: finishedStatus({}, 'completed') }), stageIndex: 0 })
+  expect(finished.stages[0].steps[0].state).toBe('done')
 })
