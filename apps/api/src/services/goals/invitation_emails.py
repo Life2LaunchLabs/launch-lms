@@ -2,12 +2,13 @@
 
 The invitation itself is a card in the person's chats (services/connect/inbox.py), which they see
 once they sign in with the invited address; the email is how they hear about it. The link opens
-those chats on the organization's site, or, for an address with no account yet, signup with it filled in.
+that invitation (web: connect/invitation/<uuid>, which finds its chat), or, for an address with no
+account yet, signup with it filled in and the invitation as where to go once they've set up.
 """
 
 import html
 import logging
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from sqlmodel import Session, func, select
 
@@ -22,6 +23,11 @@ from src.services.orgs.owner import owner_org
 logger = logging.getLogger(__name__)
 
 
+def invitation_path(org: Organization | None, invitation: PlanInvitation) -> str:
+    """Where one invitation opens on the site: its card, in the chat it waits in."""
+    return f"{'/orgs/' + org.slug if org else ''}/connect/invitation/{quote(invitation.invitation_uuid, safe='')}"
+
+
 def send_plan_invitation(db: Session, goal: Goal, invitation: PlanInvitation, role_name: str) -> bool:
     """Email the invited address; a failed delivery is logged, never raised, so the invitation still stands."""
     org = db.get(Organization, goal.org_id) if goal.org_id else owner_org(db)
@@ -31,9 +37,10 @@ def send_plan_invitation(db: Session, goal: Goal, invitation: PlanInvitation, ro
         sender = f"{who} at {org.name}"
     else:
         sender = who or (org.name if org else "Someone on Life2Launch")
-    link = f"{frontend_url()}/orgs/{org.slug}/connect" if org else f"{frontend_url()}/connect"
+    path = invitation_path(org, invitation)
+    link = f"{frontend_url()}{path}"
     if not db.exec(select(User.id).where(func.lower(User.email) == str(invitation.email).strip().lower())).first():
-        link = f"{frontend_url()}/signup?{urlencode({'email': invitation.email})}"  # no account yet: signup, with the address filled in
+        link = f"{frontend_url()}/signup?{urlencode({'email': invitation.email, 'next': path})}"  # no account yet: signup, then the invitation
     title, role, email = html.escape(goal.title), html.escape(role_name), html.escape(str(invitation.email))
     try:
         send_email(

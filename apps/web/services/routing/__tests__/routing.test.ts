@@ -600,6 +600,22 @@ test('request policy redirects unauthenticated protected paths to root landing',
   assert.equal(decision.destination, 'https://acme.launchlms.test/')
 })
 
+test('request policy sends a signed-out invitation link to sign in and back', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/connect/invitation/plan_invitation_1',
+    pathname: '/connect/invitation/plan_invitation_1',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/login?next=%2Fconnect%2Finvitation%2Fplan_invitation_1')
+})
+
 test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/').kind, 'public')
   assert.equal(classifyRoute('/welcome').kind, 'public')
