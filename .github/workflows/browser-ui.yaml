@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04  # setup-python has no 3.14.3 build for ubuntu-latest (26.04) yet
+    runs-on: ubuntu-24.04  # setup-python has no 3.14.3 build for Ubuntu 26.04, which ubuntu-latest became
     timeout-minutes: 30
     strategy:
       fail-fast: false
