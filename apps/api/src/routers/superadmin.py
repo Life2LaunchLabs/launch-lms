@@ -180,35 +180,6 @@ async def create_organization(
     return orgs_service.create_organization(db_session, current_user, payload)
 
 
-@router.get("/organizations/visits")
-async def organizations_visits():
-    from src.routers.analytics import _execute_tinybird_query
-
-    sql = """
-    SELECT
-        org_id,
-        toDate(timestamp) AS date,
-        count() AS views
-    FROM events
-    WHERE
-        event_name = 'page_view'
-        AND timestamp >= now() - INTERVAL 7 DAY
-    GROUP BY org_id, date
-    ORDER BY org_id, date ASC
-    """
-
-    try:
-        return await _execute_tinybird_query(
-            query_name="superadmin_org_weekly_visits",
-            sql=sql,
-            org_id=0,
-            days=7,
-        )
-    except Exception as exc:
-        logger.warning("Failed to fetch org weekly visits: %s", exc)
-        return {"data": [], "rows": 0, "meta": []}
-
-
 @router.get("/organizations/{org_id}")
 async def get_organization(org_id: int, db_session: Session = Depends(get_db_session)):
     return orgs_service.get_organization(db_session, org_id)
@@ -251,58 +222,6 @@ async def get_org_users(
     return users_service.list_global_users(
         db_session, page=page, limit=limit, search=search, org_id=org_id
     )
-
-
-@router.get("/organizations/{org_id}/analytics")
-async def get_org_analytics(
-    org_id: int,
-    days: int = 30,
-    db_session: Session = Depends(get_db_session),
-):
-    from src.routers.analytics import _execute_tinybird_query
-    from src.services.analytics.queries import CORE_QUERIES
-
-    orgs_service._get_org_or_404(db_session, org_id)
-
-    results = {}
-    for query_name, (sql_template, default_days) in CORE_QUERIES.items():
-        try:
-            effective_days = days if days else default_days
-            sql = sql_template.format(org_id=org_id, days=effective_days)
-            results[query_name] = await _execute_tinybird_query(
-                query_name=f"superadmin_{query_name}",
-                sql=sql,
-                org_id=org_id,
-                days=effective_days,
-            )
-        except Exception as exc:
-            logger.warning("Failed to fetch %s for org %s: %s", query_name, org_id, exc)
-            results[query_name] = {"data": [], "rows": 0, "meta": []}
-
-    return results
-
-
-@router.get("/analytics/global")
-async def get_global_analytics(days: int = 30):
-    from src.routers.analytics import _execute_tinybird_query
-    from src.services.analytics.queries import CORE_QUERIES
-
-    results = {}
-    for query_name, (sql_template, default_days) in CORE_QUERIES.items():
-        try:
-            effective_days = days if days else default_days
-            sql = sql_template.format(org_id=0, days=effective_days)
-            results[query_name] = await _execute_tinybird_query(
-                query_name=f"global_{query_name}",
-                sql=sql,
-                org_id=0,
-                days=effective_days,
-            )
-        except Exception as exc:
-            logger.warning("Failed to fetch global %s: %s", query_name, exc)
-            results[query_name] = {"data": [], "rows": 0, "meta": []}
-
-    return results
 
 
 @router.put("/organizations/{org_id}/access")

@@ -1260,20 +1260,20 @@ Let organizations package learning/media access, accept payments, and connect pu
 Give authorized operators evidence about use, tools for tenant-wide governance, and safe operational controls.
 
 - **PLATFORM-G001 — Understand product and learner activity**
-  - `PLATFORM-G001-A001` [live] Collect product analytics
-    - `PLATFORM-G001-A001-S001` [live / core] Record a page view
-    - `PLATFORM-G001-A001-S002` [live / core] Record a product event
-    - `PLATFORM-G001-A001-S003` [live / core] Inspect event status or detail
-    - `PLATFORM-G001-A001-S004` [live / core] Query collected events
-    - `PLATFORM-G001-A001-S005` [live / core] Export event data
-  - `PLATFORM-G001-A002` [live] View organization analytics
-    - `PLATFORM-G001-A002-S001` [live / core] Open organization analytics
-    - `PLATFORM-G001-A002-S002` [live / core] Encounter the current dashboard redirect
-    - `PLATFORM-G001-A002-S003` [live / core] Use available analytics APIs where authorized
-  - `PLATFORM-G001-A003` [live] Access analytics data
-    - `PLATFORM-G001-A003-S001` [live / alternative] Query analytics through the API
-    - `PLATFORM-G001-A003-S002` [live / alternative] Export analytics data
-    - `PLATFORM-G001-A003-S003` [live / core] Respect permissions and privacy constraints
+  - `PLATFORM-G001-A001` [removed] Collect product analytics
+    - `PLATFORM-G001-A001-S001` [removed / core] Record a page view
+    - `PLATFORM-G001-A001-S002` [removed / core] Record a product event
+    - `PLATFORM-G001-A001-S003` [removed / core] Inspect event status or detail
+    - `PLATFORM-G001-A001-S004` [removed / core] Query collected events
+    - `PLATFORM-G001-A001-S005` [removed / core] Export event data
+  - `PLATFORM-G001-A002` [removed] View organization analytics
+    - `PLATFORM-G001-A002-S001` [removed / core] Open organization analytics
+    - `PLATFORM-G001-A002-S002` [removed / core] Encounter the current dashboard redirect
+    - `PLATFORM-G001-A002-S003` [removed / core] Use available analytics APIs where authorized
+  - `PLATFORM-G001-A003` [removed] Access analytics data
+    - `PLATFORM-G001-A003-S001` [removed / alternative] Query analytics through the API
+    - `PLATFORM-G001-A003-S002` [removed / alternative] Export analytics data
+    - `PLATFORM-G001-A003-S003` [removed / core] Respect permissions and privacy constraints
   - `PLATFORM-G001-A004` [live] Use a domain report
     - `PLATFORM-G001-A004-S001` [live / alternative] Review plan or program progress
     - `PLATFORM-G001-A004-S002` [live / alternative] Review requirement attainment
