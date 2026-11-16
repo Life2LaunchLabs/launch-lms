@@ -105,6 +105,9 @@ export const auditCohort = (cohortUuid: string) => call<TestAudit>(`cohorts/${co
 export const purgeCohort = (cohortUuid: string, dryRun: boolean) => call<TestPurge>(`cohorts/${cohortUuid}/purge?dry_run=${dryRun}`, 'POST')
 export const createLoginLink = (userId: number, targetPath = '/') =>
   call<LoginLink>(`personas/${userId}/login-link`, 'POST', { target_path: targetPath })
+/** The persona's address and known password, for signing out and back in on the Login form (DEV-126). */
+export const revealPersonaPassword = (userId: number) =>
+  call<{ user_id: number; email: string; password: string }>(`personas/${userId}/password`, 'POST')
 /** A signed-out browser for an invitee: signing up there with their address makes them a persona of the run. */
 export const createInviteeLink = (inviteeId: number, targetPath = '/') =>
   call<LoginLink>(`invitees/${inviteeId}/login-link`, 'POST', { target_path: targetPath })

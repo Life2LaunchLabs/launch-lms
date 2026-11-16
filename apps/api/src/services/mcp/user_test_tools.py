@@ -58,7 +58,7 @@ USER_TEST_TOOLS = [
         **_COHORT, "stages": {"type": "array", "maxItems": 20, "items": _STAGE},
     }, ["cohort_uuid", "stages"], tests_mcp.set_test_stages, write=True),
     _tool("get_test_board", "Read the run board", "Every persona against every stage: not started, waiting on someone, in progress, done or stuck. Stuck personas come first.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_board),
-    _tool("open_as_test_persona", "Open the site as a test persona", "A one-use link that signs a browser in as the persona and opens target_path. Use a fresh browser session for each persona. With invitee_id it opens a signed-out browser that may sign up with the invitee's address.", {
+    _tool("open_as_test_persona", "Open the site as a test persona", "A one-use link that signs a browser in as the persona and opens target_path. Use a fresh browser session for each persona. Also returns the persona's email and password, which sign it back in on the Login form after it signs out, still sealed in the run. With invitee_id it opens a signed-out browser that may sign up with the invitee's address.", {
         **_PERSONA, **_INVITEE, "target_path": {"type": "string", "maxLength": 1000, "description": "A path such as /start, or a link's full url from read_test_mail, which signs in on that link's own site."},
         "valid_minutes": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How long the link waits to be opened (default 1). Raise it to hand the link to a browser elsewhere, or to sign a persona back in after its session drops."},
     }, [], tests_mcp.open_as_test_persona, write=True),

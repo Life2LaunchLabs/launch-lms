@@ -14,7 +14,7 @@ from src.security.auth import get_authenticated_user
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 from src.db.user_tests import TestCohort, TestMail, TestPersona
 from src.db.users import User
-from src.services.user_tests import checkpoints, cleanup, cohorts, mail, personas, replays, stories, tickets
+from src.services.user_tests import checkpoints, cleanup, cohorts, mail, passwords, personas, replays, stories, tickets
 from src.services.user_tests.sessions import current_test_operator, current_test_persona, is_platform_admin
 from src.services.user_tests.settings import email_domain, require_enabled
 
@@ -258,6 +258,13 @@ def login_link(
     if not allowed:
         raise HTTPException(429, f"Too many login links this hour. Try again in {retry} seconds.")
     return tickets.mint(db, actor.id, user_id, body.target_path)
+
+
+@router.post("/personas/{user_id}/password")
+def persona_password(user_id: int, response: Response, actor: PublicUser = Depends(operator), db: Session = Depends(get_db_session)):
+    """The persona's address and known password, for signing out and back in on the Login form (DEV-126)."""
+    response.headers["Cache-Control"] = "no-store"
+    return passwords.reveal(db, actor.id, user_id)
 
 
 @router.post("/invitees/{invitee_id}/login-link")

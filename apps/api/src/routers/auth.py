@@ -24,6 +24,7 @@ from src.security.auth import (
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
+from src.services.user_tests import passwords as test_passwords
 from src.services.user_tests.sessions import refresh_test_persona
 from src.services.security.account_lockout import (
     check_account_locked,
@@ -331,6 +332,10 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # A test persona signing back in gets a persona session, never an ordinary login (DEV-126);
+    # checked before anything is recorded, so a closed run's persona stays out.
+    persona_session = test_passwords.login_session(db_session, user)
+
     # Step 5: Reset failed attempts and update login info. Email verification is
     # encouraged after signup, but it never prevents access to the account.
     reset_failed_attempts(user, db_session)
@@ -338,25 +343,16 @@ async def login(
     update_login_info(user, client_ip, db_session)
 
     # Step 7: Issue tokens
-    access_token = create_access_token(
-        data={"sub": username},
-        expires_delta=JWT_ACCESS_TOKEN_EXPIRES
-    )
-    refresh_token = create_refresh_token(data={"sub": username})
-
-    set_auth_cookies(response, access_token, refresh_token, request)
-
-    user = UserRead.model_validate(user)
-
-    result = {
-        "user": user,
-        "tokens": {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "expiry": get_token_expiry_ms(),
-        },
+    tokens = persona_session["tokens"] if persona_session else {
+        "access_token": create_access_token(data={"sub": username}, expires_delta=JWT_ACCESS_TOKEN_EXPIRES),
+        "refresh_token": create_refresh_token(data={"sub": username}),
     }
-    return result
+    set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"], request)
+    return {
+        "user": UserRead.model_validate(user),
+        "tokens": {**tokens, "expiry": get_token_expiry_ms()},
+        **({"test_persona": persona_session["test_persona"]} if persona_session else {}),
+    }
 
 
 class ThirdPartyLogin(BaseModel):
