@@ -113,9 +113,14 @@ async def open_as_test_persona(request: Request, db: Session, ctx: AccessContext
     if not args.get("user_id"):
         raise HTTPException(422, "Give the persona's user_id, or an invitee_id for someone who hasn't signed up yet.")
     link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), target, timedelta(minutes=minutes))  # type: ignore[arg-type]
+    from src.services.user_tests import passwords
+
+    sign_in = passwords.reveal(db, int(ctx.user.id), int(args["user_id"]))  # type: ignore[arg-type]
     return {"url": f"{origin}{link['path']}", "expires_at": link["expires_at"],
+            "email": sign_in["email"], "password": sign_in["password"],
             "note": "Works once. Open it in a fresh browser session (no other sign-in), since it signs that browser in as the persona. "
-                    "It also signs a persona back in after its session drops, with no admin sign-in in that browser."}
+                    "It also signs a persona back in after its session drops, with no admin sign-in in that browser. "
+                    "To test signing out and back in, sign out and use email and password on the Login form: it signs in as the same sealed persona."}
 
 
 async def read_test_mail(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:

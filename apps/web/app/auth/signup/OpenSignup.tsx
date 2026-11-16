@@ -2,6 +2,7 @@
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { errorDetailMessage } from '@/lib/errorDetail'
 import { useFormik } from 'formik'
+import SignupEmail from './SignupEmail'
 import SignupNames, { welcomeSignupNamesKey } from './SignupNames'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import AccountExistsNotice, { inviteLoginHref } from './AccountExistsNotice'
@@ -259,23 +260,7 @@ function OpenSignUpComponent({
             <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>{t('auth.or')}</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
             <form onSubmit={handleEmailContinue} className="space-y-4">
-              <input
-                name="email"
-                onChange={(e) => {
-                  formik.handleChange(e)
-                  if (emailError) setEmailError('')
-                }}
-                onBlur={formik.handleBlur}
-                value={formik.values.email}
-                type="email"
-                placeholder={t('auth.enter_email')}
-                autoComplete="email"
-                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
-                required
-              />
-              {emailError && (
-                <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
-              )}
+              <SignupEmail value={formik.values.email} error={emailError} onBlur={formik.handleBlur} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <SignupNames values={formik.values} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <PasswordInput
                 component="input"

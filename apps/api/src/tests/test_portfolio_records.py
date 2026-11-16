@@ -59,6 +59,21 @@ def test_name_you_go_by_is_shown_and_the_legal_name_is_kept():
             portfolio_identity.update_identity(IdentityUpdate(first_name=" "), actor, db)
 
 
+def test_the_name_you_go_by_shows_in_share_lists_chats_and_plan_pages():
+    """FEED-216: a learner who goes by Lola is Lola wherever other people see her, not her legal name."""
+    from src.services.connect import people
+    from src.services.goals import goals as goals_service, sharing_roles
+
+    with _session() as db:
+        actor = _learner(db)
+        portfolio_identity.update_identity(IdentityUpdate(preferred_name="Lola"), actor, db)
+        assert sharing_roles.user_summary(db, actor.id)["name"] == "Lola"
+        assert people.person(db, actor.id)["name"] == "Lola"
+        assert goals_service._user_summary(db, actor.id)["name"] == "Lola"
+        portfolio_identity.update_identity(IdentityUpdate(preferred_name=""), actor, db)
+        assert sharing_roles.user_summary(db, actor.id)["name"] == "Maya Rivera"
+
+
 def test_credentials_link_to_the_timeline_and_a_photo_counts_as_evidence():
     with _session() as db:
         actor = _learner(db)

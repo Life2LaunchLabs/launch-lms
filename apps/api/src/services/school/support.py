@@ -22,9 +22,12 @@ from src.db.organizations import Organization
 from src.db.portfolio import Portfolio, PortfolioModerationStatus
 from src.db.users import PublicUser, User
 from src.services.connect import chats, people
+from src.services.notifications.outbox import notify
 from src.services.school import chats as school_chats, roles
 
 SUPPORT_REQUEST = "support_request"
+# Asks the learner can still answer: waiting, or they said not now (stored as "declined"; FEED-219).
+OPEN = ("requested", "declined")
 # Bump when the wording changes, so each link records which version the learner agreed to.
 CONSENT_VERSION = "2026-11-pilot"
 CONSENT_TEXT = (
@@ -129,6 +132,9 @@ def request(db: Session, current_user: PublicUser, org_id: int, user_id: int) ->
     db.flush()
     conversation = school_chats.school_chat(db, org_id, user_id)
     chats.post(db, conversation, current_user.id, f"{org.name} would like to support your Education Plan and Profile", kind="card", card=_consent_card(org, row))
+    # And by email, so it doesn't wait for them to open their chat (FEED-220).
+    notify(db, "support_requested", user_id, org_id=org_id, actor_user_id=current_user.id, dedupe_key=f"support_requested:{row.request_uuid}",
+           data={"support_uuid": row.support_uuid, "request_uuid": row.request_uuid})
     db.commit()
     return status_dto(row)
 
@@ -141,9 +147,9 @@ def _mine(db: Session, current_user: PublicUser, support_uuid: str) -> LearnerSu
 
 
 def answer(db: Session, current_user: PublicUser, support_uuid: str, accept: bool, request_uuid: str | None = None) -> dict:
-    """The learner says yes or no to the school's ask."""
+    """The learner says yes or not now to the school's ask. Not now keeps the ask open, so they can still say yes later."""
     row = _mine(db, current_user, support_uuid)
-    if row.status != "requested" or (request_uuid and request_uuid != row.request_uuid):
+    if row.status not in OPEN or (request_uuid and request_uuid != row.request_uuid):
         raise HTTPException(status_code=409, detail="That ask is no longer open")
     now = _now()
     row.status = "active" if accept else "declined"
@@ -214,19 +220,28 @@ def learner_dto(db: Session, row: LearnerSupport) -> dict:
 
 
 def mine(db: Session, current_user: PublicUser) -> dict:
-    """The schools supporting this learner, or asking to."""
+    """The schools supporting this learner, or asking to (including asks they said not now to)."""
     rows = db.exec(select(LearnerSupport).where(LearnerSupport.user_id == current_user.id)).all()
-    return {"supports": [learner_dto(db, row) for row in rows if row.status in ("requested", "active")]}
+    out = []
+    for row in rows:
+        if row.status not in ("requested", "active", "declined"):
+            continue
+        item = learner_dto(db, row)
+        # An ask they can still answer carries what they'd be agreeing to, so they can answer it from their Education Plan.
+        if row.status in OPEN and item["org"]:
+            item.update(request_uuid=row.request_uuid, text=CONSENT_TEXT.format(org=item["org"]["name"]))
+        out.append(item)
+    return {"supports": out}
 
 
 def live(db: Session, card: dict | None, viewer_id: int) -> dict | None:
-    """A consent card as it stands now: waiting, accepted, declined, ended, or replaced by a later ask."""
+    """A consent card as it stands now: waiting, accepted, not now (still answerable), ended, or replaced by a later ask."""
     if not card or card.get("type") != SUPPORT_REQUEST:
         return card
     row = db.exec(select(LearnerSupport).where(LearnerSupport.support_uuid == card.get("support_uuid"))).first()
     if not row or row.request_uuid != card.get("request_uuid"):
         state = "expired"
     else:
-        state = {"requested": "pending", "active": "accepted"}.get(row.status, row.status)
+        state = {"requested": "pending", "active": "accepted", "declined": "not_now"}.get(row.status, row.status)
     return {**card, "state": state, "for_me": card.get("recipient_user_id") == viewer_id}
 

@@ -19,6 +19,7 @@ from src.db.organizations import Organization
 from src.db.portfolio_held_imports import HeldPortfolioImport
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
+from src.services.users.names import legal_name, shown_name
 from src.security.org_auth import is_org_owner_admin, require_org_admin
 from src.security.rbac.constants import USER_ROLE_ID
 from src.services import portfolio_import_bulk as bulk
@@ -106,7 +107,7 @@ def _hold(db: Session, org_id: int, export: dict, email: str, current_user: Publ
 
 def send_waiting_email(org: Organization, inviter: PublicUser, email: str, link: str, idempotency_key: str) -> None:
     """For a learner who already has a way in: their CIS work is waiting on their portfolio's import page."""
-    who = " ".join(part for part in (inviter.first_name, inviter.last_name) if part) or org.name
+    who = (inviter.preferred_name or "").strip() or legal_name(inviter) or org.name
     send_email(
         to=email,
         subject=f"Your Oregon CIS work is waiting for you in {org.name}",
@@ -297,7 +298,7 @@ def waiting_for_me(current_user: PublicUser, db: Session) -> list[dict]:
         sender = senders.get(held.created_by_user_id)
         out.append({
             "held_uuid": held.held_uuid, "org_name": orgs[held.org_id].name if held.org_id in orgs else "",
-            "sent_by": " ".join(part for part in ((sender.first_name, sender.last_name) if sender else ()) if part),
+            "sent_by": shown_name(sender) if sender else "",
             "summary": held.summary, "expires_at": held.expires_at.isoformat(),
         })
     return out

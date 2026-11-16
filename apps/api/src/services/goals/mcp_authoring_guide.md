@@ -61,7 +61,7 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 
 | type | config | the learner | done when |
 |---|---|---|---|
-| `task` | optional `list`: `{label, target, item_kind: "text"\|"link"}`; `photo: true` asks for a photo to show it's done ("build it and show me") | ticks it, adds list items, or adds a photo from their camera or photos | ticked, the list reaches `target`, and a photo is added when `photo` is set |
+| `task` | optional `list`: `{label, target, item_kind: "text"\|"link"}`; `photo: true` asks for a photo to show it's done ("build it and show me"); `ask: true` asks a question they answer on the step (a title or description with a question offers the answer box anyway) | ticks it, adds list items, adds a photo from their camera or photos, or answers the question | ticked, the list reaches `target`, a photo is added when `photo` is set, and an answer is given when `ask` is set |
 | `upload` | `slots`: `[{key, label, kinds: ["image","video","document","link"]}]` | adds one file per slot | every slot is filled |
 | `write` | `prompt`, optional `max_words` | writes a text answer | handed in |
 | `activity` | `activity_uuid` (set by the server) | plays an interactive activity | the run finishes (and is graded, if it needs grading) |

@@ -77,7 +77,7 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
     setBrief(rows.find((row) => row.assignment_uuid === focus?.assignment_uuid) || rows[0] || null)
   }
 
-  const firstName = user?.first_name || user?.username || ''
+  const firstName = (user?.preferred_name || '').trim().split(' ')[0] || user?.first_name || user?.username || ''
   const shown = (id: HomeSectionId) => Boolean(data?.sections.includes(id) && !data.hidden.includes(id))
   const waiting = data?.needs?.total || 0
   // An admin's first days, before a plan is out, are about setting up.

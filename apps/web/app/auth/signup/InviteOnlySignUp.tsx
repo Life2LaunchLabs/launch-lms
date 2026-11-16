@@ -165,12 +165,15 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
               label={t('auth.email')}
               message={formik.touched.email ? formik.errors.email : undefined}
             />
+            <p id="invite-signup-email-help" className="text-[13px] leading-snug text-gray-600">{t('auth.email_help')}</p>
             <Form.Control asChild>
               <Input
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.email}
                 type="email"
+                aria-describedby="invite-signup-email-help"
+                autoComplete="email"
                 required
               />
             </Form.Control>

@@ -36,6 +36,7 @@ from src.db.portfolio import (
 )
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
+from src.services.users.names import shown_name
 
 DEFAULT_SECTIONS = (
     "about",
@@ -161,9 +162,7 @@ def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Po
     portfolio = Portfolio(
         portfolio_uuid=f"por_{uuid4().hex}",
         user_id=current_user.id,
-        display_name=" ".join(
-            part for part in (current_user.first_name, current_user.last_name) if part
-        ).strip(),
+        display_name=shown_name(current_user),
         short_bio=current_user.bio or "",
         creation_date=now,
         update_date=now,

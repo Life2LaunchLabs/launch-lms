@@ -23,6 +23,7 @@ import OrgMenuMobile, { NavItemControl, NAV_ACTIVE_CLASS } from './OrgMenuMobile
 import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
 import { useConnectCounts } from '@components/Connect/useConnect'
+import { useMySupports } from '@components/Epp/SupportAsk'
 import { useTranslation } from 'react-i18next'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
@@ -43,6 +44,9 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
   // Invitations and notices from organizations arrive in Connect now.
   const connect = useConnectCounts()
+  // The learner's Education Plan, once a school supports them or asks to (DEV-111).
+  const schoolSupport = useMySupports()
+  const planSchool = schoolSupport.active[0]?.org || schoolSupport.open[0]?.org
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const hideOrgName = config?.customization?.general?.hide_org_name || config?.general?.hide_org_name || false
@@ -63,6 +67,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
     hubOpen: hub?.state === 'open',
     // Invitations and notices arrive as chat messages, so unread chats cover them.
     connectWaiting: connect.unread + connect.requests > 0,
+    educationPlan: planSchool ? { href: routePaths.org.epp(planSchool.slug), waiting: schoolSupport.open.some((item) => item.status === 'requested') } : null,
     t,
   }).filter((item) => item.show)
 
@@ -216,7 +221,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
         </div>
       </aside>
 
-      <OrgMenuMobile items={primaryNavItems} orgslug={orgslug} hidden={Boolean(isActivityPage)} />
+      <OrgMenuMobile items={primaryNavItems.filter((item) => !item.desktopOnly)} orgslug={orgslug} hidden={Boolean(isActivityPage)} />
 
     </>
   )

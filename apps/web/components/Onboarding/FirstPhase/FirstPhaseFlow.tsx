@@ -58,7 +58,7 @@ export default function FirstPhaseFlow() {
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
   const userId = session?.data?.user?.id
-  const firstName = session?.data?.user?.first_name
+  const firstName = (session?.data?.user?.preferred_name || '').trim().split(' ')[0] || session?.data?.user?.first_name
   const { doc, isLoading, change } = useLifePlan(token)
   const photos = usePlacePhotos(token)
   const [step, setStep] = React.useState(0)

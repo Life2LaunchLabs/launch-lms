@@ -37,11 +37,29 @@ describe('an upload slot on a learner step', () => {
   })
 
   test('a filled slot links to the file instead, and a closed step offers nothing to click', () => {
-    const filled = renderToStaticMarkup(<ul><UploadSlotRow slot={slot} entry={handedIn} open onChoose={noop} onPick={noop} onLink={noop} onRemove={noop} /></ul>)
+    const filled = renderToStaticMarkup(<ul><UploadSlotRow slot={slot} entries={[handedIn]} open onChoose={noop} onPick={noop} onLink={noop} onRemove={noop} /></ul>)
     expect(filled).not.toContain('aria-label="Add Signed')
     expect(filled).toContain('href="https://example.test/checklist.pdf"')
     const closed = renderToStaticMarkup(<ul><UploadSlotRow slot={slot} open={false} onChoose={noop} onPick={noop} onLink={noop} onRemove={noop} /></ul>)
     expect(closed).not.toContain('<button')
     expect(closed).toContain('Signed safety checklist (PDF)')
+  })
+
+  test('after hand-in a filled slot shows every file and offers another, but nothing to remove', () => {
+    const photoOrPdf: UploadSlot = { key: 'poster', label: 'Your poster', kinds: ['image', 'document'] }
+    const photo = { ...handedIn, entry_uuid: 'entry-2', slot: 'poster', url: 'https://example.test/poster.jpg', title: 'poster.jpg' } as unknown as StepEntry
+    const pdf = { ...handedIn, entry_uuid: 'entry-3', slot: 'poster', url: 'https://example.test/poster.pdf', title: 'poster.pdf' } as unknown as StepEntry
+    const picked: string[] = []
+    const html = renderToStaticMarkup(<ul><UploadSlotRow slot={photoOrPdf} entries={[photo, pdf]} open={false} adding onChoose={noop} onPick={(kind) => picked.push(kind)} onLink={noop} onRemove={noop} /></ul>)
+    expect(html).toContain('poster.jpg')
+    expect(html).toContain('poster.pdf')
+    // A photo and a document each get a button, so the PDF goes in beside the photo.
+    expect(html).toContain('Add a photo')
+    expect(html).toContain('Add a document')
+    expect(html).not.toContain('Remove')
+    const single = renderToStaticMarkup(<ul><UploadSlotRow slot={slot} entries={[handedIn]} open={false} adding onChoose={noop} onPick={noop} onLink={noop} onRemove={noop} /></ul>)
+    expect(single).toContain('Add another')
+    const closed = renderToStaticMarkup(<ul><UploadSlotRow slot={slot} entries={[handedIn]} open={false} adding={false} onChoose={noop} onPick={noop} onLink={noop} onRemove={noop} /></ul>)
+    expect(closed).not.toContain('<button')
   })
 })

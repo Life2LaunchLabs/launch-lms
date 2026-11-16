@@ -16,6 +16,7 @@ from src.db.conversations import Conversation, ConversationMember, ConversationM
 from src.db.portfolio import Portfolio, PortfolioModerationStatus, PortfolioVisibility, ProjectItem, TimelineEntry
 from src.db.portfolio_people import PortfolioPerson
 from src.db.users import PublicUser, User
+from src.services.users.names import shown_name
 from src.services.connect import chats, people
 
 DIRECT = "direct"
@@ -75,7 +76,7 @@ def _name(db: Session, portfolio: Portfolio) -> str:
     if portfolio.display_name:
         return portfolio.display_name
     user = db.get(User, portfolio.user_id)
-    return " ".join(part for part in (user.first_name, user.last_name) if part) or user.username if user else "Someone"
+    return shown_name(user) if user else "Someone"
 
 
 def _title(db: Session, portfolio: Portfolio) -> str:

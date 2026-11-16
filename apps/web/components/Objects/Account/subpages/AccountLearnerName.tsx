@@ -11,6 +11,7 @@ import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { learnerNameApi, learnerNameKey, type LearnerName } from '@services/goals/adminHome'
 import { inOrgWords } from '@/lib/people'
+import { shownName } from '@/lib/names'
 
 /** Staff only: the name learners in this organization see on their messages and reviews. */
 export default function AccountLearnerName() {
@@ -36,7 +37,7 @@ export default function AccountLearnerName() {
       setBusy(false)
     }
   }
-  const name = [session?.data?.user?.first_name, session?.data?.user?.last_name].filter(Boolean).join(' ')
+  const name = shownName(session?.data?.user)
   return <section className={`${settingsCard} p-5`}>
     <SettingsHeader icon={Chalkboard} title={inOrgWords("What learners call you")} description={inOrgWords(`Learners at ${org?.name || 'this organization'} see this on your messages and reviews. Staff still see your name.`)} />
     <form onSubmit={save} className="mt-4 flex flex-col gap-2 sm:flex-row">
