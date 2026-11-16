@@ -16,6 +16,7 @@ import { getResource, Resource } from '@services/resources/resources'
 import { getUriWithOrg } from '@services/config/config'
 import { answerHubQuestions, type HubQuestionAnswer } from '@services/hub/questions'
 import HubHeader from './HubHeader'
+import HubMemoryNotice from './HubMemoryNotice'
 import HubComposer, { COMPOSER_MIN_HEIGHT, type HubComposerHandle } from './HubComposer'
 import HubThread, { type HubConversationMessage } from './HubThread'
 import HubHome from '../home/HubHome'
@@ -407,6 +408,10 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   // On a goal, Coach's notes on it show as cards: before anything else, or after the conversation.
   const noteGoal = hub?.surface?.hint.surface === 'goal' ? hub.surface.hint.entity_id : undefined
   const notes = noteGoal ? <CoachNoteCards goalUuid={noteGoal} orgslug={orgslug} token={accessToken} disabled={busy} onAsk={pick} /> : null
+  // The memory choice scrolls with the conversation instead of docking over it: on a phone the docked
+  // card covered Coach's answer until it was answered (FEED-239).
+  const memoryNotice = memory.visible ? <HubMemoryNotice orgslug={orgslug} enabled={memory.enabled} saving={memory.saving} onSave={memory.onSave}
+    onDismiss={() => void memory.onDismiss()} onLearnMore={(href) => { void memory.onDismiss().finally(() => window.location.assign(href)) }} /> : null
   return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label={tr('coach.hub_conversation.coach_conversation', 'Coach conversation')}>
     <h1 className="sr-only">{conversationTitle || tr('coach.hub_shell.coach', 'Coach')}</h1>
     <HubHeader
@@ -421,9 +426,9 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel={tr('lit.hub_conversation.keep_the_session', 'Keep the session')}
       onEnd={() => { const then = pendingEnd; setPendingEnd(null); then?.() }} onKeep={() => setPendingEnd(null)} />
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : 'top-14'}`}>
-      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
+      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>
-          {!conversationStarted ? <>{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
+          {!conversationStarted ? <>{memoryNotice}{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
           {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.loading_conversation', 'Loading conversation…')}</div> : null}
           <HubThread
             messages={messages} timelineSlots={timelineSlots} editRun={hub?.editRun || null} editObjects={hub?.editRun?.objects || []}
@@ -434,6 +439,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
           {sending ? <div className="text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.thinking', 'Thinking…')}</div> : null}
+          {conversationStarted ? memoryNotice : null}
           {conversationStarted && !conversationLoading ? notes : null}
           {error ? <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
         </div>
@@ -442,7 +448,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     <HubComposer
       ref={composerRef} orgslug={orgslug} orgId={org?.id} accessToken={accessToken} draft={draft} setDraft={setDraft} onSubmit={submit}
       onStop={() => advisorAbortRef.current?.abort()} sending={sending} loading={conversationLoading} onHeightChange={setComposerHeight} onOverlayHeightChange={setOverlayHeight}
-      memory={memory} reviewItems={hub?.editReviewItems || []} onReview={editing.pointTo} conversationStarted={conversationStarted}
+      reviewItems={hub?.editReviewItems || []} onReview={editing.pointTo} conversationStarted={conversationStarted}
       contextResources={contextResources} onOpenTray={() => setTrayUuid(contextResources.at(-1)?.resource_uuid ?? null)}
       libraryOpen={libraryOpen} setLibraryOpen={setLibraryOpen} onAddResource={addResource}
       onBrowse={() => { router.push(getUriWithOrg(orgslug, '/discover?type=resources')); if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck() }}
