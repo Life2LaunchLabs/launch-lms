@@ -266,7 +266,9 @@ def run(ctx: Ctx, spec: CardSpec, inherit=None) -> dict:
     if prior is not None:
         real = sentences.real_change(measure, value, prior)
         result["compare"] = {"v": prior["v"], "text": sentences.fmt(measure, prior["v"]), "change": sentences.change_label(measure, value["v"], prior["v"]),
-                             "tone": sentences.tone(measure, value["v"], prior["v"], real), "real": real, "against": against}
+                             "tone": sentences.tone(measure, value["v"], prior["v"], real), "real": real, "against": against,
+                             # Too few on one side to call it a change or the same: the chip shows the raw move, not "About the same".
+                             "few": min(value.get("n", 0), prior.get("n", 0)) < sentences.MIN_N}
     elif target is not None:
         result["compare"] = {"v": target, "text": sentences.fmt(measure, target), "change": "", "tone": "flat", "real": False, "against": "the goal"}
     else:

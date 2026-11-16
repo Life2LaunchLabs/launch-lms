@@ -132,7 +132,8 @@ REVIEW_DIMS = ("time", "plan", "step", "group")
 
 MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
-        "step_reach", "Step reach", "Of learners who started the plan in the range, the share who finished each step or handed it in.",
+        "step_reach", "Step reach", ("Of learners who started the plan in the range, the share who finished each step or handed it in. Handed-in work counts "
+         "here before it is reviewed; a learner's or group's progress counts it once it is reviewed."),
         kind="rate", unit="percent", direction="up", load=_step_reach, dims=("step", "version", "group"), scopes=("plan",),
         phrase=("{v} of steps are finished or handed in", "{v} of steps are finished or handed in"), base=("learner", "learners"), funnel=True,
         keywords=("drop off", "funnel", "where", "stuck"),

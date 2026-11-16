@@ -13,16 +13,17 @@ const SPAN_CLASS: Record<number, string> = {
 export const spanClass = (span: number) => cn('col-span-12', SPAN_CLASS[span] || SPAN_CLASS[6])
 const frame = 'flex min-w-0 flex-col gap-3 rounded-[18px] border border-border bg-card p-4 nice-shadow'
 
-/** The change against the comparison: an arrow for its direction, colored only when the change is real and counts as better or worse. */
+/** The change against the comparison: an arrow for its direction, colored only when the change is real and counts as better or worse.
+ * With too few learners to judge (`few`), it shows the raw move uncolored instead of calling 0 to 2 "About the same". */
 export function DeltaChip({ compare }: { compare: CardResult['compare'] }) {
   if (!compare || !compare.change) return null
   const sign = compare.change.trim().startsWith('−') || compare.change.trim().startsWith('-') ? 'down' : compare.change.trim().startsWith('+') ? 'up' : 'flat'
   const Icon = !compare.real || sign === 'flat' ? Minus : sign === 'up' ? ArrowUpRight : ArrowDownRight
-  return <span title={`Compared with ${compare.against} (${compare.text})`}
+  return <span title={`Compared with ${compare.against} (${compare.text})${compare.few && !compare.real ? '. Too few learners to call it a change.' : ''}`}
     className={cn('inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-px text-[11.5px] font-bold',
       !compare.real ? 'bg-muted text-muted-foreground' : compare.tone === 'good' ? 'bg-[color-mix(in_oklab,var(--viz-up)_12%,transparent)] text-[var(--viz-up)]'
         : compare.tone === 'bad' ? 'bg-[color-mix(in_oklab,var(--viz-down)_12%,transparent)] text-[var(--viz-down)]' : 'bg-muted text-muted-foreground')}>
-    <Icon size={12} aria-hidden="true" />{compare.real ? compare.change : 'About the same'}
+    <Icon size={12} aria-hidden="true" />{compare.real || compare.few ? compare.change : 'About the same'}
   </span>
 }
 

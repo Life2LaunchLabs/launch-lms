@@ -47,6 +47,9 @@ describe('insight cards', () => {
   test('changes are colored only when real, and spans fold to full width on a phone', () => {
     expect(renderToStaticMarkup(<DeltaChip compare={{ v: 0.3, text: '30%', change: '+6 pts', tone: 'good', real: true, against: 'the 90 days before' }} />)).toContain('+6 pts')
     expect(renderToStaticMarkup(<DeltaChip compare={{ v: 0.35, text: '35%', change: '+1 pts', tone: 'flat', real: false, against: 'the 90 days before' }} />)).toContain('About the same')
+    const few = renderToStaticMarkup(<DeltaChip compare={{ v: 0, text: '0', change: '+2', tone: 'flat', real: false, few: true, against: 'the 90 days before' }} />)
+    expect(few).toContain('+2')
+    expect(few).not.toContain('About the same')
     expect(spanClass(3)).toContain('col-span-12')
     expect(spanClass(3)).toContain('lg:col-span-3')
   })
