@@ -80,7 +80,7 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
         <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500 text-white"><Check className="h-6 w-6" /></span>
         <h2 className="text-xl font-extrabold">{count(done.added) ? tr('portfolio.portfolio_import_page.added_count_value_to_your', 'Added {{count}} {{value}} to your portfolio', { count: count(done.added), value: count(done.added) === 1 ? tr('portfolio.portfolio_import_page.v_thing', 'thing') : tr('portfolio.portfolio_import_page.v_things', 'things') }) : tr('portfolio.portfolio_import_page.nothing_new_to_add', 'Nothing new to add')}</h2>
         <p className="mt-1 text-[15px] text-muted-foreground">{Object.entries(done.added).map(([group, value]) => `${groupLabel(group)} ${value}`).join(' · ')}</p>
-        {count(done.kept) ? <p className="mt-2 text-sm text-muted-foreground">{tr('portfolio.portfolio_import_page.your_saved_careers_reflections_and', 'Your saved careers, reflections and plan progress are kept for when your plans can use them.')}</p> : null}
+        {count(done.kept) ? <p className="mt-2 text-sm text-muted-foreground">{tr('portfolio.portfolio_import_page.your_saved_careers_reflections_and', 'Your saved careers and plan progress are kept for when your plans can use them.')}</p> : null}
         <div className="mt-5 flex flex-wrap justify-center gap-2"><Button asChild variant="brand"><Link href={getUriWithOrg(orgslug, '/portfolio')}>{tr('portfolio.interest_quiz_page.see_my_portfolio', 'See my portfolio')}</Link></Button><Button type="button" variant="surface" onClick={reset}>{tr('portfolio.portfolio_import_page.bring_in_something_else', 'Bring in something else')}</Button></div>
       </section>
 
@@ -98,7 +98,7 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
           </div>
         })}
         <p className="mb-2 flex items-start gap-2 px-1 text-sm text-muted-foreground"><Lock className="mt-0.5 h-4 w-4 shrink-0" />{tr('portfolio.portfolio_import_page.people_and_documents_are_only', 'People and documents are only for you. Test scores start private.')}</p>
-        {keptRows ? <p className="mb-2 px-1 text-sm text-muted-foreground">We&apos;ll also keep {keptRows} rows of saved careers, reflections and plan progress for when your plans can use them.</p> : null}
+        {keptRows ? <p className="mb-2 px-1 text-sm text-muted-foreground">We&apos;ll also keep {keptRows} rows of saved careers and plan progress for when your plans can use them.</p> : null}
         {preview.skipped.length ? <p className="mb-2 px-1 text-sm text-muted-foreground">Can&apos;t bring in {preview.skipped.join(', ')}. Only PDFs and pictures come in as documents.</p> : null}
         <div className="mt-5 flex gap-2"><Button type="button" variant="brand" className="h-11 flex-1" disabled={busy || !picked.size} onClick={bringIn}>{busy ? tr('portfolio.portfolio_import_page.bringing_it_in', 'Bringing it in…') : tr('portfolio.portfolio_import_page.bring_in_size', 'Bring in {{size}}', { size: picked.size })}</Button><Button type="button" variant="surface" className="h-11" onClick={reset}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button></div>
       </section>

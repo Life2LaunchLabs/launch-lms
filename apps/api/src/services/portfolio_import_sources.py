@@ -22,7 +22,7 @@ DOCUMENT_EXTENSIONS = {".pdf": "document", ".jpg": "image", ".jpeg": "image", ".
 
 # Sheets the portfolio reads. Every other sheet belongs to plans and is kept as raw rows; Profile is neither,
 # because it holds demographics we don't take.
-CIS_PORTFOLIO_SHEETS = {"about this export", "profile", "links"}
+CIS_PORTFOLIO_SHEETS = {"about this export", "profile", "links", "career plan reflections"}
 HOLLAND = {"R": "Realistic", "I": "Investigative", "A": "Artistic", "S": "Social", "E": "Enterprising", "C": "Conventional"}
 LIKERT = {"strongly like": 4, "like": 3, "unsure": 2, "dislike": 1, "strongly dislike": 0}
 

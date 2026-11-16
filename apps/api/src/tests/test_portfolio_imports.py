@@ -84,7 +84,7 @@ def test_the_cis_reader_rescores_the_profiler_and_handles_the_export_bugs():
     assert (reflection["group"], reflection["kind"]) == ("projects", "project")
     assert reflection["record"] == {"title": "My goals", "story_kind": "learned", "subtitle": "Career plan reflection from Oregon CIS", "summary": "Join the art club.\n\nThen apply to PNCA.", "visibility": "private", "start_date": "2026-09"}
     # Plan sheets are kept as rows; the profile's demographics are not kept at all.
-    assert set(export["kept"]) == {"Assessments", "Interest Profiler Short Form", "Career Plan Reflections"}
+    assert set(export["kept"]) == {"Assessments", "Interest Profiler Short Form"}
 
 
 async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(monkeypatch):
@@ -94,7 +94,7 @@ async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(mo
         actor = _learner(db)
         preview = await imports.preview_import("cis", _upload(content, "cis.zip"), actor, db)
         keys = [item["key"] for item in preview["items"] if item["title"] != "Volunteer"]
-        assert preview["kept"]["Career Plan Reflections"] == 1 and not any(item["already"] for item in preview["items"])
+        assert preview["kept"] == {"Assessments": 2, "Interest Profiler Short Form": 1} and not any(item["already"] for item in preview["items"])
 
         result = await imports.run_import("cis", _upload(content, "cis.zip"), keys, actor, db)
 
@@ -112,7 +112,7 @@ async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(mo
         assert (link.url, link.link_type, link.platform) == ("https://example.com/art", "social", "website")
         assert service.get_owner_shell(actor, db)["portfolio"]["socials"] == [{"type": "website", "url": "https://example.com/art"}]
         kept = db.exec(select(PortfolioImport)).one().kept
-        assert kept["Career Plan Reflections"] == [{"Prompt": "My goals...", "My answer": "Join the art club.\n\nThen apply to PNCA.", "Date saved": "2026-09-20T00:00:00"}]
+        assert set(kept) == {"Assessments", "Interest Profiler Short Form"}
 
         again = await imports.preview_import("cis", _upload(content, "cis.zip"), actor, db)
         assert [item["title"] for item in again["items"] if not item["already"]] == ["Volunteer"]
