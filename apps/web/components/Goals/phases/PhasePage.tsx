@@ -43,6 +43,7 @@ import useLifePlan from './useLifePlan'
 import Invitations from '@components/Goals/home/Invitations'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
 
+import { EducationPlanEntry } from '@components/Epp/SupportAsk'
 import { tr } from '@/lib/tr'
 const EMPTY: GoalSummary[] = []
 const lower = (title: string) => title.charAt(0).toLowerCase() + title.slice(1)
@@ -167,6 +168,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   return <GeneralWrapperStyled>
     <main className="flex flex-col gap-4 pb-16">
       <PhaseNav doc={doc} phase={phase} orgslug={orgslug} mapHref={mapHref} />
+      {/* The learner's Education Plan, or a school's ask while it waits (DEV-111). */}
+      <EducationPlanEntry orgslug={orgslug} />
       <WayBar doc={doc} />
       <div className="relative">
         <Cover time={time} span={spanText(doc, phase)} photos={photos} uploading={uploading} pop={pop} setPop={setPop}

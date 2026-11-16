@@ -39,7 +39,7 @@ export function SupportAsk({ ask, token, onAnswered, className }: { ask: MySuppo
     setBusy(accept ? 'yes' : 'later')
     try {
       await supportApi.answer(ask.support_uuid!, accept, ask.request_uuid || undefined, token)
-      toast.success(accept ? `${school} supports your plan now` : 'Okay. You can say yes any time from here.')
+      toast.success(accept ? `${school} supports your plan now` : 'Okay. You can say yes any time from your Education Plan.')
       await onAnswered()
     } catch (error: any) {
       toast.error(error?.message || 'That didn’t go through')
@@ -49,7 +49,7 @@ export function SupportAsk({ ask, token, onAnswered, className }: { ask: MySuppo
   }
   return <section aria-label={`Request from ${school}`} className={cn('rounded-2xl border border-border bg-card p-4', className)}>
     <p className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><GraduationCap size={14} aria-hidden="true" />Request from your school</p>
-    <h2 className="mt-1.5 text-base font-bold leading-snug">{school} would like to support your Education Plan and Profile</h2>
+    <h2 className="mt-1.5 text-base font-bold leading-snug">Share your plan with {school}?</h2>
     {ask.text ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{ask.text}</p> : null}
     <div className="mt-3 flex flex-wrap items-center gap-2">
       {later ? <span className="mr-auto text-sm text-muted-foreground">You said not now. You can still say yes.</span> : null}
@@ -66,18 +66,18 @@ export function SupportAsk({ ask, token, onAnswered, className }: { ask: MySuppo
 }
 
 /**
- * On Goals: the way to the learner's Education Plan once a school supports them (where they enter classes),
+ * On Goals (the map, or the phase you're in): the way to the learner's Education Plan once a school supports them (where they enter classes),
  * and a school's ask while it waits. Shows nothing for a learner no school has asked.
  */
-export function EducationPlanEntry({ orgslug }: { orgslug: string }) {
+export function EducationPlanEntry({ orgslug, className }: { orgslug: string; className?: string }) {
   const { open, active, token, mutate } = useMySupports()
   const waiting = open.filter((item) => item.status === 'requested')
   if (!open.length && !active.length) return null
   // A fresh ask is answered right here; one they said not now to waits on their Education Plan, not on Goals.
-  if (waiting.length) return <div className="mb-6 flex flex-col gap-3">{waiting.map((ask) => <SupportAsk key={ask.support_uuid} ask={ask} token={token} onAnswered={mutate} />)}</div>
+  if (waiting.length) return <div className={cn('flex flex-col gap-3', className)}>{waiting.map((ask) => <SupportAsk key={ask.support_uuid} ask={ask} token={token} onAnswered={mutate} />)}</div>
   const school = active[0]?.org || open[0]?.org
   const href = getUriWithOrg(orgslug, routePaths.org.epp(school?.slug))
-  return <Link href={href} className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted/60">
+  return <Link href={href} className={cn('flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted/60', className)}>
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted" aria-hidden="true"><GraduationCap size={18} /></span>
     <span className="min-w-0 flex-1">
       <span className="block font-bold">My Education Plan</span>

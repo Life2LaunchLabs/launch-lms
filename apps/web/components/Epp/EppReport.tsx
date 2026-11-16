@@ -60,6 +60,9 @@ function Requirements({ report, section }: { report: Report; section: string }) 
   </div>
 }
 
+// The credit table's columns, with the short words a phone fits.
+const CREDIT_HEADS: Array<[string, string]> = [['Required', 'Need'], ['Completed', 'Done'], ['In progress', 'Now'], ['Planned', 'Plan'], ['Left', 'Left']]
+
 const INTEREST_LEVEL: Record<number, string> = { 1: 'A little interested', 2: 'Interested', 3: 'Really interested' }
 
 function Evidence({ items, first }: { items: EvidenceItem[]; first: string }) {
@@ -148,7 +151,7 @@ export default function EppReport({ report }: { report: Report }) {
     <Sheet>
       <H2>4 · Graduation progress</H2>
       <div className="overflow-x-auto">
-        <Table head={['Oregon Diploma credits', 'Required', 'Completed', 'In progress', 'Planned', 'Left']} rows={[...tally.areas.map((area) => [area.label, credits(area.required), credits(area.completed), credits(area.in_progress || 0), credits(area.planned),
+        <Table head={['Oregon Diploma credits', ...CREDIT_HEADS.map(([long, short]) => <React.Fragment key={long}><span className="hidden sm:inline print:inline">{long}</span><span className="sm:hidden print:hidden">{short}</span></React.Fragment>)]} rows={[...tally.areas.map((area) => [area.label, credits(area.required), credits(area.completed), credits(area.in_progress || 0), credits(area.planned),
           <span key="l" className={area.left ? ATTENTION : ''}>{credits(area.left)}</span>]), ['Total', credits(tally.required), credits(tally.completed), credits(going), credits(tally.planned), credits(tally.left)]]} />
       </div>
       <p className="mt-1.5 text-xs text-[#3C4656]">The transcript is the official record of credit. This school’s own requirements may add to this table.</p>

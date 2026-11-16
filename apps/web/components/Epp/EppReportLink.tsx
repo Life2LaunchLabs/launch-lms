@@ -19,8 +19,10 @@ export default function EppReportLink({ orgId, orgslug, userId, username, name, 
   const { data } = useSWR(ready ? supportKey(orgId, userId) : null, () => supportApi.status(orgId, userId, token), { revalidateOnFocus: false, shouldRetryOnError: false })
   if (data?.status !== 'active') return null
   const href = getUriWithOrg(orgslug, routePaths.org.admin.people.epp(username))
+  // In a thread's header: labeled where there's room, an icon on a phone.
   if (icon) return <Link href={href} aria-label={`${name}'s EPP report`} title="EPP report"
-    className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><FileText size={16} aria-hidden="true" /></Link>
+    className="flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground sm:px-3">
+    <FileText size={16} aria-hidden="true" /><span className="hidden sm:inline">EPP report</span></Link>
   return <Link href={href} className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold hover:bg-muted">
     <FileText size={16} aria-hidden="true" />EPP report
   </Link>
