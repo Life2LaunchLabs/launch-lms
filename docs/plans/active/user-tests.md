@@ -60,7 +60,10 @@ way for a test to email, impersonate or change a real person.
   row that names people or orgs from two worlds (the real world or one cohort). It follows a
   row into the conversation, goal, portfolio or resource comment it belongs to, and reads
   invited addresses. The main org is shared and never counts on its own, except for resource
-  comments, which real learners read. Test worlds can't write listings, plan requests,
+  comments, which real learners read. A persona's stars-only rating on a shared resource is the
+  exception (DEV-104): it stays in the persona's world, because every rating count, average,
+  review list, moderation count and export filters ratings with `visibility.visible_ratings`,
+  so real people and other cohorts never see it; words make it a sealed comment again. Test worlds can't write listings, plan requests,
   payments, API tokens, OAuth grants or SSO, and a persona can't change its email, password
   or platform role. Rows naming only real people never match, so real traffic pays two indexed
   lookups per flush.
