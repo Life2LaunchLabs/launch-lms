@@ -20,7 +20,8 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage, ReviewLinks } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
-import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './feed'
+import { ComposeModeToggle, feedEntries, withTimeline, type TimelineItem } from './feed'
+import { useComposeMode } from './composeMode'
 
 import { tr } from '@/lib/tr'
 const CHAT_REFRESH_MS = 5_000
@@ -121,10 +122,8 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
   // Staff write here for everyone, or for staff alone.
-  const [mode, setMode] = React.useState<ComposeMode>('message')
+  const [mode, setMode] = useComposeMode(chat?.conversation_uuid, audience)
   const staffOnly = Boolean(chat?.can_post_staff_only) && mode === 'staff'
-  // Reading staff-only messages, you're most likely writing one.
-  React.useEffect(() => { if (audience === 'staff') setMode('staff') }, [audience])
 
   const shownTimeline = React.useMemo(() => filter.goal_uuid && !timelineFiltered ? [] : timeline || [], [filter.goal_uuid, timeline, timelineFiltered])
   const lastStamp = chat?.messages.at(-1)?.update_date

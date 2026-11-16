@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils'
 import type { ChatMessage } from '@services/connect/connect'
 
 import { tr } from '@/lib/tr'
+import type { ComposeMode } from './composeMode'
+
 const stamp = (value: string) => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value}Z`).getTime() || 0
 
 /** A chat's messages as feed entries, by when they were written. */
@@ -23,7 +25,7 @@ export function withTimeline<T extends { at: number }>(entries: T[], timeline: T
   return [...entries, ...timeline.map((item) => ({ kind: 'card' as const, item, at: stamp(item.at) }))].sort((a, b) => a.at - b.at) as Entry[]
 }
 
-export type ComposeMode = 'message' | 'staff'
+export type { ComposeMode }
 
 /** Above the composer, for staff: write a message everyone in the chat reads, or one only staff read. */
 export function ComposeModeToggle({ mode, onChange }: { mode: ComposeMode; onChange: (mode: ComposeMode) => void }) { // eslint-disable-line no-unused-vars
