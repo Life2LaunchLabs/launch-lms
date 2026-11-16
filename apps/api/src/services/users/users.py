@@ -40,6 +40,7 @@ from src.services.users.avatars import (
     upload_profile_cover,
     upload_profile_featured_image,
 )
+from src.services.users.files import remove_user_files
 from src.services.users.emails import (
     send_account_creation_email,
 )
@@ -849,8 +850,10 @@ async def delete_user_by_id(
     db_session.flush()
 
     # Delete user (all other FKs have ondelete="CASCADE")
+    user_uuid = user.user_uuid
     db_session.delete(user)
     db_session.commit()
+    remove_user_files(user_uuid)  # their uploads go with the account
 
     return {"detail": "User deleted successfully"}
 
