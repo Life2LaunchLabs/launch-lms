@@ -618,7 +618,8 @@ async def ask_hub_advisor(
         capability_context += navigation_capability_context(db_session, org_id, session_target)
     if policy.can("ask_questions"):
         capability_context += question_context(db_session, org_id, user_id, edit_run, session_target)
-    capability_context += app_notes_for(messages[-1].content) + "\n\n" + REPLY_RULES
+    from src.services.coach.career_facts import career_card_notes
+    capability_context += app_notes_for(messages[-1].content) + career_card_notes(db_session, " ".join(item.content for item in messages[-5:] if item.role == "user"), grounding_resources) + "\n\n" + REPLY_RULES
     if edit_run:
         from src.services.goals.coach_sessions import session_prompt
         waiting, outline = session_prompt(db_session, edit_run, user_id)

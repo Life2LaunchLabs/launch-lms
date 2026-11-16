@@ -32,7 +32,7 @@ import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAft
 import { routeDoc, setLength, setStart, showWayTo } from './dates'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
-import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planAsk, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planStarter, suggestTitle, type CheckItem } from './setup'
 import { useHub } from '@components/Hub/HubContext'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
@@ -150,8 +150,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
     if (saved) router.push(getUriWithOrg(orgslug, routePaths.org.plans()))
   }
 
-  // Planning a phase is a conversation: Coach starts from the phase (name, dates, what it's about, where).
-  const planWithCoach = hub ? () => hub.open({ prompt: planAsk(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
+  // Planning a phase is a conversation Coach opens about the phase; nothing is sent in the person's name (DEV-113).
+  const planWithCoach = hub ? () => hub.open({ starter: planStarter(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
   const items = checklist(phase, here.length)
   const left = items.filter((i) => !i.done)
   const gaps = careerGaps(doc, phase, careers)

@@ -20,6 +20,7 @@ import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getResource, getResources, saveResource, unsaveResource, type Resource } from '@services/resources/resources'
 import { careerCode } from '@services/life/careers'
+import type { CareerLike } from '@components/Goals/phases/careers'
 import { cn } from '@/lib/utils'
 import ResourceCover, { resourceKind, resourceSite, resourceSource } from './ResourceCover'
 
@@ -116,7 +117,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
   const [saving, setSaving] = React.useState(false)
   // A career just saved here: its take opens fresh, asking only how into it they are.
   const [fresh, setFresh] = React.useState(false)
-  const [planning, setPlanning] = React.useState<{ code: string; title: string; job_zone?: number | null } | null>(null)
+  const [planning, setPlanning] = React.useState<CareerLike | null>(null)
   // From the plan map's "Start from a career": the phase the career goes after.
   const after = useSearchParams()?.get('after')
   const [mounted, setMounted] = React.useState(false)

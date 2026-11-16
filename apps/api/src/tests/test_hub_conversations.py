@@ -161,3 +161,28 @@ def test_state_rename_delete_and_owner_boundary(monkeypatch):
         assert hub_conversations.get_owned_conversation(db, uuid, 7, 11).archived_at is not None
 
         hub_conversations.delete_conversation(db, uuid, 7, 11)
+
+
+def test_a_page_started_chat_never_shows_a_message_in_the_persons_name(monkeypatch):
+    """DEV-113: Plan it with Coach opens with Coach's line; the page's context stays out of the transcript."""
+    with _session(monkeypatch) as db:
+        first = hub_conversations.record_advice(
+            db, org_id=7, user_id=11, conversation_uuid=None,
+            user_content="Save some money", assistant_content="Here are three goals.",
+            learner_resource_uuids=[], context_resource_uuids=[], suggested_resource_uuids=[],
+            model="test", input_tokens=3, output_tokens=2,
+            starter=hub_conversations.ChatStarter(context="Phase “Gap year”, in Portland.", opener="Want to set some goals for “Gap year” in Portland?"),
+        )
+        detail = hub_conversations.conversation_detail(db, first["conversation_uuid"], 7, 11, [])
+        summaries = hub_conversations.list_conversations(db, 7, 11)
+        history = hub_conversations.advisor_history(db, first["conversation_uuid"], 7, 11, "What first?")
+
+        assert [(m["role"], m["content"]) for m in detail["messages"]] == [
+            ("assistant", "Want to set some goals for “Gap year” in Portland?"),
+            ("user", "Save some money"),
+            ("assistant", "Here are three goals."),
+        ]
+        assert summaries[0]["title"] == "Save some money"
+        assert summaries[0]["latest_user_message"] == "Save some money"
+        assert history[0].role == "user" and "Not written by the person" in history[0].content
+        assert [item.role for item in history] == ["user", "assistant", "user", "assistant", "user"]

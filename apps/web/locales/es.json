@@ -3905,12 +3905,9 @@
       "career": "Empezar mi carrera",
       "next": "Descubrir qué sigue"
     },
-    "plan_ask": {
-      "doing": "Lo que haré: {{doing}}.",
-      "place": "Dónde: {{place}}.",
-      "head_span": "Ayúdame a planear esta etapa de mi plan: “{{title}}” ({{span}}).",
-      "head": "Ayúdame a planear esta etapa de mi plan: “{{title}}”.",
-      "ask": "¿Qué metas debería ponerme y qué debería hacer primero?"
+    "plan_starter": {
+      "opener_place": "¡Hola! ¿Quieres ponerte algunas metas para tu etapa “{{title}}” en {{place}}? Cuéntame qué tienes en mente o pídeme ideas.",
+      "opener": "¡Hola! ¿Quieres ponerte algunas metas para tu etapa “{{title}}”? Cuéntame qué tienes en mente o pídeme ideas."
     }
   },
   "onboarding": {
@@ -6795,7 +6792,8 @@
       "undo": "Deshacer",
       "coach_conversation": "Conversación con Coach",
       "loading_conversation": "Cargando conversación…",
-      "thinking": "Pensando…"
+      "thinking": "Pensando…",
+      "got_it_thinking": "Entendido. Déjame pensarlo…"
     },
     "edit_run_timeline": {
       "ended_session": "terminó la sesión",
