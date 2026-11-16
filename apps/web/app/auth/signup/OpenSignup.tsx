@@ -235,6 +235,7 @@ function OpenSignUpComponent({
 
           <div className="mt-12 space-y-7">
             <AgeConfirm {...age.field} />
+            {age.refused ? null : <>
             {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
               {isGoogleLoading ? t('common.loading') : t('auth.continue_google')}
@@ -286,6 +287,7 @@ function OpenSignUpComponent({
                 {isSubmitting ? t('common.loading') : t('auth.continue')}
               </Button>
             </form>
+            </>}
           </div>
 
           <LegalAgreement className="mt-5" />
