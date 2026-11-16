@@ -37,7 +37,7 @@ export default function CisImportPanel({ org, accessToken, usergroups, groupsEna
   const { data: sent, mutate: refreshSent } = useSWR(sentKey, () => listCisSent(org.id, accessToken), { revalidateOnFocus: false })
 
   const emailOf = (key: string) => (emails[key] ?? '').trim()
-  const ready = (preview?.learners || []).filter((learner) => picked.has(learner.key) && emailPattern.test(emailOf(learner.key)))
+  const ready = (preview?.learners || []).filter((learner) => learner.items > 0 && picked.has(learner.key) && emailPattern.test(emailOf(learner.key)))
 
   const choose = async (chosen?: File) => {
     if (!chosen) return
@@ -48,7 +48,7 @@ export default function CisImportPanel({ org, accessToken, usergroups, groupsEna
       setPreview(found)
       setResult(null)
       setEmails(Object.fromEntries(found.learners.map((learner) => [learner.key, learner.email])))
-      setPicked(new Set(found.learners.filter((learner) => !learner.problem).map((learner) => learner.key)))
+      setPicked(new Set(found.learners.filter((learner) => !learner.problem && learner.items > 0).map((learner) => learner.key)))
     } catch (error: any) {
       toast.error(error?.message || 'Could not read this file')
     } finally {
@@ -68,8 +68,8 @@ export default function CisImportPanel({ org, accessToken, usergroups, groupsEna
       await refreshSent()
       onSent?.()
       const unsent = outcome.results.filter((row) => row.email_sent === false).length
-      if (unsent) toast.error(`${plural(outcome.sent, 'learner')} sent, but ${plural(unsent, 'email')} didn't go out. You can resend from the invitations list.`, { duration: 10000 })
-      else toast.success(`${plural(outcome.sent, 'learner')} sent their CIS work`)
+      if (unsent) toast.error(inOrgWords(`${plural(outcome.sent, 'learner')} sent, but ${plural(unsent, 'email')} didn't go out. You can resend from the invitations list.`), { duration: 10000 })
+      else toast.success(inOrgWords(`${plural(outcome.sent, 'learner')} sent their CIS work`))
     } catch (error: any) {
       toast.error(error?.message || 'Could not send invitations')
     } finally {
@@ -98,20 +98,20 @@ export default function CisImportPanel({ org, accessToken, usergroups, groupsEna
     </div>
 
     : preview ? <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-gray-700"><b className="font-semibold text-gray-900">{file?.name}</b> · {preview.kind === 'single' ? 'one learner’s download' : plural(preview.learners.length, 'learner')}</p><button type="button" onClick={start} className="text-xs font-medium text-indigo-600 hover:text-indigo-800">Choose another file</button></div>
-      {unmatched > 0 && <Notice>{plural(unmatched, 'row')} in the file didn’t match a learner on its Profile sheet and won’t come over.</Notice>}
-      {preview.skipped_files > 0 && <Notice>{plural(preview.skipped_files, 'saved file')} in this zip can’t be matched to learners yet, so only their workbook rows come over.</Notice>}
+      <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-gray-700"><b className="font-semibold text-gray-900">{file?.name}</b> · {inOrgWords(preview.kind === 'single' ? 'one learner’s download' : plural(preview.learners.length, 'learner'))}</p><button type="button" onClick={start} className="text-xs font-medium text-indigo-700 hover:text-indigo-900">Choose another file</button></div>
+      {unmatched > 0 && <Notice>{inOrgWords(`${plural(unmatched, 'row')} in the file didn’t match a learner on its Profile sheet and won’t come over.`)}</Notice>}
+      {preview.skipped_files > 0 && <Notice>{inOrgWords(`${plural(preview.skipped_files, 'saved file')} in this zip can’t be matched to learners yet, so only their workbook rows come over.`)}</Notice>}
       <div className="overflow-hidden rounded-xl border border-gray-200">
-        <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3"><span className="text-sm font-semibold text-gray-800">Learners</span><span className="text-xs text-gray-500">{ready.length} ready to invite</span></div>
+        <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3"><span className="text-sm font-semibold text-gray-800">{inOrgWords('Learners')}</span><span className="text-xs text-gray-500">{ready.length} ready to invite</span></div>
         <ul className="max-h-80 divide-y divide-gray-100 overflow-y-auto">{preview.learners.map((learner) => {
           const email = emailOf(learner.key)
           const valid = emailPattern.test(email)
           return <li key={learner.key} className="flex items-start gap-3 px-4 py-3">
-            <input type="checkbox" aria-label={`Invite ${learner.name || email || 'this learner'}`} className="mt-1 h-4 w-4 shrink-0 accent-gray-900" checked={picked.has(learner.key)} onChange={() => toggle(learner.key)} />
+            <input type="checkbox" aria-label={`Invite ${learner.name || email || 'this learner'}`} className="mt-1 h-4 w-4 shrink-0 accent-gray-900" checked={learner.items > 0 && picked.has(learner.key)} disabled={!learner.items} onChange={() => toggle(learner.key)} />
             <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3"><span className="truncate text-sm font-semibold text-gray-900">{learner.name || 'No name in the export'}</span><span className="text-xs text-gray-500">{learner.items ? `${plural(learner.items, 'item')} to bring over` : 'No portfolio items'}</span></div>
-              <input type="email" value={emails[learner.key] ?? ''} onChange={(event) => { const value = event.target.value; setEmails((current) => ({ ...current, [learner.key]: value })); if (emailPattern.test(value.trim())) setPicked((current) => new Set(current).add(learner.key)) }} placeholder="Add their email" aria-label={`Email for ${learner.name || 'this learner'}`} className={`h-9 w-full rounded-lg border px-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${email && !valid ? 'border-rose-300' : 'border-gray-200'}`} />
-              {learner.problem && !valid ? <p className="flex items-center gap-1.5 text-xs text-amber-700"><AlertCircle className="h-3.5 w-3.5 shrink-0" />{learner.problem}</p> : null}
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3"><span className="truncate text-sm font-semibold text-gray-900">{learner.name || 'No name in the export'}</span><span className="text-xs text-gray-500">{learner.items ? `${plural(learner.items, 'item')} to bring over` : 'Nothing from CIS to bring over'}</span></div>
+              {learner.items ? <input type="email" value={emails[learner.key] ?? ''} onChange={(event) => { const value = event.target.value; setEmails((current) => ({ ...current, [learner.key]: value })); if (learner.items && emailPattern.test(value.trim())) setPicked((current) => new Set(current).add(learner.key)) }} placeholder="Add their email" aria-label={`Email for ${learner.name || 'this learner'}`} className={`h-9 w-full rounded-lg border px-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${email && !valid ? 'border-rose-300' : 'border-gray-200'}`} /> : null}
+              {learner.problem && !valid && learner.items ? <p className="flex items-center gap-1.5 text-xs text-amber-700"><AlertCircle className="h-3.5 w-3.5 shrink-0" />{learner.problem}</p> : null}
             </div>
           </li>
         })}</ul>
@@ -120,16 +120,16 @@ export default function CisImportPanel({ org, accessToken, usergroups, groupsEna
         {groupsEnabled && <label className="space-y-2 text-sm font-medium text-gray-800"><span>Group <span className="font-normal text-gray-400">optional</span></span><Select value={groupId} onValueChange={setGroupId}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No group</SelectItem>{usergroups.map((group) => <SelectItem key={group.id} value={String(group.id)}>{group.name}</SelectItem>)}</SelectContent></Select></label>}
         <label className={`space-y-2 text-sm font-medium text-gray-800 ${groupsEnabled ? '' : 'sm:col-span-2'}`}><span>Note <span className="font-normal text-gray-400">optional, in the email</span></span><input value={note} onChange={(event) => setNote(event.target.value)} maxLength={1000} placeholder="Your CIS work is coming with you" className="h-11 w-full rounded-lg border border-gray-200 px-3 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" /></label>
       </div>
-      <p className="flex items-start gap-2 text-xs leading-5 text-gray-500"><Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />Each learner’s CIS work is held privately until they accept. Only they and you can see it, and it’s deleted if you withdraw it or the invitation is revoked or expires.</p>
-      <button type="button" disabled={busy || !ready.length} onClick={() => void send()} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"><MailPlus className="h-4 w-4" />{busy ? 'Sending…' : `Invite ${plural(ready.length, 'learner')}`}</button>
+      <p className="flex items-start gap-2 text-xs leading-5 text-gray-500"><Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />{inOrgWords('Each learner’s CIS work is held privately until they accept.')} Only they and you can see it, and it’s deleted if you withdraw it or the invitation is revoked or expires.</p>
+      <button type="button" disabled={busy || !ready.length} onClick={() => void send()} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"><MailPlus className="h-4 w-4" />{busy ? 'Sending…' : inOrgWords(`Invite ${plural(ready.length, 'learner')}`)}</button>
     </div>
 
     : <div className="space-y-4">
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5">
-        <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-gray-600 shadow-sm"><FileSpreadsheet className="h-5 w-5" /></span><div className="min-w-0 space-y-1"><p className="text-sm font-semibold text-gray-900">Bring learners’ work over from Oregon CIS</p><p className="text-sm leading-6 text-gray-600">{inOrgWords('Upload a CIS bulk export of your learners, or one learner’s “Download my data” zip. Each learner gets an invitation saying their CIS work is waiting, and it comes into their portfolio when they accept.')}</p></div></div>
+        <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-gray-600 shadow-sm"><FileSpreadsheet className="h-5 w-5" /></span><div className="min-w-0 space-y-1"><p className="text-sm font-semibold text-gray-900">{inOrgWords('Bring learners’ work over from Oregon CIS')}</p><p className="text-sm leading-6 text-gray-600">{inOrgWords('Upload a CIS bulk export of your learners, or one learner’s “Download my data” zip. Each learner gets an invitation saying their CIS work is waiting, and it comes into their portfolio when they accept.')}</p></div></div>
         <input ref={input} type="file" accept=".zip,.xlsx" className="sr-only" aria-label="Oregon CIS export" onChange={(event) => { void choose(event.target.files?.[0]); event.target.value = '' }} />
         <button type="button" disabled={busy} onClick={() => input.current?.click()} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"><Upload className="h-4 w-4" />{busy ? 'Reading…' : 'Choose CIS export'}</button>
-        <p className="mt-2 text-xs text-gray-500">Nothing is saved or sent until you review the learners.</p>
+        <p className="mt-2 text-xs text-gray-500">{inOrgWords('Nothing is saved or sent until you review the learners.')}</p>
       </div>
     </div>}
 
