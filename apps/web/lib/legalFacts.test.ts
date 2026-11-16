@@ -36,3 +36,16 @@ test('legal pages: one age wording, no organization scripts, services listed abo
   assert.doesNotMatch(data, /services listed below/)
   assert.ok(!existsSync(new URL('../components/OrgScripts', import.meta.url)), 'the organization script loader is gone')
 })
+
+// DEV-125: the Coach retention schedule is published on the data page, and the privacy policy states it and links there.
+test('the Coach retention schedule is on the data page and the privacy policy links to it', () => {
+  const facts = read('lib/legal/facts.ts')
+  for (const period of ['12 months after Coach last used them', '24 months after their last message', '60 days after they leave', 'within 30 days']) {
+    assert.ok(facts.includes(period), period)
+  }
+  assert.match(facts, /erased, not hidden/)
+  assert.match(read('app/data/page.tsx'), /<Rows rows=\{COACH_RETENTION\} \/>/)
+  const privacy = read('lib/legal/privacy.tsx')
+  assert.match(privacy, /COACH_RETENTION\.map/)
+  assert.match(privacy, /href="\/data#retention"/)
+})

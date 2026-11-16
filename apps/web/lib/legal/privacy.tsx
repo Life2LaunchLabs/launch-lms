@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 import type { LegalSection } from '@components/Legal/LegalPage'
 
 // The Privacy Policy's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead
@@ -92,6 +92,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: 'How long we keep it',
     body: <>
       <p>As long as your account exists. When an organization removes you, its access to your work ends; you keep your own account, portfolio and badges.</p>
+      <p>{COACH_RETENTION_LEAD}</p>
+      <ul>
+        {COACH_RETENTION.map(([kind, period]) => <li key={kind}><strong>{kind}:</strong> {period}</li>)}
+      </ul>
+      <p>The full retention schedule is on <Link href="/data#retention">How Life2Launch handles student data</Link>.</p>
       <p>{LOG_RETENTION}</p>
     </>,
   },

@@ -13,7 +13,7 @@ export const AI_PROVIDERS = {
 
 /** Coach memory: services/hub_memory.py and db/hub.py HubMemoryPreference (enabled defaults to true). */
 export const COACH_MEMORY =
-  'Coach memory is on by default. Coach saves short notes from what a learner tells it (goals, preferences, constraints and background) so later answers fit them, and skips anything that looks like a password, health, identity, money or legal matter, or contact details. Only the learner sees their memories, in Account › Memory, where they can edit or delete each one, clear them all, or turn memory off. Memories belong to one organization and are not shown to its staff.'
+  'Coach memory is on by default. Coach saves short notes from what a learner tells it (goals, preferences, constraints and background) so later answers fit them, and skips anything that looks like a password, health, identity, money or legal matter, or contact details. Only the learner sees their memories, in Account › Memory, where they can edit or delete each one, clear them all, or turn memory off. A deleted memory is erased, not hidden: its words are removed everywhere Life2Launch kept them, including Download my data. Memories belong to one organization and are not shown to its staff.'
 
 /** Uploads: services/utils/upload_content.py names each file with a random UUID; content routers serve it to anyone with the address (DEV-37 adds access checks). */
 export const UPLOAD_LINKS =
@@ -22,6 +22,17 @@ export const UPLOAD_LINKS =
 /** Discover images: lib/ownServerImage.ts serves pictures from other websites through Life2Launch. */
 export const OUTSIDE_IMAGES =
   'Pictures for resources on Discover that come from other websites are fetched by Life2Launch’s own server and shown from Life2Launch, so those websites never see a learner’s address.'
+
+/** Coach retention: services/coach/retention.py deletes each kind of Coach data after these periods; Henry set them on 2026-11-16 (DEV-125). */
+export const COACH_RETENTION_LEAD =
+  'Coach keeps what it knows about a learner only for set periods. After that, Life2Launch deletes it automatically, leaving no copy of the words behind:'
+export const COACH_RETENTION: [string, string][] = [
+  ['Coach memories', 'Deleted 12 months after Coach last used them, or after they were saved or edited if Coach never used them. A learner can delete them sooner at any time.'],
+  ['Coach conversations', 'Deleted 24 months after their last message, along with the answers, the questions Coach asked and any reports about them. A learner can delete a conversation sooner.'],
+  ['Reports of a Coach answer', 'When a learner reports an answer, a copy of that conversation without their name goes to our coaching team. It is deleted after 12 months, or sooner if the conversation is deleted.'],
+  ['Leaving an organization', 'A learner’s Coach memories and conversations in that organization are deleted 60 days after they leave it, unless they rejoin first.'],
+  ['Closing an account', 'All Coach data goes with the account, within 30 days of the request.'],
+]
 
 /** Logs and error reports: Sentry (send_default_pii off) and server logs, policy set 2026-11-16. */
 export const LOG_RETENTION =

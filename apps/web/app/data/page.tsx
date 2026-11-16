@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Badge } from '@components/ui/badge'
 import { CHECKED_ON, SUBPROCESSORS } from '@/lib/legal/subprocessors'
-import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, DELETION, LOG_RETENTION, OUTSIDE_IMAGES, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, OUTSIDE_IMAGES, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 
 // The public page a school's technical reviewer reads (v0.10.0 PF-1, DEV-25). Signed out, on every
 // Life2Launch address. Its subprocessor list is lib/legal/subprocessors.ts, shared with /privacy.
@@ -124,6 +124,8 @@ export default function StudentDataPage() {
             As long as the account exists. When an organization removes a learner, the organization’s access ends;
             the learner keeps their own account, portfolio and badges.
           </p>
+          <p>{COACH_RETENTION_LEAD}</p>
+          <Rows rows={COACH_RETENTION} />
           <p>{LOG_RETENTION}</p>
         </Section>
 
