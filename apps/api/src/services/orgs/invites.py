@@ -283,7 +283,7 @@ def send_direct_invitation_email(
     if setup.get("cis"):
         # The learner's CIS export is held for them (services/portfolio_held_imports.py) and comes over when they accept.
         start += ("<p><b>Your Oregon CIS work is waiting for you.</b> When you join, what you saved in CIS (your career bio, "
-                  "assessments, links and files) is brought into your portfolio, so you don't lose it when CIS closes. "
+                  "assessments, reflections, links and files) is brought into your portfolio, so you don't lose it when CIS closes. "
                   "Only you and the staff who sent it can see it.</p>")
     send_email(
         to=email,
