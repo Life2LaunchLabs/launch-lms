@@ -34,7 +34,7 @@ from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
 from src.services.epp.records import freeze_exits
 from src.services.orgs.invites import get_invite_code, redeem_join_link
-from src.services.orgs import staff_setup
+from src.services.orgs import owner as owner_orgs, staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.avatars import (
@@ -175,8 +175,8 @@ async def create_user(
         )
 
     db_session.add(user_organization)
+    owner_orgs.ensure_owner_membership(db_session, int(user.id or 0))  # an invited account belongs to Life2Launch too
     db_session.commit()
-    db_session.refresh(user_organization)
 
     user_read = UserRead.model_validate(user)
 
