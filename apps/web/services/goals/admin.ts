@@ -144,6 +144,9 @@ const managedUserKey = (userId: number, orgId: number) => goalAdminUrl(`/managed
 const assignmentsKey = (orgId: number) => goalAdminUrl('/assignments', orgId)
 export const assignmentReviewsKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/reviews`, orgId)
 export const plansKey = (orgId: number) => goalAdminUrl('/plans', orgId)
+/** What each learner has on one step of an assignment, finished or not. */
+export const assignmentStepWorkKey = (assignmentUuid: string, stepKey: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/steps/${q(stepKey)}/work`, orgId)
+export interface StepWork { assignment_uuid: string; step_key: string; items: ReviewItem[] }
 
 // Plans › Assignments: one card per plan template (apps/api/src/services/goals/plan_cards.py) -------------
 
@@ -195,6 +198,7 @@ export const goalAdminApi = {
   plans: (orgId: number, token?: string) => request<PlansStack>(plansKey(orgId), token),
   updateProgress: (orgId: number, data: { template_key: string; assignment_uuid?: string; goal_uuids?: string[]; user_ids?: number[]; status: StepStatus; staff_note?: string }, token?: string) => request<BulkResult[]>(goalAdminUrl('/assignments/progress', orgId), token, 'POST', data),
   assignmentReviews: (orgId: number, assignmentUuid: string, token?: string) => request<ReviewList & { assignment_uuid: string }>(assignmentReviewsKey(assignmentUuid, orgId), token),
+  stepWork: (orgId: number, assignmentUuid: string, stepKey: string, token?: string) => request<StepWork>(assignmentStepWorkKey(assignmentUuid, stepKey, orgId), token),
 
   // Running an assignment (admins): only the fields sent change.
   updateAssignment: (orgId: number, assignmentUuid: string, data: { start_date?: string | null; due_date?: string | null; welcome_message?: string; collaborators?: Array<{ user_id: number; role_key: string }> }, token?: string) =>

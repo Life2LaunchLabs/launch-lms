@@ -24,6 +24,9 @@ class TaskConfig(Config):
     list: TaskList | None = None
     # Asks the learner to show it's done with a photo ("Build it and show me"): one is needed to finish.
     photo: bool | None = None
+    # Asks a question the learner answers on the step ("Which one sounds cooler?"): an answer is needed to finish.
+    # A task whose title or description asks a question offers the answer box without it (FEED-147).
+    ask: bool | None = None
 
 
 class Task(StepType):
@@ -46,6 +49,8 @@ class Task(StepType):
             return f"Add {target} items first"
         if state.config.get("photo") and not state.entries_of("file"):
             return "Add a photo first"
+        if state.config.get("ask") and not (state.progress.answer or "").strip():
+            return "Answer the question first"
         return None
 
     def fraction(self, state: StepState) -> float:
@@ -55,6 +60,9 @@ class Task(StepType):
     def result(self, state: StepState) -> dict | None:
         items = state.entries_of("item")
         photos = state.entries_of("file")
+        answer = (state.progress.answer or "").strip()
+        if answer and not items and not photos:
+            return {"kind": "text", "text": answer[:280]}
         if photos and not items:
             return {"kind": "files", "files": [{"slot": None, "title": entry.title, "url": entry.url, "asset_id": entry.asset_id} for entry in photos]}
         if not items:

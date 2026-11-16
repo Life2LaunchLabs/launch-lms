@@ -4,6 +4,7 @@ import React from 'react'
 import { Camera, Check, Loader2, Plus, SquareCheck, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
+import { Textarea } from '@components/ui/textarea'
 import { normalizeMediaUrl } from '@services/media/media'
 import type { Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
@@ -14,6 +15,17 @@ import { tr } from '@/lib/tr'
 const listOf = (step: Step<'task'>) => step.config.list
 const items = (step: Step<'task'>) => step.entries.filter((entry) => entry.kind === 'item')
 const photos = (step: Step<'task'>) => step.entries.filter((entry) => entry.kind === 'file')
+/** The task asks a question to answer on the step: set by the builder, or a title or description that asks one (FEED-147). */
+export const asksQuestion = (step: Pick<Step<'task'>, 'title' | 'description' | 'config'>) => Boolean(step.config.ask) || /\?\s*$/m.test(`${step.title}\n${step.description || ''}`)
+
+/** The learner's answer, written on the step and saved when they leave the box. */
+function AnswerBox({ step, open, value, onChange, onSave }: { step: Step<'task'>; open: boolean; value: string; onChange: React.Dispatch<string>; onSave: () => void }) {
+  if (!open) return step.answer ? <div className="rounded-xl border bg-background p-3"><p className="text-xs font-extrabold text-muted-foreground">{tr('goals.task.your_answer', 'Your answer')}</p><p className="whitespace-pre-wrap text-sm leading-6">{step.answer}</p></div> : null
+  return <div className="flex flex-col gap-1">
+    <label htmlFor={`answer-${step.step_uuid}`} className="text-xs font-extrabold text-muted-foreground">{tr('goals.task.your_answer', 'Your answer')}</label>
+    <Textarea id={`answer-${step.step_uuid}`} value={value} maxLength={2000} rows={2} onChange={(event) => onChange(event.target.value)} onBlur={onSave} placeholder={tr('goals.task.answer_here', 'Answer here')} />
+  </div>
+}
 
 /** The photo a task asks for, in one tap: the phone's camera or photos open straight away (useHandIn). */
 export function PhotoHandIn({ step, actions, open, token, viewerUserId }: { step: Step<'task'>; actions: StepCardProps<'task'>['actions']; open: boolean; token?: string; viewerUserId?: number }) {
@@ -41,6 +53,7 @@ export function PhotoHandIn({ step, actions, open, token, viewerUserId }: { step
 function TaskRow({ step }: { step: Step<'task'> }) {
   const list = items(step)
   const shots = photos(step)
+  if (!list.length && !shots.length && step.answer) return <p className="mt-1 line-clamp-2 text-sm text-foreground/75">{step.answer}</p>
   if (!list.length && shots.length) return <div className="mt-1.5 flex gap-1.5">{shots.slice(0, 4).map((entry) => <img key={entry.entry_uuid} src={normalizeMediaUrl(entry.url)} alt="" className="h-14 w-14 rounded-xl object-cover" />)}</div>
   if (!list.length) return null
   return <ul className="mt-1.5 flex flex-wrap gap-1.5">
@@ -61,6 +74,11 @@ function TaskCard({ step, actions, canWork, staff, token, viewerUserId }: StepCa
     setDraft('')
   }
   const target = list?.target || 0
+  const asks = asksQuestion(step)
+  const [answer, setAnswer] = React.useState(step.answer || '')
+  React.useEffect(() => setAnswer(step.answer || ''), [step.answer])
+  const dirty = answer.trim() !== (step.answer || '').trim()
+  const saveAnswer = async () => (dirty ? actions.saveSubmission({ answer }) : true)
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
     <Feedback step={step} />
@@ -79,21 +97,27 @@ function TaskCard({ step, actions, canWork, staff, token, viewerUserId }: StepCa
         <button type="submit" disabled={actions.busy || !draft.trim()} aria-label={tr('goals.upload.add', 'Add')} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-[var(--plan-accent)] disabled:opacity-40"><Plus size={16} /></button>
       </form> : null}
     </div> : null}
+    {asks ? <AnswerBox step={step} open={open} value={answer} onChange={setAnswer} onSave={() => void saveAnswer()} /> : null}
     {step.config.photo ? <PhotoHandIn step={step} actions={actions} open={open} token={token} viewerUserId={viewerUserId} /> : null}
-    <FinishControls step={step} actions={actions} canWork={canWork} staff={staff}
-      blocker={target && entries.length < target ? `Add ${target - entries.length} more first` : step.config.photo && !photos(step).length ? tr('goals.task.add_a_photo_first', 'Add a photo first') : null} />
+    <FinishControls step={step} actions={{ ...actions, setStatus: async (status, note) => (await saveAnswer()) && actions.setStatus(status, note) }} canWork={canWork} staff={staff}
+      blocker={target && entries.length < target ? `Add ${target - entries.length} more first` : step.config.photo && !photos(step).length ? tr('goals.task.add_a_photo_first', 'Add a photo first')
+        : step.config.ask && !answer.trim() ? tr('goals.task.answer_first', 'Answer the question first') : null} />
   </div>
 }
 
-/** Whether the task asks for a photo to show it's done. */
+/** Whether the task asks for a photo to show it's done, and whether it asks a question to answer on the step. */
 function TaskConfigPanel({ config, onChange }: ConfigPanelProps<'task'>) {
-  return <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-background p-3">
-    <input type="checkbox" className="mt-0.5 h-4 w-4" checked={!!config.photo} onChange={(event) => onChange({ ...config, photo: event.target.checked || undefined })} />
+  const row = (checked: boolean, toggle: React.Dispatch<boolean>, title: string, detail: string) => <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-background p-3">
+    <input type="checkbox" className="mt-0.5 h-4 w-4" checked={checked} onChange={(event) => toggle(event.target.checked)} />
     <span className="min-w-0">
-      <span className="block text-sm font-bold">{tr('goals.task.ask_for_a_photo', 'Ask for a photo')}</span>
-      <span className="block text-xs text-muted-foreground">{tr('goals.task.they_add_a_photo_to_show', 'They add a photo to show it’s done, from their camera or photos. You see it on the step.')}</span>
+      <span className="block text-sm font-bold">{title}</span>
+      <span className="block text-xs text-muted-foreground">{detail}</span>
     </span>
   </label>
+  return <div className="flex flex-col gap-2">
+    {row(!!config.photo, (on) => onChange({ ...config, photo: on || undefined }), tr('goals.task.ask_for_a_photo', 'Ask for a photo'), tr('goals.task.they_add_a_photo_to_show', 'They add a photo to show it’s done, from their camera or photos. You see it on the step.'))}
+    {row(!!config.ask, (on) => onChange({ ...config, ask: on || undefined }), tr('goals.task.ask_for_an_answer', 'Ask for an answer'), tr('goals.task.they_answer_on_the_step', 'They answer your question on the step before it’s done. A title that asks a question gets an answer box anyway.'))}
+  </div>
 }
 
 export const task: StepDefinition<'task'> = {
@@ -106,7 +130,8 @@ export const task: StepDefinition<'task'> = {
   statusLine: (step) => {
     const target = listOf(step)?.target
     if (target) return `${items(step).length} of ${target}`
-    return step.config.photo ? (photos(step).length ? tr('goals.task.photo_added', 'Photo added') : tr('goals.task.photo_asked', 'Asks for a photo')) : null
+    if (step.config.photo) return photos(step).length ? tr('goals.task.photo_added', 'Photo added') : tr('goals.task.photo_asked', 'Asks for a photo')
+    return step.config.ask && !step.answer ? tr('goals.task.answer_asked', 'Asks for an answer') : null
   },
   RowResult: TaskRow,
   CardBody: TaskCard,
