@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { CircleHelp, ClipboardCheck, Clock, Loader2, Mail, Search, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,7 +12,8 @@ import RequirementEvidenceExport from '@components/Goals/admin/live/RequirementE
 import { goalAdminApi } from '@services/goals/admin'
 import { assignmentApi, type AssignmentDetail, type AssignmentLearner, type AssignmentPeople, type AssignmentPerson, type AssignmentRole } from '@services/assignments/assignments'
 import { ROLES, ROLE_DO } from '@services/assignments/assignFlow'
-import { invitedRows, shownLearners, SORTS, type PeopleFilter, type PeopleSort } from '@services/assignments/people'
+import { invitedRows, learnerWorkHref, shownLearners, SORTS, type PeopleFilter, type PeopleSort } from '@services/assignments/people'
+import { getUriWithOrg } from '@services/config/config'
 import { personLabel, shortDate } from '@services/assignments/status'
 import { inOrgWords } from '@/lib/people'
 
@@ -30,8 +32,9 @@ function Section({ title, count, children }: { title: string; count: number; chi
  * its learners with where each is, what they need, and Message; invitations not taken up yet
  * at the end, with Resend.
  */
-export default function PeopleTab({ detail, people, filter, setFilter, orgId, token, onChanged, onMessage }: {
+export default function PeopleTab({ detail, people, filter, setFilter, orgslug, orgId, token, onChanged, onMessage }: {
   detail: AssignmentDetail
+  orgslug: string
   people?: AssignmentPeople
   filter: PeopleFilter
   setFilter: (filter: PeopleFilter) => void // eslint-disable-line no-unused-vars
@@ -94,7 +97,7 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
       </div> : null}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {!people ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted-foreground" /></div> : null}
-        <LearnerRows rows={rows} invited={filter === 'all' ? invited : []} ended={detail.status === 'ended'} onMessage={onMessage} onResend={editable ? () => void resend() : undefined} />
+        <LearnerRows rows={rows} hrefFor={(row) => getUriWithOrg(orgslug, learnerWorkHref(detail.assignment_uuid, row))} invited={filter === 'all' ? invited : []} ended={detail.status === 'ended'} onMessage={onMessage} onResend={editable ? () => void resend() : undefined} />
         {people && !rows.length && (filter !== 'all' || search.trim()) ? <p className="px-4 py-4 text-sm text-muted-foreground">No one here right now.</p> : null}
       </div>
       <div className="mt-3 flex flex-col gap-1.5">
@@ -106,8 +109,10 @@ export default function PeopleTab({ detail, people, filter, setFilter, orgId, to
 }
 
 /** Learners on an assignment, each with where they are and what they need, then invitations not taken up. */
-export function LearnerRows({ rows, invited = [], ended, onMessage, onResend }: {
+export function LearnerRows({ rows, invited = [], ended, hrefFor, onMessage, onResend }: {
   rows: AssignmentLearner[]
+  /** Where a click on a learner's name or "to review" count goes: their work. */
+  hrefFor?: (row: AssignmentLearner) => string // eslint-disable-line no-unused-vars
   invited?: AssignmentLearner[]
   ended: boolean
   onMessage?: (person: AssignmentPerson) => void // eslint-disable-line no-unused-vars
@@ -116,9 +121,12 @@ export function LearnerRows({ rows, invited = [], ended, onMessage, onResend }: 
   return <>
     {rows.map((row) => <div key={row.goal_uuid} className={ROW}>
       <PersonTile person={row.person} />
-      <b className="min-w-0 flex-1 truncate text-sm font-semibold sm:w-48 sm:flex-none">{personLabel(row.person)}</b>
+      {hrefFor ? <Link href={hrefFor(row)} className="min-w-0 flex-1 truncate text-sm font-semibold hover:underline sm:w-48 sm:flex-none">{personLabel(row.person)}</Link>
+        : <b className="min-w-0 flex-1 truncate text-sm font-semibold sm:w-48 sm:flex-none">{personLabel(row.person)}</b>}
       <span className="order-last w-full sm:order-none sm:w-auto sm:flex-1"><StatusBar counts={row.counts} unit="steps" now={!ended} label={personLabel(row.person)} /></span>
-      <CountIcons needs={row.needs} className="w-[92px] justify-end" />
+      {hrefFor && row.needs.review ? <Link href={hrefFor(row)} aria-label={`Review ${personLabel(row.person)}’s work`} className="inline-flex min-h-9 w-[92px] items-center justify-end rounded-lg hover:bg-muted">
+        <CountIcons needs={row.needs} /></Link>
+        : <CountIcons needs={row.needs} className="w-[92px] justify-end" />}
       {onMessage ? <MessageButton onClick={() => onMessage(row.person!)} /> : null}
     </div>)}
     {invited.map((row) => <div key={row.goal_uuid} className={ROW}>

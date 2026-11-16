@@ -1,5 +1,6 @@
 import type { AssignmentLearner } from './assignments'
 import { personLabel } from './status'
+import { routePaths } from '@services/routing/paths'
 
 export type PeopleFilter = 'all' | 'needs' | 'questions' | 'review' | 'behind'
 export type PeopleSort = 'az' | 'za' | 'most' | 'least'
@@ -27,3 +28,9 @@ export function shownLearners(rows: AssignmentLearner[], filter: PeopleFilter, s
 
 /** Invitations nobody has taken up yet. */
 export const invitedRows = (rows: AssignmentLearner[]) => rows.filter((row) => !row.person)
+
+/** Where a click on a learner (their name or their "to review" count) goes: their first hand-in waiting on review, else their plan. */
+export function learnerWorkHref(assignmentUuid: string, row: Pick<AssignmentLearner, 'goal_uuid' | 'review'>) {
+  const admin = routePaths.org.admin
+  return row.review ? admin.planReview({ assignment: assignmentUuid, objective: row.review.step_key, focus: row.review.step_uuid, from: 'assignment' }) : admin.livePlan(row.goal_uuid)
+}

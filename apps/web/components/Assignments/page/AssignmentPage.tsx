@@ -96,7 +96,7 @@ export default function AssignmentPage({ orgslug, assignmentUuid, initialTab = '
       }} />
     <div className="mx-auto max-w-[1180px] px-4 pb-16 pt-6 sm:px-8">
       {tab === 'people' ? <PeopleTab detail={detail} people={people} filter={filter || 'all'} setFilter={(next) => setQuery(next === 'all' ? { tab: 'people' } : { tab: 'people', filter: next })}
-        orgId={orgId} token={token} onChanged={refresh} onMessage={learnerOf} />
+        orgslug={orgslug} orgId={orgId} token={token} onChanged={refresh} onMessage={learnerOf} />
         : <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <StepsTab ctx={ctx} scheduling={scheduling} setScheduling={(on) => setQuery(on ? { schedule: '1' } : {})}
             onSave={(draft: ScheduleDraft) => run(() => assignmentApi.saveSchedule(orgId, assignmentUuid, draftToSave(draft), token), inOrgWords('Schedule saved. Learners’ plans moved with it.'))} />
