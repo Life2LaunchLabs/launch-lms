@@ -200,8 +200,8 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
             </p> : null}
             <div className="flex flex-col gap-2">
               <div className="flex gap-2.5">
-                <Button ref={openButton} type="button" variant="brand" size="tall" className="flex-1" onClick={() => void open()}>
-                  {meta.kind.verb} {resourceSource(resource)}<ArrowUpRight size={18} aria-hidden="true" />
+                <Button ref={openButton} type="button" variant="brand" size="tall" className="h-auto min-h-12 min-w-0 flex-1 whitespace-normal py-2 text-center leading-tight" onClick={() => void open()}>
+                  <span>{meta.kind.verb} {resourceSource(resource)}</span><ArrowUpRight size={18} aria-hidden="true" />
                 </Button>
                 {signedIn ? <Button type="button" variant={resource.is_saved ? 'default' : 'surface'} size="tall" className="shrink-0 gap-1.5 px-4" aria-pressed={resource.is_saved} aria-label={resource.is_saved ? tr('discover.resource_sheet.saved_remove_from_your_library', 'Saved. Remove from your library') : tr('discover.resource_sheet.save_to_your_library', 'Save to your library')} disabled={saving} onClick={() => void toggleSave()}>
                   {saving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className={cn(resource.is_saved && 'fill-current')} aria-hidden="true" />}
