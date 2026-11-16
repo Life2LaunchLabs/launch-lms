@@ -344,7 +344,8 @@
     "name_you_go_by_placeholder": "p. ej., Sam",
     "optional": "(opcional)",
     "email_verification_required": "Verifica tu correo",
-    "email_verification_required_join": "Verifica tu correo antes de unirte a una organización. Busca el correo de verificación en tu bandeja de entrada."
+    "email_verification_required_join": "Verifica tu correo antes de unirte a una organización. Busca el correo de verificación en tu bandeja de entrada.",
+    "email_help": "Usa un correo que revises y que vayas a conservar. Si alguien te invitó, usa el correo al que llegó la invitación."
   },
   "legal": {
     "privacy_policy": "Política de privacidad",
@@ -1148,7 +1149,10 @@
           "industry": "Industria",
           "expertise": "Experiencia",
           "community": "Comunidad"
-        }
+        },
+        "name_in_portfolio_title": "Tu nombre",
+        "name_in_portfolio": "Tu nombre y el nombre que usas se ponen en tu portafolio. Se muestran en toda la app.",
+        "edit_name_in_portfolio": "Editar en tu portafolio"
       },
       "password": {
         "title": "Cambiar contraseña",

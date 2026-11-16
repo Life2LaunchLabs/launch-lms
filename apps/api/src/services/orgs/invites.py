@@ -264,7 +264,7 @@ def send_direct_invitation_email(
     """
     signup_url = f"{base_url}/signup?invitation={quote(invitation_token, safe='')}"
     setup = setup or {}
-    inviter = " ".join(part for part in (user.first_name, user.last_name) if part) or f"@{user.username}"
+    inviter = (user.preferred_name or "").strip() or " ".join(part for part in (user.first_name, user.last_name) if part) or f"@{user.username}"
     assignments = setup.get("assignments") or []
     first = assignments[0] if assignments else None
     subject = (f"{inviter} invited you to help run {first['assigned_to']} at {org.name}" if first and first.get("assigned_to")

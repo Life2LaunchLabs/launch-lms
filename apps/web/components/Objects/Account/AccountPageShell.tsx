@@ -5,6 +5,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
+import { shownName } from '@/lib/names'
 
 export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences' | 'accessibility' | 'data'
 
@@ -20,7 +21,7 @@ export default function AccountPageShell({ children }: { children: React.ReactNo
           <UserAvatar border="border-2" rounded="rounded-xl" width={56} />
           <div className="min-w-0">
             <h1 className="text-3xl font-black tracking-tight">{t('nav.settings')}</h1>
-            <p className="truncate text-sm text-muted-foreground">{[user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username}{user?.username ? ` · @${user.username}` : ''}</p>
+            <p className="truncate text-sm text-muted-foreground">{shownName(user)}{user?.username ? ` · @${user.username}` : ''}</p>
           </div>
         </header>
         <div className="py-8">{children}</div>

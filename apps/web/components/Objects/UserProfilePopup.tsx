@@ -6,6 +6,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
+import { shownName } from '@/lib/names'
 
 type UserProfilePopupProps = {
   children: React.ReactNode
@@ -82,7 +83,7 @@ const UserProfilePopup = ({ children, userId }: UserProfilePopupProps) => {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <h4 className="font-semibold text-foreground truncate">
-                          {userData.first_name} {userData.last_name}
+                          {shownName(userData)}
                         </h4>
                         {userData.username && (
                           <Badge variant="outline" className="text-xs font-normal text-muted-foreground px-2 truncate">
