@@ -62,7 +62,7 @@ export default function UserTestsInbox({ cohortUuid, personas, invitees = [], on
           </button>
         </li>)}
       </ul>
-      <div className="min-h-64 rounded-xl border bg-card p-4">
+      <div className="min-h-64 min-w-0 rounded-xl border bg-card p-4">
         {!open ? <p className="text-sm text-muted-foreground">Choose a message to read it.</p> : <div className="space-y-3">
           <div><h3 className="text-base font-semibold">{open.subject || '(no subject)'}</h3><p className="text-xs text-muted-foreground">To {who(open.to_user_id, open.to_address)}{open.from_user_id ? ` · from ${who(open.from_user_id)}` : ''} · {REASONS[open.reason]}</p></div>
           {open.links.length ? <div className="space-y-2">
