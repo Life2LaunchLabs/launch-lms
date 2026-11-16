@@ -6,6 +6,19 @@ import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, validateOAuthState } from '@components/Contexts/AuthContext'
 import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config'
+import { ageRefusalCode, markRefused, takeOAuthBirthDate } from '@services/auth/ageCheck'
+import { errorDetailMessage } from '@/lib/errorDetail'
+
+/** Why Google couldn't create the account, when it was the age check (DEV-38). */
+function ageRefusalMessage(body: unknown): string | null {
+  const code = ageRefusalCode(body)
+  if (code === 'under_13') {
+    markRefused()
+    return 'Sorry, we can’t create a Life2Launch account for you. Life2Launch accounts are for people 13 and older.'
+  }
+  if (code === 'birth_date_required') return 'There’s no Life2Launch account for that Google account yet. Create one from Sign up.'
+  return code ? errorDetailMessage(body) : null
+}
 
 export default function GoogleCallbackPage() {
   const searchParams = useSearchParams()
@@ -13,6 +26,7 @@ export default function GoogleCallbackPage() {
   const { signIn } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'csrf_error'>('loading')
+  const [ageCode, setAgeCode] = useState<string | null>(null)
 
   const clearOAuthOrgCookies = () => {
     const expire = 'expires=Thu, 01 Jan 1970 00:00:00 GMT'
@@ -128,7 +142,8 @@ export default function GoogleCallbackPage() {
 
           if (!backendResponse.ok) {
             const errorData = await backendResponse.json().catch(() => ({}))
-            throw new Error(errorData.detail || 'Failed to authenticate with Google')
+            setAgeCode(ageRefusalCode(errorData))
+            throw new Error(ageRefusalMessage(errorData) || errorDetailMessage(errorData, 'Failed to authenticate with Google'))
           }
 
           const data = await backendResponse.json()
@@ -201,13 +216,15 @@ export default function GoogleCallbackPage() {
             email: userInfo.email,
             provider: 'google',
             access_token: tokenData.access_token,
+            birth_date: takeOAuthBirthDate(), // only used if this creates the account (DEV-38)
           }),
           credentials: 'include',
         })
 
         if (!oauthResponse.ok) {
           const errorData = await oauthResponse.json().catch(() => ({}))
-          throw new Error(errorData.detail || 'Failed to authenticate')
+          setAgeCode(ageRefusalCode(errorData))
+            throw new Error(ageRefusalMessage(errorData) || errorDetailMessage(errorData, 'Failed to authenticate'))
         }
 
         const data = await oauthResponse.json()
@@ -291,6 +308,23 @@ export default function GoogleCallbackPage() {
             >
               Go Home
             </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'error' && ageCode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div role="alert" className="text-center max-w-md mx-auto p-6">
+          <h1 className="text-xl font-semibold text-gray-800 mb-2">We couldn’t create your account</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <div className="space-y-3">
+            {ageCode === 'under_13' ? null : (
+              <Link href="/signup" className="block w-full py-2 px-4 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">Sign up</Link>
+            )}
+            <Link href="/" className="block w-full py-2 px-4 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">Go Home</Link>
           </div>
         </div>
       </div>

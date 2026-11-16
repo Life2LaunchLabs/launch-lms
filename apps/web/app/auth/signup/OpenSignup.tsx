@@ -20,6 +20,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
+import { ageRefusalCode } from '@services/auth/ageCheck'
 import LegalAgreement from '@components/Legal/LegalAgreement'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
@@ -98,12 +99,18 @@ function OpenSignUpComponent({
     onSubmit: async (values) => {
       setError('')
       setIsSubmitting(true)
+      const body = { ...values, birth_date: age.birthDate }
       let res = invitationToken
-        ? await signUpWithInvitation(values, invitationToken)
+        ? await signUpWithInvitation(body, invitationToken)
         : inviteCode
-          ? await signUpWithInviteCode(values, inviteCode)
-          : await signup(values)
+          ? await signUpWithInviteCode(body, inviteCode)
+          : await signup(body)
       let result = await res.json()
+      if (ageRefusalCode(result) === 'under_13') {
+        age.refuse()
+        setIsSubmitting(false)
+        return
+      }
       if (res.status == 200) {
         const callbackUrl = postSignupUrl
         const signInRes = await signIn('credentials', {
@@ -202,6 +209,7 @@ function OpenSignUpComponent({
       callbackUrl,
       orgSlug: org?.slug,
       orgId: org?.id,
+      birthDate: age.birthDate,
     } as any)
 
     if (res && 'error' in res && res.error) {
@@ -228,6 +236,7 @@ function OpenSignUpComponent({
 
           <div className="mt-12 space-y-7">
             <AgeConfirm {...age.field} />
+            {age.refused ? null : <>
             {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
               {isGoogleLoading ? t('common.loading') : t('auth.continue_google')}
@@ -279,6 +288,7 @@ function OpenSignUpComponent({
                 {isSubmitting ? t('common.loading') : t('auth.continue')}
               </Button>
             </form>
+            </>}
           </div>
 
           <LegalAgreement className="mt-5" />

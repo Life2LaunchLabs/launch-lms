@@ -6,7 +6,7 @@ use it (staff pass the staff check), and still a member of Life2Launch itself (t
 so the main site doesn't treat them as a stranger.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -63,7 +63,7 @@ def _request() -> Request:
 async def _sign_up(db: Session, email: str, token: str) -> tuple[User, dict]:
     from src.routers import auth as auth_router
 
-    body = auth_router.WelcomeSignupRequest(email=email, password="Str0ng!Passw0rd", invitation_token=token, first_name="Sam", last_name="Rivera")
+    body = auth_router.WelcomeSignupRequest(email=email, password="Str0ng!Passw0rd", invitation_token=token, first_name="Sam", last_name="Rivera", birth_date=date(2008, 5, 1))
     result = await auth_router.complete_welcome_signup(_request(), Response(), body, db)
     return db.exec(select(User).where(User.email == email)).one(), result
 

@@ -1,3 +1,4 @@
+from datetime import date
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -26,6 +27,7 @@ class UserCreate(UserBase):
     first_name: str = ""
     last_name: str = ""
     password: str
+    birth_date: date | None = Field(default=None, exclude=True)  # sign-up's age check only; never stored (DEV-38)
 
 
 class UserSignupCreate(UserCreate):

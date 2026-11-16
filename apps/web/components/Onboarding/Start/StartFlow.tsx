@@ -16,6 +16,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
 import LegalAgreement from '@components/Legal/LegalAgreement'
+import { ageRefusalCode } from '@services/auth/ageCheck'
 import { validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import { signup } from '@services/auth/auth'
 import { authenticatedOrgHref } from '@services/auth/handoff'
@@ -399,9 +400,10 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     setError('')
     try {
       if (!existing) {
-        const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
+        const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id, birth_date: age.birthDate })
         if (response.status !== 200) {
           const body = await response.json().catch(() => null)
+          if (ageRefusalCode(body) === 'under_13') return age.refuse()
           throw new Error(typeof body?.detail === 'string' ? body.detail : body?.detail?.message || tr('lit.start_flow.could_not_create_the_account', 'Could not create the account.'))
         }
       }
@@ -419,7 +421,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
   const google = async () => {
     if (!existing && !age.ok()) return
     onGoogle()
-    const result = await signIn('google', { callbackUrl: `${window.location.origin}/start`, orgSlug: org?.slug, orgId: org?.id } as any)
+    const result = await signIn('google', { callbackUrl: `${window.location.origin}/start`, orgSlug: org?.slug, orgId: org?.id, birthDate: age.birthDate } as any)
     if (result && 'error' in result && result.error) setError(result.error)
   }
 
@@ -427,12 +429,14 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     <p className={LEDE}>{existing ? tr('onboarding.start_flow.we_ll_add_what_you', 'We’ll add what you’ve picked to your account.') : tr('onboarding.start_flow.create_an_account_so_your', 'Create an account so your plans are here when you come back.')}</p>
     <form className="mt-6 space-y-3.5" onSubmit={(event) => void submit(event)}>
       {existing ? null : <AgeConfirm {...age.field} />}
+      {age.refused && !existing ? null : <>
       {googleOn ? <><Button type="button" variant="outline" size="lg" className="w-full rounded-full" onClick={() => void google()}><SiGoogle size={18} color="#4285F4" />{tr('onboarding.start_flow.continue_with_google', 'Continue with Google')}</Button>
       <div className="flex items-center gap-3 text-[13px] font-semibold text-muted-foreground"><i className="h-px flex-1 bg-border" />{tr('onboarding.start_flow.or', 'or')}<i className="h-px flex-1 bg-border" /></div></> : null}
       <Field label={tr('onboarding.start_flow.email', 'Email')}><input className={INPUT} type="email" autoComplete="email" placeholder={tr('onboarding.start_flow.you_example_com', 'you@example.com')} value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
       <Field label={tr('onboarding.start_flow.password', 'Password')}><input className={INPUT} type="password" autoComplete={existing ? 'current-password' : 'new-password'} placeholder={existing ? '' : tr('onboarding.start_flow.at_least_8_characters_with', 'At least 8 characters, with a number and a symbol')} value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
       {!existing && password && !strong ? <p className="text-[12.5px] text-muted-foreground">{tr('onboarding.start_flow.use_at_least_8_characters', 'Use at least 8 characters with upper and lower case, a number and a symbol.')}</p> : null}
       <Button type="submit" size="lg" className="w-full rounded-full" disabled={!ready || busy}>{busy ? <Loader2 className="animate-spin" /> : null}{existing ? tr('onboarding.start_flow.sign_in', 'Sign in') : tr('onboarding.start_flow.create_account', 'Create account')}</Button>
+      </>}
       <p className="text-center text-[13px] text-muted-foreground">{existing ? tr('onboarding.start_flow.new_here', 'New here?') : tr('onboarding.start_flow.already_have_an_account', 'Already have an account?')} <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => { setExisting(!existing); setError('') }}>{existing ? tr('onboarding.start_flow.create_one_instead', 'Create one instead') : tr('onboarding.start_flow.sign_in_instead', 'Sign in instead')}</button></p>
       <LegalAgreement className="text-center" />
     </form>
