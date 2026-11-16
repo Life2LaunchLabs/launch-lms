@@ -99,6 +99,6 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     id: 'contact',
     title: 'Contact us',
-    body: <p>Questions about these terms? Start with your organization&rsquo;s Life2Launch admin. Anyone signed in can also reach us with the Feedback button in Life2Launch.</p>,
+    body: <p>Questions about these terms? Email us at <a href="mailto:team@life2launch.com">team@life2launch.com</a>, or start with your organization&rsquo;s Life2Launch admin.</p>,
   },
 ]

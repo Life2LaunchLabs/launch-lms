@@ -82,7 +82,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: 'Children under 13 (COPPA)',
     body: <>
       <p>Life2Launch does not allow accounts for anyone under 13. Sign-up asks for your age and refuses anyone younger, and we do not knowingly collect personal information from children under 13.</p>
-      <p>If we learn that an account belongs to a child under 13, we delete it and its data. A parent who thinks their child under 13 has an account can tell us (see <a href="#contact">Contact us</a>) and we will delete it.</p>
+      <p>If we learn that an account belongs to a child under 13, we delete it and its data. A parent who thinks their child under 13 has an account can email <a href="mailto:team@life2launch.com">team@life2launch.com</a> and we will delete it.</p>
     </>,
   },
   {
@@ -112,6 +112,6 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     id: 'contact',
     title: 'Contact us',
-    body: <p>Students and parents can start with their school or organization&rsquo;s Life2Launch admin. Anyone signed in can also reach us with the Feedback button in Life2Launch.</p>,
+    body: <p>Email us at <a href="mailto:team@life2launch.com">team@life2launch.com</a> with any privacy question or request, including asking to see, correct or delete data. Students and parents can also start with their school or organization&rsquo;s Life2Launch admin.</p>,
   },
 ]
