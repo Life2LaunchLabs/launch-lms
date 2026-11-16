@@ -33,7 +33,9 @@ export type TestPersona = {
 }
 
 export type TestStage = { key: string; title: string; goal: string; after: { persona: string; stage: string } | null; personas?: string[] }
-export type TestCohortDetail = TestCohort & { personas: TestPersona[]; org_ids: number[]; stages: TestStage[] }
+/** Someone the run will invite who has no account yet: a reserved address. Signing up there makes them a persona. */
+export type TestInvitee = { invitee_id: number; user_id: number | null; first_name: string; last_name: string; email: string; handle: string; brief: string; signed_up: boolean; unread_mail: number }
+export type TestCohortDetail = TestCohort & { personas: TestPersona[]; invitees?: TestInvitee[]; org_ids: number[]; stages: TestStage[] }
 
 export type TestMailLink = { url: string; path: string | null }
 
@@ -103,14 +105,17 @@ export const auditCohort = (cohortUuid: string) => call<TestAudit>(`cohorts/${co
 export const purgeCohort = (cohortUuid: string, dryRun: boolean) => call<TestPurge>(`cohorts/${cohortUuid}/purge?dry_run=${dryRun}`, 'POST')
 export const createLoginLink = (userId: number, targetPath = '/') =>
   call<LoginLink>(`personas/${userId}/login-link`, 'POST', { target_path: targetPath })
+/** A signed-out browser for an invitee: signing up there with their address makes them a persona of the run. */
+export const createInviteeLink = (inviteeId: number, targetPath = '/') =>
+  call<LoginLink>(`invitees/${inviteeId}/login-link`, 'POST', { target_path: targetPath })
 /** Through the web's own route, which sets this browser's cookies for the persona. */
-export async function redeemLoginLink(ticket: string): Promise<{ target_path: string; target_org_slug?: string | null; persona: { user_id: number; name: string }; cohort: { name: string } }> {
+export async function redeemLoginLink(ticket: string): Promise<{ target_path: string; target_org_slug?: string | null; persona: { user_id: number; name: string } | null; invitee?: { invitee_id: number; email: string; name: string } | null; cohort: { name: string } }> {
   const res = await fetch('/api/user-tests/redeem', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }) })
   return errorHandling(res)
 }
 
-export function personaName(persona: Pick<TestPersona, 'first_name' | 'last_name' | 'username'>) {
-  return `${persona.first_name} ${persona.last_name}`.trim() || persona.username
+export function personaName(persona: Pick<TestPersona, 'first_name' | 'last_name'> & { username?: string; email?: string }) {
+  return `${persona.first_name} ${persona.last_name}`.trim() || persona.username || persona.email || ''
 }
 
 export { parsePersonaLines } from './personaLines'

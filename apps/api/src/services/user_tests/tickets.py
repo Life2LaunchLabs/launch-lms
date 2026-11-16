@@ -95,6 +95,45 @@ def mint(db: Session, operator_id: int, persona_user_id: int, target_path: str =
     }
 
 
+def mint_invitee(db: Session, operator_id: int, invitee_id: int, target_path: str = "/", ttl: timedelta = TICKET_TTL) -> dict:
+    """An entry link for someone the run will invite: it opens a signed-out browser that may sign up as them (DEV-103).
+
+    Once they have signed up they are a persona, and this makes an ordinary persona link instead.
+    """
+    from src.services.user_tests import invitees
+
+    if not sessions.is_platform_admin(operator_id, db):
+        raise HTTPException(403, "Platform admin access is required.")
+    invitee = invitees.get(db, invitee_id)
+    if invitee.user_id is not None:
+        return mint(db, operator_id, int(invitee.user_id), target_path, ttl)
+    sessions.open_cohort(db, invitee.cohort_id)
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + min(max(ttl, TICKET_TTL), MAX_TICKET_TTL)
+    db.add(TestLoginTicket(token_hash=_hash(token), persona_user_id=0, invitee_id=int(invitee.id), operator_user_id=operator_id,  # type: ignore[arg-type]
+                           target_path=safe_path(target_path), expires_at=expires_at))
+    db.commit()
+    return {"path": f"{ENTRY_PATH}?t={quote(token)}", "expires_at": expires_at.isoformat() + "Z"}
+
+
+def _redeem_invitee(db: Session, ticket: TestLoginTicket, invalid: HTTPException) -> dict:
+    from src.services.user_tests import invitees
+
+    invitee = invitees.get(db, int(ticket.invitee_id))  # type: ignore[arg-type]
+    if invitee.user_id is not None or not sessions.is_platform_admin(ticket.operator_user_id, db):
+        raise invalid
+    cohort = sessions.open_cohort(db, invitee.cohort_id)
+    return {
+        "tokens": None,  # signed out: they have no account yet
+        "invitee_token": invitees.entry_token(invitee, ticket.operator_user_id, cohort),
+        "target_path": ticket.target_path,
+        "target_org_slug": None,
+        "persona": None,
+        "invitee": {"invitee_id": invitee.id, "email": invitee.email, "name": f"{invitee.first_name} {invitee.last_name}".strip()},
+        "cohort": {"cohort_uuid": cohort.cohort_uuid, "name": cohort.name},
+    }
+
+
 def redeem(db: Session, token: str) -> dict:
     """Spend a ticket. Returns persona session tokens and where to land."""
     invalid = HTTPException(401, "This login link has expired or was already used. Make a new one in User tests.")
@@ -115,6 +154,8 @@ def redeem(db: Session, token: str) -> dict:
     if spent.rowcount != 1:
         raise invalid
     ticket = db.get(TestLoginTicket, token_hash)
+    if ticket.invitee_id:
+        return _redeem_invitee(db, ticket, invalid)
     user = db.get(User, ticket.persona_user_id)
     persona = sessions.persona_for(db, user)
     if not user or not persona or not sessions.is_platform_admin(ticket.operator_user_id, db):

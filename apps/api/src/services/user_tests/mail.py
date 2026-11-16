@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 from config.config import get_launchlms_config
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from src.db.user_tests import TestMail, TestPersona
+from src.db.user_tests import TestInvitee, TestMail, TestPersona
 from src.db.users import User
 from src.services.user_tests.sessions import current_test_persona
 from src.services.user_tests.settings import is_test_address
@@ -65,7 +65,9 @@ def _store(to: str, subject: str, body: str, sender_id: int | None, reason: str)
         recipient = db.exec(select(User).where(User.email == str(to))).first()
         recipient_persona = db.get(TestPersona, recipient.id) if recipient else None
         sender_persona = db.get(TestPersona, sender_id) if sender_id else None
-        cohort = recipient_persona or sender_persona
+        # An address a run reserved for someone it will invite (DEV-103): its mail is that run's.
+        invitee = None if recipient else db.exec(select(TestInvitee).where(TestInvitee.email == str(to).strip().lower())).first()
+        cohort = recipient_persona or invitee or sender_persona
         mail = TestMail(
             cohort_id=cohort.cohort_id if cohort else None,
             to_address=str(to),
@@ -114,10 +116,12 @@ def serialize(mail: TestMail, *, full: bool = False) -> dict:
     return data
 
 
-def list_mail(db: Session, cohort_id: int, persona_user_id: int | None = None, limit: int = 100) -> list[dict]:
+def list_mail(db: Session, cohort_id: int, persona_user_id: int | None = None, limit: int = 100, to_address: str | None = None) -> list[dict]:
     statement = select(TestMail).where(TestMail.cohort_id == cohort_id)
     if persona_user_id:
         statement = statement.where(TestMail.to_user_id == persona_user_id)
+    if to_address:
+        statement = statement.where(TestMail.to_address == to_address)
     statement = statement.order_by(TestMail.captured_at.desc(), TestMail.id.desc()).limit(min(limit, 500))
     return [serialize(mail) for mail in db.exec(statement).all()]
 

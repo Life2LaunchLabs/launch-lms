@@ -70,6 +70,13 @@ way for a test to email, impersonate or change a real person.
 - What the seal can't see (a main-org group or conversation whose members mix worlds), the
   leak audit finds. Purge runs only on a closed cohort with a clean audit, so cascading deletes
   never reach a real person's rows.
+- Invitees (DEV-103): a persona added as `invitee` (console line prefix `invite:`) is only a
+  reserved address on the run's pattern, with no account, so a run can test an invitation to a
+  brand-new address. Mail to it is kept for the run. The console's "Open signed out" link leaves
+  a short signed `launchlms_test_invitee` cookie; signing up with exactly that address in that
+  browser makes the new account a persona of the run before it joins any org (so the seal holds
+  from its first row) and answers with a persona session. Any other sign-up with a test address
+  is refused, so the test domain never holds an unsealed account.
 - A persona session is refused password changes, account deletion, API tokens, payments,
   Google and SSO sign-in, and OAuth grants (`sessions.BLOCKED`).
 - Real users never see personas or test orgs in search or Connect people search

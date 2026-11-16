@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getConfig } from '@services/config/config'
 import { buildPublicRequestUrl } from '@services/routing/context'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getCookieOptions } from '@services/auth/cookies'
-import { TEST_PERSONA_COOKIE, encodeTestPersonaMarker } from '@services/userTests/marker'
+import { TEST_INVITEE_COOKIE, TEST_PERSONA_COOKIE, encodeTestPersonaMarker } from '@services/userTests/marker'
 
 const BACKEND_URL = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
 // Persona sessions last four hours; the cookies never outlive them.
@@ -35,7 +35,16 @@ export async function POST(request: NextRequest) {
     const data = await upstream.json()
     if (!upstream.ok) return NextResponse.json({ detail: data?.detail || 'This login link did not work.' }, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } })
     const options = getCookieOptions(request)
+    if (data.invitee_token) {
+      // Someone the run will invite, with no account yet (DEV-103): sign this browser out and let it sign up as them.
+      const response = NextResponse.json({ target_path: data.target_path, target_org_slug: null, persona: null, invitee: data.invitee, cohort: data.cohort }, { headers: { 'Cache-Control': 'no-store' } })
+      for (const name of [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE]) response.cookies.set(name, '', { ...options, maxAge: 0 })
+      for (const name of ['launchlms_has_session', TEST_PERSONA_COOKIE]) response.cookies.set(name, '', { ...options, httpOnly: false, maxAge: 0 })
+      response.cookies.set(TEST_INVITEE_COOKIE, data.invitee_token, { ...options, maxAge: SESSION_SECONDS })
+      return response
+    }
     const response = NextResponse.json({ target_path: data.target_path, target_org_slug: data.target_org_slug || null, persona: data.persona, cohort: data.cohort }, { headers: { 'Cache-Control': 'no-store' } })
+    response.cookies.set(TEST_INVITEE_COOKIE, '', { ...options, maxAge: 0 })
     response.cookies.set(ACCESS_TOKEN_COOKIE, data.tokens.access_token, { ...options, maxAge: SESSION_SECONDS })
     response.cookies.set(REFRESH_TOKEN_COOKIE, data.tokens.refresh_token, { ...options, maxAge: SESSION_SECONDS })
     response.cookies.set('launchlms_has_session', '1', { ...options, httpOnly: false, maxAge: SESSION_SECONDS })

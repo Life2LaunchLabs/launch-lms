@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel, select
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
-from src.db.user_tests import TestCohort, TestCohortOrg, TestLoginTicket, TestMail, TestPersona
+from src.db.user_tests import TestCohort, TestCohortOrg, TestInvitee, TestLoginTicket, TestMail, TestPersona
 from src.db.users import User
 from src.security.rbac.constants import ADMIN_ROLE_ID, USER_ROLE_ID
 from src.services.user_tests import cohorts, mail, personas, sessions, tickets
@@ -33,6 +33,7 @@ def db(monkeypatch):
             TestPersona.__table__,
             TestCohortOrg.__table__,
             TestMail.__table__,
+            TestInvitee.__table__,
             TestLoginTicket.__table__,
         ],
     )

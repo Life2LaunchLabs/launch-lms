@@ -104,6 +104,14 @@ async def open_as_test_persona(request: Request, db: Session, ctx: AccessContext
         parts = urlsplit(target)
         target, origin = path, f"{urlsplit(origin).scheme}://{parts.netloc}"
     minutes = min(max(int(args.get("valid_minutes") or 1), 1), 30)
+    if args.get("invitee_id") and not args.get("user_id"):
+        # Someone the run will invite, with no account yet: a signed-out browser that may sign up as them (DEV-103).
+        link = tickets.mint_invitee(db, int(ctx.user.id), int(args["invitee_id"]), target, timedelta(minutes=minutes))  # type: ignore[arg-type]
+        return {"url": f"{origin}{link['path']}", "expires_at": link["expires_at"],
+                "note": "Works once. Open it in a fresh browser session: it signs that browser out and lets it sign up with the invitee's address, "
+                        "for example from the invitation link in read_test_mail. The new account joins this run as a persona (get_test_cohort shows its user_id)."}
+    if not args.get("user_id"):
+        raise HTTPException(422, "Give the persona's user_id, or an invitee_id for someone who hasn't signed up yet.")
     link = tickets.mint(db, int(ctx.user.id), int(args["user_id"]), target, timedelta(minutes=minutes))  # type: ignore[arg-type]
     return {"url": f"{origin}{link['path']}", "expires_at": link["expires_at"],
             "note": "Works once. Open it in a fresh browser session (no other sign-in), since it signs that browser in as the persona. "
@@ -114,12 +122,28 @@ async def read_test_mail(request: Request, db: Session, ctx: AccessContext, args
     _require_operator(db, ctx)
     if args.get("mail_id"):
         found = db.get(TestMail, int(args["mail_id"]))
-        if not found or (args.get("user_id") and found.to_user_id != int(args["user_id"])):
+        if not found or (args.get("user_id") and found.to_user_id != int(args["user_id"])) or (
+                args.get("invitee_id") and not args.get("user_id") and found.to_address != _invitee_address(db, args["invitee_id"])):
             raise HTTPException(404, "That email isn't in this persona's inbox.")
         read = mail.read_mail(db, int(found.id))  # type: ignore[arg-type]
         return {**{key: value for key, value in read.items() if key != "html"}, "text": _text(read.get("html"))}
+    if args.get("invitee_id") and not args.get("user_id"):
+        from src.services.user_tests import invitees
+
+        invitee = invitees.get(db, int(args["invitee_id"]))
+        if invitee.user_id is None:
+            return {"mail": mail.list_mail(db, invitee.cohort_id, limit=int(args.get("limit") or 20), to_address=invitee.email)}
+        args["user_id"] = invitee.user_id
+    if not args.get("user_id"):
+        raise HTTPException(422, "Give the persona's user_id, or an invitee_id for someone who hasn't signed up yet.")
     persona = _persona(db, args["user_id"])
     return {"mail": mail.list_mail(db, persona.cohort_id, persona.user_id, limit=int(args.get("limit") or 20))}
+
+
+def _invitee_address(db: Session, invitee_id) -> str:
+    from src.services.user_tests import invitees
+
+    return invitees.get(db, int(invitee_id)).email
 
 
 async def report_test_progress(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:

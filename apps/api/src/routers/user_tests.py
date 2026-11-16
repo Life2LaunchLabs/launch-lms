@@ -260,6 +260,20 @@ def login_link(
     return tickets.mint(db, actor.id, user_id, body.target_path)
 
 
+@router.post("/invitees/{invitee_id}/login-link")
+def invitee_link(
+    invitee_id: int,
+    body: LoginLinkRequest,
+    actor: PublicUser = Depends(operator),
+    db: Session = Depends(get_db_session),
+):
+    """A signed-out browser for someone the run will invite; signing up there makes them a persona (DEV-103)."""
+    allowed, _, retry = check_rate_limit(f"user-tests-mint:{actor.id}", MINT_PER_HOUR, 3600)
+    if not allowed:
+        raise HTTPException(429, f"Too many login links this hour. Try again in {retry} seconds.")
+    return tickets.mint_invitee(db, actor.id, invitee_id, body.target_path)
+
+
 @router.get("/personas/{user_id}/run")
 def persona_run_state(user_id: int, request: Request, response: Response, db: Session = Depends(get_db_session)):
     """Whether a persona's run is still open. No sign-in: a persona whose session dropped asks this to

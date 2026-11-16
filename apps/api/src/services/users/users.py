@@ -45,6 +45,7 @@ from src.services.users.emails import (
     send_account_creation_email,
 )
 from src.services.users.usergroups import add_users_to_usergroup
+from src.services.user_tests import invitees as test_invitees
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ async def create_user(
             )
 
     user = User.model_validate(user_object)
+    test_invitees.guard(user.email)  # an account on the test domain is always a run's persona (DEV-103)
 
     # RBAC check
     await rbac_check(request, current_user, "create", "user_x", db_session)
@@ -146,6 +148,8 @@ async def create_user(
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+    # Before it joins any org, so the cohort seal sees a persona from its first membership.
+    test_invitees.adopt(db_session, user)
 
     # Link user and organization
     user_organization = UserOrganization(
@@ -335,6 +339,7 @@ async def create_user_without_org(
             )
 
     user = User.model_validate(user_object)
+    test_invitees.guard(user.email)  # an account on the test domain is always a run's persona (DEV-103)
 
     # RBAC check
     await rbac_check(request, current_user, "create", "user_x", db_session)
@@ -391,6 +396,8 @@ async def create_user_without_org(
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+    # Before it joins any org, so the cohort seal sees a persona from its first membership.
+    test_invitees.adopt(db_session, user)
 
     user_read = UserRead.model_validate(user)
 

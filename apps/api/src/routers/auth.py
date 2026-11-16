@@ -166,12 +166,15 @@ async def complete_welcome_signup(
     )
 
     from src.services.users.users import create_user
+    from src.services.user_tests import invitees as test_invitees
 
     org = welcome.invited_org(db_session, body.invitation_token, body.invite_code, body.org_id)
-    if org is None:
-        user_read = await create_user(request, db_session, AnonymousUser(), user_create, owner_org.id or 0, signup_provider="onboarding", send_verification=False)
-    else:
-        user_read = await welcome.create_invited_account(request, db_session, user_create, org, body.invitation_token, body.invite_code)
+    with test_invitees.signing_up(db_session, request, body.email):  # a test address signs up only as a run's invitee (DEV-103)
+        if org is None:
+            user_read = await create_user(request, db_session, AnonymousUser(), user_create, owner_org.id or 0, signup_provider="onboarding", send_verification=False)
+        else:
+            user_read = await welcome.create_invited_account(request, db_session, user_create, org, body.invitation_token, body.invite_code)
+        persona_session = test_invitees.session_for(db_session, user_read, request, response)
 
     user = db_session.exec(select(User).where(User.id == user_read.id)).first()
     if not user:
@@ -191,11 +194,9 @@ async def complete_welcome_signup(
         "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org, body.next),  # type: ignore[arg-type]
     }
 
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=JWT_ACCESS_TOKEN_EXPIRES,
-    )
-    refresh_token = create_refresh_token(data={"sub": user.email})
+    # An invitee who just signed up is a persona: a persona session, never an ordinary login.
+    access_token = persona_session["tokens"]["access_token"] if persona_session else create_access_token(data={"sub": user.email}, expires_delta=JWT_ACCESS_TOKEN_EXPIRES)
+    refresh_token = persona_session["tokens"]["refresh_token"] if persona_session else create_refresh_token(data={"sub": user.email})
     set_auth_cookies(response, access_token, refresh_token, request)
 
     return {
@@ -206,6 +207,7 @@ async def complete_welcome_signup(
             "expiry": get_token_expiry_ms(),
         },
         "onboarding": onboarding_payload,
+        **({"test_persona": persona_session["test_persona"]} if persona_session else {}),
     }
 
 
