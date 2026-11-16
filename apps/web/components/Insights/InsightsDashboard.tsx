@@ -132,7 +132,7 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   const pinFor = (card: DashboardCard) => draft ? undefined : pins.pinFor({ dashboard_uuid: dashboard.dashboard_uuid, card_key: card.key, scope_key: dashboard.scope === 'org' ? null : scopeKey })
   const { data: results, error } = useSWR(cards.length ? runKey : null,
     () => insightsApi.run(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
-  const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'framework')
+  const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'learner' || row.link.scope === 'framework')
     ? getUriWithOrg(orgslug, routePaths.org.admin.insightsScope(row.link.scope, row.link.key)) : null, [orgslug])
   const drillFor = (card: DashboardCard) => (key: string | null | undefined, title: string) => { if (key && !draft) setTarget({ title, spec: card.spec, drill: key }) }
   const change = (next: DashboardCard[]) => draft && setDraft({ ...draft, cards: next })
