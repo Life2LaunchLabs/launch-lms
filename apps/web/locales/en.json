@@ -5033,7 +5033,12 @@
       "use_the_email_that_received": "Use the email that received your invitation. New here? Create an account and your pending goal will be waiting.",
       "sign_in": "Sign in",
       "create_account": "Create account",
-      "goals_for_title": "Goals for {{title}}"
+      "goals_for_title": "Goals for {{title}}",
+      "your_school": "Your school",
+      "gave_you_plan": "{{school}} gave you {{plan}}",
+      "sign_in_to_accept": "You already have a Life2Launch account with the address this was sent to. Sign in to accept it. Never set a password? Set one now with that address.",
+      "sign_in_to_accept_button": "Sign in to accept",
+      "set_a_password": "Set a password"
     },
     "goal_path": {
       "help_me_with_title_in": "Help me with “{{title}}” in my goal “{{title2}}”.",

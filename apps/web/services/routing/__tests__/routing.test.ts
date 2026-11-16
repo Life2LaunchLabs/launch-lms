@@ -869,9 +869,13 @@ test('signing in on an org address without a learner site stays there (FEED-53)'
 test('after signing in on an org address, its staff land on its admin', () => {
   const base = { staffOrgSlugs: ['acme', 'other'], preference: {}, ownerOrgSlug: 'main' }
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: 'acme' }), { orgslug: 'acme', side: 'admin' })
-  // A learner of that org, or the main site, keep the remembered side.
+  // A learner of that org keeps the learner side.
   assert.deepEqual(signedInLanding({ ...base, staffOrgSlugs: [], hostOrgSlug: 'acme' }), { orgslug: 'main', side: 'learner' })
-  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'main', side: 'learner' })
+  // On the main site with nothing remembered, staff reach their school's admin (DEV-42, FEED-199)...
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'acme', side: 'admin' })
+  assert.deepEqual(signedInLanding({ ...base, staffOrgSlugs: ['main', 'acme'], hostOrgSlug: null }), { orgslug: 'acme', side: 'admin' })
+  // ...unless they last chose the learner side.
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'learner', orgslug: 'main' } }), { orgslug: 'main', side: 'learner' })
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'other' } }), { orgslug: 'other', side: 'admin' })
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'gone' } }), { orgslug: 'acme', side: 'admin' })
 })

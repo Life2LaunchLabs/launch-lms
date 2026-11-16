@@ -68,7 +68,9 @@ def _step_reviewed(approved: bool) -> Callable[[NotificationEvent, Organization 
 def _plan_assigned(event: NotificationEvent, org: Organization | None) -> Item:
     data = event.data
     plan, giver = data.get("plan_title") or "A new plan", (org.name if org else "") or "An organization"
-    return Item(line=f"{_e(giver)} gave you <b>{_e(plan)}</b> to start.", link=_org_path(org, "/plans"), link_label="See the plan",
+    # Opens Plans with this goal named, so signed out it says which school and plan it is (DEV-42).
+    link = _org_path(org, f"/plans?{urlencode({'invited': data['goal_uuid']})}") if data.get("goal_uuid") else _org_path(org, "/plans")
+    return Item(line=f"{_e(giver)} gave you <b>{_e(plan)}</b> to start.", link=link, link_label="See the plan",
                 subject=f"{giver} gave you {plan}")
 
 

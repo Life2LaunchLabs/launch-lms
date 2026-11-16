@@ -39,6 +39,12 @@ def api_plan_page(template_uuid: str, org_id: int | None = None, db: Session = D
     return plan_joining.plan_page(db, current_user, template_uuid, org_id)
 
 
+@router.get("/handed/{goal_uuid}")
+def api_handed_plan(goal_uuid: str, db: Session = Depends(get_db_session)):
+    """The school and plan named by a "gave you a plan" email, for the page before sign-in."""
+    return plan_joining.handed_plan(db, goal_uuid)
+
+
 @router.post("/plans/{template_uuid}/join")
 def api_join(template_uuid: str, payload: PlanJoin, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)):
     """Start an open plan, or ask to join one offered by request."""

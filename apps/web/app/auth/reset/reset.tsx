@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation'
 import { useFormik } from 'formik'
 import { resetPassword } from '@services/auth/auth'
 import { useTranslation } from 'react-i18next'
+import { errorDetailMessage } from '@/lib/errorDetail'
 import AuthLayout from '@components/Auth/AuthLayout'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 
@@ -82,7 +83,7 @@ function ResetPasswordClient({ org }: ResetPasswordClientProps) {
                 setShowMessage(true)
                 setIsSubmitting(false)
             } else {
-                setError(res.data.detail)
+                setError(errorDetailMessage(res.data, t('common.something_went_wrong')))
                 setShowMessage(true)
                 setIsSubmitting(false)
             }

@@ -22,6 +22,7 @@ import { goalsApi, goalsUrl, goalUrl } from '@services/goals/goals'
 import { lifeApi, lifeUrl } from '@services/life/life'
 import { can, goalSteps, type Goal, type GoalSummary } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
+import { planJoiningApi, type HandedPlan } from '@services/goals/planJoining'
 import GoalPath from './GoalPath'
 import GoalHeaderActions from './GoalHeaderActions'
 import { GoalCarousel, GoalHeaderCard, summaryHeader, type HeaderGoal } from './GoalHeader'
@@ -167,7 +168,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     setMotionState({ key: viewKey, dir: Math.sign(place(viewKey) - place(motionState.key)) || 1, still: Boolean(reduceMotion) })
   }
 
-  if (!token && session?.status !== 'loading') return <SignedOut orgslug={orgslug} />
+  if (!token && session?.status !== 'loading') return <SignedOut orgslug={orgslug} invited={searchParams.get('invited') || undefined} />
 
   const failed = (message: string, retry: () => void) => <div className="rounded-2xl border-2 border-border bg-card p-5" role="alert"><p className="text-sm">{message}</p><Button variant="surface" className="mt-3" onClick={retry}>{tr('goals.goals_workspace.try_again', 'Try again')}</Button></div>
   const ready = Boolean(detail) && detail!.goal_uuid === selectedUuid
@@ -250,8 +251,27 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   </GeneralWrapperStyled>
 }
 
-function SignedOut({ orgslug }: { orgslug: string }) {
-  const next = encodeURIComponent(getUriWithOrg(orgslug, '/plans'))
+/**
+ * Plans, signed out. Opened from a "gave you a plan" email (?invited=<goal>), it names the school
+ * and the plan and, since that email only goes to someone with an account, offers signing in or
+ * setting a password rather than a sign-up that would say the email already exists (DEV-42).
+ */
+function SignedOut({ orgslug, invited }: { orgslug: string; invited?: string }) {
+  const back = getUriWithOrg(orgslug, invited ? `/plans?${new URLSearchParams({ invited })}` : '/plans')
+  const next = encodeURIComponent(back)
+  const { data: handed } = useSWR<HandedPlan>(invited ? ['handed-plan', invited] : null, () => planJoiningApi.handed(invited!), { shouldRetryOnError: false, revalidateOnFocus: false })
+  if (invited && handed) {
+    const school = handed.org_name || tr('goals.goals_workspace.your_school', 'Your school')
+    return <GeneralWrapperStyled><div className="py-24 text-center">
+      <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{school}</p>
+      <h1 className="mt-2 text-3xl font-extrabold">{tr('goals.goals_workspace.gave_you_plan', '{{school}} gave you {{plan}}', { school, plan: handed.plan_title })}</h1>
+      <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{tr('goals.goals_workspace.sign_in_to_accept', 'You already have a Life2Launch account with the address this was sent to. Sign in to accept it. Never set a password? Set one now with that address.')}</p>
+      <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <Button asChild variant="brand"><Link href={`/login?next=${next}`}>{tr('goals.goals_workspace.sign_in_to_accept_button', 'Sign in to accept')}</Link></Button>
+        <Button asChild variant="surface"><Link href="/forgot">{tr('goals.goals_workspace.set_a_password', 'Set a password')}</Link></Button>
+      </div>
+    </div></GeneralWrapperStyled>
+  }
   return <GeneralWrapperStyled><div className="py-24 text-center">
     <h1 className="text-3xl font-extrabold">{tr('goals.goals_workspace.sign_in_to_see_your', 'Sign in to see your goals')}</h1>
     <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{tr('goals.goals_workspace.use_the_email_that_received', 'Use the email that received your invitation. New here? Create an account and your pending goal will be waiting.')}</p>
