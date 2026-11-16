@@ -20,6 +20,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
+import LegalAgreement from '@components/Legal/LegalAgreement'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -184,7 +185,8 @@ function OpenSignUpComponent({
       window.sessionStorage.setItem(welcomeSignupNamesKey(email), JSON.stringify(names))
       // An invitation or join link rides along, so the new account joins that organization.
       const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
-      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
+      const next = nextUrl ? `&next=${encodeURIComponent(nextUrl)}` : '' // e.g. the plan invitation that sent them here, after their first phase
+      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}${next}`)
       return
     }
     setStep('details')
@@ -279,17 +281,7 @@ function OpenSignUpComponent({
             </form>
           </div>
 
-          <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
-            {t('auth.agree_prefix')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.terms_of_service')}
-            </span>{' '}
-            {t('auth.agree_and')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.privacy_policy')}
-            </span>
-            {t('auth.agree_suffix')}
-          </p>
+          <LegalAgreement className="mt-5" />
 
           <p className="mt-14 text-[15px] text-gray-600">
             {t('auth.already_have_account')}{' '}

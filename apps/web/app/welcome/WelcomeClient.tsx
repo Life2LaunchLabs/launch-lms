@@ -40,6 +40,7 @@ export default function WelcomeClient() {
               invitation_token: searchParams.get('invitation') || undefined,
               invite_code: searchParams.get('inviteCode') || undefined,
               org_id: Number(searchParams.get('org')) || undefined,
+              next: searchParams.get('next') || undefined,
             }),
           })
           const data = await res.json().catch(() => null)

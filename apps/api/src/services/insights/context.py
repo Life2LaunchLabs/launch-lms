@@ -214,7 +214,7 @@ def objects(db: Session, pop: Population, kind: str) -> list[dict]:
             if int(user_id) in pop.status:
                 members.setdefault(int(group_id), set()).add(int(user_id))
         groups = db.exec(select(UserGroup).where(UserGroup.org_id == pop.org_id)).all()
-        rows = [{"key": group.usergroup_uuid, "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
+        rows = [{"key": group.usergroup_uuid, "id": int(group.id), "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
                 for group in groups if pop.see_reports or int(group.id) in members]  # type: ignore[arg-type]
     elif kind == "learner":
         return _learner_objects(db, pop)
@@ -272,6 +272,14 @@ class Ctx:
     def everyone(self) -> set[int]:
         """Every learner the viewer may count, alumni included; filters pick from these."""
         return set(self.pop.status)
+
+    def learner_uuids(self) -> dict[int, str]:
+        """Each counted learner's user uuid, the key of the learner breakdown and their dashboard."""
+        def load() -> dict[int, str]:
+            people = self.everyone()
+            rows = self.db.exec(select(User.id, User.user_uuid).where(col(User.id).in_(people))).all() if people else []
+            return {int(user_id): uuid for user_id, uuid in rows}
+        return self.once("learner_uuids", load)
 
     def groups_of(self) -> dict[int, list[str]]:
         """Each learner's group uuids in this organization."""

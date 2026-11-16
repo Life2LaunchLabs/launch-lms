@@ -284,6 +284,9 @@ export const connectApi = {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share, staff_only: options.staffOnly || undefined,
   }),
   plans: (token?: string) => request<ChatTopic[]>(connectKeys.plans(), token),
+  /** The chat holding your invitation to a plan (404 when it was sent to another address). */
+  invitation: (invitationUuid: string, token?: string) =>
+    request<{ conversation_uuid: string; message_uuid: string; state: string }>(connectUrl(`/invitations/${q(invitationUuid)}`), token),
   /** Cheer a message, or take your cheer back. */
   react: (uuid: string, messageUuid: string, token?: string, emoji = '👏') =>
     request<{ message_uuid: string; reactions: Reaction[] }>(connectUrl(`/chats/${q(uuid)}/messages/${q(messageUuid)}/reactions`), token, 'POST', { emoji }),

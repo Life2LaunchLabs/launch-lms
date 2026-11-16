@@ -421,3 +421,15 @@ async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session:
     with pytest.raises(Exception) as exc_info:
         await auth_router.complete_welcome_signup(request, Response(), unknown, session)
     assert getattr(exc_info.value, "status_code", None) == 403
+
+
+@pytest.mark.parametrize(("next_path", "expected"), [
+    (None, "/orgs/home/first-phase"),
+    ("/orgs/school/connect/invitation/plan_invitation_1", "/orgs/home/first-phase?next=%2Forgs%2Fschool%2Fconnect%2Finvitation%2Fplan_invitation_1"),
+    ("//evil.example/x", "/orgs/home/first-phase"),
+    ("https://evil.example/x", "/orgs/home/first-phase"),
+])
+def test_a_new_learner_from_a_plan_invitation_lands_on_it_after_their_first_phase(next_path, expected):
+    from src.routers.auth import _portfolio_redirect_url
+
+    assert _portfolio_redirect_url(Organization(id=1, name="Home", slug="home", email="h@example.com", org_uuid="org_home"), next_path) == expected

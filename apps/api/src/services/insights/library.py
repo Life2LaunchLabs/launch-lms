@@ -72,6 +72,7 @@ TEMPLATES: list[dict] = [
         card("status", 5, "learner_status"),
         card("active_weeks", 7, "active_learners", by="time"),
         card("plans", 12, "completion_rate", by="plan"),
+        card("learners", 12, "plan_progress", by="learner"),
     ]},
     {"key": "group.weekly", "scope": "group", "title": "Weekly check-in", "description": "Who needs a look this week.", "cards": [
         card("status", 6, "learner_status"),
@@ -112,6 +113,7 @@ STARTERS = ("org.overview", "plan.performance", "group.progress", "learner.overv
 QUESTIONS: list[dict] = [
     {"key": "active_weekly", "text": "How many learners are active each week?", "spec": {"measure": "active_learners", "by": "time", "compare": "year"}},
     {"key": "who_needs_a_look", "text": "Who is on track, behind or quiet?", "spec": {"measure": "learner_status"}},
+    {"key": "learner_progress", "text": "How far along is each learner?", "spec": {"measure": "plan_progress", "by": "learner"}},
     {"key": "groups_on_track", "text": "Which groups are most on track?", "spec": {"measure": "learner_status", "by": "group"}},
     {"key": "plans_finish", "text": "Which plans finish most often?", "spec": {"measure": "completion_rate", "by": "plan"}},
     {"key": "completion", "text": "What share of started plans finish?", "spec": {"measure": "completion_rate"}},

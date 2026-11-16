@@ -177,7 +177,7 @@ export function resolveRequestRouting(
     }
   }
 
-  if (pathname === '/welcome' || pathname === '/data') {
+  if (pathname === '/welcome' || pathname === '/data' || pathname === '/privacy' || pathname === '/terms') {
     return {
       action: 'next',
     }
@@ -295,6 +295,12 @@ export function resolveRequestRouting(
   }
 
   if (!input.hasSession && route.kind === 'protected') {
+    // An invitation link from an email comes back after signing in, instead of losing itself on the front page.
+    if (/^\/connect\/invitation\/[^/]+$/.test(pathname)) {
+      const login = new URL('/login', input.requestUrl)
+      login.searchParams.set('next', `${pathname}${search}`)
+      return { action: 'redirect', destination: login.toString() }
+    }
     return {
       action: 'redirect',
       destination: new URL('/', input.requestUrl).toString(),

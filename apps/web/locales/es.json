@@ -316,7 +316,7 @@
     "continue": "Continuar",
     "sign_in": "Iniciar sesión",
     "agree_prefix": "Al continuar, aceptas los",
-    "terms_of_service": "Términos de servicio",
+    "terms_of_service": "Términos de uso",
     "agree_and": "y la",
     "privacy_policy": "Política de privacidad",
     "agree_suffix": " de Life2Launch.",
@@ -333,6 +333,12 @@
     "age_confirm": "Tengo 15 años o más",
     "email_verification_required": "Verifica tu correo",
     "email_verification_required_join": "Verifica tu correo antes de unirte a una organización. Busca el correo de verificación en tu bandeja de entrada."
+  },
+  "legal": {
+    "privacy_policy": "Política de privacidad",
+    "terms_of_use": "Términos de uso",
+    "student_data": "Datos de estudiantes",
+    "footer_label": "Avisos legales"
   },
   "validation": {
     "required": "Obligatorio",

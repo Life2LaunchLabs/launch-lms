@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { ChatMessage, ChatTopic, InvitationCard, MessageRef, ProgressCard, StepReminderCard } from '@services/connect/connect'
 import type { GroupReportCard } from '@services/goals/reports'
-import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import { goalsApi } from '@services/goals/goals'
 import { messagesApi } from '@services/messages/messages'
 import { openOrgPage } from '@services/auth/handoff'
@@ -199,9 +198,9 @@ function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; w
   </div>
 }
 
-/** A group's progress report a colleague sent. It opens the live report, so it stays current. */
+/** A group's progress report a colleague sent before reports moved to Insights. It opens the group's dashboard, so it stays current. */
 function ReportView({ card, who, orgslug, time }: { card: GroupReportCard; who: string; orgslug: string; time: string }) {
-  const href = getUriWithOrg(card.org_slug || orgslug, insightsRoutes.report(card.usergroup_id, card.frameworks || []))
+  const href = getUriWithOrg(card.org_slug || orgslug, routePaths.org.admin.insightsScope('group', String(card.usergroup_id)))
   const { summary } = card
   return <Link href={href} className="block w-full max-w-[380px] rounded-2xl bg-background p-3.5 transition-colors hover:bg-muted/60">
     <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--org-primary-color)]"><BarChart3 size={14} aria-hidden="true" />{tr('connect.chat_cards.progress_report', 'Progress report')}<span className="ml-auto font-normal normal-case tracking-normal text-muted-foreground">{time}</span></span>
@@ -213,7 +212,7 @@ function ReportView({ card, who, orgslug, time }: { card: GroupReportCard; who: 
       <span><b className="text-foreground">{summary.behind_count}</b>{' '}{tr('connect.chat_cards.behind', 'behind')}</span>
       <span><b className="text-foreground">{summary.badges_earned}</b>{' '}{tr('connect.chat_cards.badge', 'badge')}{summary.badges_earned === 1 ? '' : 's'}{' '}{tr('connect.chat_cards.earned', 'earned')}</span>
     </span>
-    <span className="mt-2 block text-xs font-semibold text-foreground">Open report &rarr;</span>
+    <span className="mt-2 block text-xs font-semibold text-foreground">Open group dashboard &rarr;</span>
   </Link>
 }
 

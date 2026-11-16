@@ -76,7 +76,7 @@ export default function FirstPhaseFlow() {
   const fileInput = React.useRef<HTMLInputElement>(null)
   const next = params.get('next')
   // A career chosen before there was a plan waits for the map: the new phase opens it, holding that career's route.
-  const home = (id?: string) => (next && next.startsWith('/') ? next : getUriWithOrg(org?.slug, id && routeWaiting() ? `${routePaths.org.plans()}?map&hold=1` : id ? routePaths.org.phase(id) : routePaths.org.plans()))
+  const home = (id?: string) => (next && next.startsWith('/') && !next.startsWith('//') ? next : getUriWithOrg(org?.slug, id && routeWaiting() ? `${routePaths.org.plans()}?map&hold=1` : id ? routePaths.org.phase(id) : routePaths.org.plans()))
 
   // Someone who already has a plan doesn't need this.
   React.useEffect(() => { if (!isLoading && doc?.phases?.length && !busy) router.replace(home()) }, [isLoading, doc, busy]) // eslint-disable-line react-hooks/exhaustive-deps

@@ -318,7 +318,7 @@
     "continue": "Continue",
     "sign_in": "Sign in",
     "agree_prefix": "By continuing, you agree to Life2Launch’s",
-    "terms_of_service": "Terms of Service",
+    "terms_of_service": "Terms of Use",
     "agree_and": "and",
     "privacy_policy": "Privacy Policy",
     "agree_suffix": ".",
@@ -333,6 +333,12 @@
     "name_you_go_by_help": "What people see in Life2Launch. Leave it empty to use your first name.",
     "name_you_go_by_placeholder": "e.g. Sam",
     "optional": "(optional)"
+  },
+  "legal": {
+    "privacy_policy": "Privacy Policy",
+    "terms_of_use": "Terms of Use",
+    "student_data": "Student data",
+    "footer_label": "Legal"
   },
   "validation": {
     "required": "Required",

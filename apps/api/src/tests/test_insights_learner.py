@@ -105,3 +105,15 @@ def test_the_switcher_lists_the_viewers_active_learners_with_their_groups(db):
     everyone = context.objects(db, context.population(db, _user(ADMIN), 1), "learner")
     assert len(everyone) == 11 and everyone[0] == {"key": "user_10", "label": "Learner 10", "learners": 1, "detail": "Fall"}  # alumnus 21 left out
     assert {item["key"] for item in context.objects(db, context.population(db, _user(ANA), 1), "learner")} == {f"user_{uid}" for uid in range(10, 16)}
+
+
+def test_progress_by_learner_names_each_learner_and_opens_their_dashboard(db):
+    # The old group report's table: a row per learner, named as in the switcher, opening their own dashboard.
+    ctx = engine.context(db, _user(ADMIN), 1, "plan", "tpl_cl", today=TODAY)
+    result = engine.run(ctx, CardSpec.model_validate({"measure": "plan_progress", "by": "learner"}), "all")
+    rows = {row["key"]: row for row in result["rows"]}
+    assert LEARNER in rows and rows[LEARNER]["v"] == 0.5 and rows[LEARNER]["n"] == 2
+    assert all(row["link"] == {"scope": "learner", "key": row["key"]} for row in result["rows"])
+    assert all(row["label"] and not row["label"].startswith("user_") for row in result["rows"])
+    people = engine.drill(ctx, CardSpec.model_validate({"measure": "plan_progress", "by": "learner"}), rows[LEARNER]["drill"])
+    assert [person["user_uuid"] for person in people["people"]] == [LEARNER]

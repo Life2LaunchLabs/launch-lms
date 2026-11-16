@@ -4,7 +4,8 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { redeemLoginLink } from '@services/userTests/userTests'
 import { authenticatedOrgHref } from '@services/auth/handoff'
-import { getUriWithOrg } from '@services/config/config'
+import { getConfig, getUriWithOrg } from '@services/config/config'
+import { testerSurfaceEnabled } from '@/lib/testerSurfaces'
 
 /** Spends a one-use login link an admin made in Platform › User tests, then goes to its page. */
 function TestEntryInner() {
@@ -46,5 +47,14 @@ function TestEntryInner() {
 }
 
 export default function TestEntryPage() {
+  // Test login links exist only where user tests are on; production says so and spends nothing (DEV-27).
+  if (!testerSurfaceEnabled('userTests', getConfig)) {
+    return <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+      <div className="max-w-md text-center">
+        <h1 className="mb-2 text-xl font-semibold text-gray-800">Page not found</h1>
+        <p className="text-gray-600">There is nothing at this address.</p>
+      </div>
+    </main>
+  }
   return <Suspense fallback={null}><TestEntryInner /></Suspense>
 }
