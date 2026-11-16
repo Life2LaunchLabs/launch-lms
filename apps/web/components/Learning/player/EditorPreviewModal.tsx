@@ -4,7 +4,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import { buildActivityDocument, createLearningPreview } from '@services/learning/activityDocuments'
-import { ActivityPreview } from './ActivityPreview'
+import { ActivityPreview, type PreviewEvent } from './ActivityPreview'
 
 // Previews exactly what is on screen in the editor (including edits that are
 // still autosaving) through the same preview session and player used by
@@ -16,7 +16,10 @@ export const PREVIEW_SCRIM_CLASS = 'bg-background/95 text-foreground backdrop-bl
 // context, under the admin's sticky phone top bar, which hid its Close and Restart.
 export const PREVIEW_LAYER_CLASS = 'fixed inset-0 z-[var(--z-modal)]'
 
-export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void }) {
+// `inline` keeps it where it is rendered instead: inside another dialog (a plan's Preview), a layer on
+// <body> counts as outside that dialog, which takes its clicks and focus away.
+// eslint-disable-next-line no-unused-vars
+export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEvent, inline = false }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void; onEvent?: (event: PreviewEvent) => void; inline?: boolean }) {
   const [token, setToken] = React.useState<string | null>(null)
   const [problems, setProblems] = React.useState<Array<{ path: string; message: string }> | null>(null)
   const [message, setMessage] = React.useState<string | null>(null)
@@ -40,7 +43,7 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { 
   const dialog = (
     <div className={`${PREVIEW_LAYER_CLASS} flex flex-col p-4 sm:p-6 ${PREVIEW_SCRIM_CLASS}`} role="dialog" aria-modal="true" aria-label="Activity preview">
       {token ? (
-        <ActivityPreview token={token} onClose={onClose} />
+        <ActivityPreview token={token} onClose={onClose} onEvent={onEvent} />
       ) : (
         <div className="m-auto w-full max-w-md rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl">
           <div className="flex items-start gap-3">
@@ -66,5 +69,5 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { 
     </div>
   )
   // Opened only from a click, so there is always a document; the server render (tests) stays inline.
-  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
+  return inline || typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
 }
