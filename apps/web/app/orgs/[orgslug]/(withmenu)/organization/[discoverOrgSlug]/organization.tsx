@@ -48,7 +48,7 @@ function YouAndOrg({ organization, token }: { organization: DiscoverOrganization
   }
   return <section aria-labelledby="you-and-org" className="flex flex-col gap-4 rounded-[28px] bg-card p-6 nice-shadow md:p-7">
     <h2 id="you-and-org" className="m-0 text-xl font-extrabold tracking-tight">{tr('organizations.page.you_and_name', 'You and {{name}}', { name: organization.name })}</h2>
-    <YourRelationship orgId={organization.id} token={token} showStaff={false} />
+    <YourRelationship orgId={organization.id} token={token} showStaff={false} staffHref={authenticatedOrgHref(getUriWithOrg(organization.slug, routePaths.org.admin.root()), Boolean(token))} />
     {isLoading ? <div className="flex flex-col gap-3" role="status" aria-label="Loading"><ListRowSkeleton /><ListRowSkeleton /></div> : goals.length ? <div className="flex flex-col gap-3">{goals.map((item) => {
       const invited = item.status === 'pending'
       const status = invited ? tr('organizations.page.invited', 'Invited') : item.assignment.status !== 'ended' ? tr('organizations.page.active', 'Active') : tr('organizations.page.completed', 'Completed')

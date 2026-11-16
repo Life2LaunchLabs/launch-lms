@@ -28,9 +28,11 @@ const validate = (values: any, t: any) => {
 
 interface ForgotPasswordClientProps {
     org: any
+    /** Opened from "Set a password": the same email, worded for someone who never had a password. */
+    setPassword?: boolean
 }
 
-function ForgotPasswordClient({ org }: ForgotPasswordClientProps) {
+function ForgotPasswordClient({ org, setPassword = false }: ForgotPasswordClientProps) {
     const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [error, setError] = React.useState('')
@@ -62,7 +64,7 @@ function ForgotPasswordClient({ org }: ForgotPasswordClientProps) {
     })
 
     return (
-        <AuthLayout org={org} welcomeText={t('auth.reset_your_password')}>
+        <AuthLayout org={org} welcomeText={setPassword ? t('auth.set_password_welcome') : t('auth.reset_your_password')}>
                 {/* Message Top Bar */}
                 {showMessage && (error || message) && (
                     <div className={`
@@ -86,8 +88,8 @@ function ForgotPasswordClient({ org }: ForgotPasswordClientProps) {
                     <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
                         {/* Header */}
                         <div className="mb-8">
-                            <h1 className="text-2xl font-bold text-gray-900">{t('auth.forgot_password_title')}</h1>
-                            <p className="text-gray-500 mt-1">{t('auth.forgot_password_description')}</p>
+                            <h1 className="text-2xl font-bold text-gray-900">{setPassword ? t('auth.set_password_title') : t('auth.forgot_password_title')}</h1>
+                            <p className="text-gray-500 mt-1">{setPassword ? t('auth.set_password_description') : t('auth.forgot_password_description')}</p>
                         </div>
 
                         {/* Form Card */}
