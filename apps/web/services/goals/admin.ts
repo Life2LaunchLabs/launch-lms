@@ -1,7 +1,7 @@
 import type { BadgeSummary } from '@services/badges/badges'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
-import type { GoalStatus, StepResult, StepStatus, StepTypeKey } from './types'
+import type { GoalStatus, PortfolioPart, PortfolioStepItem, StepResult, StepStatus, StepTypeKey } from './types'
 import type { AssignmentVersionStatus } from './versionStatus'
 
 const q = encodeURIComponent
@@ -14,7 +14,8 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
 export const goalAdminUrl = (path: string, orgId: number) => `${getAPIUrl()}goal-admin${path}${path.includes('?') ? '&' : '?'}org_id=${orgId}`
 
 /** A person as staff views return them. */
-export interface StaffPerson { id: number; username?: string; first_name?: string; last_name?: string; avatar_image?: string | null; user_uuid?: string }
+/** `name`, when sent, is the name the person goes by (review items); rosters send only the legal name. */
+export interface StaffPerson { id: number; username?: string; first_name?: string; last_name?: string; avatar_image?: string | null; user_uuid?: string; name?: string }
 export interface StaffNoteView { note_uuid?: string; user_id?: number | null; message: string; created_at: string; author?: StaffPerson | null }
 type AssignmentContext = { assignment_uuid: string | null; template: { template_uuid: string; title: string } | null; group: { id: number; name: string } | null }
 
@@ -44,6 +45,8 @@ export interface ReviewItem {
   entries: ReviewEntry[]
   submission: Record<string, any>
   answer: string
+  /** A counting portfolio step: what it needs and the items that count, hidden ones left out. */
+  portfolio?: { part: PortfolioPart; filter: string | null; needed: number; have: number; items: PortfolioStepItem[] } | null
   result: StepResult | null
   learner_note: string
   feedback_history: Array<{ message: string; action?: string; created_at?: string }>

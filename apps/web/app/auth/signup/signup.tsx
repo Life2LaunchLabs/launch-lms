@@ -16,6 +16,7 @@ import AskToJoin from './AskToJoin'
 import InviteCard, { usePrefillInvitedEmail, useInvitePreview } from './InviteCard'
 import type { InvitePreview } from '@services/organizations/invites'
 import { invitationSiteSlug } from '@services/routing/inviteSite'
+import { shownName } from '@/lib/names'
 
 interface SignUpClientProps {
   org: any
@@ -240,7 +241,7 @@ const LoggedInJoinScreen = ({ inviteCode, invitationToken, org, preview }: JoinS
               <div className="flex items-center gap-3">
                 <UserAvatar rounded="rounded-xl" border="border-2" width={48} />
                 <div>
-                  <p className="font-medium text-gray-900">{session.data?.user?.first_name} {session.data?.user?.last_name}</p>
+                  <p className="font-medium text-gray-900">{shownName(session.data?.user)}</p>
                   <p className="text-sm text-gray-500">@{session.data?.user?.username}</p>
                 </div>
               </div>

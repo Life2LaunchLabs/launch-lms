@@ -13,8 +13,9 @@ const BOX: Record<Size, string> = { sm: 'h-6 w-6', md: 'h-8 w-8', lg: 'h-11 w-11
 const ICON: Record<Size, number> = { sm: 13, md: 17, lg: 22 }
 
 /** A person's avatar on the assignments screens. */
-export function PersonTile({ person, size = 'md' }: { person: AssignmentPerson | null | undefined; size?: Size }) {
-  return <PersonAvatar user={person ? { ...person, name: personLabel(person) } as any : null} size={size === 'lg' ? 'lg' : size === 'md' ? 'md' : 'sm'} />
+/** `name` overrides the roster's legal name, for places that show the name someone goes by. */
+export function PersonTile({ person, size = 'md', name }: { person: AssignmentPerson | null | undefined; size?: Size; name?: string }) {
+  return <PersonAvatar user={person ? { ...person, name: name || personLabel(person) } as any : null} size={size === 'lg' ? 'lg' : size === 'md' ? 'md' : 'sm'} />
 }
 
 /** Who an assignment went to, as a tile: a group, a person, or an email invitation not yet taken up. */

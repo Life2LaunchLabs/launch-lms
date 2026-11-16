@@ -2,8 +2,10 @@
 
 import React from 'react'
 import DOMPurify from 'dompurify'
-import { CheckCircle2, Download, ExternalLink, FileText } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Download, ExternalLink, FileText } from 'lucide-react'
 import type { ReviewEntry, ReviewItem } from '@services/goals/admin'
+import type { PortfolioStepItem } from '@services/goals/types'
+import { ItemDialog, ItemThumb, portfolioAsk } from '@components/Goals/steps/portfolio'
 import { cn } from '@/lib/utils'
 import { personName } from './ui'
 
@@ -11,13 +13,21 @@ const isPdf = (entry: ReviewEntry) => String(entry.mime_type || '').includes('pd
 const isImage = (entry: ReviewEntry) => String(entry.mime_type || '').startsWith('image') || /\.(png|jpe?g|gif|webp|avif)($|\?)/i.test(entry.url || '')
 const isVideo = (entry: ReviewEntry) => String(entry.mime_type || '').startsWith('video') || /\.(mp4|webm|mov)($|\?)/i.test(entry.url || '')
 
+/**
+ * The learner's own words on a step, whole: a task's answer, else a write-up. A step's `result` text is a
+ * short preview for cards, so it is only the last resort (DEV-135).
+ */
+export function handedInText(item: ReviewItem): string {
+  return item.answer || String(item.submission?.text || '') || (item.result?.kind === 'text' ? item.result.text : '')
+}
+
 type Part = { key: string; title: string; render: () => React.ReactNode; url?: string }
 
 /** What the learner handed in for a step: files one at a time, their writing, links, list items or their choice. */
 export default function ReviewEvidence({ item, confirmOnly }: { item: ReviewItem; confirmOnly: boolean }) {
   const parts = React.useMemo(() => evidenceParts(item), [item])
   const [active, setActive] = React.useState(0)
-  if (confirmOnly || !parts.length) return <div className="flex h-full items-center justify-center p-8"><div className="max-w-sm rounded-xl bg-white p-6 text-center"><CheckCircle2 className="mx-auto text-gray-300" size={32} /><p className="mt-3 text-sm font-black text-gray-900">Nothing to hand in</p><p className="mt-1 text-xs leading-5 text-gray-500">{confirmOnly ? `Confirm this step if ${personName(item.user)} did it.` : `${personName(item.user)} marked this done. Approve it if they did it.`}</p></div></div>
+  if ((confirmOnly && !item.portfolio?.items.length) || !parts.length) return <div className="flex h-full items-center justify-center p-8"><div className="max-w-sm rounded-xl bg-white p-6 text-center"><CheckCircle2 className="mx-auto text-gray-300" size={32} /><p className="mt-3 text-sm font-black text-gray-900">Nothing to hand in</p><p className="mt-1 text-xs leading-5 text-gray-500">{confirmOnly ? `Confirm this step if ${personName(item.user)} did it.` : `${personName(item.user)} marked this done. Approve it if they did it.`}</p></div></div>
   const part = parts[Math.min(active, parts.length - 1)]
   return <div className="flex h-full min-h-[420px] flex-col">
     <div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-3 py-1.5 text-xs">
@@ -38,7 +48,9 @@ function evidenceParts(item: ReviewItem): Part[] {
   if (links.length) parts.push({ key: 'links', title: links.length === 1 ? 'Link' : `${links.length} links`, render: () => <ul className="mx-auto max-w-2xl space-y-2">{links.map((link) => <li key={link.entry_uuid}><a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-xl bg-white p-4 text-sm font-bold text-blue-700"><ExternalLink size={14} /><span className="truncate">{link.title || link.url}</span></a></li>)}</ul> })
   const items = item.entries.filter((row) => row.kind === 'item')
   if (items.length) parts.push({ key: 'items', title: 'List', render: () => <ul className="mx-auto max-w-2xl space-y-1.5">{items.map((row) => <li key={row.entry_uuid} className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-sm"><span className={cn('h-2.5 w-2.5 rounded-full', row.done ? 'bg-green-600' : 'bg-gray-300')} />{row.url ? <a href={row.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-700">{row.title || row.url}</a> : <span>{row.title}</span>}{row.note ? <span className="text-xs text-gray-500">{row.note}</span> : null}</li>)}</ul> })
-  const text = item.answer || (item.result?.kind === 'text' ? item.result.text : '') || String(item.submission?.text || '')
+  const counted = item.portfolio
+  if (counted?.items.length) parts.push({ key: 'portfolio', title: `${portfolioAsk({ part: counted.part, count: counted.needed, filter: counted.filter || undefined })} · ${counted.have} counted`, render: () => <PortfolioItems items={counted.items} /> })
+  const text = handedInText(item)
   if (text) parts.push({ key: 'text', title: 'Writing', render: () => <article className="mx-auto max-w-2xl rounded-xl bg-white p-7 text-[15px] leading-7 text-gray-900">{text.includes('<') ? <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text) }} /> : <p className="whitespace-pre-wrap">{text}</p>}</article> })
   if (item.result?.kind === 'choice') {
     const choice = item.result
@@ -49,6 +61,26 @@ function evidenceParts(item: ReviewItem): Part[] {
     parts.push({ key: 'rsvp', title: 'RSVP', render: () => <div className="mx-auto max-w-md rounded-xl bg-white p-6 text-center text-sm font-bold">Replied “{rsvp}”</div> })
   }
   return parts
+}
+
+/** The portfolio items a counting step counts, each opening in full (DEV-134). Items the learner hid never reach staff. */
+function PortfolioItems({ items }: { items: PortfolioStepItem[] }) {
+  const [opened, setOpened] = React.useState<PortfolioStepItem | null>(null)
+  return <>
+    <ul className="mx-auto flex max-w-2xl flex-col gap-1.5">
+      {items.map((entry) => <li key={entry.key}>
+        <button type="button" onClick={() => setOpened(entry)} className="flex w-full items-center gap-3 rounded-xl bg-white p-2.5 text-left text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400">
+          <ItemThumb item={entry} />
+          <span className="min-w-0 flex-1">
+            <span className="line-clamp-2 break-words text-sm font-bold">{entry.title}</span>
+            <span className="block truncate text-xs text-gray-500">{[entry.subtitle, entry.date].filter(Boolean).join(' · ') || 'Open it'}</span>
+          </span>
+          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-gray-400" />
+        </button>
+      </li>)}
+    </ul>
+    <ItemDialog item={opened} onClose={() => setOpened(null)} />
+  </>
 }
 
 function FileView({ entry }: { entry: ReviewEntry }) {

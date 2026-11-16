@@ -350,7 +350,7 @@ def assignment_step_work(db: Session, current_user: PublicUser, org_id: int, ass
         if not step:
             continue
         item = review_item(db, goal, step, completion.progress_view(db, step))
-        if item["entries"] or item["submission"] or item["answer"] or item["result"] or item["learner_note"]:
+        if item["entries"] or item["submission"] or item["answer"] or item["result"] or item["learner_note"] or (item["portfolio"] or {}).get("items"):
             items.append(item)
     items.sort(key=lambda item: str(item["submitted_at"] or ""), reverse=True)
     return {"assignment_uuid": assignment_uuid, "step_key": step_key, "items": items}
