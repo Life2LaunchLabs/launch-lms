@@ -133,7 +133,8 @@ const LoginClient = (props: LoginClientProps) => {
 
   const formik = useFormik({
     initialValues: {
-      email: '',
+      // Filled in when an invitation sends someone who already has an account here (DEV-42, FEED-285).
+      email: searchParams.get('email') || '',
       password: '',
     },
     validate,

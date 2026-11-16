@@ -3,7 +3,8 @@ import { authenticatedOrgHref } from '@services/auth/handoff'
 import { errorDetailMessage } from '@/lib/errorDetail'
 import { useFormik } from 'formik'
 import SignupNames, { welcomeSignupNamesKey } from './SignupNames'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import AccountExistsNotice, { inviteLoginHref } from './AccountExistsNotice'
 import React from 'react'
 import FormLayout, { FormField, FormLabelAndMessage, Input, Textarea } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
@@ -80,6 +81,8 @@ function OpenSignUpComponent({
   const nextUrl = searchParams.get('next') || searchParams.get('redirect')
   const inviteCode = searchParams.get('inviteCode')
   const invitationToken = searchParams.get('invitation')
+  const pathname = usePathname()
+  const [accountExists, setAccountExists] = React.useState(false)
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl = postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : '/')
   const formik = useFormik({
@@ -147,6 +150,7 @@ function OpenSignUpComponent({
     e.preventDefault()
     setError('')
     setEmailError('')
+    setAccountExists(false)
 
     const email = formik.values.email.trim()
     if (!age.ok()) return
@@ -178,6 +182,12 @@ function OpenSignUpComponent({
           body: JSON.stringify({ email }),
         })
         const data = await res.json().catch(() => null)
+        if (res.status === 409 && (invitationToken || inviteCode)) {
+          // Already has an account: log in and come back to this invitation (DEV-42, FEED-284).
+          setAccountExists(true)
+          setIsSubmitting(false)
+          return
+        }
         if (!res.ok) {
           setEmailError(errorDetailMessage(data, t('auth.signup_failed')))
           setIsSubmitting(false)
@@ -218,6 +228,9 @@ function OpenSignUpComponent({
     }
   }
 
+  // With an invitation or join link, Login comes back to it with the email filled in (FEED-285).
+  const inviteLogin = invitationToken || inviteCode ? inviteLoginHref(pathname, searchParams.toString(), formik.values.email.trim()) : null
+
   if (step === 'email' && !createOrgMode) {
     return (
       <div className="flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10">
@@ -226,6 +239,8 @@ function OpenSignUpComponent({
           <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950">
             {t('auth.create_free_account')}
           </h1>
+
+          {accountExists && inviteLogin ? <div className="mt-8"><AccountExistsNotice loginHref={inviteLogin} /></div> : null}
 
           {error && (
             <div className="mt-8 flex items-center gap-3 rounded-2xl bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-800 ring-1 ring-red-100">
@@ -296,7 +311,7 @@ function OpenSignUpComponent({
           <p className="mt-14 text-[15px] text-gray-600">
             {t('auth.already_have_account')}{' '}
             <Link
-              href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+              href={inviteLogin || (nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login')}
               className="font-semibold text-gray-950 hover:underline"
             >
               {t('auth.login')}
@@ -469,7 +484,7 @@ function OpenSignUpComponent({
           </button>
         ) : (
           <Link
-            href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+            href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : inviteLogin || (nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login')}
             className="font-semibold text-gray-900 hover:underline"
           >
             {t('auth.login')}
