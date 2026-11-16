@@ -69,6 +69,7 @@ export default function FirstPhaseFlow() {
     return { place: null, living: null, activities: [], purpose: '', starts: `${fall}-09`, title: '', titleTouched: false, cover: null }
   })
   const [addingAct, setAddingAct] = React.useState(true)
+  const [actDraft, setActDraft] = React.useState<Activity | null>(null)
   const [goals, setGoals] = React.useState<string[]>([])
   const [own, setOwn] = React.useState('')
   const [busy, setBusy] = React.useState(false)
@@ -86,7 +87,7 @@ export default function FirstPhaseFlow() {
   const preview: Phase = { id: 'new', title, kind: kindFor(d.activities), place: d.place?.key || null, place_label: d.place?.label || '', months: 12, lines: [], cover: d.cover ? { url: d.cover } : null }
   const steps = ['where', 'living', 'doing', 'purpose', 'since', 'card', 'goal'] as const
   const s = steps[step]
-  const canNext = s === 'where' ? Boolean(d.place) : s === 'living' ? Boolean(d.living) : s === 'doing' ? d.activities.length > 0 : s === 'purpose' ? Boolean(d.purpose.trim()) : true
+  const canNext = s === 'where' ? Boolean(d.place) : s === 'living' ? Boolean(d.living) : s === 'doing' ? d.activities.length > 0 || Boolean(actDraft) : s === 'purpose' ? Boolean(d.purpose.trim()) : true
 
   const finish = async (skipGoals = false) => {
     if (busy) return
@@ -142,7 +143,7 @@ export default function FirstPhaseFlow() {
           <button type="button" aria-label={t('onboarding.remove', { name: activityText(a) })} onClick={() => setD({ ...d, activities: d.activities.filter((_, j) => j !== i) })} className="grid size-8 place-items-center rounded-full hover:bg-muted"><X size={16} aria-hidden="true" /></button>
         </li>)}</ul> : null}
         {addingAct || !d.activities.length
-          ? <ActivityPicker key={d.activities.length} token={token} onPick={(a) => { setD({ ...d, activities: [...d.activities, a] }); setAddingAct(false) }} />
+          ? <ActivityPicker key={d.activities.length} token={token} onDraft={setActDraft} onPick={(a) => { setD({ ...d, activities: [...d.activities, a] }); setAddingAct(false) }} />
           : <button type="button" onClick={() => setAddingAct(true)} className="inline-flex w-fit items-center gap-1.5 text-sm font-bold text-[var(--org-primary-color)]"><Plus size={15} aria-hidden="true" />{t('onboarding.add_else')}</button>}
       </div> : null}
       {s === 'purpose' ? <PurposePicker options={purposeOptions(d.activities)} value={d.purpose} onChange={(purpose) => setD({ ...d, purpose })} onPick={(purpose) => { setD({ ...d, purpose }); setTimeout(() => setStep(steps.indexOf('since')), 160) }} /> : null}
@@ -179,7 +180,7 @@ export default function FirstPhaseFlow() {
         {s === 'goal' ? <button type="button" onClick={() => void finish(true)} disabled={busy} className="text-sm font-bold text-muted-foreground">{t('onboarding.skip_for_now')}</button> : <span />}
         {s === 'where' || s === 'living' ? null
           : s === 'goal' ? <Button variant="brand" size="lg" disabled={busy} onClick={() => void finish()}>{busy ? <Loader2 className="animate-spin" /> : null}{goals.length || own.trim() ? t('onboarding.start_plan') : t('onboarding.start_without')}</Button>
-            : <Button variant="brand" size="lg" disabled={!canNext} onClick={() => { setStep(step + 1); setAddingAct(false) }}>{t('onboarding.next')}<ArrowRight size={16} aria-hidden="true" /></Button>}
+            : <Button variant="brand" size="lg" disabled={!canNext} onClick={() => { if (s === 'doing' && actDraft) setD({ ...d, activities: [...d.activities, actDraft] }); setStep(step + 1); setAddingAct(false) }}>{t('onboarding.next')}<ArrowRight size={16} aria-hidden="true" /></Button>}
       </div>
     </div>
   </div>
