@@ -85,7 +85,12 @@ export default function StudentDataPage() {
 
         <Section id="collected" title="What we collect">
           <Rows rows={COLLECTED} />
-          <p>Accounts are only for people aged 13 and over; sign-up refuses anyone younger.</p>
+          <p>
+            Accounts are only for people aged 13 and over. Sign-up asks for a date of birth and refuses anyone younger.
+            The date of birth itself is never stored: the account keeps only that the person is over 13 and the date
+            this was checked. Accounts a school creates through its own single sign-on are not asked; the school vouches
+            for their age.
+          </p>
         </Section>
 
         <Section id="stored" title="Where it is stored">
