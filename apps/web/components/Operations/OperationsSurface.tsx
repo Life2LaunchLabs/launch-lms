@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getConfig } from '@services/config/config'
+import { testerSurfaceEnabled } from '@/lib/testerSurfaces'
 import { issueOperationsSession } from '@services/operations/operations'
 
 type SurfaceContext = {
@@ -49,7 +50,7 @@ export default function OperationsSurface({ theme = 'light' }: { theme?: 'light'
   const controller = useRef<Controller | null>(null)
   const [unavailable, setUnavailable] = useState(false)
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
-  const enabled = getConfig('NEXT_PUBLIC_OPERATIONS_SURFACE_ENABLED') === 'true'
+  const enabled = testerSurfaceEnabled('operations', getConfig)
   const platformUrl = safePlatformUrl(getConfig('NEXT_PUBLIC_OPERATIONS_PLATFORM_URL'))
   const environment = getConfig('NEXT_PUBLIC_OPERATIONS_ENVIRONMENT')
   const project = getConfig('NEXT_PUBLIC_OPERATIONS_PROJECT', 'launch-lms')
