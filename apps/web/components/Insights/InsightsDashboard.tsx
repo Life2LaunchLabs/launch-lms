@@ -178,7 +178,7 @@ const EMPTY_ALL: Record<ObjectScope, string> = {
   get plan() { return inOrgWords('Once your learners start plans, each plan gets these dashboards.') },
   group: 'Make a group in Threads, and each group gets these dashboards.',
   get learner() { return inOrgWords('Once learners join, each one gets these dashboards.') },
-  get framework() { return inOrgWords('Track a requirement framework under Plans › Requirements, and each one gets these dashboards. They fill in once plan steps are linked to its requirements, from a step in the plan editor.') },
+  get framework() { return inOrgWords('Track a requirement framework, like Oregon’s Education Plan and Profile, and each one gets these dashboards. They fill in as learners work on plan steps linked to its requirements.') },
 }
 
 /** A dashboard page: the org's (`scope` org), or a plan's, group's or learner's for the one picked (`objectKey`). */
@@ -211,7 +211,11 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
       detail={EMPTY_ONE[scope]}
       action={objects?.length ? <Link href={scopeHref(objects[0].key)} className={ghostButton}>See {objects[0].label}</Link> : undefined} />
     if (scope !== 'org' && !object) return <Empty title={`No ${SCOPE_LABELS[scope].many.toLowerCase()} to show yet`}
-      detail={EMPTY_ALL[scope]} />
+      detail={EMPTY_ALL[scope]}
+      action={scope === 'framework' ? <div className="flex flex-wrap justify-center gap-2">
+        <Link href={`${getUriWithOrg(orgslug, admin.discover())}#frameworks`} className={cn(ghostButton, 'bg-foreground text-background hover:bg-foreground/85')}>Track a framework</Link>
+        <Link href={getUriWithOrg(orgslug, admin.plans('requirements'))} className={ghostButton}>Open Plans › Requirements</Link>
+      </div> : undefined} />
     if (!chosen) return <Empty title={`No ${SCOPE_LABELS[scope].one.toLowerCase()} dashboards yet`} detail="Make one from a template or start blank."
       action={<NewButton scope={scope} />} />
     const effective = range ?? dashboard?.document.range ?? '90d'

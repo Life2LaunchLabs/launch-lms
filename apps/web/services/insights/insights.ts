@@ -76,7 +76,7 @@ export interface CardResult {
   direction: 'up' | 'down'
   definition: string
   value: Cell
-  compare: { v: number | null; text: string; change: string; tone: Tone; real: boolean; against: string } | null
+  compare: { v: number | null; text: string; change: string; tone: Tone; real: boolean; against: string; few?: boolean } | null
   rows: ResultRow[]
   columns: Array<{ key: string; label: string }>
   series: { bucket: 'day' | 'week' | 'month'; points: SeriesPoint[]; ghost: Array<number | null> | null } | null

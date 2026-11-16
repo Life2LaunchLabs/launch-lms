@@ -3,19 +3,20 @@
 import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import toast from 'react-hot-toast'
 import { ListChecks, Loader2, Search, Star, X } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { discoverApi, discoverKeys, type DiscoverPlan } from '@services/goals/discover'
-import { requirementsApi } from '@services/goals/requirements'
+import { frameworksCoverageKey, requirementsApi } from '@services/goals/requirements'
+import { setUpEpp } from '@services/epp/caseload'
 import { MARKETPLACE_KEY } from '@services/learning/marketplace'
 import { CoverGrid } from '@components/Plans/shared/PlanCover'
 import { primaryActionClass, smallActionClass } from '@components/Plans/shared/actions'
 import { SectionHeader, planGridClass } from '@components/Plans/library/PlanCards'
 import { cn } from '@/lib/utils'
 import { plural } from '@components/Plans/plan/planVersions'
-import { useRequirementFrameworks } from '@components/Plans/editor/StepRequirementLinks'
+import { requirementFrameworksKey, useRequirementFrameworks } from '@components/Plans/editor/StepRequirementLinks'
 import { CollectionAction, DiscoverCollectionCard, DiscoverPlanCard, Row, discoverCollectionHref, useDiscoverContext } from './parts'
 
 const OTHER = 'More plans'
@@ -24,7 +25,7 @@ const FRAMEWORK_TINTS = ['#2F66D6', '#6B3FE0', '#C9501E', '#0B8077']
 
 /**
  * Discover: the one marketplace. A partner collection up top, shared collections (the main way in),
- * requirement frameworks, then plans by category. Searching shows matching collections and plans. Coming from a
+ * requirement frameworks, then plans by category. Searching shows matching frameworks, collections and plans. Coming from a
  * framework with `covers` (its flagged gaps, or one requirement), it lists only the plans that count toward them.
  */
 export default function DiscoverHome({ orgslug, frameworkUuid = null, covers = NONE }: { orgslug: string; frameworkUuid?: string | null; covers?: string[] }) {
@@ -37,7 +38,7 @@ export default function DiscoverHome({ orgslug, frameworkUuid = null, covers = N
   return <div className="pb-10">
     <label className="flex h-[52px] items-center gap-2.5 rounded-full border border-border bg-card px-5 text-muted-foreground shadow-[0_1px_2px_hsl(200_30%_10%/.06),0_8px_28px_hsl(200_30%_10%/.08)] focus-within:border-foreground/30">
       <Search size={20} aria-hidden="true" />
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans, collections and partners" aria-label="Search Discover" autoComplete="off"
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans, collections, frameworks and partners" aria-label="Search Discover" autoComplete="off"
         className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground" />
     </label>
     {covers.length ? <CoversFilter orgslug={orgslug} covers={covers} frameworkUuid={frameworkUuid} /> : null}
@@ -60,6 +61,7 @@ function Section({ title, children, count }: { title: string; children: React.Re
 
 function Results({ orgslug, plans, collections, query }: { orgslug: string; plans: DiscoverPlan[]; collections: Awaited<ReturnType<typeof discoverApi.page>>['collections']; query: string }) {
   return <>
+    <Frameworks orgslug={orgslug} query={query} />
     {collections.length ? <Section title="Collections" count={collections.length}><Row>{collections.map((item) => <DiscoverCollectionCard key={item.collection_uuid} orgslug={orgslug} collection={item} />)}</Row></Section> : null}
     <Section title="Plans" count={plans.length}>
       {plans.length ? <PlanGrid orgslug={orgslug} plans={plans} />
@@ -132,28 +134,68 @@ function Featured({ orgslug, collection }: { orgslug: string; collection: NonNul
   </section>
 }
 
-/** Frameworks anyone may copy; copying opens it under Requirements. */
-function Frameworks({ orgslug }: { orgslug: string }) {
+const EPP_NAME = 'Oregon Education Plan and Profile (EPP)'
+const EPP_BLURB = 'Oregon’s required Education Plan and Profile, with a yearly plan ready to assign'
+
+/**
+ * Frameworks to track: Oregon's EPP, which every school can set up in one press, and the library's frameworks
+ * anyone may copy. Tracking opens the framework under Requirements; with a `query`, only the matching ones show.
+ */
+function Frameworks({ orgslug, query = '' }: { orgslug: string; query?: string }) {
   const router = useRouter()
+  const { mutate } = useSWRConfig()
   const { orgId, token, ready, canAdd } = useDiscoverContext()
-  const { data: frameworks = [] } = useSWR(ready ? [MARKETPLACE_KEY, 'framework-library', orgId, token] : null, async () => {
+  const { data: library = [] } = useSWR(ready ? [MARKETPLACE_KEY, 'framework-library', orgId, token] : null, async () => {
     try { return await requirementsApi.library(orgId, '', token) } catch { return [] }
   })
+  const tracked = useRequirementFrameworks(orgId, token)
+  const eppTracked = tracked.find((item) => item.name === EPP_NAME)
   const [busy, setBusy] = React.useState<string | null>(null)
-  if (!frameworks.length) return null
+  const needle = query.trim().toLowerCase()
+  const matches = (...texts: Array<string | null | undefined>) => !needle || texts.join(' ').toLowerCase().includes(needle)
+  const frameworks = (library as any[]).filter((item) => item.name !== EPP_NAME && matches(item.name, item.description, item.owner_org_name))
+  const showEpp = matches(EPP_NAME, EPP_BLURB, 'Oregon education plan state requirements SB 3')
+  const shown = Boolean(frameworks.length || showEpp)
+  // Insights links here as …/discover#frameworks; the section renders after its data, so scroll once it's there.
+  React.useEffect(() => {
+    if (shown && window.location.hash === '#frameworks') document.getElementById('frameworks')?.scrollIntoView({ block: 'start' })
+  }, [shown])
+  if (!shown) return null
+  const opened = async (uuid?: string | null) => {
+    await Promise.all([mutate(requirementFrameworksKey(orgId)), mutate(frameworksCoverageKey(orgId))])
+    if (uuid) router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(uuid, 'plans')))
+  }
   const copy = async (uuid: string) => {
     setBusy(uuid)
     try {
       const created: any = await requirementsApi.copyFromLibrary(orgId, uuid, token)
       toast.success('Tracking it. It’s in your requirements now.')
-      if (created?.framework_uuid) router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(created.framework_uuid, 'plans')))
+      await opened(created?.framework_uuid)
     } catch (error: any) { toast.error(error?.message || 'Could not add the framework.') } finally { setBusy(null) }
   }
-  return <Section title="Requirement frameworks">
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-3">{frameworks.map((framework: any, index: number) => <div key={framework.framework_uuid} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: FRAMEWORK_TINTS[index % FRAMEWORK_TINTS.length] }}><ListChecks size={22} aria-hidden="true" /></span>
-      <span className="min-w-0 flex-1"><b className="block text-[14.5px] leading-snug">{framework.name}</b><span className="block text-[12.5px] text-muted-foreground">{framework.owner_org_name || 'Life2Launch'} · {plural(framework.node_count || 0, 'requirement')}</span></span>
-      {canAdd ? <button type="button" className={smallActionClass} disabled={busy === framework.framework_uuid} onClick={() => void copy(framework.framework_uuid)}>Track</button> : null}
-    </div>)}</div>
-  </Section>
+  const setUp = async () => {
+    setBusy('epp')
+    try {
+      const made = await setUpEpp(orgId, token)
+      toast.success('Tracking Oregon’s Education Plan and Profile, with its yearly plan ready to assign.')
+      await opened(made?.framework_uuid)
+    } catch (error: any) { toast.error(error?.message || 'Could not set it up.') } finally { setBusy(null) }
+  }
+  const card = (key: string, index: number, name: string, detail: string, action: React.ReactNode) => <div key={key} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: FRAMEWORK_TINTS[index % FRAMEWORK_TINTS.length] }}><ListChecks size={22} aria-hidden="true" /></span>
+    <span className="min-w-0 flex-1"><b className="block text-[14.5px] leading-snug">{name}</b><span className="block text-[12.5px] text-muted-foreground">{detail}</span></span>
+    {action}
+  </div>
+  const eppAction = eppTracked
+    ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(eppTracked.framework_uuid, 'plans'))} className={smallActionClass}>Open</Link>
+    : canAdd ? <button type="button" className={smallActionClass} disabled={busy === 'epp'} onClick={() => void setUp()}>Track</button> : null
+  return <section id="frameworks" aria-label="Requirement frameworks" className="scroll-mt-24">
+    <SectionHeader title="Requirement frameworks" count={needle ? frameworks.length + (showEpp ? 1 : 0) : undefined} />
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-3">
+      {showEpp ? card('epp', 0, EPP_NAME, eppTracked ? 'Life2Launch · you track it' : `Life2Launch · ${EPP_BLURB}`, eppAction) : null}
+      {frameworks.map((framework: any, index: number) => card(framework.framework_uuid, index + 1, framework.name, `${framework.owner_org_name || 'Life2Launch'} · ${plural(framework.node_count || 0, 'requirement')}`,
+        canAdd ? <button type="button" className={smallActionClass} disabled={busy === framework.framework_uuid} onClick={() => void copy(framework.framework_uuid)}>Track</button> : null))}
+    </div>
+    {!canAdd && !eppTracked ? <p className="mt-2 text-[12.5px] text-muted-foreground">An admin, or staff who build plans, can track a framework.</p> : null}
+  </section>
 }
