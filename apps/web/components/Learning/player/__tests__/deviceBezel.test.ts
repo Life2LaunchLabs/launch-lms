@@ -1,19 +1,20 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DEVICE_BEZEL_CLASS } from '@components/Learning/editor/constants'
 
 // The phone frame in the activity preview and on the editor canvas stays dark in both themes.
 // Admin dark mode re-points the fixed palette (bg-black becomes the light primary color), so the
 // bezel must use a color that rule leaves alone, and both frames must use the shared class.
 
-const read = (path: string) => readFileSync(join(import.meta.dir, '../../../..', path), 'utf8')
+const read = (path: string) => readFileSync(join(fileURLToPath(new URL('../../../../', import.meta.url)), path), 'utf8')
 
 test('the bezel is a literal dark color that admin dark mode does not re-point', () => {
   const hex = DEVICE_BEZEL_CLASS.match(/^bg-\[#([0-9a-f]{6})\]$/i)?.[1]
-  expect(hex).toBeTruthy()
+  expect(Boolean(hex)).toBe(true)
   const [r, g, b] = [0, 2, 4].map((at) => parseInt(hex!.slice(at, at + 2), 16))
-  expect(Math.max(r, g, b)).toBeLessThan(32)
+  expect(Math.max(r, g, b) < 32).toBe(true)
   const darkRules = read('styles/admin-dark.css')
   expect(darkRules.includes(DEVICE_BEZEL_CLASS.replace(/[[\]#]/g, (c) => `\\${c}`))).toBe(false)
 })
