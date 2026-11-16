@@ -3950,7 +3950,7 @@
               "kind": "code",
               "path": "apps/web/components/Admin/Platform/Coach/CoachShell.tsx",
               "symbol": "CoachShell",
-              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities, Model, Tests and Releases tabs, with the draft's unreleased changes on every tab"
+              "responsibility": "Platform \u203a Coach: Method, Knowledge, Routines, Abilities, Model, Tests and Releases tabs, with the draft's unreleased changes on every tab"
             },
             {
               "kind": "code",
@@ -4678,6 +4678,121 @@
               "path": "docs/plans/active/demo-checkpoints/verification.md"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "PLATFORM-G008",
+      "group_id": "PLATFORM",
+      "display_order": 8,
+      "title": "Show schools how data is handled",
+      "outcome": "Schools and their reviewers can check how student data is collected, stored, shared and deleted before approving Life2Launch.",
+      "product_state": "live",
+      "health": "works",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"public\", \"notes\": \"\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{}",
+      "updated_at": "2026-09-08T20:54:05+00:00",
+      "actors": [
+        "self_hosting_operator"
+      ],
+      "activities": [
+        {
+          "id": "PLATFORM-G008-A001",
+          "goal_id": "PLATFORM-G008",
+          "display_order": 1,
+          "title": "Read how student data is handled",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Since 2026-11-16 (DEV-25) /data is a public page, signed out on every address (root app route; services/routing allows it like /welcome). It lists data collected, storage, outside services, retention, deletion and who can see it. The outside services come from apps/web/lib/legal/subprocessors.ts, the one list the Privacy Policy (/privacy, DEV-23) also reads; it is checked against the code and production config and dated (CHECKED_ON). Ships marked as a draft pending legal review.",
+          "original_state": "`Live`",
+          "updated_at": "2026-11-16T00:00:00+00:00",
+          "description": "A school's technical reviewer reads, on one public page, how Life2Launch handles student data.",
+          "goal_title": "Show schools how data is handled",
+          "group_title": "Measure, govern, and operate the platform",
+          "availability": {
+            "constraints": [],
+            "mode": "public",
+            "notes": "Signed out, every Life2Launch address."
+          },
+          "verification": {
+            "status": "unverified"
+          },
+          "signoff": {
+            "status": "not_requested"
+          },
+          "source": {},
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "PLATFORM-G008-A001-S001",
+              "activity_id": "PLATFORM-G008-A001",
+              "display_order": 1,
+              "title": "Open the student data page signed out",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-16T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PLATFORM-G008-A001-S002",
+              "activity_id": "PLATFORM-G008-A001",
+              "display_order": 2,
+              "title": "Read the outside services that handle data",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-16T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/app/data/page.tsx",
+              "symbol": null,
+              "responsibility": "The public student data page."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/lib/legal/subprocessors.ts",
+              "symbol": null,
+              "responsibility": "The one list of outside services, shared with the Privacy Policy."
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "/data is public and served signed out on every address."
+            }
+          ],
+          "relationships": []
         }
       ]
     }
