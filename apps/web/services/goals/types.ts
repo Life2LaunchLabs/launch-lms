@@ -19,7 +19,7 @@ export interface PersonSummary {
   avatar_image?: string | null
 }
 
-export interface TaskConfig { list?: { label?: string; target?: number; item_kind?: 'text' | 'link' }; /** Asks for a photo to show it's done; one is needed to finish. */ photo?: boolean }
+export interface TaskConfig { list?: { label?: string; target?: number; item_kind?: 'text' | 'link' }; /** Asks for a photo to show it's done; one is needed to finish. */ photo?: boolean; /** Asks a question answered on the step; an answer is needed to finish. */ ask?: boolean }
 export interface UploadSlot { key: string; label: string; kinds: Array<'image' | 'video' | 'document' | 'link'>; optional?: boolean }
 export interface UploadConfig { slots: UploadSlot[] }
 export interface WriteConfig { prompt?: string; max_words?: number }
