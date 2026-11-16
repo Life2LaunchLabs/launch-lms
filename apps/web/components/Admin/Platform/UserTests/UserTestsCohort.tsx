@@ -12,6 +12,7 @@ import CohortCheckpoints from './CohortCheckpoints'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import LoginLinkPanel, { useLoginLink } from './LoginLinkPanel'
+import PersonaPassword from './PersonaPassword'
 import RunBoard from './RunBoard'
 import { useAsk } from '@components/ui/ask-dialog'
 import UserTestsInbox from './UserTestsInbox'
@@ -90,7 +91,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
       {closeError ? <p role="alert" className="text-sm text-destructive">{closeError}</p> : null}
       <LoginLinkPanel link={login.link} error={login.error} onClose={login.clear} />
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Personas</h2>
+        <div><h2 className="text-lg font-semibold">Personas</h2>{data.personas.length ? <p className="text-sm text-muted-foreground">To test signing out and coming back, sign the persona out and use its email and Password on the Login form. It stays sealed in this run, and the password stops working when the run closes.</p> : null}</div>
         {data.personas.length ? <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full text-sm">
           <thead><tr className="border-b text-left text-[11px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-2.5 font-bold">Persona</th><th className="px-4 py-2.5 font-bold">Brief</th><th className="px-4 py-2.5 font-bold">Mail</th><th className="px-4 py-2.5 font-bold">Last active</th><th className="px-4 py-2.5"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>{data.personas.map((persona) => <tr key={persona.user_id} className="border-b last:border-0 align-top">
@@ -98,7 +99,7 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
             <td className="max-w-80 px-4 py-3 text-xs text-muted-foreground">{persona.brief || '—'}</td>
             <td className="px-4 py-3 text-xs tabular-nums">{persona.unread_mail ? <b>{persona.unread_mail} unread</b> : '—'}</td>
             <td className="px-4 py-3 text-xs text-muted-foreground">{formatWhen(persona.last_active_at)}</td>
-            <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" disabled={!isOpen || login.busy} onClick={() => openAs(persona)}>Open as {persona.first_name}</Button></td>
+            <td className="space-y-1 px-4 py-3 text-right"><Button size="sm" variant="outline" disabled={!isOpen || login.busy} onClick={() => openAs(persona)}>Open as {persona.first_name}</Button><PersonaPassword userId={persona.user_id} name={personaName(persona)} disabled={!isOpen} /></td>
           </tr>)}</tbody>
         </table></div> : <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">No personas yet.</div>}
       </section>
