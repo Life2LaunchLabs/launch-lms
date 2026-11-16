@@ -604,6 +604,25 @@ test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/data').kind, 'public')
 })
 
+test('request policy serves the Privacy Policy and Terms of Use signed out on any address (DEV-23)', () => {
+  for (const pathname of ['/privacy', '/terms']) {
+    assert.equal(classifyRoute(pathname).kind, 'public')
+    for (const host of ['launchlms.test', 'acme.launchlms.test']) {
+      const decision = resolveRequestRouting({
+        requestUrl: `https://${host}${pathname}`,
+        pathname,
+        search: '',
+        host,
+        hasSession: false,
+        instanceInfo,
+        resolvedCustomDomainOrgSlug: null,
+        orgSubdomainAccess: null,
+      })
+      assert.equal(decision.action, 'next')
+    }
+  }
+})
+
 test('route access exposes badge awards and the plan pages their badges point to', () => {
   assert.equal(classifyRoute('/b/K7M2Q9XB').kind, 'public')
   assert.equal(classifyRoute('/badges/award_1').kind, 'public')
