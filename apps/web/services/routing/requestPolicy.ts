@@ -40,6 +40,8 @@ export interface ResolveRequestRoutingInput {
   instanceInfo: RequestInstanceInfo
   resolvedCustomDomainOrgSlug?: string | null
   orgSubdomainAccess?: { user_site_enabled: boolean } | null
+  /** 'host-only' when sign-in cookies stay on the address that set them (unstable, production). */
+  cookieScope?: string
 }
 
 function getAdminMigrationPath(pathname: string): string {
@@ -228,14 +230,24 @@ export function resolveRequestRouting(
     pathname !== '/redirect_from_auth' &&
     !context.subdomainAllowed
   ) {
+    const destination = buildMainDomainUrl(
+      input.requestUrl,
+      pathname,
+      search,
+      instanceInfo.frontend_domain
+    )
+    // Someone signed in here (a new learner signs up on the school's address) keeps their session on
+    // the main site: with host-only cookies it lives on this address only, so carry it over (DEV-42, FEED-361).
+    if (input.hasSession && input.cookieScope === 'host-only') {
+      const handoff = new URL('/api/auth/handoff/start', destination)
+      handoff.search = ''
+      handoff.searchParams.set('source', new URL(input.requestUrl).host)
+      handoff.searchParams.set('return', `${pathname}${search}`)
+      return { action: 'redirect', destination: handoff.toString() }
+    }
     return {
       action: 'redirect',
-      destination: buildMainDomainUrl(
-        input.requestUrl,
-        pathname,
-        search,
-        instanceInfo.frontend_domain
-      ),
+      destination,
     }
   }
 

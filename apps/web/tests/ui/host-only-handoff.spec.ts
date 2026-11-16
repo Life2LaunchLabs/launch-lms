@@ -71,3 +71,26 @@ test('host-only login hands off to the installation root without sharing auth co
   })
   expect(replay.status()).toBe(401)
 })
+
+test('signed in on an org address, a learner page on the main site keeps the session (DEV-42, FEED-361)', async ({ page }) => {
+  test.skip(!hostOnly, 'Only the host-only browser lane exercises this protocol')
+
+  const target = new URL(environment.baseUrl)
+  const rootHost = process.env.UI_TEST_PUBLIC_HOST || 'unstable.127.0.0.1.sslip.io'
+  const source = new URL(target)
+  source.hostname = `life2launch.${rootHost}`
+
+  await page.context().clearCookies()
+  const login = await page.request.post(new URL('/api/auth/login', source).toString(), {
+    form: { username: environment.email, password: environment.password },
+  })
+  expect(login.status()).toBe(200)
+
+  // A new learner signs up on the school's address, then the app opens /plans there, which belongs to the main site.
+  await page.goto(new URL('/plans', source).toString())
+  await expect(page).toHaveURL(url => url.origin === target.origin && url.pathname.startsWith('/plans'))
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
+  const after = await page.context().cookies()
+  expect(after.some(cookie => cookie.name === 'refresh_token_cookie' && cookie.domain === target.hostname)).toBe(true)
+  expect(after.some(cookie => cookie.name === 'refresh_token_cookie' && cookie.domain.startsWith('.'))).toBe(false)
+})

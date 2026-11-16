@@ -913,3 +913,26 @@ test('accepting a staff or admin invitation in the app opens the org welcome; le
   assert.equal(acceptedInvitePath(4), null)
   assert.equal(acceptedInvitePath(undefined), null)
 })
+
+test('a signed-in visitor sent from an org address to the main site keeps their session (DEV-42, FEED-361)', () => {
+  const base = {
+    search: '?map=1',
+    host: 'acme.launchlms.test',
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+  }
+  // Host-only cookies: the session lives on the org address, so the move goes through the handoff.
+  const signedIn = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: true, cookieScope: 'host-only' })
+  assert.equal(signedIn.action, 'redirect')
+  const handoff = new URL(String(signedIn.destination))
+  assert.equal(handoff.origin, 'https://launchlms.test')
+  assert.equal(handoff.pathname, '/api/auth/handoff/start')
+  assert.equal(handoff.searchParams.get('source'), 'acme.launchlms.test')
+  assert.equal(handoff.searchParams.get('return'), '/plans?map=1')
+  // Signed out, or with cookies shared across addresses, it stays a plain redirect.
+  const signedOut = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: false, cookieScope: 'host-only' })
+  assert.equal(signedOut.destination, 'https://launchlms.test/plans?map=1')
+  const shared = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: true, cookieScope: 'shared-domain' })
+  assert.equal(shared.destination, 'https://launchlms.test/plans?map=1')
+})
