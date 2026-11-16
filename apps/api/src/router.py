@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from src.routers import accessibility as accessibility_router_module
 from src.routers import notifications as notifications_router_module
-from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
     auth,
@@ -315,12 +314,6 @@ v1_router.include_router(
     news.router,
     prefix="/news",
     tags=["news"]
-)
-v1_router.include_router(
-    analytics_router_module.router,
-    prefix="/analytics",
-    tags=["analytics"],
-    dependencies=[Depends(get_non_api_token_user)],
 )
 
 v1_router.include_router(

@@ -7,7 +7,6 @@
     "apps/api/src/routers/payments.py": 703,
     "apps/api/src/routers/users.py": 529,
     "apps/api/src/security/rbac/resource_access.py": 848,
-    "apps/api/src/services/analytics/queries.py": 1159,
     "apps/api/src/services/api_tokens/api_tokens.py": 510,
     "apps/api/src/services/candidate_jira.py": 567,
     "apps/api/src/services/hub_advisor.py": 652,
