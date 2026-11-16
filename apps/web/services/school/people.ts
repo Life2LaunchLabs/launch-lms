@@ -48,6 +48,8 @@ export interface ProfilePlan {
   progress: { done: number; total: number; submitted: number; behind: number }
   assignment_uuid: string | null
   assignment_status: string | null
+  /** When a finished plan's last step was done. */
+  finished_at?: string | null
 }
 
 export interface Profile {

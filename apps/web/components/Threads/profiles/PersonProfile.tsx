@@ -22,6 +22,7 @@ import type { PersonTab } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
 import SchoolSupport from './SchoolSupport'
 import CoursePlan from './CoursePlan'
+import { workingOn } from './workingOn'
 import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
@@ -98,11 +99,15 @@ function Overview({ orgslug, profile, thread, showPlans, compact }: { orgslug: s
     </Card>
     <About profile={profile} />
   </>
-  const working = profile.plans.filter((plan) => plan.status === 'active' || plan.status === 'pending')
+  const { current, finished } = workingOn(profile.plans)
   return <>
     <Card title="Working on" aside={profile.plans.length ? (compact ? <button type="button" onClick={showPlans} className="text-sm font-semibold text-muted-foreground hover:text-foreground">All plans</button>
       : <Link href={getUriWithOrg(orgslug, admin.people.user(user.username, 'plans'))} className="text-sm font-semibold text-muted-foreground hover:text-foreground">All plans</Link>) : null}>
-      {working.length ? <ul className="divide-y divide-border">{working.map((plan) => <PlanRow key={plan.goal_uuid} plan={plan} thread={thread} />)}</ul>
+      {current.length ? <ul className="divide-y divide-border">{current.map((plan) => <PlanRow key={plan.goal_uuid} plan={plan} thread={thread} />)}</ul>
+        : finished.length ? <>
+          <p className="mb-3 text-sm text-muted-foreground">Nothing in progress right now. {firstName(user.name)} recently finished:</p>
+          <ul className="divide-y divide-border">{finished.map((plan) => <PlanRow key={plan.goal_uuid} plan={plan} thread={thread} />)}</ul>
+        </>
         : <p className="text-sm text-muted-foreground">{firstName(user.name)} isn&rsquo;t working on a plan right now. Plans are given out from Plans.</p>}
     </Card>
     <LearnerBadges orgslug={orgslug} orgId={orgId} token={token} person={{ id: user.id, name: user.name, username: user.username, avatar_image: user.avatar_image, user_uuid: user.user_uuid }} />
