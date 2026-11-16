@@ -3,18 +3,17 @@
 import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Award, BriefcaseBusiness, Play } from 'lucide-react'
+import { Award, Play } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { templateKeys, templatesApi } from '@services/goals/templates'
 import { BadgeMedal } from '@components/Badges/BadgeMedal'
-import type { PortfolioConfig, Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
 
 import { tr } from '@/lib/tr'
-// Activity, Badge and Portfolio steps finish on their own: a run, an award, a portfolio change.
+// Activity and Badge steps finish on their own: a run, an award. Portfolio steps (./portfolio) too, on a portfolio change.
 
 function ActivityCard(props: StepCardProps<'activity'>) {
   const { step, actions, canWork } = props
@@ -92,47 +91,5 @@ export const badge: StepDefinition<'badge'> = {
   CardBody: BadgeCard,
   ConfigPanel: BadgeConfigPanel,
   defaultConfig: () => ({ template_uuid: '' }),
-  finishesItself: true,
-}
-
-export const PORTFOLIO_CHECKS: Record<PortfolioConfig['check'], string> = {
-  get welcome() { return tr('lit.linked.write_your_welcome', 'Write your welcome') },
-  get timeline() { return tr('lit.linked.add_to_your_timeline', 'Add to your timeline') },
-  get project() { return tr('lit.linked.add_a_project', 'Add a project') },
-  get traits() { return tr('lit.linked.choose_your_traits', 'Choose your traits') },
-  get launch() { return tr('lit.linked.launch_your_portfolio', 'Launch your portfolio') },
-  get badges() { return tr('lit.linked.show_your_badges', 'Show your badges') },
-}
-
-function PortfolioCard(props: StepCardProps<'portfolio'>) {
-  const { step, orgslug } = props
-  return <div className="flex flex-col gap-3">
-    <StepIntro step={step} />
-    <CardNote icon={BriefcaseBusiness}>{tr('goals.linked.value_this_finishes_itself_when', '{{value}}. This finishes itself when your portfolio has it.', { value: PORTFOLIO_CHECKS[step.config.check] })}</CardNote>
-    {step.status !== 'completed' && !step.locked ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.portfolio())}>{tr('goals.linked.open_my_portfolio', 'Open my portfolio')}</Link></Button> : null}
-    {props.staff ? <FinishControls {...props} finishesItself /> : null}
-  </div>
-}
-
-function PortfolioConfigPanel({ config, onChange }: ConfigPanelProps<'portfolio'>) {
-  return <div className="flex flex-col gap-1">
-    <Label>{tr('goals.linked.what_the_portfolio_needs', 'What the portfolio needs')}</Label>
-    <select className="h-9 rounded-md border bg-transparent px-2 text-sm" value={config.check} onChange={(event) => onChange({ check: event.target.value as PortfolioConfig['check'] })}>
-      {Object.entries(PORTFOLIO_CHECKS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-    </select>
-  </div>
-}
-
-export const portfolio: StepDefinition<'portfolio'> = {
-  type: 'portfolio',
-  get label() { return tr('goals.linked.portfolio', 'Portfolio') },
-  color: '#46566B',
-  get hint() { return tr('goals.linked.finish_a_section_of_their', 'Finish a section of their portfolio, like projects.') },
-  get example() { return tr('lit.linked.add_two_projects_to_your', 'Add two projects to your portfolio') },
-  icon: BriefcaseBusiness,
-  statusLine: (step: Step<'portfolio'>) => PORTFOLIO_CHECKS[step.config.check] || null,
-  CardBody: PortfolioCard,
-  ConfigPanel: PortfolioConfigPanel,
-  defaultConfig: () => ({ check: 'welcome' }),
   finishesItself: true,
 }

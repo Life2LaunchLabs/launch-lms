@@ -73,5 +73,7 @@ export const goalsApi = {
   deleteEntry: (goalUuid: string, stepUuid: string, entryUuid: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'DELETE'),
   /** A Resources step: the learner opened one of its resources, or saved their note on it. */
   visitResource: (goalUuid: string, stepUuid: string, resourceUuid: string, data: { opened?: boolean; note?: string }, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/resources/${q(resourceUuid)}`), token, 'POST', data),
+  /** A portfolio step: the items the learner hides from it (and from staff). */
+  hidePortfolioItems: (goalUuid: string, stepUuid: string, hidden: string[], token?: string) => request<Goal>(step(goalUuid, stepUuid, '/portfolio-hidden'), token, 'PUT', { hidden }),
   startActivity: (goalUuid: string, stepUuid: string, token?: string) => request(step(goalUuid, stepUuid, '/activity'), token, 'POST'),
 }

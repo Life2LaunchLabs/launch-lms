@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import HTTPException
-from pydantic import Field
+from pydantic import Field, model_validator
 from sqlmodel import Session, select
 
 from src.db.goals import GoalTemplate
@@ -65,15 +65,37 @@ PORTFOLIO_CHECKS = ("welcome", "timeline", "project", "traits", "launch", "badge
 
 
 class PortfolioConfig(Config):
-    check: Literal["welcome", "timeline", "project", "traits", "launch", "badges"]
+    # Older steps: a one-off check (see goals/portfolio.done_checks).
+    check: Literal["welcome", "timeline", "project", "traits", "launch", "badges"] | None = None
+    # Counting steps: "have at least `count` of this part in your portfolio" (goals/portfolio_steps).
+    part: Literal["projects", "timeline", "results", "traits", "credentials", "recommendations", "badges", "welcome", "launch"] | None = None
+    count: int = Field(default=1, ge=1, le=50)
+    # Narrows the part: a result's kind (strengths), a timeline entry's type, a credential's kind, a trait's type.
+    filter: str | None = Field(default=None, max_length=60)
+
+    @model_validator(mode="after")
+    def asks_for_something(self):
+        from src.services.goals.portfolio_steps import FILTERS
+
+        if not self.part and not self.check:
+            raise ValueError("choose the part of the portfolio it counts")
+        if self.filter and self.filter not in FILTERS.get(self.part or "", ()):
+            raise ValueError(f"{self.filter} doesn't narrow {self.part or 'this check'}")
+        return self
+
+
+class PortfolioSubmission(Config):
+    # Items the learner hid from this step (and so from staff); set through goals/portfolio_steps.set_hidden.
+    hidden: list[str] = Field(default_factory=list, max_length=500)
 
 
 class Portfolio(StepType):
-    """Finished when the learner's portfolio has what the check asks for."""
+    """Finished when the learner's portfolio has what the step asks for: enough items of a part, or an older one-off check."""
 
     key = "portfolio"
     label = "Portfolio"
     config_model = PortfolioConfig
+    submission_model = PortfolioSubmission  # type: ignore[assignment]
     learner_can_complete = False
 
 

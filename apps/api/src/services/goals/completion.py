@@ -285,5 +285,8 @@ def on_portfolio_changed(db: Session, user_id: int) -> None:
         return
     done = done_checks(db, user_id)
     for step in steps:
-        if (step.config or {}).get("check") in done:
+        if not (step.config or {}).get("part") and (step.config or {}).get("check") in done:
             _auto(db, step, StepStatus.COMPLETED)
+    from src.services.goals.portfolio_steps import check_learner
+
+    check_learner(db, user_id)
