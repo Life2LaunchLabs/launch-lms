@@ -62,8 +62,12 @@ def _hours(start: str, end: str) -> float | None:
         return None
 
 
+# A step is reached once the learner finished it or handed it in; work waiting for review counts (FEED-278).
+REACHED_STEP_STATUSES = DONE_STEP_STATUSES | {StepStatus.SUBMITTED.value}
+
+
 def _step_reach(ctx: Ctx, since: date | None) -> list[Fact]:
-    return [Fact(int(goal.subject_user_id), started_on(goal), _step_dims(ctx, goal, plan, version, step), num=1.0 if status in DONE_STEP_STATUSES else 0.0)
+    return [Fact(int(goal.subject_user_id), started_on(goal), _step_dims(ctx, goal, plan, version, step), num=1.0 if status in REACHED_STEP_STATUSES else 0.0)
             for goal, plan, version, step, status in _steps(ctx)]
 
 
@@ -128,9 +132,9 @@ REVIEW_DIMS = ("time", "plan", "step", "group")
 
 MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
-        "step_reach", "Step reach", "Of learners who started the plan in the range, the share who finished each step.",
+        "step_reach", "Step reach", "Of learners who started the plan in the range, the share who finished each step or handed it in.",
         kind="rate", unit="percent", direction="up", load=_step_reach, dims=("step", "version", "group"), scopes=("plan",),
-        phrase=("{v} of steps are finished", "{v} of steps are finished"), base=("learner", "learners"), funnel=True,
+        phrase=("{v} of steps are finished or handed in", "{v} of steps are finished or handed in"), base=("learner", "learners"), funnel=True,
         keywords=("drop off", "funnel", "where", "stuck"),
     ),
     Measure(

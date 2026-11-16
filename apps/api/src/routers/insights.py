@@ -87,7 +87,9 @@ def api_registry(org_id: int, scope: Literal["org", "plan", "group", "learner", 
 @router.post("/cards/run")
 def api_run_cards(org_id: int, payload: RunCards, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     ctx = engine.context(db, user, org_id, payload.scope.kind, payload.scope.key)
-    return {"results": engine.run_cards(ctx, [card.model_dump() for card in payload.cards], payload.range)}
+    # Staff without See reports count only their own groups' and assignments' learners; the page says so.
+    limited = None if ctx.pop.see_reports else {"learners": len(ctx.pop.learners())}
+    return {"results": engine.run_cards(ctx, [card.model_dump() for card in payload.cards], payload.range), "limited": limited}
 
 
 @router.post("/drill")
