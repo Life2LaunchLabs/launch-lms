@@ -32,3 +32,19 @@ test('the site publishes the user-test switch from the same setting the API read
   assert.match(wrapper, /LAUNCHLMS_USER_TESTS_ENABLED/)
   assert.match(wrapper, /NEXT_PUBLIC_USER_TESTS_ENABLED/)
 })
+
+test('the persona bar never covers dialogs or page headers (DEV-127)', () => {
+  const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const bar = source('../components/Admin/Platform/UserTests/TestPersonaBar.tsx')
+  // Level with the nav, under every dialog; raised only while its own panel is open.
+  assert.match(bar, /zIndex: panel \? 'var\(--z-popover\)' : 'var\(--z-nav\)'/)
+  // Its height is published only while it shows, so production headers stay at the top.
+  assert.match(bar, /--test-persona-bar-h/)
+  for (const header of [
+    '../components/Objects/StyledElements/Headers/TabbedPageHeader.tsx',
+    '../components/Objects/StyledElements/Headers/ContentPageHeader.tsx',
+    '../components/Dashboard/Menus/DashLeftMenu.tsx',
+    '../components/Dashboard/Menus/DashMobileMenu.tsx',
+    '../app/orgs/[orgslug]/(withmenu)/layout.tsx',
+  ]) assert.match(source(header), /top-\[var\(--test-persona-bar-h,0px\)\]/, header)
+})
