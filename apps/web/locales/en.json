@@ -5495,7 +5495,8 @@
       "launch_lms": "Life2Launch",
       "decline": "Decline",
       "accept": "Accept",
-      "help_as_name": " · Help as {{name}}"
+      "help_as_name": " · Help as {{name}}",
+      "role_means": "As {{name}}, {{means}}."
     },
     "goals_home": {
       "from_monthyear": "from {{monthYear}}",
@@ -5810,6 +5811,10 @@
       "you_earned_this": "You earned this",
       "not_open_to_join": "Not open to join",
       "sign_in_to_join": "Sign in to join",
+      "sign_up_to_start": "Sign up to start",
+      "sign_up_to_ask": "Sign up to ask to join",
+      "have_an_account_sign_in": "Have an account? Sign in",
+      "free_and_joins_name": "It’s free. You’ll join {{name}} on the way.",
       "take_back_request": "Take back request",
       "start_this_plan": "Start this plan",
       "name_says_yes_first": "{{name}} says yes first",

@@ -94,6 +94,11 @@ function InvitationView({ card, orgslug, token, time, onAnswered }: { card: Invi
           return
         }
       }
+      // Saying yes to a plan opens it, so nobody is left on "Accepted" wondering where it went (FEED-141).
+      if (accept && card.goal_uuid) {
+        router.push(getUriWithOrg(orgslug, routePaths.org.plan(card.goal_uuid)))
+        return
+      }
       onAnswered()
     } catch (error: any) {
       toast.error(error?.message || tr('connect.chat_cards.that_didn_t_go_through', 'That didn’t go through'))

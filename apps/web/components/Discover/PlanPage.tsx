@@ -34,7 +34,7 @@ function OrgLogo({ org }: { org: NonNullable<PlanOfferCard['org']> }) {
 
 const stepCount = (page: PublicPlanPage) => page.stages.reduce((total, stage) => total + stage.steps.length, 0)
 
-function Hero({ page, action, note, orgslug }: { page: PublicPlanPage; action: Action; note?: string; orgslug: string }) {
+function Hero({ page, action, note, signIn, orgslug }: { page: PublicPlanPage; action: Action; note?: string; signIn?: string; orgslug: string }) {
   const steps = stepCount(page)
   const chips = [steps ? `${steps} step${steps === 1 ? '' : 's'}` : '', page.stages.length > 1 ? `${page.stages.length} stages` : '', page.badge ? `Earns a ${badgeKindLabel(page.badge.kind).toLowerCase()}` : ''].filter(Boolean)
   const art = { template_uuid: page.template_uuid, title: page.title, thumbnail_image: page.thumbnail_image, icon: page.icon, color: page.color, badge: page.badge }
@@ -49,7 +49,7 @@ function Hero({ page, action, note, orgslug }: { page: PublicPlanPage; action: A
           {chips.length ? <div className="flex flex-wrap gap-2">{chips.map((chip) => <span key={chip} className="rounded-full border border-white/30 bg-card/15 px-3 py-1.5 text-sm font-bold text-white">{chip}</span>)}</div> : null}
           <div className="mt-2.5 flex flex-wrap items-center gap-[18px]">
             <ActionButton action={action} className="min-h-11 px-6 text-sm" />
-            {note ? <span className="max-w-[240px] text-sm text-[#EAF0FF]">{note}</span> : null}
+            {note || signIn ? <span className="max-w-[260px] text-sm text-[#EAF0FF]">{note}{signIn ? <>{note ? ' ' : ''}<Link href={signIn} className="font-bold text-white underline underline-offset-2">{tr('discover.plan_page.have_an_account_sign_in', 'Have an account? Sign in')}</Link></> : null}</span> : null}
           </div>
         </div>
         <div className="relative flex min-h-[260px] flex-[1_1_320px] items-center justify-center sm:min-h-[340px]">
@@ -214,23 +214,38 @@ export default function PlanPage({ orgslug, orgId, initialPage }: { orgslug: str
     }
   }
 
-  const here = getUriWithOrg(orgslug, routePaths.org.discoverPlan(page.template_uuid))
+  // Signed out, the button signs them up and brings them back here with ?start=<org>, which starts the plan
+  // (or asks to join) once, so a new account lands on the plan (FEED-124).
+  // Sign-up only follows a path on this site (never a full address), so the way back is a path.
+  const herePath = `/orgs/${encodeURIComponent(orgslug)}${routePaths.org.discoverPlan(page.template_uuid)}`
+  const startHere = selected?.org ? `${herePath}?start=${selected.org.id}` : herePath
+  const started = React.useRef(false)
+  React.useEffect(() => {
+    if (started.current || !token || page.goal || typeof window === 'undefined') return
+    const wanted = new URLSearchParams(window.location.search).get('start')
+    const offer = wanted ? page.offers.find((item) => String(item.org?.id) === wanted) : undefined
+    if (!offer) return
+    started.current = true
+    window.history.replaceState(null, '', window.location.pathname)
+    if (offer.state === 'none') void join(offer)
+  }, [token, page]) // eslint-disable-line react-hooks/exhaustive-deps
   const earned = page.offers.some((offer) => offer.state === 'earned')
   const action: Action = page.goal ? { label: page.goal.status === 'finished' ? tr('lit.plan_page.see_your_plan', 'See your plan') : tr('lit.plan_page.keep_going', 'Keep going'), href: getUriWithOrg(orgslug, routePaths.org.plan(page.goal.goal_uuid)) }
     : earned ? { label: tr('discover.plan_page.you_earned_this', 'You earned this'), href: getUriWithOrg(orgslug, routePaths.org.portfolioBadges()) }
     : !selected ? { label: tr('discover.plan_page.not_open_to_join', 'Not open to join'), disabled: true }
-    : !token ? { label: tr('discover.plan_page.sign_in_to_join', 'Sign in to join'), href: `/login?next=${encodeURIComponent(here)}` }
+    : !token ? { label: selected.access === 'open' ? tr('discover.plan_page.sign_up_to_start', 'Sign up to start') : tr('discover.plan_page.sign_up_to_ask', 'Sign up to ask to join'), href: routePaths.auth.signup({ next: startHere }) }
     : selected.state === 'requested' ? { label: tr('discover.plan_page.take_back_request', 'Take back request'), onClick: () => void cancel(selected), busy }
     : selected.access === 'open' ? { label: tr('discover.plan_page.start_this_plan', 'Start this plan'), onClick: () => void join(selected), busy }
     : { label: `Ask ${selected.org?.name}`, onClick: () => void join(selected), busy }
   const note = page.goal || earned ? undefined
     : !selected ? tr('lit.plan_page.no_organization_offers_this_plan', 'No organization offers this plan to learners right now.')
     : selected.state === 'requested' ? `${selected.org?.name} will let you know.`
+    : !token ? tr('discover.plan_page.free_and_joins_name', 'It’s free. You’ll join {{name}} on the way.', { name: selected.org?.name || '' })
     : selected.access === 'open' ? tr('lit.plan_page.it_shows_up_in_plans', 'It shows up in Plans as soon as you start.') : undefined
 
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
     <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel={tr('lit.plan_page.discover', 'Discover')} onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
-    <Hero page={page} action={action} note={note} orgslug={orgslug} />
+    <Hero page={page} action={action} note={note} signIn={!token && selected && !page.goal && !earned ? routePaths.auth.login({ next: startHere }) : undefined} orgslug={orgslug} />
     <main className="mx-auto flex max-w-[1056px] flex-col gap-8 px-4 pb-24 pt-6 sm:px-6">
       <Outline page={page} />
       <BadgeFacts page={page} />

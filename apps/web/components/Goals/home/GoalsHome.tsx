@@ -98,7 +98,7 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   // No phases yet: start the plan with the phase they're in; goals they already have wait below.
   return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
     <SharedWithYou token={token} />
-    <Invitations token={token} />
+    <Invitations token={token} orgslug={orgslug} />
     <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
     {open.length ? <section aria-label={tr('goals.phases.your_goals', 'Your goals')} className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold tracking-tight">{tr('goals.phases.your_goals', 'Your goals')}</h2>
