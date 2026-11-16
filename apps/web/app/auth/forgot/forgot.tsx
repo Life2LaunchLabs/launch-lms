@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { useFormik } from 'formik'
 import { sendResetLink } from '@services/auth/auth'
 import { useTranslation } from 'react-i18next'
+import { errorDetailMessage } from '@/lib/errorDetail'
 import AuthLayout from '@components/Auth/AuthLayout'
 
 const validate = (values: any, t: any) => {
@@ -53,7 +54,7 @@ function ForgotPasswordClient({ org }: ForgotPasswordClientProps) {
                 setShowMessage(true)
                 setIsSubmitting(false)
             } else {
-                setError(res.data.detail)
+                setError(errorDetailMessage(res.data, t('common.something_went_wrong')))
                 setShowMessage(true)
                 setIsSubmitting(false)
             }

@@ -5037,7 +5037,12 @@
       "use_the_email_that_received": "Usa el correo que recibió tu invitación. ¿Eres nuevo? Crea una cuenta y tu meta pendiente te estará esperando.",
       "sign_in": "Iniciar sesión",
       "create_account": "Crear cuenta",
-      "goals_for_title": "Metas de {{title}}"
+      "goals_for_title": "Metas de {{title}}",
+      "your_school": "Tu escuela",
+      "gave_you_plan": "{{school}} te dio {{plan}}",
+      "sign_in_to_accept": "Ya tienes una cuenta de Life2Launch con la dirección a la que se envió esto. Inicia sesión para aceptarlo. ¿Nunca creaste una contraseña? Crea una ahora con esa dirección.",
+      "sign_in_to_accept_button": "Inicia sesión para aceptar",
+      "set_a_password": "Crear una contraseña"
     },
     "goal_path": {
       "help_me_with_title_in": "Ayúdame con “{{title}}” en mi meta “{{title2}}”.",

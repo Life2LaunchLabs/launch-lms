@@ -92,6 +92,9 @@ export type JoinRequest = {
   user: { id: number; user_uuid: string; username: string; first_name: string; last_name: string; avatar_image?: string | null } | null
 }
 
+/** What a signed-out visitor sees of a plan an organization handed them: the school and the plan, nothing else. */
+export type HandedPlan = { plan_title: string; org_name: string | null; org_slug: string | null }
+
 export const JOIN_REQUESTS_KEY = 'plan-join-requests'
 export const DISCOVER_FEED_KEY = 'plan-discover'
 
@@ -106,4 +109,5 @@ export const planJoiningApi = {
   requests: (orgId: number, token: string, status = 'requested'): Promise<JoinRequest[]> => request(`requests${query({ org_id: orgId, status })}`, token),
   accept: (requestUuid: string, token: string): Promise<JoinRequest> => request(`requests/${encodeURIComponent(requestUuid)}/accept`, token, undefined, 'POST'),
   reject: (requestUuid: string, token: string): Promise<JoinRequest> => request(`requests/${encodeURIComponent(requestUuid)}/reject`, token, undefined, 'POST'),
+  handed: (goalUuid: string): Promise<HandedPlan> => request(`handed/${encodeURIComponent(goalUuid)}`),
 }
