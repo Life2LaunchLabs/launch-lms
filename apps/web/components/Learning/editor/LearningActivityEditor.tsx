@@ -101,7 +101,7 @@ import {
   SegmentedControl,
   TextField,
 } from './ui'
-import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
+import { DEVICE_BEZEL_CLASS, DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageRail, followLabel, pageHeading, type RailMode } from './PageRail'
 import { NewPageDialog } from './EditorDialogs'
 import { ActivitySettingsDialog } from './ActivitySettings'
@@ -1273,7 +1273,7 @@ function CanvasFrame({
         transform: `translate(${zoom > 1 ? pan.x : 0}px, ${zoom > 1 ? pan.y : 0}px) scale(${fitScale * zoom})`,
         transformOrigin: 'center center',
       }}
-      className={`${device === 'mobile' ? 'rounded-[2rem] bg-black p-[10px]' : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-1 ring-black/10`}
+      className={`${device === 'mobile' ? `rounded-[2rem] ${DEVICE_BEZEL_CLASS} p-[10px]` : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-1 ring-black/10`}
     >
       <div
         className={`${device === 'mobile' ? 'rounded-[1.45rem]' : 'rounded-xl'} h-full overflow-hidden bg-[var(--org-page-background)]`}
