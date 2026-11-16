@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
 import { Check, Loader2 } from 'lucide-react'
@@ -8,6 +10,8 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { CoursePlanCard } from '@components/Threads/profiles/CoursePlan'
 import { Card } from '@components/Threads/profiles/ProfileFrame'
+import { supportApi } from '@services/school/support'
+import { routePaths } from '@services/routing/paths'
 import { eppReportApi, myCoursesApi, myCoursesKey, myEppKey, type EvidenceItem, type Pick } from '@services/epp/report'
 import EppReport from './EppReport'
 
@@ -41,9 +45,16 @@ function EvidencePicker({ choices, picks, onSave }: { choices: EvidenceItem[]; p
  * portfolio items they choose to show, and a preview of the report their school sees.
  */
 export default function MyEpp() {
-  const org = useOrg() as any
+  const hostOrg = useOrg() as any
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
+  const asked = useSearchParams()?.get('org')
+  // Learners use the main site, so the school comes from their support links, not the address: the one
+  // named by ?org=, else the school that supports them (the first, if several), else this site's organization.
+  const { data: supports } = useSWR(token ? 'school/support/mine' : null, () => supportApi.mine(token), { revalidateOnFocus: false })
+  const schools = (supports?.supports || []).filter((item) => item.status === 'active' && item.org).map((item) => item.org!)
+  const org: { id: number; name: string; slug?: string } | undefined = !supports ? undefined
+    : schools.find((item) => item.slug === asked) || schools[0] || (hostOrg?.id ? { id: Number(hostOrg.id), name: hostOrg.name, slug: hostOrg.slug } : undefined)
   const orgId = Number(org?.id) || 0
   const ready = Boolean(orgId && token)
   const { data, error, mutate } = useSWR(ready ? myEppKey(orgId) : null, () => eppReportApi.mine(orgId, token), { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -63,8 +74,13 @@ export default function MyEpp() {
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{org?.name}</p>
       <h1 className="mt-1 text-2xl font-extrabold">My Education Plan and Profile</h1>
       <p className="mt-1 text-sm text-muted-foreground">Your school uses this for Oregon’s yearly plan. You choose what goes in, and you can stop sharing any time from your chat with them.</p>
+      {schools.length > 1 ? <nav className="mt-3 flex flex-wrap gap-2" aria-label="Schools">
+        {schools.map((school) => <Link key={school.id} href={routePaths.org.epp(school.slug)} aria-current={school.id === orgId ? 'page' : undefined}
+          className={school.id === orgId ? 'rounded-full bg-foreground px-3 py-1 text-sm font-semibold text-background' : 'rounded-full border border-border px-3 py-1 text-sm font-semibold hover:bg-muted'}>{school.name}</Link>)}
+      </nav> : null}
     </header>
-    {error && !data ? <Card><p className="text-sm text-muted-foreground">{org?.name || 'This organization'} doesn’t support your plan yet. When they ask, a card shows up in your chat with them.</p></Card>
+    {supports && !org ? <Card><p className="text-sm text-muted-foreground">No school supports your plan yet. When one asks, a card shows up in your chat with them.</p></Card>
+      : error && !data ? <Card><p className="text-sm text-muted-foreground">{org?.name || 'This organization'} doesn’t support your plan yet. When they ask, a card shows up in your chat with them.</p></Card>
       : !data ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       : <>
         <CoursePlanCard plan={plan} onChange={async (result) => { await setPlan(result, { revalidate: false }); await mutate() }}

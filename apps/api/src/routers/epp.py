@@ -16,7 +16,7 @@ from src.db.epp_records import EppRecordCorrection, EppRecordCreate
 from src.db.learner_support import ReportPicks
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.epp import caseload, courses, records, report
+from src.services.epp import caseload, content, courses, records, report
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -133,6 +133,12 @@ async def record_pdf(org_id: int, record_uuid: str, current_user: PublicUser = U
     """One saved record as a PDF named Last_First_StudentID_EPP_2026-27.pdf."""
     name, body = caseload.record_pdf(db_session, current_user, org_id, record_uuid)
     return _file(name, body, "application/pdf")
+
+
+@router.post("/orgs/{org_id}/setup")
+async def setup_epp(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Give the school the Oregon EPP framework and yearly plan, published and ready to assign (needs build_plans)."""
+    return content.setup(db_session, current_user, org_id)
 
 
 @router.get("/orgs/{org_id}/caseload")
