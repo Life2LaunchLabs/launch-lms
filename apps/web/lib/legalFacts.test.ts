@@ -15,6 +15,7 @@ test('the student data page states the AI companies, retention, deletion, memory
   assert.match(facts, /up to 90 days/)
   assert.match(facts, /within 30 days/)
   assert.match(facts, /team@life2launch\.com/)
+  assert.match(facts, /uploaded files, Coach conversations/)
 })
 
 test('the legal pages make no vague promises and are not marked draft', () => {
