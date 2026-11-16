@@ -53,7 +53,7 @@ export default function StepWork({ orgId, assignmentUuid, stepKey, token, people
         const Icon = summary?.icon || FileText
         return <li key={item.step_uuid}>
           <button type="button" onClick={() => setOpen(item)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-3 py-2 text-left hover:bg-muted">
-            <PersonTile person={person} size="sm" />
+            <PersonTile person={person} name={answerName(item, people)} size="sm" />
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-baseline gap-x-2 text-[13.5px]"><b className="font-semibold">{answerName(item, people)}</b><span className="text-xs text-muted-foreground">{STATUS[item.status] || ''}</span></span>
               {summary ? <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground"><Icon size={13} aria-hidden="true" className="shrink-0" /><span className="line-clamp-2 sm:line-clamp-1">{summary.text}</span></span> : null}
