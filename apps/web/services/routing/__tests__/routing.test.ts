@@ -185,10 +185,7 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.insights('dashboard_1'), '/admin/insights?d=dashboard_1')
   assert.equal(admin.insightsScope('plan', 'tpl_1'), '/admin/insights/plan/tpl_1')
   assert.equal(admin.insightsScope('group', null, 'dashboard_2'), '/admin/insights/group?d=dashboard_2')
-  assert.equal(admin.insightsReport(3), '/admin/insights/reports?group=3')
-  assert.equal(admin.insightsReport(3, ['fw_1', 'fw_2']), '/admin/insights/reports?group=3&fw=fw_1%2Cfw_2')
-  assert.equal(admin.insightsReport(null, 'all'), '/admin/insights/reports?fw=all')
-  assert.equal(admin.insightsReportPrint(3, 'all'), '/admin/insights/reports/3/print?fw=all')
+  assert.equal(admin.insightsScope('group', '3'), '/admin/insights/group/3')
   assert.equal(admin.resources.channel('channel_1'), '/admin/resources/channel/channel_1')
   assert.equal(admin.resources.item('resource_1'), '/admin/resources/item/resource_1')
   assert.equal(admin.organization.general(), '/admin/org/settings/general')
@@ -598,6 +595,22 @@ test('request policy redirects unauthenticated protected paths to root landing',
 
   assert.equal(decision.action, 'redirect')
   assert.equal(decision.destination, 'https://acme.launchlms.test/')
+})
+
+test('request policy sends a signed-out invitation link to sign in and back', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/connect/invitation/plan_invitation_1',
+    pathname: '/connect/invitation/plan_invitation_1',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/login?next=%2Fconnect%2Finvitation%2Fplan_invitation_1')
 })
 
 test('route access treats welcome onboarding as public', () => {

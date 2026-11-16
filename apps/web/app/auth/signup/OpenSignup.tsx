@@ -192,7 +192,8 @@ function OpenSignUpComponent({
       window.sessionStorage.setItem(welcomeSignupNamesKey(email), JSON.stringify(names))
       // An invitation or join link rides along, so the new account joins that organization.
       const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
-      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
+      const next = nextUrl ? `&next=${encodeURIComponent(nextUrl)}` : '' // e.g. the plan invitation that sent them here, after their first phase
+      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}${next}`)
       return
     }
     setStep('details')

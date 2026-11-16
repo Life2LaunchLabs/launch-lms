@@ -1,8 +1,8 @@
-import { InsightsReportsPage } from '@components/Goals/admin/insights/InsightsPages'
-import { parseFrameworks } from '@components/Goals/admin/insights/reportRoutes'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/routing/paths'
 
-export default async function InsightsReportsRoute({ params, searchParams }: { params: Promise<{ orgslug: string }>; searchParams: Promise<{ group?: string; fw?: string | string[] }> }) {
-  const [{ orgslug }, { group, fw }] = await Promise.all([params, searchParams])
-  const groupId = Number(group)
-  return <InsightsReportsPage orgslug={orgslug} groupId={Number.isInteger(groupId) && groupId > 0 ? groupId : null} frameworks={parseFrameworks(fw)} />
+// The old group report is retired (DEV-36); its addresses open the group's Insights dashboard.
+export default async function InsightsReportsRoute({ searchParams }: { searchParams: Promise<{ group?: string }> }) {
+  const { group } = await searchParams
+  redirect(routePaths.org.admin.insightsScope('group', group || null))
 }

@@ -48,15 +48,16 @@ API: `GET /library`, `GET /objects` (plans or groups for the switcher), `GET|POS
 
 ## Insights page (I3)
 
-`components/Insights/`: a rail (the org's dashboards; Plans and Groups, one at a time; then group reports,
-requirement coverage and learner evidence), and the open dashboard. A plan or group dashboard has a switcher
+`components/Insights/`: a rail (the org's dashboards; Plans, Groups, Learners and Requirements, one at a
+time; then captures), and the open dashboard. A plan or group dashboard has a switcher
 for which plan or group, and tabs for the dashboards of that kind. Cards run in one request per dashboard
 and date range. Lines and columns use Recharts; ranked bars, splits and heatmaps are HTML so every value is
 a button that opens the learners behind it, and a plan or group row links to its own dashboard. Chart
 colors are tokens in `insights.css`, with their own dark steps.
 
-Routes: `/admin/insights?d=`, `/admin/insights/plan/[key]?d=`, `/admin/insights/group/[key]?d=`. Group
-reports moved to `/admin/insights/reports`; old `?group=` links redirect.
+Routes: `/admin/insights?d=`, `/admin/insights/plan/[key]?d=`, `/admin/insights/group/[key]?d=`. The old
+group report is retired (DEV-36): `/admin/insights/reports`, its print page and old `?group=` links open the
+group dashboard (a group's number resolves to its key), and sent report cards in chat open it too.
 
 ## Editing (I4)
 
@@ -128,6 +129,22 @@ conversations the learner is in; staff-only notes left out). The starter "Learne
 starter; starters are now made once each, so organizations already using Insights get it the next time
 they open it. Web: `/admin/insights/learner/[key]`, Learners in the rail, and Insights links on a
 learner's thread header and profile.
+
+## Retiring the group report (DEV-36)
+
+What the old report showed, and where it is now:
+
+| Old report | In Insights |
+|---|---|
+| Learners, on plans, steps done, progress, behind (with names), plans, badges | Group dashboard numbers; Learner status (See who lists who is behind); Plan progress |
+| Plans table: per assignment progress, finished, behind, badge earned | Completion rate by plan; a plan's own dashboard; Badges awarded |
+| Learners table: plan, steps done of total, status, handed in | Plan progress by learner (new `learner` breakdown on group and plan dashboards; each row opens the learner's dashboard); Waiting for review |
+| Next steps per learner | The learner's dashboard and their plan; not a card |
+| Requirement frameworks per learner (met, still needs) | Requirement framework dashboards and captures with evidence |
+| Print | Capture, then Print |
+| Send to colleagues as a chat card | Share the dashboard with staff, a capture's read-only link, or scheduled captures by email. Old cards open the group dashboard |
+
+Learner rows never leave the organization: a read-only link drops them (`captures.shield`).
 
 ## Acceptance
 
