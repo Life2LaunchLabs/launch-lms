@@ -113,7 +113,7 @@ function ForgotPasswordClient({ org, setPassword = false }: ForgotPasswordClient
                                 <div className="pt-2">
                                     <Form.Submit asChild>
                                         <button className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors">
-                                            {isSubmitting ? t('common.loading') : t('auth.send_reset_link')}
+                                            {isSubmitting ? t('common.loading') : (setPassword ? t('auth.set_password_send') : t('auth.send_reset_link'))}
                                         </button>
                                     </Form.Submit>
                                 </div>

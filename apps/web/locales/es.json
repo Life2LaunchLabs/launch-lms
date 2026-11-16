@@ -207,6 +207,7 @@
     "set_password_title": "Crea una contraseña",
     "set_password_welcome": "Crea tu contraseña",
     "set_password_description": "Introduce el correo electrónico al que se envió tu invitación y te enviaremos un enlace para crear una contraseña",
+    "set_password_send": "Enviar el enlace",
     "forgot_password_title": "Recuperar contraseña",
     "forgot_password_description": "Introduce tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña",
     "send_reset_link": "Enviar enlace de restablecimiento",

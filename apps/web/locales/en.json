@@ -207,6 +207,7 @@
     "set_password_title": "Set a password",
     "set_password_welcome": "Set your password",
     "set_password_description": "Enter the email address your invitation was sent to and we will send you a link to set a password",
+    "set_password_send": "Send the link",
     "forgot_password_title": "Forgot Password",
     "forgot_password_description": "Enter your email address and we will send you a link to reset your password",
     "send_reset_link": "Send Reset Link",
