@@ -74,13 +74,13 @@ def _check_ins(ctx: Ctx, since: date | None) -> list[Fact]:
 MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
         "steps_done", "Steps done", "Steps finished in the range: done by the learner, or approved after they handed it in.",
-        kind="count", unit="count", direction="up", load=_steps_done, dims=("time", "plan", "step", "group"), scopes=ALL_SCOPES,
+        kind="count", unit="count", direction="up", load=_steps_done, dims=("time", "plan", "step", "group", "learner"), scopes=ALL_SCOPES,
         phrase=("{v} step done", "{v} steps done"), base=("step", "steps"), rank="{a} had the most steps done ({av}); {b} the fewest ({bv})",
         keywords=("progress", "finished", "work"),
     ),
     Measure(
         "plan_progress", "Plan progress", "Today, of the steps in plans still running, the share done.",
-        kind="rate", unit="percent", direction="up", load=_progress, dims=("plan", "group"), scopes=ALL_SCOPES,
+        kind="rate", unit="percent", direction="up", load=_progress, dims=("plan", "group", "learner"), scopes=ALL_SCOPES,
         phrase=("{v} of steps are done", "{v} of steps are done"), base=("step", "steps"), snapshot=True,
         rank="{a} is furthest along ({av}); {b} least ({bv})", keywords=("how far", "progress", "percent complete"),
     ),
