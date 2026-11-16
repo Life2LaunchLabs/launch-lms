@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { ChevronUp, Clock3, Copy, FileText, GripVertical, ListChecks, Loader2, MoreVertical, Paperclip, Pencil, Play, Repeat2, Settings2, Trash2, UserRound } from 'lucide-react'
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd'
+import AfterSelect from '@components/Goals/edit/AfterSelect'
 import MaterialsEditor from '@components/Goals/edit/MaterialsEditor'
 import { newStepDraft, type StepDraft } from '@components/Goals/edit/StepEditor'
 import { STEP_TYPE_ORDER, stepDefinition } from '@components/Goals/steps'
@@ -133,10 +134,9 @@ export default function InlineStep({ value, onChange, onClose, onDuplicate, onDe
             {(['learner', 'staff'] as const).map((person) => <button key={person} type="button" aria-pressed={draft.completed_by === person} onClick={() => set({ completed_by: person, review_required: person === 'staff' ? false : draft.review_required })}
               className={cn('rounded-[9px] px-3 py-[7px] text-[13px] font-semibold', draft.completed_by === person ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{person === 'learner' ? inOrgWords('The learner') : 'Staff, like a meeting'}</button>)}
           </div></div>}
-        {others.length ? <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Starts after</span><div className="flex flex-wrap gap-1.5">
-          {others.map((other) => { const on = draft.after.includes(other.id); return <button key={other.id} type="button" aria-pressed={on} onClick={() => set({ after: on ? draft.after.filter((id) => id !== other.id) : [...draft.after, other.id] })}
-            className={cn('max-w-[16rem] truncate rounded-[10px] border-2 px-2.5 py-1 text-xs font-bold', on ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border text-muted-foreground')}>{other.title || 'Untitled step'}</button> })}
-        </div></div> : null}
+        {others.length ? <div className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Starts after</span>
+          <AfterSelect others={others} value={draft.after} onChange={(after) => set({ after })} />
+        </div> : null}
       </Section> : null}
       {problem ? <p role="status" className="text-xs font-semibold text-amber-700 dark:text-amber-400">{problem}</p> : null}
     </div>
