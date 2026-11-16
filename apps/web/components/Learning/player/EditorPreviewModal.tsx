@@ -31,8 +31,9 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEv
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // A fixed dark backdrop: admin dark mode turns the zinc palette over (styles/admin-dark.css), which made bg-zinc-950 near white.
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950/90 p-4 sm:p-6" role="dialog" aria-modal="true" aria-label="Activity preview">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[rgb(9_9_11/0.94)] p-4 sm:p-6" role="dialog" aria-modal="true" aria-label="Activity preview">
       {token ? (
         <ActivityPreview token={token} onClose={onClose} onEvent={onEvent} />
       ) : (
