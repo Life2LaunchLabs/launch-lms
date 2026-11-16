@@ -76,9 +76,6 @@ will start in reload mode.
 | `LAUNCHLMS_RESOURCE_EMBEDDING_URL` | API | Ollama embed endpoint. Managed Compose uses `http://embeddings:11434/api/embed`. |
 | `LAUNCHLMS_RESOURCE_EMBEDDING_MODEL` | API, embeddings | Locally hosted embedding model. The supported default is `all-minilm:33m` (384 dimensions). |
 | `LAUNCHLMS_RESOURCE_SEMANTIC_MAX_DISTANCE` | API | Maximum pgvector cosine distance admitted as a semantic candidate. Defaults to `0.65`; lower is stricter. |
-| `LAUNCHLMS_TINYBIRD_API_URL` | API | Enables analytics when set. |
-| `LAUNCHLMS_TINYBIRD_INGEST_TOKEN` | API | Tinybird ingest token. |
-| `LAUNCHLMS_TINYBIRD_READ_TOKEN` | API | Tinybird read token. |
 | `LAUNCHLMS_STRIPE_SECRET_KEY` | API | Stripe secret key. |
 | `LAUNCHLMS_STRIPE_PUBLISHABLE_KEY` | API, web | Stripe publishable key. |
 | `LAUNCHLMS_STRIPE_WEBHOOK_STANDARD_SECRET` | API | Standard webhook secret. |

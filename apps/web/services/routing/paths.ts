@@ -137,7 +137,8 @@ export const routePaths = {
     coachOpen: (params?: { conversation?: string; prompt?: string }) => withQuery('/plans', { coach: 'open', coach_conversation: params?.conversation, coach_prompt: params?.prompt }),
     portfolio: () => '/portfolio',
     /** Your Education Plan and Profile with this organization, if it supports you. */
-    epp: () => '/epp',
+    /** A learner's Education Plan and Profile, with the school named by its slug (learners use the main site). */
+    epp: (school?: string) => withQuery('/epp', { org: school || null }),
     connect: () => '/connect',
     chat: (conversationUuid: string) => `/connect/${encodeURIComponent(conversationUuid)}`,
     /** One invitation to a plan, where its email links: opens the chat it waits in. */

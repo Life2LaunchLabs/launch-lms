@@ -15,12 +15,6 @@ class SentryConfig(BaseModel):
     dsn: str | None
 
 
-class TinybirdConfig(BaseModel):
-    api_url: str        # e.g., "https://api.europe-west2.gcp.tinybird.co"
-    ingest_token: str   # Token with DATASOURCE:APPEND scope
-    read_token: str     # Token with PIPE:READ or SQL:READ scope
-
-
 class Judge0Config(BaseModel):
     api_url: str
     client_id: str | None
@@ -111,7 +105,6 @@ class LaunchLMSConfig(BaseModel):
     security_config: SecurityConfig
     mailing_config: MailingConfig
     payments_config: InternalPaymentsConfig
-    tinybird_config: TinybirdConfig | None
     judge0_config: Judge0Config | None
 
 
@@ -317,23 +310,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
         else yaml_config.get("mailing_config", {}).get("smtp_use_tls", True)
     )
 
-    # Tinybird config — auto-enabled when API URL is set
-    env_tinybird_api_url = os.environ.get("LAUNCHLMS_TINYBIRD_API_URL")
-    env_tinybird_ingest_token = os.environ.get("LAUNCHLMS_TINYBIRD_INGEST_TOKEN")
-    env_tinybird_read_token = os.environ.get("LAUNCHLMS_TINYBIRD_READ_TOKEN")
-
-    tinybird_api_url = env_tinybird_api_url or yaml_config.get("tinybird_config", {}).get("api_url", "")
-    tinybird_ingest_token = env_tinybird_ingest_token or yaml_config.get("tinybird_config", {}).get("ingest_token", "")
-    tinybird_read_token = env_tinybird_read_token or yaml_config.get("tinybird_config", {}).get("read_token", "")
-
-    tinybird_config = None
-    if tinybird_api_url:
-        tinybird_config = TinybirdConfig(
-            api_url=tinybird_api_url.rstrip("/"),
-            ingest_token=tinybird_ingest_token,
-            read_token=tinybird_read_token,
-        )
-
     # Judge0 config — auto-enabled when API URL is set
     env_judge0_api_url = os.environ.get("LAUNCHLMS_JUDGE0_API_URL")
     env_judge0_client_id = os.environ.get("LAUNCHLMS_JUDGE0_CLIENT_ID")
@@ -431,7 +407,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
                 stripe_client_id=stripe_client_id
             )
         ),
-        tinybird_config=tinybird_config,
         judge0_config=judge0_config,
     )
 

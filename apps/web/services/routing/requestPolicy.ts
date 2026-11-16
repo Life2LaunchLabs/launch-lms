@@ -177,7 +177,7 @@ export function resolveRequestRouting(
     }
   }
 
-  if (pathname === '/welcome') {
+  if (pathname === '/welcome' || pathname === '/data') {
     return {
       action: 'next',
     }
