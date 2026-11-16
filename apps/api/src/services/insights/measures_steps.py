@@ -154,7 +154,7 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
         "retention", "Still active a month on", f"Of learners who joined in the range, the share active again {RETAIN_FROM} to {RETAIN_TO} days after joining.",
         kind="rate", unit="percent", direction="up", load=_retention, dims=("time", "group"), scopes=("org", "group"),
-        phrase=("{v} were still active a month on", "{v} were still active a month on"), base=("learner joined", "learners joined"),
+        phrase=("{v} were still active a month on", "{v} were still active a month on"), base=(f"learner joined {RETAIN_TO}+ days ago", f"learners joined {RETAIN_TO}+ days ago"),
         rank="{a} keeps the most ({av}); {b} the fewest ({bv})", settle_days=RETAIN_TO, keywords=("retention", "stay", "churn", "came back"),
     ),
     Measure(
