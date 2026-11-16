@@ -72,7 +72,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         style={{ backgroundColor: 'var(--org-page-background)' }}
       >
         <OrgJoinBanner />
-        <div className="sticky top-0 print:hidden" style={{ zIndex: 'var(--z-nav)' }}>
+        <div className="sticky top-[var(--test-persona-bar-h,0px)] print:hidden" style={{ zIndex: 'var(--z-nav)' }}>
           <GuestHeader orgslug={orgslug} />
         </div>
         {children}

@@ -212,7 +212,7 @@ function DashLeftMenu() {
     <nav
       aria-label="Dashboard sidebar navigation"
       className={cn(
-        "group/sidebar flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col text-white sticky top-0 z-overlay border-r border-white/[0.08] bg-[#0f0f10] transition-all duration-300",
+        "group/sidebar flex h-[calc(100dvh-var(--test-persona-bar-h,0px))] max-h-[calc(100dvh-var(--test-persona-bar-h,0px))] min-h-0 flex-col text-white sticky top-[var(--test-persona-bar-h,0px)] z-overlay border-r border-white/[0.08] bg-[#0f0f10] transition-all duration-300",
         isCollapsed ? "w-[72px]" : "w-64"
       )}
     >

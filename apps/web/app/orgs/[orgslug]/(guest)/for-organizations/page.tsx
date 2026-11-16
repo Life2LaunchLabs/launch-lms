@@ -35,7 +35,7 @@ export default async function ForOrganizationsPage({ params }: PageProps) {
   const tiers = await tierFacts()
   return (
     <div className="min-h-screen bg-white">
-      <div className="sticky top-0 print:hidden" style={{ zIndex: 'var(--z-nav)' }}>
+      <div className="sticky top-[var(--test-persona-bar-h,0px)] print:hidden" style={{ zIndex: 'var(--z-nav)' }}>
         <GuestHeader orgslug={orgslug} />
       </div>
       <OrganizationsLanding links={{
