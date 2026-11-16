@@ -196,6 +196,14 @@ def test_staff_without_see_reports_count_only_their_groups(db):
         engine.context(db, _user(12), 1, "org", None, today=TODAY)
 
 
+def test_running_cards_says_when_the_viewer_counts_only_their_own_learners(db):
+    from src.routers.insights import RunCards, api_run_cards
+    payload = RunCards.model_validate({"cards": [{"key": "a", "spec": {"measure": "plan_starts"}}], "range": "all"})
+    limited = api_run_cards(1, payload, db, _user(ANA))["limited"]
+    assert limited == {"learners": len(engine.context(db, _user(ANA), 1, "org", None, today=TODAY).pop.learners())} and limited["learners"] > 0
+    assert api_run_cards(1, payload, db, _user(REPORTS))["limited"] is None
+
+
 @pytest.mark.parametrize("key", list(MEASURES))
 def test_no_measure_counts_anyone_outside_the_viewers_learners(db, key):
     measure = MEASURES[key]

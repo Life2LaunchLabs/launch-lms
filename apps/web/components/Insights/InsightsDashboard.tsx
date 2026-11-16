@@ -130,8 +130,9 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
     : insightKeys.cards(orgId, dashboard.dashboard_uuid, dashboard.revision, scopeKey, range)
   const pins = useHomePins(orgId, token)
   const pinFor = (card: DashboardCard) => draft ? undefined : pins.pinFor({ dashboard_uuid: dashboard.dashboard_uuid, card_key: card.key, scope_key: dashboard.scope === 'org' ? null : scopeKey })
-  const { data: results, error } = useSWR(cards.length ? runKey : null,
-    () => insightsApi.run(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
+  const { data: ran, error } = useSWR(cards.length ? runKey : null,
+    () => insightsApi.runDashboard(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
+  const results = ran?.results
   const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'learner' || row.link.scope === 'framework')
     ? getUriWithOrg(orgslug, routePaths.org.admin.insightsScope(row.link.scope, row.link.key)) : null, [orgslug])
   const drillFor = (card: DashboardCard) => (key: string | null | undefined, title: string) => { if (key && !draft) setTarget({ title, spec: card.spec, drill: key }) }
@@ -144,6 +145,9 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   if (!cards.length && !draft) return <Empty title="No cards yet" detail="Edit this dashboard to add cards from the question library, or start one blank." />
   if (error) return <Empty title="Couldn't load this dashboard" detail={error.message || 'Try again in a moment.'} />
   return <>
+    {ran?.limited ? <p role="note" className="mb-4 rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-[13px] text-muted-foreground">
+      {inOrgWords(`These numbers count only the learners in your own groups and assignments (${ran.limited.learners}). An admin can give you See reports to see the whole organization.`)}
+    </p> : null}
     <div className="grid grid-cols-12 gap-4">
       {cards.map((card, index) => {
         const body = results ? <InsightCard key={card.key} card={draft ? { ...card, span: 12 } : card} outcome={results[card.key]} drill={drillFor(card)} linkFor={linkFor} pin={pinFor(card)} />
@@ -174,7 +178,7 @@ const EMPTY_ALL: Record<ObjectScope, string> = {
   get plan() { return inOrgWords('Once your learners start plans, each plan gets these dashboards.') },
   group: 'Make a group in Threads, and each group gets these dashboards.',
   get learner() { return inOrgWords('Once learners join, each one gets these dashboards.') },
-  framework: 'Track a requirement framework under Plans › Requirements, and each one gets these dashboards.',
+  get framework() { return inOrgWords('Track a requirement framework under Plans › Requirements, and each one gets these dashboards. They fill in once plan steps are linked to its requirements, from a step in the plan editor.') },
 }
 
 /** A dashboard page: the org's (`scope` org), or a plan's, group's or learner's for the one picked (`objectKey`). */

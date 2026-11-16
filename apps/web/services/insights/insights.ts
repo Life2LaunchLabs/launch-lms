@@ -251,6 +251,9 @@ export const insightsApi = {
   registry: (orgId: number, scope: Scope, key: string | null, token?: string) => request<Registry>(url(orgId, '/registry', { scope, key }), token),
   run: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; cards: Array<{ key: string; spec: CardSpec }> }, token?: string) =>
     request<{ results: Record<string, CardOutcome> }>(url(orgId, '/cards/run'), token, 'POST', body).then((response) => response.results),
+  /** Like `run`, plus `limited` when the viewer counts only their own groups' and assignments' learners (no See reports). */
+  runDashboard: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; cards: Array<{ key: string; spec: CardSpec }> }, token?: string) =>
+    request<{ results: Record<string, CardOutcome>; limited: { learners: number } | null }>(url(orgId, '/cards/run'), token, 'POST', body),
   capture: (orgId: number, uuid: string, body: { key?: string | null; range?: DateRange | null; note?: string; attach?: string[] }, token?: string) =>
     request<Capture>(url(orgId, `/dashboards/${q(uuid)}/captures`), token, 'POST', body),
   captures: (orgId: number, filters: CaptureFilters = {}, token?: string) =>

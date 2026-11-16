@@ -58,7 +58,7 @@ def _run(db: Session, spec: dict, viewer: int = ADMIN, scope: str = "plan", key:
 
 def test_step_reach_lists_steps_in_plan_order_with_their_titles(db):
     result = _run(db, {"measure": "step_reach", "by": "step"})
-    assert [(row["label"], row["n"], round(row["v"], 3)) for row in result["rows"]] == [("Introduce yourself", 6, round(4 / 6, 3)), ("Draft your résumé", 6, 0.5)]
+    assert [(row["label"], row["n"], round(row["v"], 3)) for row in result["rows"]] == [("Introduce yourself", 6, round(4 / 6, 3)), ("Draft your résumé", 6, round(4 / 6, 3))]  # 13's résumé waits for review: handed in counts
     assert result["headline"].startswith("Too few to say yet")
 
 
