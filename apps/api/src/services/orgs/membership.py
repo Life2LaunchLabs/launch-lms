@@ -50,6 +50,9 @@ def cleanup_after_removal(db: Session, org_id: int, user_id: int) -> None:
 
     # A school keeps the Education Plan and Profile of a supported learner who leaves.
     freeze_exits(db, user_id, org_id)
+    # Their Coach memories and conversations here are deleted 60 days later (services/coach/retention.py).
+    from src.services.coach.retention import note_departure
+    note_departure(db, org_id, user_id)
     group_ids = {int(row.usergroup_id) for row in db.exec(select(UserGroupStaff).where(UserGroupStaff.org_id == org_id, UserGroupStaff.user_id == user_id)).all()}
     for row in db.exec(select(UserGroupStaff).where(UserGroupStaff.org_id == org_id, UserGroupStaff.user_id == user_id)).all():
         db.delete(row)

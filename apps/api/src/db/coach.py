@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 Tier = Literal["fast", "standard", "deep"]
@@ -264,3 +264,18 @@ class CoachPlaybookWrite(BaseModel):
 
 class CoachOrder(BaseModel):
     uuids: list[str] = PydanticField(max_length=500)
+
+
+class CoachDeparture(SQLModel, table=True):
+    """When a learner left an organization, so the retention job can delete that organization's Coach data 60 days later.
+
+    Removed when the data is deleted, or when the learner rejoins before then (services/coach/retention.py).
+    """
+
+    __tablename__ = "coach_departure"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", name="uq_coach_departure_member"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    left_at: datetime = Field(default_factory=datetime.utcnow)
