@@ -214,7 +214,6 @@ export default function PlanPage({ orgslug, orgId, initialPage }: { orgslug: str
     }
   }
 
-  const here = getUriWithOrg(orgslug, routePaths.org.discoverPlan(page.template_uuid))
   // Signed out, the button signs them up and brings them back here with ?start=<org>, which starts the plan
   // (or asks to join) once, so a new account lands on the plan (FEED-124).
   // Sign-up only follows a path on this site (never a full address), so the way back is a path.
