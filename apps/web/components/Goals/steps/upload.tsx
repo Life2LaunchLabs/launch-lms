@@ -41,6 +41,11 @@ function UploadRow({ step }: { step: Step<'upload'> }) {
 }
 
 /** One upload slot. While it's empty and open, the whole box, name and type are one button that opens the picker, not just the small box. */
+/** A slot label in the middle of a sentence: "Your poster" reads "your poster", "PDF of it" stays. */
+export function inSentence(label: string): string {
+  return /^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label
+}
+
 export function UploadSlotRow({ slot, entry, open, busy, onChoose, onPick, onLink, onRemove }: { slot: UploadSlot; entry?: StepEntry; open: boolean; busy?: boolean; onChoose: () => void; onPick: React.Dispatch<MediaType>; onLink: () => void; onRemove: React.Dispatch<StepEntry> }) {
   const kinds = `${kindText(slot)}${slot.optional ? tr('goals.upload.optional', ' · optional') : ''}`
   return <li className="flex items-center gap-3 rounded-xl border bg-background p-2">
@@ -83,7 +88,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const missing = step.config.slots.filter((slot) => !filled(step, slot))
   // Mirrors the API: required slots first; when every slot is optional, any one file will do.
   const required = missing.find((slot) => !slot.optional)
-  const blocker = required ? `Add ${required.label} first` : missing.length === step.config.slots.length ? tr('lit.upload.add_a_file_first', 'Add a file first') : null
+  const blocker = required ? `Add ${inSentence(required.label)} first` : missing.length === step.config.slots.length ? tr('lit.upload.add_a_file_first', 'Add a file first') : null
   const choose = (slot: UploadSlot) => {
     const media = mediaKinds(slot)
     if (!media.length) return setLinkSlot(slot)
