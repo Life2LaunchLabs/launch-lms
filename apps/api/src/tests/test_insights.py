@@ -275,7 +275,9 @@ def test_ranked_sentences():
     assert sentences.ranked(rate, rows, "plans") == "Résumé Ready finishes most often (68%); First Job Toolkit least (39%)"
     close = [{"label": "A", "v": 0.60, "n": 50}, {"label": "B", "v": 0.59, "n": 50}]
     assert sentences.ranked(rate, close, "plans") == "All 2 plans are about the same"
-    assert sentences.ranked(rate, [{"label": "A", "v": 0.6, "n": 50}, {"label": "B", "v": 0.2, "n": 3}], "plans") == "Only A has enough plans started to compare"
+    assert sentences.ranked(rate, [{"label": "A", "v": 0.6, "n": 50}, {"label": "B", "v": 0.2, "n": 3}], "plans") == "Only A has enough plans started 14+ days ago to compare"
+    # The note names what counts, so "0 plans" never reads as nobody starting one.
+    assert sentences.too_few(rate, 0) == "Too few to say yet (0 plans started 14+ days ago)"
 
 
 def test_series_sentences():
@@ -290,3 +292,9 @@ def test_learner_breakdown_only_fits_group_and_plan_dashboards(db):
     from src.services.insights.spec import CardSpec, check
     assert check(CardSpec(measure="plan_progress", by="learner"), "group", see_reports=True) == []
     assert any(item["field"] == "by" for item in check(CardSpec(measure="plan_progress", by="learner"), "org", see_reports=True))
+
+
+def test_learner_status_on_a_plan_dashboard_counts_that_plans_learners(db):
+    # Status facts carry each learner's plans, so the plan scope keeps them instead of showing nobody.
+    result = _run(db, {"measure": "learner_status"}, scope="plan", key=CL)
+    assert {row["key"]: row["v"] for row in result["rows"] if row["v"]} == {"finished": 3, "quiet": 3}
