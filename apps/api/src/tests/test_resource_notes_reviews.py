@@ -15,6 +15,7 @@ from src.db.resources import (
     ResourceChannel,
     ResourceChannelResource,
     ResourceComment,
+    ResourceCommentUpdate,
     ResourceNoteBlock,
     ResourceNoteBlockCreate,
     ResourceNoteBlockUpdate,
@@ -333,6 +334,74 @@ async def test_new_reviews_require_rating_and_one_rated_review_per_learner(monke
                 db,
             )
         assert exc.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_stars_alone_are_a_rating_that_counts_saves_and_can_gain_words_later(monkeypatch):
+    """DEV-34: tapping stars rates straight away, even where comments are off; words are optional."""
+    monkeypatch.setattr(resource_service, "_resource_in_accessible_channel", lambda *_args: True)
+    monkeypatch.setattr(resource_comments, "_is_staff_anywhere", lambda *_args: False)
+
+    with _session() as db:
+        resource, _, learner = _seed(db)
+        db.add(ResourceChannel(id=1, org_id=1, channel_uuid="channel-1", name="Careers", comment_rule="off", hold_links=True))
+        db.add(ResourceChannelResource(channel_id=1, resource_id=resource.id))
+        db.commit()
+
+        rating = await resource_comments.create_review(
+            None, resource.resource_uuid, ResourceReviewCreate(rating=4), _public(learner), db,
+        )
+        assert rating["rating"] == 4
+        assert rating["content"] == ""
+        assert db.exec(
+            select(UserSavedResource).where(UserSavedResource.user_id == learner.id, UserSavedResource.resource_id == resource.id)
+        ).first() is not None
+
+        _, _, average_ratings, rating_counts = resource_service._resource_counts_map([resource.id], db)
+        assert rating_counts[resource.id] == 1
+        assert average_ratings[resource.id] == 4
+
+        changed = await resource_comments.update_comment(
+            None, rating["comment_uuid"], ResourceCommentUpdate(rating=2), _public(learner), db,
+        )
+        assert changed["rating"] == 2
+
+        # Comments are off here, so words can't be added to the stars.
+        with pytest.raises(HTTPException) as exc:
+            await resource_comments.update_comment(
+                None, rating["comment_uuid"], ResourceCommentUpdate(content="Loved it"), _public(learner), db,
+            )
+        assert exc.value.status_code == 403
+
+        with pytest.raises(HTTPException) as exc:
+            await resource_comments.create_review(
+                None, resource.resource_uuid, ResourceReviewCreate(rating=5), _public(learner), db,
+            )
+        assert exc.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_a_review_can_drop_its_words_and_stay_a_rating(monkeypatch):
+    monkeypatch.setattr(resource_service, "_resource_in_accessible_channel", lambda *_args: True)
+
+    with _session() as db:
+        resource, _, learner = _seed(db)
+        db.add(ResourceChannel(id=1, org_id=1, channel_uuid="channel-1", name="Guides", comment_rule="all", hold_links=True))
+        db.add(ResourceChannelResource(channel_id=1, resource_id=resource.id))
+        db.commit()
+
+        stars = await resource_comments.create_review(
+            None, resource.resource_uuid, ResourceReviewCreate(rating=3), _public(learner), db,
+        )
+        worded = await resource_comments.update_comment(
+            None, stars["comment_uuid"], ResourceCommentUpdate(content="Good for interviews"), _public(learner), db,
+        )
+        assert worded["content"] == "Good for interviews"
+        cleared = await resource_comments.update_comment(
+            None, stars["comment_uuid"], ResourceCommentUpdate(content="  "), _public(learner), db,
+        )
+        assert cleared["content"] == ""
+        assert cleared["rating"] == 3
 
 
 def test_legacy_resource_fields_migrate_once_into_distinct_note_blocks():

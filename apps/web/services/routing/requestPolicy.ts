@@ -177,7 +177,7 @@ export function resolveRequestRouting(
     }
   }
 
-  if (pathname === '/welcome' || pathname === '/privacy' || pathname === '/terms') {
+  if (pathname === '/welcome' || pathname === '/data' || pathname === '/privacy' || pathname === '/terms') {
     return {
       action: 'next',
     }
