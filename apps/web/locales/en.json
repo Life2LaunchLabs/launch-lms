@@ -344,7 +344,8 @@
     "legal_last_name": "Legal last name",
     "name_you_go_by_help": "What people see in Life2Launch. Leave it empty to use your first name.",
     "name_you_go_by_placeholder": "e.g. Sam",
-    "optional": "(optional)"
+    "optional": "(optional)",
+    "email_help": "Use an email you check and will keep. If someone invited you, use the email the invitation went to."
   },
   "legal": {
     "privacy_policy": "Privacy Policy",
@@ -1384,7 +1385,10 @@
           "industry": "Industry",
           "expertise": "Expertise",
           "community": "Community"
-        }
+        },
+        "name_in_portfolio_title": "Your name",
+        "name_in_portfolio": "Your name and the name you go by are set in your portfolio. They show everywhere in the app.",
+        "edit_name_in_portfolio": "Edit in your portfolio"
       },
       "password": {
         "title": "Change Password",
@@ -3750,7 +3754,9 @@
     "collapse_sidebar": "Collapse sidebar",
     "send_feedback": "Send feedback",
     "feedback": "Feedback",
-    "settings": "Settings"
+    "settings": "Settings",
+    "education_plan": "Education Plan",
+    "new_request": "{{label}}, new request"
   },
   "settings": {
     "cancel": "Cancel",
@@ -3907,12 +3913,9 @@
       "career": "Starting my career",
       "next": "Figuring out what’s next"
     },
-    "plan_ask": {
-      "doing": "What I’ll be doing: {{doing}}.",
-      "place": "Where: {{place}}.",
-      "head_span": "Help me plan this phase of my plan: “{{title}}” ({{span}}).",
-      "head": "Help me plan this phase of my plan: “{{title}}”.",
-      "ask": "What goals should I set for it, and what should I do first?"
+    "plan_starter": {
+      "opener_place": "Hi! Want to set some goals for your “{{title}}” phase in {{place}}? Tell me what you have in mind, or ask me for ideas.",
+      "opener": "Hi! Want to set some goals for your “{{title}}” phase? Tell me what you have in mind, or ask me for ideas."
     }
   },
   "onboarding": {
@@ -6791,7 +6794,8 @@
       "undo": "Undo",
       "coach_conversation": "Coach conversation",
       "loading_conversation": "Loading conversation…",
-      "thinking": "Thinking…"
+      "thinking": "Thinking…",
+      "got_it_thinking": "Got it. Let me think that through…"
     },
     "edit_run_timeline": {
       "ended_session": "ended session",
@@ -6915,7 +6919,8 @@
       "org_name_would_like_to": "{{org_name}} would like to support your plan",
       "org_name_asked_to_support": "{{org_name}} asked to support their plan",
       "org_name_supports_you": "{{org_name}} supports you",
-      "v_them": "them"
+      "v_them": "them",
+      "you_said_not_now": "You said not now. You can still say yes."
     },
     "tag_composer": {
       "no_one_by_that_name": "No one by that name",
@@ -7757,7 +7762,8 @@
       "someone": "Someone",
       "you": "You",
       "waiting_for_an_answer": "Waiting for an answer",
-      "stopped": "Stopped"
+      "stopped": "Stopped",
+      "said_not_now": "Said not now"
     },
     "chat_workspace": {
       "everyone_in_the_group_sees": "Everyone in the group sees this",

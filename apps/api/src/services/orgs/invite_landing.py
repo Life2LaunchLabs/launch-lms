@@ -15,6 +15,7 @@ from src.db.organization_invitations import OrganizationInvitation, Organization
 from src.db.organizations import Organization
 from src.db.usergroups import UserGroup
 from src.db.users import User
+from src.services.users.names import shown_name
 from src.security.rbac.constants import ADMIN_ROLE_ID
 
 ROLES = {ADMIN_ROLE_ID: "admin", 2: "staff"}
@@ -63,7 +64,7 @@ def _card(db: Session, org: Organization, kind: str, status: str, role_id: int, 
         "group": group.name if group else None,
         "email": email,
         "inviter": {
-            "name": " ".join(part for part in (inviter.first_name, inviter.last_name) if part) or inviter.username,
+            "name": shown_name(inviter),
             "avatar_image": inviter.avatar_image,
             "user_uuid": inviter.user_uuid,
         } if inviter else None,

@@ -7,7 +7,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, or_, select
 
 from src.db.hub import (
     HubConversation,
@@ -138,15 +138,54 @@ def update_memory(
     memory.explicit = True
     memory.updated_at = datetime.utcnow()
     db_session.add(memory)
+    _forget_old_versions(db_session, memory)
     db_session.commit()
     return _public(memory)
 
 
+def _forget_old_versions(db_session: Session, memory: HubMemory) -> None:
+    """Blank the receipt copies of a memory's earlier wording once it has been reworded."""
+    rows = db_session.exec(select(HubConversationMessageMemory).where(
+        HubConversationMessageMemory.memory_id == memory.id,
+        HubConversationMessageMemory.memory_version < memory.version,
+        HubConversationMessageMemory.content_snapshot != "",
+    )).all()
+    for row in rows:
+        row.content_snapshot = ""
+        db_session.add(row)
+
+
+def erase_memories(db_session: Session, memories: list[HubMemory]) -> int:
+    """Really delete memories: the row, its sources and the words in every receipt of it.
+
+    A receipt stays so a reply can still say that a memory was used or changed, but it keeps
+    no words. Callers commit. Used by deleting, clearing, Coach forgetting or replacing a
+    memory, and by the retention schedule.
+    """
+    if not memories:
+        return 0
+    ids = [int(memory.id) for memory in memories if memory.id is not None]
+    uuids = [memory.memory_uuid for memory in memories]
+    receipts = db_session.exec(select(HubConversationMessageMemory).where(or_(
+        HubConversationMessageMemory.memory_id.in_(ids),  # type: ignore[union-attr]
+        HubConversationMessageMemory.memory_uuid.in_(uuids),  # type: ignore[attr-defined]
+    ))).all()
+    for receipt in receipts:
+        receipt.content_snapshot = ""
+        receipt.memory_id = None
+        db_session.add(receipt)
+    db_session.flush()
+    # SQLite in tests doesn't enforce the cascade, so remove sources explicitly.
+    db_session.exec(delete(HubMemorySource).where(HubMemorySource.memory_id.in_(ids)))  # type: ignore[call-overload,attr-defined]
+    for memory in memories:
+        db_session.delete(memory)
+    db_session.flush()
+    return len(memories)
+
+
 def delete_memory(db_session: Session, memory_uuid: str, org_id: int, user_id: int) -> None:
     memory = get_owned_memory(db_session, memory_uuid, org_id, user_id)
-    memory.status = "deleted"
-    memory.updated_at = datetime.utcnow()
-    db_session.add(memory)
+    erase_memories(db_session, [memory])
     db_session.commit()
 
 
@@ -155,13 +194,8 @@ def clear_memories(db_session: Session, org_id: int, user_id: int) -> None:
     rows = db_session.exec(select(HubMemory).where(
         HubMemory.org_id == org_id,
         HubMemory.user_id == user_id,
-        HubMemory.status == "active",
     )).all()
-    now = datetime.utcnow()
-    for memory in rows:
-        memory.status = "deleted"
-        memory.updated_at = now
-        db_session.add(memory)
+    erase_memories(db_session, list(rows))
     db_session.commit()
 
 
@@ -242,9 +276,15 @@ def _receipt(
     db_session: Session, message: HubConversationMessage, memory: HubMemory,
     relationship: str,
 ) -> None:
+    """Record that a message created, changed, used or removed a memory.
+
+    A removal keeps no words: the memory's text is erased with it.
+    """
+    removed = relationship in {"deleted", "superseded"}
     db_session.add(HubConversationMessageMemory(
-        message_id=int(message.id), memory_id=int(memory.id), memory_uuid=memory.memory_uuid,
-        relationship=relationship, content_snapshot=memory.content,
+        message_id=int(message.id), memory_id=None if removed else int(memory.id),
+        memory_uuid=memory.memory_uuid, relationship=relationship,
+        content_snapshot="" if removed else memory.content,
         category_snapshot=memory.category, memory_version=memory.version,
     ))
 
@@ -257,7 +297,10 @@ def record_used_memories(
         return
     message = _message(db_session, assistant_message_uuid, org_id, user_id)
     for item in memories:
-        memory = get_owned_memory(db_session, item["memory_uuid"], org_id, user_id)
+        try:
+            memory = get_owned_memory(db_session, item["memory_uuid"], org_id, user_id)
+        except HTTPException:
+            continue  # deleted while Coach was answering: nothing of it to record
         _receipt(db_session, message, memory, "used")
     db_session.commit()
 
@@ -284,6 +327,7 @@ def apply_memory_candidates(
         return []
     message = _message(db_session, message_uuid, org_id, user_id)
     changed: list[tuple[HubMemory, str]] = []
+    removed: list[dict] = []
     for raw in candidates[:4]:
         action = str(raw.get("action") or "create").casefold()
         category = str(raw.get("category") or "background").casefold()
@@ -299,21 +343,16 @@ def apply_memory_candidates(
             except HTTPException:
                 target = None
         if action == "forget" and target:
+            removed.append(_removed_view(target, "deleted"))
+            erase_memories(db_session, [target])
             _receipt(db_session, message, target, "deleted")
-            target.status = "deleted"
-            target.updated_at = datetime.utcnow()
-            db_session.add(target)
-            changed.append((target, "deleted"))
             continue
         if target and action in {"update", "supersede"}:
             if action == "supersede":
                 replacement = _create_memory(
                     db_session, org_id, user_id, category, content, explicit, extraction_model,
                 )
-                target.status = "superseded"
-                target.superseded_by_uuid = replacement.memory_uuid
-                target.updated_at = datetime.utcnow()
-                db_session.add(target)
+                erase_memories(db_session, [target])
                 memory = replacement
                 relationship = "created"
             else:
@@ -325,6 +364,7 @@ def apply_memory_candidates(
                 target.extraction_model = extraction_model
                 target.updated_at = datetime.utcnow()
                 db_session.add(target)
+                _forget_old_versions(db_session, target)
                 memory = target
                 relationship = "updated"
         else:
@@ -341,13 +381,21 @@ def apply_memory_candidates(
             )
             relationship = "created"
         db_session.flush()
-        db_session.add(HubMemorySource(
-            memory_id=int(memory.id), message_id=int(message.id), message_uuid=message.message_uuid,
-        ))
+        if db_session.exec(select(HubMemorySource.id).where(
+            HubMemorySource.memory_id == memory.id, HubMemorySource.message_uuid == message.message_uuid,
+        )).first() is None:
+            db_session.add(HubMemorySource(
+                memory_id=int(memory.id), message_id=int(message.id), message_uuid=message.message_uuid,
+            ))
         _receipt(db_session, message, memory, relationship)
         changed.append((memory, relationship))
     db_session.commit()
-    return [{**_public(memory), "relationship": relationship} for memory, relationship in changed]
+    return removed + [{**_public(memory), "relationship": relationship} for memory, relationship in changed]
+
+
+def _removed_view(memory: HubMemory, relationship: str) -> dict:
+    """How a memory Coach removed is shown: that one was removed, never its words."""
+    return {**_public(memory), "content": "", "editable": False, "relationship": relationship}
 
 
 def message_memory_receipts(

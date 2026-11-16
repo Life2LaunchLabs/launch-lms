@@ -27,10 +27,11 @@ SAMPLE = [
     (10, "electives", "Study Skills", 0.5, "completed"), (10, "electives", "Yearbook", 0.5, "completed"),
     (11, "electives", "Digital Media", 0.5, "in_progress"), (11, "electives", "Yearbook", 0.5, "in_progress"), (12, "electives", "Work Experience", 0.5, "planned"),
 ]
-# The sample's graduation progress table: completed, planned, left.
+# The sample's graduation progress table: completed, in progress, planned, left. Classes marked In progress
+# count as in progress, not planned (FEED-276).
 EXPECTED = {
-    "language_arts": (2, 2, 0), "mathematics": (2, 1, 0), "science": (2, 1, 0), "social_sciences": (2, 1, 0), "wl_arts_cte": (2, 1, 0),
-    "health": (1, 0, 0), "physical_education": (1, 0, 0), "personal_finance": (0.5, 0, 0), "career_path_skills": (0, 0.5, 0), "electives": (1, 1.5, 2.5),
+    "language_arts": (2, 1, 1, 0), "mathematics": (2, 1, 0, 0), "science": (2, 1, 0, 0), "social_sciences": (2, 1, 0, 0), "wl_arts_cte": (2, 1, 0, 0),
+    "health": (1, 0, 0, 0), "physical_education": (1, 0, 0, 0), "personal_finance": (0.5, 0, 0, 0), "career_path_skills": (0, 0.5, 0, 0), "electives": (1, 1, 0.5, 2.5),
 }
 
 
@@ -59,8 +60,8 @@ def test_the_tally_matches_the_sample_report():
         for course in SAMPLE:
             plan = _add(db, *course)
         tally = plan["tally"]
-        assert {area["subject"]: (area["completed"], area["planned"], area["left"]) for area in tally["areas"]} == EXPECTED
-        assert (tally["required"], tally["completed"], tally["planned"], tally["left"]) == (24, 13.5, 8, 2.5)
+        assert {area["subject"]: (area["completed"], area["in_progress"], area["planned"], area["left"]) for area in tally["areas"]} == EXPECTED
+        assert (tally["required"], tally["completed"], tally["in_progress"], tally["planned"], tally["left"]) == (24, 13.5, 6.5, 1.5, 2.5)
         # Staff entered these, but nothing is school confirmed until staff say so.
         assert tally["school_confirmed"] == 0 and plan["courses"][0]["source"] == "staff"
 
@@ -75,6 +76,18 @@ def test_extra_credits_count_as_electives():
         areas = {area["subject"]: area for area in plan["tally"]["areas"]}
         assert (areas["language_arts"]["completed"], areas["language_arts"]["planned"]) == (4, 0)
         assert (areas["electives"]["completed"], areas["electives"]["planned"], areas["electives"]["left"]) == (1, 0.5, 3.5)
+
+
+def test_extra_in_progress_credits_count_as_electives_after_completed_ones():
+    with _session() as db:
+        _supported(db)
+        for grade in (9, 10, 11):
+            _add(db, grade, "language_arts", f"English {grade}", 1, "completed")
+        _add(db, 12, "language_arts", "Senior English", 1, "in_progress")
+        plan = _add(db, 12, "language_arts", "Journalism", 1, "in_progress")
+        areas = {area["subject"]: area for area in plan["tally"]["areas"]}
+        assert (areas["language_arts"]["completed"], areas["language_arts"]["in_progress"], areas["language_arts"]["left"]) == (3, 1, 0)
+        assert (areas["electives"]["in_progress"], areas["electives"]["planned"], areas["electives"]["left"]) == (1, 0, 4)
 
 
 def test_only_staff_confirm_and_a_change_clears_it():

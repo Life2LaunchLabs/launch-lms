@@ -17,11 +17,13 @@ import type { OpenChange } from './parts'
 import type { Highlight, SetShell, Shell } from '../portfolioTypes'
 
 import { tr } from '@/lib/tr'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
 // The editors the new front page opens itself: who you are, the highlights band and your links.
 
 /** Your name (legal, for rosters and reports), the name you go by, a one-line intro and where you are. */
 export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avatar, onAvatarClick, mark }: { mark?: string; open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string; avatar: React.ReactNode; onAvatarClick: () => void }) {
   const [busy, setBusy] = useState(false)
+  const session = useLHSession() as any
   const identity = shell.identity
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -37,6 +39,8 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
       // The identity save bumps the revision, so read it back before saving the rest.
       const current = await getMyPortfolio(token)
       setShell(await updateMyPortfolio({ revision: current.portfolio.revision, headline: text('headline'), location_label: text('location_label') }, token))
+      // The menu and every other screen read the name from the session, so refresh it now.
+      await session?.update?.(true)
       onOpenChange(false)
       toast.success(tr('portfolio.portfolio_dialogs.profile_updated', 'Profile updated'))
     } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_dialogs.could_not_update_your_profile', 'Could not update your profile')) } finally { setBusy(false) }

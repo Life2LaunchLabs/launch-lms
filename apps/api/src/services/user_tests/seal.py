@@ -259,6 +259,10 @@ def _check_persona_identity(session: Session, obj, worlds: Worlds, is_new: bool)
         return
     state = sa_inspect(obj)
     changed = [name for name in PERSONA_LOCKED_COLUMNS if state.attrs[name].history.has_changes()]
+    from src.services.user_tests.passwords import CONSOLE_PASSWORD_FLAG
+
+    if session.info.get(CONSOLE_PASSWORD_FLAG):
+        changed = [name for name in changed if name != "password"]  # the console setting its known password (DEV-126)
     if not changed:
         return
     worlds.load({int(obj.id)}, set(), set())

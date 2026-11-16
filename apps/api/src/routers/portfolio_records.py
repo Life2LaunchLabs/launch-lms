@@ -35,7 +35,11 @@ Db = Depends(get_db_session)
 
 @router.patch("/me/identity")
 async def api_update_identity(payload: IdentityUpdate, current_user: PublicUser = User, db_session: Session = Db):
-    return portfolio_identity.update_identity(payload, current_user, db_session)
+    identity = portfolio_identity.update_identity(payload, current_user, db_session)
+    # The session carries the name the app shows, so the next read must see the new one.
+    from src.routers.users import _invalidate_session_cache
+    _invalidate_session_cache(current_user.id)
+    return identity
 
 
 @router.put("/me/highlights")

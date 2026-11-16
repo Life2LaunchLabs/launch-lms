@@ -30,6 +30,7 @@ import LanguageSwitcher from '@components/Utils/LanguageSwitcher'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
+import { shownName } from '@/lib/names'
 
 interface RoleInfo {
   name: string;
@@ -195,7 +196,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   <UserAvatar border="border-2" rounded="rounded-lg" width={30} shadow={primaryColor ? '' : undefined} />
                   <div className="flex flex-col items-start space-y-0">
                     <div className="flex items-center space-x-2">
-                      <p className={`text-sm font-semibold capitalize ${colors.profileName}`}>{session.data.user.username}</p>
+                      <p className={`text-sm font-semibold ${colors.profileName}`}>{shownName(session.data.user)}</p>
                       {userRoleInfo && userRoleInfo.name !== 'USER' && (
                         <Tooltip
                           content={userRoleInfo.description}
@@ -234,7 +235,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   <div className="flex items-center space-x-2">
                     <UserAvatar border="border-2" rounded="rounded-full" width={24} />
                     <div>
-                      <p className="text-sm font-medium">{session.data.user.username}</p>
+                      <p className="text-sm font-medium">{shownName(session.data.user)}</p>
                       <p className="text-xs text-muted-foreground capitalize">{session.data.user.email}</p>
                     </div>
                   </div>

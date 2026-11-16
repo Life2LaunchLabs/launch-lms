@@ -80,7 +80,9 @@ export default function HubMemoryItems({ memories, orgId, accessToken, onChange 
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold capitalize text-muted-foreground">{memory.category}</p>
-                <p className="mt-0.5 text-sm leading-5 text-foreground">{memory.content}</p>
+                {memory.content
+                  ? <p className="mt-0.5 text-sm leading-5 text-foreground">{memory.content}</p>
+                  : <p className="mt-0.5 text-sm italic leading-5 text-muted-foreground">{tr('coach.hub_memory_items.deleted', 'A memory that has since been deleted or replaced. Its words are gone.')}</p>}
               </div>
               {memory.editable !== false && (
                 <DropdownMenu>

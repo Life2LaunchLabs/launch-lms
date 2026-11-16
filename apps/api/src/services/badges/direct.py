@@ -25,6 +25,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
+from src.services.users.names import shown_name
 from src.security.org_auth import require_org_admin
 from src.services.badges import open_badges
 from src.services.badges.awards import award_dict, holders, new_award
@@ -47,7 +48,7 @@ class DirectAward(BaseModel):
 
 
 def _name(user: User) -> str:
-    return " ".join(part for part in (user.first_name, user.last_name) if part) or user.username
+    return shown_name(user)
 
 
 def _live(db: Session, template: GoalTemplate) -> GoalTemplateVersion | None:

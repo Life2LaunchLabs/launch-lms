@@ -122,11 +122,12 @@ function InvitationView({ card, orgslug, token, time, onAnswered }: { card: Invi
   </div>
 }
 
-const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { get pending() { return tr('lit.chat_cards.waiting_for_an_answer', 'Waiting for an answer') }, get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get declined() { return tr('lit.chat_cards.declined', 'Declined') }, get ended() { return tr('lit.chat_cards.stopped', 'Stopped') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') } }
+const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { get pending() { return tr('lit.chat_cards.waiting_for_an_answer', 'Waiting for an answer') }, get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get not_now() { return tr('lit.chat_cards.said_not_now', 'Said not now') }, get declined() { return tr('lit.chat_cards.said_not_now', 'Said not now') }, get ended() { return tr('lit.chat_cards.stopped', 'Stopped') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') } }
 
 /**
- * A school asking to support the learner's Education Plan and Profile. The learner answers here, and can
- * stop it here later; until they say yes the school's staff see none of their school record.
+ * A school asking to support the learner's Education Plan and Profile. The learner answers here (or on their
+ * Education Plan), and can stop it here later; until they say yes the school's staff see none of their school
+ * record. Not now keeps the ask open, so Yes, share stays (FEED-219).
  */
 function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCard; token?: string; time: string; onAnswered: () => void }) {
   const [busy, setBusy] = React.useState<'accept' | 'decline' | 'stop' | ''>('')
@@ -144,13 +145,17 @@ function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCa
     }
   }
   const pending = card.state === 'pending'
+  const later = card.state === 'not_now' || card.state === 'declined'
   const button = 'flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 text-xs font-bold disabled:opacity-50'
   return <div className="w-full max-w-[400px] rounded-2xl bg-[hsl(var(--raised)/0.55)] p-3.5">
     <span className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><GraduationCap size={14} aria-hidden="true" />{tr('connect.chat_cards.school_support', 'School support')}<span className="ml-auto font-normal">{time}</span></span>
     <span className="mt-1.5 block font-bold leading-snug">{card.for_me ? tr('connect.chat_cards.org_name_would_like_to', '{{org_name}} would like to support your plan', { org_name: card.org_name }) : tr('connect.chat_cards.org_name_asked_to_support', '{{org_name}} asked to support their plan', { org_name: card.org_name })}</span>
     {card.for_me ? <span className="mt-0.5 block text-sm leading-6 text-muted-foreground">{card.text}</span> : null}
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      {pending && card.for_me ? <span className="ml-auto flex gap-1.5">
+      {later && card.for_me ? <>
+        <span className="min-w-0 flex-1 text-xs font-semibold text-muted-foreground">{tr('connect.chat_cards.you_said_not_now', 'You said not now. You can still say yes.')}</span>
+        <button type="button" disabled={Boolean(busy)} onClick={() => act('accept')} className={cn(button, 'ml-auto bg-foreground text-background')}>{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{tr('connect.chat_cards.yes_share', 'Yes, share')}</button>
+      </> : pending && card.for_me ? <span className="ml-auto flex gap-1.5">
         <button type="button" disabled={Boolean(busy)} onClick={() => act('decline')} className={cn(button, 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}{tr('connect.chat_cards.not_now', 'Not now')}</button>
         <button type="button" disabled={Boolean(busy)} onClick={() => act('accept')} className={cn(button, 'bg-foreground text-background')}>{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{tr('connect.chat_cards.yes_share', 'Yes, share')}</button>
       </span> : <>

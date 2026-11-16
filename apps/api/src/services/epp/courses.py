@@ -89,11 +89,12 @@ def rows(db: Session, org_id: int, user_id: int) -> list[EppCourse]:
 
 
 def tally(courses: list[EppCourse]) -> dict:
-    """Credits completed, planned (including in progress) and left in each diploma area, out of 24.
+    """Credits completed, in progress, planned and left in each diploma area, out of 24.
 
-    Credits past what an area needs count as electives, completed first, the way Oregon schools count them.
+    Credits past what an area needs count as electives, completed first, then in progress, the way Oregon schools count them.
     """
     earned = {key: 0.0 for key in SUBJECTS}
+    going = {key: 0.0 for key in SUBJECTS}
     planned = {key: 0.0 for key in SUBJECTS}
     confirmed = 0.0
     for course in courses:
@@ -101,24 +102,28 @@ def tally(courses: list[EppCourse]) -> dict:
         if course.status == "completed":
             earned[key] += course.credits
             confirmed += course.credits if course.confirmed_at else 0
+        elif course.status == "in_progress":
+            going[key] += course.credits
         else:
             planned[key] += course.credits
     for key, (_, required) in SUBJECTS.items():
         if key == "electives":
             continue
-        extra_done = max(0.0, earned[key] - required)
-        extra_planned = max(0.0, earned[key] - extra_done + planned[key] - required)
-        earned[key] -= extra_done
-        planned[key] -= extra_planned
-        earned["electives"] += extra_done
-        planned["electives"] += extra_planned
+        room = float(required)
+        for bucket in (earned, going, planned):
+            kept = min(bucket[key], room)
+            bucket["electives"] += bucket[key] - kept
+            bucket[key] = kept
+            room -= kept
     areas = []
     for key, (label, required) in SUBJECTS.items():
-        left = max(0.0, required - earned[key] - planned[key])
-        areas.append({"subject": key, "label": label, "required": required, "completed": _round(earned[key]), "planned": _round(planned[key]), "left": _round(left)})
+        left = max(0.0, required - earned[key] - going[key] - planned[key])
+        areas.append({"subject": key, "label": label, "required": required, "completed": _round(earned[key]), "in_progress": _round(going[key]),
+                      "planned": _round(planned[key]), "left": _round(left)})
     return {
         "areas": areas, "required": REQUIRED_TOTAL,
-        "completed": _round(sum(area["completed"] for area in areas)), "planned": _round(sum(area["planned"] for area in areas)),
+        "completed": _round(sum(area["completed"] for area in areas)), "in_progress": _round(sum(area["in_progress"] for area in areas)),
+        "planned": _round(sum(area["planned"] for area in areas)),
         "left": _round(sum(area["left"] for area in areas)), "school_confirmed": _round(confirmed),
     }
 

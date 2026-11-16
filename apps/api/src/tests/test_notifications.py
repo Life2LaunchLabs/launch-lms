@@ -100,7 +100,7 @@ def test_reviews_email_the_person_with_the_note_and_the_name_they_know(sent):
 def test_switched_off_streams_send_nothing_and_the_unsubscribe_link_switches_them_off(sent):
     with _session() as db:
         lee = db.get(User, LEARNER)
-        assert [stream["key"] for stream in preferences.view(db, LEARNER)["streams"]] == ["review_results", "new_plans"]
+        assert [stream["key"] for stream in preferences.view(db, LEARNER)["streams"]] == ["review_results", "new_plans", "school_requests"]
         assert "review_requests" in [stream["key"] for stream in preferences.view(db, ADMIN)["streams"]]
 
         token = unsubscribe.token(lee, "new_plans")

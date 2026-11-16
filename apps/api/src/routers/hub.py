@@ -22,6 +22,7 @@ from src.services.hub_advisor import (
 )
 from src.services.hub_conversations import (
     archive_conversation, advisor_history, conversation_detail, delete_conversation, list_conversations, record_advice, record_search, rename_conversation, save_state,
+    ChatStarter, starter_history,
 )
 from src.services.resources import list_resources
 from src.services.hub_memory import (
@@ -58,6 +59,7 @@ class HubAdvisorMessage(BaseModel):
 class HubAdvisorRequest(BaseModel):
     surface: HubSurfaceHint | None = None
     messages: list[HubAdvisorMessage] = Field(min_length=1, max_length=12)
+    starter: ChatStarter | None = None  # a chat a page button opened with Coach's own first line (DEV-113)
     resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     learner_resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     conversation_uuid: str | None = None
@@ -329,9 +331,10 @@ async def create_hub_advice(
         db_session,
     )
     user_content = body.messages[-1].content.strip()
+    starter = body.starter if not body.conversation_uuid else None
     model_messages = (
-        advisor_history(db_session, body.conversation_uuid, org_id, current_user.id, user_content)
-        if body.conversation_uuid
+        starter_history(starter, user_content) if starter
+        else advisor_history(db_session, body.conversation_uuid, org_id, current_user.id, user_content) if body.conversation_uuid
         else [AdvisorMessage(role=item.role, content=item.content.strip()) for item in body.messages]
     )
     policy = coach_runtime(db_session)
@@ -356,11 +359,7 @@ async def create_hub_advice(
             session_target=target,
         )
     except AdvisorProviderLimited as error:
-        raise HTTPException(
-            status_code=429,
-            detail=str(error),
-            headers={"Retry-After": str(error.retry_after)},
-        ) from None
+        raise HTTPException(status_code=429, detail=str(error), headers={"Retry-After": str(error.retry_after)}) from None
     except AdvisorUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
@@ -387,7 +386,7 @@ async def create_hub_advice(
         suggested_resource_uuids=[item["resource_uuid"] for item in grounding_resources],
         model=result.model, input_tokens=result.input_tokens, output_tokens=result.output_tokens,
         page_receipt=context["receipt"],
-        suggested_actions=suggested_actions,
+        suggested_actions=suggested_actions, starter=starter,
     )
     record_used_memories(db_session, persisted["assistant_message_uuid"], used_memories, org_id, current_user.id)
     questions = record_questions(db_session, org_id=org_id, user_id=current_user.id, message_uuid=persisted["assistant_message_uuid"], questions=list(result.questions), edit_run=edit_run, target=target)

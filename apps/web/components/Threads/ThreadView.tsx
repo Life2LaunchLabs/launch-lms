@@ -16,6 +16,7 @@ import { ROLE_LABELS } from '@services/school/people'
 import { threadKeys, threadsApi, type OrgLogEntry, type PersonThread, type ThreadFilter } from '@services/school/threads'
 import { shortDate } from '@services/assignments/status'
 import { ContextBar, FilterChips, type StepOption } from './ContextBar'
+import EppReportLink from '@components/Epp/EppReportLink'
 import { AskedCard, JoinRequestCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
@@ -123,7 +124,9 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   const sub = thread.kind === 'staff' ? ROLE_LABELS[thread.role] : others.length ? `With ${names(others, me)}` : ROLE_LABELS[thread.role]
   const insights = thread.kind === 'learner' && thread.person.user_uuid ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('learner', thread.person.user_uuid))}
     aria-label={`${thread.person.name}'s Insights`} title="Insights" className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><BarChart3 size={16} /></Link> : null
-  const header = <Header art={art} title={thread.person.name} sub={sub} actions={insights ? <>{insights}{actions}</> : actions} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
+  // A supported learner's EPP report, one step from their thread (FEED-212).
+  const epp = thread.kind === 'learner' ? <EppReportLink icon orgId={orgId} orgslug={orgslug} userId={thread.person.id} username={thread.person.username} name={thread.person.name} token={token} /> : null
+  const header = <Header art={art} title={thread.person.name} sub={sub} actions={<>{epp}{insights}{actions}</>} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
   if (thread.kind === 'staff' || !thread.chat_uuid) return <Shell>{header}<div className="border-b border-border" />
     {thread.chat_uuid ? <ChatWorkspace key={thread.chat_uuid} source={{ chatUuid: thread.chat_uuid }} orgslug={orgslug} token={token} hideTopics empty="Nothing here yet. Say hello." />
       : <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">You can’t message {thread.person.name.split(' ')[0]} directly.</p>}

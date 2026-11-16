@@ -32,7 +32,7 @@ import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAft
 import { routeDoc, setLength, setStart, showWayTo } from './dates'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
-import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planAsk, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planStarter, suggestTitle, type CheckItem } from './setup'
 import { useHub } from '@components/Hub/HubContext'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
@@ -43,6 +43,7 @@ import useLifePlan from './useLifePlan'
 import Invitations from '@components/Goals/home/Invitations'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
 
+import { EducationPlanEntry } from '@components/Epp/SupportAsk'
 import { tr } from '@/lib/tr'
 const EMPTY: GoalSummary[] = []
 const lower = (title: string) => title.charAt(0).toLowerCase() + title.slice(1)
@@ -150,8 +151,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
     if (saved) router.push(getUriWithOrg(orgslug, routePaths.org.plans()))
   }
 
-  // Planning a phase is a conversation: Coach starts from the phase (name, dates, what it's about, where).
-  const planWithCoach = hub ? () => hub.open({ prompt: planAsk(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
+  // Planning a phase is a conversation Coach opens about the phase; nothing is sent in the person's name (DEV-113).
+  const planWithCoach = hub ? () => hub.open({ starter: planStarter(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
   const items = checklist(phase, here.length)
   const left = items.filter((i) => !i.done)
   const gaps = careerGaps(doc, phase, careers)
@@ -167,6 +168,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   return <GeneralWrapperStyled>
     <main className="flex flex-col gap-4 pb-16">
       <PhaseNav doc={doc} phase={phase} orgslug={orgslug} mapHref={mapHref} />
+      {/* The learner's Education Plan, or a school's ask while it waits (DEV-111). */}
+      <EducationPlanEntry orgslug={orgslug} />
       <WayBar doc={doc} />
       <div className="relative">
         <Cover time={time} span={spanText(doc, phase)} photos={photos} uploading={uploading} pop={pop} setPop={setPop}

@@ -102,7 +102,7 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
     setState('open')
     setTab('coach')
     setUnread(false)
-    if (next && (next.prompt || next.conversation || next.resource)) setIntent({ ...next, id: Date.now() })
+    if (next && (next.prompt || next.starter || next.conversation || next.resource)) setIntent({ ...next, id: Date.now() })
   }, [])
   const openThreads = useCallback((target?: unknown) => {
     if (!threads) return

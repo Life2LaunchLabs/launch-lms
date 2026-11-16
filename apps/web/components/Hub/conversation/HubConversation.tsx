@@ -9,7 +9,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import {
   archiveHubConversation, askHubAdvisor, concludeHubEditRun, getActiveHubEditRun, getHubConversation, HubAdvisorMessage, HubAdvisorResource,
-  HubConversationSummary, HubSuggestedAction, listHubConversations, recordHubSearch, renameHubConversation,
+  HubChatStarter, HubConversationSummary, HubSuggestedAction, listHubConversations, recordHubSearch, renameHubConversation,
   resolveHubSuggestedAction, saveHubConversationState,
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
@@ -69,6 +69,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const [conversationLoading, setConversationLoading] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  // What shows while Coach works: the person hears back at once, before a long think (FEED-115).
+  const [sendingNote, setSendingNote] = useState('')
   const [error, setError] = useState('')
   const [contextResources, setContextResources] = useState<HubAdvisorResource[]>([])
   const [pendingResources, setPendingResources] = useState<HubAdvisorResource[]>([])
@@ -87,6 +89,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const attemptedContinuationsRef = useRef(new Set<string>())
   const automaticallyStartedRunsRef = useRef(new Set<string>())
   const restoredRef = useRef(false)
+  // A chat a page button opened: Coach's first line is showing and goes to Coach with the first reply.
+  const starterRef = useRef<HubChatStarter | null>(null)
   const conversationStarted = Boolean(conversationUuid || messages.length > 0)
   const inChat = useMemo(() => new Set(contextResources.map((resource) => resource.resource_uuid)), [contextResources])
   const timelineSlots = useMemo(() => placeHubRunTimeline(buildHubRunTimeline(hub?.editRun?.events || []), messages), [messages, hub?.editRun?.events])
@@ -196,7 +200,16 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       const uuid = intent.resource.startsWith('resource_') ? intent.resource : `resource_${intent.resource}`
       getResource(uuid, accessToken).then(addResource).catch((loadError: any) => setError(loadError?.message || tr('lit.hub_conversation.this_resource_is_not_available', 'This resource is not available.')))
     }
-    if (intent.prompt?.trim()) {
+    if (intent.starter) {
+      const starter = intent.starter
+      endingSession(() => {
+        resetChat()
+        starterRef.current = starter
+        messageSequenceRef.current += 1
+        setMessages([{ id: `opener-${messageSequenceRef.current}`, role: 'assistant', content: starter.opener, createdAt: new Date().toISOString() }])
+        window.requestAnimationFrame(() => composerRef.current?.focus())
+      })
+    } else if (intent.prompt?.trim()) {
       pendingSubmissionRef.current = { content: intent.prompt, preserveDraft: true, allowHidden: true }
       window.requestAnimationFrame(() => composerRef.current?.submit())
     } else window.requestAnimationFrame(() => composerRef.current?.focus())
@@ -219,9 +232,13 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     // Clearing the chat ends its session on the server too; suggestions stay on the goal.
     const run = hub?.editRun
     if (run?.status === 'active' && accessToken && org?.id) void concludeHubEditRun(org.id, run.run_uuid, 'cancelled', accessToken).catch(() => undefined)
+    // A conversation still loading (a resumed one) must not land over the new chat.
+    loadSequence.current += 1
+    setConversationLoading(false)
     setMessages([]); setConversationUuid(null); setConversationTitle(''); setContextResources([]); setPendingResources([]); setTrayUuid(null)
     introducedResourceUuidsRef.current.clear()
     setDraft(''); setError('')
+    starterRef.current = null
     rememberConversation(null)
     hub?.setEditRun(null); hub?.setEditOperations([]); hub?.setEditReviewItems([]); hub?.clearEditContinuations(hub.editRun?.run_uuid)
   }
@@ -271,7 +288,9 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     const content = (pending?.content || draft).trim()
     if (!content || !accessToken || !org?.id || sending || conversationLoading || (!active && !pending?.allowHidden)) return
     const previousMessages = messages
-    let history: HubAdvisorMessage[] = hubAdvisorHistory(messages)
+    const starter = conversationUuid ? null : starterRef.current
+    // With a starter, the API puts the page's context and Coach's first line ahead of this reply.
+    let history: HubAdvisorMessage[] = starter ? [] : hubAdvisorHistory(messages)
     while (history.length >= 2 && history.reduce((sum, item) => sum + item.content.length, 0) + content.length > 7_500) history = history.slice(2)
     if (!conversationUuid) {
       const normalized = content.replace(/\s+/g, ' ').trim()
@@ -284,6 +303,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     setPendingResources([])
     if (!pending?.preserveDraft) setDraft('')
     setError('')
+    setSendingNote(pending?.allowHidden ? tr('coach.hub_conversation.thinking', 'Thinking…') : tr('coach.hub_conversation.got_it_thinking', 'Got it. Let me think that through…'))
     setSending(true)
     const controller = new AbortController()
     advisorAbortRef.current = controller
@@ -293,7 +313,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       if (!pending?.preserveDraft) setDraft((current) => restoreSubmittedDraft(current, content))
     }
     try {
-      if (inferHubResponseKind(content) === 'search') {
+      if (!starter && inferHubResponseKind(content) === 'search') {
         const persisted = await recordHubSearch(org.id, content, accessToken, {
           conversationUuid: conversationUuid || undefined, resourceUuids: contextResources.map((resource) => resource.resource_uuid),
           learnerResourceUuids: submittedResources.map((resource) => resource.resource_uuid), surface: pageSurface(), signal: controller.signal,
@@ -305,8 +325,9 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
         ])
         setConversationUuid(persisted.conversation_uuid); setConversationTitle(persisted.title); rememberConversation(persisted.conversation_uuid)
       } else {
-        const response = await askHubAdvisor(org.id, [...history, { role: 'user', content }], accessToken, contextResources.map((resource) => resource.resource_uuid), conversationUuid || undefined, submittedResources.map((resource) => resource.resource_uuid), pageSurface(), controller.signal)
+        const response = await askHubAdvisor(org.id, [...history, { role: 'user', content }], accessToken, contextResources.map((resource) => resource.resource_uuid), conversationUuid || undefined, submittedResources.map((resource) => resource.resource_uuid), pageSurface(), controller.signal, starter || undefined)
         if (!alive.current) return
+        if (starter && starterRef.current === starter) starterRef.current = null
         const transcriptResources = newHubTranscriptResources(introducedResourceUuidsRef.current, response.resources)
         transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
         setMessages([...previousMessages,
@@ -438,7 +459,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
             onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction} onAnswer={answerQuestions}
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
-          {sending ? <div className="text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.thinking', 'Thinking…')}</div> : null}
+          {sending ? <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><span className="inline-flex gap-1" aria-hidden="true"><span className="size-1.5 animate-pulse rounded-full bg-current" /><span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" /><span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:300ms]" /></span>{sendingNote || tr('coach.hub_conversation.thinking', 'Thinking…')}</div> : null}
           {conversationStarted ? memoryNotice : null}
           {conversationStarted && !conversationLoading ? notes : null}
           {error ? <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
