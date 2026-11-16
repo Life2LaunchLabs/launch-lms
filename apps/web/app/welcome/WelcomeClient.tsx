@@ -4,6 +4,7 @@ import React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { welcomeSignupNamesKey } from '@/app/auth/signup/SignupNames'
 import { errorDetailMessage } from '@/lib/errorDetail'
+import { ageRefusalCode, forgetBirthDate, markRefused, rememberedBirthDate } from '@services/auth/ageCheck'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -37,13 +38,16 @@ export default function WelcomeClient() {
             body: JSON.stringify({
               email, password,
               ...names,
+              birth_date: rememberedBirthDate(), // the age check from sign-up (DEV-38)
               invitation_token: searchParams.get('invitation') || undefined,
               invite_code: searchParams.get('inviteCode') || undefined,
               org_id: Number(searchParams.get('org')) || undefined,
             }),
           })
           const data = await res.json().catch(() => null)
+          if (ageRefusalCode(data) === 'under_13') markRefused()
           if (!res.ok) throw new Error(errorDetailMessage(data, 'Unable to complete signup'))
+          forgetBirthDate()
           window.sessionStorage.removeItem(welcomeSignupPasswordKey(email))
           window.sessionStorage.removeItem(welcomeSignupNamesKey(email))
           window.location.href = data?.onboarding?.redirect_url || '/'

@@ -29,6 +29,7 @@ from src.db.users import (
 )
 from src.security.auth import get_authenticated_user, get_current_user
 from src.services.orgs.orgs import get_org_join_mechanism
+from src.services.auth import age_check
 from src.services.security.rate_limiting import check_password_reset_rate_limit
 from src.services.users.password_reset import (
     change_password_with_reset_code,
@@ -163,12 +164,10 @@ async def api_create_user_with_orgid(
     response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-    user_object: UserSignupCreate,
+    user_object: UserSignupCreate = Depends(age_check.signup_body),
     org_id: int,
 ) -> UserRead:
-    """
-    Create User with Org ID
-    """
+    """Create User with Org ID (sign-up; the age check runs first)."""
 
     # TODO(fix) : This is temporary, logic should be moved to service
     if (
@@ -198,7 +197,7 @@ async def api_create_user_with_orgid_and_invite(
     response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-    user_object: UserSignupCreate,
+    user_object: UserSignupCreate = Depends(age_check.signup_body),
     invite_code: str,
     org_id: int,
 ) -> UserRead:
@@ -220,7 +219,7 @@ async def api_create_user_with_organization_invitation(
     response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-    user_object: UserSignupCreate,
+    user_object: UserSignupCreate = Depends(age_check.signup_body),
     invitation_token: str,
     org_id: int,
 ) -> UserRead:
@@ -242,7 +241,7 @@ async def api_create_user_without_org(
     response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-    user_object: UserCreate,
+    user_object: UserCreate = Depends(age_check.create_body),
 ) -> UserRead:
     """
     Create User

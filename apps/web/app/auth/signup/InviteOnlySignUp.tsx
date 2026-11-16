@@ -19,6 +19,8 @@ import { useAuth } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import LegalAgreement from '@components/Legal/LegalAgreement'
+import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
+import { ageRefusalCode } from '@services/auth/ageCheck'
 
 const validate = (values: any, t: any) => {
   const errors: any = {}
@@ -59,6 +61,7 @@ interface InviteOnlySignUpProps {
 function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const age = useAgeConfirm()
   const org = useOrg() as any
   const { signIn } = useAuth()
   const [error, setError] = React.useState('')
@@ -82,10 +85,16 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
     onSubmit: async (values) => {
       setError('')
       setIsSubmitting(true)
+      const body = { ...values, birth_date: age.birthDate }
       let res = props.invitationToken
-        ? await signUpWithInvitation(values, props.invitationToken)
-        : await signUpWithInviteCode(values, props.inviteCode)
+        ? await signUpWithInvitation(body, props.invitationToken)
+        : await signUpWithInviteCode(body, props.inviteCode)
       let result = await res.json()
+      if (ageRefusalCode(result) === 'under_13') {
+        age.refuse()
+        setIsSubmitting(false)
+        return
+      }
       if (res.status == 200) {
         const callbackUrl = postSignupUrl
         const signInRes = await signIn('credentials', {
@@ -139,7 +148,8 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
 
       {/* Signup Form Card */}
       <div className="bg-white rounded-xl p-6 nice-shadow">
-        <FormLayout onSubmit={formik.handleSubmit}>
+        <FormLayout onSubmit={(event: React.FormEvent<HTMLFormElement>) => (age.ok() ? formik.handleSubmit(event) : event.preventDefault())}>
+          <AgeConfirm {...age.field} />
           <FormField name="email">
             <FormLabelAndMessage
               label={t('auth.email')}

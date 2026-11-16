@@ -16,6 +16,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
 import LegalAgreement from '@components/Legal/LegalAgreement'
+import { ageRefusalCode } from '@services/auth/ageCheck'
 import { validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import { signup } from '@services/auth/auth'
 import { authenticatedOrgHref } from '@services/auth/handoff'
@@ -399,9 +400,10 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
     setError('')
     try {
       if (!existing) {
-        const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id })
+        const response = await signup({ username: newUsername(), email: email.trim(), password, org_slug: org?.slug, org_id: org?.id, birth_date: age.birthDate })
         if (response.status !== 200) {
           const body = await response.json().catch(() => null)
+          if (ageRefusalCode(body) === 'under_13') return age.refuse()
           throw new Error(typeof body?.detail === 'string' ? body.detail : body?.detail?.message || tr('lit.start_flow.could_not_create_the_account', 'Could not create the account.'))
         }
       }
@@ -419,7 +421,7 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
   const google = async () => {
     if (!existing && !age.ok()) return
     onGoogle()
-    const result = await signIn('google', { callbackUrl: `${window.location.origin}/start`, orgSlug: org?.slug, orgId: org?.id } as any)
+    const result = await signIn('google', { callbackUrl: `${window.location.origin}/start`, orgSlug: org?.slug, orgId: org?.id, birthDate: age.birthDate } as any)
     if (result && 'error' in result && result.error) setError(result.error)
   }
 

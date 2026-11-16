@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 from src.services.auth import google_oauth
@@ -65,6 +65,7 @@ class WelcomeSignupRequest(BaseModel):
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
+    birth_date: date | None = None  # checked, never stored (DEV-38)
 
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
@@ -145,7 +146,7 @@ async def complete_welcome_signup(
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
 
-    from src.services.auth import welcome
+    from src.services.auth import age_check, welcome
 
     started_at = datetime.now(timezone.utc).isoformat()
     profile_preset = welcome.signup_profile(started_at)
@@ -155,7 +156,7 @@ async def complete_welcome_signup(
         password=body.password,
         first_name=body.first_name.strip(), last_name=body.last_name.strip(), preferred_name=body.preferred_name.strip(),
         bio="",
-        details={"onboarding": {"started_at": started_at}},
+        details=age_check.checked_details({"onboarding": {"started_at": started_at}}, body.birth_date),
         profile=profile_preset,
     )
 
@@ -355,6 +356,7 @@ class ThirdPartyLogin(BaseModel):
     email: EmailStr
     provider: Literal["google"]
     access_token: str
+    birth_date: date | None = None  # only for a new account: checked, never stored (DEV-38)
 
 
 @router.post("/oauth")
@@ -376,7 +378,7 @@ async def third_party_login(
     if body.provider == "google":
 
         user = await signWithGoogle(
-            request, body.access_token, body.email, org_id, current_user, db_session
+            request, body.access_token, body.email, org_id, current_user, db_session, birth_date=body.birth_date
         )
 
     if not user:
