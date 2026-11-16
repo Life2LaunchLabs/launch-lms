@@ -232,3 +232,95 @@ def waiting_for_invitation(db: Session, invitation: OrganizationInvitation) -> H
     if invitation.source != "cis" or invitation.id is None:
         return None
     return db.exec(select(HeldPortfolioImport).where(HeldPortfolioImport.invitation_id == invitation.id, HeldPortfolioImport.status == "held")).first()
+
+
+# ---------------------------------------------------------------- the learner's side (DEV-41)
+
+async def bring_in(db: Session, held: HeldPortfolioImport, user: User) -> dict:
+    """Copy held CIS work into the learner's portfolio once, then delete the held export.
+
+    Items already in the portfolio (from an earlier CIS import or typed in by hand) are skipped, so it never
+    duplicates anything."""
+    from src.services.portfolio_imports import import_content
+
+    if held.status != "held" or not held.content:
+        raise HTTPException(status_code=409, detail="This CIS work is no longer waiting")
+    learner = PublicUser.model_validate(user)
+    result = await import_content(held.source, held.content, held.filename or "Oregon CIS data.xlsx", None, learner, db)
+    held.target_user_id, held.added, held.imported_at = user.id, result["added"], _now()
+    _drop(held, "imported")
+    db.add(held)
+    db.commit()
+    return result
+
+
+async def after_accept(db: Session, invitation: OrganizationInvitation, user_id: int) -> None:
+    """A CIS invitation was accepted: bring the learner's CIS work into their portfolio.
+
+    Never stops them joining. If it fails, the work stays waiting and they can bring it in from their portfolio."""
+    held = waiting_for_invitation(db, invitation)
+    user = db.get(User, user_id) if held else None
+    if not held or not user:
+        return
+    try:
+        await bring_in(db, held, user)
+    except Exception:
+        logger.exception("Bringing in held CIS work %s failed; it stays waiting", held.held_uuid)
+        db.rollback()
+        held = db.get(HeldPortfolioImport, held.id)
+        if held and held.status == "held":
+            held.target_user_id = user_id
+            db.add(held)
+            db.commit()
+
+
+def _mine(db: Session, current_user: PublicUser):
+    """Held CIS work the learner can bring in now: theirs by account or email, and not waiting on an invitation."""
+    email = " ".join(str(current_user.email or "").split()).lower()
+    rows = db.exec(select(HeldPortfolioImport).where(
+        HeldPortfolioImport.status == "held",
+        (HeldPortfolioImport.target_user_id == current_user.id) | (HeldPortfolioImport.email_normalized == email),
+    )).all()
+    invitations = {row.id: row for row in db.exec(select(OrganizationInvitation).where(col(OrganizationInvitation.id).in_([held.invitation_id for held in rows if held.invitation_id]))).all()} if rows else {}
+    member_of = set(db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == current_user.id)).all())
+    # A held export on a pending invitation comes over when they accept it; until then it isn't offered here.
+    return [held for held in rows if held.org_id in member_of and (held.invitation_id is None or getattr(invitations.get(held.invitation_id), "status", None) == "accepted")]
+
+
+def waiting_for_me(current_user: PublicUser, db: Session) -> list[dict]:
+    purge(db)
+    held_rows = _mine(db, current_user)
+    orgs = {org.id: org for org in db.exec(select(Organization).where(col(Organization.id).in_([held.org_id for held in held_rows]))).all()} if held_rows else {}
+    senders = {user.id: user for user in db.exec(select(User).where(col(User.id).in_([held.created_by_user_id for held in held_rows if held.created_by_user_id]))).all()} if held_rows else {}
+    out = []
+    for held in held_rows:
+        sender = senders.get(held.created_by_user_id)
+        out.append({
+            "held_uuid": held.held_uuid, "org_name": orgs[held.org_id].name if held.org_id in orgs else "",
+            "sent_by": " ".join(part for part in ((sender.first_name, sender.last_name) if sender else ()) if part),
+            "summary": held.summary, "expires_at": held.expires_at.isoformat(),
+        })
+    return out
+
+
+def _my_held(held_uuid: str, current_user: PublicUser, db: Session) -> HeldPortfolioImport:
+    held = next((row for row in _mine(db, current_user) if row.held_uuid == held_uuid), None)
+    if not held:
+        raise HTTPException(status_code=404, detail="Not found")
+    return held
+
+
+async def accept_mine(held_uuid: str, current_user: PublicUser, db: Session) -> dict:
+    held = _my_held(held_uuid, current_user, db)
+    user = db.get(User, current_user.id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return await bring_in(db, held, user)
+
+
+def decline_mine(held_uuid: str, current_user: PublicUser, db: Session) -> dict:
+    held = _my_held(held_uuid, current_user, db)
+    _drop(held, "declined")
+    db.add(held)
+    db.commit()
+    return {"held_uuid": held.held_uuid, "status": held.status}

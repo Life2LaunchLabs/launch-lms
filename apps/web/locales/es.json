@@ -4796,7 +4796,16 @@
       "bring_in_size": "Traer {{size}}",
       "upload_from_title": "Subir desde {{title}}",
       "v_thing": "cosa",
-      "v_things": "cosas"
+      "v_things": "cosas",
+      "your_cis_work_is_waiting": "Tu trabajo de Oregon CIS te está esperando",
+      "cis_sent_by_at": "{{name}} de {{org}} te envió lo que guardaste en Oregon CIS.",
+      "cis_sent_by_org": "{{org}} te envió lo que guardaste en Oregon CIS.",
+      "cis_items_waiting": "{{count}} cosas pueden pasar a tu portafolio. Lo que ya está ahí se omite.",
+      "cis_plan_rows_waiting": "Incluye tu progreso del plan para cuando tus planes puedan usarlo.",
+      "bring_it_in": "Traerlo",
+      "no_thanks": "No, gracias",
+      "cis_waiting_private": "Solo tú y el personal que lo envió pueden verlo. Si lo rechazas, se elimina.",
+      "cis_work_turned_down": "Rechazado. Se eliminó."
     },
     "quest_bar": {
       "have_of_need": "{{have}} de {{need}}",

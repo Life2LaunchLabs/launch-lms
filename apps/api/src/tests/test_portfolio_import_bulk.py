@@ -100,15 +100,17 @@ def test_the_held_slice_leaves_out_profile_demographics():
 
 
 def test_a_single_learners_download_is_a_bulk_export_of_one():
-    preview = bulk.preview(_cis_zip(), "cis.zip")
+    # Built once: a zip records when each file was written, so two builds can differ by a second.
+    download = _cis_zip()
+    preview = bulk.preview(download, "cis.zip")
     assert preview["kind"] == "single"
     [learner] = preview["learners"]
     assert learner["name"] == "Maya Rivera"
-    assert learner["items"] == len(read_export("cis", _cis_zip(), "cis.zip")["items"])
+    assert learner["items"] == len(read_export("cis", download, "cis.zip")["items"])
     # Their download has no email in it, so staff add one before sending.
     assert learner["problem"].startswith("No email")
-    [held] = bulk.learner_exports(_cis_zip(), "cis.zip")
-    assert held["content"] == _cis_zip() and held["filename"] == "cis.zip"
+    [held] = bulk.learner_exports(download, "cis.zip")
+    assert held["content"] == download and held["filename"] == "cis.zip"
 
 
 def test_several_learners_with_no_learner_column_is_refused_not_guessed():

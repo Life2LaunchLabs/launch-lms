@@ -64,10 +64,14 @@ def clean(db: Session, org_id: int, role: Role, inviter_id: int, permissions: li
     return permissions, [{"assignment_uuid": uuid, "role_key": role} for uuid, role in picked.items()]
 
 
-def accepted(db: Session, invitation: OrganizationInvitation, user_id: int, request: Request) -> None:
-    """Every accept path ends here: record the acceptance, then set up what the invitation carries."""
+async def accepted(db: Session, invitation: OrganizationInvitation, user_id: int, request: Request) -> None:
+    """Every accept path ends here: record the acceptance, then set up what the invitation carries, including the
+    Oregon CIS work a CIS invitation holds for the learner (services/portfolio_held_imports.py)."""
+    from src.services.portfolio_held_imports import after_accept
+
     audit_invitation_acceptance(invitation, user_id, request, db)
     apply(db, invitation, user_id)
+    await after_accept(db, invitation, user_id)
 
 
 def add_staff(db: Session, assignment: GoalAssignment, user_id: int, role_key: str) -> bool:

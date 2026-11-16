@@ -297,7 +297,7 @@ async def create_user_with_organization_invitation(
     user = await create_user(request, db_session, current_user, user_object, org_id, signup_provider="invite",
                              membership_role_id=invitation.role_id, reserved_invitation_id=invitation.id)
 
-    staff_setup.accepted(db_session, invitation, int(user.id), request)
+    await staff_setup.accepted(db_session, invitation, int(user.id), request)
 
     if invitation.usergroup_id:
         await add_users_to_usergroup(
