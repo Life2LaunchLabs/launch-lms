@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
@@ -24,4 +24,15 @@ test('the legal pages make no vague promises and are not marked draft', () => {
     assert.doesNotMatch(text, /limited time/i, file)
     assert.doesNotMatch(text, /Draft, pending legal review/, file)
   }
+})
+
+test('legal pages: one age wording, no organization scripts, services listed above (DEV-99)', () => {
+  const data = read('app/data/page.tsx')
+  const privacy = read('lib/legal/privacy.tsx')
+  assert.match(data, /\{AGE_CHECK\}/)
+  assert.match(privacy, /\{AGE_CHECK\}/)
+  assert.match(read('lib/legal/facts.ts'), /single sign-on/)
+  assert.doesNotMatch(data, /add its own scripts/)
+  assert.doesNotMatch(data, /services listed below/)
+  assert.ok(!existsSync(new URL('../components/OrgScripts', import.meta.url)), 'the organization script loader is gone')
 })

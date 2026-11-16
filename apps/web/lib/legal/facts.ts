@@ -36,3 +36,7 @@ export const DELETION = {
 
 /** Download my data: services/users/data_export.py, Account › Your data. */
 export const SELF_EXPORT = 'Anyone signed in can download a copy of everything Life2Launch keeps about them, as one file, from Account › Your data.'
+
+/** Age: services/auth/age_check.py checks every self-service sign-up; accounts a school's single sign-on provisions skip it (Terms of Use). */
+export const AGE_CHECK =
+  'Accounts are only for people aged 13 and over. Every way to sign up on your own asks for a date of birth and refuses anyone younger. The date of birth itself is never stored: the account keeps only that the person is over 13 and the date this was checked. When a school signs its students in through its own single sign-on, Life2Launch does not ask again: under our Terms of Use the school confirms that everyone it enrolls is 13 or older.'
