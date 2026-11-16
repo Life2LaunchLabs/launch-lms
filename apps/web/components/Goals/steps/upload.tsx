@@ -79,7 +79,7 @@ export function UploadSlotRow({ slot, entries = [], open, adding = open, busy, o
         </span>) : <span className="block text-xs font-semibold text-muted-foreground">{kinds}</span>}
       </span>
     </span>}
-    {offer && (entry || media.length > 1) ? <span className="flex shrink-0 flex-wrap gap-x-3">
+    {offer && (entry || media.length > 1) ? <span className="flex basis-full flex-wrap gap-x-3 pl-[68px]">
       {entry && media.length === 1 ? <button type="button" onClick={() => onPick(media[0])} className="py-2 text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_another', 'Add another')}</button>
         : media.length > 1 ? media.map((kind) => <button key={kind} type="button" onClick={() => onPick(kind)} className="py-2 text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_kind', 'Add a {{kind}}', { kind: kindLabel(kind).toLowerCase() })}</button>) : null}
       {slot.kinds.includes('link') && (entry || slot.kinds.length > 1) ? <button type="button" onClick={onLink} className="py-2 text-xs font-bold text-[var(--plan-accent)]">{tr('goals.upload.add_a_link', 'Add a link')}</button> : null}
