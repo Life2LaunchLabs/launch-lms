@@ -6,7 +6,7 @@ import useSWR from 'swr'
 import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
-import { addPersonas, closeCohort, replayCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestPersona } from '@services/userTests/userTests'
+import { addPersonas, closeCohort, replayCohort, fetchUserTests, parsePersonaLines, personaName, userTestsKey, type TestCohortDetail, type TestInvitee, type TestPersona } from '@services/userTests/userTests'
 import CohortCleanup from './CohortCleanup'
 import CohortCheckpoints from './CohortCheckpoints'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -31,7 +31,7 @@ function AddPersonasForm({ cohort, onAdded }: { cohort: TestCohortDetail; onAdde
   }
 
   return <form onSubmit={submit} className="space-y-3 rounded-xl border bg-card p-5">
-    <div><h2 className="text-lg font-semibold">Add personas</h2><p className="text-sm text-muted-foreground">One per line: a name, then <code>|</code> and a short brief. Start a line with <code>owner:</code> to also give them a new test org they run, <code>new:</code> for someone who just signed up (their first link lands where a sign-up does: their first phase), or <code>creator:</code> for someone who just signed up to set up an org (their first link opens org set-up). Everyone joins the main org as a learner.</p></div>
+    <div><h2 className="text-lg font-semibold">Add personas</h2><p className="text-sm text-muted-foreground">One per line: a name, then <code>|</code> and a short brief. Start a line with <code>owner:</code> to also give them a new test org they run, <code>new:</code> for someone who just signed up (their first link lands where a sign-up does: their first phase), <code>creator:</code> for someone who just signed up to set up an org (their first link opens org set-up), or <code>invite:</code> for someone with no account yet: only an address another persona invites, who signs up from the invitation. Everyone else joins the main org as a learner.</p></div>
     <Label htmlFor="persona-lines" className="sr-only">Personas, one per line</Label>
     <Textarea id="persona-lines" rows={5} value={text} onChange={(event) => setText(event.target.value)} placeholder={'Maya Lopez | 9th grader, new to the app, uses a phone\nowner: Dana Rivera | High school counselor setting up her school'} />
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -68,6 +68,8 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
     try { const made = await replayCohort(cohortUuid); router.push(href(made.cohort_uuid)) } catch (failure) { setCloseError((failure as Error).message); setReplaying(false) }
   }
   const openAs = (persona: TestPersona, path = '/', origin = '') => void login.make(persona.user_id, personaName(persona), path, origin)
+  const invitees = data?.invitees ?? []
+  const openInvitee = (invitee: TestInvitee, path = '/', origin = '') => void login.make(0, `${personaName(invitee)} (signed out, not signed up yet)`, path, origin, invitee.invitee_id)
 
   const actions = data ? <div className="flex flex-wrap gap-2">
     {data.persona_count ? <Button size="sm" variant="outline" onClick={() => void replay()} disabled={replaying}>{replaying ? 'Starting…' : 'Run again'}</Button> : null}
@@ -100,11 +102,21 @@ export default function UserTestsCohort({ cohortUuid }: { cohortUuid: string }) 
           </tr>)}</tbody>
         </table></div> : <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">No personas yet.</div>}
       </section>
+      {invitees.length ? <section className="space-y-3" aria-labelledby="invitees-heading">
+        <div><h2 id="invitees-heading" className="text-lg font-semibold">Not signed up yet</h2><p className="text-sm text-muted-foreground">Addresses a persona can invite. Mail to them shows below; open one signed out and sign up from the invitation, and they join this run as a persona.</p></div>
+        <ul className="divide-y rounded-xl border bg-card">{invitees.map((invitee) => <li key={invitee.invitee_id} className="flex flex-wrap items-start gap-3 px-4 py-3 text-sm">
+          <div className="min-w-0 flex-1"><span className="block font-semibold">{personaName(invitee)}</span><span className="block break-all text-xs text-muted-foreground">{invitee.email}</span>{invitee.brief ? <span className="mt-1 block text-xs text-muted-foreground">{invitee.brief}</span> : null}</div>
+          <span className="text-xs tabular-nums">{invitee.unread_mail ? <b>{invitee.unread_mail} unread</b> : 'No mail yet'}</span>
+          <Button size="sm" variant="outline" disabled={!isOpen || login.busy} onClick={() => openInvitee(invitee)}>Open signed out</Button>
+        </li>)}</ul>
+      </section> : null}
       {isOpen ? <AddPersonasForm cohort={data} onAdded={() => void mutate()} /> : null}
       <RunBoard cohortUuid={cohortUuid} personas={data.personas} stages={data.stages} isOpen={isOpen} onChanged={() => void mutate()} />
       {data.status !== 'purged' ? <CohortCheckpoints cohortUuid={cohortUuid} stages={data.stages} canCapture={isOpen} demoHref={demoHref} /> : null}
       {!isOpen && data.status !== 'purged' ? <CohortCleanup cohortUuid={cohortUuid} cohortName={data.name} onPurged={() => void mutate()} /> : null}
-      <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} onOpenAs={({ persona, path, origin }) => { if (isOpen) openAs(persona, path, origin) }} />
+      <UserTestsInbox cohortUuid={cohortUuid} personas={data.personas} invitees={invitees}
+        onOpenAs={({ persona, path, origin }) => { if (isOpen) openAs(persona, path, origin) }}
+        onOpenInvitee={({ invitee, path, origin }) => { if (isOpen) openInvitee(invitee, path, origin) }} />
     </> : null}
   </UserTestsShell>
 }

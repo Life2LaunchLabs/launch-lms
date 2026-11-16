@@ -53,6 +53,30 @@ class TestPersona(SQLModel, table=True):
     creation_date: datetime = Field(default_factory=datetime.utcnow)
 
 
+class TestInvitee(SQLModel, table=True):
+    """Someone the run will invite who has no account yet: a reserved test address (DEV-103).
+
+    Mail to the address is kept for the run. Signing up from the browser the console opened for
+    them makes the account a persona of the run (``user_id`` is then set).
+    """
+
+    __tablename__ = "test_invitee"
+    __test__ = False
+
+    id: int | None = Field(default=None, primary_key=True)
+    cohort_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("test_cohort.id", ondelete="CASCADE"), index=True, nullable=False)
+    )
+    handle: str
+    email: str = Field(index=True, unique=True)
+    first_name: str = ""
+    last_name: str = ""
+    brief: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    user_id: int | None = Field(default=None, index=True)  # the account once they sign up
+    signed_up_at: datetime | None = None
+    creation_date: datetime = Field(default_factory=datetime.utcnow)
+
+
 class TestCohortOrg(SQLModel, table=True):
     """An organization a persona created, so it belongs to the cohort."""
 
@@ -96,7 +120,8 @@ class TestLoginTicket(SQLModel, table=True):
     __test__ = False
 
     token_hash: str = Field(primary_key=True)
-    persona_user_id: int = Field(index=True)
+    persona_user_id: int = Field(index=True)  # 0 for an invitee's entry link
+    invitee_id: int | None = None
     operator_user_id: int
     target_path: str = "/"
     expires_at: datetime

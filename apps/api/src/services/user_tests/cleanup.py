@@ -167,6 +167,9 @@ def _delete(db: Session, cohort: TestCohort, users: set[int], orgs: set[int]) ->
         db.flush()
         if (user := db.get(User, user_id)) is not None:
             db.delete(user)
+    from src.db.user_tests import TestInvitee
+
+    db.execute(delete(TestInvitee).where(TestInvitee.cohort_id == cohort.id))  # type: ignore[arg-type]
     cohort.status, cohort.update_date = "purged", datetime.utcnow()
     db.add(cohort)
     db.commit()

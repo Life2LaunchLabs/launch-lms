@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.user_organizations import UserOrganization
-from src.db.user_tests import TestCohort, TestCohortOrg, TestPersona
+from src.db.user_tests import TestCohort, TestCohortOrg, TestInvitee, TestPersona
 from src.db.users import PublicUser, User
 from src.security.rbac.constants import USER_ROLE_ID
 from src.security.security import security_hash_password
@@ -25,7 +25,7 @@ from src.services.user_tests.cohorts import MAX_PERSONAS, get_cohort, is_open, p
 from src.services.user_tests.settings import email_domain
 
 
-StartState = Literal["has_account", "new_signup", "org_creator", "org_owner"]
+StartState = Literal["has_account", "new_signup", "org_creator", "org_owner", "invitee"]
 # Just made their account: they start with the profile a welcome signup gives (routers/auth.py).
 JUST_SIGNED_UP = ("new_signup", "org_creator")
 
@@ -52,7 +52,7 @@ def _unique_handle(db: Session, cohort: TestCohort, first_name: str) -> str:
     candidate, suffix = stem, 1
     while db.exec(
         select(TestPersona).where(TestPersona.cohort_id == cohort.id, TestPersona.handle == candidate)
-    ).first():
+    ).first() or db.exec(select(TestInvitee).where(TestInvitee.cohort_id == cohort.id, TestInvitee.handle == candidate)).first():
         suffix += 1
         candidate = f"{stem}-{suffix}"
     return candidate
@@ -154,6 +154,13 @@ async def create_personas(db: Session, cohort_uuid: str, body: CreatePersonas) -
     main_org = require_owner_org(db)
     created = []
     for item in body.personas:
+        if item.start_state == "invitee":
+            # No account yet: a reserved address the run will invite (DEV-103).
+            from src.services.user_tests import invitees
+
+            invitee = invitees.create(db, cohort, _unique_handle(db, cohort, item.first_name), item.first_name, item.last_name, item.brief)
+            created.append(invitees.row(db, invitee))
+            continue
         user, persona = _create_user(db, cohort, item, int(main_org.id))
         if item.start_state == "org_owner":
             await _create_owned_org(db, cohort, user, persona, item.org_name)

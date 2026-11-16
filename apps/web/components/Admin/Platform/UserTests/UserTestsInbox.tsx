@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { Button } from '@components/ui/button'
-import { fetchUserTests, personaName, readTestMail, userTestsKey, type TestMail, type TestPersona } from '@services/userTests/userTests'
+import { fetchUserTests, personaName, readTestMail, userTestsKey, type TestInvitee, type TestMail, type TestPersona } from '@services/userTests/userTests'
 import { formatWhen } from './UserTestsShell'
 
 const REASONS: Record<TestMail['reason'], string> = {
@@ -15,10 +15,12 @@ function linkOrigin(url: string): string {
   try { return `${window.location.protocol}//${new URL(url).host}` } catch { return '' }
 }
 
-export default function UserTestsInbox({ cohortUuid, personas, onOpenAs }: {
+export default function UserTestsInbox({ cohortUuid, personas, invitees = [], onOpenAs, onOpenInvitee }: {
   cohortUuid: string
   personas: TestPersona[]
+  invitees?: TestInvitee[]
   onOpenAs: React.Dispatch<{ persona: TestPersona; path: string; origin: string }>
+  onOpenInvitee?: React.Dispatch<{ invitee: TestInvitee; path: string; origin: string }>
 }) {
   const [persona, setPersona] = useState<number | ''>('')
   const [open, setOpen] = useState<TestMail | null>(null)
@@ -26,7 +28,9 @@ export default function UserTestsInbox({ cohortUuid, personas, onOpenAs }: {
   const query = `cohorts/${cohortUuid}/mail${persona ? `?persona=${persona}` : ''}`
   const { data, mutate } = useSWR(userTestsKey(query), () => fetchUserTests<{ mail: TestMail[] }>(query), { refreshInterval: 10000 })
   const byId = new Map(personas.map((item) => [item.user_id, item]))
-  const who = (id: number | null, address?: string) => (id && byId.get(id) ? personaName(byId.get(id)!) : address || 'Someone outside the cohort')
+  const byAddress = new Map(invitees.map((item) => [item.email, item]))
+  const who = (id: number | null, address?: string) => (id && byId.get(id) ? personaName(byId.get(id)!)
+    : address && byAddress.get(address) ? `${personaName(byAddress.get(address)!)} (not signed up yet)` : address || 'Someone outside the cohort')
 
   async function show(mail: TestMail) {
     setError('')
@@ -34,6 +38,8 @@ export default function UserTestsInbox({ cohortUuid, personas, onOpenAs }: {
   }
 
   const recipient = open?.to_user_id ? byId.get(open.to_user_id) : undefined
+  // Mail to someone the run will invite: open its link in a signed-out browser that may sign up as them.
+  const invitee = !recipient && open && !open.to_user_id ? byAddress.get(open.to_address) : undefined
   return <section className="space-y-3" aria-labelledby="inbox-heading">
     <div className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1"><h2 id="inbox-heading" className="text-lg font-semibold">Test mail</h2><p className="text-sm text-muted-foreground">Every email sent to a persona, or by one, lands here instead of being delivered.</p></div>
@@ -64,6 +70,7 @@ export default function UserTestsInbox({ cohortUuid, personas, onOpenAs }: {
             <ul className="space-y-1.5">{open.links.map((link) => <li key={link.url} className="flex flex-wrap items-center gap-2 text-xs">
               <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1">{link.url}</code>
               {link.path && recipient ? <Button type="button" size="sm" onClick={() => onOpenAs({ persona: recipient, path: link.path!, origin: linkOrigin(link.url) })}>Open as {recipient.first_name}</Button>
+                : link.path && invitee && onOpenInvitee ? <Button type="button" size="sm" onClick={() => onOpenInvitee({ invitee, path: link.path!, origin: linkOrigin(link.url) })}>Open signed out for {invitee.first_name}</Button>
                 : <span className="text-muted-foreground">{link.path ? 'No persona has this address' : 'Not on this site'}</span>}
             </li>)}</ul>
           </div> : null}
