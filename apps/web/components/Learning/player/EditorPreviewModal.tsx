@@ -16,8 +16,10 @@ export const PREVIEW_SCRIM_CLASS = 'bg-background/95 text-foreground backdrop-bl
 // context, under the admin's sticky phone top bar, which hid its Close and Restart.
 export const PREVIEW_LAYER_CLASS = 'fixed inset-0 z-[var(--z-modal)]'
 
+// `inline` keeps it where it is rendered instead: inside another dialog (a plan's Preview), a layer on
+// <body> counts as outside that dialog, which takes its clicks and focus away.
 // eslint-disable-next-line no-unused-vars
-export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEvent }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void; onEvent?: (event: PreviewEvent) => void }) {
+export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEvent, inline = false }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void; onEvent?: (event: PreviewEvent) => void; inline?: boolean }) {
   const [token, setToken] = React.useState<string | null>(null)
   const [problems, setProblems] = React.useState<Array<{ path: string; message: string }> | null>(null)
   const [message, setMessage] = React.useState<string | null>(null)
@@ -67,5 +69,5 @@ export function EditorPreviewModal({ activity, pages, accessToken, onClose, onEv
     </div>
   )
   // Opened only from a click, so there is always a document; the server render (tests) stays inline.
-  return typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
+  return inline || typeof document === 'undefined' ? dialog : createPortal(dialog, document.body)
 }

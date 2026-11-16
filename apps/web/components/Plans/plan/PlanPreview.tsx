@@ -107,8 +107,8 @@ export default function PlanPreview({ open, setOpen, template, document, liveDoc
           stepBody={(step) => step.locked ? undefined : <StepBody goal={goal} step={step} actions={actionsFor(step)} canWork staff={false} orgslug={orgslug} token={token} />} />
       </div>
     </div>
-    {/* Fills the preview window; finishing the activity finishes its step here, and nothing is saved. */}
-    {playing ? <EditorPreviewModal key={playing.activityUuid} activity={{ activity_uuid: playing.activityUuid }} accessToken={token} onClose={() => setPlaying(null)}
+    {/* Inline, so it fills the preview window and stays inside its dialog; finishing the activity finishes its step here, and nothing is saved. */}
+    {playing ? <EditorPreviewModal key={playing.activityUuid} activity={{ activity_uuid: playing.activityUuid }} accessToken={token} inline onClose={() => setPlaying(null)}
       onEvent={(event) => { if (event.type === 'finished') setStepStatus(playing.step, 'completed') }} /> : null}
   </PlanDialog>
 }
