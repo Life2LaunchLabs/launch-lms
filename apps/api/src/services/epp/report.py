@@ -27,7 +27,7 @@ from src.db.portfolio import Portfolio, PortfolioModerationStatus
 from src.db.users import PublicUser, User
 from src.services.connect import people
 from src.services.epp import content, courses
-from src.services.portfolio_identity import shown_name
+from src.services.portfolio_identity import legal_name, shown_name
 from src.services.school import roles, support
 
 SCHEMA_VERSION = 1
@@ -223,7 +223,10 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
         raise HTTPException(status_code=404, detail="Not found")
     today = today or datetime.now(timezone.utc)
     year = school_year(today)
-    first = shown_name(learner).split(" ")[0]
+    # A school record carries the legal name (the learner's preferred name is shown beside it).
+    name = legal_name(learner) or shown_name(learner)
+    first = (learner.first_name or "").strip() or name.split(" ")[0]
+    goes_by = (learner.preferred_name or "").strip()
     work = _work(db, learner_id, org_id)
     labels = _labels()
     plan = courses.plan_dto(db, org_id, learner_id)
@@ -271,7 +274,7 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
         "school_year": year,
         "org": {"name": org.name},
         "learner": {
-            "name": shown_name(learner), "first_name": first, "student_id": row.student_id,
+            "name": name, "first_name": first, "goes_by": goes_by if goes_by and goes_by != name else None, "student_id": row.student_id,
             "grade": grade_for(row.graduation_year, year), "graduation_year": row.graduation_year,
             "diploma_track": row.diploma_track, "diploma": DIPLOMA_LABELS.get(row.diploma_track or "", None) if row.diploma_track in DIPLOMA_TRACKS else None,
             "counselor": (people.person(db, row.counselor_user_id) or {}).get("name") if row.counselor_user_id else None,

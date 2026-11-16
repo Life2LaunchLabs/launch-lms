@@ -80,7 +80,7 @@ export default function EppReport({ report }: { report: Report }) {
   const tally = graduation.tally
   const pct = (value: number) => `${Math.max(0, Math.min(100, (value / tally.required) * 100))}%`
   const facts = [learner.grade ? `Grade ${learner.grade}` : null, learner.graduation_year ? `Class of ${learner.graduation_year}` : null, learner.diploma,
-    learner.student_id ? `Student ID ${learner.student_id}` : null].filter(Boolean).join(' · ')
+    learner.student_id ? `Student ID ${learner.student_id}` : null, learner.goes_by ? `Goes by ${learner.goes_by}` : null].filter(Boolean).join(' · ')
   return <article className="epp-report text-[#1C2433]">
     <Sheet first>
       <div className="flex flex-wrap items-start justify-between gap-4">

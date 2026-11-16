@@ -1,6 +1,9 @@
 """Frozen EPP records: saved on review, corrected as new versions, and kept when the learner leaves."""
 
+import io
+
 import pytest
+from pypdf import PdfReader
 from fastapi import HTTPException
 from sqlmodel import SQLModel, select
 
@@ -94,3 +97,22 @@ def test_records_still_open_after_the_account_is_deleted():
         assert {row["kind"] for row in listed} == {"annual", "exit"} and all(row["learner_name"] for row in listed)
         opened = records.open_record(db, _user(TEACHER), 1, saved["record_uuid"])
         assert opened["learner_name"] and opened["report"]["courses"]["grid"]
+
+
+def test_the_record_and_pdf_carry_the_legal_name_and_say_who_they_go_by():
+    from src.db.users import User as UserRow
+    from src.services.epp import caseload, pdf
+    with _session() as db:
+        _heavy(db)
+        learner = db.get(UserRow, LEARNER)
+        learner.first_name, learner.last_name, learner.preferred_name = "Margaret", "Okafor", "Mo"
+        db.add(learner)
+        db.commit()
+        live = report.staff_report(db, _user(TEACHER), 1, LEARNER)
+        assert (live["learner"]["name"], live["learner"]["first_name"], live["learner"]["goes_by"]) == ("Margaret Okafor", "Margaret", "Mo")
+        record = records.review(db, _user(TEACHER), 1, LEARNER, EppRecordCreate(outcome="Fine."))
+        assert db.exec(select(EppRecord).where(EppRecord.record_uuid == record["record_uuid"])).one().learner_name == "Margaret Okafor"
+        text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf.render(live))).pages)
+        assert "Margaret Okafor" in text and "Goes by Mo" in text
+        rows = caseload.caseload(db, _user(TEACHER), 1)["learners"]
+        assert [row["name"] for row in rows if row["user_id"] == LEARNER] == ["Margaret Okafor"]
