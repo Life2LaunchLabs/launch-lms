@@ -5,8 +5,7 @@ import React, { type Dispatch } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
-import { toast } from 'react-hot-toast'
-import { ArrowUpRight, Bookmark, Check, Loader2, Sparkles, Star, X } from 'lucide-react'
+import { Loader2, Star, X } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useHub } from '@components/Hub/HubContext'
@@ -15,14 +14,14 @@ import CareerProfile from '@components/Careers/CareerProfile'
 import CareerTake from '@components/Careers/CareerTake'
 import ResourceComments from '@components/Resources/ResourceComments'
 import ResourceNotes from '@components/Resources/ResourceNotes'
-import SaveDropdown from '@components/Resources/SaveDropdown'
-import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getResource, getResources, saveResource, unsaveResource, type Resource } from '@services/resources/resources'
+import { getResource, getResources, saveResource, type Resource } from '@services/resources/resources'
 import { careerCode } from '@services/life/careers'
 import type { CareerLike } from '@components/Goals/phases/careers'
-import { cn } from '@/lib/utils'
 import ResourceCover, { resourceKind, resourceSite, resourceSource } from './ResourceCover'
+import ResourceActions, { type SheetContext } from './ResourceActions'
+
+export type { SheetContext }
 
 import { tr } from '@/lib/tr'
 function minutes(value: number | null) {
@@ -65,48 +64,9 @@ function MoreFrom({ resource, onOpen }: { resource: Resource; onOpen: Dispatch<s
 }
 
 /**
- * One resource, over Discover: what it is and a big button straight to it, then saving it, asking Coach,
+ * One resource, over Discover: what it is and its actions on one line (Open, Save, Ask Coach, more), then
  * your notes and what others say. A sheet from the bottom on phones, a card in the middle on wider screens.
  */
-/** Where the sheet was opened from, when that place has its own actions: a plan phase's "Save to this phase". */
-export interface SheetContext {
-  /** The place's name, like the phase's title. */
-  label: string
-  /** Why it was suggested here, when it was. */
-  reason?: string
-  inList: boolean
-  onSave: () => Promise<void>
-  onRemove: () => Promise<void>
-  /** "Not for this phase": hides it here and closes the sheet. */
-  onHide?: () => void
-}
-
-function ContextBar({ context, onClose, onChanged }: { context: SheetContext; onClose: () => void; onChanged: () => void }) {
-  const [busy, setBusy] = React.useState(false)
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true)
-    try { await action(); onChanged() } catch { toast.error(tr('discover.resource_sheet.couldn_t_save_it_try', 'Couldn’t save it. Try again.')) } finally { setBusy(false) }
-  }
-  return <div className="flex flex-col gap-2.5 rounded-[20px] bg-raised p-3">
-    <span className="px-1 text-[12.5px] font-bold text-muted-foreground">
-      {context.reason ? tr('discover.resource_sheet.for_label_reason', 'For {{label}}: {{reason}}', { label: context.label, reason: context.reason }) : tr('discover.resource_sheet.for_label', 'For {{label}}', { label: context.label })}
-    </span>
-    <div className="flex flex-wrap items-center gap-2">
-      {context.inList
-        ? <Button type="button" variant="surface" size="tall" className="flex-1" disabled={busy} onClick={() => void run(context.onRemove)}>
-          <Check size={16} aria-hidden="true" />{tr('discover.resource_sheet.saved_to_this_phase', 'Saved to this phase')}
-        </Button>
-        : <Button type="button" variant="brand" size="tall" className="flex-1" disabled={busy} onClick={() => void run(context.onSave)}>
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <Bookmark size={16} aria-hidden="true" />}{tr('discover.resource_sheet.save_to_this_phase', 'Save to this phase')}
-        </Button>}
-      {context.onHide && !context.inList ? <Button type="button" variant="ghost" size="tall" onClick={() => { context.onHide?.(); onClose() }}>
-        {tr('discover.resource_sheet.not_for_this_phase', 'Not for this phase')}
-      </Button> : null}
-    </div>
-    {context.inList ? <span className="px-1 text-xs text-muted-foreground">{tr('discover.resource_sheet.in_your_library_list', 'In your Library list “{{label}}”. Tap to take it out.', { label: context.label })}</span> : null}
-  </div>
-}
-
 export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, context }: { resourceUuid: string; orgslug: string; onClose: () => void; onOpen: Dispatch<string>; context?: SheetContext }) {
   const session = useLHSession() as any
   const hub = useHub()
@@ -114,7 +74,6 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
   const signedIn = Boolean(token)
   const uuid = resourceUuid.startsWith('resource_') ? resourceUuid : `resource_${resourceUuid}`
   const { data: resource, error, mutate } = useSWR(session?.status === 'loading' ? null : ['discover-resource', uuid, token || 'public'], () => getResource(uuid, token))
-  const [saving, setSaving] = React.useState(false)
   // A career just saved here: its take opens fresh, asking only how into it they are.
   const [fresh, setFresh] = React.useState(false)
   const [planning, setPlanning] = React.useState<CareerLike | null>(null)
@@ -125,12 +84,16 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
   const openButton = React.useRef<HTMLButtonElement>(null)
 
   React.useEffect(() => setMounted(true), [])
+  // Pages pass a new onClose on every render; read the latest one, so a page refresh (like saving to its phase)
+  // doesn't re-run the effect below, which would pull focus out of an open menu.
+  const close = React.useRef(onClose)
+  React.useEffect(() => { close.current = onClose }, [onClose])
   React.useEffect(() => {
     const restore = document.activeElement as HTMLElement | null
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) onClose()
+      if (event.key === 'Escape' && !event.defaultPrevented) close.current()
     }
     document.addEventListener('keydown', onKey)
     return () => {
@@ -138,7 +101,7 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
       document.removeEventListener('keydown', onKey)
       restore?.focus?.()
     }
-  }, [onClose])
+  }, [])
   React.useEffect(() => {
     panel.current?.scrollTo({ top: 0 })
     setFresh(false)
@@ -150,22 +113,6 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
     // Counting the open never stands in the way of opening it.
     if (token) void saveResource(resource.resource_uuid, { open_count_increment: 1 }, token).catch(() => undefined)
     window.open(resource.external_url, '_blank', 'noopener,noreferrer')
-  }
-
-  const toggleSave = async () => {
-    if (!resource || !token) return
-    setSaving(true)
-    try {
-      const result: any = resource.is_saved ? await unsaveResource(resource.resource_uuid, token) : await saveResource(resource.resource_uuid, { add_to_default_channel: false }, token)
-      if (!result?.success) throw new Error()
-      setFresh(!resource.is_saved && resource.resource_type === 'career')
-      if (!resource.is_saved) toast.success(tr('discover.resource_sheet.saved_to_my_library', 'Saved to My library'))
-      await mutate()
-    } catch {
-      toast.error(resource.is_saved ? tr('discover.resource_sheet.couldn_t_remove_it_try', 'Couldn’t remove it. Try again.') : tr('discover.resource_sheet.couldn_t_save_it_try', 'Couldn’t save it. Try again.'))
-    } finally {
-      setSaving(false)
-    }
   }
 
   const meta = resource ? resourceMeta(resource) : null
@@ -200,23 +147,11 @@ export default function ResourceSheet({ resourceUuid, orgslug, onClose, onOpen, 
               <span className="text-foreground">{(resource.average_rating || 0).toFixed(1)}</span>{resource.rating_count === 1 ? tr('discover.resource_sheet.1_review', '1 review') : `${resource.rating_count} reviews`}
             </p> : null}
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2.5">
-                <Button ref={openButton} type="button" variant="brand" size="tall" className="h-auto min-h-12 min-w-0 flex-1 whitespace-normal py-2 text-center leading-tight" onClick={() => void open()}>
-                  <span>{meta.kind.verb} {resourceSource(resource)}</span><ArrowUpRight size={18} aria-hidden="true" />
-                </Button>
-                {signedIn ? <Button type="button" variant={resource.is_saved ? 'default' : 'surface'} size="tall" className="shrink-0 gap-1.5 px-4" aria-pressed={resource.is_saved} aria-label={resource.is_saved ? tr('discover.resource_sheet.saved_remove_from_your_library', 'Saved. Remove from your library') : tr('discover.resource_sheet.save_to_your_library', 'Save to your library')} disabled={saving} onClick={() => void toggleSave()}>
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className={cn(resource.is_saved && 'fill-current')} aria-hidden="true" />}
-                  <span aria-hidden="true">{resource.is_saved ? tr('discover.resource_sheet.saved', 'Saved') : tr('discover.resource_sheet.save', 'Save')}</span>
-                </Button> : null}
-              </div>
+              <ResourceActions resource={resource} label={`${meta.kind.verb} ${resourceSource(resource)}`} token={token} context={signedIn ? context : undefined} openRef={openButton}
+                onAskCoach={hub ? () => { hub.attach(resource); onClose() } : undefined} onOpen={() => void open()} onClose={onClose}
+                share={{ title: resource.title, description: resource.description, url: getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid)) }}
+                onChanged={(saved) => { setFresh(saved && resource.resource_type === 'career'); void mutate() }} />
               {site ? <span className="px-1 text-[12.5px] font-semibold text-muted-foreground">{tr('discover.resource_sheet.opens_site_in_a_new', 'Opens {{site}} in a new tab', { site })}</span> : null}
-            </div>
-            {context && signedIn ? <ContextBar context={context} onClose={onClose} onChanged={() => void mutate()} /> : null}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {hub ? <Button type="button" variant="surface" size="tall" className="flex-1" onClick={() => { hub.attach(resource); onClose() }}><Sparkles size={16} />{tr('discover.resource_sheet.ask_coach_about_this', 'Ask Coach about this')}</Button> : null}
-              {signedIn ? <SaveDropdown resourceUuid={resource.resource_uuid} isSaved={resource.is_saved} savedUserChannelUuids={resource.user_channel_uuids || []}
-                onSaveChange={() => void mutate()} onMembershipChange={() => void mutate()} variant="menu"
-                share={{ title: resource.title, description: resource.description, url: getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid)) }} /> : null}
             </div>
             {code && signedIn ? <CareerProfile code={code} token={token} onOpen={onOpen} onAddToPlans={(profile) => setPlanning(profile.career)} /> : null}
             {code && signedIn && resource.is_saved ? <Block title={tr('discover.resource_sheet.your_take', 'Your take')}>

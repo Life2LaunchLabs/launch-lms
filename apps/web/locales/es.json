@@ -5865,6 +5865,16 @@
       "your_notes": "Tus notas",
       "what_others_say": "Lo que dicen otros",
       "more_in_name": "Más en {{name}}"
+    },
+    "resource_actions": {
+      "removed": "Quitado de tu biblioteca",
+      "saved_change": "Guardado. Cambiar dónde está guardado",
+      "save": "Guardar",
+      "save_to": "Guardar en",
+      "this_phase": "Esta fase",
+      "my_library": "Mi biblioteca",
+      "uncheck_removes": "Desmárcalo para quitarlo de todas las listas",
+      "more": "Más"
     }
   },
   "careers": {
