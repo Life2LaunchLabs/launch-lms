@@ -39,7 +39,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Portfolio profile data is related to, but not identical with, basic account identity.",
+          "implementation_notes": "Portfolio profile data is related to, but not identical with, basic account identity. The profile dialog edits first and last name, the name you go by and, for staff, what learners in the current organization call them on messages and reviews (DEV-131, DEV-142).",
           "original_state": "`Live`",
           "updated_at": "2026-09-04T01:09:56.193726+00:00",
           "description": "",

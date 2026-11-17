@@ -4,6 +4,9 @@ import { getUser } from '@services/users/users'
 import React, { useEffect, useState } from 'react'
 import { Formik, Form } from 'formik'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import useSWR from 'swr'
+import { learnerNameApi, learnerNameKey, type LearnerName } from '@services/goals/adminHome'
 import {
   ArrowBigUpDash,
   Check,
@@ -28,6 +31,18 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { MediaAsset, applyMediaAssetToUserAvatar } from '@services/media/library'
+
+/** Staff also set what learners call them in the portfolio; say so beside the pointer. */
+function StaffNameNote() {
+  const { t } = useTranslation();
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const token = session?.data?.tokens?.access_token
+  const orgId = Number(org?.id)
+  const { data } = useSWR<LearnerName>(orgId && token ? learnerNameKey(orgId) : null, () => learnerNameApi.get(orgId, token))
+  if (!data?.staff) return null
+  return <> {t('user.settings.general.learner_name_in_portfolio', { defaultValue: 'What learners call you on your messages and reviews is set there too.' })}</>
+}
 
 interface FormValues {
   username: string;
@@ -109,7 +124,7 @@ const UserEditForm = ({
             {/* Your name is part of who you are, so it's edited in the portfolio, not here. */}
             <div className="rounded-lg border border-border bg-muted/40 p-3" data-testid="account-name-in-portfolio">
               <p className="text-sm font-medium">{t('user.settings.general.name_in_portfolio_title', { defaultValue: 'Your name' })}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{t('user.settings.general.name_in_portfolio', { defaultValue: 'Your name and the name you go by are set in your portfolio. They show everywhere in the app.' })}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{t('user.settings.general.name_in_portfolio', { defaultValue: 'Your name and the name you go by are set in your portfolio. They show everywhere in the app.' })}<StaffNameNote /></p>
               <Button asChild variant="outline" size="sm" className="mt-2"><Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())}>{t('user.settings.general.edit_name_in_portfolio', { defaultValue: 'Edit in your portfolio' })}</Link></Button>
             </div>
 
