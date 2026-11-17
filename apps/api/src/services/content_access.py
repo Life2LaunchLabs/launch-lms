@@ -11,10 +11,19 @@ a 404, never a 403, so a link does not reveal that a learner's file exists.
 - ``users/<uuid>/...`` (media library uploads: step hand-ins, portfolio files,
   imports; resource notes and outcomes): public only when the learner put the
   file on their profile (their avatar or profile) or on their published public
-  portfolio. Otherwise it opens for a signed-in viewer who is the owner, a
-  superadmin, staff (admin or staff role) in an organization the owner belongs
-  to, someone sharing one of the owner's plans with them (plan collaborators see
-  the work on that plan), or an API token of such an organization.
+  portfolio. Otherwise it opens for a signed-in viewer who is the owner or a
+  superadmin, and for others only when the file is part of a plan they can see
+  (DEV-160): someone sharing the plan (its collaborators) opens the files on that
+  plan, and staff (admin or staff role) of the organization that manages a plan
+  (one it issued: assigned, joined or started from its template) open the files
+  on it, as does an API token of that organization. A learner's other uploads
+  (personal plans, another organization's plans, unpublished portfolio files,
+  resource notes) don't open for staff. A staff member's own uploads (files they
+  attach to templates or feedback) still open for their organization's staff.
+  "On a plan" means anywhere the plan shows it: step entries and submissions,
+  answers, notes and feedback, step materials, plan attachments, the portfolio
+  items a portfolio step counts (not the ones the learner hid), and answers in
+  the plan's interactive activities.
 - Demo workspaces (``user_demo_<session>_...``, ``org_demo_<session>_...``) are
   copies isolated per session by the demo middleware: a visitor in that session
   opens its files.
@@ -92,35 +101,98 @@ def _public_portfolio_paths(owner: User, db: Session) -> frozenset[str]:
     return paths
 
 
-def _is_staff_of_owner(viewer_id: int, owner_id: int, db: Session) -> bool:
+def _staff_org_ids(user_id: int, db: Session) -> set[int]:
     from src.db.user_organizations import UserOrganization
     from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 
-    owner_orgs = select(UserOrganization.org_id).where(UserOrganization.user_id == owner_id)
-    return db.exec(
-        select(UserOrganization.id).where(
-            UserOrganization.user_id == viewer_id,
+    return {int(org_id) for org_id in db.exec(
+        select(UserOrganization.org_id).where(
+            UserOrganization.user_id == user_id,
             col(UserOrganization.role_id).in_(ADMIN_OR_MAINTAINER_ROLE_IDS),
-            col(UserOrganization.org_id).in_(owner_orgs),
         )
-    ).first() is not None
+    ).all()}
 
 
-def _shares_a_plan(viewer_id: int, owner_id: int, db: Session) -> bool:
-    """The viewer has a role on a plan the owner owns, is the learner on, or works on."""
+def _goal_files(goals: list, db: Session, staff_goal_ids: set[int]) -> dict[int, set[str]]:
+    """The stored files each plan shows, by goal id. Staff-only notes count only on ``staff_goal_ids``."""
+    from src.db.goal_sharing import PlanAttachment
+    from src.db.goals import GoalStep, StepEntry, StepProgress
+    from src.db.learning import LearningResponseAttempt, LearningRun
+    from src.db.media import MediaAsset
+    from src.services.goals import portfolio_steps
+
+    by_id = {int(goal.id): goal for goal in goals}
+    found: dict[int, list] = {goal_id: [] for goal_id in by_id}
+    if not by_id:
+        return {}
+    steps = db.exec(select(GoalStep).where(col(GoalStep.goal_id).in_(list(by_id)))).all()
+    step_goal = {int(step.id): int(step.goal_id) for step in steps}
+    progress = {int(row.step_id): row for row in db.exec(select(StepProgress).where(col(StepProgress.step_id).in_(list(step_goal) or [-1]))).all()}
+    asset_goals: list[tuple[int, int]] = []
+    for step in steps:
+        goal_id = int(step.goal_id)
+        found[goal_id].append(step.materials or [])
+        row = progress.get(int(step.id))
+        if row:
+            found[goal_id].extend([row.submission or {}, row.answer, row.learner_note, row.reviewer_note, row.feedback_history or []])
+            if goal_id in staff_goal_ids:
+                found[goal_id].append(row.staff_notes or [])
+        if step.type == "portfolio" and portfolio_steps.spec(step.config or {}):
+            state = portfolio_steps.evaluate(db, step, by_id[goal_id].subject_user_id, row)
+            if state:
+                found[goal_id].extend(item.image_url for item in state["found"] if item.key not in state["hidden"])
+    for entry in db.exec(select(StepEntry).where(col(StepEntry.step_id).in_(list(step_goal) or [-1]))).all():
+        goal_id = step_goal[int(entry.step_id)]
+        found[goal_id].extend([entry.url, entry.note, entry.data or {}])
+        if entry.asset_id:
+            asset_goals.append((int(entry.asset_id), goal_id))
+    for attachment in db.exec(select(PlanAttachment).where(col(PlanAttachment.goal_id).in_(list(by_id)))).all():
+        asset_goals.append((int(attachment.asset_id), int(attachment.goal_id)))
+    if asset_goals:
+        assets = {int(asset.id): asset for asset in db.exec(select(MediaAsset).where(col(MediaAsset.id).in_({asset_id for asset_id, _ in asset_goals}))).all()}
+        for asset_id, goal_id in asset_goals:
+            asset = assets.get(asset_id)
+            if asset:
+                found[goal_id].extend([asset.url or "", asset.thumbnail_url or ""])
+    runs = {int(run.id): run for run in db.exec(select(LearningRun).where(col(LearningRun.goal_id).in_(list(by_id)))).all()}
+    for run in runs.values():
+        found[int(run.goal_id)].append(run.data or {})
+    if runs:
+        for attempt in db.exec(select(LearningResponseAttempt).where(col(LearningResponseAttempt.run_id).in_(list(runs)))).all():
+            found[int(runs[int(attempt.run_id)].goal_id)].append(attempt.answer or {})
+    return {goal_id: referenced_paths(values) for goal_id, values in found.items()}
+
+
+def _on_a_visible_plan(path: str, owner_id: int, viewer_id: int | None, staff_orgs: set[int], db: Session) -> bool:
+    """The file is on a plan the viewer can see: one they share, or one an organization they staff manages.
+
+    ``viewer_id`` is None for an API token, which sees only its organization's plans (``staff_orgs``).
+    """
     from src.db.goal_sharing import PlanCollaborator
-    from src.db.goals import Goal
+    from src.db.goals import Goal, GoalOwnership
     from src.services.goals import access
 
-    collaborating = select(PlanCollaborator.goal_id).where(
-        PlanCollaborator.user_id == owner_id, PlanCollaborator.active == True  # noqa: E712
+    def collaborating(user_id: int):
+        return select(PlanCollaborator.goal_id).where(PlanCollaborator.user_id == user_id, PlanCollaborator.active == True)  # noqa: E712
+
+    related = or_(Goal.owner_user_id == owner_id, Goal.subject_user_id == owner_id, col(Goal.id).in_(collaborating(owner_id)))
+    managed = (Goal.ownership == GoalOwnership.EXTERNAL.value) & col(Goal.org_id).in_(staff_orgs or {-1})
+    reachable = managed if viewer_id is None else or_(
+        managed, Goal.owner_user_id == viewer_id, Goal.subject_user_id == viewer_id, col(Goal.id).in_(collaborating(viewer_id)),
     )
-    goals = db.exec(
-        select(Goal).where(
-            or_(Goal.owner_user_id == owner_id, Goal.subject_user_id == owner_id, col(Goal.id).in_(collaborating))
-        ).limit(200)
-    ).all()
-    return any(access.capabilities(db, goal, viewer_id) for goal in goals)
+    goals = db.exec(select(Goal).where(related, reachable).order_by(col(Goal.id).desc()).limit(500)).all()
+
+    def staff_of(goal) -> bool:
+        return getattr(goal.ownership, "value", goal.ownership) == GoalOwnership.EXTERNAL.value and goal.org_id in staff_orgs
+
+    visible = [goal for goal in goals if staff_of(goal) or (viewer_id is not None and access.capabilities(db, goal, viewer_id))]
+    staff_goal_ids = {int(goal.id) for goal in visible if staff_of(goal)}
+    return any(path in files for files in _goal_files(visible, db, staff_goal_ids).values())
+
+
+def _owner_is_colleague(owner_id: int, staff_orgs: set[int], db: Session) -> bool:
+    """The owner is staff of an organization the viewer staffs: their own uploads (template files, feedback)."""
+    return bool(staff_orgs) and bool(_staff_org_ids(owner_id, db) & staff_orgs)
 
 
 def _in_demo_session(identifier: str) -> bool:
@@ -151,9 +223,8 @@ def _user_file_access(
     if isinstance(current_user, AnonymousUser):
         raise _not_found()
     if isinstance(current_user, APITokenUser):
-        from src.security.org_auth import get_user_org
-
-        if get_user_org(owner.id, current_user.org_id, db):
+        token_orgs = {int(current_user.org_id)}
+        if _owner_is_colleague(owner.id, token_orgs, db) or _on_a_visible_plan(path, owner.id, None, token_orgs, db):
             return False
         raise _not_found()
     viewer_id = current_user.id
@@ -161,11 +232,10 @@ def _user_file_access(
         return False
     from src.security.superadmin import is_user_superadmin
 
-    if (
-        is_user_superadmin(viewer_id, db)
-        or _is_staff_of_owner(viewer_id, owner.id, db)
-        or _shares_a_plan(viewer_id, owner.id, db)
-    ):
+    if is_user_superadmin(viewer_id, db):
+        return False
+    staff_orgs = _staff_org_ids(viewer_id, db)
+    if _owner_is_colleague(owner.id, staff_orgs, db) or _on_a_visible_plan(path, owner.id, viewer_id, staff_orgs, db):
         return False
     raise _not_found()
 
