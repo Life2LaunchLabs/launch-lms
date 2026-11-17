@@ -95,7 +95,7 @@ def test_the_learner_starter_runs_and_reaches_organizations_already_using_insigh
                                 document={"cards": []}, source_template=f"starter:{key}", creation_date="2026-10-01", update_date="2026-10-01"))
     db.commit()
     listed = dashboards.list_dashboards(db, _user(ADMIN), 1, "learner")
-    assert [entry["source_template"] for entry in listed] == ["starter:learner.overview"]
+    assert [entry["source_template"] for entry in listed] == ["starter:learner.overview", "starter:learner.epp"]
     assert len(dashboards.list_dashboards(db, _user(ADMIN), 1)) == len(library.STARTERS)
 
 

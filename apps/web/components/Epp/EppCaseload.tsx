@@ -14,7 +14,7 @@ import { routePaths } from '@services/routing/paths'
 import { cn } from '@/lib/utils'
 import { inOrgWords } from '@/lib/people'
 
-const COLUMNS: { key: ComponentKey; label: string }[] = [
+export const COLUMNS: { key: ComponentKey; label: string }[] = [
   { key: 'interests', label: 'Interests' }, { key: 'goals', label: 'Goals' }, { key: 'courses', label: 'Courses' }, { key: 'progress', label: 'Progress' }, { key: 'accomplishments', label: 'Evidence' },
 ]
 const FILTERS: { key: CaseloadState | 'all'; label: string }[] = [
@@ -23,7 +23,7 @@ const FILTERS: { key: CaseloadState | 'all'; label: string }[] = [
 const shortDate = (value: string) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 const ATTENTION = 'text-[#A84300] dark:text-[#FFB27A]'
 
-function Mark({ status, label }: { status?: string; label: string }) {
+export function Mark({ status, label }: { status?: string; label: string }) {
   if (!status) return <span className="text-muted-foreground" aria-label={`${label}: not shared`}>–</span>
   const ok = status !== 'needs_attention'
   return <span className={cn('font-bold', ok ? 'text-foreground' : ATTENTION)} title={`${label}: ${ok ? 'complete' : 'needs attention'}`}>
@@ -31,7 +31,7 @@ function Mark({ status, label }: { status?: string; label: string }) {
   </span>
 }
 
-function LastReview({ row }: { row: CaseloadLearner }) {
+export function LastReview({ row }: { row: CaseloadLearner }) {
   if (row.state === 'waiting') return <span className="text-muted-foreground">–</span>
   if (!row.last_review) return <span className={ATTENTION}>Never</span>
   return <span>{shortDate(row.last_review)}{row.due ? <span className={ATTENTION}>, due</span> : null}</span>
@@ -46,7 +46,7 @@ function Action({ row, orgslug }: { row: CaseloadLearner; orgslug: string }) {
     className={cn('inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold', ready ? 'bg-foreground text-background' : 'border border-border hover:bg-muted')}>{ready ? 'Review' : 'Open'}</Link>
 }
 
-function Facts({ row }: { row: CaseloadLearner }) {
+export function Facts({ row }: { row: CaseloadLearner }) {
   const facts = [row.grade ? `Grade ${row.grade}` : null, row.student_id ? `ID ${row.student_id}` : null].filter(Boolean).join(' · ')
   return facts ? <span className="block text-xs text-muted-foreground">{facts}</span> : null
 }

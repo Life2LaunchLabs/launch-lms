@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
@@ -154,4 +155,21 @@ async def org_caseload(org_id: int, mine: bool = False, current_user: PublicUser
 async def export_caseload(org_id: int, mine: bool = False, current_user: PublicUser = USER, db_session: Session = DB):
     """A zip with a PDF of each learner's reviewed record this school year."""
     name, body = caseload.export_reviewed(db_session, current_user, org_id, mine)
+    return _file(name, body, "application/zip")
+
+
+class EppExport(BaseModel):
+    user_ids: list[int] = Field(min_length=1, max_length=caseload.EXPORT_LIMIT)
+
+
+@router.get("/orgs/{org_id}/overview")
+async def epp_overview(org_id: int, group: str | None = None, state: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    """Insights: every learner's Education Plan and Profile, complete or not, by group. Without See reports, only your groups' learners."""
+    return caseload.overview(db_session, current_user, org_id, group, state)
+
+
+@router.post("/orgs/{org_id}/overview/export")
+async def export_overview(org_id: int, payload: EppExport, current_user: PublicUser = USER, db_session: Session = DB):
+    """A zip of the chosen learners' Education Plans and Profiles as they stand now, one PDF each, with legal names and no staff notes."""
+    name, body = caseload.export_selected(db_session, current_user, org_id, payload.user_ids)
     return _file(name, body, "application/zip")

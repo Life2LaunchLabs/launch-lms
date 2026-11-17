@@ -19,7 +19,8 @@ from src.db.insights import InsightDashboard
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser
 from src.security.org_auth import ADMIN_ROLE_ID, is_org_admin, is_org_owner_admin, require_org_admin
-from src.services.insights import library
+from src.services.insights import documents, library
+from src.services.orgs import school_records
 from src.services.insights.context import SCOPES
 from src.services.insights.spec import CardSpec, CustomRange, check, upgrade
 
@@ -45,10 +46,13 @@ def _now() -> str:
 
 def _viewer(db: Session, user: PublicUser, org_id: int) -> dict:
     require_org_admin(user.id, org_id, db)
-    return {"id": user.id, "admin": is_org_owner_admin(user.id, org_id, db), "see_reports": is_org_admin(user.id, org_id, db, "see_reports")}
+    return {"id": user.id, "admin": is_org_owner_admin(user.id, org_id, db), "see_reports": is_org_admin(user.id, org_id, db, "see_reports"),
+            "school_records": school_records.enabled(db, org_id)}
 
 
 def _visible(row: InsightDashboard, viewer: dict) -> bool:
+    if not viewer.get("school_records", True) and documents.has_school_record((row.document or {}).get("cards")):
+        return False  # PL-6: no EPP anywhere in an organization with school records off
     if row.owner_user_id == viewer["id"]:
         return True
     return row.visibility == "staff" or (row.visibility == "admins" and viewer["admin"])
@@ -122,7 +126,9 @@ def ensure_starters(db: Session, org_id: int) -> None:
     keeps it gone; a starter added later still reaches organizations that already use Insights.
     """
     had = set(db.exec(select(InsightDashboard.source_template).where(InsightDashboard.org_id == org_id, col(InsightDashboard.source_template).like("starter:%"))).all())
-    missing = [key for key in library.STARTERS if f"starter:{key}" not in had]
+    on = school_records.enabled(db, org_id)
+    # A school records starter waits until the organization uses them, then arrives like any later starter.
+    missing = [key for key in library.STARTERS if f"starter:{key}" not in had and (on or not (library.template(key) or {}).get("school_records"))]
     if not missing:
         return
     owner, now = _owner_admin(db, org_id), _now()
@@ -249,4 +255,4 @@ def library_for(db: Session, user: PublicUser, org_id: int, scope: str) -> dict:
     viewer = _viewer(db, user, org_id)
     if scope not in SCOPES:
         raise HTTPException(status_code=422, detail=f"Scope is one of: {', '.join(SCOPES)}")
-    return library.library(scope, viewer["see_reports"])
+    return library.library(scope, viewer["see_reports"], school_records.enabled(db, org_id))
