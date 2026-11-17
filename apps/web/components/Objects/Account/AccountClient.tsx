@@ -4,7 +4,6 @@ import React from 'react'
 import { SignOut } from '@phosphor-icons/react'
 import AccountPageShell, { settingsCard } from '@components/Objects/Account/AccountPageShell'
 import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
-import AccountLearnerName from '@components/Objects/Account/subpages/AccountLearnerName'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountMemory from '@components/Objects/Account/subpages/AccountMemory'
 import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
@@ -29,7 +28,7 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
   return (
     <AccountPageShell>
       <div className="space-y-6">
-        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountLearnerName /><AccountSecurity /></section>
+        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountSecurity /></section>
         <section id="emails" className="scroll-mt-6"><AccountEmailNotifications /></section>
         <section id="language" className="scroll-mt-6"><AccountLanguage /></section>
         <section id="accessibility" className="scroll-mt-6"><AccountAccessibility /></section>
