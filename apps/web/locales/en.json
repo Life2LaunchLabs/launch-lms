@@ -6822,7 +6822,8 @@
       "a_new_personal_goal": "A new personal goal",
       "your_goal_label": "Your goal: {{label}}",
       "goal": "Goal",
-      "end_focused_session_for_label": "End focused session for {{label}}"
+      "end_focused_session_for_label": "End focused session for {{label}}",
+      "coach_memories": "Coach memories"
     },
     "hub_report_dialog": {
       "harmful_or_upsetting": "Harmful or upsetting",
