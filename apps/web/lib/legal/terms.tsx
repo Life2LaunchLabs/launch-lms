@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import type { LegalSection } from '@components/Legal/LegalPage'
+import { OPERATOR, OWNERSHIP } from '@/lib/legal/facts'
 
 // The Terms of Use's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead approves
 // each change. When the terms change, change this file in one pull request and move TERMS_UPDATED.
 
-export const TERMS_UPDATED = '2026-11-16'
+export const TERMS_UPDATED = '2026-11-17'
 
 export const TERMS_LEDE = <p>
-  These terms are the agreement between Life2Launch and everyone who uses it: the schools, programs and other
+  These terms are the agreement between Life2Launch, LLC (&ldquo;Life2Launch&rdquo;) and everyone who uses it: the schools, programs and other
   organizations that set it up, their staff, and the students and other learners who use it with them or on
   their own. By creating an account or using Life2Launch, you agree to them.
 </p>
@@ -16,7 +17,10 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     id: 'service',
     title: 'What Life2Launch is',
-    body: <p>Life2Launch is a place to plan your future: set goals, work through plans, earn badges, build a portfolio and get help from the people supporting you. Organizations such as schools use it to give their learners plans, review their work and see their progress.</p>,
+    body: <>
+      <p>Life2Launch is a place to plan your future: set goals, work through plans, earn badges, build a portfolio and get help from the people supporting you. Organizations such as schools use it to give their learners plans, review their work and see their progress.</p>
+      <p>{OPERATOR}</p>
+    </>,
   },
   {
     id: 'accounts',
@@ -36,17 +40,17 @@ export const TERMS_SECTIONS: LegalSection[] = [
       <ul>
         <li>use Life2Launch for its learners&rsquo; education, planning and support, and give staff access only to what their work needs;</li>
         <li>have the right to invite the people it invites and to add the information it adds, including any consent its rules or the law require;</li>
-        <li>keep control of its students&rsquo; education records, which we handle on its behalf as described in the <Link href="/privacy">Privacy Policy</Link>;</li>
+        <li>respect that learners own their accounts, plans, work and portfolios: it sees school records only through a support link the learner accepts and can end, keeps the frozen Education Plan and Profile review copy made with the learner&rsquo;s agreement, and stays responsible for its own official records under FERPA, as the <Link href="/privacy">Privacy Policy</Link> describes;</li>
         <li>not invite or enroll anyone under 13.</li>
       </ul>
-      <p>An organization&rsquo;s admins decide who belongs to it, what its staff can do, and when a learner becomes an alumnus or is removed.</p>
+      <p>An organization&rsquo;s admins decide who belongs to it, what its staff can do, and when a learner becomes an alumnus or is removed. {OWNERSHIP.staff}</p>
     </>,
   },
   {
     id: 'students',
     title: 'Students and other learners',
     body: <>
-      <p>If you use Life2Launch through a school or program, your organization can see your work there and help you with it, as the <Link href="/privacy">Privacy Policy</Link> describes. Your school&rsquo;s own rules apply to how you use it for school.</p>
+      <p>{OWNERSHIP.learners} If you use Life2Launch through a school or program, your organization can see the work you do on plans it manages and help you with it, as the <Link href="/privacy">Privacy Policy</Link> describes. Your school&rsquo;s own rules apply to how you use it for school.</p>
       <p>If you are under 18, make sure a parent or guardian knows you are using Life2Launch.</p>
     </>,
   },
@@ -82,7 +86,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     id: 'ending',
     title: 'Leaving, and ending access',
     body: <>
-      <p>You can stop using Life2Launch at any time and ask us to delete your account. An organization can remove its members or ask us to delete the organization.</p>
+      <p>You can stop using Life2Launch at any time and ask us to delete your account; if you are under 18, a parent can ask too. An organization can remove its members, end its support links or ask us to delete the organization. That ends the organization&rsquo;s access; it does not delete anyone&rsquo;s account, and its learners keep their own work.</p>
       <p>We may suspend or close an account or organization that breaks these terms or puts others at risk. Where we can, we will tell you first and give you a chance to take a copy of your own work.</p>
     </>,
   },

@@ -3,7 +3,7 @@ import { Badge } from '@components/ui/badge'
 import LegalShell from '@components/Legal/LegalShell'
 import { getHostOrgSlug } from '@services/org/orgResolution'
 import { CHECKED_ON, SUBPROCESSORS } from '@/lib/legal/subprocessors'
-import { AGE_CHECK, AI_PROVIDERS, BIRTH_DATE, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, OUTSIDE_IMAGES, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, BIRTH_DATE, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, OPERATOR, OUTSIDE_IMAGES, OWNERSHIP, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 
 // The public page a school's technical reviewer reads (v0.10.0 PF-1, DEV-25). Signed out, on every
 // Life2Launch address. Its subprocessor list is lib/legal/subprocessors.ts, shared with /privacy.
@@ -25,7 +25,8 @@ const COLLECTED: [string, string][] = [
 
 const ACCESS: [string, string][] = [
   ['The learner', 'Everything in their own account.'],
-  ["Their organization's staff", 'Admins see the organization’s learners and their work. Other staff see only what the admin lets them (for example reviewing work or seeing reports). Staff see school records, such as an Education Plan and Profile, only through a support link the learner agreed to.'],
+  ["Their organization's staff", `${OWNERSHIP.staff} Admins see the organization’s learners and their work on those plans; other staff see only what the admin lets them (for example reviewing work or seeing reports). Staff see school records, such as an Education Plan and Profile, only through a support link the learner accepted.`],
+  ['Uploaded files', UPLOAD_LINKS],
   ['People the learner chooses', 'Helpers a learner invites, and anyone they share a portfolio or badge link with.'],
   ['Life2Launch staff', 'A small number of Life2Launch staff, to run the service, answer support requests and fix problems.'],
   ['The outside services listed above', 'Only the data each one needs for its purpose.'],
@@ -62,6 +63,12 @@ export default async function StudentDataPage() {
         touch it, how long we keep it, how to delete it and who can see it. The list of services was last
         checked against our code and production setup on {CHECKED_ON}.
       </p>
+
+      <Section id="ownership" title="Who owns the records">
+        <p>{OWNERSHIP.learners}</p>
+        <p>{OWNERSHIP.schools}</p>
+        <p>{OPERATOR}</p>
+      </Section>
 
       <Section id="no-ads" title="No ads, no tracking, no selling">
         <p>
