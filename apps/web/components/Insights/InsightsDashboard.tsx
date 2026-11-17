@@ -24,6 +24,7 @@ import SchedulesModal from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 import { inOrgWords } from '@/lib/people'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 
 const PRESETS = Object.keys(RANGE_LABELS) as Preset[]
 const ghostButton = 'inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-semibold hover:bg-muted'
@@ -178,13 +179,16 @@ const EMPTY_ALL: Record<ObjectScope, string> = {
   get plan() { return inOrgWords('Once your learners start plans, each plan gets these dashboards.') },
   group: 'Make a group in Threads, and each group gets these dashboards.',
   get learner() { return inOrgWords('Once learners join, each one gets these dashboards.') },
-  get framework() { return inOrgWords('Track a requirement framework, like Oregon’s Education Plan and Profile, and each one gets these dashboards. They fill in as learners work on plan steps linked to its requirements.') },
+  get framework() { return inOrgWords('Track a requirement framework and each one gets these dashboards. They fill in as learners work on plan steps linked to its requirements.') },
 }
+// Where the organization uses school records (PL-6), the framework empty state gives the EPP as the example.
+const FRAMEWORK_EMPTY_SCHOOL = () => inOrgWords('Track a requirement framework, like Oregon’s Education Plan and Profile, and each one gets these dashboards. They fill in as learners work on plan steps linked to its requirements.')
 
 /** A dashboard page: the org's (`scope` org), or a plan's, group's or learner's for the one picked (`objectKey`). */
 export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: { scope: Scope; objectKey?: string | null; dashboardUuid?: string | null }) {
   const router = useRouter()
   const { orgId, orgslug, token, ready } = useInsightsContext()
+  const schoolRecords = useSchoolRecords()
   const { data: dashboards } = useDashboards()
   const inScope = (dashboards || []).filter((item) => item.scope === scope)
   const chosen = inScope.find((item) => item.dashboard_uuid === dashboardUuid) || inScope[0]
@@ -211,7 +215,7 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
       detail={EMPTY_ONE[scope]}
       action={objects?.length ? <Link href={scopeHref(objects[0].key)} className={ghostButton}>See {objects[0].label}</Link> : undefined} />
     if (scope !== 'org' && !object) return <Empty title={`No ${SCOPE_LABELS[scope].many.toLowerCase()} to show yet`}
-      detail={EMPTY_ALL[scope]}
+      detail={scope === 'framework' && schoolRecords ? FRAMEWORK_EMPTY_SCHOOL() : EMPTY_ALL[scope]}
       action={scope === 'framework' ? <div className="flex flex-wrap justify-center gap-2">
         <Link href={`${getUriWithOrg(orgslug, admin.discover())}#frameworks`} className={cn(ghostButton, 'bg-foreground text-background hover:bg-foreground/85')}>Track a framework</Link>
         <Link href={getUriWithOrg(orgslug, admin.plans('requirements'))} className={ghostButton}>Open Plans › Requirements</Link>

@@ -18,7 +18,6 @@ from sqlmodel import Session, col, select
 
 from src.db.epp_records import EppRecord
 from src.db.learner_support import LearnerSupport
-from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
@@ -145,26 +144,28 @@ def _complete(row: dict) -> bool:
 
 def _groups(db: Session, org_id: int, current_user: PublicUser, see_reports: bool) -> list[UserGroup]:
     """The groups the viewer can filter by: every group with See reports, otherwise the ones they're staff on."""
+    from src.services.insights.context import staff_group_ids
+
     query = select(UserGroup).where(UserGroup.org_id == org_id)
     if not see_reports:
-        mine = db.exec(select(UserGroupStaff.usergroup_id).where(UserGroupStaff.user_id == current_user.id, UserGroupStaff.org_id == org_id)).all()
-        query = query.where(col(UserGroup.id).in_(list(mine) or [0]))
+        query = query.where(col(UserGroup.id).in_(list(staff_group_ids(db, org_id, current_user.id)) or [0]))
     return list(db.exec(query.order_by(col(UserGroup.name))).all())
 
 
 def overview(db: Session, current_user: PublicUser, org_id: int, group: str | None = None, state: str | None = None) -> dict:
     """Every learner's Education Plan and Profile, for Insights: who is complete and who isn't, by group.
 
-    Staff with See reports see every learner the school supports. Staff without it see only the learners in
-    groups they're staff on, whatever the page asks for; that is checked here, not in the web.
+    Staff with See reports see every learner the school supports. Staff without it see only their own learners,
+    the same ones Insights counts for them (groups they're staff on, and the groups and learners of assignments
+    they're staff on), whatever the page asks for; that is checked here, not in the web.
     """
-    from src.services.school.chats import students_of
+    from src.services.insights.context import staff_learners
 
     if not roles.is_staff(db, org_id, current_user.id):
         raise HTTPException(status_code=403, detail="Only the organization's staff can do that")
     see_reports = is_org_admin(current_user.id, org_id, db, "see_reports")
     groups = _groups(db, org_id, current_user, see_reports)
-    only: set[int] | None = None if see_reports else students_of(db, org_id, current_user.id)
+    only: set[int] | None = None if see_reports else staff_learners(db, org_id, current_user.id)
     picked = None
     if group:
         picked = next((item for item in groups if item.usergroup_uuid == group), None)
