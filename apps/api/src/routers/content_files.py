@@ -4,9 +4,8 @@ Content Files Router
 Serves static content files from S3 storage when S3 is enabled.
 Replaces the StaticFiles mount for S3 deployments.
 
-SECURITY:
-- Org-level content (logos, branding) is always public
-- Media left from retired podcasts is never served
+SECURITY: who may open which file is decided in services/content_access.py
+(learner uploads open only for their owner and staff with access to them).
 """
 
 import os
@@ -18,6 +17,7 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.auth import get_current_user
+from src.services.content_access import cache_control, check_content_access
 from src.services.utils.storage import (
     get_s3_bucket_name,
     get_storage_client,
@@ -89,37 +89,6 @@ def _validate_content_path(file_path: str) -> str | None:
     return os.path.relpath(full_real, base_real)
 
 
-async def _check_content_access(
-    file_path: str,
-    current_user: PublicUser | AnonymousUser | APITokenUser,
-    db_session: Session,
-) -> None:
-    """
-    Check if the user has access to the requested content.
-
-    Path patterns:
-    - orgs/{uuid}/podcasts/...                         → retired, never served
-    - orgs/{uuid}/...                                  → org-level (public)
-    """
-    parts = file_path.split('/')
-
-    # Podcasts are retired: their leftover media is never served.
-    if len(parts) >= 3 and parts[0] == 'orgs' and parts[2] == 'podcasts':
-        raise HTTPException(status_code=404, detail="Not found")
-
-    # Generic organization content is public.
-    if len(parts) >= 2 and parts[0] == 'orgs':
-        return
-
-    # User content (avatars, profile images) — always public
-    if len(parts) >= 2 and parts[0] == 'users':
-        return
-
-    # Unknown path pattern — require auth as a safe default
-    if isinstance(current_user, AnonymousUser):
-        raise HTTPException(status_code=401, detail="Authentication required")
-
-
 @router.get("/content/{file_path:path}")
 async def serve_content_file(
     request: Request,
@@ -136,7 +105,7 @@ async def serve_content_file(
     if safe_path is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    await _check_content_access(safe_path, current_user, db_session)
+    public = check_content_access(safe_path, current_user, db_session)
 
     s3_key = f"content/{safe_path}"
     s3_client = get_storage_client()
@@ -157,7 +126,7 @@ async def serve_content_file(
     headers = {
         "Accept-Ranges": "bytes",
         "Content-Type": mime_type,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": cache_control(public),
         "X-Content-Type-Options": "nosniff",
     }
 
@@ -250,7 +219,7 @@ async def head_content_file(
     if safe_path is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    await _check_content_access(safe_path, current_user, db_session)
+    public = check_content_access(safe_path, current_user, db_session)
 
     s3_key = f"content/{safe_path}"
     s3_client = get_storage_client()
@@ -273,6 +242,6 @@ async def head_content_file(
             "Accept-Ranges": "bytes",
             "Content-Length": str(file_size),
             "Content-Type": mime_type,
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": cache_control(public),
         },
     )

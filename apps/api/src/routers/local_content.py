@@ -5,9 +5,8 @@ Serves static content files from the local filesystem with access control.
 Replaces the unauthenticated StaticFiles mount to enforce authorization
 on content that needs it while allowing generic content through.
 
-SECURITY:
-- Org-level content (logos, branding) is always public
-- Media left from retired podcasts is never served
+SECURITY: who may open which file is decided in services/content_access.py
+(learner uploads open only for their owner and staff with access to them).
 """
 
 import os
@@ -20,6 +19,7 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.auth import get_current_user
+from src.services.content_access import cache_control, check_content_access
 
 router = APIRouter()
 
@@ -48,48 +48,6 @@ def _validate_content_path(file_path: str) -> Path | None:
         return None
 
     return Path(full_real)
-
-
-async def _check_content_access(
-    request: Request | str | None,
-    file_path: str | PublicUser | AnonymousUser | APITokenUser,
-    current_user: PublicUser | AnonymousUser | APITokenUser | Session,
-    db_session: Session | None = None,
-) -> None:
-    """
-    Check if the user has access to the requested content.
-
-    Path patterns:
-    - orgs/{uuid}/podcasts/...                         → retired, never served
-    - orgs/{uuid}/...                                  → org-level (public)
-    """
-    if db_session is None:
-        db_session = current_user  # type: ignore[assignment]
-        current_user = file_path  # type: ignore[assignment]
-        file_path = request  # type: ignore[assignment]
-        request = None
-
-    if not isinstance(file_path, str):
-        raise HTTPException(status_code=400, detail="Invalid content path")
-
-    parts = file_path.split('/')
-
-    # Podcasts are retired: their leftover media is never served.
-    if len(parts) >= 3 and parts[0] == 'orgs' and parts[2] == 'podcasts':
-        raise HTTPException(status_code=404, detail="Not found")
-
-    # Generic organization content is public.
-    if len(parts) >= 2 and parts[0] == 'orgs':
-        return
-
-    # User content (avatars, profile images) — always public
-    # Paths: users/{user_uuid}/avatars/...
-    if len(parts) >= 2 and parts[0] == 'users':
-        return
-
-    # Unknown path pattern — require auth as a safe default
-    if isinstance(current_user, AnonymousUser):
-        raise HTTPException(status_code=401, detail="Authentication required")
 
 
 # MIME type mapping
@@ -133,7 +91,7 @@ async def serve_local_content(
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    await _check_content_access(request, file_path, current_user, db_session)
+    public = check_content_access(os.path.relpath(resolved, os.path.realpath(str(CONTENT_DIR))), current_user, db_session)
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -146,7 +104,7 @@ async def serve_local_content(
         path=str(resolved),
         media_type=media_type,
         headers={
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": cache_control(public),
             "X-Content-Type-Options": "nosniff",
         },
     )
@@ -164,7 +122,7 @@ async def head_local_content(
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    await _check_content_access(request, file_path, current_user, db_session)
+    public = check_content_access(os.path.relpath(resolved, os.path.realpath(str(CONTENT_DIR))), current_user, db_session)
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -180,7 +138,7 @@ async def head_local_content(
             "Accept-Ranges": "bytes",
             "Content-Length": str(file_size),
             "Content-Type": media_type,
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": cache_control(public),
             "X-Content-Type-Options": "nosniff",
         },
     )
