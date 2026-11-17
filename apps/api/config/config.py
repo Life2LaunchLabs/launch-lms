@@ -15,12 +15,6 @@ class SentryConfig(BaseModel):
     dsn: str | None
 
 
-class Judge0Config(BaseModel):
-    api_url: str
-    client_id: str | None
-    client_secret: str | None
-
-
 class GeneralConfig(BaseModel):
     development_mode: bool
     sentry_config: SentryConfig
@@ -105,7 +99,6 @@ class LaunchLMSConfig(BaseModel):
     security_config: SecurityConfig
     mailing_config: MailingConfig
     payments_config: InternalPaymentsConfig
-    judge0_config: Judge0Config | None
 
 
 
@@ -310,23 +303,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
         else yaml_config.get("mailing_config", {}).get("smtp_use_tls", True)
     )
 
-    # Judge0 config — auto-enabled when API URL is set
-    env_judge0_api_url = os.environ.get("LAUNCHLMS_JUDGE0_API_URL")
-    env_judge0_client_id = os.environ.get("LAUNCHLMS_JUDGE0_CLIENT_ID")
-    env_judge0_client_secret = os.environ.get("LAUNCHLMS_JUDGE0_CLIENT_SECRET")
-
-    judge0_api_url = env_judge0_api_url or yaml_config.get("judge0_config", {}).get("api_url", "")
-    judge0_client_id = env_judge0_client_id or yaml_config.get("judge0_config", {}).get("client_id")
-    judge0_client_secret = env_judge0_client_secret or yaml_config.get("judge0_config", {}).get("client_secret")
-
-    judge0_config = None
-    if judge0_api_url:
-        judge0_config = Judge0Config(
-            api_url=judge0_api_url.rstrip("/"),
-            client_id=judge0_client_id,
-            client_secret=judge0_client_secret,
-        )
-
     # Payments config
     env_stripe_secret_key = os.environ.get("LAUNCHLMS_STRIPE_SECRET_KEY")
     env_stripe_publishable_key = os.environ.get("LAUNCHLMS_STRIPE_PUBLISHABLE_KEY")
@@ -407,7 +383,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
                 stripe_client_id=stripe_client_id
             )
         ),
-        judge0_config=judge0_config,
     )
 
     return config

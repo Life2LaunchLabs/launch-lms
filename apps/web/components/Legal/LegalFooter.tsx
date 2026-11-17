@@ -1,6 +1,6 @@
 'use client'
 import { useTranslation } from 'react-i18next'
-import { LEGAL_LINKS } from './LegalPage'
+import { LEGAL_LINKS } from './legalLinks'
 
 const LABEL_KEYS: Record<(typeof LEGAL_LINKS)[number]['href'], string> = {
   '/privacy': 'legal.privacy_policy',

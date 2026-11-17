@@ -323,7 +323,7 @@
     "continue": "Continuar",
     "sign_in": "Iniciar sesión",
     "birth_date": "Fecha de nacimiento",
-    "birth_date_help": "Solo la usamos para comprobar que puedes crear una cuenta, y no la guardamos.",
+    "birth_date_help": "La guardamos en tu cuenta para sugerirte cosas acordes a tu edad y mostrarte oportunidades con límite de edad. El personal de tu organización no la ve.",
     "birth_date_required": "Escribe tu fecha de nacimiento.",
     "birth_date_invalid": "Escribe una fecha de nacimiento real.",
     "under_13_title": "Lo sentimos, no podemos crear una cuenta de Life2Launch para ti.",

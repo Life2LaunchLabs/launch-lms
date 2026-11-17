@@ -67,7 +67,7 @@ class WelcomeSignupRequest(BaseModel):
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
-    birth_date: date | None = None  # checked, never stored (DEV-38)
+    birth_date: date | None = None  # checked (DEV-38) and kept on the new account (DEV-139)
     next: str | None = Field(default=None, max_length=500)  # a path on this site to open once the first phase is set up (an invitation's link)
 
 
@@ -163,6 +163,7 @@ async def complete_welcome_signup(
         first_name=body.first_name.strip(), last_name=body.last_name.strip(), preferred_name=body.preferred_name.strip(),
         bio="",
         details=age_check.checked_details({"onboarding": {"started_at": started_at}}, body.birth_date),
+        birth_date=body.birth_date,
         profile=profile_preset,
     )
 
@@ -359,7 +360,7 @@ class ThirdPartyLogin(BaseModel):
     email: EmailStr
     provider: Literal["google"]
     access_token: str
-    birth_date: date | None = None  # only for a new account: checked, never stored (DEV-38)
+    birth_date: date | None = None  # only for a new account: checked (DEV-38) and kept on it (DEV-139)
 
 
 @router.post("/oauth")
