@@ -87,6 +87,7 @@ async def signWithGoogle(
             last_name=family_name,
             avatar_image=picture,
             details=age_check.checked_details(None, birth_date),  # a new account only: refuses under 13 (DEV-38)
+            birth_date=birth_date,  # kept on the account (DEV-139)
         )
 
         if org_id is not None:

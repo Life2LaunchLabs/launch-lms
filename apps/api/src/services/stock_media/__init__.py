@@ -3,11 +3,16 @@
 Pexels is the only provider for now; a provider turns its API into ``StockItem`` dicts and fetches one item by id
 again at import time, so a client can never point the server at a URL of its choosing. Imported files are copied
 into the media library (we host them) with the photographer's credit kept on the asset.
+
+Preview thumbnails in the picker come through ``preview`` too, so a staff member's browser never calls Pexels:
+the only thing Pexels receives is the search words, from our server (DEV-141).
 """
 
 from __future__ import annotations
 
 import time
+
+from urllib.parse import urlparse
 
 from fastapi import HTTPException
 from sqlmodel import Session
@@ -23,6 +28,9 @@ KINDS = {"photo": MediaType.image, "video": MediaType.video}
 ORIENTATIONS = {"landscape", "portrait", "square"}
 PER_PAGE = 24
 CACHE_SECONDS = 3600
+# Where providers' preview thumbnails live; the preview proxy fetches nothing else.
+PREVIEW_HOSTS = {"images.pexels.com"}
+PREVIEW_MAX_BYTES = 3 * 1024 * 1024
 _cache: dict[tuple, tuple[float, dict]] = {}
 
 
@@ -72,3 +80,15 @@ async def import_item(db: Session, user: PublicUser, org_id: int, item_id: str, 
     content, content_type, path = await download(item["download_url"], MAX_BYTES[media_type])
     name = filename(path.rsplit("/", 1)[-1] or f"{provider}-{item['id']}", content_type, media_type)
     return await store(db, user, org_id, media_type, content, name, title=title or item["alt"] or None, folder=folder or "Stock", credit=item["credit"])
+
+
+async def preview(db: Session, user: PublicUser, org_id: int, url: str) -> tuple[bytes, str]:
+    """One preview thumbnail from a search result, fetched by our server so the browser never contacts the provider."""
+    media._authorize_read(MediaOwnerType.org, org_id, user, db)
+    parsed = urlparse(url or "")
+    if parsed.scheme != "https" or parsed.hostname not in PREVIEW_HOSTS:
+        raise HTTPException(status_code=422, detail="Not a stock preview")
+    content, content_type, _ = await download(url, PREVIEW_MAX_BYTES)
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=422, detail="Not a stock preview")
+    return content, content_type

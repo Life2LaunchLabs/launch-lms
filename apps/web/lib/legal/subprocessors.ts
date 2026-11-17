@@ -4,8 +4,12 @@
 // Built from the code (apps/api config and services, apps/web) and the deploy configuration in
 // launch-lms-infra, not from memory. When a service is added, removed or starts receiving different
 // data, change this file in the same pull request and update CHECKED_ON.
+//
+// Not listed, because they receive no personal data (DEV-141, 2026-11-17): Pexels, for staff stock-photo search,
+// gets only the search words, from our server; its thumbnails and imported files are fetched by our server too
+// (services/stock_media). Judge0 code execution was removed (no part of the app called it).
 
-export const CHECKED_ON = '2026-11-16'
+export const CHECKED_ON = '2026-11-17'
 
 /** When the service receives anything. */
 export type SubprocessorUse =
@@ -69,15 +73,6 @@ export const SUBPROCESSORS: Subprocessor[] = [
     website: 'https://www.atlassian.com',
   },
   {
-    name: 'Judge0',
-    purpose: 'Runs code in coding activities.',
-    data: 'The code a learner runs and its input. No name or account details.',
-    location: 'United States',
-    use: 'feature',
-    when: 'A learner runs code in a coding activity.',
-    website: 'https://judge0.com',
-  },
-  {
     name: 'WorkOS',
     purpose: "Single sign-on with a school's own accounts.",
     data: "The person's name and email address from the school's sign-in.",
@@ -94,14 +89,5 @@ export const SUBPROCESSORS: Subprocessor[] = [
     use: 'feature',
     when: 'An organization that sells access takes a payment. Schools using Life2Launch for free never use it.',
     website: 'https://stripe.com',
-  },
-  {
-    name: 'Pexels',
-    purpose: 'Finds free stock photos and videos for staff building plans.',
-    data: 'The search words staff type. No learner data.',
-    location: 'Germany',
-    use: 'feature',
-    when: 'Staff search for a stock photo or video.',
-    website: 'https://www.pexels.com',
   },
 ]

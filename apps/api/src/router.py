@@ -7,7 +7,6 @@ from src.routers import (
     auth_handoff,
     candidate_feedback,
     feedback_connection,
-    code_execution,
     connect,
     dev,
     discover,
@@ -324,12 +323,6 @@ v1_router.include_router(
     tags=["news"]
 )
 
-v1_router.include_router(
-    code_execution.router,
-    prefix="/code",
-    tags=["code-execution"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
 
 # Trending feed (public, optional auth)
 v1_router.include_router(trending_router_module.router, tags=["trending"])

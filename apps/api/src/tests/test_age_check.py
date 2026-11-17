@@ -88,12 +88,21 @@ def test_the_api_refuses_an_under_13_account_made_without_the_form(client, db, p
     assert db.exec(select(User).where(User.email == "young@example.com")).first() is None
 
 
-def test_someone_13_or_older_signs_up_and_only_the_check_is_kept(client, db):
+def test_someone_13_or_older_signs_up_and_the_date_is_kept_but_never_sent_back(client, db):
     created = client.post("/users/1", json=_body("teen@example.com", "2010-01-15"))
     assert created.status_code == 200, created.text
     user = db.exec(select(User).where(User.email == "teen@example.com")).one()
     assert user.details["age_check"] == {"over_13": True, "checked_on": date.today().isoformat()}
-    assert "2010-01-15" not in repr(user.model_dump())
+    assert user.birth_date == date(2010, 1, 15)  # kept on the account (DEV-139)
+    assert "2010-01-15" not in created.text and "birth_date" not in user.model_dump()
+
+
+def test_the_kept_date_is_in_download_my_data(db):
+    from src.services.users import data_export
+
+    db.add(User(id=60, user_uuid="user_60", username="kept", email="kept@example.com", first_name="K", last_name="Ept", birth_date=date(2009, 4, 2)))
+    db.commit()
+    assert data_export.collect(db, 60)["account/profile"][0]["birth_date"] == "2009-04-02"
 
 
 def _request() -> Request:
@@ -114,6 +123,7 @@ async def test_the_welcome_sign_up_refuses_under_13_and_keeps_the_check_otherwis
     await auth_router.complete_welcome_signup(_request(), Response(), teen, db)
     user = db.exec(select(User).where(User.email == "new@example.com")).one()
     assert user.details["age_check"]["over_13"] is True and user.details["onboarding"]["started_at"]
+    assert user.birth_date == date(2009, 6, 1)
 
 
 @pytest.mark.asyncio
@@ -133,6 +143,7 @@ async def test_google_refuses_a_new_under_13_account_but_signs_in_an_existing_on
 
     created = await auth_utils.signWithGoogle(_request(), "token", google.email, 1, AnonymousUser(), db, birth_date=date(2005, 3, 3))
     assert created.details["age_check"]["over_13"] is True
+    assert db.exec(select(User).where(User.email == google.email)).one().birth_date == date(2005, 3, 3)
 
     db.add(User(id=50, user_uuid="user_50", username="old", email="old@example.com", first_name="O", last_name="Ld"))
     db.commit()

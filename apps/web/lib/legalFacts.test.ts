@@ -49,3 +49,32 @@ test('the Coach retention schedule is on the data page and the privacy policy li
   assert.match(privacy, /COACH_RETENTION\.map/)
   assert.match(privacy, /href="\/data#retention"/)
 })
+
+// DEV-139: the date of birth is kept, and sign-up, the Privacy Policy and the Data page all say so in the same words.
+test('the kept date of birth is stated once and shown on both pages and at sign-up', () => {
+  const facts = read('lib/legal/facts.ts')
+  assert.match(facts, /keeps the date of birth/)
+  assert.doesNotMatch(facts, /never stored/)
+  assert.match(read('app/data/page.tsx'), /\{BIRTH_DATE\}/)
+  assert.match(read('lib/legal/privacy.tsx'), /\{BIRTH_DATE\}/)
+  assert.doesNotMatch(read('lib/legal/privacy.tsx'), /date of birth beyond/)
+  const en = JSON.parse(read('locales/en.json'))
+  assert.match(en.auth.birth_date_help, /keep it/)
+  assert.doesNotMatch(en.auth.birth_date_help, /don’t keep/)
+})
+
+// DEV-141: services that receive no personal data are not listed.
+test('Judge0 and Pexels are off the outside services list', () => {
+  const list = read('lib/legal/subprocessors.ts')
+  assert.doesNotMatch(list, /name: 'Judge0'/)
+  assert.doesNotMatch(list, /name: 'Pexels'/)
+})
+
+// DEV-140: every policy page sits in the front page's signed-out frame.
+test('the policy pages use the signed-out header and footer', () => {
+  const shell = read('components/Legal/LegalShell.tsx')
+  assert.match(shell, /<GuestHeader /)
+  assert.match(shell, /<LegalFooter \/>/)
+  assert.match(read('components/Legal/LegalPage.tsx'), /<LegalShell /)
+  assert.match(read('app/data/page.tsx'), /<LegalShell /)
+})

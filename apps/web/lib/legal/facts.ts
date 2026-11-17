@@ -50,4 +50,8 @@ export const SELF_EXPORT = 'Anyone signed in can download a copy of everything L
 
 /** Age: services/auth/age_check.py checks every self-service sign-up; accounts a school's single sign-on provisions skip it (Terms of Use). */
 export const AGE_CHECK =
-  'Accounts are only for people aged 13 and over. Every way to sign up on your own asks for a date of birth and refuses anyone younger. The date of birth itself is never stored: the account keeps only that the person is over 13 and the date this was checked. When a school signs its students in through its own single sign-on, Life2Launch does not ask again: under our Terms of Use the school confirms that everyone it enrolls is 13 or older.'
+  'Accounts are only for people aged 13 and over. Every way to sign up on your own asks for a date of birth and refuses anyone younger. When a school signs its students in through its own single sign-on, Life2Launch does not ask again: under our Terms of Use the school confirms that everyone it enrolls is 13 or older.'
+
+/** Date of birth: db/users.py User.birth_date, kept from sign-up (DEV-139, Henry 2026-11-17); left out of every API response, included in Download my data. */
+export const BIRTH_DATE =
+  'Life2Launch keeps the date of birth given at sign-up on the account, so it can suggest things that fit a person’s age (for example, planning for retirement) and show opportunities that have an age limit. The person can see it in Download my data. Their organization’s staff, helpers and other people never see it; only the few Life2Launch staff who run the service can. Accounts made through a school’s single sign-on, or before Life2Launch began keeping it, have no date of birth stored.'

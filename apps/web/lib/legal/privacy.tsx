@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AGE_CHECK, AI_PROVIDERS, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, BIRTH_DATE, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 import type { LegalSection } from '@components/Legal/LegalPage'
 
 // The Privacy Policy's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead
@@ -8,7 +8,7 @@ import type { LegalSection } from '@components/Legal/LegalPage'
 // When what Life2Launch collects or who sees it changes, change this file in the same pull request
 // and move PRIVACY_UPDATED.
 
-export const PRIVACY_UPDATED = '2026-11-16'
+export const PRIVACY_UPDATED = '2026-11-17'
 
 export const PRIVACY_LEDE = <p>
   Life2Launch helps people plan their future and helps schools and programs support them. This policy says what
@@ -33,7 +33,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: 'What we collect',
     body: <>
       <ul>
-        <li><strong>Account:</strong> your legal first and last name, the name you go by, email address, a username, your password (stored only as a one-way hash) and confirmation that you are 13 or older. A profile photo and bio if you add them.</li>
+        <li><strong>Account:</strong> your legal first and last name, the name you go by, email address, a username, your password (stored only as a one-way hash), and the date of birth you give when you sign up. A profile photo and bio if you add them. {BIRTH_DATE}</li>
         <li><strong>Membership:</strong> which organizations you belong to, your role there (learner, staff or admin) and your groups.</li>
         <li><strong>Plans and work:</strong> goals, steps, answers, write-ups, decisions, files and photos you hand in, badges, portfolio entries and progress toward requirements.</li>
         <li><strong>School records:</strong> when you agree to a support link with your school, the course and credit information it uses for your Education Plan and Profile.</li>
@@ -42,7 +42,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         <li><strong>Imported work:</strong> if your school brings over your work from Oregon CIS, that work is held for you until you accept the invitation, and is deleted if you don&rsquo;t.</li>
         <li><strong>Technical data:</strong> server logs (the page, the time and your IP address) and error reports, to keep the service running and secure. Sign-in uses cookies only to keep you signed in; we use no advertising or tracking cookies.</li>
       </ul>
-      <p>We do not collect your date of birth beyond confirming your age, your location, or anything from your contacts.</p>
+      <p>We do not collect your location or anything from your contacts.</p>
     </>,
   },
   {

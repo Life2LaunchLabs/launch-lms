@@ -325,7 +325,7 @@
     "continue": "Continue",
     "sign_in": "Sign in",
     "birth_date": "Date of birth",
-    "birth_date_help": "We only use it to check that you can create an account, and we don’t keep it.",
+    "birth_date_help": "We keep it on your account to suggest things that fit your age and show opportunities with an age limit. Your organization’s staff don’t see it.",
     "birth_date_required": "Enter your date of birth.",
     "birth_date_invalid": "Enter a real date of birth.",
     "under_13_title": "Sorry, we can’t create a Life2Launch account for you.",

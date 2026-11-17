@@ -1,8 +1,9 @@
 """No Life2Launch accounts for anyone under 13 (DEV-38, COPPA).
 
 Every self-service way to create an account (sign-up, sign-up from an organization, an invitation or join link,
-Get started, Google) sends the date of birth the person gave. It is checked here and never stored: the account
-keeps only that it is over 13 and the day that was checked (`details.age_check`). Accounts an organization's
+Get started, Google) sends the date of birth the person gave. It is checked here, and the account records that it
+is over 13 and the day that was checked (`details.age_check`). The date itself is kept on the account
+(`User.birth_date`, DEV-139) for suggestions by age and age-gated opportunities; it is never sent back in a response. Accounts an organization's
 single sign-on provisions are the organization's to vouch for (the Terms of Use bar inviting anyone under 13).
 """
 
@@ -39,14 +40,12 @@ def checked_details(details: dict | None, birth_date: date | None) -> dict:
 
 
 async def signup_body(user_object: UserSignupCreate) -> UserSignupCreate:
-    """Route dependency for the sign-up bodies: refuses before anything is created, and drops the date of birth."""
+    """Route dependency for the sign-up bodies: refuses before anything is created; the date is kept on the account."""
     user_object.details = checked_details(user_object.details, user_object.birth_date)
-    user_object.birth_date = None
     return user_object
 
 
 async def create_body(user_object: UserCreate) -> UserCreate:
     """The same, for creating an account that joins no organization."""
     user_object.details = checked_details(user_object.details, user_object.birth_date)
-    user_object.birth_date = None
     return user_object
