@@ -62,6 +62,27 @@ def test_staff_without_see_reports_see_only_their_own_groups_learners():
             caseload.overview(db, _user(LEARNER), 1)
 
 
+def test_review_staff_on_a_groups_assignment_see_that_groups_learners():
+    """UT-28: a co-teacher added as review staff on one group's assignment, never as group staff, sees that group."""
+    from sqlmodel import select
+
+    from src.db.goals import GoalAssignment
+
+    with _session() as db:
+        _heavy(db)
+        _group(db)
+        assignment = db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == 1)).first()
+        assignment.staff_user_ids = [*assignment.staff_user_ids, TEACHER]
+        db.add(assignment)
+        db.commit()
+        mine = caseload.overview(db, _user(TEACHER), 1)
+        assert not mine["see_reports"] and [item["user_id"] for item in mine["learners"]] == [LEARNER]
+        assert [item["name"] for item in mine["groups"]] == ["Fall"]
+        assert [item["user_id"] for item in caseload.overview(db, _user(TEACHER), 1, "usergroup_1")["learners"]] == [LEARNER]
+        with pytest.raises(HTTPException):
+            caseload.overview(db, _user(TEACHER), 1, "usergroup_2")
+
+
 def test_export_gives_each_chosen_learner_a_pdf_with_the_legal_name_and_no_staff_notes():
     with _session() as db:
         _heavy(db)
