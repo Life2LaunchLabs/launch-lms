@@ -441,7 +441,11 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       onOpenResources={(uuid) => void openConversation(uuid, true)}
       onRename={(title) => conversationUuid ? renameConversation(conversationUuid, title) : Promise.resolve()}
       onArchive={archiveConversation} editRun={hub?.editRun}
-      onOpenMemories={() => { router.push(getUriWithOrg(orgslug, routePaths.owner.account.memory())); if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck() }}
+      onOpenMemories={() => {
+        // Settings scrolls itself to the memory section; Next's scroll-to-top undid that on a phone.
+        router.push(getUriWithOrg(orgslug, routePaths.owner.account.memory()), { scroll: false })
+        if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck()
+      }}
       onStopEditing={() => endingSession(() => void editing.stop())} onUpdateEditGoal={editing.updateGoal}
       onTuck={() => hub?.tuck()} onEnd={() => endingSession(() => hub?.end())}
     />
