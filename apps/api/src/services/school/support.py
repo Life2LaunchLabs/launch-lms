@@ -148,7 +148,10 @@ def _mine(db: Session, current_user: PublicUser, support_uuid: str) -> LearnerSu
 
 def answer(db: Session, current_user: PublicUser, support_uuid: str, accept: bool, request_uuid: str | None = None) -> dict:
     """The learner says yes or not now to the school's ask. Not now keeps the ask open, so they can still say yes later."""
+    from src.services.orgs import school_records
+
     row = _mine(db, current_user, support_uuid)
+    school_records.require(db, row.org_id)
     if row.status not in OPEN or (request_uuid and request_uuid != row.request_uuid):
         raise HTTPException(status_code=409, detail="That ask is no longer open")
     now = _now()
@@ -221,10 +224,13 @@ def learner_dto(db: Session, row: LearnerSupport) -> dict:
 
 def mine(db: Session, current_user: PublicUser) -> dict:
     """The schools supporting this learner, or asking to (including asks they said not now to)."""
+    from src.services.orgs import school_records
+
     rows = db.exec(select(LearnerSupport).where(LearnerSupport.user_id == current_user.id)).all()
     out = []
     for row in rows:
-        if row.status not in ("requested", "active", "declined"):
+        # A school that turned school records off shows nothing about them, asks included (DEV-153).
+        if row.status not in ("requested", "active", "declined") or not school_records.enabled(db, row.org_id):
             continue
         item = learner_dto(db, row)
         # An ask they can still answer carries what they'd be agreeing to, so they can answer it from their Education Plan.
@@ -238,8 +244,10 @@ def live(db: Session, card: dict | None, viewer_id: int) -> dict | None:
     """A consent card as it stands now: waiting, accepted, not now (still answerable), ended, or replaced by a later ask."""
     if not card or card.get("type") != SUPPORT_REQUEST:
         return card
+    from src.services.orgs import school_records
+
     row = db.exec(select(LearnerSupport).where(LearnerSupport.support_uuid == card.get("support_uuid"))).first()
-    if not row or row.request_uuid != card.get("request_uuid"):
+    if not row or row.request_uuid != card.get("request_uuid") or not school_records.enabled(db, row.org_id):
         state = "expired"
     else:
         state = {"requested": "pending", "active": "accepted", "declined": "not_now"}.get(row.status, row.status)

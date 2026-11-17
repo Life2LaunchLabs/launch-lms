@@ -9,6 +9,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatReportReview
 from src.db.learner_support import LearnerSupportUpdate, SupportAnswer
 from src.db.organization_config import MessagingPolicy
+from src.services.orgs import school_records
 from src.db.school import GroupStaffSet
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
@@ -17,6 +18,7 @@ from src.services.school import directory, feed, group_chats, messaging, profile
 router = APIRouter()
 DB = Depends(get_db_session)
 USER = Depends(get_authenticated_user)
+SCHOOL_RECORDS = Depends(school_records.route_guard)
 
 
 @router.get("/orgs/{org_id}/groups/{group_id}/staff")
@@ -39,29 +41,29 @@ async def student(org_id: int, user_id: int, current_user: PublicUser = USER, db
     return views.student(db_session, current_user, org_id, user_id)
 
 
-@router.get("/orgs/{org_id}/students/{user_id}/support")
+@router.get("/orgs/{org_id}/students/{user_id}/support", dependencies=[SCHOOL_RECORDS])
 async def support_status(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     """Whether the school supports this learner, without anything else about them."""
     return support.status(db_session, current_user, org_id, user_id)
 
 
-@router.post("/orgs/{org_id}/students/{user_id}/support")
+@router.post("/orgs/{org_id}/students/{user_id}/support", dependencies=[SCHOOL_RECORDS])
 async def request_support(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     """Ask the learner, with a consent card in their chat with the organization."""
     return support.request(db_session, current_user, org_id, user_id)
 
 
-@router.put("/orgs/{org_id}/students/{user_id}/support")
+@router.put("/orgs/{org_id}/students/{user_id}/support", dependencies=[SCHOOL_RECORDS])
 async def update_support(org_id: int, user_id: int, payload: LearnerSupportUpdate, current_user: PublicUser = USER, db_session: Session = DB):
     return support.update(db_session, current_user, org_id, user_id, payload)
 
 
-@router.delete("/orgs/{org_id}/students/{user_id}/support")
+@router.delete("/orgs/{org_id}/students/{user_id}/support", dependencies=[SCHOOL_RECORDS])
 async def end_support(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     return support.staff_end(db_session, current_user, org_id, user_id)
 
 
-@router.get("/orgs/{org_id}/students/{user_id}/record")
+@router.get("/orgs/{org_id}/students/{user_id}/record", dependencies=[SCHOOL_RECORDS])
 async def open_learner(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     """A supported learner's school record and what their portfolio shares. Needs an active link."""
     return support.open_learner(db_session, current_user, org_id, user_id)
@@ -159,6 +161,17 @@ async def people_chats(org_id: int, current_user: PublicUser = USER, db_session:
 @router.post("/orgs/{org_id}/groups/{group_id}/chat")
 async def open_group_chat(org_id: int, group_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     return group_chats.open_group_chat(db_session, current_user, org_id, group_id)
+
+
+@router.get("/orgs/{org_id}/school-records")
+async def get_school_records(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Whether the organization uses school records and the Education Plan and Profile."""
+    return school_records.get_setting(db_session, current_user, org_id)
+
+
+@router.put("/orgs/{org_id}/school-records")
+async def update_school_records(org_id: int, payload: school_records.SchoolRecordsSetting, current_user: PublicUser = USER, db_session: Session = DB):
+    return school_records.update_setting(db_session, current_user, org_id, payload)
 
 
 @router.get("/orgs/{org_id}/messaging")

@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import { toast } from 'react-hot-toast'
 import { Check, ChevronDown, Loader2 } from 'lucide-react'
 import { Switch } from '@components/ui/switch'
@@ -19,6 +20,8 @@ const QUICK = () => ([tr('lit.career_take.sounds_like_me', 'Sounds like me'), tr
 export default function CareerTake({ resourceUuid, state, token, onSaved, onSkip, fresh = false }: {
   resourceUuid: string; state: SavedResourceState | null; token: string; onSaved?: () => void; onSkip?: () => void; fresh?: boolean
 }) {
+  // Off for an organization that doesn't use school records (PL-6): no EPP to put it on.
+  const schoolRecords = useSchoolRecords()
   const [level, setLevel] = React.useState<number>(state?.interest_level || 0)
   const [levelBusy, setLevelBusy] = React.useState(false)
   const [note, setNote] = React.useState(state?.notes || '')
@@ -73,7 +76,7 @@ export default function CareerTake({ resourceUuid, state, token, onSaved, onSkip
     </div>
     <button type="button" aria-expanded={more} onClick={() => setMore((open) => !open)}
       className="flex min-h-11 items-center justify-between gap-2 rounded-2xl px-1 text-left text-[13.5px] font-extrabold text-muted-foreground hover:text-foreground">
-      {tr('careers.career_take.add_a_note_or_put_it_on_your_epp', 'Add a note, or put it on your EPP')}
+      {schoolRecords ? tr('careers.career_take.add_a_note_or_put_it_on_your_epp', 'Add a note, or put it on your EPP') : tr('careers.career_take.add_a_note', 'Add a note')}
       <ChevronDown size={16} className={cn('transition-transform', more && 'rotate-180')} aria-hidden="true" />
     </button>
     {more ? <>
@@ -83,10 +86,10 @@ export default function CareerTake({ resourceUuid, state, token, onSaved, onSkip
           className="w-full resize-y rounded-2xl border-2 border-border bg-card p-3 text-[14px] focus:border-[var(--org-primary-color)] focus:outline-none" />
       </label>
       <div className="flex flex-wrap gap-1.5">{QUICK().map((text) => <button key={text} type="button" onClick={() => quick(text)} className="rounded-full border-2 border-border bg-card px-3 py-1 text-[12.5px] font-bold hover:bg-raised">{text}</button>)}</div>
-      <label className="flex items-start gap-3 rounded-2xl bg-muted p-3">
+      {schoolRecords ? <label className="flex items-start gap-3 rounded-2xl bg-muted p-3">
         <Switch checked={epp} onCheckedChange={setEpp} className="mt-0.5" aria-label={tr('careers.career_take.add_to_my_epp', 'Add to my EPP')} />
         <span className="flex flex-col gap-0.5"><b className="text-[14px]">{tr('careers.career_take.add_to_my_epp', 'Add to my EPP')}</b><span className="text-[12.5px] text-muted-foreground">{tr('careers.career_take.it_shows_under_careers_i', 'It shows under Careers I’m exploring in your Education Plan and Profile, with your note, so your counselor sees it when you review your plan.')}</span></span>
-      </label>
+      </label> : null}
       <div className="flex gap-2.5">
         {onSkip ? <button type="button" onClick={onSkip} className="h-12 flex-1 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted">{tr('careers.add_to_plans.cancel', 'Cancel')}</button> : null}
         <button type="button" onClick={() => void save()} disabled={busy || !dirty}
