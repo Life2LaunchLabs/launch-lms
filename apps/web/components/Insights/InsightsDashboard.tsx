@@ -247,7 +247,8 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
         </nav> : null}
         {dashboard && draft ? <EditBar dashboard={dashboard} draft={draft} setDraft={setDraft} onDone={() => setDraft(null)} /> : <>
           {dashboard ? <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground"><VisibilityTag dashboard={dashboard} />{dashboard.description}</p> : null}
-          <RangeBar range={effective} setRange={setRange} />
+          {/* An Education Plan and Profile stands as it is now, so a dashboard of only those has no dates to pick. */}
+          {dashboard && dashboard.document.cards.length && dashboard.document.cards.every((card) => card.spec.measure === 'epp_report') ? null : <RangeBar range={effective} setRange={setRange} />}
         </>}
       </header>
       {dashboard ? <Cards dashboard={dashboard} scopeKey={object?.key || null} range={effective} draft={draft} setDraft={setDraft} />

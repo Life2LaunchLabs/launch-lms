@@ -1,3 +1,4 @@
+import type { EppReport } from '@services/epp/report'
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
@@ -22,7 +23,8 @@ export type Visibility = 'me' | 'staff' | 'admins'
 export type Preset = '28d' | '90d' | '12m' | 'all'
 export type DateRange = Preset | { start: string; end: string }
 export type Chart = 'auto' | 'number' | 'line' | 'bars' | 'columns' | 'stacked' | 'heatmap' | 'table'
-export type Shape = 'single' | 'series' | 'ranked' | 'split' | 'cross'
+// 'document' is a record rather than a number (a learner's Education Plan and Profile), drawn by its own view.
+export type Shape = 'single' | 'series' | 'ranked' | 'split' | 'cross' | 'document'
 
 /** A card: what to count, how to break it down, and how to show it (spec.py CardSpec). */
 export interface CardSpec {
@@ -89,6 +91,10 @@ export interface CardResult {
   headline: string
   auto_headline: string
   subline: string
+  /** A document card's record (shape 'document'); null on a read-only link, where `hidden` is set. */
+  document?: EppReport | null
+  complete?: boolean | null
+  hidden?: boolean
 }
 export type CardError = { error: 'locked' | 'invalid'; errors: Array<{ field: string; message: string }> }
 export type CardOutcome = CardResult | CardError

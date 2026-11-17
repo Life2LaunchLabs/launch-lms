@@ -73,7 +73,7 @@ async def get_dashboard_schema(request: Request, db: Session, ctx: AccessContext
         raise HTTPException(status_code=422, detail=f"Scope is one of: {', '.join(dashboards.SCOPES)}")
     # What a card can be made of depends on the kind of dashboard and the viewer, not on which plan or group it shows.
     pop = context.population(db, ctx.user, ctx.org_id)
-    registry = engine.registry(SimpleNamespace(scope=SimpleNamespace(kind=scope), pop=pop))  # type: ignore[arg-type]
+    registry = engine.registry(SimpleNamespace(scope=SimpleNamespace(kind=scope), pop=pop, db=db, org_id=ctx.org_id))  # type: ignore[arg-type]
     library = dashboards.library_for(db, ctx.user, ctx.org_id, scope)
     return {
         "scope": scope, "guide": GUIDE, "spans": list(SPANS), "max_cards": MAX_CARDS, "visibilities": list(VISIBILITIES),

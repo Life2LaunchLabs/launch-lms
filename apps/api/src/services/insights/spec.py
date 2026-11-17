@@ -79,9 +79,12 @@ def upgrade(raw: dict) -> dict:
 
 def check(spec: CardSpec, scope: str, *, see_reports: bool) -> list[dict]:
     """What is wrong with ``spec`` on a ``scope`` dashboard for this viewer: [{field, message}], empty when it fits."""
+    from src.services.insights import documents
     from src.services.insights.dimensions import DIMENSIONS
     from src.services.insights.measures import MEASURES
 
+    if spec.measure in documents.DOCUMENTS:
+        return documents.check(spec, scope)
     measure = MEASURES.get(spec.measure)
     if measure is None:
         return [{"field": "measure", "message": f"There is no measure called {spec.measure!r}. Pick one from the registry."}]

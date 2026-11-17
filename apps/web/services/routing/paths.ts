@@ -253,6 +253,8 @@ export const routePaths = {
       insightsScope: (scope: 'plan' | 'group' | 'learner' | 'framework', key?: string | null, dashboard?: string | null) =>
         withQuery(`/admin/insights/${scope}${key ? `/${encodeURIComponent(key)}` : ''}`, { d: dashboard || null }),
       /** The capture log, optionally narrowed to one dashboard. */
+      /** Every learner's Education Plan and Profile (PL-7), for organizations that use school records. */
+      insightsEpp: (group?: string | null) => withQuery('/admin/insights/epp', { group: group || null }),
       insightsCaptures: (dashboard?: string | null) => withQuery('/admin/insights/captures', { d: dashboard || null }),
       insightsCapture: (captureUuid: string) => `/admin/insights/captures/${encodeURIComponent(captureUuid)}`,
       /** Engagement by group (a placeholder for now). */

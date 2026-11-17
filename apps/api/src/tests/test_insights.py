@@ -16,6 +16,7 @@ from src.db.badges import BadgeAward
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage
 from src.db.goal_sharing import PlanActivity
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.requirements import (
     RequirementAssignmentBatch,
@@ -55,7 +56,7 @@ def db() -> Session:
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__,
         PlanActivity.__table__, BadgeAward.__table__, Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__,
         RequirementFramework.__table__, RequirementFrameworkVersion.__table__, RequirementNode.__table__, RequirementAssignmentBatch.__table__,
-        RequirementEnrollment.__table__, RequirementAttainmentSource.__table__,
+        RequirementEnrollment.__table__, RequirementAttainmentSource.__table__, OrganizationConfig.__table__,
     ])
     session = Session(engine_)
     session.add(Organization(id=1, org_uuid="org_1", name="Riverside", slug="riverside", email="r@example.com"))

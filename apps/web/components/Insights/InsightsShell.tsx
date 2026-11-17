@@ -2,7 +2,8 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Camera, ChevronDown, Lock, Plus } from 'lucide-react'
+import { Camera, ChevronDown, GraduationCap, Lock, Plus } from 'lucide-react'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { ObjectScope, Scope } from '@services/insights/insights'
@@ -11,7 +12,7 @@ import NewDashboardModal from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 import './insights.css'
 
-export type InsightsPlace = { dashboard: string | null; scope: Scope } | 'captures' | 'reports'
+export type InsightsPlace = { dashboard: string | null; scope: Scope } | 'captures' | 'reports' | 'epp'
 
 const item = 'flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13.5px] font-semibold text-foreground transition-colors hover:bg-muted'
 const eyebrow = 'mb-1 mt-4 px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground first:mt-0'
@@ -20,6 +21,7 @@ const eyebrow = 'mb-1 mt-4 px-2 text-[11px] font-bold uppercase tracking-[0.12em
 function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
   const { orgslug } = useInsightsContext()
   const { data: dashboards } = useDashboards()
+  const schoolRecords = useSchoolRecords()
   const admin = routePaths.org.admin
   const href = (path: string) => getUriWithOrg(orgslug, path)
   const current = typeof place === 'object' ? place : null
@@ -29,7 +31,7 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
     <ScopeGlyph scope={scope} /><span className="min-w-0 flex-1"><b className="block truncate">{label}</b>
       <span className="block truncate text-[11.5px] font-medium text-muted-foreground">{count(scope)} view{count(scope) === 1 ? '' : 's'}</span></span>
   </Link>
-  const reportItem = (id: 'captures' | 'reports', label: string, path: string, Icon: typeof Camera) =>
+  const reportItem = (id: 'captures' | 'reports' | 'epp', label: string, path: string, Icon: typeof Camera) =>
     <Link key={id} href={href(path)} aria-current={place === id ? 'page' : undefined} className={cn(item, place === id && 'bg-muted')}>
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true"><Icon size={15} /></span>
       <span className="truncate">{label}</span>
@@ -53,6 +55,7 @@ function Rail({ place, onNew }: { place: InsightsPlace; onNew: () => void }) {
     </button>
     <span className={eyebrow}>Reports</span>
     {reportItem('captures', 'Captures', admin.insightsCaptures(), Camera)}
+    {schoolRecords ? reportItem('epp', 'Education plans', admin.insightsEpp(), GraduationCap) : null}
   </nav>
 }
 

@@ -93,6 +93,11 @@ TEMPLATES: list[dict] = [
         card("sent_back", 4, "sent_back_rate"),
         card("turnaround", 4, "review_turnaround"),
     ]},
+    # Only for organizations that use school records (services/orgs/school_records.py); the card shows only for learners the school supports.
+    {"key": "learner.epp", "scope": "learner", "title": "Education Plan and Profile", "school_records": True,
+     "description": "One learner's Oregon Education Plan and Profile as it stands now. Capture it to keep a dated copy.", "cards": [
+        card("epp", 12, "epp_report"),
+    ]},
     {"key": "framework.progress", "scope": "framework", "title": "Requirement progress",
      "description": "Who is tracked, how far each category and group is, which plans credit requirements, and who has met them all.", "cards": [
         card("tracked", 3, "learners_tracked"),
@@ -108,7 +113,7 @@ TEMPLATES: list[dict] = [
 ]
 
 # Starter dashboards: each is made once for an organization, the first time it opens Insights after the starter exists.
-STARTERS = ("org.overview", "plan.performance", "group.progress", "learner.overview", "framework.progress")
+STARTERS = ("org.overview", "plan.performance", "group.progress", "learner.overview", "learner.epp", "framework.progress")
 
 QUESTIONS: list[dict] = [
     {"key": "active_weekly", "text": "How many learners are active each week?", "spec": {"measure": "active_learners", "by": "time", "compare": "year"}},
@@ -142,6 +147,7 @@ QUESTIONS: list[dict] = [
     {"key": "requirements_categories", "text": "Which categories of requirements are furthest behind?", "spec": {"measure": "requirement_progress", "by": "category"}},
     {"key": "requirements_plans", "text": "Which plans credit the most requirements?", "spec": {"measure": "requirements_met", "by": "plan", "range": "all"}},
     {"key": "requirements_weekly", "text": "How many requirements are met each week?", "spec": {"measure": "requirements_met", "by": "time"}},
+    {"key": "epp", "text": "What does their Education Plan and Profile say?", "spec": {"measure": "epp_report"}, "school_records": True},
     {"key": "finished_weekly", "text": "How many plans are finished each week?", "spec": {"measure": "plans_finished", "by": "time"}},
 ]
 
@@ -150,14 +156,15 @@ def template(key: str) -> dict | None:
     return next((item for item in TEMPLATES if item["key"] == key), None)
 
 
-def library(scope: str, see_reports: bool) -> dict:
-    """The templates and questions that fit a ``scope`` dashboard for this viewer."""
+def library(scope: str, see_reports: bool, school_records: bool = True) -> dict:
+    """The templates and questions that fit a ``scope`` dashboard for this viewer (school record ones only with school records on)."""
     from src.services.insights.spec import CardSpec, check
 
     def fits(spec: dict) -> bool:
         return not check(CardSpec.model_validate(spec), scope, see_reports=see_reports)
 
     return {
-        "templates": [{**item, "cards": [entry for entry in item["cards"] if fits(entry["spec"])]} for item in TEMPLATES if item["scope"] == scope],
-        "questions": [item for item in QUESTIONS if fits(item["spec"])],
+        "templates": [{**item, "cards": [entry for entry in item["cards"] if fits(entry["spec"])]} for item in TEMPLATES
+                      if item["scope"] == scope and (school_records or not item.get("school_records"))],
+        "questions": [item for item in QUESTIONS if fits(item["spec"]) and (school_records or not item.get("school_records"))],
     }

@@ -18,11 +18,12 @@ from sqlmodel import Session, col, select
 
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services.insights import sentences
+from src.services.insights import documents, sentences
 from src.services.insights.context import Ctx, Window, compared, compared_label, population, scope, window
 from src.services.insights.dimensions import DIMENSIONS, NATURAL_ORDER
 from src.services.insights.measures import MEASURES, Fact, Measure
 from src.services.insights.spec import BOUND, CardSpec, Target, check
+from src.services.orgs import school_records
 
 SHAPE_CHARTS: dict[str, tuple[str, ...]] = {
     "single": ("number", "table"),
@@ -382,7 +383,8 @@ def run_cards(ctx: Ctx, cards: list[dict], inherit=None) -> dict:
             locked = any("See reports" in problem["message"] for problem in problems)
             out[key] = {"error": "locked" if locked else "invalid", "errors": problems}
             continue
-        out[key] = run(ctx, spec, inherit)
+        # A record rather than a number, such as a learner's Education Plan and Profile (insights/documents.py).
+        out[key] = documents.run(ctx, spec) if spec.measure in documents.DOCUMENTS else run(ctx, spec, inherit)
     return out
 
 
@@ -391,6 +393,8 @@ def drill(ctx: Ctx, spec: CardSpec, key: str, inherit=None) -> dict:
     problems = check(spec, ctx.scope.kind, see_reports=ctx.pop.see_reports)
     if problems:
         raise HTTPException(status_code=422, detail={"errors": problems})
+    if spec.measure in documents.DOCUMENTS:
+        raise HTTPException(status_code=422, detail="This card's numbers don't open a list of people")
     loaded = _load(ctx, spec, inherit)
     if not loaded.measure.drill:
         raise HTTPException(status_code=422, detail="This card's numbers don't open a list of people")
@@ -433,7 +437,7 @@ def registry(ctx: Ctx) -> dict:
             "direction": measure.direction, "dims": [dim for dim in measure.dims if dim != BOUND.get(ctx.scope.kind)],
             "scopes": list(measure.scopes), "snapshot": measure.snapshot, "available": measure.needs != "see_reports" or ctx.pop.see_reports,
             "keywords": list(measure.keywords),
-        } for measure in MEASURES.values() if ctx.scope.kind in measure.scopes],
+        } for measure in MEASURES.values() if ctx.scope.kind in measure.scopes] + documents.registry_entries(ctx.scope.kind, school_records.enabled(ctx.db, ctx.org_id)),
         "dimensions": [{"key": dim.key, "label": dim.label, "available": dim.needs != "see_reports" or ctx.pop.see_reports} for dim in DIMENSIONS.values()],
         "charts": SHAPE_CHARTS, "ranges": ["28d", "90d", "12m", "all", "custom"],
     }

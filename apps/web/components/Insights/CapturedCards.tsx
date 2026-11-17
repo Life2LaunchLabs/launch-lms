@@ -13,7 +13,7 @@ const noLink = () => null
 
 /** The results without drill keys or links, so every chart draws them as plain marks. */
 export function frozen(outcome: CardOutcome | undefined): CardOutcome | undefined {
-  if (!outcome || isCardError(outcome)) return outcome
+  if (!outcome || isCardError(outcome) || outcome.shape === 'document') return outcome
   const plain = <T extends object>(cell: T): T => ({ ...cell, drill: null, ...('link' in cell ? { link: null } : {}) })
   return {
     ...outcome, drill: null, value: plain(outcome.value), more: outcome.more ? plain(outcome.more) : null,

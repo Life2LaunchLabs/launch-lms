@@ -7,6 +7,7 @@ export type CaseloadState = 'reviewed' | 'ready' | 'missing' | 'waiting'
 
 export interface CaseloadLearner {
   user_id: number
+  user_uuid?: string | null
   username: string | null
   name: string
   student_id: string | null
@@ -58,6 +59,10 @@ async function download(url: string, fallback: string, token?: string) {
     await errorHandling(response)
     throw new Error('That download didn’t work.')
   }
+  return save(response, fallback)
+}
+
+async function save(response: Response, fallback: string) {
   const name = fileName(response, fallback)
   const href = URL.createObjectURL(await response.blob())
   const anchor = document.createElement('a')
@@ -77,3 +82,28 @@ export const downloadCaseloadExport = (orgId: number, mine: boolean, token?: str
 /** One saved record as a PDF. */
 export const downloadRecordPdf = (orgId: number, recordUuid: string, token?: string) =>
   download(`${org(orgId)}/records/${encodeURIComponent(recordUuid)}/pdf`, 'EPP.pdf', token)
+
+/** Insights: every learner's Education Plan and Profile, complete or not, by group (PL-7). */
+export interface EppOverviewLearner extends CaseloadLearner { complete: boolean; groups: string[] }
+export interface EppOverview {
+  school_year: string
+  learners: EppOverviewLearner[]
+  see_reports: boolean
+  counts: { total: number; complete: number; incomplete: number }
+  groups: Array<{ usergroup_uuid: string; name: string }>
+  group: { usergroup_uuid: string; name: string } | null
+}
+export const eppOverviewKey = (orgId: number, group?: string | null) => `${org(orgId)}/overview${group ? `?group=${encodeURIComponent(group)}` : ''}`
+export async function getEppOverview(orgId: number, group: string | null, token?: string): Promise<EppOverview> {
+  return errorHandling(await fetch(eppOverviewKey(orgId, group), RequestBodyWithAuthHeader('GET', null, null, token)))
+}
+
+/** A zip of the chosen learners' Education Plans and Profiles as they stand now, one PDF each. */
+export async function downloadEppPdfs(orgId: number, userIds: number[], token?: string) {
+  const response = await fetch(`${org(orgId)}/overview/export`, RequestBodyWithAuthHeader('POST', { user_ids: userIds }, null, token))
+  if (!response.ok) {
+    await errorHandling(response)
+    throw new Error('That download didn’t work.')
+  }
+  return save(response, 'EPP.zip')
+}
