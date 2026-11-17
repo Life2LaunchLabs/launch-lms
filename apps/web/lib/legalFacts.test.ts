@@ -78,3 +78,30 @@ test('the policy pages use the signed-out header and footer', () => {
   assert.match(read('components/Legal/LegalPage.tsx'), /<LegalShell /)
   assert.match(read('app/data/page.tsx'), /<LegalShell /)
 })
+
+// DEV-159: learners own their records; schools see school records only with the learner's agreement and end
+// only their own access; files open only for the people DEV-160 allows; Life2Launch, LLC is named as the operator.
+test('the policy pages say learners own their records and name the operator', () => {
+  const facts = read('lib/legal/facts.ts')
+  const privacy = read('lib/legal/privacy.tsx')
+  const terms = read('lib/legal/terms.tsx')
+  const data = read('app/data/page.tsx')
+  for (const [name, text] of [['privacy', privacy], ['terms', terms], ['data', data], ['facts', facts]]) {
+    assert.doesNotMatch(text, /owns and controls/, name)
+    assert.doesNotMatch(text, /keep control of its students/, name)
+    assert.doesNotMatch(text, /controls its students/, name)
+    assert.doesNotMatch(text, /anyone who has that address/, name)
+  }
+  assert.match(facts, /Learners own their Life2Launch account, plans, work and portfolio/)
+  assert.match(facts, /only through a support link the learner accepts/)
+  assert.match(facts, /does not delete a learner’s account: it ends its own access/)
+  assert.match(facts, /Life2Launch, LLC/)
+  assert.match(facts, /PO Box 12163, Portland, Oregon 97212/)
+  assert.match(facts, /Life2Launch Institute is a separate organization/)
+  assert.match(facts, /gets “not found”/)
+  for (const fact of ['OWNERSHIP.learners', 'OWNERSHIP.schools', 'OWNERSHIP.staff', 'OPERATOR', 'DELETION.how', 'UPLOAD_LINKS']) {
+    assert.ok(privacy.includes(fact), `privacy ${fact}`)
+  }
+  for (const fact of ['OWNERSHIP.learners', 'OWNERSHIP.staff', 'OPERATOR']) assert.ok(terms.includes(fact), `terms ${fact}`)
+  for (const fact of ['OWNERSHIP.learners', 'OWNERSHIP.schools', 'OWNERSHIP.staff', 'OPERATOR', 'UPLOAD_LINKS']) assert.ok(data.includes(fact), `data ${fact}`)
+})

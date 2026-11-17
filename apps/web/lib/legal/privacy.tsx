@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AGE_CHECK, AI_PROVIDERS, BIRTH_DATE, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
+import { AGE_CHECK, AI_PROVIDERS, BIRTH_DATE, COACH_MEMORY, COACH_RETENTION, COACH_RETENTION_LEAD, DELETION, LOG_RETENTION, OPERATOR, OWNERSHIP, SELF_EXPORT, UPLOAD_LINKS } from '@/lib/legal/facts'
 import type { LegalSection } from '@components/Legal/LegalPage'
 
 // The Privacy Policy's text, in one place (DEV-23). Henry set it as final for v0.10.0 (DEV-50); the Product lead
@@ -23,7 +23,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     body: <ul>
       <li>We collect what you and your organization put into Life2Launch, and what we need to keep it running and secure.</li>
       <li>We use it only to provide Life2Launch. We never sell or rent personal data, show ads, or use it to advertise to you.</li>
-      <li>When a school uses Life2Launch, the school controls its students&rsquo; education records, and we act on its behalf (FERPA).</li>
+      <li>Learners own their account, plans, work and portfolio, and keep them after they leave a school or program.</li>
+      <li>A school sees school records only through a support link the learner accepts and can end. The school stays responsible for its own official records (FERPA).</li>
       <li>Life2Launch does not allow accounts for anyone under 13 (COPPA).</li>
       <li>You can ask to see, correct or delete your data.</li>
     </ul>,
@@ -58,8 +59,9 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: 'Who can see it',
     body: <ul>
       <li><strong>You:</strong> everything in your own account.</li>
-      <li><strong>Your organization&rsquo;s staff:</strong> admins see the organization&rsquo;s learners and their work there. Other staff see only what the admin lets them. Staff see school records, such as an Education Plan and Profile, only through a support link you agreed to.</li>
-      <li><strong>People you choose:</strong> helpers you invite to a plan, and anyone you send a portfolio or badge link to. {UPLOAD_LINKS}</li>
+      <li><strong>Your organization&rsquo;s staff:</strong> {OWNERSHIP.staff} Admins see the organization&rsquo;s learners and their work on those plans; other staff see only what the admin lets them. Staff see school records, such as an Education Plan and Profile, only through a support link you accepted.</li>
+      <li><strong>People you choose:</strong> helpers you invite to a plan, and anyone you send a portfolio or badge link to.</li>
+      <li><strong>Uploaded files:</strong> {UPLOAD_LINKS}</li>
       <li><strong>Life2Launch staff:</strong> a small number of people who run the service, only to run it, support you and fix problems.</li>
       <li><strong>Outside services:</strong> the services that run parts of Life2Launch (hosting, email, the AI model behind Coach, error reports and a few features). Each receives only what it needs. They are listed, with what each receives, on <Link href="/data">How Life2Launch handles student data</Link>.</li>
       <li><strong>When the law requires it:</strong> we share data if a valid legal process requires us to, and tell the school or person affected when we are allowed to.</li>
@@ -69,12 +71,13 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: 'ferpa',
     title: 'Schools and FERPA',
     body: <>
-      <p>When a school or district uses Life2Launch, the student information it puts in, or that students create as part of their schooling, can be part of their education records under the Family Educational Rights and Privacy Act (FERPA).</p>
+      <p>When a school or district uses Life2Launch, the school records it uses, such as course and credit information for an Education Plan and Profile, can be part of students&rsquo; education records under the Family Educational Rights and Privacy Act (FERPA).</p>
       <ul>
-        <li>The school owns and controls those records. Life2Launch acts as a school official with a legitimate educational interest, under the school&rsquo;s direct control, and uses the records only to provide Life2Launch to the school.</li>
-        <li>We do not disclose them to anyone else except as the school directs, as described here, or as the law requires.</li>
-        <li>Parents and eligible students ask their school to see or correct education records. We help the school answer.</li>
-        <li>When a school stops using Life2Launch, it can ask us to delete its students&rsquo; records.</li>
+        <li>{OWNERSHIP.learners}</li>
+        <li>{OWNERSHIP.schools}</li>
+        <li>For those school records, Life2Launch acts as a school official with a legitimate educational interest and uses them only to provide Life2Launch to the school and the learner. We do not disclose them to anyone else except with the learner&rsquo;s agreement, as described here, or as the law requires.</li>
+        <li>Parents and eligible students ask their school to see or correct the school&rsquo;s records. We help the school answer.</li>
+        <li>When a school stops using Life2Launch, its access ends. Its learners keep their own accounts and work.</li>
       </ul>
     </>,
   },
@@ -104,7 +107,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: 'rights',
     title: 'Seeing, correcting and deleting your data',
     body: <>
-      <p>You can see and change most of your data in Life2Launch yourself. {SELF_EXPORT} You, a parent of a learner under 18, or your school can ask us to give you a copy of your data or correct it.</p>
+      <p>You can see and change most of your data in Life2Launch yourself. {SELF_EXPORT} You or a parent of a learner under 18 can ask us to give you a copy of your data or correct it.</p>
       <p>{DELETION.how}</p>
       <p>{DELETION.effect}</p>
     </>,
@@ -112,7 +115,12 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     id: 'security',
     title: 'Keeping it safe',
-    body: <p>Every connection to Life2Launch is encrypted (HTTPS). Passwords are stored only as one-way hashes. Each organization sees only its own people and their work, and staff see what their admin allows. Accounts lock after repeated failed sign-ins. No system is perfectly secure; if a breach affects your data, we will tell you and your school as the law requires.</p>,
+    body: <p>Every connection to Life2Launch is encrypted (HTTPS). Passwords are stored only as one-way hashes. Each organization sees only its own people and their work on the plans it manages, and staff see what their admin allows. Accounts lock after repeated failed sign-ins. No system is perfectly secure; if a breach affects your data, we will tell you and your school as the law requires.</p>,
+  },
+  {
+    id: 'operator',
+    title: 'Who we are',
+    body: <p>{OPERATOR}</p>,
   },
   {
     id: 'changes',
@@ -122,6 +130,6 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     id: 'contact',
     title: 'Contact us',
-    body: <p>Email us at <a href="mailto:team@life2launch.com">team@life2launch.com</a> with any privacy question or request, including asking to see, correct or delete data. Students and parents can also start with their school or organization&rsquo;s Life2Launch admin.</p>,
+    body: <p>Email us at <a href="mailto:team@life2launch.com">team@life2launch.com</a> with any privacy question or request, including asking to see, correct or delete data. Students and parents can also start with their school or organization&rsquo;s Life2Launch admin. Our mailing address is Life2Launch, LLC, PO Box 12163, Portland, Oregon 97212.</p>,
   },
 ]

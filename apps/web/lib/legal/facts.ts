@@ -15,9 +15,9 @@ export const AI_PROVIDERS = {
 export const COACH_MEMORY =
   'Coach memory is on by default. Coach saves short notes from what a learner tells it (goals, preferences, constraints and background) so later answers fit them, and skips anything that looks like a password, health, identity, money or legal matter, or contact details. Only the learner sees their memories, in Account › Memory, where they can edit or delete each one, clear them all, or turn memory off. A deleted memory is erased, not hidden: its words are removed everywhere Life2Launch kept them, including Download my data. Memories belong to one organization and are not shown to its staff.'
 
-/** Uploads: services/utils/upload_content.py names each file with a random UUID; content routers serve it to anyone with the address (DEV-37 adds access checks). */
+/** Uploads: services/content_access.py (DEV-137, narrowed to the managing organization's staff by DEV-160, Henry 2026-11-17). */
 export const UPLOAD_LINKS =
-  'Each uploaded file gets a long, random address that is hard to guess, but today anyone who has that address can open the file without signing in. Share file links with care. We are adding sign-in checks to uploaded files.'
+  'A learner’s uploaded files open only for the learner, people the learner shares that file’s plan with, staff of the organization that manages that plan, and the few Life2Launch staff who run the service. A file the learner puts on their public profile or published portfolio opens for anyone who views it there. Anyone else who has a file’s address gets “not found”.'
 
 /** Discover images: lib/ownServerImage.ts serves pictures from other websites through Life2Launch. */
 export const OUTSIDE_IMAGES =
@@ -38,11 +38,24 @@ export const COACH_RETENTION: [string, string][] = [
 export const LOG_RETENTION =
   'Server logs and error reports are kept for up to 90 days and then deleted. Error reports carry no names, email addresses, IP addresses or cookies.'
 
-/** Deletion: services/users/files.py delete_user_and_files removes the account, everything tied to it and its uploads (DEV-56); 30 days is the policy set 2026-11-16. */
+/** Deletion: services/users/files.py delete_user_and_files removes the account, everything tied to it and its uploads (DEV-56); 30 days is the policy set 2026-11-16. Who may ask: Henry 2026-11-17 (DEV-159). */
 export const DELETION = {
-  how: 'A learner, parent or school can ask for an account and its data to be deleted, through the school’s Life2Launch admin or by emailing team@life2launch.com. We confirm who is asking, then delete it within 30 days. An organization can also ask us to delete the organization and everything in it.',
+  how: 'Only the learner, or a parent of a learner under 18, can ask for the learner’s account and its data to be deleted, by emailing team@life2launch.com. We confirm who is asking, then delete it within 30 days. A school or other organization does not delete a learner’s account: it ends its own access, by removing the learner from the organization or ending the support link. An organization can also ask us to delete the organization; its learners keep their own accounts.',
   effect:
     'Deleting an account removes it and everything tied to it (plans, work, messages, uploaded files, Coach conversations and memories). The one exception: a frozen Education Plan and Profile review copy that a school made with the learner’s agreement stays with that school.',
+}
+
+/** Who runs Life2Launch (Henry 2026-11-17, DEV-159). */
+export const OPERATOR =
+  'Life2Launch is run by Life2Launch, LLC (known publicly as Life2Launch PBC), PO Box 12163, Portland, Oregon 97212. Life2Launch Institute is a separate organization and gets no automatic access to anyone’s data.'
+
+/** Who owns what (Henry 2026-11-17, DEV-159): learners own their records; schools see school records only through a support link (services/epp). */
+export const OWNERSHIP = {
+  learners: 'Learners own their Life2Launch account, plans, work and portfolio, and keep them after they leave a school or program.',
+  schools:
+    'A school sees school records, such as a learner’s Education Plan and Profile, only through a support link the learner accepts, and the learner can end that link. The school keeps the frozen Education Plan and Profile review copy made with the learner’s agreement, and stays responsible for its own official records under FERPA.',
+  staff:
+    'An organization’s staff see a learner’s work only on plans that organization manages, such as plans it assigned or that the learner joined from it. Plans a learner makes for themselves stay private unless the learner shares them.',
 }
 
 /** Download my data: services/users/data_export.py, Account › Your data. */
