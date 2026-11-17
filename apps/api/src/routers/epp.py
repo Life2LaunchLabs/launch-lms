@@ -1,7 +1,8 @@
 """Oregon Education Plan and Profile: a learner's course plan with a school, for staff and for the learner.
 
 Staff routes need an active support link (services/school/support.require_support). Records, the
-caseload and its export are for any of the organization's staff.
+caseload and its export are for any of the organization's staff. Nothing here answers for an organization
+that has school records off (services/orgs/school_records.py).
 """
 
 from urllib.parse import quote
@@ -17,8 +18,10 @@ from src.db.learner_support import ReportPicks
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
 from src.services.epp import caseload, content, courses, records, report
+from src.services.orgs import school_records
 
-router = APIRouter()
+# Every route names its organization; one that has school records off gets 404 (DEV-153).
+router = APIRouter(dependencies=[Depends(school_records.route_guard)])
 DB = Depends(get_db_session)
 USER = Depends(get_authenticated_user)
 

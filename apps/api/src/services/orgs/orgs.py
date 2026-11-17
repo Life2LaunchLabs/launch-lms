@@ -26,6 +26,7 @@ from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
 from src.security.access.access import access_from_config, is_staff_role, owner_org_id
+from src.services.orgs.school_records import enabled_in as school_records_enabled
 from src.db.user_tests import TestCohortOrg
 from src.services.user_tests.visibility import discoverable_orgs, viewer_cohort
 from src.services.orgs.uploads import (
@@ -45,6 +46,8 @@ def _build_org_read_with_access(org, org_config, owner_id: int | None) -> Organi
     if org_config and org_config.config:
         config_dict = dict(org_config.config)
         config_dict["access"] = access_from_config(org_config.config, owner=org.id == owner_id).to_dict()
+        # Resolved on or off, so the web never repeats the /start-role default (DEV-152).
+        config_dict["school_records"] = school_records_enabled(org_config.config)
         org_read.config = OrganizationConfig(
             id=org_config.id,
             org_id=org_config.org_id,

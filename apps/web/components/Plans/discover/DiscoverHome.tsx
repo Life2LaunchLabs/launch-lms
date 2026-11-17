@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
@@ -150,11 +151,13 @@ function Frameworks({ orgslug, query = '' }: { orgslug: string; query?: string }
   })
   const tracked = useRequirementFrameworks(orgId, token)
   const eppTracked = tracked.find((item) => item.name === EPP_NAME)
+  const schoolRecords = useSchoolRecords()
   const [busy, setBusy] = React.useState<string | null>(null)
   const needle = query.trim().toLowerCase()
   const matches = (...texts: Array<string | null | undefined>) => !needle || texts.join(' ').toLowerCase().includes(needle)
   const frameworks = (library as any[]).filter((item) => item.name !== EPP_NAME && matches(item.name, item.description, item.owner_org_name))
-  const showEpp = matches(EPP_NAME, EPP_BLURB, 'Oregon education plan state requirements SB 3')
+  // Only for an organization that uses school records (PL-6).
+  const showEpp = schoolRecords && matches(EPP_NAME, EPP_BLURB, 'Oregon education plan state requirements SB 3')
   const shown = Boolean(frameworks.length || showEpp)
   // Insights links here as …/discover#frameworks; the section renders after its data, so scroll once it's there.
   React.useEffect(() => {

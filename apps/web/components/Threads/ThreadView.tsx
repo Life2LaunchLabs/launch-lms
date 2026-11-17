@@ -17,6 +17,7 @@ import { threadKeys, threadsApi, type OrgLogEntry, type PersonThread, type Threa
 import { shortDate } from '@services/assignments/status'
 import { ContextBar, FilterChips, type StepOption } from './ContextBar'
 import EppReportLink from '@components/Epp/EppReportLink'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import { AskedCard, JoinRequestCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
@@ -87,6 +88,7 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   const { data: thread, mutate } = useSWR<PersonThread>(token ? threadKeys.person(orgId, target.userId, focus) : null,
     () => threadsApi.person(orgId, target.userId, token, focus), { keepPreviousData: true, refreshInterval: 15_000 })
   const me = (useLHSession() as any)?.data?.user?.id as number | undefined
+  const schoolRecords = useSchoolRecords()
   // Opened from an assignment: settle on the learner's plan from it, then on the step.
   const [landing, setLanding] = React.useState(Boolean(target.assignment))
   React.useEffect(() => {
@@ -125,7 +127,7 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   const insights = thread.kind === 'learner' && thread.person.user_uuid ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('learner', thread.person.user_uuid))}
     aria-label={`${thread.person.name}'s Insights`} title="Insights" className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><BarChart3 size={16} /></Link> : null
   // A supported learner's EPP report, one step from their thread (FEED-212).
-  const epp = thread.kind === 'learner' ? <EppReportLink icon orgId={orgId} orgslug={orgslug} userId={thread.person.id} username={thread.person.username} name={thread.person.name} token={token} /> : null
+  const epp = thread.kind === 'learner' && schoolRecords ? <EppReportLink icon orgId={orgId} orgslug={orgslug} userId={thread.person.id} username={thread.person.username} name={thread.person.name} token={token} /> : null
   const header = <Header art={art} title={thread.person.name} sub={sub} actions={<>{epp}{insights}{actions}</>} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
   if (thread.kind === 'staff' || !thread.chat_uuid) return <Shell>{header}<div className="border-b border-border" />
     {thread.chat_uuid ? <ChatWorkspace key={thread.chat_uuid} source={{ chatUuid: thread.chat_uuid }} orgslug={orgslug} token={token} hideTopics empty="Nothing here yet. Say hello." />
