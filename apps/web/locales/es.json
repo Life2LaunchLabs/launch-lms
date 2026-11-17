@@ -6830,7 +6830,8 @@
       "a_new_personal_goal": "Una nueva meta personal",
       "your_goal_label": "Tu meta: {{label}}",
       "goal": "Meta",
-      "end_focused_session_for_label": "Terminar la sesión enfocada de {{label}}"
+      "end_focused_session_for_label": "Terminar la sesión enfocada de {{label}}",
+      "coach_memories": "Recuerdos de Coach"
     },
     "hub_report_dialog": {
       "harmful_or_upsetting": "Dañino o perturbador",
