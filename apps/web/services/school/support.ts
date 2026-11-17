@@ -83,3 +83,10 @@ export const supportApi = {
     request(mine(`/${encodeURIComponent(supportUuid)}/answer`), token, 'POST', { accept, request_uuid: requestUuid }),
   stop: (supportUuid: string, token?: string) => request(mine(`/${encodeURIComponent(supportUuid)}/end`), token, 'POST'),
 }
+
+/** An organization's school records and EPP switch (PL-6): staff read it, admins change it. */
+export const schoolRecordsKey = (orgId: number) => `${getAPIUrl()}school/orgs/${orgId}/school-records`
+export const schoolRecordsApi = {
+  get: (orgId: number, token?: string) => request<{ enabled: boolean }>(schoolRecordsKey(orgId), token),
+  set: (orgId: number, enabled: boolean, token?: string) => request<{ enabled: boolean }>(schoolRecordsKey(orgId), token, 'PUT', { enabled }),
+}

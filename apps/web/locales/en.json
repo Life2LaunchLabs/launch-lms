@@ -1388,6 +1388,7 @@
         },
         "name_in_portfolio_title": "Your name",
         "name_in_portfolio": "Your name and the name you go by are set in your portfolio. They show everywhere in the app.",
+        "learner_name_in_portfolio": "What learners call you on your messages and reviews is set there too.",
         "edit_name_in_portfolio": "Edit in your portfolio"
       },
       "password": {
@@ -4476,6 +4477,9 @@
       "last_name": "Last name",
       "name_you_go_by": "Name you go by",
       "the_whole_name_you_want": "The whole name you want people to see, like “Mya Rivera”. It’s shown on your portfolio and around the app instead of your legal name.",
+      "what_learners_call_you": "What learners call you",
+      "learners_see_this_on_your": "Learners at {{org}} see this on your messages and reviews, like “Ms. Rivera”. Staff still see the name you go by.",
+      "this_organization": "this organization",
       "one_line_intro": "One-line intro",
       "artist_and_future_ux_designer": "Artist and future UX designer",
       "where_you_are": "Where you are",

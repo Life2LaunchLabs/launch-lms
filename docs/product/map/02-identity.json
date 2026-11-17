@@ -1869,7 +1869,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Account settings cover username, first and last name, email, bio, and avatar. Media can be uploaded or selected through the shared media library.",
+          "implementation_notes": "Account settings cover username, email, bio, and avatar. Names (first, last, the name you go by and, for staff, what learners call them) are edited in the portfolio profile dialog; Account settings only point there (DEV-131, DEV-142). Media can be uploaded or selected through the shared media library.",
           "original_state": "`Live`",
           "updated_at": "2026-09-04T01:09:56.193726+00:00",
           "description": "",

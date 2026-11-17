@@ -8,6 +8,7 @@ import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEd
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
 import OrgEditPublicPage from '@components/Dashboard/Pages/Org/OrgEditPublicPage/OrgEditPublicPage'
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
+import OrgEditSchoolRecords from '@components/Dashboard/Pages/Org/OrgEditSchoolRecords/OrgEditSchoolRecords'
 import OrgEditMessaging from '@components/Dashboard/Pages/Org/OrgEditMessaging/OrgEditMessaging'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
 import OrgConnectClaude from '@components/Dashboard/Pages/Org/OrgConnectClaude/OrgConnectClaude'
@@ -71,7 +72,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
         transition={{ duration: 0.1, type: 'spring', stiffness: 80 }}
         className="flex-1 overflow-y-auto"
       >
-        {params.subpage == 'general' ? <OrgEditGeneral /> : ''}
+        {params.subpage == 'general' ? <><OrgEditGeneral /><OrgEditSchoolRecords /><div className="h-6" /></> : ''}
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
         {params.subpage == 'public-page' ? <OrgEditPublicPage /> : ''}
         {params.subpage == 'messaging' ? <OrgEditMessaging /> : ''}

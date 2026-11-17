@@ -1152,6 +1152,7 @@
         },
         "name_in_portfolio_title": "Tu nombre",
         "name_in_portfolio": "Tu nombre y el nombre que usas se ponen en tu portafolio. Se muestran en toda la app.",
+        "learner_name_in_portfolio": "Cómo te llaman los estudiantes en tus mensajes y revisiones también se pone ahí.",
         "edit_name_in_portfolio": "Editar en tu portafolio"
       },
       "password": {
@@ -4480,6 +4481,9 @@
       "last_name": "Apellido",
       "name_you_go_by": "Cómo te llaman",
       "the_whole_name_you_want": "El nombre completo que quieres que vea la gente, como “Mya Rivera”. Aparece en tu portafolio y en la app en lugar de tu nombre legal.",
+      "what_learners_call_you": "Cómo te llaman los estudiantes",
+      "learners_see_this_on_your": "Los estudiantes de {{org}} ven esto en tus mensajes y revisiones, como “Sra. Rivera”. El personal sigue viendo el nombre que usas.",
+      "this_organization": "esta organización",
       "one_line_intro": "Presentación en una línea",
       "artist_and_future_ux_designer": "Artista y futura diseñadora UX",
       "where_you_are": "Dónde estás",
