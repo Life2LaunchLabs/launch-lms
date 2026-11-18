@@ -13,6 +13,7 @@ import {
   Flag,
   Flask,
   Gear,
+  GraduationCap,
   Headphones,
   House,
   ListChecks,
@@ -54,6 +55,7 @@ export const ADMIN_NAV_ICONS: Record<string, Icon> = {
   messaging: ChatsCircle,
   sso: ShieldCheck,
   claude: PlugsConnected,
+  canvas: GraduationCap,
   plan: CreditCard,
   payments: CurrencyCircleDollar,
 }

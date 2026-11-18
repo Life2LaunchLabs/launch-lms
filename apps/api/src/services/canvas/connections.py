@@ -9,6 +9,7 @@ from config.config import get_launchlms_config
 from sqlmodel import Session, select
 
 from src.db.canvas import CANVAS_CLOUD_ISSUER, CanvasConnection
+from src.services.oauth.config import frontend_url
 
 # Canvas Cloud signs from one shared site per environment, whatever the school's own address.
 CLOUD_SSO_HOSTS = {
@@ -90,3 +91,14 @@ def default_issuer(canvas_host: str) -> str:
             return "https://canvas.test.instructure.com"
         return CANVAS_CLOUD_ISSUER
     return CANVAS_CLOUD_ISSUER
+
+
+def tool_urls() -> dict:
+    """Life2Launch's own LTI addresses, which a school's Canvas admin enters for the developer key."""
+    base = f"{frontend_url()}/api/v1/lti"
+    return {
+        "login": f"{base}/login",
+        "launch": f"{base}/launch",
+        "jwks": f"{base}/jwks",
+        "config": f"{base}/canvas.json",
+    }

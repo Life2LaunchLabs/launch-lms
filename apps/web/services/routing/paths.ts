@@ -283,6 +283,8 @@ export const routePaths = {
         plan: () => '/admin/org/settings/plan',
         /** The server address and steps for connecting Claude, and the admin's connections. */
         claude: () => '/admin/org/settings/claude',
+        /** Connecting the school's Canvas (LTI 1.3): what its Canvas admin needs and what they paste back. */
+        canvas: () => '/admin/org/settings/canvas',
       },
       payments: {
         overview: () => '/admin/payments/overview',

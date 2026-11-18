@@ -53,7 +53,7 @@ test('an admin gets every tab in job order and gated pages show what to request'
   // Any staff member adds resources; only listing in the Library needs the resource partner program.
   assert.equal(tabs.find((tab) => tab.id === 'resources')!.visibility.state, 'open')
   const organization = tabs.find((tab) => tab.id === 'organization')!
-  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'public-page', 'discover', 'messaging', 'sso', 'claude', 'plan', 'payments'])
+  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'public-page', 'discover', 'messaging', 'sso', 'canvas', 'claude', 'plan', 'payments'])
   assert.deepEqual(organization.children!.find((child) => child.id === 'sso')!.visibility, { state: 'locked', request: { type: 'tier_upgrade', value: 'enterprise' } })
   assert.deepEqual(organization.children!.find((child) => child.id === 'payments')!.visibility, { state: 'locked', request: { type: 'feature_request', value: 'payments' } })
 })
@@ -68,7 +68,7 @@ test('a free org gets every job tab open', () => {
 test('labels translate through their existing keys and fall back to English', () => {
   const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
   const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: { ...FULL_FEATURES, payments: on } })).find((tab) => tab.id === 'organization')!
-  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Public page', 'Participant Discover', 'Messaging', 'Single Sign-On', 'Connect Claude', 'Plan & access', 'Payments'])
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Public page', 'Participant Discover', 'Messaging', 'Single Sign-On', 'Canvas', 'Connect Claude', 'Plan & access', 'Payments'])
 })
 
 test('an enabled feature opens, and one nobody can turn on is hidden rather than requested', () => {
@@ -84,6 +84,7 @@ test('paths resolve to the tab that owns them, by longest match', () => {
   }
   assert.equal(owner('/admin'), 'home')
   assert.equal(owner('/orgs/acme/admin/'), 'home')
+  assert.equal(owner('/admin/org/settings/canvas'), 'organization/canvas')
   assert.equal(owner('/admin/plans'), 'plans/plans')
   assert.equal(owner('/admin/plans/template_1/activity/a1'), 'plans/plans')
   assert.equal(owner('/admin/plans/badge/b1/routes'), 'plans/plans')
