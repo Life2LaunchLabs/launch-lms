@@ -7,8 +7,6 @@ shift || true
 
 docs() {
   python3 "$root_dir/scripts/validate-docs.py"
-  python3 "$root_dir/scripts/product-map.py" validate
-  python3 "$root_dir/scripts/product-map.py" render --check
   python3 "$root_dir/scripts/source-size.py" check
   python3 "$root_dir/scripts/architecture-check.py" check
   python3 "$root_dir/scripts/third-party-check.py"
@@ -45,7 +43,7 @@ case "$command_name" in
         missing=1
       fi
     done
-    for file in AGENTS.md ARCHITECTURE.md docs/product/manifest.json; do
+    for file in AGENTS.md ARCHITECTURE.md docs/product/README.md; do
       if [[ ! -f "$root_dir/$file" ]]; then
         printf 'missing required file: %s\n' "$file" >&2
         missing=1
