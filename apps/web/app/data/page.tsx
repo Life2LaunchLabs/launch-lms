@@ -20,6 +20,7 @@ const COLLECTED: [string, string][] = [
   ['Messages', 'Conversations in Connect, including notes staff keep about a learner (never shown to the learner).'],
   ['Uploads', 'Files and photos people add to steps, their portfolio and resources.'],
   ['Coach conversations', 'What a person asks Coach and its answers, and the memories Coach saves (see Coach and AI below).'],
+  ['From Canvas', 'Only when a school opens Life2Launch from its Canvas: the person’s name, email, Canvas user id and role in the course, the course’s id and title, and the school’s Canvas address. Not grades, other courses or the class list.'],
   ['Logs', 'Server logs of requests (address, time, IP address) and error reports, used to keep the service running and secure. Staff actions, and when staff open a learner’s records, are kept in the organization’s audit log.'],
 ]
 
@@ -130,6 +131,10 @@ export default async function StudentDataPage() {
       <Section id="deletion" title="Deleting data">
         <p>{DELETION.how}</p>
         <p>{DELETION.effect}</p>
+        <p>
+          A learner’s Canvas user id is deleted with their account. A Canvas course is kept as the group it made
+          until an admin deletes that group, and a school’s Canvas address while the organization exists, even when Canvas is switched off.
+        </p>
         <p>{SELF_EXPORT}</p>
       </Section>
 

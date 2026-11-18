@@ -4795,6 +4795,194 @@
           "relationships": []
         }
       ]
+    },
+    {
+      "id": "PLATFORM-G009",
+      "group_id": "PLATFORM",
+      "display_order": 9,
+      "title": "Open Life2Launch from a school's Canvas",
+      "outcome": "Students and teachers open Life2Launch from a Canvas course, signed in as themselves, with no separate account or password.",
+      "product_state": "live",
+      "health": "works",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Only for an organization whose admin connected and switched on Canvas.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{}",
+      "updated_at": "2026-11-18T00:00:00+00:00",
+      "actors": [
+        "learner",
+        "staff"
+      ],
+      "activities": [
+        {
+          "id": "PLATFORM-G009-A001",
+          "goal_id": "PLATFORM-G009",
+          "display_order": 1,
+          "title": "Open Life2Launch from Canvas",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Since 2026-11-18 (v0.11.0 PF-1, DEV-171 to DEV-174). LTI 1.3 launch: /api/v1/lti/login (OIDC, state in a cookie and Canvas platform storage), /api/v1/lti/launch (RS256 id_token checked against the school's Canvas keys, nonce used once), a one-use Redis ticket posted to the organization's own site (/api/v1/lti/session), which sets partitioned SameSite=None cookies (CHIPS) so the session works in the Canvas frame. If the browser drops them it offers Storage Access or a new tab. The person is matched by Canvas user id, else an in-school email, else made new; an email whose account is outside the school signs in once to link (/api/v1/lti/link). Canvas Instructor and TA roles become Staff, others Learner; a full school refuses and tells its admins (org_alerts). Inside Canvas: frame-ancestors allows only switched-on Canvas sites, an Open in new tab button carries the session over with a one-use ticket, Google and SSO are hidden. Not yet tested on Safari or iPad.",
+          "original_state": "`Live`",
+          "updated_at": "2026-11-18T00:00:00+00:00",
+          "description": "A student or teacher clicks Life2Launch in a Canvas course and lands in it, signed in, inside Canvas or in a new tab.",
+          "goal_title": "Open Life2Launch from a school's Canvas",
+          "group_title": "Measure, govern, and operate the platform",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "The organization's Canvas connection is switched on."
+          },
+          "verification": {
+            "status": "unverified"
+          },
+          "signoff": {
+            "status": "not_requested"
+          },
+          "source": {},
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "PLATFORM-G009-A001-S001",
+              "activity_id": "PLATFORM-G009-A001",
+              "display_order": 1,
+              "title": "Open Life2Launch from a Canvas course",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PLATFORM-G009-A001-S002",
+              "activity_id": "PLATFORM-G009-A001",
+              "display_order": 2,
+              "title": "Land signed in as a student or teacher",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PLATFORM-G009-A001-S003",
+              "activity_id": "PLATFORM-G009-A001",
+              "display_order": 3,
+              "title": "Sign in once to link an account from outside the school",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PLATFORM-G009-A001-S004",
+              "activity_id": "PLATFORM-G009-A001",
+              "display_order": 4,
+              "title": "Open the same page in a new tab",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/canvas.py",
+              "symbol": null,
+              "responsibility": "LTI login, launch, session, link and new-tab endpoints."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/canvas/launch.py",
+              "symbol": null,
+              "responsibility": "Checking the Canvas id_token."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/canvas/people.py",
+              "symbol": null,
+              "responsibility": "Matching or making the person and their membership."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/canvas/session.py",
+              "symbol": null,
+              "responsibility": "One-use tickets and partitioned cookies."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Canvas/CanvasFrame.tsx",
+              "symbol": null,
+              "responsibility": "Open in new tab inside Canvas."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_canvas_launch.py",
+              "symbol": null,
+              "responsibility": "The launch, from login to signed in."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_canvas_people.py",
+              "symbol": null,
+              "responsibility": "Linking an outside account and a full school."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_canvas_frame.py",
+              "symbol": null,
+              "responsibility": "Framing rule and new-tab ticket."
+            }
+          ],
+          "relationships": []
+        }
+      ]
     }
   ]
 }
