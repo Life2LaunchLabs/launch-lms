@@ -139,6 +139,9 @@ def plan_dto(db: Session, org_id: int, user_id: int) -> dict:
 
 def staff_plan(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> dict:
     _staff_access(db, current_user, org_id, user_id)
+    from src.services.orgs import records_access
+
+    records_access.note(db, current_user.id, org_id, user_id, "epp", "Course plan")
     return plan_dto(db, org_id, user_id)
 
 

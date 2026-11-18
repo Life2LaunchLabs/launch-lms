@@ -12,11 +12,11 @@ import { inOrgWords } from '@/lib/people'
 const TIER_CHOICES = [
   { id: 'free', get description() { return inOrgWords('25 active learners, 2 staff seats') } },
   { id: 'full', get description() { return inOrgWords('200 active learners, 12 staff, groups and bulk invites') } },
-  { id: 'enterprise', description: 'Unlimited, with SSO, audit logs, API tokens and advanced reports' },
+  { id: 'enterprise', description: 'Unlimited, with SSO, API tokens and advanced reports' },
 ]
 
 // Features a superadmin may grant beyond the tier.
-const GRANTABLE = ['groups', 'bulk_invites', 'advanced_reports', 'sso', 'audit_logs', 'api_tokens', 'payments']
+const GRANTABLE = ['groups', 'bulk_invites', 'advanced_reports', 'sso', 'api_tokens', 'payments']
 const EXTRA_LIMITS = [
   { key: 'learners', get label() { return inOrgWords('Extra active learners') } },
   { key: 'staff_seats', label: 'Extra staff seats' },

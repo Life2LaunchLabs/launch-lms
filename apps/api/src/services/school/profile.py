@@ -22,6 +22,7 @@ from src.security.rbac.constants import STAFF_ROLE_ID
 from src.security.superadmin import is_user_superadmin
 from src.services.connect import chats, people
 from src.services.goals import access
+from src.services.orgs import records_access
 from src.services.school import chats as school_chats, directory, group_chats, messaging, roles
 
 SHOWN = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
@@ -108,6 +109,8 @@ def profile(db: Session, current_user: PublicUser, org_id: int, username: str) -
     summary = people.person(db, user_id) or {}
     plans = _plans(db, current_user.id, admin, org_id, user_id) if role == "learner" else []
     helping = directory._helping_on(db, org_id, [user_id]).get(user_id, []) if role == "helper" else []
+    if role == "learner":
+        records_access.note(db, current_user.id, org_id, user_id, "profile")
     return {
         "user": {**summary, **({"email": user.email} if admin else {}), "last_login_at": getattr(user, "last_login_at", None)},
         "role": role, "role_name": org_role.name if org_role else "Helper",
@@ -126,5 +129,7 @@ def profile(db: Session, current_user: PublicUser, org_id: int, username: str) -
             "remove": admin and membership is not None and user_id != current_user.id,
             "groups": admin and membership is not None and group_chats.enabled(db, org_id),
             "remove_helper": admin and role == "helper",
+            # Answering a parent's records request: download, who opened them, delete (services/orgs/records_requests).
+            "records": owner_admin and membership is not None and role == "learner" and user_id != current_user.id,
         },
     }
