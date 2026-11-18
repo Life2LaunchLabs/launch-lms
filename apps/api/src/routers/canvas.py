@@ -10,16 +10,17 @@ from __future__ import annotations
 import secrets
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
 from src.db.canvas import CanvasConnection
 from src.db.organizations import Organization
-from src.db.users import User
-from src.security.auth import create_access_token, create_refresh_token
-from src.services.canvas import keys, launch as lti, pages, people, session as canvas_session
+from src.db.users import PublicUser, User
+from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user
+from src.security.org_auth import require_org_owner_admin
+from src.services.canvas import keys, launch as lti, pages, people, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 
@@ -237,3 +238,36 @@ def _set_first_party_cookies(response, request: Request, access: str, refresh: s
                         max_age=int(timedelta(days=30).total_seconds()), **common)
     response.set_cookie(canvas_session.SESSION_MARKER_COOKIE, "1", httponly=False,
                         max_age=int(timedelta(days=30).total_seconds()), **common)
+
+
+# ---------------------------------------------------------------------------
+# Organization settings › Canvas (admins of the organization; every tier)
+# ---------------------------------------------------------------------------
+
+def _require_admin(current_user, org_id: int, db: Session) -> None:
+    if not isinstance(current_user, PublicUser):
+        raise HTTPException(status_code=403, detail="Sign in to change the Canvas connection")
+    require_org_owner_admin(current_user.id, org_id, db)
+
+
+@router.get("/orgs/{org_id}/connection")
+def get_canvas_connection(
+    org_id: int,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db: Session = Depends(get_db_session),
+):
+    _require_admin(current_user, org_id, db)
+    return settings.get_settings(db, org_id)
+
+
+@router.put("/orgs/{org_id}/connection")
+def save_canvas_connection(
+    org_id: int,
+    body: settings.CanvasSettingsUpdate,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db: Session = Depends(get_db_session),
+):
+    _require_admin(current_user, org_id, db)
+    if not db.get(Organization, org_id):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return settings.save_settings(db, org_id, current_user.id, body)
