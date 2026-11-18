@@ -34,7 +34,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_owner_admin
-from src.services.orgs import records_access
+from src.services.orgs import records_access, removals
 from src.services.orgs.owner import owner_org
 from src.services.school import roles
 from src.services.utils.storage import read_file_content
@@ -364,8 +364,9 @@ def delete_preview(db: Session, current_user: PublicUser, org_id: int, user_id: 
     ]
     if courses:
         removed.insert(2, f"Their course plan in your Education Plan and Profile ({courses} course{'s' if courses != 1 else ''})")
-    theirs = (f"{first} keeps their account and can still sign in, just not to your organization. Their own plans, portfolio, "
-              "badges, the files they uploaded and any other organizations they belong to stay theirs.")
+    theirs = (f"{first} keeps their account and can still sign in, just not to your organization: they can't join it again "
+              "unless you invite them. Their own plans, portfolio, badges, the files they uploaded and any other organizations "
+              "they belong to stay theirs.")
     kept = []
     if reviewed or supported:
         parts = []
@@ -440,6 +441,7 @@ def delete(db: Session, current_user: PublicUser, org_id: int, user_id: int, con
     # Groups, chats, plan roles, the EPP exit record a school keeps, and Coach's 60-day clock, as for anyone who leaves.
     cleanup_after_removal(db, org_id, user_id)
     _remove_org_rows(db, org_id, user)  # type: ignore[arg-type]
+    removals.note(db, org_id, user_id, int(current_user.id))  # type: ignore[arg-type]
     db.commit()
     records_access.note(db, current_user.id, org_id, user_id, "records", action=records_access.DELETE)
     try:

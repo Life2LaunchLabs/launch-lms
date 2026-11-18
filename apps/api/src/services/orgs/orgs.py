@@ -26,6 +26,7 @@ from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
 from src.security.access.access import access_from_config, is_staff_role, owner_org_id
+from src.services.orgs import removals
 from src.services.orgs.school_records import enabled_in as school_records_enabled
 from src.db.user_tests import TestCohortOrg
 from src.services.user_tests.visibility import discoverable_orgs, viewer_cohort
@@ -562,10 +563,11 @@ def _build_discover_org_read(
     org_config: OrganizationConfig | None,
     is_member: bool,
     owner_id: int | None,
+    removed: bool = False,
 ) -> OrganizationDiscoverRead:
     from src.services.orgs.public_page import discover_read
 
-    return discover_read(db_session, org, org_config, is_member, owner_id)
+    return discover_read(db_session, org, org_config, is_member, owner_id, removed)
 
 
 async def list_discoverable_orgs(
@@ -631,6 +633,7 @@ async def list_discoverable_orgs(
         visible_member_org_ids = set(member_rows)
 
     owner_id = owner_org_id(db_session)
+    removed = removals.removed_from(db_session, getattr(current_user, "id", None), [int(org.id) for org, _ in org_rows if org.id is not None])
     return [
         _build_discover_org_read(
             db_session,
@@ -638,6 +641,7 @@ async def list_discoverable_orgs(
             org_config,
             org.id in visible_member_org_ids if org.id is not None else False,
             owner_id,
+            org.id in removed,
         )
         for org, org_config in org_rows
     ]
@@ -670,7 +674,8 @@ async def get_discoverable_org_by_slug(
     if not can_view(db_session, current_user, org, member):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
-    return _build_discover_org_read(db_session, org, org_config, member, owner_org_id(db_session))
+    removed = removals.is_removed(db_session, int(org.id), getattr(current_user, "id", None))  # type: ignore[arg-type]
+    return _build_discover_org_read(db_session, org, org_config, member, owner_org_id(db_session), removed)
 
 
 # Config related

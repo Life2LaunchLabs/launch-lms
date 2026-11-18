@@ -7,6 +7,7 @@ from starlette.requests import Request
 
 from src.db.conversations import ConversationMessage
 from src.db.organization_invitations import InviteRecipientResult, InviteUsersResponse, OrganizationInvitation
+from src.db.organization_removals import OrganizationRemoval
 from src.db.organization_join_requests import JoinRequestCreate, OrganizationJoinRequest
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
@@ -30,6 +31,7 @@ def db(monkeypatch):
     monkeypatch.setattr(join_requests, "send_email", lambda to, subject, body: emails.append((to, subject)))
     session = _session()
     OrganizationInvitation.__table__.create(session.get_bind(), checkfirst=True)  # the organization's log lists invitations
+    OrganizationRemoval.__table__.create(session.get_bind(), checkfirst=True)
     session.add(User(id=ASKER, user_uuid="user_21", username="ari", email="ari@example.com", first_name="Ari", last_name="Asks", creation_date=NOW, update_date=NOW))
     session.commit()
     session.emails = emails  # type: ignore[attr-defined]

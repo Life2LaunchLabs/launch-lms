@@ -11,7 +11,7 @@ from src.security.access.access import require_capacity
 from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
-from src.services.orgs import staff_setup
+from src.services.orgs import removals, staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.messages import resolve_action_by_dedupe
 
@@ -112,6 +112,12 @@ async def join_org(
                     OrganizationInvitation.expires_at > datetime.utcnow(),
                 )
             ).first()
+
+    # A learner the organization removed comes back only through its own invitation, which clears the removal.
+    if invitation is None:
+        removals.refuse_self_join(db_session, int(org.id), user.id)
+    else:
+        removals.clear(db_session, int(org.id), int(user.id))  # type: ignore[arg-type]
 
     if join_method == "inviteOnly" and user and org and (args.invite_code or args.invitation_token):
         if user.id is not None and org.id is not None:

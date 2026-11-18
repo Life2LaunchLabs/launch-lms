@@ -15,6 +15,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroups import UserGroup
 from src.db.users import AnonymousUser, PublicUser, User, UserCreate, UserRead
 from src.security.access.access import count_usage
+from src.db.organization_removals import OrganizationRemoval
 from src.services.orgs import users as org_users_service
 from src.services.orgs import invites as org_invites_service
 from src.services.orgs import join as join_service
@@ -34,7 +35,7 @@ NOW = datetime.utcnow().replace(microsecond=0)
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    for model in (Organization, User, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage):
+    for model in (Organization, User, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage, OrganizationRemoval):
         model.__table__.create(engine)
     with Session(engine) as db_session:
         yield db_session

@@ -8,6 +8,7 @@ from src.db.coach import CoachPlaybook, CoachPolicy, CoachProviderKey
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, ConversationReaction
 from src.db.coach_notes import CoachNote
 from src.db.organization_join_requests import OrganizationJoinRequest
+from src.db.organization_removals import OrganizationRemoval
 from src.db.plan_joining import PlanJoinRequest
 from src.db.goals import (
     Goal,
@@ -71,6 +72,8 @@ def _session() -> Session:
         GoalTemplateListing.__table__, GoalTemplateAuthorization.__table__, GoalTemplateLearnerAccess.__table__,
         # Learners asking for a plan show in Threads (services/school/plan_requests.py).
         PlanJoinRequest.__table__, OrganizationJoinRequest.__table__,
+        # Learners a school removed can't rejoin on their own (services/orgs/removals.py).
+        OrganizationRemoval.__table__,
         # Hand-ins and reviews queue email notifications (services/notifications).
         NotificationEvent.__table__,
         # Leaving an organization starts its Coach retention clock (services/coach/retention.py).

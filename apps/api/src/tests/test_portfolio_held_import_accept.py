@@ -32,7 +32,9 @@ REQUEST = Request({"type": "http", "scheme": "https", "server": ("youth.example.
 
 def _world(db, member: bool):
     engine = db.get_bind()
-    for model in (OrganizationInvitation, HeldPortfolioImport, AuditLog, OrganizationConfig, UserGroup, InboxMessage):
+    from src.db.organization_removals import OrganizationRemoval
+
+    for model in (OrganizationInvitation, HeldPortfolioImport, AuditLog, OrganizationConfig, UserGroup, InboxMessage, OrganizationRemoval):
         model.__table__.create(engine, checkfirst=True)
     user = _user()
     db.add_all([user, Role(id=4, name="User", role_uuid="role_global_user", rights={})])
