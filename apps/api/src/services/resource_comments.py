@@ -25,6 +25,7 @@ from src.db.users import PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
 from src.services import resources as base
+from src.services.user_tests.visibility import visible_ratings
 
 
 LINK_PATTERN = re.compile(r"https?://|www\.|\b[a-z0-9-]+\.(?:com|org|net|gov|edu|io|biz|info|co|app|ly)\b", re.IGNORECASE)
@@ -114,7 +115,7 @@ async def list_comments(request: Request, resource_uuid: str, current_user, db_s
     statement = (
         select(ResourceComment, User)
         .join(User, User.id == ResourceComment.author_id)
-        .where(ResourceComment.resource_id == resource.id)
+        .where(ResourceComment.resource_id == resource.id, visible_ratings(db_session, ResourceComment.author_id, getattr(current_user, "id", None) or None))
         .order_by(ResourceComment.creation_date.asc())
     )
     if not moderator:
@@ -165,9 +166,7 @@ async def create_review(
     db_session: Session,
 ) -> dict:
     resource = base._get_resource_or_404(resource_uuid, db_session)
-    content = review_data.content.strip()
-    if not content:
-        raise HTTPException(status_code=400, detail="Review text is required")
+    content = (review_data.content or "").strip()
     existing = db_session.exec(
         select(ResourceComment).where(
             ResourceComment.resource_id == resource.id,
@@ -177,6 +176,30 @@ async def create_review(
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="You have already reviewed this resource")
+    if not content:
+        # Stars alone: a rating, not a comment, so the channel's comment rule doesn't apply and there is
+        # nothing to hold for moderation. It still needs access to the resource.
+        if not base._resource_in_accessible_channel(resource, db_session, current_user):
+            raise HTTPException(status_code=403, detail="You do not have access to this resource")
+        base._get_or_create_saved_resource(current_user.id, resource.id, db_session)
+        rating = ResourceComment(
+            resource_id=resource.id,
+            author_id=current_user.id,
+            comment_uuid=f"resourcecomment_{uuid4()}",
+            content="",
+            rating=review_data.rating,
+            status=CommentStatus.live,
+            creation_date=base._now(),
+            update_date=base._now(),
+        )
+        try:
+            db_session.add(rating)
+            db_session.commit()
+        except IntegrityError:
+            db_session.rollback()
+            raise HTTPException(status_code=409, detail="You have already reviewed this resource") from None
+        db_session.refresh(rating)
+        return _comments_out([(rating, db_session.get(User, current_user.id))], resource.org_id, db_session, False)[0]
     base._get_or_create_saved_resource(current_user.id, resource.id, db_session)
     try:
         return await create_comment(
@@ -208,10 +231,17 @@ async def update_comment(request: Request, comment_uuid: str, comment_data: Reso
         raise HTTPException(status_code=403, detail="You can only edit your own comments")
     if comment_data.content is not None:
         content = comment_data.content.strip()
-        if not content:
+        # A rating can lose its words and stay a rating; a plain comment can't be emptied.
+        if not content and comment.rating is None and comment_data.rating is None:
             raise HTTPException(status_code=400, detail="Write something before you post")
+        rule, hold_links = _comment_rule(resource, db_session)
+        if content and not (comment.content or "").strip() and not base._is_staff(current_user, resource.org_id, db_session):
+            # Words added to a star-only rating are a comment from now on, so the comment rule applies.
+            if rule == CommentRule.off:
+                raise HTTPException(status_code=403, detail="Comments are turned off for this resource")
+            if rule == CommentRule.staff and not _is_staff_anywhere(current_user.id, db_session):
+                raise HTTPException(status_code=403, detail="Only staff can comment on this resource")
         comment.content = content
-        _, hold_links = _comment_rule(resource, db_session)
         if comment.status == CommentStatus.live and hold_links and LINK_PATTERN.search(content) and not base._is_staff(current_user, resource.org_id, db_session):
             comment.status = CommentStatus.held
     if comment_data.rating is not None:
@@ -282,7 +312,7 @@ async def list_channel_comments(request: Request, channel_uuid: str, current_use
         .join(User, User.id == ResourceComment.author_id)
         .join(Resource, Resource.id == ResourceComment.resource_id)
         .join(ResourceChannelResource, ResourceChannelResource.resource_id == Resource.id)
-        .where(ResourceChannelResource.channel_id == channel.id)
+        .where(ResourceChannelResource.channel_id == channel.id, visible_ratings(db_session, ResourceComment.author_id, getattr(current_user, "id", None) or None))
         .order_by(ResourceComment.creation_date.desc())
     ).all())
     out = _comments_out([(comment, user) for comment, user, _ in rows], channel.org_id, db_session, True)

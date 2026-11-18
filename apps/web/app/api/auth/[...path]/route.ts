@@ -10,6 +10,7 @@ import {
   getCookieOptions,
 } from '@services/auth/cookies'
 import { ROUTING_COOKIES } from '@services/routing/cookies'
+import { TEST_INVITEE_COOKIE, TEST_PERSONA_COOKIE, encodeTestPersonaMarker } from '@services/userTests/marker'
 
 const BACKEND_URL = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
 
@@ -116,6 +117,11 @@ async function proxyRequest(
   if (refreshToken?.value) {
     cookieParts.push(`${REFRESH_TOKEN_COOKIE}=${refreshToken.value}`)
   }
+  // A browser the user test console opened for an invitee: sign-up with their address makes them a persona (DEV-103).
+  const inviteeCookie = cookieStore.get(TEST_INVITEE_COOKIE)
+  if (inviteeCookie?.value && pathSegments.startsWith('signup')) {
+    cookieParts.push(`${TEST_INVITEE_COOKIE}=${inviteeCookie.value}`)
+  }
   if (cookieParts.length > 0) {
     headers['Cookie'] = cookieParts.join('; ')
   }
@@ -202,6 +208,14 @@ async function proxyRequest(
         httpOnly: false,
         maxAge: REFRESH_TOKEN_MAX_AGE,
       })
+    }
+
+    // An invitee just signed up and is now a test persona: show its banner and drop the sign-up cookie.
+    const persona = responseData.test_persona
+    if (persona?.user_id) {
+      const maxAge = Number(persona.seconds) || 4 * 60 * 60
+      response.cookies.set(TEST_PERSONA_COOKIE, encodeTestPersonaMarker({ userId: persona.user_id, name: persona.name, cohort: persona.cohort }), { ...cookieOptions, httpOnly: false, maxAge })
+      response.cookies.set(TEST_INVITEE_COOKIE, '', { ...cookieOptions, maxAge: 0 })
     }
   }
 

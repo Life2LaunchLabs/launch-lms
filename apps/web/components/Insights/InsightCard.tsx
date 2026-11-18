@@ -5,24 +5,26 @@ import { ArrowDownRight, ArrowUpRight, ChevronRight, Info, Lock, Minus, Pin, Pin
 import { isCardError, type CardOutcome, type CardResult, type DashboardCard } from '@services/insights/insights'
 import { cn } from '@/lib/utils'
 import { CardBody, type Drill, type LinkFor } from './charts'
+import DocumentCard from './DocumentCard'
 
 const SPAN_CLASS: Record<number, string> = {
   3: 'sm:col-span-6 lg:col-span-3', 4: 'sm:col-span-6 lg:col-span-4', 5: 'sm:col-span-6 lg:col-span-5', 6: 'sm:col-span-6 lg:col-span-6',
   7: 'sm:col-span-12 lg:col-span-7', 8: 'sm:col-span-12 lg:col-span-8', 12: 'sm:col-span-12 lg:col-span-12',
 }
 export const spanClass = (span: number) => cn('col-span-12', SPAN_CLASS[span] || SPAN_CLASS[6])
-const frame = 'flex min-w-0 flex-col gap-3 rounded-[18px] border border-border bg-card p-4 nice-shadow'
+export const frame = 'flex min-w-0 flex-col gap-3 rounded-[18px] border border-border bg-card p-4 nice-shadow'
 
-/** The change against the comparison: an arrow for its direction, colored only when the change is real and counts as better or worse. */
+/** The change against the comparison: an arrow for its direction, colored only when the change is real and counts as better or worse.
+ * With too few learners to judge (`few`), it shows the raw move uncolored instead of calling 0 to 2 "About the same". */
 export function DeltaChip({ compare }: { compare: CardResult['compare'] }) {
   if (!compare || !compare.change) return null
   const sign = compare.change.trim().startsWith('−') || compare.change.trim().startsWith('-') ? 'down' : compare.change.trim().startsWith('+') ? 'up' : 'flat'
   const Icon = !compare.real || sign === 'flat' ? Minus : sign === 'up' ? ArrowUpRight : ArrowDownRight
-  return <span title={`Compared with ${compare.against} (${compare.text})`}
+  return <span title={`Compared with ${compare.against} (${compare.text})${compare.few && !compare.real ? '. Too few learners to call it a change.' : ''}`}
     className={cn('inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-px text-[11.5px] font-bold',
       !compare.real ? 'bg-muted text-muted-foreground' : compare.tone === 'good' ? 'bg-[color-mix(in_oklab,var(--viz-up)_12%,transparent)] text-[var(--viz-up)]'
         : compare.tone === 'bad' ? 'bg-[color-mix(in_oklab,var(--viz-down)_12%,transparent)] text-[var(--viz-down)]' : 'bg-muted text-muted-foreground')}>
-    <Icon size={12} aria-hidden="true" />{compare.real ? compare.change : 'About the same'}
+    <Icon size={12} aria-hidden="true" />{compare.real || compare.few ? compare.change : 'About the same'}
   </span>
 }
 
@@ -40,13 +42,17 @@ export default function InsightCard({ card, outcome, drill, linkFor, pin }: { ca
   if (!outcome) return <CardSkeleton span={card.span} />
   if (isCardError(outcome)) {
     const locked = outcome.error === 'locked'
+    const message = outcome.errors.map((item) => item.message).join(' ')
+    // Locked by permission, or (on a learner's Education Plan) because the school doesn't support them yet.
+    const permission = locked && (!message || message.includes('See reports'))
     return <section className={cn(spanClass(card.span), frame, 'items-start justify-center border-dashed bg-transparent shadow-none')}>
       <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-foreground">{locked ? <Lock size={14} aria-hidden="true" /> : <Info size={14} aria-hidden="true" />}
-        {locked ? 'Needs the See reports permission' : "This card doesn't fit here"}</span>
-      <p className="text-[12.5px] text-muted-foreground">{locked ? 'Ask an admin if you need it.' : outcome.errors.map((item) => item.message).join(' ')}</p>
+        {permission ? 'Needs the See reports permission' : locked ? 'Not shared with your school yet' : "This card doesn't fit here"}</span>
+      <p className="text-[12.5px] text-muted-foreground">{permission ? 'Ask an admin if you need it.' : message}</p>
     </section>
   }
   const result = outcome
+  if (result.shape === 'document') return <DocumentCard card={card} result={result} pin={pin} />
   const chart = card.spec.chart && card.spec.chart !== 'auto' && result.charts.includes(card.spec.chart) ? card.spec.chart : result.chart
   const isNumber = chart === 'number'
   const seeWho = () => drill(result.drill, result.headline)

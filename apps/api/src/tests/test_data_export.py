@@ -113,3 +113,21 @@ def test_content_key_only_accepts_my_own_upload_paths():
     assert data_export._content_key("/content/users/user_2/../user_3/a.png", "user_2") is None
     assert data_export._content_key("/content/orgs/org_1/a.png", "user_2") is None
     assert data_export._content_key("https://images.pexels.com/a.png", "user_2") is None
+
+
+def test_deleted_coach_memory_is_not_in_the_export(monkeypatch):
+    from src.db.hub import HubMemory
+    from src.services import hub_memory
+
+    monkeypatch.setattr(hub_memory, "require_org_membership", lambda *_args: None)
+    with _session() as db:
+        for uuid, content in (("memory_keep", "You like welding"), ("memory_gone", "You want to become a nurse")):
+            db.add(HubMemory(memory_uuid=uuid, org_id=1, user_id=LEARNER, category="goal", content=content, normalized_key=content.lower()))
+        db.commit()
+
+        hub_memory.delete_memory(db, "memory_gone", 1, LEARNER)
+        _, archive = _zip(db)
+
+        everything = "".join(archive.read(item).decode("utf-8", "ignore") for item in archive.namelist())
+        assert "nurse" not in everything
+        assert [row["content"] for row in _json(archive, "coach/memories.json")] == ["You like welding"]

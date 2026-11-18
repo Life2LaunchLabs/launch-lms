@@ -10,15 +10,9 @@ from sqlmodel import Session
 from src.db.portfolio_records import IdentityUpdate
 from src.db.users import PublicUser, User
 from src.services import portfolio as portfolio_service
+from src.services.users.names import legal_name, shown_name
 
-
-def legal_name(user) -> str:
-    return " ".join(part for part in (user.first_name, user.last_name) if part).strip()
-
-
-def shown_name(user) -> str:
-    """The name to show outside rosters and reports."""
-    return (getattr(user, "preferred_name", "") or "").strip() or legal_name(user) or user.username
+__all__ = ["legal_name", "shown_name", "adopt_display_name", "identity_dto", "update_identity"]
 
 
 def adopt_display_name(db_session, user, name: str) -> None:

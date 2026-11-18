@@ -30,6 +30,7 @@ import LanguageSwitcher from '@components/Utils/LanguageSwitcher'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
+import { shownName } from '@/lib/names'
 
 interface RoleInfo {
   name: string;
@@ -173,10 +174,10 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
             <li>
               <Link
                 className={`px-3 py-2 rounded-lg transition-colors text-sm font-bold ${colors.hoverBg} ${colors.text}`}
-                href={getUriWithOrg(org?.slug, '/login')} >{t('auth.login')}</Link>
+                href={org?.slug ? getUriWithOrg(org.slug, '/login') : '/login'} >{t('auth.login')}</Link>
             </li>
             <li className={`rounded-lg shadow-sm transition-colors px-4 py-2 text-xs sm:text-sm font-bold ml-1 sm:ml-2 ${colors.signUpBtn}`}>
-              <Link href={getUriWithOrg(org?.slug, '/signup')}>{t('auth.sign_up')}</Link>
+              <Link href={org?.slug ? getUriWithOrg(org.slug, '/signup') : '/signup'}>{t('auth.sign_up')}</Link>
             </li>
           </ul>
         </div>
@@ -195,7 +196,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   <UserAvatar border="border-2" rounded="rounded-lg" width={30} shadow={primaryColor ? '' : undefined} />
                   <div className="flex flex-col items-start space-y-0">
                     <div className="flex items-center space-x-2">
-                      <p className={`text-sm font-semibold capitalize ${colors.profileName}`}>{session.data.user.username}</p>
+                      <p className={`text-sm font-semibold ${colors.profileName}`}>{shownName(session.data.user)}</p>
                       {userRoleInfo && userRoleInfo.name !== 'USER' && (
                         <Tooltip
                           content={userRoleInfo.description}
@@ -234,7 +235,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   <div className="flex items-center space-x-2">
                     <UserAvatar border="border-2" rounded="rounded-full" width={24} />
                     <div>
-                      <p className="text-sm font-medium">{session.data.user.username}</p>
+                      <p className="text-sm font-medium">{shownName(session.data.user)}</p>
                       <p className="text-xs text-muted-foreground capitalize">{session.data.user.email}</p>
                     </div>
                   </div>

@@ -9,13 +9,14 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import {
   archiveHubConversation, askHubAdvisor, concludeHubEditRun, getActiveHubEditRun, getHubConversation, HubAdvisorMessage, HubAdvisorResource,
-  HubConversationSummary, HubSuggestedAction, listHubConversations, recordHubSearch, renameHubConversation,
+  HubChatStarter, HubConversationSummary, HubSuggestedAction, listHubConversations, recordHubSearch, renameHubConversation,
   resolveHubSuggestedAction, saveHubConversationState,
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { answerHubQuestions, type HubQuestionAnswer } from '@services/hub/questions'
 import HubHeader from './HubHeader'
+import HubMemoryNotice from './HubMemoryNotice'
 import HubComposer, { COMPOSER_MIN_HEIGHT, type HubComposerHandle } from './HubComposer'
 import HubThread, { type HubConversationMessage } from './HubThread'
 import HubHome from '../home/HubHome'
@@ -68,6 +69,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const [conversationLoading, setConversationLoading] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  // What shows while Coach works: the person hears back at once, before a long think (FEED-115).
+  const [sendingNote, setSendingNote] = useState('')
   const [error, setError] = useState('')
   const [contextResources, setContextResources] = useState<HubAdvisorResource[]>([])
   const [pendingResources, setPendingResources] = useState<HubAdvisorResource[]>([])
@@ -86,6 +89,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const attemptedContinuationsRef = useRef(new Set<string>())
   const automaticallyStartedRunsRef = useRef(new Set<string>())
   const restoredRef = useRef(false)
+  // A chat a page button opened: Coach's first line is showing and goes to Coach with the first reply.
+  const starterRef = useRef<HubChatStarter | null>(null)
   const conversationStarted = Boolean(conversationUuid || messages.length > 0)
   const inChat = useMemo(() => new Set(contextResources.map((resource) => resource.resource_uuid)), [contextResources])
   const timelineSlots = useMemo(() => placeHubRunTimeline(buildHubRunTimeline(hub?.editRun?.events || []), messages), [messages, hub?.editRun?.events])
@@ -195,7 +200,16 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       const uuid = intent.resource.startsWith('resource_') ? intent.resource : `resource_${intent.resource}`
       getResource(uuid, accessToken).then(addResource).catch((loadError: any) => setError(loadError?.message || tr('lit.hub_conversation.this_resource_is_not_available', 'This resource is not available.')))
     }
-    if (intent.prompt?.trim()) {
+    if (intent.starter) {
+      const starter = intent.starter
+      endingSession(() => {
+        resetChat()
+        starterRef.current = starter
+        messageSequenceRef.current += 1
+        setMessages([{ id: `opener-${messageSequenceRef.current}`, role: 'assistant', content: starter.opener, createdAt: new Date().toISOString() }])
+        window.requestAnimationFrame(() => composerRef.current?.focus())
+      })
+    } else if (intent.prompt?.trim()) {
       pendingSubmissionRef.current = { content: intent.prompt, preserveDraft: true, allowHidden: true }
       window.requestAnimationFrame(() => composerRef.current?.submit())
     } else window.requestAnimationFrame(() => composerRef.current?.focus())
@@ -218,9 +232,13 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     // Clearing the chat ends its session on the server too; suggestions stay on the goal.
     const run = hub?.editRun
     if (run?.status === 'active' && accessToken && org?.id) void concludeHubEditRun(org.id, run.run_uuid, 'cancelled', accessToken).catch(() => undefined)
+    // A conversation still loading (a resumed one) must not land over the new chat.
+    loadSequence.current += 1
+    setConversationLoading(false)
     setMessages([]); setConversationUuid(null); setConversationTitle(''); setContextResources([]); setPendingResources([]); setTrayUuid(null)
     introducedResourceUuidsRef.current.clear()
     setDraft(''); setError('')
+    starterRef.current = null
     rememberConversation(null)
     hub?.setEditRun(null); hub?.setEditOperations([]); hub?.setEditReviewItems([]); hub?.clearEditContinuations(hub.editRun?.run_uuid)
   }
@@ -270,7 +288,9 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     const content = (pending?.content || draft).trim()
     if (!content || !accessToken || !org?.id || sending || conversationLoading || (!active && !pending?.allowHidden)) return
     const previousMessages = messages
-    let history: HubAdvisorMessage[] = hubAdvisorHistory(messages)
+    const starter = conversationUuid ? null : starterRef.current
+    // With a starter, the API puts the page's context and Coach's first line ahead of this reply.
+    let history: HubAdvisorMessage[] = starter ? [] : hubAdvisorHistory(messages)
     while (history.length >= 2 && history.reduce((sum, item) => sum + item.content.length, 0) + content.length > 7_500) history = history.slice(2)
     if (!conversationUuid) {
       const normalized = content.replace(/\s+/g, ' ').trim()
@@ -283,6 +303,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     setPendingResources([])
     if (!pending?.preserveDraft) setDraft('')
     setError('')
+    setSendingNote(pending?.allowHidden ? tr('coach.hub_conversation.thinking', 'Thinking…') : tr('coach.hub_conversation.got_it_thinking', 'Got it. Let me think that through…'))
     setSending(true)
     const controller = new AbortController()
     advisorAbortRef.current = controller
@@ -292,7 +313,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       if (!pending?.preserveDraft) setDraft((current) => restoreSubmittedDraft(current, content))
     }
     try {
-      if (inferHubResponseKind(content) === 'search') {
+      if (!starter && inferHubResponseKind(content) === 'search') {
         const persisted = await recordHubSearch(org.id, content, accessToken, {
           conversationUuid: conversationUuid || undefined, resourceUuids: contextResources.map((resource) => resource.resource_uuid),
           learnerResourceUuids: submittedResources.map((resource) => resource.resource_uuid), surface: pageSurface(), signal: controller.signal,
@@ -304,8 +325,9 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
         ])
         setConversationUuid(persisted.conversation_uuid); setConversationTitle(persisted.title); rememberConversation(persisted.conversation_uuid)
       } else {
-        const response = await askHubAdvisor(org.id, [...history, { role: 'user', content }], accessToken, contextResources.map((resource) => resource.resource_uuid), conversationUuid || undefined, submittedResources.map((resource) => resource.resource_uuid), pageSurface(), controller.signal)
+        const response = await askHubAdvisor(org.id, [...history, { role: 'user', content }], accessToken, contextResources.map((resource) => resource.resource_uuid), conversationUuid || undefined, submittedResources.map((resource) => resource.resource_uuid), pageSurface(), controller.signal, starter || undefined)
         if (!alive.current) return
+        if (starter && starterRef.current === starter) starterRef.current = null
         const transcriptResources = newHubTranscriptResources(introducedResourceUuidsRef.current, response.resources)
         transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
         setMessages([...previousMessages,
@@ -407,6 +429,10 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   // On a goal, Coach's notes on it show as cards: before anything else, or after the conversation.
   const noteGoal = hub?.surface?.hint.surface === 'goal' ? hub.surface.hint.entity_id : undefined
   const notes = noteGoal ? <CoachNoteCards goalUuid={noteGoal} orgslug={orgslug} token={accessToken} disabled={busy} onAsk={pick} /> : null
+  // The memory choice scrolls with the conversation instead of docking over it: on a phone the docked
+  // card covered Coach's answer until it was answered (FEED-239).
+  const memoryNotice = memory.visible ? <HubMemoryNotice orgslug={orgslug} enabled={memory.enabled} saving={memory.saving} onSave={memory.onSave}
+    onDismiss={() => void memory.onDismiss()} onLearnMore={(href) => { void memory.onDismiss().finally(() => window.location.assign(href)) }} /> : null
   return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label={tr('coach.hub_conversation.coach_conversation', 'Coach conversation')}>
     <h1 className="sr-only">{conversationTitle || tr('coach.hub_shell.coach', 'Coach')}</h1>
     <HubHeader
@@ -415,15 +441,20 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       onOpenResources={(uuid) => void openConversation(uuid, true)}
       onRename={(title) => conversationUuid ? renameConversation(conversationUuid, title) : Promise.resolve()}
       onArchive={archiveConversation} editRun={hub?.editRun}
+      onOpenMemories={() => {
+        // Settings scrolls itself to the memory section; Next's scroll-to-top undid that on a phone.
+        router.push(getUriWithOrg(orgslug, routePaths.owner.account.memory()), { scroll: false })
+        if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck()
+      }}
       onStopEditing={() => endingSession(() => void editing.stop())} onUpdateEditGoal={editing.updateGoal}
       onTuck={() => hub?.tuck()} onEnd={() => endingSession(() => hub?.end())}
     />
     <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel={tr('lit.hub_conversation.keep_the_session', 'Keep the session')}
       onEnd={() => { const then = pendingEnd; setPendingEnd(null); then?.() }} onKeep={() => setPendingEnd(null)} />
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : 'top-14'}`}>
-      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
+      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>
-          {!conversationStarted ? <>{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
+          {!conversationStarted ? <>{memoryNotice}{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
           {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.loading_conversation', 'Loading conversation…')}</div> : null}
           <HubThread
             messages={messages} timelineSlots={timelineSlots} editRun={hub?.editRun || null} editObjects={hub?.editRun?.objects || []}
@@ -433,7 +464,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
             onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction} onAnswer={answerQuestions}
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
-          {sending ? <div className="text-sm text-muted-foreground" role="status">{tr('coach.hub_conversation.thinking', 'Thinking…')}</div> : null}
+          {sending ? <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><span className="inline-flex gap-1" aria-hidden="true"><span className="size-1.5 animate-pulse rounded-full bg-current" /><span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" /><span className="size-1.5 animate-pulse rounded-full bg-current [animation-delay:300ms]" /></span>{sendingNote || tr('coach.hub_conversation.thinking', 'Thinking…')}</div> : null}
+          {conversationStarted ? memoryNotice : null}
           {conversationStarted && !conversationLoading ? notes : null}
           {error ? <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
         </div>
@@ -442,7 +474,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     <HubComposer
       ref={composerRef} orgslug={orgslug} orgId={org?.id} accessToken={accessToken} draft={draft} setDraft={setDraft} onSubmit={submit}
       onStop={() => advisorAbortRef.current?.abort()} sending={sending} loading={conversationLoading} onHeightChange={setComposerHeight} onOverlayHeightChange={setOverlayHeight}
-      memory={memory} reviewItems={hub?.editReviewItems || []} onReview={editing.pointTo} conversationStarted={conversationStarted}
+      reviewItems={hub?.editReviewItems || []} onReview={editing.pointTo} conversationStarted={conversationStarted}
       contextResources={contextResources} onOpenTray={() => setTrayUuid(contextResources.at(-1)?.resource_uuid ?? null)}
       libraryOpen={libraryOpen} setLibraryOpen={setLibraryOpen} onAddResource={addResource}
       onBrowse={() => { router.push(getUriWithOrg(orgslug, '/discover?type=resources')); if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck() }}

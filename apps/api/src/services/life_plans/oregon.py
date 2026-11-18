@@ -89,6 +89,11 @@ def _num(value) -> float | None:
         return None  # "-s-" and blanks are suppressed values
 
 
+def _pay(value) -> float | None:
+    n = _num(value)
+    return n if n is not None and n > 0 else None
+
+
 def _place(area: str, unmatched: set[str]) -> str | None:
     if area.strip().lower() == "oregon":
         return "state:OR"
@@ -187,7 +192,8 @@ def import_wages(db: Session, data: bytes, filename: str) -> dict:
         place = _place(str(r.get("area name") or ""), unmatched) if soc else None
         if not soc or not place:
             continue
-        pct = {name: _num(r.get(column)) for name, column in PCTS}
+        # OED marks pay it withholds with small negative codes (like -3), so only a positive number is pay.
+        pct = {name: _pay(r.get(column)) for name, column in PCTS}
         if pct["p50"] is None:
             continue
         period = "yr" if pct["p50"] >= 1000 else "hr"

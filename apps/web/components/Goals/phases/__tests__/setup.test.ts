@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Activity } from '@services/life/life'
-import { eyebrowFor, purposeOptions, suggestTitle } from '../setup'
+import { eyebrowFor, pendingActivity, purposeOptions, suggestTitle } from '../setup'
 
 const cashier: Activity = { kind: 'working', career: '41-2011.00', career_title: 'Cashiers' }
 
@@ -21,5 +21,24 @@ describe('first phase naming', () => {
     expect(work).toContain('Gap year')
     expect(work).not.toContain('Cashier')
     expect(purposeOptions([{ kind: 'learning', level: 'high' }, cashier])[0]).toBe('High school')
+  })
+})
+
+// FEED-117: Done in "What you're doing" dropped a job and employer that weren't confirmed with the chip.
+describe('what Done keeps from the activity picker', () => {
+  const nurse = { code: '29-1141.00', title: 'Registered Nurses' }
+  test('a picked job keeps the typed employer, or none', () => {
+    expect(pendingActivity({ kind: 'working', level: null, career: nurse, typed: ' Salem Health ' })).toEqual({ kind: 'working', career: nurse.code, career_title: nurse.title, employer: 'Salem Health' })
+    expect(pendingActivity({ kind: 'working', level: null, career: nurse, typed: '' })).toEqual({ kind: 'working', career: nurse.code, career_title: nurse.title, employer: null })
+  })
+  test('a typed job or school is kept as typed', () => {
+    expect(pendingActivity({ kind: 'working', level: null, career: null, typed: 'Barista' })).toEqual({ kind: 'working', career_title: 'Barista' })
+    expect(pendingActivity({ kind: 'learning', level: 'hs', career: null, typed: 'Sheldon High' })).toEqual({ kind: 'learning', level: 'hs', school: 'Sheldon High' })
+    expect(pendingActivity({ kind: 'learning', level: 'hs', career: null, typed: '  ' })).toEqual({ kind: 'learning', level: 'hs' })
+  })
+  test('nothing is kept until there is something to keep', () => {
+    expect(pendingActivity({ kind: null, level: null, career: null, typed: '' })).toBe(null)
+    expect(pendingActivity({ kind: 'learning', level: null, career: null, typed: 'x' })).toBe(null)
+    expect(pendingActivity({ kind: 'working', level: null, career: null, typed: ' ' })).toBe(null)
   })
 })

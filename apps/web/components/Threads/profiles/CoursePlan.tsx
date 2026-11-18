@@ -54,21 +54,23 @@ function CourseForm({ plan, initial, onSave, onCancel, busy, label }: { plan: Pl
 
 function Tally({ plan }: { plan: Plan }) {
   const { tally } = plan
+  const going = tally.in_progress || 0
   const done = (tally.completed / tally.required) * 100
-  const planned = (Math.min(tally.planned, tally.required - tally.completed) / tally.required) * 100
+  const underway = (Math.min(going, tally.required - tally.completed) / tally.required) * 100
+  const planned = (Math.max(0, Math.min(tally.planned, tally.required - tally.completed - going)) / tally.required) * 100
   return <div>
     <div className="mb-1.5 flex flex-wrap justify-between gap-2 text-sm">
-      <span><b>{credits(tally.completed)}</b> completed · <b>{credits(tally.planned)}</b> planned · <b className={tally.left ? 'text-amber-700 dark:text-amber-400' : ''}>{credits(tally.left)}</b> not planned</span>
+      <span><b>{credits(tally.completed)}</b> completed · <b>{credits(going)}</b> in progress · <b>{credits(tally.planned)}</b> planned · <b className={tally.left ? 'text-amber-700 dark:text-amber-400' : ''}>{credits(tally.left)}</b> not planned</span>
       <span className="text-muted-foreground">{tally.required} credits required</span>
     </div>
-    <div className="flex h-2.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${tally.completed} credits completed, ${tally.planned} planned, ${tally.left} not planned, of ${tally.required}`}>
-      <div className="bg-blue-600" style={{ width: `${done}%` }} /><div className="bg-blue-300 dark:bg-blue-800" style={{ width: `${planned}%` }} />
+    <div className="flex h-2.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${tally.completed} credits completed, ${going} in progress, ${tally.planned} planned, ${tally.left} not planned, of ${tally.required}`}>
+      <div className="bg-blue-600" style={{ width: `${done}%` }} /><div className="bg-blue-400 dark:bg-blue-600/70" style={{ width: `${underway}%` }} /><div className="bg-blue-200 dark:bg-blue-900" style={{ width: `${planned}%` }} />
     </div>
     <div className="mt-3">
       <table className="w-full text-sm">
         <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
           <th className="py-1.5 font-semibold">Oregon Diploma credits</th>
-          {[['Required', 'Need'], ['Completed', 'Done'], ['Planned', 'Planned'], ['Left', 'Left']].map(([long, short]) => <th key={long} className="py-1.5 pl-2 text-right font-semibold">
+          {[['Required', 'Need'], ['Completed', 'Done'], ['In progress', 'Now'], ['Planned', 'Plan'], ['Left', 'Left']].map(([long, short]) => <th key={long} className="py-1.5 pl-2 text-right font-semibold">
             <span className="hidden @md:inline">{long}</span><span className="@md:hidden">{short}</span>
           </th>)}
         </tr></thead>
@@ -77,11 +79,12 @@ function Tally({ plan }: { plan: Plan }) {
             <td className="py-1.5">{area.label}</td>
             <td className="py-1.5 pl-2 text-right tabular-nums">{credits(area.required)}</td>
             <td className="py-1.5 pl-2 text-right tabular-nums">{credits(area.completed)}</td>
+            <td className="py-1.5 pl-2 text-right tabular-nums">{credits(area.in_progress || 0)}</td>
             <td className="py-1.5 pl-2 text-right tabular-nums">{credits(area.planned)}</td>
             <td className={`py-1.5 pl-2 text-right tabular-nums ${area.left ? 'font-bold text-amber-700 dark:text-amber-400' : ''}`}>{credits(area.left)}</td>
           </tr>)}
           <tr className="font-bold"><td className="py-1.5">Total</td>
-            {[tally.required, tally.completed, tally.planned, tally.left].map((value, index) => <td key={index} className="py-1.5 pl-2 text-right tabular-nums">{credits(value)}</td>)}
+            {[tally.required, tally.completed, going, tally.planned, tally.left].map((value, index) => <td key={index} className="py-1.5 pl-2 text-right tabular-nums">{credits(value)}</td>)}
           </tr>
         </tbody>
       </table>

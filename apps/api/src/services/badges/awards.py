@@ -20,6 +20,7 @@ from src.db.badges import AwardSource, AwardStatus, BadgeAward
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStatus, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.organizations import Organization
 from src.db.users import User
+from src.services.users.names import shown_name
 from src.services.badges import open_badges
 from src.services.badges.definition import achievement, goal_badge, summary
 
@@ -96,10 +97,10 @@ def award_dict(db: Session, award: BadgeAward) -> dict:
         "achievement": award.achievement,
         "statement": award.statement,
         "evidence_url": award.evidence_url,
-        "awarded_by": {"id": awarded_by.id, "name": " ".join(part for part in (awarded_by.first_name, awarded_by.last_name) if part) or awarded_by.username}
+        "awarded_by": {"id": awarded_by.id, "name": shown_name(awarded_by)}
         if awarded_by else None,
         "learner": {"id": learner.id, "user_uuid": learner.user_uuid, "username": learner.username,
-                    "name": " ".join(part for part in (learner.first_name, learner.last_name) if part) or learner.username} if learner else None,
+                    "name": shown_name(learner)} if learner else None,
         "issuing_org": _org(db, award.issuing_org_id),
         "status": getattr(award.status, "value", award.status),
         "revoked_at": award.revoked_at.isoformat() if award.revoked_at else None,

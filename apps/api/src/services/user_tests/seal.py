@@ -28,11 +28,14 @@ logger = logging.getLogger(__name__)
 REAL = 0  # the real world; a test world is its cohort id
 
 # Bookkeeping that names people without connecting them.
-SKIP_TABLES = {"auditlog", "test_cohort", "test_persona", "test_cohort_org", "test_mail", "test_login_ticket", "test_event", "test_checkpoint"}
+SKIP_TABLES = {"auditlog", "test_cohort", "test_persona", "test_cohort_org", "test_mail", "test_invitee", "test_login_ticket", "test_event", "test_checkpoint"}
 # Rows in these tables are places where people meet, so a row pointing at one names their people too.
 FOLLOW_TARGETS = {"conversation", "conversationmessage", "goal", "portfolio", "resourcecomment"}
 # Public writes read by everyone in the org: here the main org counts as real, not shared.
 STRICT_FOLLOWS = {("resourcecomment", "resource_id"): "resource"}
+# Columns that change what a row is, so an update to them is checked like a new row: a persona's
+# stars-only rating (below) that gains words becomes a public comment.
+RECHECK_COLUMNS = {"resourcecomment": ("content", "rating")}
 # Addresses a row reaches before an account exists.
 EMAIL_COLUMNS = {
     "organizationinvitation": "email_normalized",
@@ -146,6 +149,16 @@ def people_columns(table) -> tuple[list[str], list[str], list[tuple[str, str]]]:
     return users, orgs, follows
 
 
+def is_private_rating(table_name: str, get) -> bool:
+    """A stars-only rating stays in its author's world, so it doesn't name the resource's org.
+
+    Every count, average and review list reads ratings through ``visibility.visible_ratings``,
+    so a persona's stars are seen only inside its own cohort and never move what real people see
+    (DEV-104). Words make it a public comment, which the seal still keeps inside one world.
+    """
+    return table_name == "resourcecomment" and get("rating") is not None and not str(get("content") or "").strip()
+
+
 def collect(session: Session, table, get, row: _Row, follow: bool = True, strict: bool = False) -> None:
     """Add the people a row of ``table`` names to ``row``; ``get(column)`` reads its values."""
     users, orgs, follows = people_columns(table)
@@ -163,6 +176,8 @@ def collect(session: Session, table, get, row: _Row, follow: bool = True, strict
     for (table_name, column), target in STRICT_FOLLOWS.items():
         if table_name == table.name:
             targets[column] = target
+    if is_private_rating(table.name, get):
+        targets.pop("resource_id", None)
     for column, target in targets.items():
         value = get(column)
         parent_class = class_for(target)
@@ -192,6 +207,7 @@ def _changed_people(obj) -> bool:
     names = set(users) | set(orgs) | {name for name, _ in follows}
     if email_column := EMAIL_COLUMNS.get(table.name):
         names.add(email_column)
+    names.update(RECHECK_COLUMNS.get(table.name, ()))
     return any(state.attrs[name].history.has_changes() for name in names if name in state.attrs)
 
 
@@ -243,6 +259,10 @@ def _check_persona_identity(session: Session, obj, worlds: Worlds, is_new: bool)
         return
     state = sa_inspect(obj)
     changed = [name for name in PERSONA_LOCKED_COLUMNS if state.attrs[name].history.has_changes()]
+    from src.services.user_tests.passwords import CONSOLE_PASSWORD_FLAG
+
+    if session.info.get(CONSOLE_PASSWORD_FLAG):
+        changed = [name for name in changed if name != "password"]  # the console setting its known password (DEV-126)
     if not changed:
         return
     worlds.load({int(obj.id)}, set(), set())

@@ -1,4 +1,5 @@
 import ipaddress
+import re
 import socket
 from urllib.parse import urljoin, urlparse
 
@@ -32,6 +33,30 @@ _REQUEST_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
     "Cache-Control": "no-cache",
 }
+
+
+# Titles that bot walls, CDNs and error pages put on the page they send instead of
+# the real one. A preview must never offer these as the resource's title.
+_BLOCK_PAGE_TITLE = re.compile(
+    r"^(?:"
+    r"access denied|access to this page has been denied|forbidden|request rejected|"
+    r"(?:(?:http )?error )?[45]\d\d(?:\s*[-:|]?\s*(?:forbidden|not found|unauthorized|bad request|"
+    r"too many requests|internal server error|bad gateway|service unavailable|access denied|error))?|"
+    r"just a moment|one moment,? please|please wait|checking your browser|"
+    r"attention required!?(?: \| cloudflare)?|security check|are you a robot\??|"
+    r"robot or human\??|ddos-guard|page not found|not found|bad request|service unavailable"
+    r")[.!…\s]*$",
+    re.IGNORECASE,
+)
+
+
+def is_block_page(status_code: int | None, title: str | None) -> bool:
+    """True when a fetched page is an error or bot-block page, not the real page."""
+    if status_code is not None and not 200 <= status_code < 300:
+        return True
+    if not title:
+        return False
+    return bool(_BLOCK_PAGE_TITLE.match(" ".join(title.split())))
 
 
 def _validate_url(url: str) -> str:
@@ -153,8 +178,14 @@ async def fetch_link_preview(url: str) -> dict[str, str | None]:
     # OG URL
     og_url = get_meta('og:url')
 
+    page_title = og_title or title
+    if is_block_page(response.status_code, page_title):
+        # A bot wall or error page: its title, description and image describe the
+        # block, not the resource, so leave them for people to fill in.
+        page_title = description = og_image = None
+
     data = {
-        'title': og_title or title,
+        'title': page_title,
         'description': description,
         'og_image': og_image,
         'favicon': favicon,

@@ -32,6 +32,7 @@ interface NewAccountBody {
   password: string
   org_slug: string
   org_id: string
+  birth_date?: string | null // the age check (DEV-38); the API refuses under 13 and never stores it
 }
 
 export async function signup(body: NewAccountBody): Promise<any> {

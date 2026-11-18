@@ -64,10 +64,14 @@ def clean(db: Session, org_id: int, role: Role, inviter_id: int, permissions: li
     return permissions, [{"assignment_uuid": uuid, "role_key": role} for uuid, role in picked.items()]
 
 
-def accepted(db: Session, invitation: OrganizationInvitation, user_id: int, request: Request) -> None:
-    """Every accept path ends here: record the acceptance, then set up what the invitation carries."""
+async def accepted(db: Session, invitation: OrganizationInvitation, user_id: int, request: Request) -> None:
+    """Every accept path ends here: record the acceptance, then set up what the invitation carries, including the
+    Oregon CIS work a CIS invitation holds for the learner (services/portfolio_held_imports.py)."""
+    from src.services.portfolio_held_imports import after_accept
+
     audit_invitation_acceptance(invitation, user_id, request, db)
     apply(db, invitation, user_id)
+    await after_accept(db, invitation, user_id)
 
 
 def add_staff(db: Session, assignment: GoalAssignment, user_id: int, role_key: str) -> bool:
@@ -120,5 +124,10 @@ def describe(db: Session, invitation: OrganizationInvitation) -> dict:
         who = group.name if group else (" ".join(part for part in (person.first_name, person.last_name) if part) or person.username) if person else assignment.subject_email or ""
         rows.append({"assignment_uuid": assignment.assignment_uuid, "plan": template.title if template else "", "assigned_to": who,
                      "role": item.get("role_key"), "role_label": ROLE_LABELS.get(item.get("role_key"), "")})
+    from src.services.portfolio_held_imports import waiting_for_invitation
+
+    held = waiting_for_invitation(db, invitation)
     return {"permissions": [{"key": key, "label": STAFF_PERMISSIONS[key]} for key in keys if key in STAFF_PERMISSIONS],
-            "assignments": rows, "note": invitation.note or ""}
+            "assignments": rows, "note": invitation.note or "",
+            # A CIS invitation's email says their CIS work is waiting (services/portfolio_held_imports.py).
+            "cis": {"items": held.summary.get("items", 0)} if held else None}

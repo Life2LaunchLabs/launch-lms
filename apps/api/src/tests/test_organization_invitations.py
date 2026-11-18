@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from sqlalchemy import inspect
@@ -408,7 +408,7 @@ async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session:
     monkeypatch.setattr(auth_router, "require_owner_org", lambda db: db.get(Organization, 1))
     request = Request({"type": "http", "scheme": "https", "server": ("school.example.com", 443), "path": "/", "headers": []})
     body = auth_router.WelcomeSignupRequest(email="pending@example.com", password="Str0ng!Passw0rd", invitation_token="invite_1",
-                                            first_name=" Maya ", last_name="Rivera", preferred_name="May")
+                                            first_name=" Maya ", last_name="Rivera", preferred_name="May", birth_date=date(2008, 5, 1))
 
     result = await auth_router.complete_welcome_signup(request, Response(), body, session)
 
@@ -417,7 +417,19 @@ async def test_welcome_signup_from_an_invitation_joins_the_inviting_org(session:
     assert names[0][:3] == ("Maya", "Rivera", "May") and names[0][3].startswith("learner")
     assert result["onboarding"] == {"org_slug": "school", "redirect_url": redirect}
 
-    unknown = auth_router.WelcomeSignupRequest(email="other@example.com", password="Str0ng!Passw0rd", invitation_token="nope")
+    unknown = auth_router.WelcomeSignupRequest(email="other@example.com", password="Str0ng!Passw0rd", invitation_token="nope", birth_date=date(2008, 5, 1))
     with pytest.raises(Exception) as exc_info:
         await auth_router.complete_welcome_signup(request, Response(), unknown, session)
     assert getattr(exc_info.value, "status_code", None) == 403
+
+
+@pytest.mark.parametrize(("next_path", "expected"), [
+    (None, "/orgs/home/first-phase"),
+    ("/orgs/school/connect/invitation/plan_invitation_1", "/orgs/home/first-phase?next=%2Forgs%2Fschool%2Fconnect%2Finvitation%2Fplan_invitation_1"),
+    ("//evil.example/x", "/orgs/home/first-phase"),
+    ("https://evil.example/x", "/orgs/home/first-phase"),
+])
+def test_a_new_learner_from_a_plan_invitation_lands_on_it_after_their_first_phase(next_path, expected):
+    from src.routers.auth import _portfolio_redirect_url
+
+    assert _portfolio_redirect_url(Organization(id=1, name="Home", slug="home", email="h@example.com", org_uuid="org_home"), next_path) == expected

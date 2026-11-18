@@ -126,6 +126,22 @@ def test_reviews_cohorts_and_managed_learners():
         assert [(item["id"], item["role"]) for item in helpers] == [(OTHER, "Commenter")]
 
 
+def test_a_finished_step_still_shows_each_learners_answer():
+    from src.services.goals import review
+
+    with _session() as db:
+        assignment = _assigned(db, ESSAY, FAIR)
+        essay = _submit_essay(db, LEARNER)
+        review.decide(db, _user(ADMIN), 1, essay, "confirm")
+        work = staff_views.assignment_step_work(db, _user(ADMIN), 1, assignment["assignment_uuid"], "essay")
+        # Approved, so no longer in the review queue, but the answer is still there to read.
+        assert staff_views.assignment_reviews(db, _user(ADMIN), 1, assignment["assignment_uuid"])["step_reviews"] == []
+        assert [(item["user"]["id"], item["status"], item["submission"]) for item in work["items"]] == [(LEARNER, "completed", {"text": "Draft"})]
+        # Learners with nothing on the step aren't listed, and nobody sees work they can't review.
+        assert staff_views.assignment_step_work(db, _user(ADMIN), 1, assignment["assignment_uuid"], "fair")["items"] == []
+        assert staff_views.assignment_step_work(db, _user(OTHER), 1, assignment["assignment_uuid"], "essay")["items"] == []
+
+
 # Plans › Assignments ---------------------------------------------------------------------
 
 TEACHER = 4

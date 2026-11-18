@@ -61,13 +61,13 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 
 | type | config | the learner | done when |
 |---|---|---|---|
-| `task` | optional `list`: `{label, target, item_kind: "text"\|"link"}` | ticks it, or adds list items | ticked, or the list reaches `target` |
+| `task` | optional `list`: `{label, target, item_kind: "text"\|"link"}`; `photo: true` asks for a photo to show it's done ("build it and show me"); `ask: true` asks a question they answer on the step (a title or description with a question offers the answer box anyway) | ticks it, adds list items, adds a photo from their camera or photos, or answers the question | ticked, the list reaches `target`, a photo is added when `photo` is set, and an answer is given when `ask` is set |
 | `upload` | `slots`: `[{key, label, kinds: ["image","video","document","link"]}]` | adds one file per slot | every slot is filled |
 | `write` | `prompt`, optional `max_words` | writes a text answer | handed in |
 | `activity` | `activity_uuid` (set by the server) | plays an interactive activity | the run finishes (and is graded, if it needs grading) |
 | `event` | `date`, `start_time`, `end_time`, `place`, `url`, `rsvp` | RSVPs, adds it to their calendar | attended |
 | `badge` | `template_uuid` (another plan that earns a badge) | earns that plan's badge | the badge is awarded |
-| `portfolio` | `check`: `welcome`, `timeline`, `project`, `traits`, `launch` or `badges` | completes a portfolio section | the section is complete |
+| `portfolio` | `part`: `projects`, `timeline`, `results`, `traits`, `credentials`, `recommendations`, `badges`, `welcome` or `launch`; `count` (default 1); optional `filter` narrows it: a result's kind (`strengths`, `interests`, `personality`, `values`, `skills`, `other`), a timeline entry's type, a credential's kind (`card`, `certificate`, `diploma`, `test_score`) or a trait's type (`strength`, `value`). Older steps use `check` instead | adds to their portfolio, sees which items count, and can hide items from the step while enough stay showing | their portfolio has at least `count` of the part (already enough when they get there counts) |
 | `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses | a choice is saved |
 | `routine` | `cadence` (`daily`, `weekly` or `monthly`), `days` (weekly: 0 Sunday to 6 Saturday; monthly: 1 to 31), `action`: `{kind: list|number|check, target, label, unit, series}` | logs the action each time it comes round; a chart of past times | the learner ends it, or its close date or its stage's end comes first |
 | `explore` | `question`, optional `suggestions`: `[{resource_uuid, title}]` (library resources to start from), `ratings` (rate each find 1 to 5) | collects resources, links, files and notes on a board, pins the ones that matter, then writes their outcome | the outcome is saved |

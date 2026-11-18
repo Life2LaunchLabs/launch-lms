@@ -177,6 +177,48 @@ def test_personas_cant_comment_on_resources_real_learners_read(db):
     db.commit()
 
 
+def test_personas_rate_catalog_resources_inside_their_cohort_only(db):
+    """DEV-104: a persona's stars on a shared resource save, count for its cohort and vanish on purge."""
+    from src.services import resources as resource_service
+    from src.services.user_tests.seal import is_private_rating
+
+    cohort = _cohort(db)
+    maya = _persona(db, cohort)
+    other = _persona(db, _cohort(db, "Another run"), first_name="Leo")
+    career = Resource(org_id=1, resource_uuid="r_career", title="Civil Engineer", resource_type="career", external_url="https://example.com/c")
+    db.add(career)
+    db.commit()
+    db.add(ResourceComment(resource_id=career.id, author_id=2, comment_uuid="real", content="", rating=2))
+    db.add(ResourceComment(resource_id=career.id, author_id=maya["user_id"], comment_uuid="maya", content="", rating=5))
+    db.add(ResourceComment(resource_id=career.id, author_id=other["user_id"], comment_uuid="leo", content="", rating=4))
+    db.commit()
+    assert is_private_rating("resourcecomment", {"rating": 5, "content": " "}.get)
+    assert not is_private_rating("resourcecomment", {"rating": 5, "content": "Great"}.get)
+
+    def ratings(viewer):
+        token = sessions.current_test_persona.set(viewer)
+        try:
+            _, _, average, count = resource_service._resource_counts_map([career.id], db)
+        finally:
+            sessions.current_test_persona.reset(token)
+        return count.get(career.id), average.get(career.id)
+
+    assert ratings(None) == (1, 2.0)  # real people see only real ratings
+    assert ratings(maya["user_id"]) == (2, 3.5)  # the persona sees its own, not another cohort's
+    assert ratings(other["user_id"]) == (2, 3.0)
+
+    # Words make it a public comment on a real resource: still sealed, new or edited.
+    _refused(db, ResourceComment(resource_id=career.id, author_id=maya["user_id"], comment_uuid="maya2", content="Loved it", rating=None))
+    mine = db.exec(select(ResourceComment).where(ResourceComment.comment_uuid == "maya")).one()
+    mine.content = "Loved it"
+    _refused(db, mine)
+
+    assert cleanup.audit(db, cohort["cohort_uuid"])["clean"]
+    cohorts.close_cohort(db, cohort["cohort_uuid"])
+    assert cleanup.purge(db, cohort["cohort_uuid"], dry_run=False)["status"] == "purged"
+    assert {row.comment_uuid for row in db.exec(select(ResourceComment)).all()} == {"real", "leo"}
+
+
 def test_inbox_messages_from_staff_to_personas_are_refused(db):
     maya = _persona(db, _cohort(db))
     _refused(db, InboxMessage(message_uuid="msg_1", recipient_user_id=maya["user_id"], sender_user_id=1, sender_org_id=1, message_type="direct", subject="Hi", body="Hello"))

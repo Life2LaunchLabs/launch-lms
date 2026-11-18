@@ -210,6 +210,12 @@ def api_assignment_reviews(assignment_uuid: str, org_id: int, db: Session = Depe
     return staff_views.assignment_reviews(db, user, org_id, assignment_uuid)
 
 
+@router.get("/assignments/{assignment_uuid}/steps/{step_key}/work")
+def api_assignment_step_work(assignment_uuid: str, step_key: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db, read=True)
+    return staff_views.assignment_step_work(db, user, org_id, assignment_uuid, step_key)
+
+
 @router.get("/goals/{goal_uuid}/reviews")
 def api_goal_reviews(goal_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return staff_views.goal_reviews(db, user, org_id, goal_uuid)

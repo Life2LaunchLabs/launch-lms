@@ -12,6 +12,7 @@ from src.db.resources import (
     ResourceComment,
 )
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
+from src.services.user_tests.visibility import visible_ratings
 
 
 class TrendingItemRead(BaseModel):
@@ -50,6 +51,7 @@ def _get_trending_resources(
             ResourceComment.resource_id,
             func.max(ResourceComment.creation_date).label("max_comment_date"),
         )
+        .where(visible_ratings(db_session, ResourceComment.author_id))
         .group_by(ResourceComment.resource_id)
         .subquery()
     )

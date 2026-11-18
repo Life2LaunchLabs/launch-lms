@@ -85,3 +85,25 @@ def test_best_video_file_falls_back_to_the_smallest():
     files = [{"file_type": "video/mp4", "height": 2160, "link": "a"}, {"file_type": "video/mp4", "height": 1440, "link": "b"}]
     assert pexels._best_file(files)["link"] == "b"
     assert pexels._best_file([{"file_type": "video/webm", "height": 720, "link": "c"}]) is None
+
+
+@pytest.mark.asyncio
+async def test_previews_come_through_our_server_and_only_from_the_provider(mcp, monkeypatch):  # noqa: F811
+    from fastapi import HTTPException
+    from src.db.users import PublicUser
+
+    _client, session, _rpc, _call, alice = mcp
+    staff = PublicUser.model_validate(alice, from_attributes=True)
+    fetched = []
+
+    async def fake_download(url, limit):
+        fetched.append(url)
+        return (PNG, "image/png", "/101/medium.png") if "medium" in url else (b"<html>", "text/html", "/x")
+
+    monkeypatch.setattr(stock_media, "download", fake_download)
+    assert await stock_media.preview(session, staff, 1, PHOTO["src"]["medium"]) == (PNG, "image/png")
+    for url in ("https://example.com/a.png", "http://images.pexels.com/a.png", "https://images.pexels.com.evil.test/a.png",
+                "https://images.pexels.com/page.html", ""):
+        with pytest.raises(HTTPException):
+            await stock_media.preview(session, staff, 1, url)
+    assert fetched == [PHOTO["src"]["medium"], "https://images.pexels.com/page.html"]  # nothing off the provider's image host

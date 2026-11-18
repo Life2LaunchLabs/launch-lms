@@ -121,6 +121,8 @@ class OrganizationConfigDocument(BaseModel):
     signup_mode: Literal["open", "inviteOnly"] = "open"
     customization: CustomizationConfig = CustomizationConfig()
     messaging: MessagingPolicy = MessagingPolicy()
+    # School records and the Education Plan and Profile (DEV-152). None follows the /start role; see services/orgs/school_records.py.
+    school_records: bool | None = None
 
 
 # ============================================================================

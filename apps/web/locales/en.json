@@ -204,6 +204,10 @@
     "enter_invite_code": "Please enter an invite code",
     "invite_code_valid": "Invite code is valid, you'll be redirected to the signup page in a few seconds",
     "invite_code_invalid": "Invite code is invalid",
+    "set_password_title": "Set a password",
+    "set_password_welcome": "Set your password",
+    "set_password_description": "Enter the email address your invitation was sent to and we will send you a link to set a password",
+    "set_password_send": "Send the link",
     "forgot_password_title": "Forgot Password",
     "forgot_password_description": "Enter your email address and we will send you a link to reset your password",
     "send_reset_link": "Send Reset Link",
@@ -246,6 +250,9 @@
     "enter_credentials": "Enter your credentials to access your account",
     "no_account": "Don't have an account?",
     "already_have_account": "Already have an account?",
+    "invite_account_exists_title": "You already have an account with this email",
+    "invite_account_exists_body": "Log in to accept the invitation. You'll come right back here.",
+    "invite_account_exists_login": "Log in to accept",
     "create_your_account": "Create your account",
     "fill_in_details": "Fill in your details to get started",
     "reset_your_password": "Reset your password",
@@ -317,15 +324,34 @@
     "create_free_account": "Create your free account",
     "continue": "Continue",
     "sign_in": "Sign in",
+    "birth_date": "Date of birth",
+    "birth_date_help": "We keep it on your account to suggest things that fit your age and show opportunities with an age limit. Your organization’s staff don’t see it.",
+    "birth_date_required": "Enter your date of birth.",
+    "birth_date_invalid": "Enter a real date of birth.",
+    "under_13_title": "Sorry, we can’t create a Life2Launch account for you.",
+    "under_13_body": "Life2Launch accounts are for people 13 and older.",
+    "google_new_account_needs_sign_up": "There’s no Life2Launch account for that Google account yet. Create one from Sign up.",
     "agree_prefix": "By continuing, you agree to Life2Launch’s",
-    "terms_of_service": "Terms of Service",
+    "terms_of_service": "Terms of Use",
     "agree_and": "and",
     "privacy_policy": "Privacy Policy",
     "agree_suffix": ".",
     "name_you_go_by_optional": "Name you go by (optional)",
     "name_you_go_by": "Name you go by",
-    "age_required": "Life2Launch is for people 15 and older. Confirm your age to continue.",
-    "age_confirm": "I’m 15 or older"
+    "legal_name": "Your legal name",
+    "legal_name_help": "As on your official records. Schools and programs you join use it on their records and reports, like the Education Plan and Profile.",
+    "legal_first_name": "Legal first name",
+    "legal_last_name": "Legal last name",
+    "name_you_go_by_help": "What people see in Life2Launch. Leave it empty to use your first name.",
+    "name_you_go_by_placeholder": "e.g. Sam",
+    "optional": "(optional)",
+    "email_help": "Use an email you check and will keep. If someone invited you, use the email the invitation went to."
+  },
+  "legal": {
+    "privacy_policy": "Privacy Policy",
+    "terms_of_use": "Terms of Use",
+    "student_data": "Student data",
+    "footer_label": "Legal"
   },
   "validation": {
     "required": "Required",
@@ -1359,7 +1385,11 @@
           "industry": "Industry",
           "expertise": "Expertise",
           "community": "Community"
-        }
+        },
+        "name_in_portfolio_title": "Your name",
+        "name_in_portfolio": "Your name and the name you go by are set in your portfolio. They show everywhere in the app.",
+        "learner_name_in_portfolio": "What learners call you on your messages and reviews is set there too.",
+        "edit_name_in_portfolio": "Edit in your portfolio"
       },
       "password": {
         "title": "Change Password",
@@ -3705,398 +3735,6 @@
       }
     }
   },
-  "analytics": {
-    "title": "Analytics",
-    "subtitle": "Insights about your learners and content",
-    "tabs": {
-      "overview": "Overview",
-      "advanced": "Advanced"
-    },
-    "not_configured": {
-      "title": "Analytics not configured",
-      "description": "Analytics requires a Tinybird connection. Set the <code>LAUNCHLMS_TINYBIRD_INGEST_TOKEN</code> and <code>LAUNCHLMS_TINYBIRD_READ_TOKEN</code> environment variables to enable it."
-    },
-    "advanced_gate": {
-      "requires": "Requires",
-      "upgrade_description": "Upgrade to unlock advanced analytics"
-    },
-    "common": {
-      "loading": "Loading...",
-      "no_data": "No data yet",
-      "users": "Users",
-      "views": "Views",
-      "enrollments": "Enrollments",
-      "completions": "Completions",
-      "course": "Course",
-      "date": "Date",
-      "user": "User",
-      "type": "Type",
-      "expand": "Expand",
-      "days": "Days",
-      "score": "Score",
-      "unique_users": "unique users"
-    },
-    "export": {
-      "button": "Export",
-      "json": "Download JSON",
-      "csv": "Download CSV",
-      "downloading": "Exporting..."
-    },
-    "overview": {
-      "live_now": "Live Now",
-      "last_5_minutes": "Last 5 minutes",
-      "signups": "Signups",
-      "enrollments": "Enrollments",
-      "completions": "Completions",
-      "submissions": "Submissions",
-      "daily_active_users": "Daily Active Users",
-      "active_users": "Active Users",
-      "countries": "Countries",
-      "top_countries": "Top Countries",
-      "devices": "Devices",
-      "desktop": "Desktop",
-      "mobile": "Mobile",
-      "tablet": "Tablet",
-      "top_referrers": "Top Referrers",
-      "top_referrer": "Top Referrer",
-      "enrollment_funnel": "Enrollment Funnel",
-      "page_views": "Page Views",
-      "course_views": "Course Views",
-      "view_to_enroll": "View → Enroll",
-      "enroll_to_complete": "Enroll → Complete",
-      "page_to_complete": "Page → Complete",
-      "conv_rate": "Conv. Rate",
-      "top_courses": "Top Courses",
-      "activity_engagement": "Activity Engagement",
-      "activity": "Activity",
-      "avg_time": "Avg Time",
-      "activities": "Activities",
-      "courses": "Courses"
-    },
-    "modals": {
-      "live_users": {
-        "title": "Live Users",
-        "description": "Users active in the last 5 minutes"
-      },
-      "signups": {
-        "title": "Signups",
-        "description": "New user registrations in the last {{days}} days"
-      },
-      "enrollments": {
-        "title": "Enrollments",
-        "description": "Course enrollments in the last {{days}} days"
-      },
-      "completions": {
-        "title": "Completions",
-        "description": "Course completions in the last {{days}} days"
-      },
-      "live_users_table": {
-        "current_page": "Current Page",
-        "device": "Device",
-        "country": "Country",
-        "last_seen": "Last Seen"
-      },
-      "signups_table": {
-        "email": "Email",
-        "method": "Method"
-      }
-    },
-    "advanced_widgets": {
-      "org_growth_trend": {
-        "title": "Org Growth Trend",
-        "description": "Weekly signups, enrollments, completions"
-      },
-      "new_vs_returning": {
-        "title": "New vs Returning Users",
-        "description": "Growth vs retention health"
-      },
-      "groups_retention": {
-        "title": "Group Retention",
-        "description": "% users active after signup week",
-        "groups": "Group",
-        "size": "Size"
-      },
-      "peak_usage": {
-        "title": "Peak Usage Hours",
-        "description": "Event volume by day and hour",
-        "days": {
-          "mon": "Mon",
-          "tue": "Tue",
-          "wed": "Wed",
-          "thu": "Thu",
-          "fri": "Fri",
-          "sat": "Sat",
-          "sun": "Sun"
-        },
-        "events": "events"
-      },
-      "course_dropoff": {
-        "title": "Course Dropoff",
-        "description": "Where users stop per course"
-      },
-      "time_to_completion": {
-        "title": "Time to Completion",
-        "description": "Median days to complete each course"
-      },
-      "completion_velocity": {
-        "title": "Completion Velocity",
-        "description": "Avg days between activity completions"
-      },
-      "content_type_effectiveness": {
-        "title": "Content Type Effectiveness",
-        "description": "Completion rate by activity type"
-      },
-      "course_effectiveness_matrix": {
-        "title": "Course Effectiveness Matrix",
-        "description": "Activity count vs completion rate (sized by enrollments)"
-      },
-      "community_correlation": {
-        "title": "Community Correlation",
-        "description": "Completion rate: discussors vs non-discussors",
-        "discussion_users": "Discussion Users",
-        "non_discussion_users": "Non-Discussion Users"
-      },
-      "learner_engagement_score": {
-        "title": "Learner Engagement Score",
-        "description": "Top learners by composite engagement",
-        "user_id": "User ID"
-      },
-      "user_progress_snapshot": {
-        "title": "User Progress Snapshot",
-        "description": "Users at each completion bracket per course"
-      },
-      "grade_distribution": {
-        "title": "Grade Distribution",
-        "description": "Assignment grade histogram"
-      },
-      "search_effectiveness": {
-        "title": "Search Effectiveness",
-        "description": "Top queries and zero-result rate",
-        "query": "Query",
-        "searches": "Searches",
-        "zero_results": "Zero Results %"
-      },
-      "certification_rate": {
-        "title": "Certification Rate",
-        "description": "% of completers who claim certificates"
-      }
-    },
-    "course_analytics": {
-      "not_configured_title": "Analytics Not Configured",
-      "not_configured_desc": "Analytics requires Tinybird to be configured. Please contact your administrator.",
-      "common": {
-        "loading": "Loading...",
-        "no_data": "No data yet",
-        "no_enrollments": "No enrollments yet",
-        "total": "Total",
-        "daily_avg": "Daily Avg",
-        "latest_day": "Latest Day",
-        "peak": "Peak",
-        "peak_day": "Peak Day",
-        "type": "Type",
-        "rate": "Rate",
-        "views": "Views",
-        "enrollments": "Enrollments",
-        "completions": "Completions",
-        "completion_rate": "Completion Rate",
-        "conversion": "Conversion",
-        "avg_time": "Avg Time",
-        "total_views": "Total Views",
-        "total_completions": "Total Completions",
-        "avg_rate": "Avg Rate",
-        "needs_attention": "Needs Attention",
-        "total_samples": "Total Samples",
-        "more_expand": "+{{count}} more — click to expand",
-        "activities_count": "{{count}} activities",
-        "pct_of_total": "% of Total",
-        "bar_width_hint": "Bar width = relative views",
-        "rate_high": ">70%",
-        "rate_mid": "40–70%",
-        "rate_low": "<40%",
-        "low_conversion": "low conversion",
-        "avg_completion": "avg completion",
-        "avg_prefix": "avg {{value}}",
-        "unknown_activity": "Unknown activity"
-      },
-      "units": {
-        "done": "done",
-        "views": "views",
-        "enrolled": "enrolled",
-        "learner": "learner",
-        "learners": "learners",
-        "events": "events",
-        "total": "total",
-        "total_views": "total views",
-        "total_completions": "total completions",
-        "total_dropoffs": "total drop-offs",
-        "peak_active": "peak active",
-        "conversion": "conversion",
-        "retention": "retention",
-        "in_groups": "in groups",
-        "active_learners": "active learners",
-        "recent_enrollments": "recent enrollments",
-        "transitions": "transitions",
-        "median_days": "median days",
-        "claim_rate": "claim rate",
-        "claimed": "claimed",
-        "completed": "completed",
-        "unique": "unique",
-        "time": "time",
-        "avg_per_day": "avg / day",
-        "busiest_time": "busiest time",
-        "minutes": "minutes",
-        "hours": "hours",
-        "days": "days",
-        "done_before": "done before",
-        "sample": "sample",
-        "samples": "samples",
-        "min": "min",
-        "avg_per_learner": "Avg per learner"
-      },
-      "type_labels": {
-        "video": "Video",
-        "document": "Document",
-        "quiz": "Quiz",
-        "assignment": "Assignment",
-        "dynamic": "Dynamic"
-      },
-      "overview_stats": {
-        "views": "Views",
-        "enrollments": "Enrollments",
-        "completions": "Completions",
-        "completion_rate": "Completion Rate"
-      },
-      "activity_type_breakdown": {
-        "title": "Activity Type Breakdown",
-        "subtitle": "Distribution and completion rates by content type"
-      },
-      "engagement_by_type": {
-        "title": "Engagement by Content Type",
-        "subtitle": "Learner engagement metrics per activity type",
-        "total_events": "Total events",
-        "total_learners": "Total learners"
-      },
-      "peak_hours": {
-        "title": "Peak Learning Hours",
-        "subtitle": "When learners are most active in this course",
-        "peak_time": "Peak time",
-        "peak_events": "Peak events",
-        "less": "Less",
-        "more": "More",
-        "days": {
-          "mon": "Mon",
-          "tue": "Tue",
-          "wed": "Wed",
-          "thu": "Thu",
-          "fri": "Fri",
-          "sat": "Sat",
-          "sun": "Sun"
-        },
-        "events_tooltip": "{{day}} {{hour}}: {{count}} events"
-      },
-      "enrollment_trend": {
-        "title": "Enrollment Trend",
-        "subtitle": "Daily new enrollments over time"
-      },
-      "active_learners": {
-        "title": "Active Learners",
-        "subtitle": "Daily unique active learners in this course"
-      },
-      "unique_viewers": {
-        "title": "Course Viewers",
-        "subtitle": "Daily unique visitors to this course page",
-        "total_views": "Total Views",
-        "peak_viewers": "Peak Viewers"
-      },
-      "view_to_enrollment": {
-        "title": "View → Enrollment",
-        "subtitle": "How many viewers become enrolled learners"
-      },
-      "daily_completions": {
-        "title": "Daily Completions",
-        "subtitle": "Activity completions per day"
-      },
-      "activity_funnel": {
-        "title": "Activity Completion Funnel",
-        "subtitle": "Views vs completions per activity"
-      },
-      "time_per_activity": {
-        "title": "Time Spent per Activity",
-        "subtitle": "Average time learners spend on each activity"
-      },
-      "activity_dropoff": {
-        "title": "Drop-off Points",
-        "subtitle": "Where learners stop progressing — last completed activity",
-        "total_dropoffs": "Total Drop-offs",
-        "dropoff_points": "Drop-off Points"
-      },
-      "avg_session_duration": {
-        "title": "Daily Time per Learner",
-        "subtitle": "Average time each learner spends per day",
-        "total_time": "Total Time",
-        "avg_per_day": "Avg per Day",
-        "minutes_label": "Minutes"
-      },
-      "learner_progress": {
-        "title": "Learner Progress",
-        "subtitle": "How many activities learners have completed",
-        "total_across_brackets": "{{count}} total learners across all progress brackets"
-      },
-      "learner_retention": {
-        "title": "Learner Retention",
-        "subtitle": "% of learners returning after first activity",
-        "groups_size": "Group Size",
-        "current_retention": "Current Retention",
-        "days_since_first": "Days since first activity",
-        "day_label": "Day {{day}}"
-      },
-      "completion_velocity": {
-        "title": "Completion Velocity",
-        "subtitle": "Average time between activity completions",
-        "not_enough_data": "Not enough data yet",
-        "need_transitions": "Need at least 3 activity transitions to calculate velocity",
-        "not_enough_data_short": "Not enough data",
-        "need_transitions_short": "Need 3+ transitions",
-        "avg_between": "avg {{unit}} between completions",
-        "transitions_tracked": "transitions tracked",
-        "raw_hours_avg": "raw hours avg",
-        "description": "Measures how quickly learners progress from one activity to the next. Lower is better — it means learners are moving through content faster."
-      },
-      "time_to_completion": {
-        "title": "Time to Completion",
-        "subtitle": "How long it takes learners to finish this course",
-        "median_days_to_complete": "median days to complete",
-        "fast_p25": "Fast (P25)",
-        "top_25_finish": "Top 25% finish by",
-        "median": "Median",
-        "half_finish": "Half finish by",
-        "slow_p75": "Slow (P75)",
-        "pct_75_finish": "75% finish by",
-        "based_on": "Based on {{count}} course completion(s)",
-        "days_unit": "days"
-      },
-      "certification_rate": {
-        "title": "Certification Rate",
-        "subtitle": "% of completers who claimed their certificate",
-        "of_completers_claimed": "of completers claimed a certificate",
-        "certificates_claimed": "certificates claimed",
-        "course_completions": "course completions"
-      },
-      "top_learners": {
-        "title": "Top Learners",
-        "subtitle": "Most active learners by completions",
-        "user_fallback": "User #{{id}}"
-      },
-      "recent_enrollments": {
-        "title": "Recent Enrollments",
-        "subtitle": "Latest learners who enrolled in this course",
-        "count_in_period": "{{count}} enrollments in this period"
-      },
-      "pagination": {
-        "range": "{{from}}–{{to}} of {{total}}"
-      }
-    }
-  },
   "landing": {
     "trending": {
       "title": "Trending",
@@ -4117,7 +3755,9 @@
     "collapse_sidebar": "Collapse sidebar",
     "send_feedback": "Send feedback",
     "feedback": "Feedback",
-    "settings": "Settings"
+    "settings": "Settings",
+    "education_plan": "Education Plan",
+    "new_request": "{{label}}, new request"
   },
   "settings": {
     "cancel": "Cancel",
@@ -4274,12 +3914,9 @@
       "career": "Starting my career",
       "next": "Figuring out what’s next"
     },
-    "plan_ask": {
-      "doing": "What I’ll be doing: {{doing}}.",
-      "place": "Where: {{place}}.",
-      "head_span": "Help me plan this phase of my plan: “{{title}}” ({{span}}).",
-      "head": "Help me plan this phase of my plan: “{{title}}”.",
-      "ask": "What goals should I set for it, and what should I do first?"
+    "plan_starter": {
+      "opener_place": "Hi! Want to set some goals for your “{{title}}” phase in {{place}}? Tell me what you have in mind, or ask me for ideas.",
+      "opener": "Hi! Want to set some goals for your “{{title}}” phase? Tell me what you have in mind, or ask me for ideas."
     }
   },
   "onboarding": {
@@ -4840,6 +4477,9 @@
       "last_name": "Last name",
       "name_you_go_by": "Name you go by",
       "the_whole_name_you_want": "The whole name you want people to see, like “Mya Rivera”. It’s shown on your portfolio and around the app instead of your legal name.",
+      "what_learners_call_you": "What learners call you",
+      "learners_see_this_on_your": "Learners at {{org}} see this on your messages and reviews, like “Ms. Rivera”. Staff still see the name you go by.",
+      "this_organization": "this organization",
       "one_line_intro": "One-line intro",
       "artist_and_future_ux_designer": "Artist and future UX designer",
       "where_you_are": "Where you are",
@@ -5148,7 +4788,7 @@
       "could_not_bring_this_in": "Could not bring this in",
       "bring_in_your_history": "Bring in your history",
       "nothing_new_to_add": "Nothing new to add",
-      "your_saved_careers_reflections_and": "Your saved careers, reflections and plan progress are kept for when your plans can use them.",
+      "your_saved_careers_reflections_and": "Your saved careers and plan progress are kept for when your plans can use them.",
       "bring_in_something_else": "Bring in something else",
       "your_r_sum": "your résumé",
       "already_in_your_portfolio": "Already in your portfolio",
@@ -5166,7 +4806,16 @@
       "bring_in_size": "Bring in {{size}}",
       "upload_from_title": "Upload from {{title}}",
       "v_thing": "thing",
-      "v_things": "things"
+      "v_things": "things",
+      "your_cis_work_is_waiting": "Your Oregon CIS work is waiting",
+      "cis_sent_by_at": "{{name}} at {{org}} sent over what you saved in Oregon CIS.",
+      "cis_sent_by_org": "{{org}} sent over what you saved in Oregon CIS.",
+      "cis_items_waiting": "{{count}} things can come into your portfolio. Anything already there is skipped.",
+      "cis_plan_rows_waiting": "It has your plan progress for when your plans can use it.",
+      "bring_it_in": "Bring it in",
+      "no_thanks": "No thanks",
+      "cis_waiting_private": "Only you and the staff who sent it can see it. Turning it down deletes it.",
+      "cis_work_turned_down": "Turned down. It has been deleted."
     },
     "quest_bar": {
       "have_of_need": "{{have}} of {{need}}",
@@ -5398,7 +5047,12 @@
       "use_the_email_that_received": "Use the email that received your invitation. New here? Create an account and your pending goal will be waiting.",
       "sign_in": "Sign in",
       "create_account": "Create account",
-      "goals_for_title": "Goals for {{title}}"
+      "goals_for_title": "Goals for {{title}}",
+      "your_school": "Your school",
+      "gave_you_plan": "{{school}} gave you {{plan}}",
+      "sign_in_to_accept": "You already have a Life2Launch account with the address this was sent to. Sign in to accept it. Never set a password? Set one now with that address.",
+      "sign_in_to_accept_button": "Sign in to accept",
+      "set_a_password": "Set a password"
     },
     "goal_path": {
       "help_me_with_title_in": "Help me with “{{title}}” in my goal “{{title2}}”.",
@@ -5848,7 +5502,8 @@
       "launch_lms": "Life2Launch",
       "decline": "Decline",
       "accept": "Accept",
-      "help_as_name": " · Help as {{name}}"
+      "help_as_name": " · Help as {{name}}",
+      "role_means": "As {{name}}, {{means}}."
     },
     "goals_home": {
       "from_monthyear": "from {{monthYear}}",
@@ -6163,6 +5818,10 @@
       "you_earned_this": "You earned this",
       "not_open_to_join": "Not open to join",
       "sign_in_to_join": "Sign in to join",
+      "sign_up_to_start": "Sign up to start",
+      "sign_up_to_ask": "Sign up to ask to join",
+      "have_an_account_sign_in": "Have an account? Sign in",
+      "free_and_joins_name": "It’s free. You’ll join {{name}} on the way.",
       "take_back_request": "Take back request",
       "start_this_plan": "Start this plan",
       "name_says_yes_first": "{{name}} says yes first",
@@ -6206,6 +5865,16 @@
       "your_notes": "Your notes",
       "what_others_say": "What others say",
       "more_in_name": "More in {{name}}"
+    },
+    "resource_actions": {
+      "removed": "Removed from your library",
+      "saved_change": "Saved. Change where it’s saved",
+      "save": "Save",
+      "save_to": "Save to",
+      "this_phase": "This phase",
+      "my_library": "My library",
+      "uncheck_removes": "Untick to remove it from every list",
+      "more": "More"
     }
   },
   "careers": {
@@ -7139,7 +6808,8 @@
       "undo": "Undo",
       "coach_conversation": "Coach conversation",
       "loading_conversation": "Loading conversation…",
-      "thinking": "Thinking…"
+      "thinking": "Thinking…",
+      "got_it_thinking": "Got it. Let me think that through…"
     },
     "edit_run_timeline": {
       "ended_session": "ended session",
@@ -7166,7 +6836,8 @@
       "a_new_personal_goal": "A new personal goal",
       "your_goal_label": "Your goal: {{label}}",
       "goal": "Goal",
-      "end_focused_session_for_label": "End focused session for {{label}}"
+      "end_focused_session_for_label": "End focused session for {{label}}",
+      "coach_memories": "Coach memories"
     },
     "hub_report_dialog": {
       "harmful_or_upsetting": "Harmful or upsetting",
@@ -7263,7 +6934,8 @@
       "org_name_would_like_to": "{{org_name}} would like to support your plan",
       "org_name_asked_to_support": "{{org_name}} asked to support their plan",
       "org_name_supports_you": "{{org_name}} supports you",
-      "v_them": "them"
+      "v_them": "them",
+      "you_said_not_now": "You said not now. You can still say yes."
     },
     "tag_composer": {
       "no_one_by_that_name": "No one by that name",
@@ -8105,7 +7777,8 @@
       "someone": "Someone",
       "you": "You",
       "waiting_for_an_answer": "Waiting for an answer",
-      "stopped": "Stopped"
+      "stopped": "Stopped",
+      "said_not_now": "Said not now"
     },
     "chat_workspace": {
       "everyone_in_the_group_sees": "Everyone in the group sees this",

@@ -87,6 +87,11 @@ function importForm(source: ImportSource, file: File, keys?: string[]) {
 export const previewImport = (source: ImportSource, file: File, token: string): Promise<ImportPreview> => sendForm('imports/preview', importForm(source, file), token)
 export const runImport = (source: ImportSource, file: File, keys: string[], token: string): Promise<ImportResult> => sendForm('imports', importForm(source, file, keys), token)
 export const listImports = (token: string): Promise<PastImport[]> => send('imports', 'GET', null, token)
+// Oregon CIS work a school sent, waiting for the learner to bring in or turn down (api: services/portfolio_held_imports.py).
+export type WaitingImport = { held_uuid: string; org_name: string; sent_by: string; summary: { items?: number; groups?: Record<string, number> }; expires_at: string }
+export const listWaitingImports = (token: string): Promise<WaitingImport[]> => send('imports/waiting', 'GET', null, token)
+export const bringInWaiting = (heldUuid: string, token: string): Promise<ImportResult> => send(`imports/waiting/${encodeURIComponent(heldUuid)}`, 'POST', null, token)
+export const declineWaiting = (heldUuid: string, token: string) => send(`imports/waiting/${encodeURIComponent(heldUuid)}`, 'DELETE', null, token)
 
 // Asked-for quotes: the learner asks someone about one experience or project; they answer from the emailed link.
 export type QuoteAskPayload = { contact_uuid?: string; name?: string; role_label?: string; email?: string; timeline_uuid?: string; project_uuid?: string; note: string }

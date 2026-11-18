@@ -16,8 +16,8 @@ from pathlib import Path
 
 from sqlmodel import Session, col, select
 
-from src.db.goals import Goal, GoalOwnership, GoalStep
-from src.db.requirements import RequirementNode
+from src.db.goals import Goal, GoalOwnership, GoalStep, GoalTemplate, TemplateStatus
+from src.db.requirements import RequirementFramework, RequirementFrameworkVersion, RequirementNode
 from src.db.users import PublicUser
 
 CONTENT = Path(__file__).parent / "content"
@@ -52,6 +52,49 @@ def install(db: Session, current_user: PublicUser, org_id: int) -> dict:
     by_code = {node["code"]: node["node_uuid"] for node in framework["document"]["nodes"]}
     plan = templates.create_template(db, current_user, org_id, plan_document(by_code))
     return {"framework_uuid": framework_uuid, "template_uuid": plan["template_uuid"]}
+
+
+def plan_title() -> str:
+    return json.loads((CONTENT / "plan.json").read_text())["template"]["title"]
+
+
+def installed(db: Session, org_id: int) -> dict | None:
+    """The EPP framework and plan this organization already has, found by name, or None."""
+    framework = db.exec(select(RequirementFramework).where(RequirementFramework.org_id == org_id, RequirementFramework.name == FRAMEWORK_NAME)
+                        .order_by(col(RequirementFramework.id))).first()
+    if not framework:
+        return None
+    template = db.exec(select(GoalTemplate).where(GoalTemplate.org_id == org_id, GoalTemplate.title == plan_title(),
+                                                  GoalTemplate.status != TemplateStatus.ARCHIVED).order_by(col(GoalTemplate.id))).first()
+    return {"framework_uuid": framework.framework_uuid, "template_uuid": template.template_uuid if template else None,
+            "published": bool(framework.published_version and template and template.published_version_id)}
+
+
+def setup(db: Session, current_user: PublicUser, org_id: int) -> dict:
+    """Give a school the EPP framework and plan, published and ready to assign. A school that has them keeps them.
+
+    Pressing "Set up" is the school choosing to use them, so unlike `install` this publishes both.
+    """
+    from src.services.goals import templates
+    from src.services.requirement_documents.store import publish_framework
+
+    found = installed(db, org_id)
+    if found and found["template_uuid"]:
+        return found
+    if found:
+        # The framework is there but the plan was archived or renamed: add the plan against the same codes.
+        framework = db.exec(select(RequirementFramework).where(RequirementFramework.framework_uuid == found["framework_uuid"])).one()
+        nodes = db.exec(select(RequirementNode).join(RequirementFrameworkVersion, RequirementFrameworkVersion.id == RequirementNode.version_id)
+                        .where(RequirementFrameworkVersion.framework_id == framework.id)).all()
+        made = {"framework_uuid": framework.framework_uuid,
+                "template_uuid": templates.create_template(db, current_user, org_id, plan_document({node.code: node.node_uuid for node in nodes}))["template_uuid"]}
+    else:
+        made = install(db, current_user, org_id)
+    framework = db.exec(select(RequirementFramework).where(RequirementFramework.framework_uuid == made["framework_uuid"])).one()
+    if not framework.published_version:
+        publish_framework(db, current_user, org_id, made["framework_uuid"])
+    templates.publish(db, current_user, org_id, made["template_uuid"], "Oregon Education Plan and Profile")
+    return installed(db, org_id) or {**made, "published": True}
 
 
 def steps_for_code(db: Session, user_id: int, org_id: int, code: str) -> list[GoalStep]:

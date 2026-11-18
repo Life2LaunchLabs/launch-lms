@@ -132,7 +132,7 @@ export function LearningActivitySurface({
   } : {}
 
   return (
-    <main data-learning-activity-surface className={`@container relative flex w-full min-w-0 items-center justify-center overflow-hidden px-4 py-4 text-foreground sm:py-6 ${isVideoPage ? 'bg-black' : 'bg-[var(--org-page-background)]'} ${look.tone} ${className}`} style={look.style}>
+    <main data-learning-activity-surface className={`@container relative flex w-full min-w-0 items-center justify-center overflow-hidden px-4 py-4 text-foreground sm:py-6 ${isVideoPage ? 'bg-[#000]' : 'bg-[var(--org-page-background)]'} ${look.tone} ${className}`} style={look.style}>
       <Scene scene={background.scene} intensity={background.intensity} />
       <Celebration key={page?.page_uuid} active={Boolean(page?.design?.celebrate)} />
       <div className={`relative flex h-full min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden ${isVideoPage ? '' : wide ? 'max-w-5xl' : 'max-w-3xl'}`}>

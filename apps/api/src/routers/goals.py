@@ -20,6 +20,7 @@ from src.db.goals import (
     StepUpdate,
 )
 from src.db.users import PublicUser
+from src.services.goals.portfolio_steps import PortfolioItemsHidden
 from src.services.goals.types.resources import StepResourceVisit
 from src.security.auth import get_current_user
 from src.services.goals import entries, goals as service, schedule, structure
@@ -123,6 +124,11 @@ def api_step_submission(goal_uuid: str, step_uuid: str, payload: StepSubmission,
 @router.put("/{goal_uuid}/steps/{step_uuid}/note")
 def api_step_note(goal_uuid: str, step_uuid: str, payload: StepNote, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return service.save_note(db, user, goal_uuid, step_uuid, payload)
+
+
+@router.put("/{goal_uuid}/steps/{step_uuid}/portfolio-hidden")
+def api_step_portfolio_hidden(goal_uuid: str, step_uuid: str, payload: PortfolioItemsHidden, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return service.hide_portfolio_items(db, user, goal_uuid, step_uuid, payload)
 
 
 @router.post("/{goal_uuid}/steps/{step_uuid}/entries")

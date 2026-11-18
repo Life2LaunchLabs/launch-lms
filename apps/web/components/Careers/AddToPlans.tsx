@@ -2,12 +2,14 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, GitBranch, Loader2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import { ArrowRight, Bookmark, GitBranch, Loader2 } from 'lucide-react'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { holdRoute } from '@components/Goals/phases/MapParts'
 import { addRoute, routesFor, type CareerLike } from '@components/Goals/phases/careers'
 import { current, monthText, normalize } from '@components/Goals/phases/graph'
 import { getUriWithOrg } from '@services/config/config'
+import { saveResource } from '@services/resources/resources'
 import { cn } from '@/lib/utils'
 
 import { tr } from '@/lib/tr'
@@ -15,8 +17,15 @@ import { tr } from '@/lib/tr'
  * Put a career on the learner's plan map: pick which way to get there, then place it on the map (it opens holding
  * the route, and you tap or drag where it goes). Coming from a phase's "Start from a career", it goes right after
  * that phase. The steps go on the map as dashed ideas (quick to add, quick to drop), the last one doing this career.
+ * Whatever they pick, the career is saved to their library first, so it is never lost on the way (FEED-155); with no
+ * plan yet, saving it is the main choice and starting a plan is optional.
  */
-export default function AddToPlans({ career, token, orgslug, after: wanted, onClose }: { career: CareerLike; token: string; orgslug: string; after?: string | null; onClose: () => void }) {
+export default function AddToPlans({ career, token, orgslug, after: wanted, resourceUuid, saved = false, onSavedChange, onClose }: {
+  career: CareerLike; token: string; orgslug: string; after?: string | null
+  /** The career's resource, saved to the learner's library whatever they choose here. */
+  resourceUuid?: string; saved?: boolean; onSavedChange?: () => void
+  onClose: () => void
+}) {
   const router = useRouter()
   const { doc, isLoading, change, busy } = useLifePlan(token)
   const plan = React.useMemo(() => (doc && doc.phases.length ? normalize(doc) : null), [doc])
@@ -32,7 +41,32 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
     return () => document.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
+  const [keeping, setKeeping] = React.useState(false)
+  /** Save the career to their library; a failure says so but never stands in the way of planning. */
+  const keep = async () => {
+    if (saved || !resourceUuid) return true
+    setKeeping(true)
+    try {
+      const result: any = await saveResource(resourceUuid, { add_to_default_channel: false }, token)
+      if (result?.success === false) throw new Error()
+      onSavedChange?.()
+      return true
+    } catch {
+      toast.error(tr('discover.resource_sheet.couldn_t_save_it_try', 'Couldn’t save it. Try again.'))
+      return false
+    } finally {
+      setKeeping(false)
+    }
+  }
+  const saveOnly = async () => {
+    if (await keep()) {
+      toast.success(tr('discover.resource_sheet.saved_to_my_library', 'Saved to My library'))
+      onClose()
+    }
+  }
+
   const add = async () => {
+    await keep()
     // No plan yet: the route waits while they set up their first phase, which then opens the map holding it.
     if (!plan) {
       holdRoute(career.title, routes[route].steps)
@@ -60,7 +94,7 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
       <div><small className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{tr('careers.add_to_plans.add_to_my_plans', 'Add to my plans')}</small><b id="add-to-plans-title" className="block text-[19px] leading-tight">{career.title}</b></div>
       {isLoading ? <div className="flex h-24 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" aria-label={tr('careers.add_to_plans.loading_your_plan', 'Loading your plan')} /></div>
         : <>
-          {!plan ? <p className="m-0 text-[14px] text-muted-foreground">{tr('careers.add_to_plans.start_your_plan_with_where', 'Start your plan with where you are now, then you can add this career after it.')}</p> : null}
+          {!plan ? <p className="m-0 text-[14px] text-muted-foreground">{tr('careers.add_to_plans.save_it_now_plan_later', 'Save it to your library now and find it again any time. To put it on a plan map, start your plan with where you are now: a few questions, then this career goes after it.')}</p> : null}
           {wanted && plan ? <div className="flex flex-col gap-2">
             <span className="text-[14px] font-extrabold">{tr('careers.add_to_plans.after_which_phase', 'After which phase?')}</span>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={tr('careers.add_to_plans.after_which_phase_2', 'After which phase')}>
@@ -86,10 +120,16 @@ export default function AddToPlans({ career, token, orgslug, after: wanted, onCl
             </button>)}
           </div>
           <p className="m-0 text-[12.5px] text-muted-foreground">{tr('careers.add_to_plans.these_go_on_your_map', 'These go on your map as dashed ideas: quick to add, quick to drop. Rename them, pick a school, or fill them in later. Training lengths come from what O*NET lists for this career.')}</p>
+          {!plan ? <button type="button" onClick={() => void saveOnly()} disabled={keeping || busy}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--org-primary-color)] text-sm font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)] disabled:opacity-50">
+            {keeping ? <Loader2 size={16} className="animate-spin" /> : <Bookmark size={16} className={cn(saved && 'fill-current')} aria-hidden="true" />}{saved ? tr('careers.add_to_plans.saved_done', 'Saved. Done') : tr('careers.add_to_plans.save_it_for_now', 'Save it for now')}
+          </button> : null}
           <div className="flex gap-2.5">
             <button type="button" onClick={onClose} className="h-12 flex-1 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-muted">{tr('careers.add_to_plans.cancel', 'Cancel')}</button>
-            <button type="button" onClick={() => void add()} disabled={busy || (Boolean(plan) && !chosen)}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--org-primary-color)] text-sm font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)] disabled:opacity-50">
+            <button type="button" onClick={() => void add()} disabled={busy || keeping || (Boolean(plan) && !chosen)}
+              className={cn('flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-extrabold uppercase tracking-wide disabled:opacity-50', plan
+                ? 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]'
+                : 'border-2 border-border bg-card text-foreground hover:bg-muted')}>
               {busy ? <Loader2 size={16} className="animate-spin" /> : <GitBranch size={16} />}{!plan ? tr('careers.add_to_plans.start_my_plan', 'Start my plan') : wanted ? tr('careers.add_to_plans.add_as_ideas', 'Add as ideas') : tr('careers.add_to_plans.place_on_my_map', 'Place on my map')}
             </button>
           </div>

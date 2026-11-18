@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Button } from '@components/ui/button'
-import { createLoginLink } from '@services/userTests/userTests'
+import { createInviteeLink, createLoginLink } from '@services/userTests/userTests'
 
 /** Makes a one-use login link for a persona and offers to copy it or open it here. */
 export function useLoginLink() {
@@ -10,10 +10,11 @@ export function useLoginLink() {
   const [busy, setBusy] = useState(false)
 
   /** ``origin``: the host to sign in on, such as an org's own site for a link from its email. */
-  async function make(userId: number, label: string, targetPath = '/', origin = '') {
+  async function make(userId: number, label: string, targetPath = '/', origin = '', inviteeId?: number) {
     setBusy(true); setError('')
     try {
-      const result = await createLoginLink(userId, targetPath)
+      // An invitee has no account yet: their link opens a signed-out browser that may sign up as them.
+      const result = inviteeId ? await createInviteeLink(inviteeId, targetPath) : await createLoginLink(userId, targetPath)
       setLink({ url: `${origin || window.location.origin}${result.path}`, expiresAt: Date.parse(result.expires_at), label })
     } catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }

@@ -43,6 +43,9 @@ WAGES = _book("2026 Oregon Wage Information, Statewide", "2026 Oregon Wage Infor
     [2, "Douglas", 4, "29-1141", "Registered Nurses", 900, 0.05, 45.62, 50.65, 52.68, 66.04, 67.91, 55.0, 114400, 0.03],
     [3, "Southwestern Oregon", 4, "29-1141", "Registered Nurses", 2400, 0.04, 45.62, 50.68, 52.68, 64.91, 66.04, 54.0, 112320, 0.03],
     [4, "Douglas", 4, "25-2021", "Elementary School Teachers, Except Special Education", 700, 0.06, 50000, 58000, 66456, 74000, 80000, 66000, 66000, 0.04],
+    # Withheld pay: OED writes small negative codes, and a withheld 90th percentile beside real ones.
+    [5, "Douglas", 4, "15-1254", "Web Developers", 40, 0.2, -3, -3, -3, -3, -3, -3, -3, -3],
+    [6, "Oregon", 4, "15-1254", "Web Developers", 1500, 0.05, 24.5, 30.1, 40.2, 52.0, -3, 42.0, 87360, 0.03],
 ])
 
 
@@ -84,12 +87,15 @@ def test_projections_load_openings_growth_and_jobs_for_the_state_and_its_areas()
 def test_wages_load_percentiles_hourly_or_yearly_and_resolve_to_the_learners_county():
     db = _session()
     result = importers.import_file(db, WAGES, "Oregon Occupational Wage Information.xlsx")
-    assert result["kind"] == "oed_wages" and result["year"] == 2026 and result["facts"] == 4 and result["unmatched"] == []
+    assert result["kind"] == "oed_wages" and result["year"] == 2026 and result["facts"] == 5 and result["unmatched"] == []
     importers.review_source(db, "oed-wages-2026", 1)
     found = estimates.resolve_many(db, [estimates.EstimateQuery(id="w", metric="wage", place="city:OR:roseburg", dims={"soc": "29-1141"})])["w"]
     assert found["place"] == "region:OR:douglas" and found["value"] == 52.68 and found["percentiles"]["p90"] == 67.91 and found["period"] == "hr"
     teachers = db.exec(select(EstimateFact).where(EstimateFact.dims_key == estimates.dims_key({"soc": "25-2021"}))).one()
     assert teachers.period == "yr" and teachers.value == 66456
+    # Withheld pay is never a wage: Roseburg's web developers fall back to Oregon's, without its withheld 90th percentile.
+    web = estimates.resolve_many(db, [estimates.EstimateQuery(id="w", metric="wage", place="city:OR:roseburg", dims={"soc": "15-1254"})])["w"]
+    assert web["place"] == "state:OR" and web["value"] == 40.2 and "p90" not in web["percentiles"] and web["percentiles"]["p75"] == 52.0
 
 
 def test_other_workbooks_are_not_mistaken_for_oed_files():

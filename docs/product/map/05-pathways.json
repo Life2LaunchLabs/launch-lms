@@ -6049,7 +6049,7 @@
           "health": "works",
           "traceability": "complete",
           "priority": "high",
-          "implementation_notes": "Hub has one mode and one composer. Nothing searches while the learner types. On submission, deterministic intent inference chooses inline resource search or grounded guidance. In the learner companion, supported individual and group-plan pages automatically provide identifier-only hints; the server revalidates access, resolves bounded saved definitions, excludes unsaved/private learner data, and returns source receipts. Unsupported pages show a compact header limitation. The first slice cannot navigate or mutate plans.",
+          "implementation_notes": "Hub has one mode and one composer. Nothing searches while the learner types. On submission, deterministic intent inference chooses inline resource search or grounded guidance. In the learner companion, supported individual and group-plan pages automatically provide identifier-only hints; the server revalidates access, resolves bounded saved definitions, excludes unsaved/private learner data, and returns source receipts. Unsupported pages show a compact header limitation. The first slice cannot navigate or mutate plans. Code-owned app notes (services/coach/app_notes.py) and career cards (services/coach/career_facts.py) keep Coach's directions about the app and its career facts matching what the app shows (DEV-112). A page button such as Plan it with Coach opens a chat with Coach's own first line and never posts a message in the person's name; the page's context goes to Coach with their first reply (DEV-113).",
           "original_state": null,
           "updated_at": "2026-09-16T02:21:15.096461+00:00",
           "description": "",

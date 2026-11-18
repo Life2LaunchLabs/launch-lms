@@ -60,13 +60,23 @@ way for a test to email, impersonate or change a real person.
   row that names people or orgs from two worlds (the real world or one cohort). It follows a
   row into the conversation, goal, portfolio or resource comment it belongs to, and reads
   invited addresses. The main org is shared and never counts on its own, except for resource
-  comments, which real learners read. Test worlds can't write listings, plan requests,
+  comments, which real learners read. A persona's stars-only rating on a shared resource is the
+  exception (DEV-104): it stays in the persona's world, because every rating count, average,
+  review list, moderation count and export filters ratings with `visibility.visible_ratings`,
+  so real people and other cohorts never see it; words make it a sealed comment again. Test worlds can't write listings, plan requests,
   payments, API tokens, OAuth grants or SSO, and a persona can't change its email, password
   or platform role. Rows naming only real people never match, so real traffic pays two indexed
   lookups per flush.
 - What the seal can't see (a main-org group or conversation whose members mix worlds), the
   leak audit finds. Purge runs only on a closed cohort with a clean audit, so cascading deletes
   never reach a real person's rows.
+- Invitees (DEV-103): a persona added as `invitee` (console line prefix `invite:`) is only a
+  reserved address on the run's pattern, with no account, so a run can test an invitation to a
+  brand-new address. Mail to it is kept for the run. The console's "Open signed out" link leaves
+  a short signed `launchlms_test_invitee` cookie; signing up with exactly that address in that
+  browser makes the new account a persona of the run before it joins any org (so the seal holds
+  from its first row) and answers with a persona session. Any other sign-up with a test address
+  is refused, so the test domain never holds an unsealed account.
 - A persona session is refused password changes, account deletion, API tokens, payments,
   Google and SSO sign-in, and OAuth grants (`sessions.BLOCKED`).
 - Real users never see personas or test orgs in search or Connect people search

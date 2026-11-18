@@ -10,6 +10,7 @@ import { Textarea } from '@components/ui/textarea'
 import type { Goal, StepCompleter, StepConfigs, StepMaterial, StepTypeKey } from '@services/goals/types'
 import { STEP_TYPE_ORDER, stepDefinition } from '../steps'
 import MaterialsEditor from './MaterialsEditor'
+import AfterSelect from './AfterSelect'
 import StepTiming from './StepTiming'
 
 import { tr } from '@/lib/tr'
@@ -202,13 +203,7 @@ type TimingProps = { value: StepDraft; others: Array<{ id: string; title: string
 function AfterPicker({ value, others, set }: TimingProps) {
   if (!others.length) return null
   return <div className="flex flex-col gap-1 sm:col-span-2">
-    <Label>{tr('goals.step_editor.starts_after', 'Starts after')}</Label>
-    <div className="flex flex-wrap gap-1.5">
-      {others.map((other) => {
-        const on = value.after.includes(other.id)
-        return <button key={other.id} type="button" aria-pressed={on} onClick={() => set({ after: on ? value.after.filter((id) => id !== other.id) : [...value.after, other.id] })}
-          className={cn('max-w-[16rem] truncate rounded-[10px] border-2 px-2.5 py-1 text-xs font-bold', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border text-muted-foreground')}>{other.title || tr('goals.step_editor.untitled_step', 'Untitled step')}</button>
-      })}
-    </div>
+    <Label htmlFor="step-after">{tr('goals.step_editor.starts_after', 'Starts after')}</Label>
+    <AfterSelect id="step-after" others={others} value={value.after} onChange={(after) => set({ after })} />
   </div>
 }

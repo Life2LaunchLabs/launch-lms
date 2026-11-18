@@ -9,11 +9,11 @@ import { ResourcePickerModal } from '@components/Resources/admin/ResourcePicker'
 import { uploadMediaAsset, type MediaType } from '@services/media/library'
 import type { StepMaterial } from '@services/goals/types'
 import { isUploadedFile } from './materialKind'
+import { hostOf, nameLink } from '../steps/linkName'
 
 import { tr } from '@/lib/tr'
 const FILES = 'application/pdf,image/*,video/*'
 const mediaType = (file: File): MediaType | null => file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : file.type === 'application/pdf' ? 'document' : null
-const hostOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url } }
 
 /** A step's files, links and resources, as a list you rename or remove, a link box, an upload button and a resource picker. Files go to the org's media. */
 export default function MaterialsEditor({ id, value, onChange, orgId, token, addLabel = tr('lit.people_access.add', 'Add') }: {
@@ -30,10 +30,16 @@ export default function MaterialsEditor({ id, value, onChange, orgId, token, add
   const picker = React.useRef<HTMLInputElement>(null)
   const url = link.trim()
   const valid = /^https?:\/\/\S+\.\S+$/i.test(url)
-  const addLink = () => {
-    if (!valid) return
-    onChange([...value, { kind: 'link', title: hostOf(url), url }])
-    setLink('')
+  const [naming, setNaming] = React.useState(false)
+  // A pasted link is named after the page it opens (the app's own career, resource or plan by its name), not its host.
+  const addLink = async () => {
+    if (!valid || naming) return
+    setNaming(true)
+    try {
+      const name = await nameLink(url, token)
+      onChange([...value, { kind: 'link', title: name?.title || hostOf(url), url }])
+      setLink('')
+    } finally { setNaming(false) }
   }
   const addFiles = async (files: File[]) => {
     if (!orgId || !token) return
@@ -67,9 +73,9 @@ export default function MaterialsEditor({ id, value, onChange, orgId, token, add
       })}
     </ul> : null}
     <div className="flex flex-wrap gap-2">
-      <Input id={id} value={link} onChange={(event) => setLink(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addLink() } }}
+      <Input id={id} value={link} onChange={(event) => setLink(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void addLink() } }}
         placeholder={tr('goals.explore_add.paste_a_link', 'Paste a link')} className="h-8 min-w-[12rem] flex-1 text-sm" />
-      <Button type="button" size="sm" variant="outline" disabled={!valid} onClick={addLink}><Plus size={14} />{addLabel}</Button>
+      <Button type="button" size="sm" variant="outline" disabled={!valid || naming} onClick={() => void addLink()}>{naming ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}{addLabel}</Button>
       {orgId && token ? <>
         <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => picker.current?.click()}>{uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}{tr('goals.upload.upload', 'Upload')}</Button>
         <input ref={picker} type="file" multiple accept={FILES} hidden onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; if (files.length) void addFiles(files) }} />

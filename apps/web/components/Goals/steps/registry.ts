@@ -21,6 +21,9 @@ export interface StepActions {
   /** Resources steps: records an open (in the background, so the link opens at once) or the learner's note on one resource. */
   // eslint-disable-next-line no-unused-vars
   visitResource?: (resourceUuid: string, data: { opened?: boolean; note?: string }) => Promise<boolean>
+  /** Portfolio steps: the items the learner hides from the step. */
+  // eslint-disable-next-line no-unused-vars
+  hidePortfolioItems?: (hidden: string[]) => Promise<boolean>
   /** Opens the activity player. */
   openActivity: () => void
   /** Asks Coach about the step; shown beside the step's main action. */

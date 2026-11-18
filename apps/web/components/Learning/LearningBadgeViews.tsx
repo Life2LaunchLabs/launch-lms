@@ -804,13 +804,13 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
   }
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center bg-black">
+    <div className="relative flex h-full w-full items-center justify-center bg-[#000]">
       {videoTitle && (
         <h1 className="absolute left-5 right-5 top-5 z-10 mx-auto max-w-2xl text-3xl font-bold text-white drop-shadow">
           {videoTitle}
         </h1>
       )}
-      <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black">
+      <div className="flex h-full w-full items-center justify-center overflow-hidden bg-[#000]">
         {youtubeId ? (
           <YouTube
             className="aspect-video max-h-full w-full max-w-[min(100%,calc((100dvh-9rem)*16/9))]"

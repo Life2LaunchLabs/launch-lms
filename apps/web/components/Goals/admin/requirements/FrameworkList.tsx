@@ -17,6 +17,7 @@ import { CreateFramework } from '@components/Requirements/CreateFramework'
 import { EmptyState, PageLoader } from '../live/ui'
 import SourceChip from './SourceChip'
 import { inOrgWords } from '@/lib/people'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 
 const FILTERS: FilterSpec[] = [
   { key: 'pub', label: 'Published by', options: [{ value: '', label: 'Anyone' }, { value: 'mine', label: 'Your org' }, { value: 'others', label: 'Other publishers' }] },
@@ -33,6 +34,12 @@ function useIsOrgAdmin(orgId: number) {
   return session?.data?.user?.is_superadmin === true || ADMIN_ROLE_IDS.has(Number(membership?.role?.id))
 }
 
+// With school records off (PL-6), the empty state names no school requirements or the Oregon EPP.
+const WELCOME_BODY_SCHOOL = () => inOrgWords('A framework is a list of requirements, like your state’s graduation requirements or your own competencies. Map steps in your templates to it, and you can see what each plan covers and where every learner stands.')
+const WELCOME_BODY = 'A framework is a list of requirements, like a certification’s skills or your own competencies. Map steps in your templates to it, and you can see what each plan covers and where everyone stands.'
+const WELCOME_HOW_SCHOOL = 'Use Add from Discover above for a published framework, like Oregon’s Education Plan and Profile, or write your own.'
+const WELCOME_HOW = 'Use Add from Discover above for a published framework, or write your own.'
+
 const plural = (n: number, word: string) => inOrgWords(`${n} ${word}${n === 1 ? '' : 's'}`)
 
 /**
@@ -43,6 +50,7 @@ export default function FrameworkList({ orgslug, orgId, token }: { orgslug: stri
   const router = useRouter()
   const filters = useFilters(FILTERS)
   const isAdmin = useIsOrgAdmin(orgId)
+  const schoolRecords = useSchoolRecords()
   const key = orgId && token ? frameworksCoverageKey(orgId) : null
   const { data, isLoading, error, mutate } = useSWR(key, () => requirementsApi.listWithCoverage(orgId, token), { revalidateOnFocus: false })
   const frameworks = data || []
@@ -56,7 +64,7 @@ export default function FrameworkList({ orgslug, orgId, token }: { orgslug: stri
   const open = (uuid: string, subpage: 'plans' | 'edit' = 'plans') => router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(uuid, subpage)))
   const actions = <>
     {isAdmin ? <CreateFramework orgId={orgId} token={token} refresh={() => mutate()} onCreated={(uuid: string) => open(uuid, 'edit')} trigger={<button type="button" className="inline-flex h-10 items-center gap-2 rounded-full bg-black px-4 text-sm font-medium text-white hover:bg-black/85"><Plus size={16} weight="bold" aria-hidden="true" />Create framework</button>} /> : null}
-    <Link href={getUriWithOrg(orgslug, routePaths.org.admin.discover())} className="inline-flex h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 hover:border-gray-300"><Storefront size={16} aria-hidden="true" />Add from Discover</Link>
+    <Link href={`${getUriWithOrg(orgslug, routePaths.org.admin.discover())}#frameworks`} className="inline-flex h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 hover:border-gray-300"><Storefront size={16} aria-hidden="true" />Add from Discover</Link>
   </>
   const hidden = frameworks.length - shown.length
   const summary = data ? <>{plural(shown.length, 'framework')}{hidden ? ` · ${hidden} hidden by filters` : ''} · steps in your templates map to these, so you can see what your plans cover</> : null
@@ -66,8 +74,8 @@ export default function FrameworkList({ orgslug, orgId, token }: { orgslug: stri
     {isLoading && !data ? <PageLoader />
       : error ? <EmptyState icon={<ListBullets size={36} />} title="Requirement frameworks unavailable" detail={error?.message || 'Try again in a moment.'} />
       : !frameworks.length ? <PageWelcome icon={<ListBullets size={28} />} title="Requirements: what your plans count toward"
-        body={inOrgWords("A framework is a list of requirements, like your state’s graduation requirements or your own competencies. Map steps in your templates to it, and you can see what each plan covers and where every learner stands.")}
-        how="Use Add from Discover above for a published framework, or write your own." />
+        body={schoolRecords ? WELCOME_BODY_SCHOOL() : WELCOME_BODY}
+        how={schoolRecords ? WELCOME_HOW_SCHOOL : WELCOME_HOW} />
       : !shown.length ? <p className="rounded-xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500 nice-shadow">No frameworks match. <button type="button" onClick={filters.clearAll} className="font-semibold text-violet-700 underline underline-offset-2">Clear filters</button></p>
       : <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow" aria-label="Requirement frameworks">
         {shown.map((item) => <li key={item.framework_uuid}><FrameworkRow item={item} href={getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(item.framework_uuid, 'plans'))} /></li>)}

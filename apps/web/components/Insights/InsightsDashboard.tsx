@@ -24,6 +24,7 @@ import SchedulesModal from './Schedules'
 import { dashboardHref } from './NewDashboardModal'
 import { ScopeGlyph, useDashboards, useInsightsContext } from './shared'
 import { inOrgWords } from '@/lib/people'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 
 const PRESETS = Object.keys(RANGE_LABELS) as Preset[]
 const ghostButton = 'inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-semibold hover:bg-muted'
@@ -130,9 +131,10 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
     : insightKeys.cards(orgId, dashboard.dashboard_uuid, dashboard.revision, scopeKey, range)
   const pins = useHomePins(orgId, token)
   const pinFor = (card: DashboardCard) => draft ? undefined : pins.pinFor({ dashboard_uuid: dashboard.dashboard_uuid, card_key: card.key, scope_key: dashboard.scope === 'org' ? null : scopeKey })
-  const { data: results, error } = useSWR(cards.length ? runKey : null,
-    () => insightsApi.run(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
-  const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'framework')
+  const { data: ran, error } = useSWR(cards.length ? runKey : null,
+    () => insightsApi.runDashboard(orgId, { scope, range, cards: cards.map(({ key, spec }) => ({ key, spec })) }, token), { revalidateOnFocus: false, keepPreviousData: true })
+  const results = ran?.results
+  const linkFor = React.useCallback((row: ResultRow) => row.link && (row.link.scope === 'plan' || row.link.scope === 'group' || row.link.scope === 'learner' || row.link.scope === 'framework')
     ? getUriWithOrg(orgslug, routePaths.org.admin.insightsScope(row.link.scope, row.link.key)) : null, [orgslug])
   const drillFor = (card: DashboardCard) => (key: string | null | undefined, title: string) => { if (key && !draft) setTarget({ title, spec: card.spec, drill: key }) }
   const change = (next: DashboardCard[]) => draft && setDraft({ ...draft, cards: next })
@@ -144,6 +146,9 @@ function Cards({ dashboard, scopeKey, range, draft, setDraft }: {
   if (!cards.length && !draft) return <Empty title="No cards yet" detail="Edit this dashboard to add cards from the question library, or start one blank." />
   if (error) return <Empty title="Couldn't load this dashboard" detail={error.message || 'Try again in a moment.'} />
   return <>
+    {ran?.limited ? <p role="note" className="mb-4 rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-[13px] text-muted-foreground">
+      {inOrgWords(`These numbers count only the learners in your own groups and assignments (${ran.limited.learners}). An admin can give you See reports to see the whole organization.`)}
+    </p> : null}
     <div className="grid grid-cols-12 gap-4">
       {cards.map((card, index) => {
         const body = results ? <InsightCard key={card.key} card={draft ? { ...card, span: 12 } : card} outcome={results[card.key]} drill={drillFor(card)} linkFor={linkFor} pin={pinFor(card)} />
@@ -174,20 +179,23 @@ const EMPTY_ALL: Record<ObjectScope, string> = {
   get plan() { return inOrgWords('Once your learners start plans, each plan gets these dashboards.') },
   group: 'Make a group in Threads, and each group gets these dashboards.',
   get learner() { return inOrgWords('Once learners join, each one gets these dashboards.') },
-  framework: 'Track a requirement framework under Plans › Requirements, and each one gets these dashboards.',
+  get framework() { return inOrgWords('Track a requirement framework and each one gets these dashboards. They fill in as learners work on plan steps linked to its requirements.') },
 }
+// Where the organization uses school records (PL-6), the framework empty state gives the EPP as the example.
+const FRAMEWORK_EMPTY_SCHOOL = () => inOrgWords('Track a requirement framework, like Oregon’s Education Plan and Profile, and each one gets these dashboards. They fill in as learners work on plan steps linked to its requirements.')
 
 /** A dashboard page: the org's (`scope` org), or a plan's, group's or learner's for the one picked (`objectKey`). */
 export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: { scope: Scope; objectKey?: string | null; dashboardUuid?: string | null }) {
   const router = useRouter()
   const { orgId, orgslug, token, ready } = useInsightsContext()
+  const schoolRecords = useSchoolRecords()
   const { data: dashboards } = useDashboards()
   const inScope = (dashboards || []).filter((item) => item.scope === scope)
   const chosen = inScope.find((item) => item.dashboard_uuid === dashboardUuid) || inScope[0]
   const { data: objects } = useSWR(ready && scope !== 'org' ? insightKeys.objects(orgId, scope) : null,
     () => insightsApi.objects(orgId, scope as ObjectScope, token), { revalidateOnFocus: false })
   // A plan or group asked for by key that the viewer can't open (or that has no learners here) isn't swapped for another.
-  const object = objectKey ? objects?.find((item) => item.key === objectKey) : objects?.[0]
+  const object = objectKey ? objects?.find((item) => item.key === objectKey || (item.id != null && String(item.id) === objectKey)) : objects?.[0]
   const { data: dashboard } = useSWR(ready && chosen ? insightKeys.dashboard(orgId, chosen.dashboard_uuid) : null,
     () => insightsApi.dashboard(orgId, chosen!.dashboard_uuid, token), { revalidateOnFocus: false })
   const [range, setRange] = React.useState<DateRange | null>(null)
@@ -195,6 +203,10 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
   React.useEffect(() => { setRange(null); setDraft(null) }, [chosen?.dashboard_uuid])
   const admin = routePaths.org.admin
   const scopeHref = (key?: string | null, uuid?: string | null) => getUriWithOrg(orgslug, scope === 'org' ? admin.insights(uuid) : admin.insightsScope(scope, key, uuid))
+  // An old group report link names the group by number; settle on its key so the address matches the switcher.
+  React.useEffect(() => {
+    if (object && objectKey && object.key !== objectKey) router.replace(scopeHref(object.key, dashboardUuid))
+  }, [object?.key, objectKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const body = () => {
     if (!dashboards || (scope !== 'org' && !objects)) return <div className="space-y-4"><span className="block h-9 w-72 animate-pulse rounded-lg bg-muted" />
@@ -203,7 +215,11 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
       detail={EMPTY_ONE[scope]}
       action={objects?.length ? <Link href={scopeHref(objects[0].key)} className={ghostButton}>See {objects[0].label}</Link> : undefined} />
     if (scope !== 'org' && !object) return <Empty title={`No ${SCOPE_LABELS[scope].many.toLowerCase()} to show yet`}
-      detail={EMPTY_ALL[scope]} />
+      detail={scope === 'framework' && schoolRecords ? FRAMEWORK_EMPTY_SCHOOL() : EMPTY_ALL[scope]}
+      action={scope === 'framework' ? <div className="flex flex-wrap justify-center gap-2">
+        <Link href={`${getUriWithOrg(orgslug, admin.discover())}#frameworks`} className={cn(ghostButton, 'bg-foreground text-background hover:bg-foreground/85')}>Track a framework</Link>
+        <Link href={getUriWithOrg(orgslug, admin.plans('requirements'))} className={ghostButton}>Open Plans › Requirements</Link>
+      </div> : undefined} />
     if (!chosen) return <Empty title={`No ${SCOPE_LABELS[scope].one.toLowerCase()} dashboards yet`} detail="Make one from a template or start blank."
       action={<NewButton scope={scope} />} />
     const effective = range ?? dashboard?.document.range ?? '90d'
@@ -235,7 +251,8 @@ export default function InsightsDashboard({ scope, objectKey, dashboardUuid }: {
         </nav> : null}
         {dashboard && draft ? <EditBar dashboard={dashboard} draft={draft} setDraft={setDraft} onDone={() => setDraft(null)} /> : <>
           {dashboard ? <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground"><VisibilityTag dashboard={dashboard} />{dashboard.description}</p> : null}
-          <RangeBar range={effective} setRange={setRange} />
+          {/* An Education Plan and Profile stands as it is now, so a dashboard of only those has no dates to pick. */}
+          {dashboard && dashboard.document.cards.length && dashboard.document.cards.every((card) => card.spec.measure === 'epp_report') ? null : <RangeBar range={effective} setRange={setRange} />}
         </>}
       </header>
       {dashboard ? <Cards dashboard={dashboard} scopeKey={object?.key || null} range={effective} draft={draft} setDraft={setDraft} />

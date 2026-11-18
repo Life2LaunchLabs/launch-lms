@@ -121,6 +121,17 @@ def _learner_memberships(db: Session, org_id: int, viewer_id: int | None = None)
     return [row for row in rows if not is_staff_role(roles.get(row.role_id))]
 
 
+def staff_group_ids(db: Session, org_id: int, staff_id: int) -> set[int]:
+    """The groups a staff member without See reports counts as theirs: ones they're staff on, and the groups of assignments they're staff on."""
+    from src.db.school import UserGroupStaff
+
+    groups = {int(item) for item in db.exec(select(UserGroupStaff.usergroup_id).where(UserGroupStaff.user_id == staff_id, UserGroupStaff.org_id == org_id)).all()}
+    for assignment in db.exec(select(GoalAssignment).where(GoalAssignment.org_id == org_id, col(GoalAssignment.usergroup_id).is_not(None))).all():
+        if staff_id in (assignment.staff_user_ids or []):
+            groups.add(int(assignment.usergroup_id))  # type: ignore[arg-type]
+    return groups
+
+
 def staff_learners(db: Session, org_id: int, staff_id: int) -> set[int]:
     """The learners a staff member without See reports counts: their groups' and their assignments'."""
     seen = set(students_of(db, org_id, staff_id))
@@ -214,7 +225,7 @@ def objects(db: Session, pop: Population, kind: str) -> list[dict]:
             if int(user_id) in pop.status:
                 members.setdefault(int(group_id), set()).add(int(user_id))
         groups = db.exec(select(UserGroup).where(UserGroup.org_id == pop.org_id)).all()
-        rows = [{"key": group.usergroup_uuid, "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
+        rows = [{"key": group.usergroup_uuid, "id": int(group.id), "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
                 for group in groups if pop.see_reports or int(group.id) in members]  # type: ignore[arg-type]
     elif kind == "learner":
         return _learner_objects(db, pop)
@@ -272,6 +283,14 @@ class Ctx:
     def everyone(self) -> set[int]:
         """Every learner the viewer may count, alumni included; filters pick from these."""
         return set(self.pop.status)
+
+    def learner_uuids(self) -> dict[int, str]:
+        """Each counted learner's user uuid, the key of the learner breakdown and their dashboard."""
+        def load() -> dict[int, str]:
+            people = self.everyone()
+            rows = self.db.exec(select(User.id, User.user_uuid).where(col(User.id).in_(people))).all() if people else []
+            return {int(user_id): uuid for user_id, uuid in rows}
+        return self.once("learner_uuids", load)
 
     def groups_of(self) -> dict[int, list[str]]:
         """Each learner's group uuids in this organization."""

@@ -151,13 +151,19 @@ async def _document(item: dict, files: dict, source: str, portfolio, current_use
 
 async def run_import(source: str, upload: UploadFile, keys: list[str], current_user: PublicUser, db_session: Session) -> dict:
     content, filename = await _read(upload)
+    return await import_content(source, content, filename, keys, current_user, db_session)
+
+
+async def import_content(source: str, content: bytes, filename: str, keys: list[str] | None, current_user: PublicUser, db_session: Session) -> dict:
+    """Copy an export's items into the learner's portfolio: the ones in ``keys``, or everything when it's None.
+    Anything already there (same key, or the same entry typed in by hand) is skipped, so running it twice adds nothing."""
     export = read_export(source, content, filename)
     portfolio = portfolio_service.get_or_create_portfolio(current_user, db_session)
     existing = _existing(portfolio.id or 0, source, db_session)
-    wanted = set(keys)
+    wanted = None if keys is None else set(keys)
     added: dict[str, int] = {}
     for item in export["items"]:
-        if item["key"] not in wanted or _already(item, existing, portfolio):
+        if (wanted is not None and item["key"] not in wanted) or _already(item, existing, portfolio):
             continue
         kind, record, key = item["kind"], item["record"], item["key"]
         if kind == "timeline":

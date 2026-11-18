@@ -88,7 +88,7 @@ export default function TabbedPageHeader<T extends string>({
     <>
       <motion.header
         ref={headerRef}
-        className={`${expanded ? 'relative' : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${expanded ? '' : 'shadow-[0_1px_0_hsl(var(--border)/.25)]'}`}
+        className={`${expanded ? 'relative' : 'sticky top-[var(--test-persona-bar-h,0px)]'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${expanded ? '' : 'shadow-[0_1px_0_hsl(var(--border)/.25)]'}`}
       >
         <motion.div layout className={expanded ? 'py-8 sm:py-12' : 'py-3'}>
           {expanded ? fullHeader : compactHeader}
@@ -105,7 +105,7 @@ export default function TabbedPageHeader<T extends string>({
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
             transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
             style={{ left: stickyBounds.left, width: stickyBounds.width }}
-            className="fixed top-0 z-[var(--z-sticky-header)] isolate border-b border-border/70 bg-background/95 backdrop-blur-xl before:absolute before:-inset-x-8 before:inset-y-0 before:-z-10 before:bg-background/95"
+            className="fixed top-[var(--test-persona-bar-h,0px)] z-[var(--z-sticky-header)] isolate border-b border-border/70 bg-background/95 backdrop-blur-xl before:absolute before:-inset-x-8 before:inset-y-0 before:-z-10 before:bg-background/95"
           >
             <div className="py-2.5">{compactHeader}</div>
             {tabs.length > 1 ? nav(true) : null}

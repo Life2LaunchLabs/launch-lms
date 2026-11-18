@@ -129,7 +129,7 @@ function applyDecision(response: NextResponse, decision: RoutingDecision) {
 
 export const config = {
   matcher: [
-    '/((?!api|auth|orgs|content|_next|fonts|umami|examples|embed|monitoring|images|[\\w-]+\\.\\w+).*)',
+    '/((?!api|auth|orgs|content|_next|fonts|examples|embed|monitoring|images|[\\w-]+\\.\\w+).*)',
     '/sitemap.xml',
     '/robots.txt',
     '/payments/stripe/connect/oauth',
@@ -188,6 +188,7 @@ export default async function proxy(req: NextRequest) {
     instanceInfo,
     resolvedCustomDomainOrgSlug: null,
     orgSubdomainAccess,
+    cookieScope: getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain'),
   })
 
   const response = buildResponse(req, decision)

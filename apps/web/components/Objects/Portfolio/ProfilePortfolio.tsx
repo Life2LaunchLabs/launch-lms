@@ -24,6 +24,7 @@ import { getUserProfileFeaturedMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/portfolio'
 import { uploadUserProfileFeaturedImage } from '@services/users/users'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
+import { shownName } from '@/lib/names'
 
 export type FeaturedCard = {
   id: string
@@ -133,9 +134,7 @@ function formatPortfolioDate(value?: string) {
   return SHORT_DATE_FORMATTER.format(date)
 }
 
-export function getPortfolioAuthorName(user: any) {
-  return [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.username || 'Author'
-}
+export const getPortfolioAuthorName = (user: any) => shownName(user) || 'Author'
 
 function normalizeUrl(value: string) {
   const trimmed = value.trim()

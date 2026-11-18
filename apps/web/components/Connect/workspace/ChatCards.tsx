@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { ChatMessage, ChatTopic, InvitationCard, MessageRef, ProgressCard, StepReminderCard } from '@services/connect/connect'
 import type { GroupReportCard } from '@services/goals/reports'
-import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import { goalsApi } from '@services/goals/goals'
 import { messagesApi } from '@services/messages/messages'
 import { openOrgPage } from '@services/auth/handoff'
@@ -95,6 +94,11 @@ function InvitationView({ card, orgslug, token, time, onAnswered }: { card: Invi
           return
         }
       }
+      // Saying yes to a plan opens it, so nobody is left on "Accepted" wondering where it went (FEED-141).
+      if (accept && card.goal_uuid) {
+        router.push(getUriWithOrg(orgslug, routePaths.org.plan(card.goal_uuid)))
+        return
+      }
       onAnswered()
     } catch (error: any) {
       toast.error(error?.message || tr('connect.chat_cards.that_didn_t_go_through', 'That didn’t go through'))
@@ -118,11 +122,12 @@ function InvitationView({ card, orgslug, token, time, onAnswered }: { card: Invi
   </div>
 }
 
-const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { get pending() { return tr('lit.chat_cards.waiting_for_an_answer', 'Waiting for an answer') }, get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get declined() { return tr('lit.chat_cards.declined', 'Declined') }, get ended() { return tr('lit.chat_cards.stopped', 'Stopped') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') } }
+const SUPPORT_STATES: Record<SupportRequestCard['state'], string> = { get pending() { return tr('lit.chat_cards.waiting_for_an_answer', 'Waiting for an answer') }, get accepted() { return tr('lit.chat_cards.accepted', 'Accepted') }, get not_now() { return tr('lit.chat_cards.said_not_now', 'Said not now') }, get declined() { return tr('lit.chat_cards.said_not_now', 'Said not now') }, get ended() { return tr('lit.chat_cards.stopped', 'Stopped') }, get expired() { return tr('lit.chat_cards.no_longer_open', 'No longer open') } }
 
 /**
- * A school asking to support the learner's Education Plan and Profile. The learner answers here, and can
- * stop it here later; until they say yes the school's staff see none of their school record.
+ * A school asking to support the learner's Education Plan and Profile. The learner answers here (or on their
+ * Education Plan), and can stop it here later; until they say yes the school's staff see none of their school
+ * record. Not now keeps the ask open, so Yes, share stays (FEED-219).
  */
 function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCard; token?: string; time: string; onAnswered: () => void }) {
   const [busy, setBusy] = React.useState<'accept' | 'decline' | 'stop' | ''>('')
@@ -140,18 +145,22 @@ function SupportView({ card, token, time, onAnswered }: { card: SupportRequestCa
     }
   }
   const pending = card.state === 'pending'
-  const button = 'flex h-8 items-center gap-1 rounded-full px-3 text-xs font-bold disabled:opacity-50'
+  const later = card.state === 'not_now' || card.state === 'declined'
+  const button = 'flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 text-xs font-bold disabled:opacity-50'
   return <div className="w-full max-w-[400px] rounded-2xl bg-[hsl(var(--raised)/0.55)] p-3.5">
     <span className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><GraduationCap size={14} aria-hidden="true" />{tr('connect.chat_cards.school_support', 'School support')}<span className="ml-auto font-normal">{time}</span></span>
     <span className="mt-1.5 block font-bold leading-snug">{card.for_me ? tr('connect.chat_cards.org_name_would_like_to', '{{org_name}} would like to support your plan', { org_name: card.org_name }) : tr('connect.chat_cards.org_name_asked_to_support', '{{org_name}} asked to support their plan', { org_name: card.org_name })}</span>
     {card.for_me ? <span className="mt-0.5 block text-sm leading-6 text-muted-foreground">{card.text}</span> : null}
-    <div className="mt-3 flex items-center gap-2">
-      {pending && card.for_me ? <span className="ml-auto flex gap-1.5">
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {later && card.for_me ? <>
+        <span className="min-w-0 flex-1 text-xs font-semibold text-muted-foreground">{tr('connect.chat_cards.you_said_not_now', 'You said not now. You can still say yes.')}</span>
+        <button type="button" disabled={Boolean(busy)} onClick={() => act('accept')} className={cn(button, 'ml-auto bg-foreground text-background')}>{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{tr('connect.chat_cards.yes_share', 'Yes, share')}</button>
+      </> : pending && card.for_me ? <span className="ml-auto flex gap-1.5">
         <button type="button" disabled={Boolean(busy)} onClick={() => act('decline')} className={cn(button, 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}{tr('connect.chat_cards.not_now', 'Not now')}</button>
         <button type="button" disabled={Boolean(busy)} onClick={() => act('accept')} className={cn(button, 'bg-foreground text-background')}>{busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}{tr('connect.chat_cards.yes_share', 'Yes, share')}</button>
       </span> : <>
-        <span className="text-xs font-semibold text-muted-foreground">{card.state === 'accepted' && card.for_me ? tr('connect.chat_cards.org_name_supports_you', '{{org_name}} supports you', { org_name: card.org_name }) : SUPPORT_STATES[card.state] || card.state}</span>
-        {card.state === 'accepted' && card.for_me ? <Link href={getUriWithOrg(card.org_slug, routePaths.org.epp())} className={cn(button, 'ml-auto bg-foreground text-background')}>{tr('connect.chat_cards.my_plan', 'My plan')}</Link> : null}
+        <span className="min-w-0 flex-1 text-xs font-semibold text-muted-foreground">{card.state === 'accepted' && card.for_me ? tr('connect.chat_cards.org_name_supports_you', '{{org_name}} supports you', { org_name: card.org_name }) : SUPPORT_STATES[card.state] || card.state}</span>
+        {card.state === 'accepted' && card.for_me ? <Link href={routePaths.org.epp(card.org_slug)} className={cn(button, 'ml-auto bg-foreground text-background')}>{tr('connect.chat_cards.my_plan', 'My plan')}</Link> : null}
         {card.state === 'accepted' && card.for_me ? <button type="button" disabled={Boolean(busy)} onClick={() => act('stop')} className={cn(button, 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{busy === 'stop' ? <Loader2 size={13} className="animate-spin" /> : null}{tr('connect.chat_cards.stop_sharing', 'Stop sharing')}</button> : null}
       </>}
     </div>
@@ -199,9 +208,9 @@ function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; w
   </div>
 }
 
-/** A group's progress report a colleague sent. It opens the live report, so it stays current. */
+/** A group's progress report a colleague sent before reports moved to Insights. It opens the group's dashboard, so it stays current. */
 function ReportView({ card, who, orgslug, time }: { card: GroupReportCard; who: string; orgslug: string; time: string }) {
-  const href = getUriWithOrg(card.org_slug || orgslug, insightsRoutes.report(card.usergroup_id, card.frameworks || []))
+  const href = getUriWithOrg(card.org_slug || orgslug, routePaths.org.admin.insightsScope('group', String(card.usergroup_id)))
   const { summary } = card
   return <Link href={href} className="block w-full max-w-[380px] rounded-2xl bg-background p-3.5 transition-colors hover:bg-muted/60">
     <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--org-primary-color)]"><BarChart3 size={14} aria-hidden="true" />{tr('connect.chat_cards.progress_report', 'Progress report')}<span className="ml-auto font-normal normal-case tracking-normal text-muted-foreground">{time}</span></span>
@@ -213,7 +222,7 @@ function ReportView({ card, who, orgslug, time }: { card: GroupReportCard; who: 
       <span><b className="text-foreground">{summary.behind_count}</b>{' '}{tr('connect.chat_cards.behind', 'behind')}</span>
       <span><b className="text-foreground">{summary.badges_earned}</b>{' '}{tr('connect.chat_cards.badge', 'badge')}{summary.badges_earned === 1 ? '' : 's'}{' '}{tr('connect.chat_cards.earned', 'earned')}</span>
     </span>
-    <span className="mt-2 block text-xs font-semibold text-foreground">Open report &rarr;</span>
+    <span className="mt-2 block text-xs font-semibold text-foreground">Open group dashboard &rarr;</span>
   </Link>
 }
 

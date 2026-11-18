@@ -44,7 +44,7 @@ def _hash(token: str) -> str:
 
 
 def _learner_name(user: User) -> str:
-    return " ".join(part for part in (user.first_name, user.last_name) if part).strip() or f"@{user.username}"
+    return (user.preferred_name or "").strip() or " ".join(part for part in (user.first_name, user.last_name) if part).strip() or f"@{user.username}"
 
 
 def _org_slug(db: Session, user_id: int) -> str:

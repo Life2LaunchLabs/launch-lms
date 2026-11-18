@@ -115,3 +115,25 @@ def live(db: Session, card: dict | None, viewer_id: int) -> dict | None:
     mine = recipient == viewer_id
     summary = None if mine else people.person(db, recipient)
     return {**card, "state": state, "for_me": mine, "for_name": summary["name"] if summary else None}
+
+
+def find_invitation(db: Session, current_user: PublicUser, invitation_uuid: str) -> dict:
+    """The chat holding your invitation to a plan, so the link in its email opens right on it.
+
+    Only the invited address sees it: anyone else (or a signed-in account with another address) gets a 404
+    that says which address it was sent to is not this one, never whose it is.
+    """
+    from fastapi import HTTPException
+
+    deliver(db, current_user)
+    mine = [message for message in db.exec(select(InboxMessage).where(
+        InboxMessage.recipient_user_id == int(current_user.id), InboxMessage.action_kind == "goal_invitation",  # type: ignore[arg-type]
+    )).all() if (message.action_data or {}).get("invitation_uuid") == invitation_uuid]
+    if not mine:
+        raise HTTPException(status_code=404, detail={"code": "invitation_not_for_you", "message": "This invitation was sent to a different email address, or it no longer exists."})
+    message = max(mine, key=lambda item: (item.created_at or datetime.min, item.id or 0))  # a resend is a newer copy
+    placed = db.exec(select(ConversationMessage).where(ConversationMessage.message_uuid == f"chat_message_inbox_{message.message_uuid}")).first()
+    conversation = db.get(Conversation, placed.conversation_id) if placed else None
+    if not conversation:
+        raise HTTPException(status_code=404, detail={"code": "invitation_not_placed", "message": "This invitation isn't in your chats yet."})
+    return {"conversation_uuid": conversation.conversation_uuid, "message_uuid": placed.message_uuid, "state": message.action_status or "pending"}  # type: ignore[union-attr]

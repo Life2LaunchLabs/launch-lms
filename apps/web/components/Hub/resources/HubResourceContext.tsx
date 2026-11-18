@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import { Dispatch, useMemo, useState } from 'react'
 import { ChevronUp, Loader2, Star, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -21,7 +22,7 @@ import { tr } from '@/lib/tr'
 export function resourceImage(resource: HubAdvisorResource) {
   return resource.thumbnail_image && resource.owner_org_uuid
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url
+    : ownServerImage(resource.cover_image_url)
 }
 
 export function asAdvisorResource(resource: Resource): HubAdvisorResource {

@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, Check, ChevronDown, ChevronRight, Loader2, MoreHorizontal, Pencil, Plus, Radio, X } from 'lucide-react'
+import { Archive, Brain, Check, ChevronDown, ChevronRight, Loader2, MoreHorizontal, Pencil, Plus, Radio, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -30,6 +30,7 @@ export default function HubHeader({
   onOpenResources,
   onRename,
   onArchive,
+  onOpenMemories,
   editRun,
   onStopEditing,
   onUpdateEditGoal,
@@ -52,6 +53,8 @@ export default function HubHeader({
   // eslint-disable-next-line no-unused-vars
   onRename: (_title: string) => Promise<void>
   onArchive: () => Promise<void>
+  /** Opens Coach memories, where the learner can see and delete what Coach remembers. */
+  onOpenMemories?: () => void
   editRun?: HubEditRun | null
   onStopEditing?: () => void
   // eslint-disable-next-line no-unused-vars
@@ -139,7 +142,7 @@ export default function HubHeader({
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem onSelect={() => { setPanel(null); onNew() }}>
                   <Plus />{' '}{tr('coach.hub_header.new_chat', 'New chat')}
                 </DropdownMenuItem>
@@ -150,6 +153,12 @@ export default function HubHeader({
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => void onArchive()}>
                     <Archive />{' '}{tr('coach.hub_header.archive', 'Archive')}
+                  </DropdownMenuItem>
+                </> : null}
+                {onOpenMemories ? <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => { setPanel(null); onOpenMemories() }}>
+                    <Brain />{' '}{tr('coach.hub_header.coach_memories', 'Coach memories')}
                   </DropdownMenuItem>
                 </> : null}
               </DropdownMenuContent>

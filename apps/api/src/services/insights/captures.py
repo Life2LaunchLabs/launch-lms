@@ -26,7 +26,7 @@ from sqlmodel import Session, col, select
 from src.db.insights import InsightCapture, InsightDashboard
 from src.db.organizations import Organization
 from src.db.users import PublicUser, User
-from src.services.insights import dashboards, engine, sentences
+from src.services.insights import dashboards, documents, engine, sentences
 from src.services.insights.context import Ctx, window
 from src.services.insights.dimensions import DIMENSIONS
 from src.services.insights.measures import MEASURES
@@ -64,6 +64,8 @@ def _range_json(range_) -> str | dict:
 
 
 def _readable(row: InsightCapture, dashboard: InsightDashboard | None, viewer: dict) -> bool:
+    if not viewer.get("school_records", True) and documents.has_school_record(row.cards):
+        return False
     if row.captured_by_user_id == viewer["id"]:
         return True
     return viewer["see_reports"] and (dashboard is None or dashboards._visible(dashboard, viewer))
@@ -239,6 +241,10 @@ def shield(result: dict, spec: dict | None = None) -> dict:
     """A card's result for outside the organization: any number resting on fewer than ten is hidden and left out of the headline."""
     if "error" in result:
         return {"error": result["error"], "errors": []}
+    if result.get("shape") == "document":
+        # A school record (a learner's EPP) never leaves the organization.
+        note = "School records stay inside the organization"
+        return {**result, "document": None, "complete": None, "hidden": True, "headline": note, "auto_headline": note, "subline": ""}
     measure = MEASURES.get(result.get("measure", ""))
     out = {**result, "drill": None}
     hidden = False
@@ -251,6 +257,11 @@ def shield(result: dict, spec: dict | None = None) -> dict:
             return _hide(cell)
         return cell
 
+    if "learner" in ((spec or {}).get("by"), (spec or {}).get("by2")):
+        # Rows named after learners never leave the organization, whatever their numbers.
+        note = "Learner names stay inside the organization"
+        value = guard(result["value"]) if result.get("value") else result.get("value")
+        return {**out, "value": value, "rows": [], "more": None, "series": None, "compare": None, "headline": note, "auto_headline": note}
     value_hidden = _small(result.get("value"))
     out["value"] = guard(result["value"]) if result.get("value") else result.get("value")
     out["rows"] = [{**guard(row), **({"cells": [guard(cell) for cell in row["cells"]]} if row.get("cells") else {})} for row in result.get("rows") or []]

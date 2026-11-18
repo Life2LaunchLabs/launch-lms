@@ -9,14 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { uploadMediaAsset, type MediaType } from '@services/media/library'
-import { getResourceUrlPreview, getResources, type Resource } from '@services/resources/resources'
+import { getResources, type Resource } from '@services/resources/resources'
+import { hostOf, nameLink } from './linkName'
 import type { StepActions } from './registry'
 
 import { tr } from '@/lib/tr'
 /** What a board accepts as files: photos, videos and PDFs. */
 export const BOARD_FILES = 'image/*,video/*,application/pdf'
 const mediaType = (file: File): MediaType | null => file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : file.type === 'application/pdf' ? 'document' : null
-const hostOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url } }
 const linkIn = (text: string) => text.trim().split(/\s+/).find((word) => /^https?:\/\/\S+$/i.test(word)) || ''
 
 /** Adding to a board from anywhere: a pasted or dropped link (titled from the page), or files. */
@@ -24,9 +24,9 @@ export function useBoardIngest(actions: StepActions, token?: string, viewerUserI
   const [adding, setAdding] = React.useState(0)
   const track = async (work: () => Promise<unknown>) => { setAdding((count) => count + 1); try { await work() } finally { setAdding((count) => count - 1) } }
   const addLink = (url: string, title = '') => track(async () => {
-    const preview = title ? null : await getResourceUrlPreview(url, token).catch(() => null)
+    const preview = title ? null : await nameLink(url, token)
     const image = preview?.og_image || ''
-    await actions.addEntry({ kind: 'link', url, title: title || preview?.title?.trim() || hostOf(url), data: image ? { image } : {} })
+    await actions.addEntry({ kind: 'link', url, title: title || preview?.title || hostOf(url), data: image ? { image } : {} })
   })
   const addFiles = (files: File[]) => track(async () => {
     if (!viewerUserId || !token) return

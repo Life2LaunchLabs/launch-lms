@@ -4,7 +4,7 @@
 
 Launch LMS is an open-source LMS (Learning Management System) for creating and managing educational content. It is a multi-tenant platform supporting self-hosted (OSS), SaaS, and Enterprise deployment modes.
 
-Key capabilities: plans and plan templates, badges and interactive activities, requirement frameworks, groups and chat, resources, code execution (30+ languages), analytics, and Stripe payments.
+Key capabilities: plans and plan templates, badges and interactive activities, requirement frameworks, groups and chat, resources, and Stripe payments.
 
 ---
 
@@ -35,10 +35,8 @@ launch-lms/
 - **Migrations**: Alembic
 - **Auth**: PyJWT HS256, Argon2 password hashing
 - **Payments**: Stripe
-- **Code Execution**: Judge0
 - **Email**: Resend or SMTP
 - **File Storage**: AWS S3 or local filesystem
-- **Analytics**: Tinybird
 - **Cache**: Redis (via ioredis, also used by collab)
 - **Package Manager**: uv
 
@@ -87,7 +85,7 @@ launch-lms/
 |---|---|
 | `/auth` | Login, logout, refresh, OAuth (Google), email verification |
 | `/auth/sso` | SSO (WorkOS/OIDC): org config + login check/authorize/callback |
-| `/superadmin` | Platform controls (orgs, global users, global analytics) |
+| `/superadmin` | Platform controls (orgs, global users) |
 | `/payments` | Stripe payments, offers, enrollments |
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
@@ -106,8 +104,6 @@ launch-lms/
 | `/courses/.../certifications` | Certificates (pro plan) |
 | `/courses/.../collections` | Course collections |
 | `/trail` | Learning paths |
-| `/code` | Code execution (Judge0) |
-| `/analytics` | Course analytics |
 | `/epp` | Oregon Education Plan and Profile: course plan and credit tally, the live report, frozen review records, the caseload and PDFs |
 | `/insights` | Insights: dashboards, running their cards, drilling into a number, the measure registry, captures and their read-only links |
 | `/search` | Global search |
@@ -202,8 +198,6 @@ Runs on every request. Handles:
 | Web | Collab | WebSocket | JWT query param |
 | API | Collab | HTTP (internal) | `X-Internal-Key` header |
 | API | Stripe | HTTPS webhook | Stripe signature |
-| API | Judge0 | HTTPS | API key |
-| API | Tinybird | HTTPS | API token |
 | API | S3 | HTTPS | AWS credentials |
 
 ---
@@ -225,8 +219,6 @@ Runs on every request. Handles:
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `JUDGE0_API_URL` | Judge0 code execution endpoint |
-| `TINYBIRD_API_TOKEN` | Tinybird analytics token |
 | `PEXELS_API_KEY` | Stock photo and video search (Pexels); a key saved in Platform › Settings wins over it |
 | `LAUNCHLMS_EMAIL_PROVIDER` | `resend` (default) or `smtp` |
 | `LAUNCHLMS_RESEND_API_KEY` | Resend email API key |

@@ -15,6 +15,7 @@ import AuthLayout from '@components/Auth/AuthLayout'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { PasswordInput } from '@components/ui/password-input'
+import LegalAgreement from '@components/Legal/LegalAgreement'
 
 interface LoginClientProps {
   org: any
@@ -132,7 +133,8 @@ const LoginClient = (props: LoginClientProps) => {
 
   const formik = useFormik({
     initialValues: {
-      email: '',
+      // Filled in when an invitation sends someone who already has an account here (DEV-42, FEED-285).
+      email: searchParams.get('email') || '',
       password: '',
     },
     validate,
@@ -350,17 +352,7 @@ const LoginClient = (props: LoginClientProps) => {
             </form>
           </div>
 
-          <p className="mt-5 text-center text-[12px] leading-relaxed text-gray-500">
-            {t('auth.agree_prefix')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.terms_of_service')}
-            </span>{' '}
-            {t('auth.agree_and')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.privacy_policy')}
-            </span>
-            {t('auth.agree_suffix')}
-          </p>
+          <LegalAgreement className="mt-5 text-center" />
 
           <p className={props.embedded ? 'mt-6 text-center text-[15px] text-gray-600' : 'mt-14 text-[15px] text-gray-600'}>
             {t('auth.no_account')}{' '}

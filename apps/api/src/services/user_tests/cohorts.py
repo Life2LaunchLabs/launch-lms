@@ -158,7 +158,11 @@ def serialize(db: Session, cohort: TestCohort, *, detail: bool = False) -> dict:
         "max_personas": MAX_PERSONAS,
     }
     if detail:
+        from src.services.user_tests import invitees
+
         data["personas"] = personas(db, cohort)
+        # Reserved addresses the run will invite, until they sign up and show under personas (DEV-103).
+        data["invitees"] = [invitees.row(db, invitee) for invitee in invitees.for_cohort(db, int(cohort.id), pending_only=True)]  # type: ignore[arg-type]
         data["org_ids"] = list(
             db.exec(select(TestCohortOrg.org_id).where(TestCohortOrg.cohort_id == cohort.id)).all()
         )

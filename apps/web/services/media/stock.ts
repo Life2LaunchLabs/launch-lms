@@ -33,7 +33,14 @@ export async function searchStockMedia(
   const params = new URLSearchParams({ org_id: String(orgId), q: query, kind, page: String(options.page || 1) })
   if (options.orientation) params.set('orientation', options.orientation)
   const result = await fetch(`${getAPIUrl()}media/stock/search?${params.toString()}`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
-  return errorHandling(result)
+  const results: StockResults = await errorHandling(result)
+  return { ...results, items: (results.items || []).map((item) => ({ ...item, preview_url: stockPreviewUrl(orgId, item.preview_url) })) }
+}
+
+/** A result's thumbnail through our server, so the browser never calls the stock provider (DEV-141). */
+export function stockPreviewUrl(orgId: number, url: string): string {
+  if (!url) return url
+  return `${getAPIUrl()}media/stock/preview?${new URLSearchParams({ org_id: String(orgId), url }).toString()}`
 }
 
 /** Copy one stock item into the organization's media library; the asset keeps its credit. */

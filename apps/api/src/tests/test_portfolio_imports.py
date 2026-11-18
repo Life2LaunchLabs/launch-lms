@@ -32,7 +32,7 @@ def _cis_zip(windows: bool = False) -> bytes:
     _sheet(workbook, "Links", ["Name", "Web address"], ["My art", "https://example.com/art"], ["Not a link", "example"])
     _sheet(workbook, "Assessments", ["Assessment", "Set #", "Date saved", "Scores"], ["Interest Profiler Short Form", 1, datetime(2026, 10, 1), ""], ["Occupation Sort", 1, datetime(2026, 10, 2), ""])
     _sheet(workbook, "Interest Profiler Short Form", ["Set #", "Date saved", *[f"Q{n}" for n in range(60)]], [1, datetime(2026, 10, 1), *[ANSWERS["RIASEC"[(n // 2) % 6]] for n in range(60)]])
-    _sheet(workbook, "Career Plan Reflections", ["Prompt", "My answer"], ["My goals...", "Join the art club"])
+    _sheet(workbook, "Career Plan Reflections", ["Prompt", "My answer", "Date saved"], ["My goals...", "Join the art club.\n\nThen apply to PNCA.", datetime(2026, 9, 20)])
     # Raw Excel serial dates, as some CIS exports write them.
     _sheet(workbook, "Career Bio - Work & Volunteer", ["Type", "Employer or organization", "Title", "Start", "End", "Duties"], ["Job", "Pet Store", "Animal Care Helper", 46188, "Present", "Feed animals"], ["Volunteer", "Shelter", None, datetime(2026, 1, 10), datetime(2026, 5, 1), "Walk dogs"])
     # CIS puts the activity's organization under "Contact role" and the skill under "Category".
@@ -79,8 +79,12 @@ def test_the_cis_reader_rescores_the_profiler_and_handles_the_export_bugs():
     assert [item["title"] for item in export["items"] if item["kind"] == "link"] == ["My art"]
     assert by_title["Oregon CIS Education Plan and Profile"]["record"]["kind"] == "archive"
     assert export["skipped"] == ["notes.txt"]
+    # What the learner wrote in CIS comes over as a private "what I learned" project, paragraphs kept.
+    reflection = by_title["My goals"]
+    assert (reflection["group"], reflection["kind"]) == ("projects", "project")
+    assert reflection["record"] == {"title": "My goals", "story_kind": "learned", "subtitle": "Career plan reflection from Oregon CIS", "summary": "Join the art club.\n\nThen apply to PNCA.", "visibility": "private", "start_date": "2026-09"}
     # Plan sheets are kept as rows; the profile's demographics are not kept at all.
-    assert set(export["kept"]) == {"Assessments", "Interest Profiler Short Form", "Career Plan Reflections"}
+    assert set(export["kept"]) == {"Assessments", "Interest Profiler Short Form"}
 
 
 async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(monkeypatch):
@@ -90,11 +94,13 @@ async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(mo
         actor = _learner(db)
         preview = await imports.preview_import("cis", _upload(content, "cis.zip"), actor, db)
         keys = [item["key"] for item in preview["items"] if item["title"] != "Volunteer"]
-        assert preview["kept"]["Career Plan Reflections"] == 1 and not any(item["already"] for item in preview["items"])
+        assert preview["kept"] == {"Assessments": 2, "Interest Profiler Short Form": 1} and not any(item["already"] for item in preview["items"])
 
         result = await imports.run_import("cis", _upload(content, "cis.zip"), keys, actor, db)
 
-        assert result["added"] == {"experience": 2, "results": 2, "credentials": 2, "people": 1, "links": 1, "documents": 1}
+        assert result["added"] == {"experience": 2, "projects": 1, "results": 2, "credentials": 2, "people": 1, "links": 1, "documents": 1}
+        project = db.exec(select(ProjectItem)).one()
+        assert (project.title, project.visibility, project.source) == ("My goals", "private", "cis")
         assert {row.title for row in db.exec(select(TimelineEntry)).all()} == {"Animal Care Helper", "Member"}
         assert all(row.source == "cis" for row in db.exec(select(TimelineEntry)).all())
         assert db.exec(select(Credential).where(Credential.kind == "test_score")).one().visibility == "private"
@@ -106,7 +112,7 @@ async def test_a_cis_import_adds_what_was_picked_once_and_keeps_the_plan_rows(mo
         assert (link.url, link.link_type, link.platform) == ("https://example.com/art", "social", "website")
         assert service.get_owner_shell(actor, db)["portfolio"]["socials"] == [{"type": "website", "url": "https://example.com/art"}]
         kept = db.exec(select(PortfolioImport)).one().kept
-        assert kept["Career Plan Reflections"] == [{"Prompt": "My goals...", "My answer": "Join the art club"}]
+        assert set(kept) == {"Assessments", "Interest Profiler Short Form"}
 
         again = await imports.preview_import("cis", _upload(content, "cis.zip"), actor, db)
         assert [item["title"] for item in again["items"] if not item["already"]] == ["Volunteer"]
@@ -284,3 +290,21 @@ def test_an_imported_link_takes_its_kind_from_its_host():
     assert imports._social_type("https://www.linkedin.com/in/maya") == "linkedin"
     assert imports._social_type("youtu.be/abc") == "youtube"
     assert imports._social_type("https://example.com/art") == "website"
+
+
+def test_cis_reflections_and_job_shadows_keep_what_the_learner_wrote():
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    _sheet(workbook, "Profile", ["Last name", "First name"], ["Park", "Kiara"])
+    # Column names CIS hasn't documented: the answer is the longest text, the prompt the other one.
+    _sheet(workbook, "Career Plan Reflections", ["Reflection prompt", "Written"], ["What I learned from my job shadow", "Nurses check on every patient each hour and write it all down."], [None, None])
+    _sheet(workbook, "Career Bio - Work & Volunteer", ["Type", "Employer or organization", "Title", "Description"], ["Job shadow", "Valley Hospital", "Followed a nurse for a day", "Shadowed an ER nurse on a day shift"])
+    book = io.BytesIO()
+    workbook.save(book)
+
+    export = read_export("cis", book.getvalue(), "kiara.xlsx")
+    by_title = {item["title"]: item for item in export["items"]}
+
+    assert by_title["What I learned from my job shadow"]["record"]["summary"] == "Nurses check on every patient each hour and write it all down."
+    assert [item["kind"] for item in export["items"]].count("project") == 1
+    assert by_title["Followed a nurse for a day"]["record"]["summary"] == "Shadowed an ER nurse on a day shift"

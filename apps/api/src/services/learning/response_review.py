@@ -14,6 +14,7 @@ from src.db.learning import (
 from src.db.learning_requests import LearningResponseGrade
 from src.db.goals import Goal
 from src.db.users import AnonymousUser, PublicUser, User
+from src.services.users.names import shown_name
 from src.security.superadmin import is_user_superadmin
 from src.services.learning import access_rules, answer_validation, grading, lookups, run_navigation
 
@@ -229,7 +230,7 @@ async def grade_learning_response(
         "graded_by_org_id": grading_org_id,
         "graded_by": {
             "user_id": admin.id,
-            "staff_name": " ".join(filter(None, [admin.first_name, admin.last_name])) or admin.username,
+            "staff_name": shown_name(admin),
             "org_id": grading_org_id,
             "org_name": (access_rules._get_org(db_session, grading_org_id).name if grading_org_id else None),
         },

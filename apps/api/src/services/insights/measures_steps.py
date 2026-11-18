@@ -62,8 +62,12 @@ def _hours(start: str, end: str) -> float | None:
         return None
 
 
+# A step is reached once the learner finished it or handed it in; work waiting for review counts (FEED-278).
+REACHED_STEP_STATUSES = DONE_STEP_STATUSES | {StepStatus.SUBMITTED.value}
+
+
 def _step_reach(ctx: Ctx, since: date | None) -> list[Fact]:
-    return [Fact(int(goal.subject_user_id), started_on(goal), _step_dims(ctx, goal, plan, version, step), num=1.0 if status in DONE_STEP_STATUSES else 0.0)
+    return [Fact(int(goal.subject_user_id), started_on(goal), _step_dims(ctx, goal, plan, version, step), num=1.0 if status in REACHED_STEP_STATUSES else 0.0)
             for goal, plan, version, step, status in _steps(ctx)]
 
 
@@ -128,9 +132,10 @@ REVIEW_DIMS = ("time", "plan", "step", "group")
 
 MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
-        "step_reach", "Step reach", "Of learners who started the plan in the range, the share who finished each step.",
+        "step_reach", "Step reach", ("Of learners who started the plan in the range, the share who finished each step or handed it in. Handed-in work counts "
+         "here before it is reviewed; a learner's or group's progress counts it once it is reviewed."),
         kind="rate", unit="percent", direction="up", load=_step_reach, dims=("step", "version", "group"), scopes=("plan",),
-        phrase=("{v} of steps are finished", "{v} of steps are finished"), base=("learner", "learners"), funnel=True,
+        phrase=("{v} of steps are finished or handed in", "{v} of steps are finished or handed in"), base=("learner", "learners"), funnel=True,
         keywords=("drop off", "funnel", "where", "stuck"),
     ),
     Measure(
@@ -154,7 +159,7 @@ MEASURES: dict[str, Measure] = {measure.key: measure for measure in (
     Measure(
         "retention", "Still active a month on", f"Of learners who joined in the range, the share active again {RETAIN_FROM} to {RETAIN_TO} days after joining.",
         kind="rate", unit="percent", direction="up", load=_retention, dims=("time", "group"), scopes=("org", "group"),
-        phrase=("{v} were still active a month on", "{v} were still active a month on"), base=("learner joined", "learners joined"),
+        phrase=("{v} were still active a month on", "{v} were still active a month on"), base=(f"learner joined {RETAIN_TO}+ days ago", f"learners joined {RETAIN_TO}+ days ago"),
         rank="{a} keeps the most ({av}); {b} the fewest ({bv})", settle_days=RETAIN_TO, keywords=("retention", "stay", "churn", "came back"),
     ),
     Measure(

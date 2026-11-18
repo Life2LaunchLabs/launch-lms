@@ -59,6 +59,7 @@ import { cn } from '@/lib/utils'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { tierLabel } from '@services/plans/plans'
 import { useHub } from '@components/Hub/HubContext'
+import { shownName } from '@/lib/names'
 
 const TOOLTIP_CLASS = "z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20"
 const COLLAPSED_KEY = 'dash-menu-collapsed'
@@ -211,7 +212,7 @@ function DashLeftMenu() {
     <nav
       aria-label="Dashboard sidebar navigation"
       className={cn(
-        "group/sidebar flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col text-white sticky top-0 z-overlay border-r border-white/[0.08] bg-[#0f0f10] transition-all duration-300",
+        "group/sidebar flex h-[calc(100dvh-var(--test-persona-bar-h,0px))] max-h-[calc(100dvh-var(--test-persona-bar-h,0px))] min-h-0 flex-col text-white sticky top-[var(--test-persona-bar-h,0px)] z-overlay border-r border-white/[0.08] bg-[#0f0f10] transition-all duration-300",
         isCollapsed ? "w-[72px]" : "w-64"
       )}
     >
@@ -290,7 +291,7 @@ function DashLeftMenu() {
                   {!isCollapsed && (
                     <>
                       <div className="flex flex-col min-w-0 flex-1 text-left">
-                        <span className="text-sm font-medium truncate text-white/90">{session?.data?.user?.username}</span>
+                        <span className="text-sm font-medium truncate text-white/90">{shownName(session?.data?.user)}</span>
                         <span className="text-xs text-white/40 truncate">{session?.data?.user?.email}</span>
                       </div>
                       <CaretDown size={16} weight="bold" className="shrink-0 text-white/30 transition-colors group-hover/account:text-white/60" />
@@ -300,7 +301,7 @@ function DashLeftMenu() {
               </DropdownMenuTrigger>
             </TooltipTrigger>
             {isCollapsed && (
-              <TooltipContent side="right" className={TOOLTIP_CLASS}>{session?.data?.user?.username || 'Account'}</TooltipContent>
+              <TooltipContent side="right" className={TOOLTIP_CLASS}>{shownName(session?.data?.user) || 'Account'}</TooltipContent>
             )}
           </Tooltip>
           <DropdownMenuContent
@@ -313,7 +314,7 @@ function DashLeftMenu() {
               <div className="flex items-center gap-2">
                 <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold capitalize text-white/90">{session?.data?.user?.username}</p>
+                  <p className="truncate text-sm font-semibold text-white/90">{shownName(session?.data?.user)}</p>
                   <p className="truncate text-xs font-normal text-white/40">{session?.data?.user?.email}</p>
                 </div>
               </div>

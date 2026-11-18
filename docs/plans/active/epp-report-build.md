@@ -14,7 +14,8 @@ Oregon CIS access ends 2026-12-11, and SB 3 verification starts 2027-01-01.
 | 4. Live report | Report builder, staff view and print, student preview | Merged (#309) |
 | 5. Review and freeze | Stored records, corrections, exit record | Merged (#310) |
 | 6. Caseload and bulk PDF | Caseload screen, class export | Merged (#312) |
-| 7. SB 3 course summary | One page per student, class grid | In review |
+| 7. SB 3 course summary | One page per student, class grid | Merged (#411) |
+| School setup | A school adds the EPP plan itself; learners reach it from the main site | DEV-32 |
 
 ## Slice 1: school connection
 
@@ -148,3 +149,21 @@ learner; learners accept even when the school set up their account. The consent 
   "Course summary PDF" beside "Download CSV", using the same course name, code, section and term.
 - API: `POST /goal-admin/requirements/course-summary?org_id=` (the CSV export's body), next to
   `requirements/evidence-export` in `routers/goal_requirements.py`.
+
+## School setup and the learner's page (DEV-32)
+
+Found running the whole flow on unstable with a new test school (2026-11-16):
+
+- A school had no way to get the EPP framework and plan: `install` was only called by tests and the connector.
+  `content.setup` (`POST /epp/orgs/{org_id}/setup`, staff with `build_plans`) installs both and publishes them,
+  since pressing Set up is the school's choice; a school that has them keeps them (found by the framework name and
+  the plan title), and one that archived the plan gets a new one against the same framework. The caseload returns
+  `plan` and `can_set_up`, and the Education plans page shows "Set up the yearly plan" until it's there, then a
+  link to assign it.
+- Learners use the main site (any non-admin path on an organization's address redirects there), so `/epp` read the
+  main site's organization and told a supported learner their school didn't support them. It now takes the school
+  from the learner's active support links: `/epp?org=<slug>`, else the one school that supports them (the first of
+  several, with a switcher). The consent card's "My plan" links there.
+- The report, frozen record, PDF and caseload used the name a learner goes by (`shown_name`), so a learner with a
+  preferred name appeared under it on a school record. They now carry the legal name (first and last name), with
+  "Goes by …" among the report's facts when the learner set one. The SB 3 summary already used the legal name.

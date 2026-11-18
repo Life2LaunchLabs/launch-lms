@@ -41,7 +41,8 @@ export default function ReviewWorkspace({ orgslug }: { orgslug: string }) {
   if (!assignment) return <div className="w-full px-4 py-10 sm:px-10"><div className="mx-auto max-w-xl"><EmptyState title="Nothing to review here"
     detail={<>Grading opens from an assignment’s Plan tab, or from Waiting on you on Home. <Link href={back.href} className="font-bold text-foreground underline underline-offset-2">Go to assignments</Link></>} /></div></div>
   if (activity) return <ActivityGrading orgId={orgId} token={token} assignment={assignment} activity={activity} back={back} orgslug={orgslug} />
-  return <StepQueue orgId={orgId} token={token} assignment={assignment} stepKey={params.get('step_key')} stepUuid={params.get('step')} focus={params.get('focus')} back={back} orgslug={orgslug} />
+  // Keyed on the link, so opening another learner's hand-in from a page that stays mounted (the Threads panel, back and forth) starts on that learner.
+  return <StepQueue key={params.toString()} orgId={orgId} token={token} assignment={assignment} stepKey={params.get('step_key')} stepUuid={params.get('step')} focus={params.get('focus')} back={back} orgslug={orgslug} />
 }
 
 function Header({ back, title, detail, children }: { back: Back; title: string; detail?: string; children?: React.ReactNode }) {

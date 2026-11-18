@@ -5,16 +5,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { Download, Loader2 } from 'lucide-react'
+import { ClipboardList, Download, Loader2 } from 'lucide-react'
 import { usePeopleContext } from '@components/Admin/People/usePeople'
 import { EmptyState, PageLoader } from '@components/Goals/admin/live/ui'
 import { getUriWithOrg } from '@services/config/config'
-import { caseloadKey, downloadCaseloadExport, getCaseload, type CaseloadLearner, type CaseloadState, type ComponentKey } from '@services/epp/caseload'
+import { caseloadKey, downloadCaseloadExport, getCaseload, setUpEpp, type Caseload, type CaseloadLearner, type CaseloadState, type ComponentKey } from '@services/epp/caseload'
 import { routePaths } from '@services/routing/paths'
 import { cn } from '@/lib/utils'
 import { inOrgWords } from '@/lib/people'
 
-const COLUMNS: { key: ComponentKey; label: string }[] = [
+export const COLUMNS: { key: ComponentKey; label: string }[] = [
   { key: 'interests', label: 'Interests' }, { key: 'goals', label: 'Goals' }, { key: 'courses', label: 'Courses' }, { key: 'progress', label: 'Progress' }, { key: 'accomplishments', label: 'Evidence' },
 ]
 const FILTERS: { key: CaseloadState | 'all'; label: string }[] = [
@@ -23,7 +23,7 @@ const FILTERS: { key: CaseloadState | 'all'; label: string }[] = [
 const shortDate = (value: string) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 const ATTENTION = 'text-[#A84300] dark:text-[#FFB27A]'
 
-function Mark({ status, label }: { status?: string; label: string }) {
+export function Mark({ status, label }: { status?: string; label: string }) {
   if (!status) return <span className="text-muted-foreground" aria-label={`${label}: not shared`}>–</span>
   const ok = status !== 'needs_attention'
   return <span className={cn('font-bold', ok ? 'text-foreground' : ATTENTION)} title={`${label}: ${ok ? 'complete' : 'needs attention'}`}>
@@ -31,7 +31,7 @@ function Mark({ status, label }: { status?: string; label: string }) {
   </span>
 }
 
-function LastReview({ row }: { row: CaseloadLearner }) {
+export function LastReview({ row }: { row: CaseloadLearner }) {
   if (row.state === 'waiting') return <span className="text-muted-foreground">–</span>
   if (!row.last_review) return <span className={ATTENTION}>Never</span>
   return <span>{shortDate(row.last_review)}{row.due ? <span className={ATTENTION}>, due</span> : null}</span>
@@ -46,9 +46,44 @@ function Action({ row, orgslug }: { row: CaseloadLearner; orgslug: string }) {
     className={cn('inline-flex h-8 items-center rounded-full px-3 text-sm font-semibold', ready ? 'bg-foreground text-background' : 'border border-border hover:bg-muted')}>{ready ? 'Review' : 'Open'}</Link>
 }
 
-function Facts({ row }: { row: CaseloadLearner }) {
+export function Facts({ row }: { row: CaseloadLearner }) {
   const facts = [row.grade ? `Grade ${row.grade}` : null, row.student_id ? `ID ${row.student_id}` : null].filter(Boolean).join(' · ')
   return facts ? <span className="block text-xs text-muted-foreground">{facts}</span> : null
+}
+
+/** The yearly plan learners work in: set it up once, then assign it from Plans. */
+function YearlyPlan({ data, orgId, orgslug, token, onChange }: { data: Caseload; orgId: number; orgslug: string; token?: string; onChange: () => Promise<unknown> }) {
+  const [busy, setBusy] = React.useState(false)
+  const template = data.plan?.template_uuid
+  if (template) {
+    return <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+      <ClipboardList size={15} aria-hidden="true" />Learners fill in their plan in My Education Plan and Profile.
+      <Link href={getUriWithOrg(orgslug, routePaths.org.admin.template(template))} className="font-semibold text-foreground underline">{data.plan?.published ? 'Assign the plan' : 'Open the plan'}</Link>
+    </p>
+  }
+  const setUp = async () => {
+    setBusy(true)
+    try {
+      await setUpEpp(orgId, token)
+      toast.success('The Education Plan and Profile is ready to assign')
+      await onChange()
+    } catch (failure: any) {
+      toast.error(failure?.message || 'That didn’t work')
+    }
+    setBusy(false)
+  }
+  return <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border px-4 py-3">
+    <div className="min-w-0 flex-1">
+      <p className="font-semibold">Set up the yearly plan</p>
+      <p className="text-sm text-muted-foreground">{data.can_set_up
+        ? 'Adds Oregon’s Education Plan and Profile to your plans: a yearly plan with a step for each required part, ready to assign. You can change its steps later.'
+        : 'An admin, or staff who build plans, adds Oregon’s Education Plan and Profile here. Learners fill in their plan in it.'}</p>
+    </div>
+    {data.can_set_up ? <button type="button" disabled={busy} onClick={() => void setUp()}
+      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-40">
+      {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : null}Set up
+    </button> : null}
+  </div>
 }
 
 /**
@@ -58,7 +93,7 @@ function Facts({ row }: { row: CaseloadLearner }) {
 export default function EppCaseload({ orgslug, mine }: { orgslug: string; mine: boolean }) {
   const { org, orgId, token } = usePeopleContext()
   const router = useRouter()
-  const { data, error } = useSWR(orgId && token ? caseloadKey(orgId, mine) : null, () => getCaseload(orgId, mine, token), { revalidateOnFocus: false, shouldRetryOnError: false })
+  const { data, error, mutate } = useSWR(orgId && token ? caseloadKey(orgId, mine) : null, () => getCaseload(orgId, mine, token), { revalidateOnFocus: false, shouldRetryOnError: false })
   const [filter, setFilter] = React.useState<CaseloadState | 'all'>('all')
   const [exporting, setExporting] = React.useState(false)
   const rows = (data?.learners || []).filter((row) => filter === 'all' || row.state === filter)
@@ -94,6 +129,7 @@ export default function EppCaseload({ orgslug, mine }: { orgslug: string; mine: 
     {error && !data ? <EmptyState title="Education plans aren’t available" detail={error?.message} />
       : !data ? <PageLoader />
       : <>
+        <YearlyPlan data={data} orgId={orgId} orgslug={orgslug} token={token} onChange={() => mutate()} />
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {FILTERS.filter((item) => item.key !== 'waiting' || data.counts.waiting).map((item) => {
             const count = item.key === 'all' ? data.counts.total : data.counts[item.key]

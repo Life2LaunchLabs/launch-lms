@@ -20,9 +20,8 @@ const LEDE: Record<PlansTabId, string> = {
 }
 
 /**
- * The Plans area: its title and New plan, then the tabs. Plans and Discover are always there;
- * Assignments shows once something is assigned and Requirements once the org tracks a framework,
- * or while you're on them.
+ * The Plans area: its title and New plan, then the tabs. Plans, Discover and Requirements are always there;
+ * Assignments shows once something is assigned and Requests for admins, or while you're on them.
  */
 export default function PlansPage({ tab, children }: { tab: PlansTabId; children: React.ReactNode }) {
   const org = useOrg() as { slug?: string } | null
@@ -34,7 +33,8 @@ export default function PlansPage({ tab, children }: { tab: PlansTabId; children
     { id: 'discover', label: 'Discover' },
   ]
   if (summary?.assignments || tab === 'assignments') tabs.push({ id: 'assignments', label: 'Assignments', count: summary?.assignments })
-  if (summary?.frameworks || tab === 'requirements') tabs.push({ id: 'requirements', label: 'Requirements' })
+  // Always there: it's where a school starts tracking its state's requirements, so it can't hide until one is tracked.
+  tabs.push({ id: 'requirements', label: 'Requirements' })
   // Admins answer other organizations here; a count says something is waiting.
   if (summary?.admin || tab === 'requests') tabs.push({ id: 'requests', label: 'Requests', count: summary?.requests, waiting: true })
 

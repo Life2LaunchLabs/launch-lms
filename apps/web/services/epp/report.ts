@@ -34,11 +34,13 @@ export interface EppReport {
   generated_at: string
   school_year: string
   org: { name: string }
-  learner: { name: string; first_name: string; student_id: string | null; grade: number | null; graduation_year: number | null; diploma_track: string | null; diploma: string | null; counselor: string | null }
+  learner: { name: string; first_name: string; goes_by?: string | null; student_id: string | null; grade: number | null; graduation_year: number | null; diploma_track: string | null; diploma: string | null; counselor: string | null }
   next_step: string | null
   interests: string[]
   /** Careers the learner saved and chose to show here, with why. */
   careers?: Array<{ title: string; code: string | null; why: string; interest_level: number | null; saved_on: string | null }>
+  /** How many careers they saved and reacted to in all, shown on the report or not. */
+  careers_explored?: number
   components: Array<{ key: string; label: string; status: ComponentStatus; detail: string }>
   to_talk_about: string[]
   graduation: { tally: CoursePlan['tally']; beyond_credits: Array<{ key: string; label: string; detail: string; attention?: boolean }> }
@@ -51,6 +53,16 @@ export interface EppReport {
   reviews: Array<{ date: string; reviewer: string; outcome: string; kind?: string }>
   /** Only on a frozen record: the review it was saved with. */
   review?: { kind: string; version: number; date: string; reviewer: string; outcome: string; staff_comment: string; learner_comment: string; correction_reason?: string; corrected_by?: string; corrected_at?: string }
+}
+
+/** The summary's Interests line: their first interest result, else the careers they're exploring (as the PDF says it). */
+export function interestsLine(report: EppReport): string | null {
+  if (report.interests[0]) return report.interests[0]
+  const careers = report.careers || []
+  const count = report.careers_explored || 0
+  if (careers[0]) return `Exploring ${careers[0].title}${count > 1 ? ` and ${count - 1} more career${count === 2 ? '' : 's'}` : ''}`
+  if (count) return `${count} career${count === 1 ? '' : 's'} explored`
+  return null
 }
 
 export interface Pick { kind: EvidenceItem['kind']; uuid: string }

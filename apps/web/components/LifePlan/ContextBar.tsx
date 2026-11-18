@@ -58,7 +58,7 @@ export default function ContextBar({ saving, owner, onBack, backLabel, full, onM
   const options = sheet === 'left' ? before : sheet === 'right' ? after : []
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 mb-3 bg-background/90 px-4 pb-2 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
+    <div className="sticky top-[var(--test-persona-bar-h,0px)] z-20 -mx-4 mb-3 bg-background/90 px-4 pb-2 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
           <Button variant="ghost" size="icon" onClick={onBack} aria-label={backLabel} title={backLabel}><ChevronLeft /></Button>

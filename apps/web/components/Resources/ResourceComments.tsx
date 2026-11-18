@@ -1,7 +1,7 @@
 'use client'
 
-import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from 'react'
-import { Star } from 'lucide-react'
+import { Dispatch, useEffect, useMemo, useRef, useState } from 'react'
+import { Check, Loader2, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -24,7 +24,7 @@ function avatarUrl(review: ResourceComment) {
   return getUserAvatarMediaDirectory(review.author.user_uuid, review.author.avatar_image)
 }
 
-function RatingPicker({ value, onChange, label, compact = false }: { value: number; onChange: Dispatch<SetStateAction<number>>; label: string; compact?: boolean }) {
+function RatingPicker({ value, onChange, label, compact = false }: { value: number; onChange: Dispatch<number>; label: string; compact?: boolean }) {
   return (
     <div className="flex items-center gap-1" role="radiogroup" aria-label={label}>
       {[1, 2, 3, 4, 5].map((rating) => (
@@ -74,7 +74,9 @@ export default function ResourceComments({
   const accessToken = session?.data?.tokens?.access_token
   const currentUserId = Number(session?.data?.user?.id || 0)
   const [draft, setDraft] = useState('')
-  const [rating, setRating] = useState(0)
+  // The stars just tapped, shown while the rating saves.
+  const [pendingRating, setPendingRating] = useState<number | null>(null)
+  const [posting, setPosting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState('')
   const [editingRating, setEditingRating] = useState(0)
@@ -85,7 +87,28 @@ export default function ResourceComments({
   const swrKey = useMemo(() => (resourceUuid ? ['resource-reviews', resourceUuid, accessToken || 'anon'] : null), [resourceUuid, accessToken])
   const { data: reviewsData, mutate } = useSWR(swrKey, () => getResourceReviews(resourceUuid, accessToken))
   const reviews = reviewsData ?? []
-  const hasReview = reviews.some((review) => Number(review.author_id) === currentUserId && review.rating !== null)
+  const ownReview = reviews.find((review) => Number(review.author_id) === currentUserId && review.rating !== null)
+  const shownRating = pendingRating ?? ownReview?.rating ?? 0
+
+  // Tapping a star is the whole rating: it saves straight away, and words are optional afterwards.
+  const rate = async (value: number) => {
+    if (!accessToken || pendingRating !== null) return
+    setPendingRating(value)
+    try {
+      if (ownReview) {
+        const updated = await updateResourceReview(ownReview.comment_uuid, { rating: value }, accessToken)
+        await mutate(reviews.map((review) => review.comment_uuid === updated.comment_uuid ? updated : review), false)
+      } else {
+        const created = await createResourceReview(resourceUuid, { content: '', rating: value }, accessToken)
+        await mutate([...reviews, created], false)
+      }
+      onReviewsChange?.()
+    } catch (error: any) {
+      toast.error(error?.message || tr('resources.resource_comments.couldn_t_save_your_rating', 'Couldn’t save your rating. Try again.'))
+    } finally {
+      setPendingRating(null)
+    }
+  }
 
   useEffect(() => {
     if (!composeRequest || composeHandledRef.current === composeRequest || !accessToken || !reviewsData) return
@@ -100,28 +123,29 @@ export default function ResourceComments({
       })
       return () => window.cancelAnimationFrame(frame)
     }
-    const frame = window.requestAnimationFrame(() => {
-      setRating(initialRating)
-      composerRef.current?.focus()
-    })
+    if (initialRating) void rate(initialRating)
+    const frame = window.requestAnimationFrame(() => composerRef.current?.focus())
     return () => window.cancelAnimationFrame(frame)
-  }, [accessToken, composeRequest, currentUserId, initialRating, reviewsData])
+  }, [accessToken, composeRequest, currentUserId, initialRating, reviewsData]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCreate = async () => {
-    if (!draft.trim() || !rating || !accessToken) return
+  // Words added to the learner's own stars.
+  const handleWords = async () => {
+    if (!draft.trim() || !ownReview || !accessToken) return
+    setPosting(true)
     try {
-      const created = await createResourceReview(resourceUuid, { content: draft.trim(), rating }, accessToken)
+      const updated = await updateResourceReview(ownReview.comment_uuid, { content: draft.trim() }, accessToken)
       setDraft('')
-      setRating(0)
-      mutate([...(reviews || []), created], false)
+      await mutate(reviews.map((review) => review.comment_uuid === updated.comment_uuid ? updated : review), false)
       onReviewsChange?.()
     } catch (error: any) {
       toast.error(error?.message || tr('resources.resource_comments.failed_to_post_review', 'Failed to post review'))
+    } finally {
+      setPosting(false)
     }
   }
 
   const handleUpdate = async (commentUuid: string) => {
-    if (!editingDraft.trim() || !editingRating || !accessToken) return
+    if (!editingRating || !accessToken) return
     try {
       const updated = await updateResourceReview(
         commentUuid,
@@ -209,39 +233,34 @@ export default function ResourceComments({
                     }}>{tr('careers.add_to_plans.cancel', 'Cancel')}</Button>
                   </div>
                 </div>
-              ) : (
+              ) : review.content ? (
                 <p className={`${compact ? 'mt-1.5 text-xs leading-5' : 'mt-3 text-sm'} whitespace-pre-wrap text-muted-foreground`}>{review.content}</p>
-              )}
+              ) : null}
             </div>
           )
         })}
         {reviews.length === 0 && <p className="text-sm text-muted-foreground">{tr('resources.resource_comments.no_reviews_yet', 'No reviews yet.')}</p>}
       </div>
 
-      {accessToken && !hasReview ? (
+      {accessToken ? (
         <div className={compact ? 'mt-2 space-y-1.5 border-t border-border pt-2' : 'mt-6 space-y-3 border-t border-border pt-5'}>
-          <RatingPicker value={rating} onChange={setRating} label={tr('resources.resource_comments.your_rating', 'Your rating')} compact={compact} />
-          <Textarea ref={composerRef} className={compact ? 'min-h-16 resize-none text-xs' : ''} value={draft} onChange={(event) => setDraft(event.target.value)} rows={compact ? 2 : 3} placeholder={tr('resources.resource_comments.share_your_experience', 'Share your experience')} />
-          <div className="flex gap-2">
-            <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={handleCreate} disabled={!draft.trim() || !rating}>{tr('resources.resource_comments.post_review', 'Post review')}</Button>
-            {(draft || rating > 0) && (
-              <Button
-                size={compact ? 'sm' : 'default'}
-                variant="outline"
-                className={compact ? 'h-7 text-xs' : ''}
-                onClick={() => {
-                  setDraft('')
-                  setRating(0)
-                  onCancelDraft?.()
-                }}
-              >
-                {tr('careers.add_to_plans.cancel', 'Cancel')}
-              </Button>
-            )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className={compact ? 'text-xs font-bold text-foreground' : 'text-sm font-bold text-foreground'}>{tr('resources.resource_comments.your_rating', 'Your rating')}</span>
+            <RatingPicker value={shownRating} onChange={(value: number) => void rate(value)} label={tr('resources.resource_comments.your_rating', 'Your rating')} compact={compact} />
+            <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground" role="status">
+              {pendingRating !== null ? <><Loader2 size={12} className="animate-spin" aria-hidden="true" />{tr('resources.resource_comments.saving', 'Saving')}</>
+                : ownReview ? <><Check size={12} aria-hidden="true" />{tr('resources.resource_comments.saved', 'Saved')}</>
+                : tr('resources.resource_comments.tap_a_star_to_rate_it', 'Tap a star to rate it')}
+            </span>
           </div>
+          {ownReview && !ownReview.content && editingId !== ownReview.comment_uuid ? <>
+            <Textarea ref={composerRef} className={compact ? 'min-h-16 resize-none text-xs' : ''} value={draft} onChange={(event) => setDraft(event.target.value)} rows={compact ? 2 : 3} placeholder={tr('resources.resource_comments.add_a_few_words_optional', 'Add a few words for others (optional)')} />
+            {draft.trim() ? <div className="flex gap-2">
+              <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={() => void handleWords()} disabled={posting}>{tr('resources.resource_comments.post_review', 'Post review')}</Button>
+              <Button size={compact ? 'sm' : 'default'} variant="outline" className={compact ? 'h-7 text-xs' : ''} onClick={() => { setDraft(''); onCancelDraft?.() }}>{tr('careers.add_to_plans.cancel', 'Cancel')}</Button>
+            </div> : null}
+          </> : null}
         </div>
-      ) : accessToken ? (
-        <p className="mt-6 text-sm text-muted-foreground">{tr('resources.resource_comments.you_can_edit_your_review', 'You can edit your review above.')}</p>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">{tr('resources.resource_comments.sign_in_to_review_this', 'Sign in to review this resource.')}</p>
       )}

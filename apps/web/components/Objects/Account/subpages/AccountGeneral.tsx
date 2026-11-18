@@ -4,6 +4,9 @@ import { getUser } from '@services/users/users'
 import React, { useEffect, useState } from 'react'
 import { Formik, Form } from 'formik'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import useSWR from 'swr'
+import { learnerNameApi, learnerNameKey, type LearnerName } from '@services/goals/adminHome'
 import {
   ArrowBigUpDash,
   Check,
@@ -22,16 +25,27 @@ import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
 import { toast } from 'react-hot-toast'
 import { signOut } from '@components/Contexts/AuthContext'
-import { getUriWithoutOrg } from '@services/config/config';
+import { getDefaultOrg, getUriWithOrg, getUriWithoutOrg, routePaths } from '@services/config/config';
+import Link from 'next/link'
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { MediaAsset, applyMediaAssetToUserAvatar } from '@services/media/library'
 
+/** Staff also set what learners call them in the portfolio; say so beside the pointer. */
+function StaffNameNote() {
+  const { t } = useTranslation();
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const token = session?.data?.tokens?.access_token
+  const orgId = Number(org?.id)
+  const { data } = useSWR<LearnerName>(orgId && token ? learnerNameKey(orgId) : null, () => learnerNameApi.get(orgId, token))
+  if (!data?.staff) return null
+  return <> {t('user.settings.general.learner_name_in_portfolio', { defaultValue: 'What learners call you on your messages and reviews is set there too.' })}</>
+}
+
 interface FormValues {
   username: string;
-  first_name: string;
-  last_name: string;
   email: string;
   bio: string;
 }
@@ -39,8 +53,6 @@ interface FormValues {
 const validationSchema = (t: TFunction) => Yup.object().shape({
   email: Yup.string().email(t('settings.general.invalid_email')).required(t('settings.general.email_required')),
   username: Yup.string().required(t('settings.general.username_required')),
-  first_name: Yup.string().required(t('settings.general.first_name_required')),
-  last_name: Yup.string().required(t('settings.general.last_name_required')),
   bio: Yup.string().max(400, t('settings.general.bio_too_long')),
 });
 
@@ -109,32 +121,11 @@ const UserEditForm = ({
               )}
             </div>
 
-            <div>
-              <Label htmlFor="first_name">{t('user.settings.general.first_name')}</Label>
-              <Input
-                id="first_name"
-                name="first_name"
-                value={values.first_name}
-                onChange={handleChange}
-                placeholder={t('user.settings.general.first_name_placeholder')}
-              />
-              {touched.first_name && errors.first_name && (
-                <p className="text-red-500 text-sm mt-1">{errors.first_name}</p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="last_name">{t('user.settings.general.last_name')}</Label>
-              <Input
-                id="last_name"
-                name="last_name"
-                value={values.last_name}
-                onChange={handleChange}
-                placeholder={t('user.settings.general.last_name_placeholder')}
-              />
-              {touched.last_name && errors.last_name && (
-                <p className="text-red-500 text-sm mt-1">{errors.last_name}</p>
-              )}
+            {/* Your name is part of who you are, so it's edited in the portfolio, not here. */}
+            <div className="rounded-lg border border-border bg-muted/40 p-3" data-testid="account-name-in-portfolio">
+              <p className="text-sm font-medium">{t('user.settings.general.name_in_portfolio_title', { defaultValue: 'Your name' })}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{t('user.settings.general.name_in_portfolio', { defaultValue: 'Your name and the name you go by are set in your portfolio. They show everywhere in the app.' })}<StaffNameNote /></p>
+              <Button asChild variant="outline" size="sm" className="mt-2"><Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())}>{t('user.settings.general.edit_name_in_portfolio', { defaultValue: 'Edit in your portfolio' })}</Link></Button>
             </div>
 
             <div>
@@ -295,8 +286,6 @@ function AccountGeneral() {
         enableReinitialize
         initialValues={{
           username: userData.username,
-          first_name: userData.first_name,
-          last_name: userData.last_name,
           email: userData.email,
           bio: userData.bio || '',
         }}

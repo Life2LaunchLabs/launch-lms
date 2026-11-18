@@ -45,7 +45,7 @@ function DashMobileMenu() {
   return (
     <>
       {/* z-overlay isn't a generated utility, so the bar scrolled under the page. At nav level it stays above the page and under full-screen panels such as the plan chat. */}
-      <header className="sticky top-0 z-[var(--z-nav)] flex h-14 items-center justify-between border-b border-black/[0.08] bg-[#0f0f10] px-4 text-white shadow-sm">
+      <header className="sticky top-[var(--test-persona-bar-h,0px)] z-[var(--z-nav)] flex h-14 items-center justify-between border-b border-black/[0.08] bg-[#0f0f10] px-4 text-white shadow-sm">
         <button
           type="button"
           aria-label="Open dashboard menu"

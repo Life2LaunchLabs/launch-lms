@@ -5,7 +5,6 @@ import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { OrgJoinBanner, OrgJoinBannerProvider } from '@components/Objects/Banners/OrgJoinBanner'
-import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname } from 'next/navigation'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
 import HubShell from '@components/Hub/HubShell'
@@ -15,6 +14,7 @@ import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTr
 import CandidateExperience from '@components/Candidate/CandidateExperience'
 import OperationsSurface from '@components/Operations/OperationsSurface'
 import { isFocusedActivityPath } from '@services/routing/learnerExperience'
+import LegalFooter from '@components/Legal/LegalFooter'
 
 function OrgFooter() {
   const org = useOrg() as any
@@ -63,7 +63,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
   const showGuestHeader = session?.status === 'unauthenticated' && !isPublicCourseExperience
   const showOrgMenu = session?.status !== 'unauthenticated' && !isActivityPage
 
-  if (isActivityPage) return <div className="min-h-dvh w-full" data-focused-activity><PageViewTracker />{children}</div>
+  if (isActivityPage) return <div className="min-h-dvh w-full" data-focused-activity>{children}</div>
 
   if (isLandingPage) {
     return (
@@ -71,12 +71,12 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         className="min-h-screen"
         style={{ backgroundColor: 'var(--org-page-background)' }}
       >
-        <PageViewTracker />
         <OrgJoinBanner />
-        <div className="sticky top-0 print:hidden" style={{ zIndex: 'var(--z-nav)' }}>
+        <div className="sticky top-[var(--test-persona-bar-h,0px)] print:hidden" style={{ zIndex: 'var(--z-nav)' }}>
           <GuestHeader orgslug={orgslug} />
         </div>
         {children}
+        <LegalFooter />
       </div>
     )
   }
@@ -87,7 +87,6 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
       className="org-layout-shell flex flex-col min-h-screen print:min-h-0"
       style={{ backgroundColor: 'var(--org-page-background)' }}
     >
-      <PageViewTracker />
       {session?.status === 'authenticated' ? <ExperiencePreferenceTracker side="user" orgslug={orgslug} /> : null}
       <OrgJoinBanner />
       {showGuestHeader && (
@@ -108,6 +107,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         </div>
       </div>
       {!isFullBleedPage && <OrgFooter />}
+      {!isFullBleedPage && session?.status === 'unauthenticated' ? <LegalFooter /> : null}
     </div>
   )
 }

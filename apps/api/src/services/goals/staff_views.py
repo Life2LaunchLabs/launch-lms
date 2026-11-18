@@ -334,6 +334,28 @@ def assignment_reviews(db: Session, current_user: PublicUser, org_id: int, assig
     return {"assignment_uuid": assignment_uuid, "step_reviews": _step_reviews(db, goals), "activity_reviews": activity_reviews(db, goals)}
 
 
+def assignment_step_work(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, step_key: str) -> dict:
+    """What each learner wrote, handed in or answered on one step, whatever its status (FEED-215).
+
+    The review queue only lists work waiting on a reviewer; this is every learner who has
+    something on the step, so a finished step still shows the learner's answer.
+    """
+    assignment = _assignment_or_404(db, org_id, assignment_uuid)
+    require_org_membership(current_user.id, org_id, db)
+    goals = [goal for goal in db.exec(select(Goal).where(Goal.assignment_id == assignment.id).order_by(Goal.id)).all()  # type: ignore[arg-type]
+             if goal.subject_user_id != current_user.id and REVIEW in access.capabilities(db, goal, current_user.id)]
+    items = []
+    for goal in goals:
+        step = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.template_key == step_key)).first()
+        if not step:
+            continue
+        item = review_item(db, goal, step, completion.progress_view(db, step))
+        if item["entries"] or item["submission"] or item["answer"] or item["result"] or item["learner_note"] or (item["portfolio"] or {}).get("items"):
+            items.append(item)
+    items.sort(key=lambda item: str(item["submitted_at"] or ""), reverse=True)
+    return {"assignment_uuid": assignment_uuid, "step_key": step_key, "items": items}
+
+
 def goal_reviews(db: Session, current_user: PublicUser, org_id: int, goal_uuid: str) -> dict:
     """Everything on one goal waiting on a reviewer: submitted steps and activity answers to grade."""
     goal = access.goal_or_404(db, goal_uuid)

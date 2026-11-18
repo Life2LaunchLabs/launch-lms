@@ -23,15 +23,40 @@ def _is_staff_anywhere(db: Session, user_id: int) -> bool:
     return db.exec(select(UserOrganization.id).where(UserOrganization.user_id == user_id, UserOrganization.role_id.in_([1, 2]))).first() is not None  # type: ignore[union-attr]
 
 
+def _in_a_school(db: Session, user_id: int) -> bool:
+    """Whether any of this person's organizations uses school records (PL-6).
+
+    Every account also belongs to the owner organization (services/orgs/owner.ensure_owner_membership), so
+    that membership alone doesn't make someone a school's learner: the owner organization counts only once
+    it has asked to support this person (UT-33). Any other organization with school records on counts.
+    """
+    from src.db.learner_support import LearnerSupport
+    from src.services.orgs import school_records
+    from src.services.orgs.owner import owner_org
+
+    owner = owner_org(db)
+    org_ids = set(db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == user_id)).all())
+    if owner and owner.id in org_ids and not db.exec(
+        select(LearnerSupport.id).where(LearnerSupport.user_id == user_id, LearnerSupport.org_id == owner.id)
+    ).first():
+        org_ids.discard(owner.id)
+    return any(school_records.enabled(db, org_id) for org_id in org_ids)
+
+
 def view(db: Session, user_id: int) -> dict:
-    """The switches this person sees: staff streams only for people who are staff somewhere."""
+    """The switches this person sees: staff streams only for people who are staff somewhere, and school
+    streams only for people in an organization that uses school records."""
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    staff = _is_staff_anywhere(db, user_id)
+    shown = {"everyone"}
+    if _is_staff_anywhere(db, user_id):
+        shown.add("staff")
+    if _in_a_school(db, user_id):
+        shown.add("school")
     return {"streams": [
         {"key": stream.key, "label": stream.label, "description": stream.description, "enabled": enabled(user, stream.key)}
-        for stream in STREAMS.values() if stream.audience == "everyone" or staff
+        for stream in STREAMS.values() if stream.audience in shown
     ]}
 
 

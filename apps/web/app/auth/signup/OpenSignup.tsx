@@ -2,8 +2,10 @@
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { errorDetailMessage } from '@/lib/errorDetail'
 import { useFormik } from 'formik'
+import SignupEmail from './SignupEmail'
 import SignupNames, { welcomeSignupNamesKey } from './SignupNames'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import AccountExistsNotice, { inviteLoginHref } from './AccountExistsNotice'
 import React from 'react'
 import FormLayout, { FormField, FormLabelAndMessage, Input, Textarea } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
@@ -20,6 +22,8 @@ import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
+import { ageRefusalCode } from '@services/auth/ageCheck'
+import LegalAgreement from '@components/Legal/LegalAgreement'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -78,6 +82,8 @@ function OpenSignUpComponent({
   const nextUrl = searchParams.get('next') || searchParams.get('redirect')
   const inviteCode = searchParams.get('inviteCode')
   const invitationToken = searchParams.get('invitation')
+  const pathname = usePathname()
+  const [accountExists, setAccountExists] = React.useState(false)
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl = postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : '/')
   const formik = useFormik({
@@ -97,12 +103,18 @@ function OpenSignUpComponent({
     onSubmit: async (values) => {
       setError('')
       setIsSubmitting(true)
+      const body = { ...values, birth_date: age.birthDate }
       let res = invitationToken
-        ? await signUpWithInvitation(values, invitationToken)
+        ? await signUpWithInvitation(body, invitationToken)
         : inviteCode
-          ? await signUpWithInviteCode(values, inviteCode)
-          : await signup(values)
+          ? await signUpWithInviteCode(body, inviteCode)
+          : await signup(body)
       let result = await res.json()
+      if (ageRefusalCode(result) === 'under_13') {
+        age.refuse()
+        setIsSubmitting(false)
+        return
+      }
       if (res.status == 200) {
         const callbackUrl = postSignupUrl
         const signInRes = await signIn('credentials', {
@@ -139,6 +151,7 @@ function OpenSignUpComponent({
     e.preventDefault()
     setError('')
     setEmailError('')
+    setAccountExists(false)
 
     const email = formik.values.email.trim()
     if (!age.ok()) return
@@ -170,6 +183,12 @@ function OpenSignUpComponent({
           body: JSON.stringify({ email }),
         })
         const data = await res.json().catch(() => null)
+        if (res.status === 409 && (invitationToken || inviteCode)) {
+          // Already has an account: log in and come back to this invitation (DEV-42, FEED-284).
+          setAccountExists(true)
+          setIsSubmitting(false)
+          return
+        }
         if (!res.ok) {
           setEmailError(errorDetailMessage(data, t('auth.signup_failed')))
           setIsSubmitting(false)
@@ -184,7 +203,8 @@ function OpenSignUpComponent({
       window.sessionStorage.setItem(welcomeSignupNamesKey(email), JSON.stringify(names))
       // An invitation or join link rides along, so the new account joins that organization.
       const invite = invitationToken ? `&invitation=${encodeURIComponent(invitationToken)}` : inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&org=${org?.id ?? ''}` : ''
-      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}`)
+      const next = nextUrl ? `&next=${encodeURIComponent(nextUrl)}` : '' // e.g. the plan invitation that sent them here, after their first phase
+      router.push(`/welcome?email=${encodeURIComponent(email)}${invite}${next}`)
       return
     }
     setStep('details')
@@ -200,6 +220,7 @@ function OpenSignUpComponent({
       callbackUrl,
       orgSlug: org?.slug,
       orgId: org?.id,
+      birthDate: age.birthDate,
     } as any)
 
     if (res && 'error' in res && res.error) {
@@ -207,6 +228,9 @@ function OpenSignUpComponent({
       setIsGoogleLoading(false)
     }
   }
+
+  // With an invitation or join link, Login comes back to it with the email filled in (FEED-285).
+  const inviteLogin = invitationToken || inviteCode ? inviteLoginHref(pathname, searchParams.toString(), formik.values.email.trim()) : null
 
   if (step === 'email' && !createOrgMode) {
     return (
@@ -217,6 +241,8 @@ function OpenSignUpComponent({
             {t('auth.create_free_account')}
           </h1>
 
+          {accountExists && inviteLogin ? <div className="mt-8"><AccountExistsNotice loginHref={inviteLogin} /></div> : null}
+
           {error && (
             <div className="mt-8 flex items-center gap-3 rounded-2xl bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-800 ring-1 ring-red-100">
               <AlertTriangle size={18} className="shrink-0" />
@@ -226,6 +252,7 @@ function OpenSignUpComponent({
 
           <div className="mt-12 space-y-7">
             <AgeConfirm {...age.field} />
+            {age.refused ? null : <>
             {google ? <><Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
               <SiGoogle size={20} color="#4285F4" />
               {isGoogleLoading ? t('common.loading') : t('auth.continue_google')}
@@ -233,23 +260,7 @@ function OpenSignUpComponent({
             <div className="flex items-center gap-4 text-sm font-semibold text-gray-400"><div className="h-px flex-1 bg-gray-200" /><span>{t('auth.or')}</span><div className="h-px flex-1 bg-gray-200" /></div></> : null}
 
             <form onSubmit={handleEmailContinue} className="space-y-4">
-              <input
-                name="email"
-                onChange={(e) => {
-                  formik.handleChange(e)
-                  if (emailError) setEmailError('')
-                }}
-                onBlur={formik.handleBlur}
-                value={formik.values.email}
-                type="email"
-                placeholder={t('auth.enter_email')}
-                autoComplete="email"
-                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
-                required
-              />
-              {emailError && (
-                <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
-              )}
+              <SignupEmail value={formik.values.email} error={emailError} onBlur={formik.handleBlur} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <SignupNames values={formik.values} onChange={(e) => { formik.handleChange(e); if (emailError) setEmailError('') }} />
               <PasswordInput
                 component="input"
@@ -277,24 +288,15 @@ function OpenSignUpComponent({
                 {isSubmitting ? t('common.loading') : t('auth.continue')}
               </Button>
             </form>
+            </>}
           </div>
 
-          <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
-            {t('auth.agree_prefix')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.terms_of_service')}
-            </span>{' '}
-            {t('auth.agree_and')}{' '}
-            <span className="underline underline-offset-2">
-              {t('auth.privacy_policy')}
-            </span>
-            {t('auth.agree_suffix')}
-          </p>
+          <LegalAgreement className="mt-5" />
 
           <p className="mt-14 text-[15px] text-gray-600">
             {t('auth.already_have_account')}{' '}
             <Link
-              href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+              href={inviteLogin || (nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login')}
               className="font-semibold text-gray-950 hover:underline"
             >
               {t('auth.login')}
@@ -467,7 +469,7 @@ function OpenSignUpComponent({
           </button>
         ) : (
           <Link
-            href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+            href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : inviteLogin || (nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login')}
             className="font-semibold text-gray-900 hover:underline"
           >
             {t('auth.login')}

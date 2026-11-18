@@ -11,8 +11,9 @@ import type { StepActions } from '@components/Goals/steps/registry'
 import { coverPalette } from '@components/Plans/shared/PlanCover'
 import type { GoalTemplate, Step, TemplateDocument, TemplateStep } from '@services/goals/types'
 import { cn } from '@/lib/utils'
+import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import PlanDialog from './PlanDialog'
-import { applyWork, finishedStatus, keyOfStep, previewGoal, type PreviewWork, type WorkChange } from './previewSandbox'
+import { activityToPlay, applyWork, finishedStatus, keyOfStep, previewGoal, type PreviewWork, type WorkChange } from './previewSandbox'
 
 type Props = {
   open: boolean
@@ -39,7 +40,9 @@ export default function PlanPreview({ open, setOpen, template, document, liveDoc
   const [work, setWork] = React.useState<PreviewWork>({})
   const [stageIndex, setStageIndex] = React.useState(0)
   const [selected, setSelected] = React.useState('')
-  const reset = React.useCallback(() => { setWork({}); setStageIndex(0); setSelected('') }, [])
+  // The activity step being played, in the preview's own player: its saved activity, run in a preview session.
+  const [playing, setPlaying] = React.useState<{ step: Step; activityUuid: string } | null>(null)
+  const reset = React.useCallback(() => { setWork({}); setStageIndex(0); setSelected(''); setPlaying(null) }, [])
   // Each time it opens, it starts from the beginning.
   React.useEffect(() => { if (open) { reset(); setVersion('draft') } }, [open, reset])
 
@@ -49,19 +52,28 @@ export default function PlanPreview({ open, setOpen, template, document, liveDoc
   const stages = React.useMemo(() => shown.stages || [], [shown])
   const templateSteps = React.useMemo(() => new Map<string, TemplateStep>(stages.flatMap((stage, si) => stage.steps.map((step, ti) => [`preview-step-${step.key || `preview-${si}-${ti}`}`, step] as const))), [stages])
 
+  const changeStep = (step: Step, next: WorkChange) => { setWork((current) => applyWork(current, keyOfStep(step.step_uuid), next)); return true }
+  const setStepStatus = (step: Step, status: Step['status']) => changeStep(step, { kind: 'status', status: finishedStatus(templateSteps.get(step.step_uuid) || {}, status) })
+  const openActivity = (step: Step) => {
+    const activityUuid = activityToPlay(step)
+    if (activityUuid) setPlaying({ step, activityUuid })
+    else toast('Save the step to try its activity.')
+  }
+  // Closing the dialog while an activity plays (Escape, the close button) closes the activity first.
+  const onOpenChange = (next: boolean) => { if (!next && playing) setPlaying(null); else setOpen(next) }
+
   const actionsFor = (step: Step): StepActions => {
-    const key = keyOfStep(step.step_uuid)
-    const change = async (next: WorkChange) => { setWork((current) => applyWork(current, key, next)); return true }
+    const change = async (next: WorkChange) => changeStep(step, next)
     return {
       busy: false,
-      setStatus: (status) => change({ kind: 'status', status: finishedStatus(templateSteps.get(step.step_uuid) || {}, status) }),
+      setStatus: async (status) => setStepStatus(step, status),
       saveSubmission: (data) => change({ kind: 'submission', ...data }),
       saveNote: (note) => change({ kind: 'note', note }),
       addEntry: (entry) => change({ kind: 'add-entry', entry }),
       updateEntry: (entryUuid, data) => change({ kind: 'update-entry', entryUuid, data }),
       deleteEntry: (entryUuid) => change({ kind: 'delete-entry', entryUuid }),
       visitResource: async () => true,
-      openActivity: () => { toast('Activities play once the plan is assigned.') },
+      openActivity: () => openActivity(step),
     }
   }
 
@@ -79,7 +91,7 @@ export default function PlanPreview({ open, setOpen, template, document, liveDoc
     </button>
   </>
 
-  return <PlanDialog open={open} onOpenChange={setOpen} title="Preview" description="The plan as someone you assign it to sees it. Nothing here is saved." size="wide" footer={footer} bodyClassName="p-0">
+  return <PlanDialog open={open} onOpenChange={onOpenChange} title="Preview" description="The plan as someone you assign it to sees it. Nothing here is saved." size="wide" footer={footer} bodyClassName="p-0">
     <div className="dark theme-island min-h-full bg-background text-foreground" data-testid="plan-preview">
       <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pb-10 pt-5 sm:px-6">
         {liveDocument ? <div role="group" aria-label="Version" className="flex self-start rounded-full bg-muted p-1 text-[13px] font-bold">
@@ -91,9 +103,12 @@ export default function PlanPreview({ open, setOpen, template, document, liveDoc
           <GoalHeaderCard goal={{ goal_uuid: `preview-${template.template_uuid}`, title: goal.title, description: goal.description, icon: goal.icon, organization: { name: orgName } }}
             done={goal.progress.done} total={goal.progress.total} />
         </div>
-        <GoalPath goal={goal} color={color} perspective="learner" viewer={{ orgslug, token }} selectedUuid={selected} onSelect={setSelected}
+        <GoalPath goal={goal} color={color} perspective="learner" viewer={{ orgslug, token }} selectedUuid={selected} onSelect={setSelected} onOpenActivity={openActivity}
           stepBody={(step) => step.locked ? undefined : <StepBody goal={goal} step={step} actions={actionsFor(step)} canWork staff={false} orgslug={orgslug} token={token} />} />
       </div>
     </div>
+    {/* Inline, so it fills the preview window and stays inside its dialog; finishing the activity finishes its step here, and nothing is saved. */}
+    {playing ? <EditorPreviewModal key={playing.activityUuid} activity={{ activity_uuid: playing.activityUuid }} accessToken={token} inline onClose={() => setPlaying(null)}
+      onEvent={(event) => { if (event.type === 'finished') setStepStatus(playing.step, 'completed') }} /> : null}
   </PlanDialog>
 }

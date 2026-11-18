@@ -28,6 +28,7 @@ from sqlmodel import Session, col, select
 from src.db.notifications import NotificationEvent
 from src.db.organizations import Organization
 from src.db.users import User
+from src.services.users.names import shown_first_name
 from src.services.notifications import kinds, preferences, unsubscribe
 from src.services.notifications.catalog import KINDS, STREAMS, stream_of
 
@@ -124,7 +125,7 @@ def render(db: Session, user: User, stream_key: str, rows: list[NotificationEven
     subject = items[0].subject if len(items) == 1 else kinds.DIGEST_SUBJECTS[stream_key](len(items))
     names = sorted({org.name for org in orgs.values() if org and org.name})
     stream = STREAMS[stream_key]
-    greeting = html.escape(user.first_name or user.username or "there")
+    greeting = html.escape(shown_first_name(user) or user.username or "there")
     lines = "".join(
         f'<tr><td style="padding:12px 0;border-top:1px solid #eee;font-size:15px;line-height:22px">{item.line}<br>'
         f'<a href="{html.escape(item.link)}" style="color:#2563eb;font-weight:600">{html.escape(item.link_label)}</a></td></tr>'

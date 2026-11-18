@@ -185,10 +185,7 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.insights('dashboard_1'), '/admin/insights?d=dashboard_1')
   assert.equal(admin.insightsScope('plan', 'tpl_1'), '/admin/insights/plan/tpl_1')
   assert.equal(admin.insightsScope('group', null, 'dashboard_2'), '/admin/insights/group?d=dashboard_2')
-  assert.equal(admin.insightsReport(3), '/admin/insights/reports?group=3')
-  assert.equal(admin.insightsReport(3, ['fw_1', 'fw_2']), '/admin/insights/reports?group=3&fw=fw_1%2Cfw_2')
-  assert.equal(admin.insightsReport(null, 'all'), '/admin/insights/reports?fw=all')
-  assert.equal(admin.insightsReportPrint(3, 'all'), '/admin/insights/reports/3/print?fw=all')
+  assert.equal(admin.insightsScope('group', '3'), '/admin/insights/group/3')
   assert.equal(admin.resources.channel('channel_1'), '/admin/resources/channel/channel_1')
   assert.equal(admin.resources.item('resource_1'), '/admin/resources/item/resource_1')
   assert.equal(admin.organization.general(), '/admin/org/settings/general')
@@ -600,10 +597,46 @@ test('request policy redirects unauthenticated protected paths to root landing',
   assert.equal(decision.destination, 'https://acme.launchlms.test/')
 })
 
+test('request policy sends a signed-out invitation link to sign in and back', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/connect/invitation/plan_invitation_1',
+    pathname: '/connect/invitation/plan_invitation_1',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/login?next=%2Fconnect%2Finvitation%2Fplan_invitation_1')
+})
+
 test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/').kind, 'public')
   assert.equal(classifyRoute('/welcome').kind, 'public')
   assert.equal(classifyRoute('/for-organizations').kind, 'public')
+  assert.equal(classifyRoute('/data').kind, 'public')
+})
+
+test('request policy serves the Privacy Policy and Terms of Use signed out on any address (DEV-23)', () => {
+  for (const pathname of ['/privacy', '/terms']) {
+    assert.equal(classifyRoute(pathname).kind, 'public')
+    for (const host of ['launchlms.test', 'acme.launchlms.test']) {
+      const decision = resolveRequestRouting({
+        requestUrl: `https://${host}${pathname}`,
+        pathname,
+        search: '',
+        host,
+        hasSession: false,
+        instanceInfo,
+        resolvedCustomDomainOrgSlug: null,
+        orgSubdomainAccess: null,
+      })
+      assert.equal(decision.action, 'next')
+    }
+  }
 })
 
 test('route access exposes badge awards and the plan pages their badges point to', () => {
@@ -649,6 +682,22 @@ test('request policy serves welcome onboarding from the app route', () => {
   })
 
   assert.equal(decision.action, 'next')
+})
+
+test('request policy serves the student data page signed out on any address (DEV-25)', () => {
+  for (const host of ['launchlms.test', 'acme.launchlms.test']) {
+    const decision = resolveRequestRouting({
+      requestUrl: `https://${host}/data`,
+      pathname: '/data',
+      search: '',
+      host,
+      hasSession: false,
+      instanceInfo,
+      resolvedCustomDomainOrgSlug: null,
+      orgSubdomainAccess: null,
+    })
+    assert.equal(decision.action, 'next')
+  }
 })
 
 test('request policy allows unauthenticated badge entry pages', () => {
@@ -820,9 +869,13 @@ test('signing in on an org address without a learner site stays there (FEED-53)'
 test('after signing in on an org address, its staff land on its admin', () => {
   const base = { staffOrgSlugs: ['acme', 'other'], preference: {}, ownerOrgSlug: 'main' }
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: 'acme' }), { orgslug: 'acme', side: 'admin' })
-  // A learner of that org, or the main site, keep the remembered side.
+  // A learner of that org keeps the learner side.
   assert.deepEqual(signedInLanding({ ...base, staffOrgSlugs: [], hostOrgSlug: 'acme' }), { orgslug: 'main', side: 'learner' })
-  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'main', side: 'learner' })
+  // On the main site with nothing remembered, staff reach their school's admin (DEV-42, FEED-199)...
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null }), { orgslug: 'acme', side: 'admin' })
+  assert.deepEqual(signedInLanding({ ...base, staffOrgSlugs: ['main', 'acme'], hostOrgSlug: null }), { orgslug: 'acme', side: 'admin' })
+  // ...unless they last chose the learner side.
+  assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'learner', orgslug: 'main' } }), { orgslug: 'main', side: 'learner' })
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'other' } }), { orgslug: 'other', side: 'admin' })
   assert.deepEqual(signedInLanding({ ...base, hostOrgSlug: null, preference: { side: 'admin', orgslug: 'gone' } }), { orgslug: 'acme', side: 'admin' })
 })
@@ -859,4 +912,27 @@ test('accepting a staff or admin invitation in the app opens the org welcome; le
   assert.equal(acceptedInvitePath('learner'), null)
   assert.equal(acceptedInvitePath(4), null)
   assert.equal(acceptedInvitePath(undefined), null)
+})
+
+test('a signed-in visitor sent from an org address to the main site keeps their session (DEV-42, FEED-361)', () => {
+  const base = {
+    search: '?map=1',
+    host: 'acme.launchlms.test',
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+  }
+  // Host-only cookies: the session lives on the org address, so the move goes through the handoff.
+  const signedIn = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: true, cookieScope: 'host-only' })
+  assert.equal(signedIn.action, 'redirect')
+  const handoff = new URL(String(signedIn.destination))
+  assert.equal(handoff.origin, 'https://launchlms.test')
+  assert.equal(handoff.pathname, '/api/auth/handoff/start')
+  assert.equal(handoff.searchParams.get('source'), 'acme.launchlms.test')
+  assert.equal(handoff.searchParams.get('return'), '/plans?map=1')
+  // Signed out, or with cookies shared across addresses, it stays a plain redirect.
+  const signedOut = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: false, cookieScope: 'host-only' })
+  assert.equal(signedOut.destination, 'https://launchlms.test/plans?map=1')
+  const shared = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: true, cookieScope: 'shared-domain' })
+  assert.equal(shared.destination, 'https://launchlms.test/plans?map=1')
 })

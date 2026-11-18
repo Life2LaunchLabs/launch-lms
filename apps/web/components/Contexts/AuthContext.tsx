@@ -18,6 +18,7 @@ import {
   clearOAuthStateCookie, getCookieAttributes, getOAuthStateCookie,
   oauthCallbackRequiresBounce, setOAuthStateCookie,
 } from '@services/auth/browserCookies'
+import { setOAuthBirthDate } from '@services/auth/ageCheck'
 
 // Types matching NextAuth's session structure
 export interface Session {
@@ -52,6 +53,7 @@ export interface SignInOptions {
   // For OAuth
   orgId?: number
   orgSlug?: string
+  birthDate?: string | null
 }
 
 export interface SignInResult {
@@ -566,13 +568,10 @@ export function SessionProvider({
           const baseAttributes = `; path=/${sameSiteAttr}${secureAttr}`
 
           if (options.orgSlug || options.orgId) {
-            if (options.orgSlug) {
-              document.cookie = `launchlms_oauth_orgslug=${options.orgSlug}${baseAttributes}${domainAttr}`
-            }
-            if (options.orgId) {
-              document.cookie = `launchlms_oauth_org_id=${options.orgId}${baseAttributes}${domainAttr}`
-            }
+            if (options.orgSlug) document.cookie = `launchlms_oauth_orgslug=${options.orgSlug}${baseAttributes}${domainAttr}`
+            if (options.orgId) document.cookie = `launchlms_oauth_org_id=${options.orgId}${baseAttributes}${domainAttr}`
           }
+          if (options.birthDate) setOAuthBirthDate(options.birthDate) // a new account's age check (DEV-38)
 
           // Generate CSRF token for state parameter
           const csrfToken = generateSecureToken()

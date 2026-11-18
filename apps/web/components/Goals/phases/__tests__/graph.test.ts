@@ -102,6 +102,13 @@ describe('a plan as a map', () => {
     expect(back.policies!.map((p) => p.id).sort()).toEqual(['x', 'y'])
   })
 
+  test('graduate school takes as long as the degree most people in the job hold (FEED-157)', () => {
+    const years = (education?: { level: number; pct: number }[]) => routesFor({ code: '29-1131.00', title: 'Veterinarians', job_zone: 5, education })[0].steps.map((s) => [s.title, s.years])
+    expect(years([{ level: 11, pct: 80 }, { level: 8, pct: 20 }])).toEqual([['College', 4], ['Graduate school', 4], ['Veterinarian', 3]])
+    expect(years([{ level: 8, pct: 70 }, { level: 11, pct: 30 }])).toEqual([['College', 4], ['Graduate school', 2], ['Veterinarian', 3]])
+    expect(years()).toEqual([['College', 4], ['Graduate school', 2], ['Veterinarian', 3]])
+  })
+
   test('careers add their usual route as ideas, ending in the career', () => {
     const emt = routesFor({ code: '29-2042.00', title: 'Emergency Medical Technicians', job_zone: 3 })
     expect(emt.map((r) => r.steps.map((s) => s.title))).toEqual([['Certificate program', 'Emergency Medical Technician'], ['2-year degree', 'Emergency Medical Technician'], ['Entry job', 'Emergency Medical Technician']])

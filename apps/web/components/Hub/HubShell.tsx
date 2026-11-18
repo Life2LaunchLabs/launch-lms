@@ -102,7 +102,7 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
     setState('open')
     setTab('coach')
     setUnread(false)
-    if (next && (next.prompt || next.conversation || next.resource)) setIntent({ ...next, id: Date.now() })
+    if (next && (next.prompt || next.starter || next.conversation || next.resource)) setIntent({ ...next, id: Date.now() })
   }, [])
   const openThreads = useCallback((target?: unknown) => {
     if (!threads) return
@@ -126,6 +126,9 @@ export default function HubShell({ children, orgslug, orgId, focused = false, th
     // The route is the external change here: Coach steps aside for the page that was opened.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (tuckOnNavigation({ phone, state, from, to: pathname })) tuck()
+    // A new page starts where it scrolls itself (top, or a section it was linked to), not where the
+    // last page was frozen: putting the old spot back sent Settings away from Coach memory (DEV-144).
+    if (from !== null && from !== pathname) setFrozenY(null)
   }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Other pages and old links hand work to Coach through the URL; take it once and tidy the URL.

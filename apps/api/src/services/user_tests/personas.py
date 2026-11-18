@@ -1,4 +1,4 @@
-"""Personas: accounts made fresh by the console, on the test domain, with no usable password.
+"""Personas: accounts made fresh by the console, on the test domain, signed in from the console.
 
 Every persona joins the main (owner) org as a learner, like every account does at signup.
 An org-owner persona also gets a new test org they administer. A new_signup or org_creator
@@ -6,7 +6,6 @@ persona starts like an account the front page's sign-up just made. Personas are 
 staff or admin roles in a real org.
 """
 
-import secrets
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
@@ -17,15 +16,15 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.user_organizations import UserOrganization
-from src.db.user_tests import TestCohort, TestCohortOrg, TestPersona
+from src.db.user_tests import TestCohort, TestCohortOrg, TestInvitee, TestPersona
 from src.db.users import PublicUser, User
 from src.security.rbac.constants import USER_ROLE_ID
-from src.security.security import security_hash_password
+from src.services.user_tests import passwords
 from src.services.user_tests.cohorts import MAX_PERSONAS, get_cohort, is_open, persona_row, slugify
 from src.services.user_tests.settings import email_domain
 
 
-StartState = Literal["has_account", "new_signup", "org_creator", "org_owner"]
+StartState = Literal["has_account", "new_signup", "org_creator", "org_owner", "invitee"]
 # Just made their account: they start with the profile a welcome signup gives (routers/auth.py).
 JUST_SIGNED_UP = ("new_signup", "org_creator")
 
@@ -52,7 +51,7 @@ def _unique_handle(db: Session, cohort: TestCohort, first_name: str) -> str:
     candidate, suffix = stem, 1
     while db.exec(
         select(TestPersona).where(TestPersona.cohort_id == cohort.id, TestPersona.handle == candidate)
-    ).first():
+    ).first() or db.exec(select(TestInvitee).where(TestInvitee.cohort_id == cohort.id, TestInvitee.handle == candidate)).first():
         suffix += 1
         candidate = f"{stem}-{suffix}"
     return candidate
@@ -107,8 +106,7 @@ def _create_user(db: Session, cohort: TestCohort, body: CreatePersona, main_org_
         first_name=body.first_name,
         last_name=body.last_name,
         email=f"{handle}.{cohort.slug}@{email_domain()}",
-        # Never disclosed: personas sign in only through admin-minted login links.
-        password=security_hash_password(secrets.token_urlsafe(32)),
+        password="",  # set below: the console's known password, shown only to platform admins (DEV-126)
         user_uuid=f"user_{uuid4()}",
         email_verified=True,
         email_verified_at=datetime.now(timezone.utc).isoformat(),
@@ -118,6 +116,7 @@ def _create_user(db: Session, cohort: TestCohort, body: CreatePersona, main_org_
         creation_date=now,
         update_date=now,
     )
+    user.password = passwords.initial_hash(user)
     db.add(user)
     db.flush()
     db.add(UserOrganization(user_id=user.id, org_id=main_org_id, role_id=USER_ROLE_ID, creation_date=now, update_date=now))
@@ -154,6 +153,13 @@ async def create_personas(db: Session, cohort_uuid: str, body: CreatePersonas) -
     main_org = require_owner_org(db)
     created = []
     for item in body.personas:
+        if item.start_state == "invitee":
+            # No account yet: a reserved address the run will invite (DEV-103).
+            from src.services.user_tests import invitees
+
+            invitee = invitees.create(db, cohort, _unique_handle(db, cohort, item.first_name), item.first_name, item.last_name, item.brief)
+            created.append(invitees.row(db, invitee))
+            continue
         user, persona = _create_user(db, cohort, item, int(main_org.id))
         if item.start_state == "org_owner":
             await _create_owned_org(db, cohort, user, persona, item.org_name)

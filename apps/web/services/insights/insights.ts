@@ -1,3 +1,4 @@
+import type { EppReport } from '@services/epp/report'
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
@@ -22,7 +23,8 @@ export type Visibility = 'me' | 'staff' | 'admins'
 export type Preset = '28d' | '90d' | '12m' | 'all'
 export type DateRange = Preset | { start: string; end: string }
 export type Chart = 'auto' | 'number' | 'line' | 'bars' | 'columns' | 'stacked' | 'heatmap' | 'table'
-export type Shape = 'single' | 'series' | 'ranked' | 'split' | 'cross'
+// 'document' is a record rather than a number (a learner's Education Plan and Profile), drawn by its own view.
+export type Shape = 'single' | 'series' | 'ranked' | 'split' | 'cross' | 'document'
 
 /** A card: what to count, how to break it down, and how to show it (spec.py CardSpec). */
 export interface CardSpec {
@@ -76,7 +78,7 @@ export interface CardResult {
   direction: 'up' | 'down'
   definition: string
   value: Cell
-  compare: { v: number | null; text: string; change: string; tone: Tone; real: boolean; against: string } | null
+  compare: { v: number | null; text: string; change: string; tone: Tone; real: boolean; against: string; few?: boolean } | null
   rows: ResultRow[]
   columns: Array<{ key: string; label: string }>
   series: { bucket: 'day' | 'week' | 'month'; points: SeriesPoint[]; ghost: Array<number | null> | null } | null
@@ -89,6 +91,10 @@ export interface CardResult {
   headline: string
   auto_headline: string
   subline: string
+  /** A document card's record (shape 'document'); null on a read-only link, where `hidden` is set. */
+  document?: EppReport | null
+  complete?: boolean | null
+  hidden?: boolean
 }
 export type CardError = { error: 'locked' | 'invalid'; errors: Array<{ field: string; message: string }> }
 export type CardOutcome = CardResult | CardError
@@ -211,7 +217,8 @@ export const ruleInput = (rule: CaptureRule): RuleInput => ({
   range: rule.range ? ('preset' in rule.range ? rule.range.preset : rule.range) : null, staff: rule.staff.map((item) => item.user_uuid), emails: rule.emails,
 })
 
-export interface InsightObject { key: string; label: string; learners: number; external?: boolean; detail?: string }
+/** `id` is a group's number, which old group report links carry. */
+export interface InsightObject { key: string; label: string; learners: number; external?: boolean; detail?: string; id?: number }
 export interface LibraryTemplate { key: string; scope: Scope; title: string; description: string; cards: DashboardCard[] }
 export interface LibraryQuestion { key: string; text: string; spec: CardSpec }
 
@@ -250,6 +257,9 @@ export const insightsApi = {
   registry: (orgId: number, scope: Scope, key: string | null, token?: string) => request<Registry>(url(orgId, '/registry', { scope, key }), token),
   run: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; cards: Array<{ key: string; spec: CardSpec }> }, token?: string) =>
     request<{ results: Record<string, CardOutcome> }>(url(orgId, '/cards/run'), token, 'POST', body).then((response) => response.results),
+  /** Like `run`, plus `limited` when the viewer counts only their own groups' and assignments' learners (no See reports). */
+  runDashboard: (orgId: number, body: { scope: { kind: Scope; key: string | null }; range: DateRange; cards: Array<{ key: string; spec: CardSpec }> }, token?: string) =>
+    request<{ results: Record<string, CardOutcome>; limited: { learners: number } | null }>(url(orgId, '/cards/run'), token, 'POST', body),
   capture: (orgId: number, uuid: string, body: { key?: string | null; range?: DateRange | null; note?: string; attach?: string[] }, token?: string) =>
     request<Capture>(url(orgId, `/dashboards/${q(uuid)}/captures`), token, 'POST', body),
   captures: (orgId: number, filters: CaptureFilters = {}, token?: string) =>

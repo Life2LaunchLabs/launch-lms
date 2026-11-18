@@ -55,6 +55,7 @@ def _plans(db: Session, viewer_id: int, admin: bool, org_id: int, user_id: int) 
             "goal_uuid": goal.goal_uuid, "title": goal.title, "status": getattr(goal.status, "value", goal.status), "source": getattr(goal.source, "value", goal.source),
             "progress": _progress(db, goal), "assignment_uuid": assignment.assignment_uuid if assignment else None,
             "assignment_status": getattr(assignment.status, "value", assignment.status) if assignment else None,
+            "finished_at": goal.finished_at,
         })
     return plans
 

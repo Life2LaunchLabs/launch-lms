@@ -21,6 +21,7 @@ import type { LifeDoc } from '@services/life/life'
 import type { GoalSummary } from '@services/goals/types'
 
 import { tr } from '@/lib/tr'
+import { EducationPlanEntry } from '@components/Epp/SupportAsk'
 /** The SWR key of the learner's home payload (finished goals waiting to greet them). */
 export const homeKey = () => homeUrl()
 
@@ -88,6 +89,8 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
   if (life?.phases?.length) {
     if (toPhase) return null
     return <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6">
+      {/* The learner's Education Plan, or a school's ask while it waits (DEV-111). */}
+      <EducationPlanEntry orgslug={orgslug} />
       <section aria-labelledby="plan-map" className="flex flex-col gap-3">
         <PlanMap doc={life} orgslug={orgslug} token={token} photos={photos} change={change} focus={focus}
           title={<h1 id="plan-map" className="text-3xl font-extrabold tracking-tight">{tr('goals.goals_home.your_map', 'Your map')}</h1>} />
@@ -97,8 +100,9 @@ export default function GoalsHome({ orgslug, token, goals, finished, life, choos
 
   // No phases yet: start the plan with the phase they're in; goals they already have wait below.
   return <div className="mx-auto flex w-full max-w-[780px] flex-col gap-10">
+    <EducationPlanEntry orgslug={orgslug} />
     <SharedWithYou token={token} />
-    <Invitations token={token} />
+    <Invitations token={token} orgslug={orgslug} />
     <StartPhaseCard onStart={() => router.push(getUriWithOrg(orgslug, '/first-phase'))} />
     {open.length ? <section aria-label={tr('goals.phases.your_goals', 'Your goals')} className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold tracking-tight">{tr('goals.phases.your_goals', 'Your goals')}</h2>

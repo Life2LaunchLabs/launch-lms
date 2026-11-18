@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 from src.core.events.database import get_db_session
@@ -52,6 +52,18 @@ async def api_search_stock_media(
 ):
     """Search free stock photos or videos (Pexels) to add to the organization's media library."""
     return await stock_media.search(db_session, current_user, org_id, q, kind, orientation, page)
+
+
+@router.get("/stock/preview")
+async def api_stock_media_preview(
+    org_id: int,
+    url: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """A search result's preview thumbnail, through our server so staff browsers never call the stock provider."""
+    content, content_type = await stock_media.preview(db_session, current_user, org_id, url)
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.post("/stock/import", response_model=MediaAssetRead)

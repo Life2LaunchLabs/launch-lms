@@ -1,13 +1,15 @@
 """Oregon Education Plan and Profile: a learner's course plan with a school, for staff and for the learner.
 
 Staff routes need an active support link (services/school/support.require_support). Records, the
-caseload and its export are for any of the organization's staff.
+caseload and its export are for any of the organization's staff. Nothing here answers for an organization
+that has school records off (services/orgs/school_records.py).
 """
 
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
@@ -16,9 +18,11 @@ from src.db.epp_records import EppRecordCorrection, EppRecordCreate
 from src.db.learner_support import ReportPicks
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.epp import caseload, courses, records, report
+from src.services.epp import caseload, content, courses, records, report
+from src.services.orgs import school_records
 
-router = APIRouter()
+# Every route names its organization; one that has school records off gets 404 (DEV-153).
+router = APIRouter(dependencies=[Depends(school_records.route_guard)])
 DB = Depends(get_db_session)
 USER = Depends(get_authenticated_user)
 
@@ -135,6 +139,12 @@ async def record_pdf(org_id: int, record_uuid: str, current_user: PublicUser = U
     return _file(name, body, "application/pdf")
 
 
+@router.post("/orgs/{org_id}/setup")
+async def setup_epp(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """Give the school the Oregon EPP framework and yearly plan, published and ready to assign (needs build_plans)."""
+    return content.setup(db_session, current_user, org_id)
+
+
 @router.get("/orgs/{org_id}/caseload")
 async def org_caseload(org_id: int, mine: bool = False, current_user: PublicUser = USER, db_session: Session = DB):
     """The learners the school supports and where each plan stands; `mine` keeps the ones you counsel."""
@@ -145,4 +155,21 @@ async def org_caseload(org_id: int, mine: bool = False, current_user: PublicUser
 async def export_caseload(org_id: int, mine: bool = False, current_user: PublicUser = USER, db_session: Session = DB):
     """A zip with a PDF of each learner's reviewed record this school year."""
     name, body = caseload.export_reviewed(db_session, current_user, org_id, mine)
+    return _file(name, body, "application/zip")
+
+
+class EppExport(BaseModel):
+    user_ids: list[int] = Field(min_length=1, max_length=caseload.EXPORT_LIMIT)
+
+
+@router.get("/orgs/{org_id}/overview")
+async def epp_overview(org_id: int, group: str | None = None, state: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    """Insights: every learner's Education Plan and Profile, complete or not, by group. Without See reports, only your groups' learners."""
+    return caseload.overview(db_session, current_user, org_id, group, state)
+
+
+@router.post("/orgs/{org_id}/overview/export")
+async def export_overview(org_id: int, payload: EppExport, current_user: PublicUser = USER, db_session: Session = DB):
+    """A zip of the chosen learners' Education Plans and Profiles as they stand now, one PDF each, with legal names and no staff notes."""
+    name, body = caseload.export_selected(db_session, current_user, org_id, payload.user_ids)
     return _file(name, body, "application/zip")

@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
+from urllib.parse import urlencode
 
 from src.services.auth import google_oauth
 from src.services.auth.usernames import generate_username as _generate_onboarding_username
@@ -23,6 +24,7 @@ from src.security.auth import (
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
+from src.services.user_tests import passwords as test_passwords
 from src.services.user_tests.sessions import refresh_test_persona
 from src.services.security.account_lockout import (
     check_account_locked,
@@ -65,15 +67,20 @@ class WelcomeSignupRequest(BaseModel):
     invitation_token: str | None = None  # from an invitation email or a join link: joins that organization
     invite_code: str | None = None
     org_id: int | None = None
+    birth_date: date | None = None  # checked (DEV-38) and kept on the new account (DEV-139)
+    next: str | None = Field(default=None, max_length=500)  # a path on this site to open once the first phase is set up (an invitation's link)
 
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
 
 
-def _portfolio_redirect_url(owner_org: Organization) -> str:
-    """Where a new learner lands: their first phase (skipped when they already have a plan)."""
-    return f"/orgs/{owner_org.slug}/first-phase"
+def _portfolio_redirect_url(owner_org: Organization, next_path: str | None = None) -> str:
+    """Where a new learner lands: their first phase (skipped when they already have a plan), then `next` if it's a path on this site."""
+    url = f"/orgs/{owner_org.slug}/first-phase"
+    if next_path and next_path.startswith("/") and not next_path.startswith("//") and "\\" not in next_path:
+        url += f"?{urlencode({'next': next_path})}"
+    return url
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -145,7 +152,7 @@ async def complete_welcome_signup(
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
 
-    from src.services.auth import welcome
+    from src.services.auth import age_check, welcome
 
     started_at = datetime.now(timezone.utc).isoformat()
     profile_preset = welcome.signup_profile(started_at)
@@ -155,17 +162,21 @@ async def complete_welcome_signup(
         password=body.password,
         first_name=body.first_name.strip(), last_name=body.last_name.strip(), preferred_name=body.preferred_name.strip(),
         bio="",
-        details={"onboarding": {"started_at": started_at}},
+        details=age_check.checked_details({"onboarding": {"started_at": started_at}}, body.birth_date),
+        birth_date=body.birth_date,
         profile=profile_preset,
     )
 
     from src.services.users.users import create_user
+    from src.services.user_tests import invitees as test_invitees
 
     org = welcome.invited_org(db_session, body.invitation_token, body.invite_code, body.org_id)
-    if org is None:
-        user_read = await create_user(request, db_session, AnonymousUser(), user_create, owner_org.id or 0, signup_provider="onboarding", send_verification=False)
-    else:
-        user_read = await welcome.create_invited_account(request, db_session, user_create, org, body.invitation_token, body.invite_code)
+    with test_invitees.signing_up(db_session, request, body.email):  # a test address signs up only as a run's invitee (DEV-103)
+        if org is None:
+            user_read = await create_user(request, db_session, AnonymousUser(), user_create, owner_org.id or 0, signup_provider="onboarding", send_verification=False)
+        else:
+            user_read = await welcome.create_invited_account(request, db_session, user_create, org, body.invitation_token, body.invite_code)
+        persona_session = test_invitees.session_for(db_session, user_read, request, response)
 
     user = db_session.exec(select(User).where(User.id == user_read.id)).first()
     if not user:
@@ -182,14 +193,12 @@ async def complete_welcome_signup(
 
     onboarding_payload = {
         "org_slug": (org or owner_org).slug,
-        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org),  # type: ignore[arg-type]
+        "redirect_url": (org and welcome.invited_redirect_url(db_session, owner_org, org, int(user.id))) or _portfolio_redirect_url(owner_org, body.next),  # type: ignore[arg-type]
     }
 
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=JWT_ACCESS_TOKEN_EXPIRES,
-    )
-    refresh_token = create_refresh_token(data={"sub": user.email})
+    # An invitee who just signed up is a persona: a persona session, never an ordinary login.
+    access_token = persona_session["tokens"]["access_token"] if persona_session else create_access_token(data={"sub": user.email}, expires_delta=JWT_ACCESS_TOKEN_EXPIRES)
+    refresh_token = persona_session["tokens"]["refresh_token"] if persona_session else create_refresh_token(data={"sub": user.email})
     set_auth_cookies(response, access_token, refresh_token, request)
 
     return {
@@ -200,6 +209,7 @@ async def complete_welcome_signup(
             "expiry": get_token_expiry_ms(),
         },
         "onboarding": onboarding_payload,
+        **({"test_persona": persona_session["test_persona"]} if persona_session else {}),
     }
 
 
@@ -323,6 +333,10 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # A test persona signing back in gets a persona session, never an ordinary login (DEV-126);
+    # checked before anything is recorded, so a closed run's persona stays out.
+    persona_session = test_passwords.login_session(db_session, user)
+
     # Step 5: Reset failed attempts and update login info. Email verification is
     # encouraged after signup, but it never prevents access to the account.
     reset_failed_attempts(user, db_session)
@@ -330,31 +344,23 @@ async def login(
     update_login_info(user, client_ip, db_session)
 
     # Step 7: Issue tokens
-    access_token = create_access_token(
-        data={"sub": username},
-        expires_delta=JWT_ACCESS_TOKEN_EXPIRES
-    )
-    refresh_token = create_refresh_token(data={"sub": username})
-
-    set_auth_cookies(response, access_token, refresh_token, request)
-
-    user = UserRead.model_validate(user)
-
-    result = {
-        "user": user,
-        "tokens": {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "expiry": get_token_expiry_ms(),
-        },
+    tokens = persona_session["tokens"] if persona_session else {
+        "access_token": create_access_token(data={"sub": username}, expires_delta=JWT_ACCESS_TOKEN_EXPIRES),
+        "refresh_token": create_refresh_token(data={"sub": username}),
     }
-    return result
+    set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"], request)
+    return {
+        "user": UserRead.model_validate(user),
+        "tokens": {**tokens, "expiry": get_token_expiry_ms()},
+        **({"test_persona": persona_session["test_persona"]} if persona_session else {}),
+    }
 
 
 class ThirdPartyLogin(BaseModel):
     email: EmailStr
     provider: Literal["google"]
     access_token: str
+    birth_date: date | None = None  # only for a new account: checked (DEV-38) and kept on it (DEV-139)
 
 
 @router.post("/oauth")
@@ -376,7 +382,7 @@ async def third_party_login(
     if body.provider == "google":
 
         user = await signWithGoogle(
-            request, body.access_token, body.email, org_id, current_user, db_session
+            request, body.access_token, body.email, org_id, current_user, db_session, birth_date=body.birth_date
         )
 
     if not user:

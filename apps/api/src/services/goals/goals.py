@@ -36,7 +36,8 @@ from src.db.goals import (
 from src.db.goal_sharing import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.goals import access, check_ins, completion, references, retired, schedule
+from src.services.users.names import shown_name
+from src.services.goals import access, check_ins, completion, portfolio_steps, references, retired, schedule
 from src.services.badges.definition import goal_badge
 from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
@@ -63,7 +64,7 @@ def _user_summary(db: Session, user_id: int | None) -> dict | None:
         return None
     return {
         "id": user.id, "user_uuid": user.user_uuid, "username": user.username, "avatar_image": user.avatar_image,
-        "name": " ".join(filter(None, [user.first_name, user.last_name])) or user.username,
+        "name": shown_name(user),
     }
 
 
@@ -127,6 +128,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
         for step in steps
     }
     references.attach(db, steps, views)
+    portfolio_steps.attach(db, goal, steps, progress, views, learner=user_id == goal.subject_user_id)
     ordered = ordered_steps(stages, steps)
     ends = schedule.stage_ends(goal, stages)
     done = sum(1 for step in steps if statuses.get(int(step.id)) in DONE_STEP_STATUSES)  # type: ignore[arg-type]
@@ -154,6 +156,8 @@ def get_goal(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     granted = access.require(db, goal, current_user.id, "view_plan")
     completion.end_routines(db, goal)
+    # A portfolio that already has what a step counts finishes it when the learner gets there.
+    portfolio_steps.check_goal(db, goal)
     return goal_dict(db, goal, current_user.id, granted)
 
 
@@ -377,6 +381,15 @@ def save_submission(db: Session, current_user: PublicUser, goal_uuid: str, step_
     db.add(progress)
     db.commit()
     _mark_started(db, goal, step, current_user.id)
+    return goal_dict(db, goal, current_user.id)
+
+
+def hide_portfolio_items(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: portfolio_steps.PortfolioItemsHidden) -> dict:
+    """The learner picks which portfolio items count on a step by hiding the rest from it (and from staff)."""
+    goal = access.goal_or_404(db, goal_uuid)
+    step = step_or_404(db, goal, step_uuid)
+    _require_contribute(db, goal, step, current_user.id)
+    portfolio_steps.set_hidden(db, goal, step, current_user.id, payload.hidden)
     return goal_dict(db, goal, current_user.id)
 
 

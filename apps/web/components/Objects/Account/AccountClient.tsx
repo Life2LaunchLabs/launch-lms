@@ -4,7 +4,6 @@ import React from 'react'
 import { SignOut } from '@phosphor-icons/react'
 import AccountPageShell, { settingsCard } from '@components/Objects/Account/AccountPageShell'
 import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
-import AccountLearnerName from '@components/Objects/Account/subpages/AccountLearnerName'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountMemory from '@components/Objects/Account/subpages/AccountMemory'
 import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
@@ -23,13 +22,25 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
   // Old links to a tab land on its section.
   React.useEffect(() => {
     const section = SECTIONS[subpage]
-    if (section) document.getElementById(section)?.scrollIntoView({ block: 'start' })
+    if (!section) return
+    // The cards above load their settings after this runs and push the section down, and a page
+    // opened from Coach's panel is still letting go of its frozen place. Keep the section in view
+    // while that settles, until the person scrolls themselves (DEV-144).
+    const keep = () => document.getElementById(section)?.scrollIntoView({ block: 'start' })
+    const frame = window.requestAnimationFrame(keep)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(keep)
+    observer?.observe(document.body)
+    const stop = () => { observer?.disconnect(); window.clearTimeout(timer) }
+    const timer = window.setTimeout(stop, 2500)
+    const events = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
+    events.forEach((name) => window.addEventListener(name, stop, { once: true, passive: true }))
+    return () => { window.cancelAnimationFrame(frame); stop(); events.forEach((name) => window.removeEventListener(name, stop)) }
   }, [subpage])
 
   return (
     <AccountPageShell>
       <div className="space-y-6">
-        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountLearnerName /><AccountSecurity /></section>
+        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountSecurity /></section>
         <section id="emails" className="scroll-mt-6"><AccountEmailNotifications /></section>
         <section id="language" className="scroll-mt-6"><AccountLanguage /></section>
         <section id="accessibility" className="scroll-mt-6"><AccountAccessibility /></section>

@@ -19,7 +19,7 @@ export interface PersonSummary {
   avatar_image?: string | null
 }
 
-export interface TaskConfig { list?: { label?: string; target?: number; item_kind?: 'text' | 'link' } }
+export interface TaskConfig { list?: { label?: string; target?: number; item_kind?: 'text' | 'link' }; /** Asks for a photo to show it's done; one is needed to finish. */ photo?: boolean; /** Asks a question answered on the step; an answer is needed to finish. */ ask?: boolean }
 export interface UploadSlot { key: string; label: string; kinds: Array<'image' | 'video' | 'document' | 'link'>; optional?: boolean }
 export interface UploadConfig { slots: UploadSlot[] }
 export interface WriteConfig { prompt?: string; max_words?: number }
@@ -27,7 +27,11 @@ export interface ActivityConfig { activity_uuid: string }
 export interface EventConfig { date?: string; start_time?: string; end_time?: string; place?: string; url?: string; rsvp?: boolean }
 /** A badge step: done when the learner holds the badge of this plan. */
 export interface BadgeConfig { template_uuid: string }
-export interface PortfolioConfig { check: 'welcome' | 'timeline' | 'project' | 'traits' | 'launch' | 'badges' }
+export type PortfolioPart = 'projects' | 'timeline' | 'results' | 'traits' | 'credentials' | 'recommendations' | 'badges' | 'welcome' | 'launch'
+/** A portfolio step: "have at least `count` of `part`", narrowed by `filter`. Older steps carry a one-off `check` instead. */
+export interface PortfolioConfig { check?: 'welcome' | 'timeline' | 'project' | 'traits' | 'launch' | 'badges'; part?: PortfolioPart; count?: number; filter?: string }
+/** One portfolio item that counts toward a step; `hidden` only reaches the learner. */
+export interface PortfolioStepItem { key: string; title: string; subtitle: string; summary: string; date: string; image_url: string; detail: string[]; hidden?: boolean }
 export interface DecisionOption { key: string; label: string }
 export interface DecisionConfig { question?: string; options: DecisionOption[]; multiple?: boolean; allow_other?: boolean }
 export interface ExploreConfig { question?: string; suggestions?: Array<{ resource_uuid: string; title?: string }>; ratings?: boolean }
@@ -128,7 +132,9 @@ export interface Step<T extends StepTypeKey = StepTypeKey> {
   completion_method: CompletionMethod | null
   entries: StepEntry[]
   /** What an activity, badge or portfolio step points at, for its card. */
-  reference?: { title?: string; thumbnail_image?: string | null; template_uuid?: string; badge?: BadgeSummary | null; activity_uuid?: string; page_count?: number; resources?: StepResourceCard[] } | null
+  reference?: { title?: string; thumbnail_image?: string | null; template_uuid?: string; badge?: BadgeSummary | null; activity_uuid?: string; page_count?: number; resources?: StepResourceCard[]
+    /** A counting portfolio step: what it needs and the items that count. */
+    part?: PortfolioPart; filter?: string | null; needed?: number; have?: number; items?: PortfolioStepItem[] } | null
   // Staff only.
   reviewer_guidance?: string
   staff_notes?: FeedbackItem[]

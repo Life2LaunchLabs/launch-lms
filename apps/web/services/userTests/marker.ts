@@ -1,5 +1,7 @@
 /** The non-secret cookie that tells the persona banner who is signed in. Written by the server, read in the page. */
 export const TEST_PERSONA_COOKIE = 'launchlms_test_persona'
+/** httpOnly: lets a signed-out browser the console opened for an invitee sign up with their address (DEV-103). Read by the API. */
+export const TEST_INVITEE_COOKIE = 'launchlms_test_invitee'
 
 export type TestPersonaMarker = { userId: number; name: string; cohort: string }
 

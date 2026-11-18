@@ -30,7 +30,7 @@ from src.db.goal_sharing import (
 )
 from src.db.users import PublicUser, User
 from src.services.goals import access
-from src.services.goals.invitation_emails import send_plan_invitation
+from src.services.goals.invitation_emails import ROLE_MEANS, invitation_text, send_plan_invitation
 from src.services.goals.sharing_roles import (
     _aware,
     _invitation_label,
@@ -55,12 +55,11 @@ def _dedupe(invitation: PlanInvitation) -> str:
 
 def _invitation_message(db: Session, goal: Goal, invitation: PlanInvitation, role_name: str) -> None:
     organization = db.get(Organization, goal.org_id) if goal.org_id and _value(goal.ownership) == "external" else None
-    sender = organization.name if organization else "A Life2Launch member"
     create_inbox_message(
         db, recipient_user_id=invitation.target_user_id, recipient_email=invitation.email,
         sender_org_id=int(organization.id) if organization and organization.id else None, sender_user_id=invitation.invited_by_user_id,
         message_type="invitation", subject=f"Invitation to {goal.title}",
-        body=f"{sender} invited you to work on {goal.title} as {role_name}.",
+        body=invitation_text(db, goal, invitation),
         action_url=f"/goals/{goal.goal_uuid}", action_kind="goal_invitation",
         action_data={"invitation_uuid": invitation.invitation_uuid, "goal_uuid": goal.goal_uuid, "goal_title": goal.title, "role_name": role_name},
         dedupe_key=_dedupe(invitation),
@@ -168,7 +167,7 @@ def list_my_invitations(db: Session, current_user: PublicUser) -> list[dict]:
             "goal": {"goal_uuid": goal.goal_uuid, "title": goal.title, "description": goal.description},
             "organization": org_summary(db, goal.org_id) if _value(goal.ownership) == "external" else None,
             "subject": user_summary(db, goal.subject_user_id), "invited_by": user_summary(db, invitation.invited_by_user_id),
-            "role": {"key": role.key, "name": role.name},
+            "role": {"key": role.key, "name": role.name, "means": ROLE_MEANS.get(role.key)},
         })
     return result
 

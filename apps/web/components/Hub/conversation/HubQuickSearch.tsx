@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import { Dispatch, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Loader2, Search, Star } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -8,7 +9,6 @@ import { Button } from '@components/ui/button'
 import { Card } from '@components/ui/card'
 import { Input } from '@components/ui/input'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
-import { trackEvent } from '@services/analytics/analytics'
 import { getResources, Resource, ResourceType } from '@services/resources/resources'
 
 import { tr } from '@/lib/tr'
@@ -44,7 +44,7 @@ function ResourceSearchCard({ resource, orgUUID, selected, expanded, onSelect }:
   const ownerOrgUuid = resource.owner_org_uuid || orgUUID
   const imageSrc = resource.thumbnail_image && ownerOrgUuid
     ? getResourceThumbnailMediaDirectory(ownerOrgUuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url
+    : ownServerImage(resource.cover_image_url)
 
   return (
     <Card variant="interactive" size="none" className={`group shrink-0 snap-start rounded-2xl bg-card p-1.5 shadow-none transition-[border-color,box-shadow] ${expanded ? 'w-full' : 'w-[11rem]'} ${selected ? 'border-[var(--org-primary-color)] shadow-sm' : 'border-border/60 hover:border-border hover:shadow-sm'}`}>
@@ -129,16 +129,8 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
   const shownResources = useMemo(() => expanded ? resources : resources.slice(0, 4), [expanded, resources])
 
   const selectSearchResult = useCallback((resource: Resource) => {
-    if (orgId && accessToken) {
-      void trackEvent('resource_search_opened', orgId, {
-        resource_uuid: resource.resource_uuid,
-        search_rank: resource.search_rank,
-        search_version: resource.search_version,
-        query_fingerprint: resource.search_query_id,
-      }, accessToken)
-    }
     onSelectResource(resource)
-  }, [accessToken, onSelectResource, orgId])
+  }, [onSelectResource])
 
   useEffect(() => {
     if (selectedInitialResultRef.current || loading || selectedResourceUuids?.length || resources.length === 0) return

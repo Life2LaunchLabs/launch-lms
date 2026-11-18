@@ -16,6 +16,7 @@ from src.db.badges import BadgeAward
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage
 from src.db.goal_sharing import PlanActivity
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.requirements import (
     RequirementAssignmentBatch,
@@ -55,7 +56,7 @@ def db() -> Session:
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__, GoalStep.__table__, StepProgress.__table__,
         PlanActivity.__table__, BadgeAward.__table__, Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__,
         RequirementFramework.__table__, RequirementFrameworkVersion.__table__, RequirementNode.__table__, RequirementAssignmentBatch.__table__,
-        RequirementEnrollment.__table__, RequirementAttainmentSource.__table__,
+        RequirementEnrollment.__table__, RequirementAttainmentSource.__table__, OrganizationConfig.__table__,
     ])
     session = Session(engine_)
     session.add(Organization(id=1, org_uuid="org_1", name="Riverside", slug="riverside", email="r@example.com"))
@@ -196,6 +197,14 @@ def test_staff_without_see_reports_count_only_their_groups(db):
         engine.context(db, _user(12), 1, "org", None, today=TODAY)
 
 
+def test_running_cards_says_when_the_viewer_counts_only_their_own_learners(db):
+    from src.routers.insights import RunCards, api_run_cards
+    payload = RunCards.model_validate({"cards": [{"key": "a", "spec": {"measure": "plan_starts"}}], "range": "all"})
+    limited = api_run_cards(1, payload, db, _user(ANA))["limited"]
+    assert limited == {"learners": len(engine.context(db, _user(ANA), 1, "org", None, today=TODAY).pop.learners())} and limited["learners"] > 0
+    assert api_run_cards(1, payload, db, _user(REPORTS))["limited"] is None
+
+
 @pytest.mark.parametrize("key", list(MEASURES))
 def test_no_measure_counts_anyone_outside_the_viewers_learners(db, key):
     measure = MEASURES[key]
@@ -275,7 +284,9 @@ def test_ranked_sentences():
     assert sentences.ranked(rate, rows, "plans") == "Résumé Ready finishes most often (68%); First Job Toolkit least (39%)"
     close = [{"label": "A", "v": 0.60, "n": 50}, {"label": "B", "v": 0.59, "n": 50}]
     assert sentences.ranked(rate, close, "plans") == "All 2 plans are about the same"
-    assert sentences.ranked(rate, [{"label": "A", "v": 0.6, "n": 50}, {"label": "B", "v": 0.2, "n": 3}], "plans") == "Only A has enough plans started to compare"
+    assert sentences.ranked(rate, [{"label": "A", "v": 0.6, "n": 50}, {"label": "B", "v": 0.2, "n": 3}], "plans") == "Only A has enough plans started 14+ days ago to compare"
+    # The note names what counts, so "0 plans" never reads as nobody starting one.
+    assert sentences.too_few(rate, 0) == "Too few to say yet (0 plans started 14+ days ago)"
 
 
 def test_series_sentences():
@@ -284,3 +295,15 @@ def test_series_sentences():
     assert sentences.series(count, rising, {"v": 20, "n": 20}, None, "", "prior", "weeks") == "Plan starts rose 3 weeks running"
     flat = [{"v": 4, "period": "w"} for _ in range(6)]
     assert sentences.series(count, flat, {"v": 24, "n": 24}, {"v": 12, "n": 12}, "this time last year", "year") == "Plan starts are up 100% on this time last year"
+
+
+def test_learner_breakdown_only_fits_group_and_plan_dashboards(db):
+    from src.services.insights.spec import CardSpec, check
+    assert check(CardSpec(measure="plan_progress", by="learner"), "group", see_reports=True) == []
+    assert any(item["field"] == "by" for item in check(CardSpec(measure="plan_progress", by="learner"), "org", see_reports=True))
+
+
+def test_learner_status_on_a_plan_dashboard_counts_that_plans_learners(db):
+    # Status facts carry each learner's plans, so the plan scope keeps them instead of showing nobody.
+    result = _run(db, {"measure": "learner_status"}, scope="plan", key=CL)
+    assert {row["key"]: row["v"] for row in result["rows"] if row["v"]} == {"finished": 3, "quiet": 3}

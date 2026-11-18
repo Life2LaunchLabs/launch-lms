@@ -22,7 +22,7 @@ DOCUMENT_EXTENSIONS = {".pdf": "document", ".jpg": "image", ".jpeg": "image", ".
 
 # Sheets the portfolio reads. Every other sheet belongs to plans and is kept as raw rows; Profile is neither,
 # because it holds demographics we don't take.
-CIS_PORTFOLIO_SHEETS = {"about this export", "profile", "links"}
+CIS_PORTFOLIO_SHEETS = {"about this export", "profile", "links", "career plan reflections"}
 HOLLAND = {"R": "Realistic", "I": "Investigative", "A": "Artistic", "S": "Social", "E": "Enterprising", "C": "Conventional"}
 LIKERT = {"strongly like": 4, "like": 3, "unsure": 2, "dislike": 1, "strongly dislike": 0}
 
@@ -193,7 +193,7 @@ def _cis_bio(sheets: dict) -> list[dict]:
     for row in _sheet(sheets, "Career Bio - Work & Volunteer"):
         volunteer = _text(row.get("Type")).lower().startswith("volunteer")
         employer = row.get("Employer or organization")
-        summary = "\n".join(filter(None, [_text(row.get("Duties")), _text(row.get("Highlights")) or _text(row.get("Accomplishments"))]))
+        summary = "\n".join(filter(None, [_text(row.get("Duties")) or _text(row.get("Description")), _text(row.get("Highlights")) or _text(row.get("Accomplishments"))]))
         hours = _join(_text(row.get("Hours per week")) and f"{_text(row.get('Hours per week'))} hours a week", _text(row.get("Total hours")) and f"{_text(row.get('Total hours'))} hours in all")
         items.append(_timeline(_key("cis-work", employer, row.get("Title"), row.get("Start")), "experience", "leadership_service" if volunteer else "work_career", row.get("Title") or ("Volunteer" if volunteer else "Job"), employer, _join(row.get("City"), row.get("State")), summary, _span(row.get("Start"), row.get("End")), {"hours": hours} if hours else None))
     for row in _sheet(sheets, "Career Bio - Activities"):
@@ -226,6 +226,43 @@ def _cis_bio(sheets: dict) -> list[dict]:
     return items
 
 
+REFLECTION_PROMPT = ("prompt", "question", "title", "reflection title", "topic")
+REFLECTION_ANSWER = ("my answer", "answer", "response", "my response", "reflection", "text", "notes")
+REFLECTION_DATE = ("date saved", "date", "updated", "last modified", "saved")
+
+
+def _column(row: dict, names: tuple[str, ...]):
+    lowered = {str(column).strip().lower(): value for column, value in row.items()}
+    return next((lowered[name] for name in names if _text(lowered.get(name))), None)
+
+
+def _paragraphs(value) -> str:
+    """Written text with its paragraph breaks kept and other runs of spaces closed up."""
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in str(value or "").replace("\r\n", "\n").split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
+def _cis_reflections(sheets: dict) -> list[dict]:
+    """Career Plan Reflections: what the learner wrote in CIS, as private "what I learned" projects they can show later.
+    CIS's column names aren't documented, so the prompt and answer are found by name, else by position."""
+    items = []
+    for row in _sheet(sheets, "Career Plan Reflections"):
+        prompt, answer = _text(_column(row, REFLECTION_PROMPT)), _paragraphs(_column(row, REFLECTION_ANSWER))
+        if not answer:
+            texts = [_paragraphs(value) for value in row.values() if isinstance(value, str) and _text(value)]
+            if not texts:
+                continue
+            answer = max(texts, key=len)
+            prompt = prompt or next((_text(text) for text in texts if text != answer), "")
+        if prompt == answer:
+            prompt = ""
+        title = (prompt or answer.split("\n", 1)[0]).rstrip(" .…")[:200] or "Career plan reflection"
+        saved = _month(_column(row, REFLECTION_DATE))[0]
+        record = {"title": title, "story_kind": "learned", "subtitle": "Career plan reflection from Oregon CIS", "summary": answer, "visibility": "private", "start_date": saved}
+        items.append(_item(_key("cis-reflection", prompt, answer), "projects", "project", title, "Reflection · only you see it", record))
+    return items
+
+
 def _cis_kept(sheets: dict) -> dict:
     def plain(value):
         return value.isoformat() if isinstance(value, (datetime, date)) else value
@@ -248,7 +285,8 @@ def _base(name: str) -> str:
     return name.replace("\\", "/").rsplit("/", 1)[-1]
 
 
-def read_cis(content: bytes, filename: str) -> dict:
+def read_cis_workbook(content: bytes, filename: str) -> tuple[dict[str, list[dict]], dict[str, bytes]]:
+    """The sheets of a CIS export (zip or workbook) and the other files in its zip."""
     files: dict[str, bytes] = {}
     if zipfile.is_zipfile(io.BytesIO(content)) and not filename.lower().endswith(".xlsx"):
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
@@ -263,7 +301,17 @@ def read_cis(content: bytes, filename: str) -> dict:
         sheets = _sheets(content)
     if not any(title.lower().startswith(("career bio", "assessments", "profile")) for title in sheets):
         raise HTTPException(status_code=422, detail="This doesn't look like an Oregon CIS export")
-    items = _cis_bio(sheets) + _cis_results(sheets) + _links(_sheet(sheets, "Links"), "cis-link", "Name", "Web address")
+    return sheets, files
+
+
+def read_cis(content: bytes, filename: str) -> dict:
+    sheets, files = read_cis_workbook(content, filename)
+    return cis_export(sheets, files)
+
+
+def cis_export(sheets: dict[str, list[dict]], files: dict[str, bytes]) -> dict:
+    """One learner's CIS sheets (and zip files) as the items the import preview lists."""
+    items = _cis_bio(sheets) + _cis_reflections(sheets) + _cis_results(sheets) + _links(_sheet(sheets, "Links"), "cis-link", "Name", "Web address")
     skipped = []
     for name, data in files.items():
         base = _base(name)

@@ -28,6 +28,7 @@ from src.db.goal_sharing import (
     SHARING_ROLE_KEYS,
 )
 from src.db.users import PublicUser, User
+from src.services.users.names import shown_name
 from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.goals import access
 
@@ -54,7 +55,7 @@ def user_summary(db: Session, user_id: int | None) -> dict | None:
         return None
     return {
         "id": user.id, "user_uuid": user.user_uuid, "username": user.username, "email": user.email, "avatar_image": user.avatar_image,
-        "name": " ".join(filter(None, [user.first_name, user.last_name])) or user.username,
+        "name": shown_name(user),
     }
 
 

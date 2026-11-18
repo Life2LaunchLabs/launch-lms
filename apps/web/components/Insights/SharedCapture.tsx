@@ -31,7 +31,8 @@ export default function SharedCapture({ token }: { token: string }) {
               <Printer size={14} aria-hidden="true" />Print</button>
           </div>
           {capture.note ? <p className="whitespace-pre-line text-[14px]">{capture.note}</p> : null}
-          <p className="text-[12.5px] text-muted-foreground">Captured {capturedOn(capture.creation_date)}. These numbers don&apos;t change; any under ten are hidden.</p>
+          <p className="text-[12.5px] text-muted-foreground">Captured {capturedOn(capture.creation_date)}. These numbers don&apos;t change.</p>
+          <p className="text-[12.5px] text-muted-foreground">A shared link shows any number under ten as &ldquo;Fewer than 10&rdquo;, so no learner can be picked out from a small group. Ask whoever sent it for the full numbers.</p>
         </header>
         <CapturedCards cards={capture.cards} results={capture.results} />
         <Attachments attachments={capture.attachments} />

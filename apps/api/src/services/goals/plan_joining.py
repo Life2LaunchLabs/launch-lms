@@ -373,3 +373,18 @@ def decide(db: Session, current_user: PublicUser, request_uuid: str, accept: boo
     plan_requests.tell_learner(db, row, int(current_user.id), template.title if template else "the plan", accept)  # type: ignore[arg-type]
     db.commit()
     return _request_dict(db, row)
+
+
+def handed_plan(db: Session, goal_uuid: str) -> dict:
+    """What a signed-out visitor may see of a plan an organization handed someone (DEV-42).
+
+    The "gave you a plan" email links here for someone with an account: before they sign in, the
+    page names the school and the plan so they know what they're signing in for. Only a pending
+    goal from an assignment answers, and only with its plan's title and the organization's name
+    (never who it was given to); anything else is a 404.
+    """
+    goal = db.exec(select(Goal).where(Goal.goal_uuid == goal_uuid)).first()
+    if not goal or goal.status != GoalStatus.PENDING or goal.source != GoalSource.ASSIGNMENT:
+        raise HTTPException(status_code=404, detail="No invitation to show")
+    org = db.get(Organization, goal.org_id) if goal.org_id else None
+    return {"plan_title": goal.title, "org_name": org.name if org else None, "org_slug": org.slug if org else None}

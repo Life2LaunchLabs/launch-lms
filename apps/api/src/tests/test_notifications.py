@@ -116,6 +116,39 @@ def test_switched_off_streams_send_nothing_and_the_unsubscribe_link_switches_the
         assert db.exec(select(NotificationEvent).where(NotificationEvent.recipient_user_id == LEARNER)).one().status == "skipped"
 
 
+def _streams(db, user_id: int) -> list[str]:
+    return [stream["key"] for stream in preferences.view(db, user_id)["streams"]]
+
+
+def test_school_requests_switch_shows_only_to_people_in_an_organization_with_school_records():
+    from src.db.learner_support import LearnerSupport
+    from src.db.organizations import Organization
+    from src.db.user_organizations import UserOrganization
+    from src.services.orgs import school_records
+    now = str(datetime.now())
+    with _session() as db:
+        # Studio (the owner organization, which every account joins) has school records on, but that
+        # automatic membership alone doesn't make Lee a school's learner (UT-33).
+        assert school_records.enabled(db, 1)
+        assert "school_requests" not in _streams(db, LEARNER)
+
+        # A school Lee belongs to does.
+        db.add(Organization(id=2, org_uuid="org_2", name="Academy", slug="academy", email="a@example.com", creation_date=now, update_date=now))
+        db.add(UserOrganization(user_id=LEARNER, org_id=2, role_id=4, creation_date=now, update_date=now))
+        db.commit()
+        assert "school_requests" in _streams(db, LEARNER)
+        school_records.set_enabled(db, 2, False)
+        assert _streams(db, LEARNER) == ["review_results", "new_plans"]
+
+        # The owner organization counts once it has asked to support Lee, while its school records are on.
+        db.add(LearnerSupport(support_uuid="support_lee", org_id=1, user_id=LEARNER, status="requested", request_uuid="ask_lee",
+                              requested_by_user_id=ADMIN, requested_at=now, creation_date=now, update_date=now))
+        db.commit()
+        assert "school_requests" in _streams(db, LEARNER)
+        school_records.set_enabled(db, 1, False)
+        assert "school_requests" not in _streams(db, LEARNER)
+
+
 def test_a_failed_send_is_retried_and_notify_never_breaks_the_change(monkeypatch):
     with _session() as db:
         calls = []

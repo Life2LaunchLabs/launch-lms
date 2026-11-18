@@ -12,7 +12,8 @@ export interface RouteAccessClassification {
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/start', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange', '/auth/test-entry']
-const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
+// /data (student data, DEV-25), /privacy and /terms (Privacy Policy and Terms of Use, DEV-23) are public root routes like /welcome.
+const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations', '/data', '/privacy', '/terms'])
 // A badge award (its short link, and the older /badges/<uuid> that redirects to it), the plan page that is its badge's criteria,
 // an Insights capture's read-only link, and an organization's page (the API answers only for listed ones,
 // or for members): all shared outside the app.

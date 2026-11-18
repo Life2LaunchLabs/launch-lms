@@ -1,5 +1,6 @@
 'use client'
 
+import { ownServerImage } from '@/lib/ownServerImage'
 import React from 'react'
 import { BookOpen, Briefcase, ClipboardCheck, FileText, GraduationCap, Link2, Play, School, Wrench, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -10,7 +11,7 @@ import { tr } from '@/lib/tr'
 export function resourceImage(resource: Pick<Resource, 'thumbnail_image' | 'owner_org_uuid' | 'resource_uuid' | 'cover_image_url'>) {
   return resource.thumbnail_image && resource.owner_org_uuid
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url
+    : ownServerImage(resource.cover_image_url)
 }
 
 /** Each type's name, icon, button words and color. The color is fixed per type, so a row scans at a glance. */

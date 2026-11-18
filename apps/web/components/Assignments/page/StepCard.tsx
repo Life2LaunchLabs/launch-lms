@@ -12,6 +12,7 @@ import StepPreview from '@components/Plans/plan/StepPreview'
 import StatusBar from '@components/Assignments/StatusBar'
 import { NeedChips } from '@components/Assignments/Needs'
 import { PersonTile } from '@components/Assignments/Pair'
+import StepWork from '@components/Assignments/page/StepWork'
 import type { AssignmentDetail, AssignmentPerson, AssignmentStep, StatusCategory } from '@services/assignments/assignments'
 import { stepNeeds, stepWhen } from '@services/assignments/page'
 import { CATEGORIES, firstName, personLabel, plural } from '@services/assignments/status'
@@ -33,8 +34,8 @@ const CHIP = 'inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px]
 
 /**
  * One step of the assignment. Closed: its type, title, dates, what waits on staff, and where
- * learners are, with names on hover. Opened: what waits on staff as buttons, then what learners
- * read, Try it, and the staff instructions.
+ * learners are, with names on hover. Opened: what waits on staff as buttons, each learner's answer,
+ * then what learners read, Try it, and the staff instructions.
  */
 export default function StepCard({ step, open, onToggle, ctx }: { step: AssignmentStep; open: boolean; onToggle: () => void; ctx: StepCardContext }) {
   const { detail } = ctx
@@ -88,6 +89,7 @@ export default function StepCard({ step, open, onToggle, ctx }: { step: Assignme
         </button>)}
         <span className="text-xs text-muted-foreground">Each sees a past-due line in their messages.</span>
       </div> : null}
+      {learners ? <div className="mt-3.5"><StepWork orgId={ctx.orgId} assignmentUuid={detail.assignment_uuid} stepKey={step.key} token={ctx.token} people={detail.people} /></div> : null}
       <StepBody step={step} ctx={ctx} />
     </div> : null}
   </div>

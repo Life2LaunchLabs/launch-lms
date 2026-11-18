@@ -3,7 +3,6 @@ import { OrgProvider } from '@components/Contexts/OrgContext'
 import NextTopLoader from 'nextjs-toploader'
 import Toast from '@components/Objects/StyledElements/Toast/Toast'
 import '@styles/globals.css'
-import Footer from '@components/Footer/Footer'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgFaviconMediaDirectory, getOrgLogoMediaDirectory } from '@services/media/media'
 import OrgThemeVariables from './OrgThemeVariables'
@@ -59,7 +58,6 @@ export default async function RootLayout(props: {
           <NextTopLoader color="#2e2e2e" initialPosition={0.3} height={4} easing={'ease'} speed={500} showSpinner={false} />
           <Toast />
           {props.children}
-          <Footer />
         </OrgThemeVariables></PageTitleProvider>
       </OrgProvider>
     </div>

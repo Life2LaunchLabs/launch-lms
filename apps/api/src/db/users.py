@@ -1,3 +1,4 @@
+from datetime import date
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -26,6 +27,8 @@ class UserCreate(UserBase):
     first_name: str = ""
     last_name: str = ""
     password: str
+    # Checked at sign-up (no one under 13, DEV-38) and kept on the account (DEV-139); never sent back in a response.
+    birth_date: date | None = Field(default=None, exclude=True)
 
 
 class UserSignupCreate(UserCreate):
@@ -127,6 +130,10 @@ class User(UserBase, table=True):
     last_login_ip: str | None = None
     signup_method: str | None = None
     is_superadmin: bool = Field(default=False)
+    # The date of birth given at sign-up (DEV-139): suggestions by age and age-gated opportunities. Only the person
+    # (Download my data) and the app itself use it; it is left out of every response and never shown to staff.
+    # Accounts made before it was kept, or by a school's single sign-on, have none.
+    birth_date: date | None = Field(default=None, exclude=True)
     creation_date: str = ""
     update_date: str = ""
 

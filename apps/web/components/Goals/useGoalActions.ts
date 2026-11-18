@@ -53,6 +53,7 @@ export function useStepActions(goal: Goal, step: Step, token: string | undefined
     updateEntry: (entryUuid, data) => quiet(() => goalsApi.updateEntry(g, s, entryUuid, data, token)),
     deleteEntry: (entryUuid) => quiet(() => goalsApi.deleteEntry(g, s, entryUuid, token)),
     visitResource: (resourceUuid, data) => quiet(() => goalsApi.visitResource(g, s, resourceUuid, data, token), true),
+    hidePortfolioItems: (hidden) => quiet(() => goalsApi.hidePortfolioItems(g, s, hidden, token)),
     openActivity,
     ask,
   }

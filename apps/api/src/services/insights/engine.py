@@ -18,11 +18,12 @@ from sqlmodel import Session, col, select
 
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services.insights import sentences
+from src.services.insights import documents, sentences
 from src.services.insights.context import Ctx, Window, compared, compared_label, population, scope, window
 from src.services.insights.dimensions import DIMENSIONS, NATURAL_ORDER
 from src.services.insights.measures import MEASURES, Fact, Measure
 from src.services.insights.spec import BOUND, CardSpec, Target, check
+from src.services.orgs import school_records
 
 SHAPE_CHARTS: dict[str, tuple[str, ...]] = {
     "single": ("number", "table"),
@@ -185,6 +186,10 @@ def _load(ctx: Ctx, spec: CardSpec, inherit) -> Loaded:
     other = compared(win, compare)
     since = min(day for day in (win.start, other.start if other else None) if day) if win.start else None
     facts = _kept(ctx, spec, measure, measure.load(ctx, since))
+    if "learner" in (spec.by, spec.by2):
+        uuids = ctx.learner_uuids()
+        for fact in facts:
+            fact.dims["learner"] = uuids.get(fact.user_id)
     if measure.snapshot:
         return Loaded(measure, win, None, facts, [])
     if win.start is None and facts:
@@ -262,7 +267,9 @@ def run(ctx: Ctx, spec: CardSpec, inherit=None) -> dict:
     if prior is not None:
         real = sentences.real_change(measure, value, prior)
         result["compare"] = {"v": prior["v"], "text": sentences.fmt(measure, prior["v"]), "change": sentences.change_label(measure, value["v"], prior["v"]),
-                             "tone": sentences.tone(measure, value["v"], prior["v"], real), "real": real, "against": against}
+                             "tone": sentences.tone(measure, value["v"], prior["v"], real), "real": real, "against": against,
+                             # Too few on one side to call it a change or the same: the chip shows the raw move, not "About the same".
+                             "few": min(value.get("n", 0), prior.get("n", 0)) < sentences.MIN_N}
     elif target is not None:
         result["compare"] = {"v": target, "text": sentences.fmt(measure, target), "change": "", "tone": "flat", "real": False, "against": "the goal"}
     else:
@@ -376,7 +383,8 @@ def run_cards(ctx: Ctx, cards: list[dict], inherit=None) -> dict:
             locked = any("See reports" in problem["message"] for problem in problems)
             out[key] = {"error": "locked" if locked else "invalid", "errors": problems}
             continue
-        out[key] = run(ctx, spec, inherit)
+        # A record rather than a number, such as a learner's Education Plan and Profile (insights/documents.py).
+        out[key] = documents.run(ctx, spec) if spec.measure in documents.DOCUMENTS else run(ctx, spec, inherit)
     return out
 
 
@@ -385,6 +393,8 @@ def drill(ctx: Ctx, spec: CardSpec, key: str, inherit=None) -> dict:
     problems = check(spec, ctx.scope.kind, see_reports=ctx.pop.see_reports)
     if problems:
         raise HTTPException(status_code=422, detail={"errors": problems})
+    if spec.measure in documents.DOCUMENTS:
+        raise HTTPException(status_code=422, detail="This card's numbers don't open a list of people")
     loaded = _load(ctx, spec, inherit)
     if not loaded.measure.drill:
         raise HTTPException(status_code=422, detail="This card's numbers don't open a list of people")
@@ -427,7 +437,7 @@ def registry(ctx: Ctx) -> dict:
             "direction": measure.direction, "dims": [dim for dim in measure.dims if dim != BOUND.get(ctx.scope.kind)],
             "scopes": list(measure.scopes), "snapshot": measure.snapshot, "available": measure.needs != "see_reports" or ctx.pop.see_reports,
             "keywords": list(measure.keywords),
-        } for measure in MEASURES.values() if ctx.scope.kind in measure.scopes],
+        } for measure in MEASURES.values() if ctx.scope.kind in measure.scopes] + documents.registry_entries(ctx.scope.kind, school_records.enabled(ctx.db, ctx.org_id)),
         "dimensions": [{"key": dim.key, "label": dim.label, "available": dim.needs != "see_reports" or ctx.pop.see_reports} for dim in DIMENSIONS.values()],
         "charts": SHAPE_CHARTS, "ranges": ["28d", "90d", "12m", "all", "custom"],
     }

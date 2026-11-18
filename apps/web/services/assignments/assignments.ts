@@ -127,6 +127,8 @@ export interface AssignmentLearner {
   needs: Needs
   progress_percent: number
   update_date: string
+  /** The learner's first step waiting on review, when there is one. */
+  review?: { step_key: string; step_uuid: string } | null
 }
 
 export interface AssignmentPeople { assignment_uuid: string; step_count: number; needs: Needs; learners: AssignmentLearner[] }

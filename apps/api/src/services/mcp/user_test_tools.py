@@ -7,6 +7,7 @@ from src.services.user_tests import mcp as tests_mcp
 
 _COHORT = {"cohort_uuid": {"type": "string", "description": "From list_test_cohorts or create_test_cohort."}}
 _PERSONA = {"user_id": {"type": "integer", "description": "The persona's user_id, from get_test_cohort."}}
+_INVITEE = {"invitee_id": {"type": "integer", "description": "Instead of user_id, for someone the run will invite who hasn't signed up yet (get_test_cohort's invitees)."}}
 _STAGE = {
     "type": "object",
     "properties": {
@@ -47,7 +48,7 @@ USER_TEST_TOOLS = [
         "personas": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"type": "object", "properties": {
             "first_name": {"type": "string", "maxLength": 60}, "last_name": {"type": "string", "maxLength": 60},
             "brief": {"type": "string", "maxLength": 4000, "description": "Who they are and how they use technology. Only the console and the tester see it."},
-            "start_state": {"type": "string", "enum": ["has_account", "new_signup", "org_creator", "org_owner"], "description": "has_account: an existing learner. new_signup: just signed up from the front page, so their first link lands where a real sign-up does (their first phase). org_creator: just signed up to set up an organization, so their first link opens org set-up (/start). org_owner: already runs an org."}, "org_name": {"type": "string", "maxLength": 100},
+            "start_state": {"type": "string", "enum": ["has_account", "new_signup", "org_creator", "org_owner", "invitee"], "description": "has_account: an existing learner. new_signup: just signed up from the front page, so their first link lands where a real sign-up does (their first phase). org_creator: just signed up to set up an organization, so their first link opens org set-up (/start). org_owner: already runs an org. invitee: not signed up yet, only a reserved address (returned as email, with an invitee_id) for a persona to invite; read its mail with read_test_mail and open a signed-out browser for it with open_as_test_persona (invitee_id), where signing up makes it a persona of the run."}, "org_name": {"type": "string", "maxLength": 100},
         }, "required": ["first_name"]}},
     }, ["cohort_uuid", "personas"], tests_mcp.add_test_personas, write=True),
     _tool("replay_test_cohort", "Run a test story again", "Start a new cohort with fresh personas like this one's (names, briefs, starting state, test orgs) and the same stages, for example to retest after a fix. Nothing the first run did is copied.", {
@@ -57,13 +58,13 @@ USER_TEST_TOOLS = [
         **_COHORT, "stages": {"type": "array", "maxItems": 20, "items": _STAGE},
     }, ["cohort_uuid", "stages"], tests_mcp.set_test_stages, write=True),
     _tool("get_test_board", "Read the run board", "Every persona against every stage: not started, waiting on someone, in progress, done or stuck. Stuck personas come first.", _COHORT, ["cohort_uuid"], tests_mcp.get_test_board),
-    _tool("open_as_test_persona", "Open the site as a test persona", "A one-use link that signs a browser in as the persona and opens target_path. Use a fresh browser session for each persona.", {
-        **_PERSONA, "target_path": {"type": "string", "maxLength": 1000, "description": "A path such as /start, or a link's full url from read_test_mail, which signs in on that link's own site."},
+    _tool("open_as_test_persona", "Open the site as a test persona", "A one-use link that signs a browser in as the persona and opens target_path. Use a fresh browser session for each persona. Also returns the persona's email and password, which sign it back in on the Login form after it signs out, still sealed in the run. With invitee_id it opens a signed-out browser that may sign up with the invitee's address.", {
+        **_PERSONA, **_INVITEE, "target_path": {"type": "string", "maxLength": 1000, "description": "A path such as /start, or a link's full url from read_test_mail, which signs in on that link's own site."},
         "valid_minutes": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How long the link waits to be opened (default 1). Raise it to hand the link to a browser elsewhere, or to sign a persona back in after its session drops."},
-    }, ["user_id"], tests_mcp.open_as_test_persona, write=True),
-    _tool("read_test_mail", "Read a test persona's email", "The persona's inbox (email the site sent it, held back from delivery), or one email as text with its links (pass mail_id).", {
-        **_PERSONA, "mail_id": {"type": "integer"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
-    }, ["user_id"], tests_mcp.read_test_mail),
+    }, [], tests_mcp.open_as_test_persona, write=True),
+    _tool("read_test_mail", "Read a test persona's email", "The persona's inbox (email the site sent it, held back from delivery), or one email as text with its links (pass mail_id). With invitee_id, mail sent to that reserved address.", {
+        **_PERSONA, **_INVITEE, "mail_id": {"type": "integer"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+    }, [], tests_mcp.read_test_mail),
     _tool("report_test_progress", "Report a persona's progress", "Mark where the persona is on a stage.", {
         **_PERSONA, "stage_key": {"type": "string"}, "status": {"type": "string", "enum": ["not_started", "in_progress", "done", "stuck"]}, "note": {"type": "string", "maxLength": 2000},
     }, ["user_id", "stage_key", "status"], tests_mcp.report_test_progress, write=True),

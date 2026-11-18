@@ -151,7 +151,7 @@ async def join_org(
             db_session.commit()
 
             if invitation:
-                staff_setup.accepted(db_session, invitation, int(user.id), request)
+                await staff_setup.accepted(db_session, invitation, int(user.id), request)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
@@ -206,7 +206,7 @@ async def join_org(
             db_session.commit()
 
             if invitation:
-                staff_setup.accepted(db_session, invitation, int(user.id), request)
+                await staff_setup.accepted(db_session, invitation, int(user.id), request)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)

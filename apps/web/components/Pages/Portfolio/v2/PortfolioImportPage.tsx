@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Check, Download, Lock } from 'lucide-react'
+import { Check, Download, Inbox, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
-import { listImports, previewImport, runImport, type ImportPreview, type ImportResult, type ImportSource, type PastImport } from '@services/portfolio/records'
+import { bringInWaiting, declineWaiting, listImports, listWaitingImports, previewImport, runImport, type ImportPreview, type ImportResult, type ImportSource, type PastImport, type WaitingImport } from '@services/portfolio/records'
 import { DetailHeader } from './PortfolioDetail'
 
 import { tr } from '@/lib/tr'
@@ -31,11 +31,13 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [done, setDone] = useState<ImportResult | null>(null)
   const [past, setPast] = useState<PastImport[]>([])
+  const [waiting, setWaiting] = useState<WaitingImport[]>([])
   const [busy, setBusy] = useState(false)
   const inputs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     if (token) listImports(token).then(setPast).catch(() => undefined)
+    if (token) listWaitingImports(token).then(setWaiting).catch(() => undefined)
   }, [token, done])
 
   async function choose(source: ImportSource, chosen?: File) {
@@ -55,6 +57,17 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
     try { setDone(await runImport(file.source, file.file, [...picked], token)); setPreview(null) } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_import_page.could_not_bring_this_in', 'Could not bring this in')) } finally { setBusy(false) }
   }
 
+  // CIS work a school sent: one tap brings it all in (anything already here is skipped), or turn it down.
+  async function answerWaiting(item: WaitingImport, accept: boolean) {
+    if (!token) return
+    setBusy(true)
+    try {
+      if (accept) setDone(await bringInWaiting(item.held_uuid, token))
+      else { await declineWaiting(item.held_uuid, token); toast.success(tr('portfolio.portfolio_import_page.cis_work_turned_down', 'Turned down. It has been deleted.')) }
+      setWaiting((current) => current.filter((row) => row.held_uuid !== item.held_uuid))
+    } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_import_page.could_not_bring_this_in', 'Could not bring this in')) } finally { setBusy(false) }
+  }
+
   const reset = () => { setFile(null); setPreview(null); setDone(null) }
   const toggle = (key: string) => setPicked((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next })
   const keptRows = preview ? count(preview.kept) : 0
@@ -67,7 +80,7 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
         <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500 text-white"><Check className="h-6 w-6" /></span>
         <h2 className="text-xl font-extrabold">{count(done.added) ? tr('portfolio.portfolio_import_page.added_count_value_to_your', 'Added {{count}} {{value}} to your portfolio', { count: count(done.added), value: count(done.added) === 1 ? tr('portfolio.portfolio_import_page.v_thing', 'thing') : tr('portfolio.portfolio_import_page.v_things', 'things') }) : tr('portfolio.portfolio_import_page.nothing_new_to_add', 'Nothing new to add')}</h2>
         <p className="mt-1 text-[15px] text-muted-foreground">{Object.entries(done.added).map(([group, value]) => `${groupLabel(group)} ${value}`).join(' · ')}</p>
-        {count(done.kept) ? <p className="mt-2 text-sm text-muted-foreground">{tr('portfolio.portfolio_import_page.your_saved_careers_reflections_and', 'Your saved careers, reflections and plan progress are kept for when your plans can use them.')}</p> : null}
+        {count(done.kept) ? <p className="mt-2 text-sm text-muted-foreground">{tr('portfolio.portfolio_import_page.your_saved_careers_reflections_and', 'Your saved careers and plan progress are kept for when your plans can use them.')}</p> : null}
         <div className="mt-5 flex flex-wrap justify-center gap-2"><Button asChild variant="brand"><Link href={getUriWithOrg(orgslug, '/portfolio')}>{tr('portfolio.interest_quiz_page.see_my_portfolio', 'See my portfolio')}</Link></Button><Button type="button" variant="surface" onClick={reset}>{tr('portfolio.portfolio_import_page.bring_in_something_else', 'Bring in something else')}</Button></div>
       </section>
 
@@ -85,12 +98,20 @@ export function PortfolioImportPage({ orgslug }: { orgslug: string }) {
           </div>
         })}
         <p className="mb-2 flex items-start gap-2 px-1 text-sm text-muted-foreground"><Lock className="mt-0.5 h-4 w-4 shrink-0" />{tr('portfolio.portfolio_import_page.people_and_documents_are_only', 'People and documents are only for you. Test scores start private.')}</p>
-        {keptRows ? <p className="mb-2 px-1 text-sm text-muted-foreground">We&apos;ll also keep {keptRows} rows of saved careers, reflections and plan progress for when your plans can use them.</p> : null}
+        {keptRows ? <p className="mb-2 px-1 text-sm text-muted-foreground">We&apos;ll also keep {keptRows} rows of saved careers and plan progress for when your plans can use them.</p> : null}
         {preview.skipped.length ? <p className="mb-2 px-1 text-sm text-muted-foreground">Can&apos;t bring in {preview.skipped.join(', ')}. Only PDFs and pictures come in as documents.</p> : null}
         <div className="mt-5 flex gap-2"><Button type="button" variant="brand" className="h-11 flex-1" disabled={busy || !picked.size} onClick={bringIn}>{busy ? tr('portfolio.portfolio_import_page.bringing_it_in', 'Bringing it in…') : tr('portfolio.portfolio_import_page.bring_in_size', 'Bring in {{size}}', { size: picked.size })}</Button><Button type="button" variant="surface" className="h-11" onClick={reset}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button></div>
       </section>
 
       : <section className="grid gap-3">
+        {waiting.map((item) => <div key={item.held_uuid} className="rounded-3xl border-2 border-[var(--org-primary-color)] bg-card p-5" data-testid="cis-waiting">
+          <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-sky-500 text-white"><Inbox className="h-5 w-5" /></span><div className="min-w-0">
+            <h2 className="text-lg font-extrabold">{tr('portfolio.portfolio_import_page.your_cis_work_is_waiting', 'Your Oregon CIS work is waiting')}</h2>
+            <p className="mt-1 text-[14.5px] text-muted-foreground">{item.sent_by ? tr('portfolio.portfolio_import_page.cis_sent_by_at', '{{name}} at {{org}} sent over what you saved in Oregon CIS.', { name: item.sent_by, org: item.org_name }) : tr('portfolio.portfolio_import_page.cis_sent_by_org', '{{org}} sent over what you saved in Oregon CIS.', { org: item.org_name })} {item.summary.items ? tr('portfolio.portfolio_import_page.cis_items_waiting', '{{count}} things can come into your portfolio. Anything already there is skipped.', { count: item.summary.items }) : tr('portfolio.portfolio_import_page.cis_plan_rows_waiting', 'It has your plan progress for when your plans can use it.')}</p>
+          </div></div>
+          <div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="brand" className="h-11 flex-1 sm:flex-none" disabled={busy} onClick={() => answerWaiting(item, true)}>{busy ? tr('portfolio.portfolio_import_page.bringing_it_in', 'Bringing it in…') : tr('portfolio.portfolio_import_page.bring_it_in', 'Bring it in')}</Button><Button type="button" variant="surface" className="h-11" disabled={busy} onClick={() => answerWaiting(item, false)}>{tr('portfolio.portfolio_import_page.no_thanks', 'No thanks')}</Button></div>
+          <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground"><Lock className="mt-0.5 h-4 w-4 shrink-0" />{tr('portfolio.portfolio_import_page.cis_waiting_private', 'Only you and the staff who sent it can see it. Turning it down deletes it.')}</p>
+        </div>)}
         <p className="px-1 text-[15px] text-muted-foreground">{tr('portfolio.portfolio_import_page.coming_from_another_app_or', 'Coming from another app, or have a résumé? Bring in your experience, credentials, skills and people. You pick what comes in.')}</p>
         {SOURCES.map((option) => <div key={option.source} className="rounded-3xl border border-border bg-card p-5">
           <h2 className="text-lg font-extrabold">{option.title}</h2>

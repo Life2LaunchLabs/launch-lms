@@ -22,7 +22,7 @@ import { money, phaseOffset, short, type Projection } from '@components/LifePlan
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalsApi, goalsUrl } from '@services/goals/goals'
 import type { GoalSummary } from '@services/goals/types'
-import type { Career, LifeDoc, Phase, PlacePhoto } from '@services/life/life'
+import type { Activity, Career, LifeDoc, Phase, PlacePhoto } from '@services/life/life'
 import PhaseCover, { PhotoCredit } from './PhaseCover'
 import { uploadMediaAsset } from '@services/media/library'
 import { toast } from 'react-hot-toast'
@@ -32,7 +32,7 @@ import { addBetween, ancestors, byId, endsOf, kids, normalize, parents, stepsAft
 import { routeDoc, setLength, setStart, showWayTo } from './dates'
 import { TimeEditor, WayBar, spanText } from './PhaseTime'
 import { getShown, setShown } from './way'
-import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planAsk, suggestTitle, type CheckItem } from './setup'
+import { activityText, checklist, eyebrowFor, householdLabel, kindFor, livingLabel, planStarter, suggestTitle, type CheckItem } from './setup'
 import { useHub } from '@components/Hub/HubContext'
 import EstimatesDialog, { type EstimatesMode } from '@components/LifePlan/EstimatesDialog'
 import { ActivityPicker, HouseholdPicker, LivingPicker } from './PhasePickers'
@@ -43,6 +43,7 @@ import useLifePlan from './useLifePlan'
 import Invitations from '@components/Goals/home/Invitations'
 import SharedWithYou from '@components/LifePlan/SharedWithYou'
 
+import { EducationPlanEntry } from '@components/Epp/SupportAsk'
 import { tr } from '@/lib/tr'
 const EMPTY: GoalSummary[] = []
 const lower = (title: string) => title.charAt(0).toLowerCase() + title.slice(1)
@@ -74,6 +75,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   const fileInput = React.useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = React.useState(false)
   const [pop, setPop] = React.useState<Pop>(null)
+  const actDraft = React.useRef<Activity | null>(null)
   const [showList, setShowList] = React.useState(false)
   // Estimates: open to start the budget, or after a pick changed (base = the phase before). `waiting` keeps a change put off with Not now.
   const [est, setEst] = React.useState<{ mode: EstimatesMode; base: Phase | null; auto?: boolean } | null>(null)
@@ -149,12 +151,14 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
     if (saved) router.push(getUriWithOrg(orgslug, routePaths.org.plans()))
   }
 
-  // Planning a phase is a conversation: Coach starts from the phase (name, dates, what it's about, where).
-  const planWithCoach = hub ? () => hub.open({ prompt: planAsk(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
+  // Planning a phase is a conversation Coach opens about the phase; nothing is sent in the person's name (DEV-113).
+  const planWithCoach = hub ? () => hub.open({ starter: planStarter(phase, phase.undated ? undefined : spanText(doc, phase)) }) : undefined
   const items = checklist(phase, here.length)
   const left = items.filter((i) => !i.done)
   const gaps = careerGaps(doc, phase, careers)
   const nexts = kids(doc, phase.id)
+  // Done keeps a half-made pick (a job and employer not yet confirmed with the chip), as picking it would.
+  const addActivity = (a: Activity) => { actDraft.current = null; void edit((p) => { p.activities = [...(p.activities || []), a] }, { picks: true, retitle: true }); setPop(null) }
   const fixItem = (key: CheckItem['key']) => {
     if (key === 'goals') { void startGoal(phase.id); return }
     if (key === 'budget') { router.push(getUriWithOrg(orgslug, routePaths.org.phaseBudget(phase.id))); return }
@@ -164,6 +168,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
   return <GeneralWrapperStyled>
     <main className="flex flex-col gap-4 pb-16">
       <PhaseNav doc={doc} phase={phase} orgslug={orgslug} mapHref={mapHref} />
+      {/* The learner's Education Plan, or a school's ask while it waits (DEV-111). */}
+      <EducationPlanEntry orgslug={orgslug} />
       <WayBar doc={doc} />
       <div className="relative">
         <Cover time={time} span={spanText(doc, phase)} photos={photos} uploading={uploading} pop={pop} setPop={setPop}
@@ -192,8 +198,8 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
             {(phase.activities || []).length ? <ul className="grid gap-1.5">{phase.activities!.map((a, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 font-bold"><span className="flex-1">{activityText(a)}</span>
               <button type="button" className="text-sm font-bold text-muted-foreground hover:text-destructive" onClick={() => { void edit((p) => { p.activities = (p.activities || []).filter((_, j) => j !== i) }, { picks: true, retitle: true }) }}>{tr('goals.upload.remove', 'Remove')}</button></li>)}</ul> : null}
             <p className="text-sm font-bold text-muted-foreground">{phase.activities?.length ? tr('goals.phase_page.add_another_two_jobs_school', 'Add another (two jobs, school and a job: all fine)') : tr('goals.phase_page.pick_one', 'Pick one')}</p>
-            <ActivityPicker token={token} onPick={(a) => { void edit((p) => { p.activities = [...(p.activities || []), a] }, { picks: true, retitle: true }); setPop(null) }} /></> : null}
-          <Button size="sm" variant="surface" className="w-fit" onClick={() => setPop(null)}>{tr('goals.routine_action.done', 'Done')}</Button>
+            <ActivityPicker token={token} onDraft={(a) => { actDraft.current = a }} onPick={addActivity} /></> : null}
+          <Button size="sm" variant="surface" className="w-fit" onClick={() => { if (pop === 'doing' && actDraft.current) addActivity(actDraft.current); else setPop(null) }}>{tr('goals.routine_action.done', 'Done')}</Button>
         </div> : null}
       </div>
 
@@ -214,7 +220,7 @@ export default function PhasePage({ orgslug, phaseId }: { orgslug: string; phase
         </button></li>)}</ul> : null}
 
       {/* What others hand you lands in the phase you're in. */}
-      {whenOf(doc, phase) === 'now' ? <div className="mt-4 flex flex-col gap-3"><SharedWithYou token={token} /><Invitations token={token} /></div> : null}
+      {whenOf(doc, phase) === 'now' ? <div className="mt-4 flex flex-col gap-3"><SharedWithYou token={token} /><Invitations token={token} orgslug={orgslug} /></div> : null}
       <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1fr)_300px] md:items-start lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8">
         <section aria-labelledby="phase-goals" className="flex min-w-0 flex-col gap-3">
           <div className="flex items-center justify-between gap-3">

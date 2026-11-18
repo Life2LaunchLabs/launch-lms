@@ -43,8 +43,10 @@ export function usePhaseSuggestions(phaseId: string) {
       label: data.context.label,
       reason: inList ? undefined : item?.reason,
       inList,
+      listUuid: data.list?.user_channel_uuid,
       onSave: async () => { await recommendApi.saveToPhase(phaseId, orgId, key, item?.shelf, token); await swr.mutate() },
       onRemove: async () => { await recommendApi.removeFromPhase(phaseId, orgId, key, token); await swr.mutate() },
+      refresh: () => { void swr.mutate() },
       onHide: item && !inList ? () => { void recommendApi.events(orgId, [{ kind: 'hide', resource_uuid: key, context: data.context.key, shelf: item.shelf }], token).then(() => swr.mutate()) } : undefined,
     }
   }, [data, find, orgId, phaseId, swr, token])

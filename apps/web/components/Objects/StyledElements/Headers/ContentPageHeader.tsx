@@ -48,7 +48,7 @@ function ContentPageHeader({
 
   return (
     <div
-      className={`sticky top-0 border-b border-border/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : compactBottomMargin ? 'mb-4' : 'mb-10'}`}
+      className={`sticky top-[var(--test-persona-bar-h,0px)] border-b border-border/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : compactBottomMargin ? 'mb-4' : 'mb-10'}`}
       style={{
         backgroundColor: 'var(--org-page-background, #ffffff)',
         zIndex: 'var(--z-nav)',

@@ -22,6 +22,9 @@ import type { PersonTab } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
 import SchoolSupport from './SchoolSupport'
 import CoursePlan from './CoursePlan'
+import EppReportLink from '@components/Epp/EppReportLink'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
+import { workingOn } from './workingOn'
 import { inOrgWords } from '@/lib/people'
 
 const admin = routePaths.org.admin
@@ -40,6 +43,7 @@ export default function PersonProfile({ orgslug, username, tab = 'overview', com
   const { orgId, token } = usePeopleContext()
   const { data: profile, error, isLoading, mutate } = useProfile(username)
   const openThread = useOpenThread(orgslug)
+  const schoolRecords = useSchoolRecords()
   const [shown, setShown] = React.useState<PersonTab>(tab)
   React.useEffect(() => setShown(tab), [tab])
 
@@ -69,6 +73,7 @@ export default function PersonProfile({ orgslug, username, tab = 'overview', com
     actions={compact ? null : <>
       {profile.role === 'learner' && user.user_uuid ? <Link href={getUriWithOrg(orgslug, admin.insightsScope('learner', user.user_uuid))}
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold hover:bg-muted"><BarChart3 size={16} aria-hidden="true" />Insights</Link> : null}
+      {profile.role === 'learner' && schoolRecords ? <EppReportLink orgId={orgId} orgslug={orgslug} userId={user.id} username={user.username} name={user.name} token={token} /> : null}
       <ThreadButton primary onClick={() => thread()} />
     </>}
     tabs={tabs.map((key) => ({ key, label: labels[key], href: getUriWithOrg(orgslug, admin.people.user(user.username, key)) }))}
@@ -85,6 +90,7 @@ export default function PersonProfile({ orgslug, username, tab = 'overview', com
 
 function Overview({ orgslug, profile, thread, showPlans, compact }: { orgslug: string; profile: Profile; thread: (plan?: string) => void; showPlans: () => void; compact?: boolean }) { // eslint-disable-line no-unused-vars
   const { orgId, token } = usePeopleContext()
+  const schoolRecords = useSchoolRecords()
   const { user } = profile
   if (profile.role === 'helper') return <>
     <HelpingOn orgslug={orgslug} profile={profile} />
@@ -98,16 +104,22 @@ function Overview({ orgslug, profile, thread, showPlans, compact }: { orgslug: s
     </Card>
     <About profile={profile} />
   </>
-  const working = profile.plans.filter((plan) => plan.status === 'active' || plan.status === 'pending')
+  const { current, finished } = workingOn(profile.plans)
   return <>
     <Card title="Working on" aside={profile.plans.length ? (compact ? <button type="button" onClick={showPlans} className="text-sm font-semibold text-muted-foreground hover:text-foreground">All plans</button>
       : <Link href={getUriWithOrg(orgslug, admin.people.user(user.username, 'plans'))} className="text-sm font-semibold text-muted-foreground hover:text-foreground">All plans</Link>) : null}>
-      {working.length ? <ul className="divide-y divide-border">{working.map((plan) => <PlanRow key={plan.goal_uuid} plan={plan} thread={thread} />)}</ul>
+      {current.length ? <ul className="divide-y divide-border">{current.map((plan) => <PlanRow key={plan.goal_uuid} plan={plan} thread={thread} />)}</ul>
+        : finished.length ? <>
+          <p className="mb-3 text-sm text-muted-foreground">Nothing in progress right now. {firstName(user.name)} recently finished:</p>
+          <ul className="divide-y divide-border">{finished.map((plan) => <PlanRow key={plan.goal_uuid} plan={plan} thread={thread} />)}</ul>
+        </>
         : <p className="text-sm text-muted-foreground">{firstName(user.name)} isn&rsquo;t working on a plan right now. Plans are given out from Plans.</p>}
     </Card>
     <LearnerBadges orgslug={orgslug} orgId={orgId} token={token} person={{ id: user.id, name: user.name, username: user.username, avatar_image: user.avatar_image, user_uuid: user.user_uuid }} />
-    <SchoolSupport userId={user.id} name={user.name} username={user.username} />
-    <CoursePlan userId={user.id} />
+    {schoolRecords ? <>
+      <SchoolSupport userId={user.id} name={user.name} username={user.username} />
+      <CoursePlan userId={user.id} />
+    </> : null}
     <About profile={profile} />
   </>
 }

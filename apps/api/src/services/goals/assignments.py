@@ -119,7 +119,7 @@ def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, vers
 def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version: GoalTemplateVersion, owner_id: int) -> None:
     """A learner invitation for someone without an account; accepting it makes them the goal's learner."""
     from src.db.organizations import Organization
-    from src.services.goals.invitation_emails import send_plan_invitation
+    from src.services.goals.invitation_emails import invitation_text, send_plan_invitation
     from src.services.messages import create_inbox_message
 
     key = ((version.document or {}).get("roles") or {}).get("subject_role_key") or "subject"
@@ -136,10 +136,9 @@ def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version
     db.add(invitation)
     db.flush()
     org = db.get(Organization, goal.org_id) if goal.org_id else None
-    sender = org.name if org else "A Life2Launch member"
     create_inbox_message(
         db, recipient_user_id=None, recipient_email=email, sender_org_id=int(org.id) if org and org.id else None, sender_user_id=owner_id,
-        message_type="invitation", subject=f"Invitation to {goal.title}", body=f"{sender} invited you to work on {goal.title} as {role.name}.",
+        message_type="invitation", subject=f"Invitation to {goal.title}", body=invitation_text(db, goal, invitation, role),
         action_url=f"/goals/{goal.goal_uuid}", action_kind="goal_invitation",
         action_data={"invitation_uuid": invitation.invitation_uuid, "goal_uuid": goal.goal_uuid, "goal_title": goal.title, "role_name": role.name},
         dedupe_key=f"goal_invitation:{invitation.invitation_uuid}",

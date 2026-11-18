@@ -68,8 +68,18 @@ def _step_reviewed(approved: bool) -> Callable[[NotificationEvent, Organization 
 def _plan_assigned(event: NotificationEvent, org: Organization | None) -> Item:
     data = event.data
     plan, giver = data.get("plan_title") or "A new plan", (org.name if org else "") or "An organization"
-    return Item(line=f"{_e(giver)} gave you <b>{_e(plan)}</b> to start.", link=_org_path(org, "/plans"), link_label="See the plan",
+    # Opens Plans with this goal named, so signed out it says which school and plan it is (DEV-42).
+    link = _org_path(org, f"/plans?{urlencode({'invited': data['goal_uuid']})}") if data.get("goal_uuid") else _org_path(org, "/plans")
+    return Item(line=f"{_e(giver)} gave you <b>{_e(plan)}</b> to start.", link=link, link_label="See the plan",
                 subject=f"{giver} gave you {plan}")
+
+
+def _support_requested(event: NotificationEvent, org: Organization | None) -> Item:
+    school = (org.name if org else "") or "Your school"
+    # Their Education Plan, which shows the request with Yes and Not now (DEV-111).
+    link = _org_path(org, f"/epp?{urlencode({'org': org.slug})}") if org else _org_path(org, "/epp")
+    return Item(line=f"{_e(school)} would like to support your Education Plan and Profile. You can say yes or not now.",
+                link=link, link_label="See the request", subject=f"{school} would like to support your Education Plan")
 
 
 def _step_status(db: Session, event: NotificationEvent) -> str | None:
@@ -85,6 +95,14 @@ def _still_waiting(db: Session, event: NotificationEvent) -> bool:
     return _step_status(db, event) == StepStatus.SUBMITTED.value
 
 
+def _support_still_open(db: Session, event: NotificationEvent) -> bool:
+    """A request they already answered (or that was replaced or withdrawn) isn't worth an email."""
+    from src.db.learner_support import LearnerSupport
+
+    row = db.exec(select(LearnerSupport).where(LearnerSupport.support_uuid == event.data.get("support_uuid"))).first()
+    return bool(row and row.status == "requested" and row.request_uuid == event.data.get("request_uuid"))
+
+
 def _always(db: Session, event: NotificationEvent) -> bool:
     return True
 
@@ -94,10 +112,12 @@ RENDER: dict[str, Callable[[NotificationEvent, Organization | None], Item]] = {
     "step_approved": _step_reviewed(True),
     "step_sent_back": _step_reviewed(False),
     "plan_assigned": _plan_assigned,
+    "support_requested": _support_requested,
 }
 
 STILL_RELEVANT: dict[str, Callable[[Session, NotificationEvent], bool]] = {
     "step_submitted": _still_waiting,
+    "support_requested": _support_still_open,
 }
 
 
@@ -110,4 +130,5 @@ DIGEST_SUBJECTS: dict[str, Callable[[int], str]] = {
     "review_requests": lambda count: f"{count} hand-ins waiting for your review",
     "review_results": lambda count: f"{count} reviews of your work",
     "new_plans": lambda count: f"{count} new plans for you",
+    "school_requests": lambda count: f"{count} schools would like to support your plan",
 }

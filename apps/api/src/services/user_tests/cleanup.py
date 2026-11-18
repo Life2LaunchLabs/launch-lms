@@ -150,6 +150,13 @@ def _delete(db: Session, cohort: TestCohort, users: set[int], orgs: set[int]) ->
     if award_owners:
         db.execute(delete(BadgeAward).where(or_(*award_owners)))
     if users:
+        from src.db.resource_library import ResourceCommentReport
+        from src.db.resources import ResourceComment
+
+        # Personas' ratings and comments, including their stars on shared catalog resources (DEV-104).
+        persona_comments = select(ResourceComment.id).where(ResourceComment.author_id.in_(users))  # type: ignore[attr-defined]
+        db.execute(delete(ResourceCommentReport).where(or_(ResourceCommentReport.comment_id.in_(persona_comments), ResourceCommentReport.user_id.in_(users))))  # type: ignore[attr-defined]
+        db.execute(delete(ResourceComment).where(ResourceComment.author_id.in_(users)))  # type: ignore[attr-defined]
         db.execute(delete(Goal).where(Goal.owner_user_id.in_(users)))  # type: ignore[attr-defined]
         db.execute(delete(APIToken).where(APIToken.created_by_user_id.in_(users)))  # type: ignore[attr-defined]
         db.execute(delete(RequirementEnrollment).where(RequirementEnrollment.user_id.in_(users)))  # type: ignore[attr-defined]
@@ -167,6 +174,9 @@ def _delete(db: Session, cohort: TestCohort, users: set[int], orgs: set[int]) ->
         db.flush()
         if (user := db.get(User, user_id)) is not None:
             db.delete(user)
+    from src.db.user_tests import TestInvitee
+
+    db.execute(delete(TestInvitee).where(TestInvitee.cohort_id == cohort.id))  # type: ignore[arg-type]
     cohort.status, cohort.update_date = "purged", datetime.utcnow()
     db.add(cohort)
     db.commit()

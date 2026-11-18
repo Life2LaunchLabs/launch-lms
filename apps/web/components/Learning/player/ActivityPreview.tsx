@@ -3,7 +3,7 @@
 import React from 'react'
 import { MessageSquarePlus, Monitor, RotateCcw, Send, Smartphone, X } from 'lucide-react'
 import { getLearningPreview, stepLearningPreview } from '@services/learning/activityDocuments'
-import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from '@components/Learning/editor/constants'
+import { DEVICE_BEZEL_CLASS, DEVICE_FRAMES, MOBILE_FRAME_CAP } from '@components/Learning/editor/constants'
 import type { DeviceMode } from '@components/Learning/editor/types'
 import { ActivityPlayer, type ActivityPlayerEvent, type ActivityRuntime } from './ActivityPlayer'
 
@@ -12,6 +12,23 @@ export type PreviewEvent =
   | { type: 'ready'; activity_title: string; page_count: number }
   | { type: 'restarted' }
   | { type: 'feedback'; page_uuid?: string; page_title?: string; text: string }
+
+// 'theme' follows the viewer's light or dark theme through the theme tokens; staff
+// previews inside the admin use it. 'dark' and 'light' are fixed, for the shared
+// link page and the Claude connector's embed, which paint their own backdrop.
+export type PreviewAppearance = 'theme' | 'dark' | 'light'
+
+export type PreviewTone = { bar: string; muted: string; button: string; active: string; idle: string }
+
+export function previewTone(appearance: PreviewAppearance): PreviewTone {
+  if (appearance === 'dark') {
+    return { bar: 'border-white/10 bg-white/10 text-white', muted: 'text-white/60', button: 'bg-white/10 text-white hover:bg-white/20', active: 'bg-white text-zinc-950', idle: 'text-white/70 hover:bg-white/10' }
+  }
+  if (appearance === 'light') {
+    return { bar: 'border-zinc-200 bg-white text-zinc-900', muted: 'text-zinc-500', button: 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200', active: 'bg-zinc-900 text-white', idle: 'text-zinc-600 hover:bg-zinc-100' }
+  }
+  return { bar: 'border-border bg-card text-card-foreground', muted: 'text-muted-foreground', button: 'bg-muted text-foreground hover:bg-accent', active: 'bg-foreground text-background', idle: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground' }
+}
 
 // One preview experience for every surface: the editor's preview button, a
 // shared preview link, and Claude's inline preview all render this component
@@ -22,7 +39,7 @@ export function ActivityPreview({
   onEvent,
   allowFeedback = false,
   initialDevice = 'mobile',
-  dark = true,
+  appearance = 'theme',
 }: {
   token: string
   onClose?: () => void
@@ -30,7 +47,7 @@ export function ActivityPreview({
   onEvent?: (event: PreviewEvent) => void
   allowFeedback?: boolean
   initialDevice?: DeviceMode
-  dark?: boolean
+  appearance?: PreviewAppearance
 }) {
   const [preview, setPreview] = React.useState<any>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -97,9 +114,7 @@ export function ActivityPreview({
   const frame = DEVICE_FRAMES[device]
   const shellHeight = device === 'mobile' ? frame.height + MOBILE_FRAME_CAP * 2 : frame.height
   const scale = stage.width && stage.height ? Math.min(1, (stage.width - 32) / frame.width, (stage.height - 24) / shellHeight) : 1
-  const tone = dark
-    ? { bar: 'border-white/10 bg-white/10 text-white', muted: 'text-white/60', button: 'bg-white/10 text-white hover:bg-white/20', active: 'bg-white text-zinc-950', idle: 'text-white/70 hover:bg-white/10' }
-    : { bar: 'border-zinc-200 bg-white text-zinc-900', muted: 'text-zinc-500', button: 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200', active: 'bg-zinc-900 text-white', idle: 'text-zinc-600 hover:bg-zinc-100' }
+  const tone = previewTone(appearance)
 
   if (error) {
     return <div className={`flex h-full items-center justify-center p-6 text-center text-sm ${tone.muted}`}>{error}</div>
@@ -140,7 +155,7 @@ export function ActivityPreview({
       <div ref={stageRef} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <div
           style={{ width: frame.width, height: shellHeight, minWidth: frame.width, minHeight: shellHeight, transform: `scale(${scale})`, transformOrigin: 'center center' }}
-          className={`${device === 'mobile' ? 'rounded-[2rem] bg-black p-[10px]' : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-8 ring-black/5`}
+          className={`${device === 'mobile' ? `rounded-[2rem] ${DEVICE_BEZEL_CLASS} p-[10px]` : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-8 ring-black/5`}
         >
           <div
             data-learning-preview-frame
@@ -210,7 +225,7 @@ function PreviewSummary({ activity, run, onRestart }: { activity: any; run: any;
 }
 
 // eslint-disable-next-line no-unused-vars
-function FeedbackButton({ tone, page, onSend }: { tone: any; page: { title?: string }; onSend: (text: string) => void }) {
+function FeedbackButton({ tone, page, onSend }: { tone: PreviewTone; page: { title?: string }; onSend: (text: string) => void }) {
   const [open, setOpen] = React.useState(false)
   const [text, setText] = React.useState('')
   const send = () => {

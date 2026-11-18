@@ -76,29 +76,19 @@ test('requirements.dashboard: a framework dashboard shows progress and a capture
   await capture(page, testInfo, 'framework-capture-evidence.png')
 })
 
-test('insights.report: a group report includes a framework as a draft section and prints on its own page', async ({ page }, testInfo) => {
+test('insights.learners: a group dashboard lists each learner\'s progress, and a row opens that learner', async ({ page }, testInfo) => {
   test.setTimeout(60_000)
+  // Replaces the retired group report's table (DEV-36).
   await page.goto(`${insightsPath}/reports?group=${fixture.group_id}`)
   await assertActualApp(page)
-  await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
-  await expect(page.getByRole('heading', { name: 'Plans and badges' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Who's behind and what's left/ })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Alex Approved' }).first()).toBeVisible()
-  await page.getByRole('checkbox', { name: 'Oregon SB3 synthetic evidence' }).check()
-  await expect(page).toHaveURL(new RegExp(`fw=${fixture.framework_uuid}`))
-  // The included framework is a table of who met what; its progress and evidence live on the framework dashboard.
-  await expect(page.getByRole('link', { name: 'Progress and evidence in Insights' })).toHaveAttribute('href', new RegExp(`/admin/insights/framework/${fixture.framework_uuid}`))
-  await capture(page, testInfo, 'group-report.png')
-  const print = page.getByRole('link', { name: 'Print report' })
-  await expect(print).toHaveAttribute('href', new RegExp(`/admin/insights/reports/${fixture.group_id}/print\\?fw=`))
-  // The print page opens the print dialog once it loads; keep it from blocking the test.
-  await page.addInitScript(() => { window.print = () => {} })
-  await page.goto(`${insightsPath}/reports/${fixture.group_id}/print?fw=${fixture.framework_uuid}`)
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Back to report' })).toBeVisible()
-  await page.emulateMedia({ media: 'print' })
-  await expect(page.getByText('Alex Approved', { exact: true }).first()).toBeVisible()
-  await capture(page, testInfo, 'group-report-print.png')
+  await expect(page).toHaveURL(/\/admin\/insights\/group\/usergroup_/)
+  const card = page.getByTestId('insight-card').filter({ hasText: 'Plan progress by learner' })
+  await expect(card).toBeVisible()
+  await capture(page, testInfo, 'insights-group-learners.png')
+  // Parker's plan is still running (the résumé waits for review); Alex finished, so Learner status counts Alex.
+  await card.getByRole('link', { name: /Parker Pending/ }).click()
+  await expect(page).toHaveURL(/\/admin\/insights\/learner\/user_/)
+  await expect(page.getByRole('heading', { name: 'Parker Pending', level: 1 })).toBeVisible()
 })
 
 test('requirements.long-codes: framework tree and learner tree preserve readable code and title', async ({ page }, testInfo) => {

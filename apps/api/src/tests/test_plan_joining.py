@@ -240,3 +240,46 @@ def test_a_test_orgs_offers_reach_only_its_own_runs_personas():
 
         assert offered(None) == set()  # real learners never see a test org's plans, wherever they look
         assert offered(NEWCOMER) == {(int(first.id), PARTNER)}  # type: ignore[arg-type]  # the run's own personas do
+
+
+def test_a_handed_plan_names_only_its_school_and_plan_before_sign_in():
+    """DEV-42: the "gave you a plan" email's page says which school and plan, and nothing else."""
+    from src.db.goals import GoalSource, GoalStatus
+    from src.db.notifications import NotificationEvent
+    from src.db.organizations import Organization
+    from src.services.notifications.kinds import _plan_assigned
+
+    db, (first, _) = _setup()
+    with db:
+        _offer(db, first, PARTNER, "open")
+        joined = plan_joining.join(db, _user(NEWCOMER), first.template_uuid, PlanJoin(org_id=PARTNER))
+        goal = db.exec(select(Goal).where(Goal.goal_uuid == joined["goal_uuid"])).one()
+        # A plan the learner joined themselves isn't an invitation.
+        with pytest.raises(HTTPException) as joined_plan:
+            plan_joining.handed_plan(db, goal.goal_uuid)
+        assert joined_plan.value.status_code == 404
+        goal.status, goal.source = GoalStatus.PENDING, GoalSource.ASSIGNMENT
+        db.add(goal)
+        db.commit()
+        org = db.get(Organization, PARTNER)
+        shown = plan_joining.handed_plan(db, goal.goal_uuid)
+        assert shown == {"plan_title": goal.title, "org_name": org.name, "org_slug": org.slug}
+        with pytest.raises(HTTPException):
+            plan_joining.handed_plan(db, "goal_missing")
+        # The email links to Plans with this goal named.
+        item = _plan_assigned(NotificationEvent(kind="plan_assigned", data={"goal_uuid": goal.goal_uuid, "plan_title": goal.title}), org)
+        assert item.link.endswith(f"/orgs/{org.slug}/plans?invited={goal.goal_uuid}")
+
+
+def test_a_signed_out_visitor_sees_an_open_plans_offer_on_its_share_link_but_not_an_invite_only_plan():
+    # FEED-124: an open plan's share link (/orgs/<slug>/discover/plans/<uuid>) said "Not open to join" to a volunteer without an account.
+    db, _plans = _setup()
+    with db:
+        plain = _published(db, *STEPS)  # no badge, so no public criteria page
+        _offer(db, plain, 1, "invite")
+        with pytest.raises(HTTPException) as hidden:
+            plan_joining.plan_page(db, AnonymousUser(), plain.template_uuid, 1)
+        assert hidden.value.status_code == 404
+        _offer(db, plain, 1, "open")
+        offers = plan_joining.plan_page(db, AnonymousUser(), plain.template_uuid, 1)["offers"]
+        assert [(card["org"]["id"], card["access"], card["state"]) for card in offers] == [(1, "open", "none")]
