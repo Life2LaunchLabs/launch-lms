@@ -20,7 +20,7 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage, ReviewLinks } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
-import { ComposeModeToggle, feedEntries, keepComposeMode, keptComposeMode, withTimeline, type ComposeMode, type TimelineItem } from './feed'
+import { ComposeModeToggle, feedEntries, keepComposeMode, startingComposeMode, withTimeline, type ComposeMode, type TimelineItem } from './feed'
 
 import { tr } from '@/lib/tr'
 const CHAT_REFRESH_MS = 5_000
@@ -123,8 +123,14 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   // Staff write here for everyone, or for staff alone.
   // The pick stays until you change it, even if this chat loads again, so a second note can't reach the learner by mistake.
   const conversation = chat?.conversation_uuid
-  const [mode, setShownMode] = React.useState<ComposeMode>(() => (conversation && keptComposeMode(conversation)) || 'message')
-  React.useEffect(() => { const kept = conversation && keptComposeMode(conversation); if (kept) setShownMode(kept) }, [conversation])
+  const [mode, setShownMode] = React.useState<ComposeMode>(() => (conversation && startingComposeMode(conversation, chat?.messages)) || 'message')
+  const started = React.useRef<string | undefined>(conversation)
+  React.useEffect(() => {
+    if (!conversation || started.current === conversation) return
+    started.current = conversation
+    const start = startingComposeMode(conversation, chat?.messages)
+    if (start) setShownMode(start)
+  }, [conversation, chat?.messages])
   const setMode = React.useCallback((next: ComposeMode) => { setShownMode(next); if (conversation) keepComposeMode(conversation, next) }, [conversation])
   const staffOnly = Boolean(chat?.can_post_staff_only) && mode === 'staff'
   // Reading staff-only messages, you're most likely writing one.
