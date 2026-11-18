@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { isCanvasBrowserSession } from '@services/auth/browserCookies'
 
 /** True when this page is shown inside another site's frame (Canvas). Google and SSO refuse to be framed. */
@@ -13,16 +13,14 @@ export function isFramed(): boolean {
   }
 }
 
-/** Known after mount only, so the server render and the first client render agree. */
+const noSubscription = () => () => {}
+
+/** False on the server and while hydrating, so both renders agree; the real answer right after. */
 export function useInFrame(): boolean {
-  const [framed, setFramed] = useState(false)
-  useEffect(() => setFramed(isFramed()), [])
-  return framed
+  return useSyncExternalStore(noSubscription, isFramed, () => false)
 }
 
 /** Inside Canvas: framed, in a session a Canvas launch started. */
 export function useInCanvas(): boolean {
-  const [inCanvas, setInCanvas] = useState(false)
-  useEffect(() => setInCanvas(isFramed() && isCanvasBrowserSession()), [])
-  return inCanvas
+  return useSyncExternalStore(noSubscription, () => isFramed() && isCanvasBrowserSession(), () => false)
 }
