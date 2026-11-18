@@ -5,9 +5,9 @@
   "migration_source_sha256": "f10cd92276489be664944191679dc6ff1f090d3a73537b5c765829407d04aaa6",
   "expected_counts": {
     "groups": 15,
-    "goals": 63,
-    "activities": 281,
-    "steps": 1030
+    "goals": 62,
+    "activities": 279,
+    "steps": 1022
   },
   "migration_baseline": {
     "counts": {
