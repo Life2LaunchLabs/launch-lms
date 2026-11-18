@@ -134,9 +134,6 @@ def resolve_person(db: Session, launch: Launch) -> tuple[User, UserOrganization,
     db.commit()
     db.refresh(user)
     db.refresh(membership)
-    from src.routers.users import _invalidate_session_cache
-
-    _invalidate_session_cache(user.id)
     if created:
         from src.services.messages import create_welcome_message_safely
 
