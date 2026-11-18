@@ -10,6 +10,7 @@ import type { Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
 import { useHandIn } from './handIn'
+import { nameLink } from './linkName'
 
 import { tr } from '@/lib/tr'
 const listOf = (step: Step<'task'>) => step.config.list
@@ -66,12 +67,22 @@ function TaskCard({ step, actions, canWork, staff, token, viewerUserId }: StepCa
   const list = listOf(step)
   const entries = items(step)
   const [draft, setDraft] = React.useState('')
+  const [naming, setNaming] = React.useState(false)
   const open = canWork && !step.locked && step.status !== 'completed' && step.status !== 'submitted'
   const add = async () => {
     const value = draft.trim()
     if (!value) return
-    await actions.addEntry(list?.item_kind === 'link' ? { kind: 'item', title: value, url: /^https?:\/\//.test(value) ? value : '' } : { kind: 'item', title: value })
-    setDraft('')
+    if (list?.item_kind !== 'link' || !/^https?:\/\/\S+$/i.test(value)) {
+      await actions.addEntry(list?.item_kind === 'link' ? { kind: 'item', title: value, url: '' } : { kind: 'item', title: value })
+      return setDraft('')
+    }
+    // A pasted link reads as the page it opens: the career, resource or plan's name, or the page's title.
+    setNaming(true)
+    try {
+      const name = await nameLink(value, token)
+      await actions.addEntry({ kind: 'item', title: name?.title || value, url: value })
+      setDraft('')
+    } finally { setNaming(false) }
   }
   const target = list?.target || 0
   const asks = asksQuestion(step)
@@ -94,7 +105,7 @@ function TaskCard({ step, actions, canWork, staff, token, viewerUserId }: StepCa
       </ul> : null}
       {open ? <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); add() }}>
         <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={list.item_kind === 'link' ? tr('goals.explore_add.paste_a_link', 'Paste a link') : tr('goals.upload.add_an_item', 'Add an item')} />
-        <button type="submit" disabled={actions.busy || !draft.trim()} aria-label={tr('goals.upload.add', 'Add')} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-[var(--plan-accent)] disabled:opacity-40"><Plus size={16} /></button>
+        <button type="submit" disabled={actions.busy || naming || !draft.trim()} aria-label={tr('goals.upload.add', 'Add')} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-[var(--plan-accent)] disabled:opacity-40">{naming ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}</button>
       </form> : null}
     </div> : null}
     {asks ? <AnswerBox step={step} open={open} value={answer} onChange={setAnswer} onSave={() => void saveAnswer()} /> : null}

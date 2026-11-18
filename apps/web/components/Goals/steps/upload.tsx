@@ -11,6 +11,7 @@ import type { Step, StepEntry, UploadSlot } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
 import { useHandIn } from './handIn'
+import { nameLink } from './linkName'
 
 import { tr } from '@/lib/tr'
 const KIND_ICON = { image: ImageIcon, video: Film, document: FileText, link: Link2 }
@@ -99,6 +100,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const pick = (slot: UploadSlot, type: MediaType) => { target.current = slot; setTargetKey(slot.key); handIn.pick(type) }
   const [linkSlot, setLinkSlot] = React.useState<UploadSlot | null>(null)
   const [link, setLink] = React.useState('')
+  const [naming, setNaming] = React.useState(false)
   const open = canWork && !step.locked && step.status !== 'completed' && step.status !== 'submitted'
   // The learner's own step stays open to more files after hand-in; staff working on it don't add files for them.
   const adding = canWork && !staff && !step.locked && step.status !== 'excused'
@@ -117,9 +119,20 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
     <ul className="flex flex-col gap-2">
       {step.config.slots.map((slot) => <UploadSlotRow key={slot.key} slot={slot} entries={slotEntries(step, slot)} open={open} adding={adding} busy={handIn.uploading && targetKey === slot.key} onChoose={() => choose(slot)} onPick={(kind) => pick(slot, kind)} onLink={() => setLinkSlot(slot)} onRemove={(entry) => actions.deleteEntry(entry.entry_uuid)} />)}
     </ul>
-    {linkSlot ? <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); if (!link.trim()) return; await actions.addEntry({ kind: 'link', slot: linkSlot.key, url: link.trim(), title: link.trim() }); setLink(''); setLinkSlot(null) }}>
+    {linkSlot ? <form className="flex gap-2" onSubmit={async (event) => {
+      event.preventDefault()
+      const url = link.trim()
+      if (!url || naming) return
+      // A pasted link reads as the page it opens: the career, resource or plan's name, or the page's title.
+      setNaming(true)
+      try {
+        const name = /^https?:\/\//i.test(url) ? await nameLink(url, token) : null
+        await actions.addEntry({ kind: 'link', slot: linkSlot.key, url, title: name?.title || url })
+        setLink(''); setLinkSlot(null)
+      } finally { setNaming(false) }
+    }}>
       <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={tr('goals.upload.link_for_label', 'Link for {{label}}', { label: linkSlot.label })} />
-      <button type="submit" className="rounded-xl border-2 px-3 text-xs font-bold">{tr('goals.upload.add', 'Add')}</button>
+      <button type="submit" disabled={naming} className="flex items-center gap-1 rounded-xl border-2 px-3 text-xs font-bold disabled:opacity-60">{naming ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : null}{tr('goals.upload.add', 'Add')}</button>
     </form> : null}
     <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} blocker={blocker} />
     {adding && !open ? <p className="text-xs text-muted-foreground">{tr('goals.upload.add_more_after', 'You can still add another file. {{who}} sees everything here.', { who: step.review_required ? tr('goals.upload.your_reviewer', 'Your reviewer') : tr('goals.upload.staff', 'Staff') })}</p> : null}
