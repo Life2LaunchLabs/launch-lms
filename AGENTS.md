@@ -6,7 +6,7 @@ sibling checkout is never required to understand, build, test, or review it.
 ## Read before changing behavior
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — applications, data, and dependency boundaries.
-- [docs/product/README.md](docs/product/README.md) — durable product map and acceptance context.
+- [docs/product/README.md](docs/product/README.md) — where the product map lives (Confluence) and acceptance context.
 - [docs/design/README.md](docs/design/README.md) — design readiness and visual verification.
 - [docs/quality/README.md](docs/quality/README.md) — executable checks and debt ratchets.
 - [docs/security/README.md](docs/security/README.md) and

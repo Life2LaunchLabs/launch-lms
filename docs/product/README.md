@@ -1,14 +1,13 @@
 # Product system of record
 
-`map/*.json` is the canonical, diffable Launch LMS product map. It preserves the
-stable Group → Goal → Activity → Step hierarchy, lifecycle state, health,
-acceptance criteria, implementation references, verification, signoff, and
-tombstones formerly stored in productOS SQLite.
+The Launch LMS product map (Group → Goal → Activity → Step, with lifecycle
+state, acceptance criteria, implementation notes and code and test references)
+lives in Confluence: **LLMS › Product map** (database 98368 on
+henrydker.atlassian.net). Project management keeps it. It used to be stored
+here as `docs/product/map/*.json`; that copy was removed in DEV-185 and every
+activity, including its repo-only notes, is in the database's Notes column.
 
-Run `./scripts/agent product` to validate IDs, relationships, ordering, states,
-and code/test/document references and to check `index.md`. Edit the group file
-that owns the affected outcome; never recycle permanent IDs or delete sunset or
-removed outcomes to make the map look cleaner.
-
-The operations platform may index and present this data, but changes are made by
-pull request here. Its database is a cache, not product authority.
+Version outcomes and their done-when checks are on the version pages under
+**LLMS › Roadmap and releases**, and each outcome is one DEV Story in Jira.
+Don't add product map files to this repository; name the Product map activity
+ids in the outcome Story or pull request instead.
