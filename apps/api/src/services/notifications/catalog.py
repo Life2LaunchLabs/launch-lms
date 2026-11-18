@@ -20,8 +20,9 @@ class Stream:
     key: str
     label: str
     description: str
-    # Who it's for, so Settings can show staff streams only to staff.
-    audience: str  # "staff" or "everyone"
+    # Who it's for, so Settings shows staff streams only to staff, and school streams only to people in an
+    # organization that uses school records (services/orgs/school_records.py).
+    audience: str  # "staff", "school" or "everyone"
     settle: timedelta
     window: timedelta
     default_on: bool = True
@@ -46,7 +47,7 @@ STREAMS: dict[str, Stream] = {stream.key: stream for stream in (
     Stream(
         key="school_requests", label="Requests from your school",
         description="When a school asks to support your Education Plan and Profile.",
-        audience="everyone", settle=timedelta(minutes=1), window=timedelta(minutes=10),
+        audience="school", settle=timedelta(minutes=1), window=timedelta(minutes=10),
     ),
 )}
 
