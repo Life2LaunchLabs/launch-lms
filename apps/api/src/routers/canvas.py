@@ -23,6 +23,7 @@ from src.security.org_auth import require_org_owner_admin
 from src.services.canvas import keys, launch as lti, pages, people, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
+from src.routers.users import _invalidate_session_cache
 
 router = APIRouter()
 
@@ -191,6 +192,7 @@ async def lti_session(
     try:
         if data.get("kind") == "launch":
             user, membership, _created = people.resolve_person(db, _launch_from_ticket(db, data))
+            _invalidate_session_cache(user.id)  # a new membership or role shows at once
             return_path = landing_path(membership.role_id)
         elif data.get("kind") == "session":
             user = db.exec(select(User).where(User.email == data.get("email"))).first()
