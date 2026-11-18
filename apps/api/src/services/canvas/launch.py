@@ -18,6 +18,7 @@ from functools import lru_cache
 
 import jwt
 import redis
+from email_validator import EmailNotValidError, validate_email
 from config.config import get_launchlms_config
 from fastapi import HTTPException
 from sqlmodel import Session
@@ -171,6 +172,10 @@ def verify_launch(db: Session, id_token: str, stored: dict) -> Launch:
     email = (claims.get("email") or "").strip().lower()
     if not email:
         raise LaunchError("Canvas didn't share your email with Life2Launch. Ask your school's Canvas admin to set the tool's privacy level to public.")
+    try:
+        email = validate_email(email, check_deliverability=False).normalized.lower()
+    except EmailNotValidError as error:
+        raise LaunchError("Your email in Canvas isn't one Life2Launch can use. Ask your school's Canvas admin.") from error
     context = claims.get(f"{LTI}context") or {}
     return Launch(
         connection=connection,

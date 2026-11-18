@@ -216,6 +216,7 @@ async def lti_session(
     follow_up = {"kind": "session", "email": user.email, "org_id": org.id, "return": return_path}
     response = pages.session_check(
         destination,
+        f"{canvas_session.org_base_url(db, org)}/api/v1/lti/session",
         canvas_session.issue_ticket(follow_up),
         canvas_session.issue_ticket(follow_up),
         retried=retry == "1",

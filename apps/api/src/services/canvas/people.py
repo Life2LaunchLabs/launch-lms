@@ -20,6 +20,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.security.access.access import require_role_capacity
 from src.services.auth.usernames import generate_username
+from src.services.orgs.owner import ensure_owner_membership
 from src.services.canvas.launch import Launch, LaunchError
 from src.security.security import security_hash_password
 
@@ -128,6 +129,8 @@ def resolve_person(db: Session, launch: Launch) -> tuple[User, UserOrganization,
             created = True
         _link(db, launch, user)
     membership = _ensure_member(db, user, org_id, staff)
+    # Every account also belongs to Life2Launch itself, or the main site greets them with a join banner.
+    ensure_owner_membership(db, int(user.id))
     db.commit()
     db.refresh(user)
     db.refresh(membership)

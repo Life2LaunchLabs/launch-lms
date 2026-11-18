@@ -18,7 +18,7 @@ p{margin:0 0 16px;color:var(--muted)}form{margin:0}.actions{display:flex;flex-di
 button{font:inherit;font-weight:600;min-height:44px;padding:10px 16px;border-radius:10px;cursor:pointer;width:100%;
 border:1px solid var(--border);background:transparent;color:var(--fg)}button.primary{background:var(--primary);
 color:var(--on-primary);border-color:var(--primary)}button:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
-[hidden]{display:none!important}.spinner{width:28px;height:28px;margin:0 auto 16px;border-radius:50%;
+#note,#opened{margin-top:16px}[hidden]{display:none!important}.spinner{width:28px;height:28px;margin:0 auto 16px;border-radius:50%;
 border:3px solid var(--border);border-top-color:var(--fg);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
 """
@@ -29,7 +29,7 @@ def _page(title: str, body: str, script: str = "", status_code: int = 200, form_
     html = (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-        f"<meta name=\"referrer\" content=\"no-referrer\"><title>{escape(title)}</title>"
+        f"<meta name=\"referrer\" content=\"strict-origin\"><title>{escape(title)}</title>"
         f"<style nonce=\"{nonce}\">{_STYLE}</style></head><body><main>{body}</main>"
         + (f"<script nonce=\"{nonce}\">{script}</script>" if script else "")
         + "</body></html>"
@@ -41,7 +41,8 @@ def _page(title: str, body: str, script: str = "", status_code: int = 200, form_
     return HTMLResponse(html, status_code=status_code, headers={
         "Content-Security-Policy": csp,
         "Cache-Control": "no-store",
-        "Referrer-Policy": "no-referrer",
+        # Not no-referrer: that makes the browser send "Origin: null" on our own posts, which the Origin check refuses.
+        "Referrer-Policy": "strict-origin",
     })
 
 
@@ -115,7 +116,7 @@ def launch_handoff(session_url: str, ticket: str, state: str, cookie_ok: bool, s
     return _page("Opening Life2Launch", body, script, form_action=_origin_of(session_url))
 
 
-def session_check(destination: str, frame_ticket: str, tab_ticket: str, retried: bool) -> HTMLResponse:
+def session_check(destination: str, session_url: str, frame_ticket: str, tab_ticket: str, retried: bool) -> HTMLResponse:
     """Go on into Life2Launch if the partitioned cookies stuck; otherwise offer storage access and a new tab."""
     script = (
         "(function(){"
@@ -135,15 +136,20 @@ def session_check(destination: str, frame_ticket: str, tab_ticket: str, retried:
         "<div id=\"blocked\" hidden><h1>Open Life2Launch</h1>"
         "<p>This browser won't let Life2Launch sign you in inside Canvas.</p>"
         "<div class=\"actions\">"
-        f"<form id=\"tab\" method=\"post\" action=\"/api/v1/lti/session\" target=\"_blank\">"
+        f"<form id=\"tab\" method=\"post\" action=\"{escape(session_url)}\" target=\"_blank\">"
         f"{_hidden({'ticket': tab_ticket, 'mode': 'tab'})}"
         "<button class=\"primary\" type=\"submit\">Open in a new tab</button></form>"
         "<button id=\"ask\" type=\"button\" hidden>Let Life2Launch sign in here</button>"
         "</div>"
         "<p id=\"note\" hidden>Your browser said no. Open Life2Launch in a new tab instead.</p>"
         "<p id=\"opened\" hidden>Life2Launch opened in a new tab, signed in. If it didn't, open Life2Launch from Canvas again.</p>"
-        f"<form id=\"retry\" method=\"post\" action=\"/api/v1/lti/session\">"
+        f"<form id=\"retry\" method=\"post\" action=\"{escape(session_url)}\">"
         f"{_hidden({'ticket': frame_ticket, 'mode': 'frame', 'retry': '1'})}</form>"
         "</div>"
     )
-    return _page("Opening Life2Launch", body, script)
+    # form-action also covers where the post redirects (the organization's page), so name both origins.
+    # The organization's site may send a learner on to the main site, so that one too.
+    from src.services.oauth.config import frontend_url
+
+    origins = " ".join(dict.fromkeys((_origin_of(session_url), _origin_of(destination), frontend_url())))
+    return _page("Opening Life2Launch", body, script, form_action=origins)

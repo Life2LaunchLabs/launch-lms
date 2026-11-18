@@ -106,7 +106,7 @@ def _token(signed_nonce: str, **claims) -> str:
     now = int(time.time())
     body = {
         "iss": ISSUER, "aud": CLIENT_ID, "sub": "canvas-user-1", "iat": now, "exp": now + 300, "nonce": signed_nonce,
-        "email": "Maya@Ridge.test", "given_name": "Maya", "family_name": "Lopez", "name": "Maya Lopez",
+        "email": "Maya@ridge.example.com", "given_name": "Maya", "family_name": "Lopez", "name": "Maya Lopez",
         f"{LTI}deployment_id": DEPLOYMENT, f"{LTI}message_type": "LtiResourceLinkRequest", f"{LTI}version": "1.3.0",
         f"{LTI}roles": [LEARNER], f"{LTI}context": {"id": "course-9", "title": "Careers 101"},
     }
@@ -182,11 +182,11 @@ def test_a_student_launch_creates_their_account_and_signs_in_with_partitioned_co
     for name in ("access_token_cookie", "refresh_token_cookie", "launchlms_has_session", "launchlms_canvas"):
         assert "Partitioned" in cookies[name] and "SameSite=none" in cookies[name] and "Secure" in cookies[name], name
     access = cookies["access_token_cookie"].split("=", 1)[1].split(";")[0]
-    assert decode_jwt(access)["sub"] == "maya@ridge.test"
-    user = db.exec(select(User).where(User.email == "maya@ridge.test")).one()
+    assert decode_jwt(access)["sub"] == "maya@ridge.example.com"
+    user = db.exec(select(User).where(User.email == "maya@ridge.example.com")).one()
     assert (user.first_name, user.last_name, user.email_verified) == ("Maya", "Lopez", True)
-    membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == user.id)).one()
-    assert (membership.org_id, membership.role_id) == (2, 4)
+    memberships = db.exec(select(UserOrganization).where(UserOrganization.user_id == user.id)).all()
+    assert sorted((m.org_id, m.role_id) for m in memberships) == [(1, 4), (2, 4)]  # the school, and Life2Launch itself
     assert db.exec(select(CanvasUserLink)).one().canvas_user_id == "canvas-user-1"
     assert '"/plans"' in session.text or "/plans" in session.text
 
@@ -208,6 +208,7 @@ def test_the_state_is_used_once(client):
     ({f"{LTI}deployment_id": "other"}, 403),
     ({f"{LTI}message_type": "LtiDeepLinkingRequest"}, 400),
     ({"email": None}, 400),
+    ({"email": "maya@school.invalid"}, 400),
 ])
 def test_launch_refuses_tokens_that_dont_check_out(client, claims, status):
     assert _launch(client, **claims)[0].status_code == status
@@ -235,24 +236,24 @@ def test_without_the_state_cookie_the_page_checks_platform_storage(client):
 
 
 def test_a_teacher_arrives_as_staff(client, db):
-    session = _session(client, _launch(client, **{f"{LTI}roles": [INSTRUCTOR], "sub": "t-1", "email": "t@ridge.test"})[0].text)
-    teacher = db.exec(select(User).where(User.email == "t@ridge.test")).one()
-    assert db.exec(select(UserOrganization).where(UserOrganization.user_id == teacher.id)).one().role_id == 2
+    session = _session(client, _launch(client, **{f"{LTI}roles": [INSTRUCTOR], "sub": "t-1", "email": "t@ridge.example.com"})[0].text)
+    teacher = db.exec(select(User).where(User.email == "t@ridge.example.com")).one()
+    assert db.exec(select(UserOrganization).where(UserOrganization.user_id == teacher.id, UserOrganization.org_id == 2)).one().role_id == 2
     assert "/admin" in session.text
 
 
 def test_an_email_already_in_the_school_lands_in_that_account(client, db):
-    db.add(User(id=50, email="maya@ridge.test", username="maya", first_name="M", last_name="L", password="x",
+    db.add(User(id=50, email="maya@ridge.example.com", username="maya", first_name="M", last_name="L", password="x",
                 user_uuid="user_50", creation_date="", update_date=""))
     db.add(UserOrganization(user_id=50, org_id=2, role_id=4, creation_date="", update_date=""))
     db.commit()
     _session(client, _launch(client)[0].text)
-    assert db.exec(select(User).where(User.email == "maya@ridge.test")).one().id == 50
+    assert db.exec(select(User).where(User.email == "maya@ridge.example.com")).one().id == 50
     assert db.exec(select(CanvasUserLink)).one().user_id == 50
 
 
 def test_an_email_owned_outside_the_school_is_never_handed_over(client, db):
-    db.add(User(id=60, email="maya@ridge.test", username="maya", first_name="M", last_name="L", password="x",
+    db.add(User(id=60, email="maya@ridge.example.com", username="maya", first_name="M", last_name="L", password="x",
                 user_uuid="user_60", creation_date="", update_date=""))
     db.add(UserOrganization(user_id=60, org_id=1, role_id=4, creation_date="", update_date=""))
     db.commit()
@@ -275,9 +276,9 @@ def test_tickets_are_single_use_and_the_new_tab_gets_first_party_cookies(client)
 
 def test_a_second_student_on_the_same_device_gets_their_own_account(client):
     first = _set_cookies(_session(client, _launch(client)[0].text))["access_token_cookie"]
-    second = _set_cookies(_session(client, _launch(client, sub="canvas-user-2", email="leo@ridge.test")[0].text))["access_token_cookie"]
+    second = _set_cookies(_session(client, _launch(client, sub="canvas-user-2", email="leo@ridge.example.com")[0].text))["access_token_cookie"]
     sub = lambda header: decode_jwt(header.split("=", 1)[1].split(";")[0])["sub"]  # noqa: E731
-    assert (sub(first), sub(second)) == ("maya@ridge.test", "leo@ridge.test")
+    assert (sub(first), sub(second)) == ("maya@ridge.example.com", "leo@ridge.example.com")
 
 
 def test_a_full_school_refuses_the_next_student(client, db, monkeypatch):
@@ -289,7 +290,7 @@ def test_a_full_school_refuses_the_next_student(client, db, monkeypatch):
     monkeypatch.setattr("src.services.canvas.people.require_role_capacity", full)
     session = _session(client, _launch(client)[0].text)
     assert session.status_code == 403 and "limit of 25 learners" in session.text
-    assert db.exec(select(User).where(User.email == "maya@ridge.test")).first() is None
+    assert db.exec(select(User).where(User.email == "maya@ridge.example.com")).first() is None
 
 
 def test_api_cookie_setters_keep_a_canvas_session_partitioned():
