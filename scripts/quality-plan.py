@@ -40,7 +40,7 @@ def classify(paths: list[str]) -> dict[str, object]:
         for path in paths
     )
     docs_only = bool(paths) and all(
-        path.endswith(".md") or path.startswith("docs/") or path.startswith("scripts/product-map.py")
+        path.endswith(".md") or path.startswith("docs/")
         or path.startswith("scripts/validate-docs.py") or path.startswith("scripts/source-size.py")
         for path in paths
     )
