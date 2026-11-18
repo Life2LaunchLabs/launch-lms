@@ -49,6 +49,11 @@ STREAMS: dict[str, Stream] = {stream.key: stream for stream in (
         description="When a school asks to support your Education Plan and Profile.",
         audience="school", settle=timedelta(minutes=1), window=timedelta(minutes=10),
     ),
+    Stream(
+        key="org_alerts", label="Organization alerts",
+        description="When your organization needs an admin, like reaching its learner limit. Only admins get these.",
+        audience="staff", settle=timedelta(minutes=1), window=timedelta(hours=1),
+    ),
 )}
 
 # kind -> stream
@@ -58,6 +63,7 @@ KINDS: dict[str, str] = {
     "step_sent_back": "review_results",
     "plan_assigned": "new_plans",
     "support_requested": "school_requests",
+    "seat_limit_reached": "org_alerts",
 }
 
 

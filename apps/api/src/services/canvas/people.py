@@ -12,6 +12,7 @@ import secrets
 from datetime import datetime
 from uuid import uuid4
 
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.canvas import CanvasUserLink
@@ -56,6 +57,19 @@ class NeedsAccountLink(LaunchError):
         )
 
 
+class SchoolFull(LaunchError):
+    """The school has no seat left for this person: a plain message for them, a notice for the school's admins."""
+
+    def __init__(self, staff: bool):
+        super().__init__(
+            "Your school has used all its staff places on Life2Launch. Your school's Life2Launch admin has been told."
+            if staff else
+            "Your school has reached the number of students who can use Life2Launch right now. "
+            "Your school's Life2Launch admin has been told, so try again later.",
+            403,
+        )
+
+
 def _now() -> str:
     return str(datetime.now())
 
@@ -66,17 +80,47 @@ def _membership(db: Session, user_id: int, org_id: int) -> UserOrganization | No
     ).first()
 
 
-def _ensure_member(db: Session, user: User, org_id: int, staff: bool) -> UserOrganization:
+def _tell_admins_school_is_full(db: Session, launch: Launch, staff: bool) -> None:
+    """One notice a day per organization and kind of seat, to each of its admins (sent by the outbox worker)."""
+    from src.services.notifications.outbox import notify
+
+    org_id = launch.connection.org_id
+    seat = "staff_seats" if staff else "learners"
+    admins = db.exec(select(UserOrganization.user_id).where(
+        UserOrganization.org_id == org_id, UserOrganization.role_id == ADMIN_ROLE_ID,
+    )).all()
+    day = datetime.now().date().isoformat()
+    for admin_id in admins:
+        notify(db, "seat_limit_reached", admin_id, org_id=org_id, dedupe_key=f"seat_limit_reached:{org_id}:{seat}:{day}:{admin_id}",
+               data={"seat": seat, "person_name": launch.name or " ".join(filter(None, [launch.given_name, launch.family_name])),
+                     "course_title": launch.course_title or ""})
+    db.commit()
+
+
+def _require_seat(db: Session, launch: Launch, role_id: int) -> None:
+    staff = role_id != LEARNER_ROLE_ID
+    try:
+        require_role_capacity(db.get(Role, role_id), launch.connection.org_id, db)
+    except HTTPException as error:
+        if error.status_code != 403:
+            raise
+        db.rollback()
+        _tell_admins_school_is_full(db, launch, staff)
+        raise SchoolFull(staff) from error
+
+
+def _ensure_member(db: Session, launch: Launch, user: User, staff: bool) -> UserOrganization:
+    org_id = launch.connection.org_id
     membership = _membership(db, int(user.id), org_id)
     wanted = STAFF_ROLE_ID if staff else LEARNER_ROLE_ID
     if membership is None:
-        require_role_capacity(db.get(Role, wanted), org_id, db)
+        _require_seat(db, launch, wanted)
         membership = UserOrganization(user_id=user.id, org_id=org_id, role_id=wanted,
                                       creation_date=_now(), update_date=_now())
         db.add(membership)
     elif staff and membership.role_id == LEARNER_ROLE_ID:
         # A learner Canvas now says teaches here becomes staff (never the other way: that's the school's call).
-        require_role_capacity(db.get(Role, STAFF_ROLE_ID), org_id, db)
+        _require_seat(db, launch, STAFF_ROLE_ID)
         membership.role_id = STAFF_ROLE_ID
         membership.update_date = _now()
         db.add(membership)
@@ -124,18 +168,43 @@ def resolve_person(db: Session, launch: Launch) -> tuple[User, UserOrganization,
                 raise NeedsAccountLink()
         else:
             # Check the seat before making an account, so a full school doesn't collect empty accounts.
-            require_role_capacity(db.get(Role, STAFF_ROLE_ID if staff else LEARNER_ROLE_ID), org_id, db)
+            _require_seat(db, launch, STAFF_ROLE_ID if staff else LEARNER_ROLE_ID)
             user = _create_user(db, launch)
             created = True
         _link(db, launch, user)
-    membership = _ensure_member(db, user, org_id, staff)
-    # Every account also belongs to Life2Launch itself, or the main site greets them with a join banner.
-    ensure_owner_membership(db, int(user.id))
-    db.commit()
-    db.refresh(user)
-    db.refresh(membership)
+    membership = _finish(db, launch, user, staff)
     if created:
         from src.services.messages import create_welcome_message_safely
 
         create_welcome_message_safely(db, int(user.id or 0))
     return user, membership, created
+
+
+def _finish(db: Session, launch: Launch, user: User, staff: bool) -> UserOrganization:
+    membership = _ensure_member(db, launch, user, staff)
+    # Every account also belongs to Life2Launch itself, or the main site greets them with a join banner.
+    ensure_owner_membership(db, int(user.id))
+    db.commit()
+    db.refresh(user)
+    db.refresh(membership)
+    return membership
+
+
+def emails_match(a: str | None, b: str | None) -> bool:
+    return bool(a and b and a.strip().lower() == b.strip().lower())
+
+
+def link_signed_in_person(db: Session, launch: Launch, user: User) -> UserOrganization:
+    """Sign in once to link: the person proved they own the account with Canvas's email, so this Canvas
+    identity now opens it, and they join the school with their Canvas role."""
+    if not emails_match(user.email, launch.email):
+        raise LaunchError("Sign in with the account that uses your school email to link it.", 403)
+    existing = db.exec(select(CanvasUserLink).where(
+        CanvasUserLink.connection_id == launch.connection.id,
+        CanvasUserLink.canvas_user_id == launch.canvas_user_id,
+    )).first()
+    if existing is None:
+        _link(db, launch, user)
+    elif existing.user_id != user.id:
+        raise LaunchError("This Canvas account is already linked to another Life2Launch account.", 409)
+    return _finish(db, launch, user, is_staff_launch(launch.roles))

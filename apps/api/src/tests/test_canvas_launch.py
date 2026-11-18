@@ -44,6 +44,9 @@ class FakeRedis:
         self.values[key] = value
         return True
 
+    def get(self, key):
+        return self.values.get(key)
+
     def getdel(self, key):
         return self.values.pop(key, None)
 
@@ -257,7 +260,7 @@ def test_an_email_owned_outside_the_school_is_never_handed_over(client, db):
     db.add(UserOrganization(user_id=60, org_id=1, role_id=4, creation_date="", update_date=""))
     db.commit()
     session = _session(client, _launch(client)[0].text)
-    assert session.status_code == 409 and "Sign in to it once" in session.text
+    assert session.status_code == 409 and "Sign in to it once" in session.text and "Sign in to link" in session.text
     assert "access_token_cookie" not in _set_cookies(session)
     assert db.exec(select(UserOrganization).where(UserOrganization.user_id == 60, UserOrganization.org_id == 2)).first() is None
 
@@ -288,7 +291,7 @@ def test_a_full_school_refuses_the_next_student(client, db, monkeypatch):
 
     monkeypatch.setattr("src.services.canvas.people.require_role_capacity", full)
     session = _session(client, _launch(client)[0].text)
-    assert session.status_code == 403 and "limit of 25 learners" in session.text
+    assert session.status_code == 403 and "reached the number of students" in session.text
     assert db.exec(select(User).where(User.email == "maya@ridge.example.com")).first() is None
 
 

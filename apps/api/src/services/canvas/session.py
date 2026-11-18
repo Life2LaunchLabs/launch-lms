@@ -34,6 +34,8 @@ TICKET_PATTERN = re.compile(r"^[A-Za-z0-9_-]{40,64}$")
 BRIDGE_TICKET_TTL_SECONDS = 300
 # The in-app "open in a new tab" button asks for its ticket on the tap (design: 60 seconds).
 TAB_TICKET_TTL_SECONDS = 60
+# Long enough to find a password: the "sign in once to link" ticket.
+LINK_TICKET_TTL_SECONDS = 1800
 
 
 def _scheme() -> str:
@@ -68,6 +70,17 @@ def redeem_ticket(ticket: str) -> dict | None:
         return None
     try:
         raw = _redis().getdel(f"lti:ticket:{ticket}")
+    except redis.RedisError:
+        return None
+    return json.loads(raw) if raw else None
+
+
+def peek_ticket(ticket: str) -> dict | None:
+    """Read a ticket without using it up (the link page shows who it's for before the person confirms)."""
+    if not isinstance(ticket, str) or not TICKET_PATTERN.fullmatch(ticket):
+        return None
+    try:
+        raw = _redis().get(f"lti:ticket:{ticket}")
     except redis.RedisError:
         return None
     return json.loads(raw) if raw else None

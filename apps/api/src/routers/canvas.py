@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -18,7 +19,7 @@ from src.core.events.database import get_db_session
 from src.db.canvas import CanvasConnection
 from src.db.organizations import Organization
 from src.db.users import PublicUser, User
-from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user
+from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user, get_current_user
 from src.security.org_auth import require_org_owner_admin
 from src.services.canvas import connections, keys, launch as lti, pages, people, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
@@ -191,6 +192,12 @@ async def lti_session(
             return_path = canvas_session.safe_return_path(data.get("return", "/"))
         else:
             raise LaunchError("This link has expired. Open Life2Launch from Canvas again.", 401)
+    except people.NeedsAccountLink:
+        org = db.get(Organization, data.get("org_id"))
+        if not org:
+            return pages.error_page("This school isn't on Life2Launch any more.", 404)
+        link_ticket = canvas_session.issue_ticket({**data, "kind": "link"}, ttl=canvas_session.LINK_TICKET_TTL_SECONDS)
+        return pages.link_needed(f"{canvas_session.org_base_url(db, org)}/api/v1/lti/link?{urlencode({'t': link_ticket})}")
     except LaunchError as error:
         return pages.error_page(error.message, error.status_code)
     org = db.get(Organization, data.get("org_id"))
@@ -217,6 +224,61 @@ async def lti_session(
     # A launch replaces whatever session this Canvas partition already had (a shared school computer).
     canvas_session.set_canvas_cookies(response, request, access, refresh)
     return response
+
+
+# ---------------------------------------------------------------------------
+# Sign in once to link (an email that already has an account outside the school)
+# ---------------------------------------------------------------------------
+
+def _link_ticket(t: str) -> dict | None:
+    data = canvas_session.peek_ticket(t)
+    return data if data and data.get("kind") == "link" else None
+
+
+@router.get("/link")
+async def lti_link_page(
+    request: Request,
+    t: str = "",
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    """Opened in a tab of our own from the Canvas frame. Signed in as the account with the school email:
+    confirm the link. Not signed in: sign in first and come back here."""
+    data = _link_ticket(t)
+    org = db.get(Organization, data.get("org_id")) if data else None
+    if not data or not org:
+        return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
+    if not isinstance(current_user, PublicUser):
+        here = f"/api/v1/lti/link?{urlencode({'t': t})}"
+        return pages.link_sign_in(data["email"], f"/login?{urlencode({'next': here})}")
+    if not people.emails_match(current_user.email, data["email"]):
+        return pages.link_wrong_account(current_user.email, data["email"])
+    return pages.link_confirm(data["email"], org.name, "/api/v1/lti/link", t)
+
+
+@router.post("/link")
+async def lti_link(
+    t: str = Form(default=""),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    data = _link_ticket(t)
+    if not data:
+        return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
+    if not isinstance(current_user, PublicUser):
+        return pages.error_page("Sign in first, then open the link again.", 401)
+    user = db.get(User, current_user.id)
+    if not user or not people.emails_match(user.email, data["email"]):
+        return pages.link_wrong_account(current_user.email, data["email"])
+    if not canvas_session.redeem_ticket(t):  # used once, after the checks
+        return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
+    try:
+        people.link_signed_in_person(db, _launch_from_ticket(db, data), user)
+    except LaunchError as error:
+        return pages.error_page(error.message, error.status_code)
+    _invalidate_session_cache(user.id)
+    org = db.get(Organization, data.get("org_id"))
+    return pages.link_done(org.name if org else "your school")
 
 
 def _set_first_party_cookies(response, request: Request, access: str, refresh: str) -> None:

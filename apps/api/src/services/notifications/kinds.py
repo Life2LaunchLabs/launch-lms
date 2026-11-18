@@ -82,6 +82,21 @@ def _support_requested(event: NotificationEvent, org: Organization | None) -> It
                 link=link, link_label="See the request", subject=f"{school} would like to support your Education Plan")
 
 
+def _seat_limit_reached(event: NotificationEvent, org: Organization | None) -> Item:
+    data = event.data
+    school = (org.name if org else "") or "Your organization"
+    who = data.get("person_name") or "Someone"
+    where = f" ({_e(data.get('course_title'))})" if data.get("course_title") else ""
+    if data.get("seat") == "staff_seats":
+        line = (f"{_e(who)} tried to open Life2Launch from Canvas{where} as staff, but {_e(school)} has used all its "
+                "staff seats. Free a seat, or request a higher tier.")
+    else:
+        line = (f"{_e(who)} tried to open Life2Launch from Canvas{where}, but {_e(school)} has reached its learner "
+                "limit. Mark learners who have moved on as alumni, or request a higher tier.")
+    return Item(line=line, link=_org_path(org, "/admin/org/settings/plan"), link_label="See your plan and limits",
+                subject=f"{school} is full: someone couldn't open Life2Launch from Canvas")
+
+
 def _step_status(db: Session, event: NotificationEvent) -> str | None:
     step = db.exec(select(GoalStep).where(GoalStep.step_uuid == event.data.get("step_uuid"))).first()
     if not step:
@@ -113,6 +128,7 @@ RENDER: dict[str, Callable[[NotificationEvent, Organization | None], Item]] = {
     "step_sent_back": _step_reviewed(False),
     "plan_assigned": _plan_assigned,
     "support_requested": _support_requested,
+    "seat_limit_reached": _seat_limit_reached,
 }
 
 STILL_RELEVANT: dict[str, Callable[[Session, NotificationEvent], bool]] = {
@@ -131,4 +147,5 @@ DIGEST_SUBJECTS: dict[str, Callable[[int], str]] = {
     "review_results": lambda count: f"{count} reviews of your work",
     "new_plans": lambda count: f"{count} new plans for you",
     "school_requests": lambda count: f"{count} schools would like to support your plan",
+    "org_alerts": lambda count: f"{count} alerts about your organization",
 }
