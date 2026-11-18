@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
@@ -21,7 +22,7 @@ from src.db.organizations import Organization
 from src.db.users import PublicUser, User
 from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user, get_current_user
 from src.security.org_auth import require_org_owner_admin
-from src.services.canvas import connections, keys, launch as lti, pages, people, session as canvas_session, settings
+from src.services.canvas import connections, courses, keys, launch as lti, pages, people, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 from src.routers.users import _invalidate_session_cache
@@ -29,6 +30,13 @@ from src.routers.users import _invalidate_session_cache
 router = APIRouter()
 
 TOOL_TITLE = "Life2Launch"
+
+
+@router.get("/framing")
+def framing(org: str = "", db: Session = Depends(get_db_session)):
+    """Which Canvas sites may frame an organization's pages (read by the web app's page routing, cached)."""
+    return JSONResponse({"origins": connections.framing_origins(db, org or None)},
+                        headers={"Cache-Control": "public, max-age=60"})
 
 
 @router.get("/jwks")
@@ -164,9 +172,11 @@ def _launch_from_ticket(db: Session, data: dict) -> lti.Launch:
     )
 
 
-def landing_path(membership_role_id: int) -> str:
-    """A student lands on their home; staff on the admin dashboard."""
-    return "/admin" if membership_role_id in (people.ADMIN_ROLE_ID, people.STAFF_ROLE_ID) else "/plans"
+def landing_path(membership_role_id: int, course_group_id: int | None = None) -> str:
+    """A student lands on their home; staff on their Canvas course's group (or the admin home without one)."""
+    if membership_role_id not in (people.ADMIN_ROLE_ID, people.STAFF_ROLE_ID):
+        return "/plans"
+    return f"/admin/threads/profiles/groups/{course_group_id}" if course_group_id else "/admin"
 
 
 @router.post("/session")
@@ -182,9 +192,11 @@ async def lti_session(
         return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
     try:
         if data.get("kind") == "launch":
-            user, membership, _created = people.resolve_person(db, _launch_from_ticket(db, data))
+            launch = _launch_from_ticket(db, data)
+            user, membership, _created = people.resolve_person(db, launch)
             _invalidate_session_cache(user.id)  # a new membership or role shows at once
-            return_path = landing_path(membership.role_id)
+            group = courses.course_group(db, launch) if launch.course_id else None
+            return_path = landing_path(membership.role_id, int(group.id) if group else None)
         elif data.get("kind") == "session":
             user = db.exec(select(User).where(User.email == data.get("email"))).first()
             if not user:
@@ -224,6 +236,32 @@ async def lti_session(
     # A launch replaces whatever session this Canvas partition already had (a shared school computer).
     canvas_session.set_canvas_cookies(response, request, access, refresh)
     return response
+
+
+class TabTicketRequest(BaseModel):
+    org_id: int
+    path: str = "/"
+
+
+@router.post("/tab-ticket")
+def lti_tab_ticket(
+    request: Request,
+    body: TabTicketRequest,
+    current_user=Depends(get_authenticated_user),
+    db: Session = Depends(get_db_session),
+):
+    """Inside Canvas, "Open in new tab": a 60-second one-use ticket the page posts to our own site in a new tab,
+    which signs the same person in there with ordinary first-party cookies. No token in any URL."""
+    if not isinstance(current_user, PublicUser) or not canvas_session.is_canvas_session(request):
+        raise HTTPException(status_code=403, detail="Only available inside Canvas")
+    if not db.get(Organization, body.org_id):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    ticket = canvas_session.issue_ticket(
+        {"kind": "session", "email": current_user.email, "org_id": body.org_id,
+         "return": canvas_session.safe_return_path(body.path)},
+        ttl=canvas_session.TAB_TICKET_TTL_SECONDS,
+    )
+    return {"ticket": ticket}
 
 
 # ---------------------------------------------------------------------------

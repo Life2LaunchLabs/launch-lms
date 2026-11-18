@@ -197,6 +197,19 @@ def test_staff_without_see_reports_count_only_their_groups(db):
         engine.context(db, _user(12), 1, "org", None, today=TODAY)
 
 
+def test_staff_see_their_own_group_before_anyone_has_joined_it(db):
+    """A Canvas teacher's course group exists, with them as staff, before the first student opens it (DEV-180)."""
+    from src.services.insights import context as insights_context
+
+    db.add(UserGroup(id=3, org_id=1, usergroup_uuid="grp_canvas", name="Careers 101", description="From Canvas"))
+    db.add(UserGroupStaff(org_id=1, usergroup_id=3, user_id=ANA))
+    db.commit()
+    assert engine.context(db, _user(ANA), 1, "group", "grp_canvas", today=TODAY).scope.label == "Careers 101"
+    pop = insights_context.population(db, _user(ANA), 1)
+    assert {row["key"] for row in insights_context.objects(db, pop, "group")} == {"grp_fall", "grp_canvas"}
+    assert _run(db, {"measure": "plan_starts"}, viewer=ANA, scope="group", key="grp_canvas")["value"]["v"] == 0
+
+
 def test_running_cards_says_when_the_viewer_counts_only_their_own_learners(db):
     from src.routers.insights import RunCards, api_run_cards
     payload = RunCards.model_validate({"cards": [{"key": "a", "spec": {"measure": "plan_starts"}}], "range": "all"})

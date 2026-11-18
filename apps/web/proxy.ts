@@ -15,6 +15,7 @@ import {
 import { buildPublicRequestUrl } from './services/routing/context'
 import { hasRoutableSession } from './services/auth/sessionCookies'
 import { rewriteWithRequestHeaders } from './services/routing/rewriteResponse'
+import { frameAncestors, framingOrigins } from './services/routing/framing'
 
 let instanceCache: { data: RequestInstanceInfo; ts: number } | null = null
 const INSTANCE_CACHE_TTL = 30 * 1000
@@ -201,6 +202,11 @@ export default async function proxy(req: NextRequest) {
   })
 
   const response = buildResponse(req, decision)
+  const framingSlug = subdomainOrgSlug && subdomainOrgSlug !== instanceInfo.default_org_slug ? subdomainOrgSlug : null
+  response.headers.set(
+    'Content-Security-Policy',
+    frameAncestors(await framingOrigins(process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl(), framingSlug)),
+  )
   setInstanceCookies(response, instanceInfo)
   applyDecision(response, decision)
   expireLegacyParentCookies(response, req)

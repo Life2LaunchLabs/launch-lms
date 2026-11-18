@@ -187,7 +187,8 @@ def scope(db: Session, pop: Population, kind: str, key: str | None) -> Scope:
             raise HTTPException(status_code=404, detail="Group not found")
         if not pop.see_reports:
             members = {int(item) for item in db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == group.id)).all()}
-            if not members & set(pop.status):
+            # Their own groups (staff on it, e.g. a Canvas teacher's course group) even before anyone has joined.
+            if not members & set(pop.status) and int(group.id) not in staff_group_ids(db, pop.org_id, pop.viewer_id):  # type: ignore[arg-type]
                 raise HTTPException(status_code=404, detail="Group not found")
         return Scope("group", key, int(group.id), group.name)  # type: ignore[arg-type]
     if kind == "framework":
@@ -206,7 +207,8 @@ def objects(db: Session, pop: Population, kind: str) -> list[dict]:
     """The plans, groups, learners or frameworks this viewer can open a dashboard on, most learners first (learners by name).
 
     Plans are the organization's own (not archived) and any plan its learners have started; groups are the
-    organization's, or for staff without See reports the ones that hold their learners; frameworks are the
+    organization's, or for staff without See reports the ones that hold their learners and the ones they're staff
+    on; frameworks are the
     organization's (not archived), counting the learners tracked on each.
     """
     if kind == "plan":
@@ -225,8 +227,9 @@ def objects(db: Session, pop: Population, kind: str) -> list[dict]:
             if int(user_id) in pop.status:
                 members.setdefault(int(group_id), set()).add(int(user_id))
         groups = db.exec(select(UserGroup).where(UserGroup.org_id == pop.org_id)).all()
+        own = set() if pop.see_reports else staff_group_ids(db, pop.org_id, pop.viewer_id)
         rows = [{"key": group.usergroup_uuid, "id": int(group.id), "label": group.name, "learners": len(members.get(int(group.id), ()))}  # type: ignore[arg-type]
-                for group in groups if pop.see_reports or int(group.id) in members]  # type: ignore[arg-type]
+                for group in groups if pop.see_reports or int(group.id) in members or int(group.id) in own]  # type: ignore[arg-type]
     elif kind == "learner":
         return _learner_objects(db, pop)
     elif kind == "framework":

@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { AnimatePresence, motion } from 'motion/react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { useGoogleSignIn } from '@services/auth/google'
+import { useInFrame } from '@services/canvas/frame'
 import { ArrowLeft, ArrowRight, Award, Building2, Check, Compass, GraduationCap, HardHat, Heart, Layers3, ListChecks, Loader2, Megaphone, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import '@/styles/admin-dark.css'
@@ -417,7 +418,8 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
       setBusy(false)
     }
   }
-  const googleOn = useGoogleSignIn()
+  const framed = useInFrame()  // Google refuses to open inside Canvas's frame
+  const googleOn = useGoogleSignIn() && !framed
   const google = async () => {
     if (!existing && !age.ok()) return
     onGoogle()

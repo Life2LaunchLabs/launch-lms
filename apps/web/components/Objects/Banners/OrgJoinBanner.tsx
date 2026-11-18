@@ -41,6 +41,7 @@ export function OrgJoinBanner() {
 
   return (
     <div
+      data-canvas-hide
       className="org-join-banner fixed top-[var(--test-persona-bar-h,0px)] left-0 right-0 bg-gradient-to-r from-yellow-500 to-amber-500 text-white"
       style={{ zIndex: 'var(--z-nav-menu)', height: JOIN_BANNER_HEIGHT }}
     >

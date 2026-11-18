@@ -7,6 +7,7 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgFaviconMediaDirectory, getOrgLogoMediaDirectory } from '@services/media/media'
 import OrgThemeVariables from './OrgThemeVariables'
 import { PageTitleProvider } from '@components/Contexts/PageTitleContext'
+import CanvasFrame from '@components/Canvas/CanvasFrame'
 
 export async function generateMetadata({
   params,
@@ -57,6 +58,7 @@ export default async function RootLayout(props: {
         <PageTitleProvider><OrgThemeVariables>
           <NextTopLoader color="#2e2e2e" initialPosition={0.3} height={4} easing={'ease'} speed={500} showSpinner={false} />
           <Toast />
+          <CanvasFrame />
           {props.children}
         </OrgThemeVariables></PageTitleProvider>
       </OrgProvider>
