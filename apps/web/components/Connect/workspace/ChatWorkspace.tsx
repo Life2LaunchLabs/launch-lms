@@ -20,7 +20,7 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage, ReviewLinks } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
-import { ComposeModeToggle, feedEntries, withTimeline, type ComposeMode, type TimelineItem } from './feed'
+import { ComposeModeToggle, feedEntries, keepComposeMode, keptComposeMode, withTimeline, type ComposeMode, type TimelineItem } from './feed'
 
 import { tr } from '@/lib/tr'
 const CHAT_REFRESH_MS = 5_000
@@ -121,10 +121,14 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
   // Staff write here for everyone, or for staff alone.
-  const [mode, setMode] = React.useState<ComposeMode>('message')
+  // The pick stays until you change it, even if this chat loads again, so a second note can't reach the learner by mistake.
+  const conversation = chat?.conversation_uuid
+  const [mode, setShownMode] = React.useState<ComposeMode>(() => (conversation && keptComposeMode(conversation)) || 'message')
+  React.useEffect(() => { const kept = conversation && keptComposeMode(conversation); if (kept) setShownMode(kept) }, [conversation])
+  const setMode = React.useCallback((next: ComposeMode) => { setShownMode(next); if (conversation) keepComposeMode(conversation, next) }, [conversation])
   const staffOnly = Boolean(chat?.can_post_staff_only) && mode === 'staff'
   // Reading staff-only messages, you're most likely writing one.
-  React.useEffect(() => { if (audience === 'staff') setMode('staff') }, [audience])
+  React.useEffect(() => { if (audience === 'staff') setShownMode('staff') }, [audience])
 
   const shownTimeline = React.useMemo(() => filter.goal_uuid && !timelineFiltered ? [] : timeline || [], [filter.goal_uuid, timeline, timelineFiltered])
   const lastStamp = chat?.messages.at(-1)?.update_date

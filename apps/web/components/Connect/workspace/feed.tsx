@@ -25,6 +25,12 @@ export function withTimeline<T extends { at: number }>(entries: T[], timeline: T
 
 export type ComposeMode = 'message' | 'staff'
 
+// The mode picked in each chat, kept for the tab: a chat that loads again (a panel reopening, a
+// thread refreshing) must not fall back to Message after a staff-only note (FEED-210).
+const keptModes = new Map<string, ComposeMode>()
+export const keptComposeMode = (conversationUuid: string): ComposeMode | undefined => keptModes.get(conversationUuid)
+export function keepComposeMode(conversationUuid: string, mode: ComposeMode) { keptModes.set(conversationUuid, mode) }
+
 /** Above the composer, for staff: write a message everyone in the chat reads, or one only staff read. */
 export function ComposeModeToggle({ mode, onChange }: { mode: ComposeMode; onChange: (mode: ComposeMode) => void }) { // eslint-disable-line no-unused-vars
   const option = (value: ComposeMode, label: string) => <button type="button" aria-pressed={mode === value} onClick={() => onChange(value)}
