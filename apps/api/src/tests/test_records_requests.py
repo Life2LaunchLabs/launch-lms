@@ -3,6 +3,7 @@
 import importlib
 import io
 import pkgutil
+import tempfile
 import zipfile
 
 import pytest
@@ -32,7 +33,10 @@ ADMIN, STAFF, LEARNER, SHARED, HELPER = 10, 11, 12, 13, 14
 
 
 def _session() -> Session:
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    # A file, not memory: freeze_exits inspects the tables mid-delete, and on the one shared in-memory connection
+    # that rolls the delete back. A file gives it its own connection, as Postgres does.
+    path = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
+    engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
     # Keys behave as on Postgres: deletes cascade, and a RESTRICT key stops a delete.
     event.listen(engine, "connect", lambda connection, _: connection.execute("PRAGMA foreign_keys=ON"))
     SQLModel.metadata.create_all(engine)
@@ -132,49 +136,67 @@ def test_export_is_a_readable_pdf_with_hand_ins_and_no_staff_notes(monkeypatch):
         assert denied.value.status_code == 403
 
 
-def test_delete_shows_what_is_kept_and_removes_the_account(monkeypatch):
-    from src.services.users import files
+def _chats(db: Session) -> None:
+    db.add(Conversation(id=7, conversation_uuid="chat_7", kind="school", direct_key=f"school:{SCHOOL}:{LEARNER}", org_id=SCHOOL, creation_date=NOW, update_date=NOW))
+    db.add(Conversation(id=8, conversation_uuid="chat_8", kind="group", org_id=SCHOOL, creation_date=NOW, update_date=NOW))
+    db.add(Conversation(id=9, conversation_uuid="chat_9", kind="group", org_id=ELSEWHERE, creation_date=NOW, update_date=NOW))
+    db.flush()
+    db.add_all([
+        ConversationMember(conversation_id=7, user_id=LEARNER, creation_date=NOW, update_date=NOW),
+        ConversationMember(conversation_id=7, user_id=STAFF, creation_date=NOW, update_date=NOW),
+        ConversationMember(conversation_id=8, user_id=LEARNER, creation_date=NOW, update_date=NOW),
+        ConversationMessage(conversation_id=7, message_uuid="m1", sender_user_id=STAFF, body="How is the essay going?", creation_date=NOW, update_date=NOW),
+        ConversationMessage(conversation_id=8, message_uuid="m2", sender_user_id=LEARNER, body="Hi class", creation_date=NOW, update_date=NOW),
+        ConversationMessage(conversation_id=8, message_uuid="m3", sender_user_id=STAFF, body="Welcome", creation_date=NOW, update_date=NOW),
+        ConversationMessage(conversation_id=9, message_uuid="m4", sender_user_id=LEARNER, body="Hello Ridge", creation_date=NOW, update_date=NOW),
+    ])
+    db.commit()
 
-    monkeypatch.setattr(files, "remove_user_files", lambda uuid: True)
+
+def test_delete_removes_only_the_organizations_data_and_keeps_the_account():
     with _session() as db:
         _plan(db)
         db.add(EppRecord(record_uuid="r1", org_id=SCHOOL, user_id=LEARNER, learner_name="Maya Test", school_year="2026-27", creation_date=NOW, update_date=NOW))
-        db.add(Conversation(id=7, conversation_uuid="chat_7", kind="school", direct_key=f"school:{SCHOOL}:{LEARNER}", org_id=SCHOOL, creation_date=NOW, update_date=NOW))
-        db.add(Conversation(id=8, conversation_uuid="chat_8", kind="group", org_id=SCHOOL, creation_date=NOW, update_date=NOW))
-        db.flush()
-        db.add_all([
-            ConversationMember(conversation_id=7, user_id=LEARNER, creation_date=NOW, update_date=NOW),
-            ConversationMember(conversation_id=7, user_id=STAFF, creation_date=NOW, update_date=NOW),
-            ConversationMessage(conversation_id=7, message_uuid="m1", sender_user_id=STAFF, body="How is the essay going?", creation_date=NOW, update_date=NOW),
-            ConversationMessage(conversation_id=8, message_uuid="m2", sender_user_id=LEARNER, body="Hi class", creation_date=NOW, update_date=NOW),
-            ConversationMessage(conversation_id=8, message_uuid="m3", sender_user_id=STAFF, body="Welcome", creation_date=NOW, update_date=NOW),
-        ])
+        db.add(UserOrganization(user_id=LEARNER, org_id=ELSEWHERE, role_id=4, creation_date=NOW, update_date=NOW))
         db.commit()
+        _chats(db)
         records_access.note(db, STAFF, SCHOOL, LEARNER, "profile")
         preview = records_requests.delete_preview(db, _user(db, ADMIN), SCHOOL, LEARNER)
         assert preview["can_delete"] is True
-        assert [item["what"] for item in preview["kept"]] == ["Their Education Plan and Profile records (1 reviewed record)", "The access log of who opened their records"]
+        assert "keeps their account" in preview["theirs"]
+        assert [item["what"] for item in preview["kept"]] == [
+            "Their Education Plan and Profile records (1 reviewed record)", "The access log of who opened their records", "Their Coach conversations here, for 60 days"]
 
         with pytest.raises(HTTPException) as wrong:
             records_requests.delete(db, _user(db, ADMIN), SCHOOL, LEARNER, "someone")
         assert wrong.value.status_code == 422
 
         records_requests.delete(db, _user(db, ADMIN), SCHOOL, LEARNER, "@maya")
-        assert db.get(User, LEARNER) is None
-        assert db.exec(select(UserOrganization).where(UserOrganization.user_id == LEARNER)).first() is None
-        assert db.exec(select(Goal)).all() == []  # the plan staff own for her and her own goal
+        # The account, their own plan, their upload and their other organizations stay theirs.
+        assert db.get(User, LEARNER) is not None
+        assert sorted(row.org_id for row in db.exec(select(UserOrganization).where(UserOrganization.user_id == LEARNER)).all()) == [PLATFORM, ELSEWHERE]
+        assert [goal.title for goal in db.exec(select(Goal)).all()] == ["Private diary"]
+        assert db.get(MediaAsset, 5) is not None
+        # The plan the school gave her goes with its answers, hand-in link, review and staff note.
         assert db.exec(select(StepProgress)).all() == [] and db.exec(select(StepEntry)).all() == []
-        assert db.get(Conversation, 7) is None and [row.body for row in db.exec(select(ConversationMessage)).all()] == ["Welcome"]
+        assert db.get(Conversation, 7) is None
+        assert sorted(row.body for row in db.exec(select(ConversationMessage)).all()) == ["Hello Ridge", "Welcome"]
+        assert db.exec(select(ConversationMember).where(ConversationMember.user_id == LEARNER)).all() == []
         kept = db.exec(select(EppRecord)).one()
-        assert kept.learner_name == "Maya Test" and kept.user_id is None
+        assert kept.learner_name == "Maya Test"
         assert {row.action for row in db.exec(select(AuditLog)).all()} == {records_access.VIEW, records_access.DELETE}
+        with pytest.raises(HTTPException) as gone:
+            records_requests.delete_preview(db, _user(db, ADMIN), SCHOOL, LEARNER)
+        assert gone.value.status_code == 404
 
 
-def test_an_account_in_another_organization_waits():
+def test_nobody_is_removed_from_the_platform_organization():
     with _session() as db:
-        preview = records_requests.delete_preview(db, _user(db, ADMIN), SCHOOL, SHARED)
-        assert preview["can_delete"] is False and "Ridge Academy" in preview["blocked_reason"]
+        db.add(UserOrganization(user_id=ADMIN, org_id=PLATFORM, role_id=1, creation_date=NOW, update_date=NOW))
+        db.commit()
+        preview = records_requests.delete_preview(db, _user(db, ADMIN), PLATFORM, SHARED)
+        assert preview["can_delete"] is False
         with pytest.raises(HTTPException) as blocked:
-            records_requests.delete(db, _user(db, ADMIN), SCHOOL, SHARED, "theo")
+            records_requests.delete(db, _user(db, ADMIN), PLATFORM, SHARED, "theo")
         assert blocked.value.status_code == 409
-        assert db.get(User, SHARED) is not None
+        assert db.exec(select(UserOrganization).where(UserOrganization.user_id == SHARED, UserOrganization.org_id == PLATFORM)).first() is not None

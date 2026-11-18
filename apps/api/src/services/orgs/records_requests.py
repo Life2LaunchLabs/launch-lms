@@ -6,10 +6,9 @@ learner with their step answers and hand-ins, the portfolio as the learner share
 the organization issued and, when it keeps school records, the learner's Education Plan and Profile. Notes staff
 wrote only for staff stay out, as they do in the learner's own download.
 
-Delete removes the account and everything that cascades from it (services/users/files.delete_user_and_files), but a
-school keeps a supported learner's Education Plan and Profile records (``freeze_exits``), and the access log keeps
-its rows, which name staff, not the learner. For now only a learner whose account belongs to this organization alone
-can be deleted here; an account that also belongs to another organization waits on a decision (v0.11.0 page).
+Delete removes the learner from the organization and deletes its data about them; the account and what the learner
+owns stay theirs (a school deletes only its own data). The school keeps a supported learner's Education Plan and
+Profile records (``freeze_exits``), and the access log keeps its rows, which name staff, not the learner.
 """
 
 from __future__ import annotations
@@ -321,13 +320,15 @@ def export(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> 
 
 
 # ---------------------------------------------------------------- delete
+#
+# A school deletes only its own data about a learner, never the learner's (Product lead, 2026-11-18): the learner
+# leaves the organization and its records of them go, while the account and what the learner owns stay theirs, even
+# when this was their only organization.
 
-def _other_orgs(db: Session, org_id: int, user_id: int) -> list[str]:
-    """Organizations besides this one the account belongs to (the platform's own, which everyone joins, doesn't count)."""
-    owner = owner_org(db)
-    rows = db.exec(select(Organization).join(UserOrganization, UserOrganization.org_id == Organization.id).where(
-        UserOrganization.user_id == user_id, UserOrganization.org_id != org_id)).all()
-    return [row.name for row in rows if not owner or row.id != owner.id]
+
+def _assigned(db: Session, org_id: int, user_id: int):
+    """Plans this organization gave the learner: its staff own them, the learner is their subject."""
+    return select(Goal.id).where(Goal.org_id == org_id, Goal.subject_user_id == user_id, Goal.owner_user_id != user_id)
 
 
 def _count(db: Session, statement) -> int:
@@ -335,27 +336,36 @@ def _count(db: Session, statement) -> int:
 
 
 def delete_preview(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> dict:
-    """What deleting the learner removes, what the organization keeps and why, and whether it can be done here."""
+    """What deleting the learner's data here removes, what stays the learner's, what the school keeps and why."""
+    from src.db.conversations import Conversation
+    from src.db.epp_courses import EppCourse
+
     user = _learner(db, current_user, org_id, user_id)
     name = _name(user)
-    others = _other_orgs(db, org_id, user_id)
+    first = (user.first_name or "").strip() or name
+    org = db.get(Organization, org_id)
+    owner = owner_org(db)
     blocked = None
-    if getattr(user, "is_superadmin", False):
-        blocked = "This account runs the platform and can't be deleted here."
-    elif others:
-        blocked = (f"{name}'s account also belongs to {others[0] if len(others) == 1 else 'other organizations'}, so it isn't yours alone to delete. "
-                   "Deleting accounts like this is waiting on a decision. You can remove them from your organization instead, which ends your access.")
-    plans = _count(db, select(Goal.id).where((Goal.owner_user_id == user_id) | (Goal.subject_user_id == user_id)))
-    files = _count(db, select(MediaAsset.id).where(MediaAsset.owner_user_id == user_id))
+    if owner and int(owner.id) == int(org_id):  # type: ignore[arg-type]
+        blocked = f"Everyone with an account belongs to {org.name if org else 'the platform organization'}, so nobody can be removed from it."
+    elif int(current_user.id) == int(user_id):
+        blocked = "You can't remove yourself here."
+    plans = _count(db, _assigned(db, org_id, user_id))
+    chat = db.exec(select(Conversation.id).where(Conversation.org_id == org_id, Conversation.direct_key == f"school:{org_id}:{user_id}")).first()
+    courses = _count(db, select(EppCourse.id).where(EppCourse.org_id == org_id, EppCourse.user_id == user_id))
     reviewed = _count(db, select(EppRecord.id).where(EppRecord.org_id == org_id, EppRecord.user_id == user_id))
     supported = db.exec(select(LearnerSupport.id).where(LearnerSupport.org_id == org_id, LearnerSupport.user_id == user_id, LearnerSupport.status == "active")).first() is not None
     removed = [
-        "Their account, so nobody can sign in to it or find it in your organization",
-        f"Their plans and every step answer ({plans} plan{'s' if plans != 1 else ''})",
-        f"Files they uploaded ({files})",
-        "Their chats with staff and every message they sent",
-        "Their portfolio, badges, Coach conversations and saved resources",
+        f"{first}'s place in your organization: they leave your groups and chats, and your staff can no longer find them or open their work",
+        f"Plans your organization gave them, with every step answer, review and staff note ({plans} plan{'s' if plans != 1 else ''})",
+        ("Your organization's chat with them, staff-only notes included, and messages they sent in your chats" if chat
+         else "Messages they sent in your organization's chats"),
+        "Invitations and join requests for your organization and its plans",
     ]
+    if courses:
+        removed.insert(2, f"Their course plan in your Education Plan and Profile ({courses} course{'s' if courses != 1 else ''})")
+    theirs = (f"{first} keeps their account and can still sign in, just not to your organization. Their own plans, portfolio, "
+              "badges, the files they uploaded and any other organizations they belong to stay theirs.")
     kept = []
     if reviewed or supported:
         parts = []
@@ -367,67 +377,78 @@ def delete_preview(db: Session, current_user: PublicUser, org_id: int, user_id: 
                      "why": "Your school holds these records for the learner. You decide later whether to remove them, from School records."})
     kept.append({"what": "The access log of who opened their records",
                  "why": "It names your staff, not the learner, and shows you answered the request."})
-    return {"name": name, "username": user.username, "can_delete": blocked is None, "blocked_reason": blocked, "removed": removed, "kept": kept}
+    kept.append({"what": "Their Coach conversations here, for 60 days",
+                 "why": "As for anyone who leaves your organization, they're deleted 60 days later."})
+    return {"name": name, "username": user.username, "can_delete": blocked is None, "blocked_reason": blocked,
+            "removed": removed, "theirs": theirs, "kept": kept}
 
 
-def _remove_learner_rows(db: Session, user: User) -> None:
-    """What the account delete alone would leave behind with the learner's name taken off: plans staff own for them
-    (step answers and hand-ins), their chats with staff and the messages they sent, and invitations to their email.
-    Goals they own go too, which the account's RESTRICT key needs anyway. Doesn't commit."""
+def _remove_org_rows(db: Session, org_id: int, user: User) -> None:
+    """This organization's records of the learner, which leaving it alone keeps: the plans it gave them (step answers,
+    hand-in links, reviews and staff notes), its chat with them and the messages they sent in its chats, their live
+    EPP course plan, invitations and join requests, and its Canvas link to them. Doesn't commit."""
     from sqlalchemy import delete as sql_delete, or_
 
+    from src.db.canvas import CanvasConnection, CanvasUserLink
     from src.db.conversations import Conversation, ConversationMember, ConversationMessage
+    from src.db.epp_courses import EppCourse
     from src.db.goal_sharing import PlanInvitation
+    from src.db.goals import GoalAssignment
     from src.db.organization_invitations import OrganizationInvitation
     from src.db.organization_join_requests import OrganizationJoinRequest
+    from src.db.plan_joining import PlanJoinRequest
 
     user_id = int(user.id)  # type: ignore[arg-type]
     email = (user.email or "").strip().lower()
-    chats = db.exec(select(Conversation.id).join(ConversationMember, ConversationMember.conversation_id == Conversation.id).where(
-        ConversationMember.user_id == user_id, Conversation.kind == "direct")).all()
-    school_chats = db.exec(select(Conversation.id).where(col(Conversation.direct_key).like(f"school:%:{user_id}"))).all()
-    ids = list({*chats, *school_chats})
-    if ids:
-        db.exec(sql_delete(ConversationMessage).where(col(ConversationMessage.conversation_id).in_(ids)))  # type: ignore[call-overload]
-        db.exec(sql_delete(ConversationMember).where(col(ConversationMember.conversation_id).in_(ids)))  # type: ignore[call-overload]
-        db.exec(sql_delete(Conversation).where(col(Conversation.id).in_(ids)))  # type: ignore[call-overload]
-    db.exec(sql_delete(ConversationMessage).where(ConversationMessage.sender_user_id == user_id))  # type: ignore[call-overload]
-    db.exec(sql_delete(Goal).where(or_(Goal.owner_user_id == user_id, Goal.subject_user_id == user_id)))  # type: ignore[call-overload]
-    db.exec(sql_delete(OrganizationInvitation).where(or_(  # type: ignore[call-overload]
+    chats = db.exec(select(Conversation.id).where(Conversation.org_id == org_id, Conversation.direct_key == f"school:{org_id}:{user_id}")).all()
+    if chats:
+        db.exec(sql_delete(ConversationMessage).where(col(ConversationMessage.conversation_id).in_(chats)))  # type: ignore[call-overload]
+        db.exec(sql_delete(ConversationMember).where(col(ConversationMember.conversation_id).in_(chats)))  # type: ignore[call-overload]
+        db.exec(sql_delete(Conversation).where(col(Conversation.id).in_(chats)))  # type: ignore[call-overload]
+    org_chats = select(Conversation.id).where(Conversation.org_id == org_id)
+    db.exec(sql_delete(ConversationMessage).where(ConversationMessage.sender_user_id == user_id, col(ConversationMessage.conversation_id).in_(org_chats)))  # type: ignore[call-overload]
+    db.exec(sql_delete(Goal).where(col(Goal.id).in_(_assigned(db, org_id, user_id))))  # type: ignore[call-overload]
+    db.exec(sql_delete(GoalAssignment).where(GoalAssignment.org_id == org_id, GoalAssignment.user_id == user_id))  # type: ignore[call-overload]
+    db.exec(sql_delete(EppCourse).where(EppCourse.org_id == org_id, EppCourse.user_id == user_id))  # type: ignore[call-overload]
+    db.exec(sql_delete(OrganizationInvitation).where(OrganizationInvitation.org_id == org_id, or_(  # type: ignore[call-overload]
         OrganizationInvitation.target_user_id == user_id, *([OrganizationInvitation.email_normalized == email] if email else []))))
-    db.exec(sql_delete(PlanInvitation).where(or_(  # type: ignore[call-overload]
+    org_goals = select(Goal.id).where(Goal.org_id == org_id)
+    db.exec(sql_delete(PlanInvitation).where(col(PlanInvitation.goal_id).in_(org_goals), or_(  # type: ignore[call-overload]
         PlanInvitation.target_user_id == user_id, *([PlanInvitation.email_normalized == email] if email else []))))
-    db.exec(sql_delete(OrganizationJoinRequest).where(OrganizationJoinRequest.user_id == user_id))  # type: ignore[call-overload]
+    db.exec(sql_delete(OrganizationJoinRequest).where(OrganizationJoinRequest.org_id == org_id, OrganizationJoinRequest.user_id == user_id))  # type: ignore[call-overload]
+    db.exec(sql_delete(PlanJoinRequest).where(PlanJoinRequest.org_id == org_id, PlanJoinRequest.user_id == user_id))  # type: ignore[call-overload]
+    connections = select(CanvasConnection.id).where(CanvasConnection.org_id == org_id)
+    db.exec(sql_delete(CanvasUserLink).where(CanvasUserLink.user_id == user_id, col(CanvasUserLink.connection_id).in_(connections)))  # type: ignore[call-overload]
     db.flush()
 
 
 def delete(db: Session, current_user: PublicUser, org_id: int, user_id: int, confirm: str) -> dict:
-    """Delete the learner and their data. ``confirm`` is their username, typed by the admin."""
-    from src.services.epp.records import freeze_exits
-    from src.services.users.files import delete_user_and_files
+    """Remove the learner from the organization and delete its data about them. ``confirm`` is their username,
+    typed by the admin. The account and the learner's own data stay."""
+    from src.services.orgs.membership import cleanup_after_removal
 
     preview = delete_preview(db, current_user, org_id, user_id)
     if not preview["can_delete"]:
         raise HTTPException(status_code=409, detail=preview["blocked_reason"])
-    if int(current_user.id) == int(user_id):
-        raise HTTPException(status_code=400, detail="You can't delete your own account here")
     if (confirm or "").strip().lstrip("@").lower() != (preview["username"] or "").lower():
         raise HTTPException(status_code=422, detail="Type their username to confirm")
     user = db.get(User, user_id)
-    freeze_exits(db, user_id)  # schools keep a supported learner's EPP record
-    _remove_learner_rows(db, user)  # type: ignore[arg-type]
-    for membership in db.exec(select(UserOrganization).where(UserOrganization.user_id == user_id)).all():
+    membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == user_id, UserOrganization.org_id == org_id)).first()
+    if membership:
         db.delete(membership)
-    db.flush()
-    delete_user_and_files(db, user)  # type: ignore[arg-type]
+        db.flush()
+    # Groups, chats, plan roles, the EPP exit record a school keeps, and Coach's 60-day clock, as for anyone who leaves.
+    cleanup_after_removal(db, org_id, user_id)
+    _remove_org_rows(db, org_id, user)  # type: ignore[arg-type]
+    db.commit()
+    records_access.note(db, current_user.id, org_id, user_id, "records", action=records_access.DELETE)
     try:
         from src.services.superadmin.users import _invalidate_session_cache
 
         _invalidate_session_cache(user_id)
     except Exception:
         logger.exception("records delete: couldn't clear the session cache for %s", user_id)
-    records_access.note(db, current_user.id, org_id, user_id, "records", action=records_access.DELETE)
-    return {"detail": f"{preview['name']} and their data were deleted"}
+    return {"detail": f"{preview['name']} was removed and your organization's data about them was deleted"}
 
 
 def access(db: Session, current_user: PublicUser, org_id: int, user_id: int, offset: int = 0) -> dict:

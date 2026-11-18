@@ -1,7 +1,8 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
-/** Answering a parent's records request from a learner's page (admins): download, who opened them, delete. */
+/** Answering a parent's records request from a learner's page (admins): download, who opened them, and removing the
+ * learner with the organization's data about them (their account stays theirs). */
 const base = (orgId: number, userId: number) => `${getAPIUrl()}school/orgs/${orgId}/learners/${userId}/records`
 
 export interface RecordsAccessItem {
@@ -22,6 +23,8 @@ export interface DeletePreview {
   can_delete: boolean
   blocked_reason: string | null
   removed: string[]
+  /** What stays the learner's: their account and what they own. */
+  theirs: string
   kept: Array<{ what: string; why: string }>
 }
 
