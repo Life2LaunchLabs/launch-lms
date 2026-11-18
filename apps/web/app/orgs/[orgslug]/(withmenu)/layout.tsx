@@ -23,7 +23,7 @@ function OrgFooter() {
   if (!footerText) return null
 
   return (
-    <footer className="w-full py-8 mt-12 print:hidden">
+    <footer data-canvas-hide className="w-full py-8 mt-12 print:hidden">
       <div className="flex flex-col items-center justify-center space-y-4">
         <p className="text-sm text-muted-foreground">{footerText}</p>
       </div>

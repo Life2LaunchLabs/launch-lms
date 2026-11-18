@@ -12,7 +12,7 @@ const LABEL_KEYS: Record<(typeof LEGAL_LINKS)[number]['href'], string> = {
 export default function LegalFooter({ className = '' }: { className?: string }) {
   const { t } = useTranslation()
   return (
-    <footer className={`w-full px-4 py-6 print:hidden ${className}`}>
+    <footer data-canvas-hide className={`w-full px-4 py-6 print:hidden ${className}`}>
       <nav aria-label={t('legal.footer_label')} className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
         <span>© {new Date().getFullYear()} Life2Launch</span>
         {LEGAL_LINKS.map((link) => (

@@ -5,6 +5,7 @@ import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { useGoogleSignIn } from '@services/auth/google'
 import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
+import { useInFrame } from '@services/canvas/frame'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@components/Contexts/AuthContext'
@@ -29,7 +30,9 @@ const LoginClient = (props: LoginClientProps) => {
   const { signIn } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const google = useGoogleSignIn()
+  // Google and school SSO refuse to open inside another site's frame (Canvas), so they're hidden there.
+  const framed = useInFrame()
+  const google = useGoogleSignIn() && !framed
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const searchParams = useSearchParams()
@@ -328,7 +331,7 @@ const LoginClient = (props: LoginClientProps) => {
                 <Link href="/forgot" className="text-xs text-gray-500 transition-colors hover:text-gray-950">
                   {t('auth.forgot_password')}
                 </Link>
-                {ssoEnabled && (
+                {ssoEnabled && !framed && (
                   <button
                     type="button"
                     onClick={handleSSOLogin}

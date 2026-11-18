@@ -13,6 +13,7 @@ import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { useGoogleSignIn } from '@services/auth/google'
+import { useInFrame } from '@services/canvas/frame'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
 import { signup, signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
@@ -70,7 +71,8 @@ function OpenSignUpComponent({
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
-  const google = useGoogleSignIn()
+  const framed = useInFrame()  // Google refuses to open inside Canvas's frame
+  const google = useGoogleSignIn() && !framed
   const [step, setStep] = React.useState<'email' | 'details'>(createOrgMode ? 'details' : 'email')
   const [emailError, setEmailError] = React.useState('')
   const age = useAgeConfirm()

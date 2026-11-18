@@ -75,12 +75,22 @@ def for_org(db: Session, org_id: int) -> CanvasConnection | None:
     return db.exec(select(CanvasConnection).where(CanvasConnection.org_id == org_id)).first()
 
 
-def framing_hosts(db: Session, org_id: int) -> list[str]:
-    """Canvas sites allowed to show this organization's pages in a frame: its switched-on connection only."""
-    connection = for_org(db, org_id)
-    if not connection or not connection.enabled or not connection.canvas_host:
-        return []
-    return [connection.canvas_host]
+def framing_origins(db: Session, org_slug: str | None) -> list[str]:
+    """Canvas sites allowed to show these pages in a frame: the switched-on connection of the organization
+    whose site it is. The main site (no slug, or the owner organization's) is where every school's learners
+    land, so it allows every switched-on Canvas. Everything else may only be framed by ourselves."""
+    from src.db.organizations import Organization
+    from src.services.orgs.owner import owner_org
+
+    query = select(CanvasConnection.canvas_host).where(CanvasConnection.enabled == True)  # noqa: E712
+    owner = owner_org(db)
+    if org_slug and (not owner or org_slug != owner.slug):
+        org = db.exec(select(Organization).where(Organization.slug == org_slug)).first()
+        if not org:
+            return []
+        query = query.where(CanvasConnection.org_id == org.id)
+    hosts = sorted({host for host in db.exec(query).all() if host and HOST_PATTERN.fullmatch(host)})
+    return [f"{_scheme(host)}://{host}" for host in hosts]
 
 
 def default_issuer(canvas_host: str) -> str:

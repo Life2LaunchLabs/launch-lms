@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
@@ -29,6 +30,13 @@ from src.routers.users import _invalidate_session_cache
 router = APIRouter()
 
 TOOL_TITLE = "Life2Launch"
+
+
+@router.get("/framing")
+def framing(org: str = "", db: Session = Depends(get_db_session)):
+    """Which Canvas sites may frame an organization's pages (read by the web app's page routing, cached)."""
+    return JSONResponse({"origins": connections.framing_origins(db, org or None)},
+                        headers={"Cache-Control": "public, max-age=60"})
 
 
 @router.get("/jwks")
@@ -224,6 +232,32 @@ async def lti_session(
     # A launch replaces whatever session this Canvas partition already had (a shared school computer).
     canvas_session.set_canvas_cookies(response, request, access, refresh)
     return response
+
+
+class TabTicketRequest(BaseModel):
+    org_id: int
+    path: str = "/"
+
+
+@router.post("/tab-ticket")
+def lti_tab_ticket(
+    request: Request,
+    body: TabTicketRequest,
+    current_user=Depends(get_authenticated_user),
+    db: Session = Depends(get_db_session),
+):
+    """Inside Canvas, "Open in new tab": a 60-second one-use ticket the page posts to our own site in a new tab,
+    which signs the same person in there with ordinary first-party cookies. No token in any URL."""
+    if not isinstance(current_user, PublicUser) or not canvas_session.is_canvas_session(request):
+        raise HTTPException(status_code=403, detail="Only available inside Canvas")
+    if not db.get(Organization, body.org_id):
+        raise HTTPException(status_code=404, detail="Organization not found")
+    ticket = canvas_session.issue_ticket(
+        {"kind": "session", "email": current_user.email, "org_id": body.org_id,
+         "return": canvas_session.safe_return_path(body.path)},
+        ttl=canvas_session.TAB_TICKET_TTL_SECONDS,
+    )
+    return {"ticket": ticket}
 
 
 # ---------------------------------------------------------------------------

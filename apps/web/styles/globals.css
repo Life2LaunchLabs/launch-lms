@@ -3057,3 +3057,8 @@ html[data-less-motion] *, html[data-less-motion] *::before, html[data-less-motio
 }
 /* The word being read aloud. */
 .read-aloud-word { background: color-mix(in srgb, var(--org-primary-color, #2F66D6) 28%, transparent); border-radius: 4px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--org-primary-color, #2F66D6) 28%, transparent); }
+
+/* Inside Canvas (DEV-174): Canvas brings its own chrome, so banners and footers step aside. */
+html[data-in-canvas] [data-canvas-hide] {
+  display: none !important;
+}

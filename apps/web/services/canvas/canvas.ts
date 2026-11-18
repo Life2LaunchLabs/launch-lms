@@ -51,3 +51,11 @@ export async function getCanvasSettings(orgId: number, accessToken?: string): Pr
 export async function saveCanvasSettings(orgId: number, body: CanvasSettingsUpdate, accessToken?: string): Promise<CanvasSettings> {
   return result(await fetch(`${getAPIUrl()}lti/orgs/${orgId}/connection`, RequestBodyWithAuthHeader('PUT', body, null, accessToken)))
 }
+
+/** A 60-second one-use ticket that signs this person in, first-party, in a tab of our own (DEV-174). */
+export async function getCanvasTabTicket(orgId: number, path: string, accessToken?: string): Promise<{ ticket: string }> {
+  const response = await fetch(`${getAPIUrl()}lti/tab-ticket`, RequestBodyWithAuthHeader('POST', { org_id: orgId, path }, null, accessToken))
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(typeof body?.detail === 'string' ? body.detail : 'Couldn’t open a new tab. Try again.')
+  return body
+}
