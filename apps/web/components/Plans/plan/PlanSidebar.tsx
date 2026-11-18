@@ -18,6 +18,7 @@ import { AsideCard, Tag } from './AsideCard'
 import PlanBadgeCard from './PlanBadgeCard'
 import { plural } from './planVersions'
 import { inOrgWords } from '@/lib/people'
+import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 
 type Props = { orgslug: string; orgId: number; token?: string; editing: TemplateEditing; document: TemplateDocument; canAssign: boolean; canEdit: boolean }
 
@@ -37,6 +38,8 @@ export default function PlanSidebar({ orgslug, orgId, token, editing, document, 
  */
 function RequirementsCard({ orgslug, orgId, token, document, canEdit }: { orgslug: string; orgId: number; token?: string; document: TemplateDocument; canEdit: boolean }) {
   const frameworks = useRequirementFrameworks(orgId, token)
+  // With school records off (PL-6), the empty card names no graduation or state requirements.
+  const schoolRecords = useSchoolRecords()
   const linked = new Set(documentSteps(document).flatMap(({ step }) => step.requirement_node_uuids || []))
   const coverage = frameworks.map((framework) => {
     const leaves = leafNodes(framework.nodes)
@@ -46,7 +49,7 @@ function RequirementsCard({ orgslug, orgId, token, document, canEdit }: { orgslu
   if (!coverage.length) {
     if (!canEdit || !frameworks.length) return null
     return <AsideCard icon={<ListChecks size={16} />} title="Requirements" tag={<Tag>None</Tag>}>
-      <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">Link steps to graduation or state requirements to track progress toward them. Open a step and use its Requirements button to link it.</p>
+      <p className="mt-2 text-[13.5px] leading-[1.45] text-muted-foreground">{schoolRecords ? 'Link steps to graduation or state requirements to track progress toward them.' : 'Link steps to your requirements, like a certification’s skills or your own competencies, to track progress toward them.'} Open a step and use its Requirements button to link it.</p>
     </AsideCard>
   }
   return <AsideCard icon={<ListChecks size={16} />} title="Requirements">

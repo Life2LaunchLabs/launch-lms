@@ -24,10 +24,23 @@ def _is_staff_anywhere(db: Session, user_id: int) -> bool:
 
 
 def _in_a_school(db: Session, user_id: int) -> bool:
-    """Whether any of this person's organizations uses school records (PL-6)."""
+    """Whether any of this person's organizations uses school records (PL-6).
+
+    Every account also belongs to the owner organization (services/orgs/owner.ensure_owner_membership), so
+    that membership alone doesn't make someone a school's learner: the owner organization counts only once
+    it has asked to support this person (UT-33). Any other organization with school records on counts.
+    """
+    from src.db.learner_support import LearnerSupport
     from src.services.orgs import school_records
-    org_ids = db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == user_id)).all()
-    return any(school_records.enabled(db, org_id) for org_id in set(org_ids))
+    from src.services.orgs.owner import owner_org
+
+    owner = owner_org(db)
+    org_ids = set(db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == user_id)).all())
+    if owner and owner.id in org_ids and not db.exec(
+        select(LearnerSupport.id).where(LearnerSupport.user_id == user_id, LearnerSupport.org_id == owner.id)
+    ).first():
+        org_ids.discard(owner.id)
+    return any(school_records.enabled(db, org_id) for org_id in org_ids)
 
 
 def view(db: Session, user_id: int) -> dict:

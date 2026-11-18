@@ -49,6 +49,7 @@ from src.db.users import PublicUser, User
 from src.services.goals import assignments, entries, goals, issue, schedule, structure, templates
 from src.services.goals.completion import on_badge_awarded
 from src.db.coach import CoachDeparture
+from src.db.learner_support import LearnerSupport
 
 NOW = "2026-10-15T12:00:00"
 ADMIN, LEARNER, OTHER = 1, 2, 3
@@ -74,6 +75,8 @@ def _session() -> Session:
         NotificationEvent.__table__,
         # Leaving an organization starts its Coach retention clock (services/coach/retention.py).
         CoachDeparture.__table__,
+        # Whether someone sees the school email switch (services/notifications/preferences.py).
+        LearnerSupport.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))
