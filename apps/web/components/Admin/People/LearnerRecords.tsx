@@ -21,7 +21,7 @@ function when(value: string) {
 
 /**
  * A parent's records request, on a learner's Access tab (admins): download their records, see which staff
- * opened them and when, and delete the learner and their data.
+ * opened them and when, and remove the learner with the organization's data about them (their account stays theirs).
  */
 export default function LearnerRecords({ orgslug, orgId, token, learner }: {
   orgslug: string
@@ -50,7 +50,7 @@ export default function LearnerRecords({ orgslug, orgId, token, learner }: {
   return <section aria-label="Records request" className="space-y-4 rounded-2xl border border-border bg-card p-5">
     <div>
       <h2 className="flex items-center gap-2 text-base font-bold"><ShieldCheck size={18} aria-hidden="true" />Records request</h2>
-      <p className="mt-1 text-sm text-muted-foreground">When a parent asks for {first}&rsquo;s records, download them here, check who has opened them, or delete {first} and their data.</p>
+      <p className="mt-1 text-sm text-muted-foreground">When a parent asks for {first}&rsquo;s records, download them here, check who has opened them, or remove {first} and delete your organization&rsquo;s data about them.</p>
     </div>
     <div className="flex flex-wrap gap-2">
       <Button type="button" variant="outline" onClick={() => void download()} disabled={!token || downloading} className="h-10 gap-2 rounded-full px-4 font-semibold">
@@ -58,7 +58,7 @@ export default function LearnerRecords({ orgslug, orgId, token, learner }: {
       </Button>
       <Button type="button" variant="outline" onClick={() => setDeleting(true)} disabled={!token}
         className="h-10 gap-2 rounded-full border-red-200 px-4 font-semibold text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950">
-        <Trash2 size={16} aria-hidden="true" />{inOrgWords('Delete learner and data')}
+        <Trash2 size={16} aria-hidden="true" />{inOrgWords('Remove learner and your data')}
       </Button>
     </div>
     <p className="text-xs text-muted-foreground">The download is a zip: a PDF a parent can read with their profile, plans and answers, portfolio and badges, plus their Education Plan and Profile and the files they handed in. Notes staff wrote only for staff stay out.</p>
@@ -116,7 +116,7 @@ function DeleteLearner({ orgslug, orgId, token, learner, close }: {
     setBusy(true)
     try {
       const result = await recordsApi.remove(orgId, learner.id, typed, token)
-      toast.success(result.detail || `${learner.name} was deleted`)
+      toast.success(result.detail || `${learner.name} was removed`)
       await mutate((key) => typeof key === 'string' && key.startsWith(peopleKeys.directory(orgId).split('?')[0]))
       router.push(getUriWithOrg(orgslug, routePaths.org.admin.people.root()))
     } catch (problem: any) {
@@ -128,8 +128,8 @@ function DeleteLearner({ orgslug, orgId, token, learner, close }: {
   return <Dialog open onOpenChange={(open) => { if (!open && !busy) close() }}>
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Delete {learner.name} and their data?</DialogTitle>
-        <DialogDescription>Check what goes and what your organization keeps before you confirm. This can&rsquo;t be undone.</DialogDescription>
+        <DialogTitle className="pr-8">Remove {learner.name} and delete your data about them?</DialogTitle>
+        <DialogDescription>Your organization deletes only its own records. Their account stays theirs. Check the lists before you confirm; this can&rsquo;t be undone.</DialogDescription>
       </DialogHeader>
       {isLoading ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         : error || !preview ? <p className="text-sm text-muted-foreground">{error?.message || 'This couldn’t load.'}</p>
@@ -138,6 +138,10 @@ function DeleteLearner({ orgslug, orgId, token, learner, close }: {
             <div>
               <h3 className="mb-1.5 font-bold">What&rsquo;s deleted</h3>
               <ul className="list-disc space-y-1 pl-5 text-muted-foreground">{preview.removed.map((line) => <li key={line}>{line}</li>)}</ul>
+            </div>
+            <div>
+              <h3 className="mb-1.5 font-bold">What stays theirs</h3>
+              <p className="text-muted-foreground">{preview.theirs}</p>
             </div>
             <div>
               <h3 className="mb-1.5 font-bold">What your organization keeps, and why</h3>
@@ -156,7 +160,7 @@ function DeleteLearner({ orgslug, orgId, token, learner, close }: {
       <DialogFooter className="mt-2 gap-2 sm:gap-2">
         <Button type="button" variant="outline" onClick={close} disabled={busy} className="rounded-full">Cancel</Button>
         {preview?.can_delete ? <Button type="button" variant="destructive" onClick={() => void remove()} disabled={!matches || busy} className="gap-2 rounded-full">
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} aria-hidden="true" />}Delete for good
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} aria-hidden="true" />}Remove and delete
         </Button> : null}
       </DialogFooter>
     </DialogContent>
