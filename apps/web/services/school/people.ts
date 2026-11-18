@@ -72,7 +72,7 @@ export interface Profile {
   note: string | null
   /** Your direct chat with them, when there is one. */
   chat_uuid: string | null
-  manage: { change_role: boolean; remove: boolean; groups: boolean; remove_helper: boolean; status: boolean; permissions: boolean }
+  manage: { change_role: boolean; remove: boolean; groups: boolean; remove_helper: boolean; status: boolean; permissions: boolean; records?: boolean }
 }
 
 export interface MessagingPolicy {

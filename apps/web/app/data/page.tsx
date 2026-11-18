@@ -20,7 +20,7 @@ const COLLECTED: [string, string][] = [
   ['Messages', 'Conversations in Connect, including notes staff keep about a learner (never shown to the learner).'],
   ['Uploads', 'Files and photos people add to steps, their portfolio and resources.'],
   ['Coach conversations', 'What a person asks Coach and its answers, and the memories Coach saves (see Coach and AI below).'],
-  ['Logs', 'Server logs of requests (address, time, IP address) and error reports, used to keep the service running and secure. Staff actions on Enterprise organizations are kept in an audit log.'],
+  ['Logs', 'Server logs of requests (address, time, IP address) and error reports, used to keep the service running and secure. Staff actions, and when staff open a learner’s records, are kept in the organization’s audit log.'],
 ]
 
 const ACCESS: [string, string][] = [

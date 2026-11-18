@@ -11,6 +11,7 @@ import LearnerBadges from '@components/Badges/award/LearnerBadges'
 import LearnerTeam from '@components/Admin/People/LearnerTeam'
 import LearnerAccessibility from '@components/Admin/People/LearnerAccessibility'
 import PersonManage from '@components/Admin/People/PersonManage'
+import LearnerRecords from '@components/Admin/People/LearnerRecords'
 import { RoleTag } from '@components/Admin/People/RoleTag'
 import { usePeopleContext, useProfile } from '@components/Admin/People/usePeople'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -223,6 +224,8 @@ function Access({ orgslug, orgId, token, profile, refresh }: { orgslug: string; 
     {profile.helpers.length ? <Helpers profile={profile} refresh={refresh} /> : null}
     {learner ? <LearnerTeam orgId={orgId} userId={profile.user.id} token={token} /> : null}
     {learner && manage.status ? <LearnerAccessibility orgId={orgId} userId={profile.user.id} name={profile.user.name || inOrgWords('this learner')} token={token} /> : null}
+    {learner && manage.records ? <LearnerRecords orgslug={orgslug} orgId={orgId} token={token}
+      learner={{ id: profile.user.id, name: profile.user.name || profile.user.username, username: profile.user.username }} /> : null}
   </>
 }
 

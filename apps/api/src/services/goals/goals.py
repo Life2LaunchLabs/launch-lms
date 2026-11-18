@@ -155,6 +155,10 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
 def get_goal(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     granted = access.require(db, goal, current_user.id, "view_plan")
+    if getattr(goal.ownership, "value", goal.ownership) == GoalOwnership.EXTERNAL.value and goal.subject_user_id:
+        from src.services.orgs import records_access
+
+        records_access.note(db, current_user.id, goal.org_id, goal.subject_user_id, "plan", goal.title)
     completion.end_routines(db, goal)
     # A portfolio that already has what a step counts finishes it when the learner gets there.
     portfolio_steps.check_goal(db, goal)

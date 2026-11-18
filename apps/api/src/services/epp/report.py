@@ -334,6 +334,9 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
 
 def staff_report(db: Session, current_user: PublicUser, org_id: int, learner_id: int) -> dict:
     support.require_support(db, org_id, current_user.id, learner_id)
+    from src.services.orgs import records_access
+
+    records_access.note(db, current_user.id, org_id, learner_id, "epp", "Education Plan and Profile")
     return build(db, org_id, learner_id)
 
 

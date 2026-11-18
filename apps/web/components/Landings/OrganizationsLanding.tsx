@@ -35,9 +35,9 @@ const count = (value: number, word: string) => (value ? `${value} ${word}` : `Un
 
 function tierCards({ free, full, trialDays }: TierFacts) {
   return [
-    { name: 'Free', blurb: inOrgWords('For one person helping a few learners.'), items: [count(free.learners, inOrgWords('active learners')), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', inOrgWords('A feed with every learner’s work'), 'Requirements and coverage reports', inOrgWords('Badges learners keep')], cta: 'Create your organization' },
+    { name: 'Free', blurb: inOrgWords('For one person helping a few learners.'), items: [count(free.learners, inOrgWords('active learners')), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', inOrgWords('A feed with every learner’s work'), 'Requirements and coverage reports', inOrgWords('Badges learners keep'), 'Records requests and an access log'], cta: 'Create your organization' },
     { name: 'Full', blurb: 'For programs with groups and several staff.', items: [count(full.learners, inOrgWords('active learners')), count(full.staff_seats, 'staff'), 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'], cta: `Start free, try Full for ${trialDays} days`, featured: true },
-    { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: [inOrgWords('Unlimited learners and staff'), 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'], cta: 'Start free, then ask us' },
+    { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: [inOrgWords('Unlimited learners and staff'), 'Single sign-on', 'Advanced reporting', 'API access', 'Everything in Full'], cta: 'Start free, then ask us' },
   ]
 }
 
