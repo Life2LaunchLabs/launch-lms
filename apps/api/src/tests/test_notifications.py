@@ -116,6 +116,19 @@ def test_switched_off_streams_send_nothing_and_the_unsubscribe_link_switches_the
         assert db.exec(select(NotificationEvent).where(NotificationEvent.recipient_user_id == LEARNER)).one().status == "skipped"
 
 
+def test_school_requests_switch_shows_only_to_people_in_an_organization_with_school_records():
+    from src.db.user_organizations import UserOrganization
+    from src.services.orgs import school_records
+    with _session() as db:
+        org_ids = set(db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == LEARNER)).all())
+        assert "school_requests" in [stream["key"] for stream in preferences.view(db, LEARNER)["streams"]]
+        for org_id in org_ids:
+            school_records.set_enabled(db, org_id, False)
+        assert [stream["key"] for stream in preferences.view(db, LEARNER)["streams"]] == ["review_results", "new_plans"]
+        school_records.set_enabled(db, next(iter(org_ids)), True)
+        assert "school_requests" in [stream["key"] for stream in preferences.view(db, LEARNER)["streams"]]
+
+
 def test_a_failed_send_is_retried_and_notify_never_breaks_the_change(monkeypatch):
     with _session() as db:
         calls = []
