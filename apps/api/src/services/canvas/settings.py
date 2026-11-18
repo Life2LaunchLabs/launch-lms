@@ -31,9 +31,7 @@ class CanvasSettingsUpdate(BaseModel):
 
 
 def tool_details() -> dict:
-    from src.routers.canvas import tool_urls
-
-    urls = tool_urls()
+    urls = connections.tool_urls()
     return {
         "config_url": urls["config"],
         "login_url": urls["login"],

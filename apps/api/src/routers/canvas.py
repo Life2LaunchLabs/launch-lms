@@ -20,7 +20,7 @@ from src.db.organizations import Organization
 from src.db.users import PublicUser, User
 from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user
 from src.security.org_auth import require_org_owner_admin
-from src.services.canvas import keys, launch as lti, pages, people, session as canvas_session, settings
+from src.services.canvas import connections, keys, launch as lti, pages, people, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 from src.routers.users import _invalidate_session_cache
@@ -28,16 +28,6 @@ from src.routers.users import _invalidate_session_cache
 router = APIRouter()
 
 TOOL_TITLE = "Life2Launch"
-
-
-def tool_urls() -> dict:
-    base = f"{frontend_url()}/api/v1/lti"
-    return {
-        "login": f"{base}/login",
-        "launch": f"{base}/launch",
-        "jwks": f"{base}/jwks",
-        "config": f"{base}/canvas.json",
-    }
 
 
 @router.get("/jwks")
@@ -48,7 +38,7 @@ def lti_jwks(db: Session = Depends(get_db_session)):
 @router.get("/canvas.json")
 def canvas_tool_configuration(db: Session = Depends(get_db_session)):
     """The configuration a Canvas admin pastes as a URL when adding the LTI developer key."""
-    urls = tool_urls()
+    urls = connections.tool_urls()
     domain = frontend_url().split("://", 1)[1]
     return {
         "title": TOOL_TITLE,
@@ -92,7 +82,7 @@ async def _login(request: Request, db: Session):
             lti_message_hint=params.get("lti_message_hint"),
             deployment_id=params.get("lti_deployment_id"),
             storage_target=params.get("lti_storage_target"),
-            redirect_uri=tool_urls()["launch"],
+            redirect_uri=connections.tool_urls()["launch"],
         )
     except LaunchError as error:
         return pages.error_page(error.message, error.status_code)
