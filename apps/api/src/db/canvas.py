@@ -50,3 +50,22 @@ class CanvasUserLink(SQLModel, table=True):
     )
     canvas_user_id: str = Field(sa_column=Column(String, nullable=False))
     creation_date: str = ""
+
+
+class CanvasCourseGroup(SQLModel, table=True):
+    """The organization's group for one Canvas course, keyed by Canvas's course id (OP-2). People join it when
+    they first launch from that course; the group goes if the course's group is deleted."""
+
+    __tablename__ = "canvascoursegroup"
+    __table_args__ = (UniqueConstraint("connection_id", "canvas_course_id", name="uq_canvascoursegroup_connection_course"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    connection_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("canvasconnection.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    canvas_course_id: str = Field(sa_column=Column(String, nullable=False))
+    usergroup_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("usergroup.id", ondelete="CASCADE"), nullable=False, unique=True)
+    )
+    creation_date: str = ""
+    update_date: str = ""

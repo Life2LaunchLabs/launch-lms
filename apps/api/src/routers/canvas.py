@@ -22,7 +22,7 @@ from src.db.organizations import Organization
 from src.db.users import PublicUser, User
 from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user, get_current_user
 from src.security.org_auth import require_org_owner_admin
-from src.services.canvas import connections, keys, launch as lti, pages, people, session as canvas_session, settings
+from src.services.canvas import connections, courses, keys, launch as lti, pages, people, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 from src.routers.users import _invalidate_session_cache
@@ -172,9 +172,11 @@ def _launch_from_ticket(db: Session, data: dict) -> lti.Launch:
     )
 
 
-def landing_path(membership_role_id: int) -> str:
-    """A student lands on their home; staff on the admin dashboard."""
-    return "/admin" if membership_role_id in (people.ADMIN_ROLE_ID, people.STAFF_ROLE_ID) else "/plans"
+def landing_path(membership_role_id: int, course_group_id: int | None = None) -> str:
+    """A student lands on their home; staff on their Canvas course's group (or the admin home without one)."""
+    if membership_role_id not in (people.ADMIN_ROLE_ID, people.STAFF_ROLE_ID):
+        return "/plans"
+    return f"/admin/threads/profiles/groups/{course_group_id}" if course_group_id else "/admin"
 
 
 @router.post("/session")
@@ -190,9 +192,11 @@ async def lti_session(
         return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
     try:
         if data.get("kind") == "launch":
-            user, membership, _created = people.resolve_person(db, _launch_from_ticket(db, data))
+            launch = _launch_from_ticket(db, data)
+            user, membership, _created = people.resolve_person(db, launch)
             _invalidate_session_cache(user.id)  # a new membership or role shows at once
-            return_path = landing_path(membership.role_id)
+            group = courses.course_group(db, launch) if launch.course_id else None
+            return_path = landing_path(membership.role_id, int(group.id) if group else None)
         elif data.get("kind") == "session":
             user = db.exec(select(User).where(User.email == data.get("email"))).first()
             if not user:

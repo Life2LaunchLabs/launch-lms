@@ -181,9 +181,14 @@ def resolve_person(db: Session, launch: Launch) -> tuple[User, UserOrganization,
 
 
 def _finish(db: Session, launch: Launch, user: User, staff: bool) -> UserOrganization:
+    from src.services.canvas.courses import join_course_group
+
     membership = _ensure_member(db, launch, user, staff)
     # Every account also belongs to Life2Launch itself, or the main site greets them with a join banner.
     ensure_owner_membership(db, int(user.id))
+    db.flush()
+    # The Canvas course's group: staff of the school join it as staff, whatever Canvas calls them in this course.
+    join_course_group(db, launch, user, staff or membership.role_id in (ADMIN_ROLE_ID, STAFF_ROLE_ID))
     db.commit()
     db.refresh(user)
     db.refresh(membership)
