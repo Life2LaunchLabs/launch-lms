@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from src.core.demo_middleware import DemoMiddleware
+from src.security.csrf import CanvasSessionCSRFMiddleware
 from src.core.audit_middleware import log_request_audit_event
 from src.core.events.events import shutdown_app, startup_app
 from src.router import v1_router
@@ -54,6 +55,9 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(DemoMiddleware)
+
+# A Canvas session's cookies are SameSite=None: its changing requests must come from our own pages.
+app.add_middleware(CanvasSessionCSRFMiddleware)
 
 
 

@@ -21,6 +21,14 @@ logger = logging.getLogger(__name__)
 STATE_CHANGING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 
+# Canvas posts these from its own site; a launch is trusted only through Canvas's signature, the one-use
+# nonce and the state check (src/routers/canvas.py). They sign no one in from cookies.
+CANVAS_LAUNCH_PATHS = frozenset({
+    "/api/v1/lti/login",
+    "/api/v1/lti/launch",
+})
+
+
 CONNECTOR_COOKIELESS_PATHS = frozenset({
     "/api/v1/mcp",
     "/api/v1/oauth/token",
@@ -129,6 +137,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         if request.url.path in CONNECTOR_COOKIELESS_PATHS:
             return True
 
+        if request.url.path in CANVAS_LAUNCH_PATHS:
+            return True
+
         # Stripe webhooks use signature-based verification, not cookies
         if request.headers.get("stripe-signature"):
             return True
@@ -166,3 +177,50 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             )
 
         return await call_next(request)
+
+
+class CanvasSessionCSRFMiddleware:
+    """The Origin check for sessions that came from a Canvas launch (pure ASGI, nothing buffered).
+
+    Ordinary sign-in cookies are SameSite=Lax, which already keeps other sites' forms from using them. A Canvas
+    session's cookies are SameSite=None (partitioned inside the school's Canvas), so anything else framed in
+    that Canvas page could post with them. Every state-changing request carrying the Canvas session marker must
+    come from an allowed origin. Server-side calls send no Origin or Referer and pass, as browsers always send
+    Origin on a cross-site POST, PUT, PATCH or DELETE.
+    """
+
+    MARKER = "launchlms_canvas=1"
+
+    def __init__(self, app):
+        self.app = app
+        self.checker = CSRFProtectionMiddleware(app)
+
+    @staticmethod
+    def _header(scope, name: bytes) -> str | None:
+        for key, value in scope.get("headers") or []:
+            if key == name:
+                return value.decode("latin-1")
+        return None
+
+    def rejects(self, request: Request) -> bool:
+        if request.method not in STATE_CHANGING_METHODS:
+            return False
+        cookie = request.headers.get("cookie") or ""
+        if not any(part.strip() == self.MARKER for part in cookie.split(";")):
+            return False
+        if self.checker._is_csrf_exempt(request):
+            return False
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        if not origin and not referer:
+            return False
+        if origin == "null":
+            return True
+        return not self.checker.is_allowed_origin(origin, referer)
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http" and self.rejects(Request(scope)):
+            response = JSONResponse(status_code=403, content={"detail": "CSRF validation failed: Origin not allowed"})
+            await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)

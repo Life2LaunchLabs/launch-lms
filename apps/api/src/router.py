@@ -66,6 +66,7 @@ from src.routers import payments as payments_router_module
 from src.routers import resource_library as resource_library_router_module
 from src.routers import resources as resources_router_module
 from src.routers import sso as sso_router_module
+from src.routers import canvas as canvas_router_module
 from src.routers import trending as trending_router_module
 from src.routers.audit_logs import router as audit_logs_router
 from src.routers.orgs import branding as org_branding
@@ -166,6 +167,7 @@ v1_router.include_router(
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(google_oauth_router, prefix="/auth/google", tags=["auth"])
 v1_router.include_router(auth_handoff.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(canvas_router_module.router, prefix="/lti", tags=["canvas"])
 v1_router.include_router(
     operations_surface.router,
     prefix="/operations",

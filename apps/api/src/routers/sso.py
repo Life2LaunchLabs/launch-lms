@@ -26,7 +26,6 @@ from src.security.auth import (
     create_refresh_token,
     get_current_user,
 )
-from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.security.access.access import ensure_feature
 from src.services.orgs.orgs import rbac_check
 from src.services.sso import (
@@ -91,29 +90,9 @@ def get_token_expiry_ms() -> int | None:
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request):
     """Helper to set authentication cookies."""
-    from datetime import timedelta
+    from src.routers.auth import set_auth_cookies as set_session_cookies
 
-    cookie_domain = get_cookie_domain_for_request(request)
-    is_secure = is_request_secure(request)
-
-    response.set_cookie(
-        key="access_token_cookie",
-        value=access_token,
-        httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        domain=cookie_domain,
-        expires=int(timedelta(hours=8).total_seconds()),
-    )
-    response.set_cookie(
-        key="refresh_token_cookie",
-        value=refresh_token,
-        httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        domain=cookie_domain,
-        expires=int(timedelta(days=30).total_seconds()),
-    )
+    set_session_cookies(response, access_token, refresh_token, request)
 
 
 def _get_idp_error_message(error_code: str) -> str:

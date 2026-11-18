@@ -8,6 +8,10 @@ export const SESSION_COOKIE_NAMES = {
   refreshToken: 'refresh_token_cookie',
 } as const
 
+// Set by a Canvas launch (API: src/services/canvas/session.py). Its session lives in SameSite=None; Secure;
+// Partitioned cookies, and every place that refreshes or clears them must keep those attributes.
+export const CANVAS_SESSION_COOKIE = 'launchlms_canvas'
+
 export const SERVER_AUTH_HEADERS = {
   accessToken: 'x-launchlms-access-token',
   refreshToken: 'x-launchlms-refresh-token',

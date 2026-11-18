@@ -6,9 +6,13 @@ import {
   REFRESH_TOKEN_COOKIE,
   ACCESS_TOKEN_MAX_AGE,
   REFRESH_TOKEN_MAX_AGE,
+  cookieAttributeSuffix,
   getCookieDomain,
   getCookieOptions,
+  isCanvasSession,
+  isSameOriginRequest,
 } from '@services/auth/cookies'
+import { CANVAS_SESSION_COOKIE } from '@services/auth/sessionCookies'
 import { ROUTING_COOKIES } from '@services/routing/cookies'
 import { TEST_INVITEE_COOKIE, TEST_PERSONA_COOKIE, encodeTestPersonaMarker } from '@services/userTests/marker'
 
@@ -39,6 +43,12 @@ async function proxyRequest(
 
   // Map to backend URL: /api/auth/login -> /api/v1/auth/login
   const backendUrl = `${BACKEND_URL}/api/v1/auth/${pathSegments}${search}`
+
+  // A Canvas session's cookies are SameSite=None, so another site's form could post here with them.
+  // Lax cookies used to stop that for free; for these, a changing request must come from this site.
+  if (method !== 'GET' && method !== 'HEAD' && isCanvasSession(request) && !isSameOriginRequest(request)) {
+    return NextResponse.json({ error: 'Cross-site request refused' }, { status: 403 })
+  }
 
   // Build headers
   const headers: HeadersInit = {}
@@ -88,24 +98,24 @@ async function proxyRequest(
     const response = NextResponse.json({ ok: true })
     const isSecure = request.nextUrl.protocol === 'https:'
     const domain = isDemoToken(accessToken?.value) || isDemoToken(refreshToken?.value) ? undefined : getCookieDomain(request)
-    const securePart = isSecure ? '; Secure' : ''
+    // A Canvas session's cookies are partitioned: only a clear that says Partitioned (and SameSite=None) removes them.
+    const attributes = cookieAttributeSuffix(request, isSecure)
+    const names: [string, boolean][] = [
+      [ACCESS_TOKEN_COOKIE, true], [REFRESH_TOKEN_COOKIE, true], ['launchlms_has_session', false],
+      [ROUTING_COOKIES.orgSlug, false], [ROUTING_COOKIES.legacyOrgSlug, false], [ROUTING_COOKIES.customDomain, false],
+      ...(isCanvasSession(request) ? [[CANVAS_SESSION_COOKIE, false] as [string, boolean]] : []),
+    ]
 
     // Clear domain-scoped cookies (the ones set during login on subdomains)
     if (domain) {
-      response.headers.append('Set-Cookie', `${ACCESS_TOKEN_COOKIE}=; Path=/; Domain=${domain}; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
-      response.headers.append('Set-Cookie', `${REFRESH_TOKEN_COOKIE}=; Path=/; Domain=${domain}; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
-      response.headers.append('Set-Cookie', `launchlms_has_session=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
-      response.headers.append('Set-Cookie', `${ROUTING_COOKIES.orgSlug}=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
-      response.headers.append('Set-Cookie', `${ROUTING_COOKIES.legacyOrgSlug}=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
-      response.headers.append('Set-Cookie', `${ROUTING_COOKIES.customDomain}=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
+      for (const [name, httpOnly] of names) {
+        response.headers.append('Set-Cookie', `${name}=; Path=/; Domain=${domain}; Max-Age=0${httpOnly ? '; HttpOnly' : ''}${attributes}`)
+      }
     }
     // Clear host-only cookies (pre-existing or custom domain cookies)
-    response.headers.append('Set-Cookie', `${ACCESS_TOKEN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
-    response.headers.append('Set-Cookie', `${REFRESH_TOKEN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
-    response.headers.append('Set-Cookie', `launchlms_has_session=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
-    response.headers.append('Set-Cookie', `${ROUTING_COOKIES.orgSlug}=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
-    response.headers.append('Set-Cookie', `${ROUTING_COOKIES.legacyOrgSlug}=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
-    response.headers.append('Set-Cookie', `${ROUTING_COOKIES.customDomain}=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
+    for (const [name, httpOnly] of names) {
+      response.headers.append('Set-Cookie', `${name}=; Path=/; Max-Age=0${httpOnly ? '; HttpOnly' : ''}${attributes}`)
+    }
 
     return response
   }
