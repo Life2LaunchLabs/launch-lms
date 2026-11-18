@@ -65,3 +65,41 @@ def is_request_secure(request: Request | None) -> bool:
         return True
 
     return not isDevModeEnabled()
+
+
+# A session that came from a Canvas launch (src/services/canvas/session.py) lives in partitioned cookies.
+CANVAS_MARKER_COOKIE = "launchlms_canvas"
+
+
+def is_canvas_session(request: Request | None) -> bool:
+    return bool(request) and request.cookies.get(CANVAS_MARKER_COOKIE) == "1"
+
+
+def host_cookie_domain(request: Request) -> str | None:
+    """The cookie domain for this request's own host (a Canvas post carries Canvas's Origin, so the Host decides)."""
+    hosting = get_launchlms_config().hosting_config
+    if hosting.cookie_config.scope == "host-only":
+        return None
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+    host = host.split(":")[0].lower()
+    if not host or host in {"localhost", "127.0.0.1"}:
+        return None
+    for root in {hosting.domain.split(":")[0].lower(), hosting.frontend_domain.split(":")[0].lower()}:
+        if root and (host == root or host.endswith(f".{root}")):
+            return hosting.cookie_config.domain
+    return None
+
+
+def auth_cookie_attributes(request: Request | None) -> dict:
+    """secure/samesite/domain (and partitioned) for sign-in cookies on this request.
+
+    Every setter and clearer uses these, so a Canvas session's token refresh keeps its cookies partitioned
+    instead of dropping back to SameSite=Lax (which browsers don't send inside the Canvas page).
+    """
+    if is_canvas_session(request):
+        return {"secure": True, "samesite": "none", "partitioned": True, "domain": host_cookie_domain(request)}
+    return {
+        "secure": is_request_secure(request),
+        "samesite": "lax",
+        "domain": get_cookie_domain_for_request(request) if request else None,
+    }

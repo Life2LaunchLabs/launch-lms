@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getConfig } from './services/config/config'
 import { getAPIUrl } from './services/config/config'
 import {
-  ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getLegacyParentCookieDomain,
+  ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getLegacyParentCookieDomain, isCanvasSession,
 } from './services/auth/cookies'
 import { ROUTING_COOKIES } from './services/routing/cookies'
 import { getOrgSlugFromSubdomain } from './services/routing/context'
@@ -103,6 +103,15 @@ function expireLegacyParentCookies(response: NextResponse, request: NextRequest)
   return response
 }
 
+/** Inside Canvas, cookies the page sets must be SameSite=None; Secure; Partitioned or the browser drops them. */
+function partitionCookiesForCanvas(response: NextResponse, request: NextRequest) {
+  if (!isCanvasSession(request)) return response
+  for (const cookie of response.cookies.getAll()) {
+    response.cookies.set({ ...cookie, sameSite: 'none', secure: true, partitioned: true })
+  }
+  return response
+}
+
 function buildResponse(req: NextRequest, decision: RoutingDecision): NextResponse {
   switch (decision.action) {
     case 'next':
@@ -195,5 +204,5 @@ export default async function proxy(req: NextRequest) {
   setInstanceCookies(response, instanceInfo)
   applyDecision(response, decision)
   expireLegacyParentCookies(response, req)
-  return response
+  return partitionCookiesForCanvas(response, req)
 }

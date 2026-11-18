@@ -21,7 +21,7 @@ from src.security.auth import (
     extract_jwt_from_request,
     get_current_user,
 )
-from src.security.cookies import get_cookie_domain_for_request, is_request_secure
+from src.security.cookies import auth_cookie_attributes
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
 from src.services.user_tests import passwords as test_passwords
@@ -84,36 +84,31 @@ def _portfolio_redirect_url(owner_org: Organization, next_path: str | None = Non
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
-    """Helper to set authentication cookies."""
-    is_secure = is_request_secure(request)
-    cookie_domain = get_cookie_domain_for_request(request) if request else None
+    """Helper to set authentication cookies (partitioned for a Canvas session: security/cookies.py)."""
+    attributes = auth_cookie_attributes(request)
 
     response.set_cookie(
         key=JWT_COOKIE_NAME,
         value=access_token,
         httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        domain=cookie_domain,
         expires=int(timedelta(hours=8).total_seconds()),
+        **attributes,
     )
     response.set_cookie(
         key=JWT_REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        domain=cookie_domain,
         expires=int(timedelta(days=30).total_seconds()),
+        **attributes,
     )
 
 
 def unset_auth_cookies(response: Response, request: Request = None):
-    """Helper to unset authentication cookies."""
-    cookie_domain = get_cookie_domain_for_request(request) if request else None
+    """Helper to unset authentication cookies (a partitioned cookie is only cleared by a partitioned one)."""
+    attributes = auth_cookie_attributes(request)
 
-    response.delete_cookie(key=JWT_COOKIE_NAME, domain=cookie_domain)
-    response.delete_cookie(key=JWT_REFRESH_COOKIE_NAME, domain=cookie_domain)
+    for key in (JWT_COOKIE_NAME, JWT_REFRESH_COOKIE_NAME):
+        response.set_cookie(key=key, value="", max_age=0, expires=0, httponly=True, **attributes)
 
 
 @router.get("/onboarding/welcome")
@@ -254,16 +249,12 @@ def refresh(request: Request, response: Response):
         expires_delta=JWT_ACCESS_TOKEN_EXPIRES
     )
 
-    cookie_domain = get_cookie_domain_for_request(request)
-    is_secure = is_request_secure(request)
     response.set_cookie(
         key=JWT_COOKIE_NAME,
         value=new_access_token,
         httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        domain=cookie_domain,
         expires=int(timedelta(hours=8).total_seconds()),
+        **auth_cookie_attributes(request),
     )
     return {"access_token": new_access_token, "expiry": get_token_expiry_ms()}
 

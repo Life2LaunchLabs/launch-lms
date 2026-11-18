@@ -2,6 +2,7 @@ import {
   getConfig, getLAUNCHLMS_DOMAIN_VAL, getLAUNCHLMS_TOP_DOMAIN_VAL,
 } from '@services/config/config'
 import { isSubdomainOf, isSameHost, isLocalhost } from '@services/utils/ts/hostUtils'
+import { CANVAS_SESSION_COOKIE } from '@services/auth/sessionCookies'
 
 const OAUTH_STATE_COOKIE = 'launchlms_oauth_state'
 
@@ -12,16 +13,33 @@ function isCustomDomain(): boolean {
   return !isSubdomainOf(hostname, domain) && !isSameHost(hostname, domain) && !isLocalhost(hostname)
 }
 
+/** True inside a session a Canvas launch started (its marker cookie is readable; see services/auth/sessionCookies.ts). */
+export function isCanvasBrowserSession(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.cookie.split(';').some((cookie) => cookie.trim() === `${CANVAS_SESSION_COOKIE}=1`)
+}
+
 export function getCookieAttributes(): { secureAttr: string; domainAttr: string; sameSiteAttr: string } {
+  if (isCanvasBrowserSession()) {
+    // Inside Canvas every cookie we write or clear must be SameSite=None; Secure; Partitioned, or the
+    // browser drops the write (and a clear without Partitioned leaves the partitioned cookie in place).
+    // Clears only add secureAttr, so it carries all three.
+    const { domainAttr } = getSharedCookieDomainAttr()
+    return { secureAttr: '; Secure; SameSite=None; Partitioned', domainAttr, sameSiteAttr: '' }
+  }
   const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
   const secureAttr = isSecure ? '; Secure' : ''
+  const { domainAttr } = getSharedCookieDomainAttr()
+  return { secureAttr, domainAttr, sameSiteAttr: '; SameSite=Lax' }
+}
+
+function getSharedCookieDomainAttr(): { domainAttr: string } {
   const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL()
-  let domainAttr = ''
   const cookieScope = getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain')
   if (cookieScope !== 'host-only' && !isCustomDomain() && topDomain !== 'localhost') {
-    domainAttr = `; domain=.${topDomain}`
+    return { domainAttr: `; domain=.${topDomain}` }
   }
-  return { secureAttr, domainAttr, sameSiteAttr: '; SameSite=Lax' }
+  return { domainAttr: '' }
 }
 
 export function oauthCallbackRequiresBounce(): boolean {
