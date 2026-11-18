@@ -22,7 +22,7 @@ from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.security.access.catalog import FEATURES
-from src.services.orgs import records_access, records_requests
+from src.services.orgs import records_access, records_requests, removals
 
 for module in pkgutil.walk_packages(db_models.__path__, "src.db."):
     importlib.import_module(module.name)
@@ -172,6 +172,9 @@ def test_delete_removes_only_the_organizations_data_and_keeps_the_account():
         assert wrong.value.status_code == 422
 
         records_requests.delete(db, _user(db, ADMIN), SCHOOL, LEARNER, "@maya")
+        # She can't come back on her own (Join, a join link, one of its plans) until the school invites her (DEV-187).
+        assert removals.is_removed(db, SCHOOL, LEARNER) and not removals.is_removed(db, ELSEWHERE, LEARNER)
+        assert "unless you invite them" in preview["theirs"]
         # The account, their own plan, their upload and their other organizations stay theirs.
         assert db.get(User, LEARNER) is not None
         assert sorted(row.org_id for row in db.exec(select(UserOrganization).where(UserOrganization.user_id == LEARNER)).all()) == [PLATFORM, ELSEWHERE]

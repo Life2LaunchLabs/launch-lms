@@ -24,6 +24,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.access.access import require_capacity
 from src.services.connect import chats, people
+from src.services.orgs import removals
 from src.services.email.utils import send_email
 from src.services.oauth.config import frontend_url
 from src.services.school import chats as school_chats, plan_requests
@@ -69,7 +70,9 @@ async def ask(request: Request, db: Session, current_user: PublicUser | Anonymou
     from src.services.orgs.orgs import get_org_join_mechanism
 
     org = _org_or_404(db, org_id)
-    if await get_org_join_mechanism(request, org_id, current_user, db) != "inviteOnly":
+    # A learner the organization removed asks, even when anyone else can just join (services/orgs/removals.py).
+    removed = _signed_in(current_user) and removals.is_removed(db, org_id, int(current_user.id))  # type: ignore[union-attr]
+    if not removed and await get_org_join_mechanism(request, org_id, current_user, db) != "inviteOnly":
         raise HTTPException(status_code=400, detail=f"Anyone can join {org.name}; sign up instead")
     user_id = int(current_user.id) if _signed_in(current_user) else None  # type: ignore[union-attr]
     if user_id:
@@ -137,6 +140,7 @@ async def decide(request: Request, db: Session, current_user: PublicUser, reques
     if approve and account and not _member(db, org.id, account.id):  # type: ignore[arg-type]
         require_capacity("learners", int(org.id), db)  # type: ignore[arg-type]
         db.add(UserOrganization(user_id=int(account.id), org_id=int(org.id), role_id=LEARNER_ROLE_ID, creation_date=_now(), update_date=_now()))  # type: ignore[arg-type]
+        removals.clear(db, int(org.id), int(account.id))  # type: ignore[arg-type]
     elif approve and not account:
         # No account yet: the organization's invitation holds the seat and carries them through signup.
         from src.services.orgs.users import invite_batch_users

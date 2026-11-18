@@ -293,6 +293,9 @@ def join(db: Session, current_user: PublicUser, template_uuid: str, payload: Pla
     if existing:
         return {"status": "joined", "goal_uuid": existing.goal_uuid}
     if offer.access == "open":
+        from src.services.orgs import removals
+
+        removals.refuse_self_join(db, offer.org_id, user_id)
         goal = _issue(db, offer, user_id)
         if commit:
             db.commit()

@@ -22,6 +22,7 @@ from src.db.organizations import Organization, OrganizationDiscoverRead, PublicP
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser
 from src.security.org_auth import require_org_owner_admin
+from src.services.orgs import removals
 from src.services.user_tests.visibility import is_test_org, org_is_discoverable
 
 MAX_HIGHLIGHTS = 3
@@ -79,7 +80,9 @@ def can_view(db: Session, current_user: PublicUser | AnonymousUser, org: Organiz
     return bool(org.explore) or member or is_test_org(db, org.id)
 
 
-def discover_read(db: Session, org: Organization, org_config: OrganizationConfig | None, member: bool, owner_id: int | None) -> OrganizationDiscoverRead:
+def discover_read(db: Session, org: Organization, org_config: OrganizationConfig | None, member: bool, owner_id: int | None,
+                  removed: bool = False) -> OrganizationDiscoverRead:
+    """``removed``: the organization removed this viewer (services/orgs/removals.py), so it's invite only for them."""
     from src.services.orgs.orgs import _build_org_read_with_access, _extract_signup_mode_from_config
 
     payload = _build_org_read_with_access(org, org_config, owner_id).model_dump()
@@ -89,7 +92,7 @@ def discover_read(db: Session, org: Organization, org_config: OrganizationConfig
     payload.update({
         "config": None,
         "email": payload["email"] if member else "",
-        "signup_mode": _extract_signup_mode_from_config(org_config),
+        "signup_mode": "inviteOnly" if removed and not member else _extract_signup_mode_from_config(org_config),
         "is_member": member,
         "page": page.model_dump(),
         "plan_count": plan_count,
@@ -184,7 +187,8 @@ def listed_orgs(db: Session, current_user: PublicUser | AnonymousUser, query: st
             UserOrganization.user_id == current_user.id,
             col(UserOrganization.org_id).in_([org.id for org, _ in rows]))).all())
     owner_id = owner_org_id(db)
-    reads = [discover_read(db, org, org_config, org.id in member_of, owner_id) for org, org_config in rows]
+    removed = removals.removed_from(db, getattr(current_user, "id", None), [int(org.id) for org, _ in rows])  # type: ignore[arg-type]
+    reads = [discover_read(db, org, org_config, org.id in member_of, owner_id, org.id in removed) for org, org_config in rows]
     reads = [read for read in reads if read.listed]
     reads.sort(key=lambda read: (not read.is_member, -read.plan_count, read.name.lower()))
     return reads[:limit]

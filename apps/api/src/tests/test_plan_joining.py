@@ -69,6 +69,14 @@ def test_joining_an_open_plan_starts_it_at_the_offering_org_and_finishing_earns_
         with pytest.raises(HTTPException) as not_offered:
             plan_joining.join(db, _user(NEWCOMER), first.template_uuid, PlanJoin(org_id=1))
         assert not_offered.value.status_code == 403
+        # A learner Partner removed with its data can't start its plans on their own (DEV-187).
+        from src.services.orgs import removals
+
+        removals.note(db, PARTNER, NEWCOMER, None)
+        with pytest.raises(HTTPException) as removed:
+            plan_joining.join(db, _user(NEWCOMER), first.template_uuid, PlanJoin(org_id=PARTNER))
+        assert removed.value.status_code == 403
+        removals.clear(db, PARTNER, NEWCOMER)
         joined = plan_joining.join(db, _user(NEWCOMER), first.template_uuid, PlanJoin(org_id=PARTNER))
         assert joined["status"] == "joined"
         goal = db.exec(select(Goal).where(Goal.goal_uuid == joined["goal_uuid"])).one()
