@@ -3252,6 +3252,378 @@
           "relationships": []
         }
       ]
+    },
+    {
+      "id": "PEOPLE-G005",
+      "group_id": "PEOPLE",
+      "display_order": 5,
+      "title": "Answer a parent's records request",
+      "outcome": "A school admin can give a parent a learner's records, delete the learner and their data, and show who opened the records, all from the app (v0.11.0, OP-3).",
+      "product_state": "live",
+      "health": "works",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Organization admins, every tier.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{}",
+      "updated_at": "2026-11-18T00:00:00+00:00",
+      "actors": [
+        "organization_administrator"
+      ],
+      "activities": [
+        {
+          "id": "PEOPLE-G005-A001",
+          "goal_id": "PEOPLE-G005",
+          "display_order": 1,
+          "title": "Export a learner's records",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Since 2026-11-18 (DEV-181) the learner's Access tab has Download records: a zip with one readable PDF (profile, this organization's plans with step answers, feedback and hand-ins, badges it issued, the portfolio as shared with the organization), the EPP PDF and reviewed EPP records when school records are on, and the handed-in files. Staff-only notes stay out. Only this organization's records. Each download is in the audit log.",
+          "original_state": "`Live`",
+          "updated_at": "2026-11-18T00:00:00+00:00",
+          "description": "An admin downloads one learner's records as a zip with a PDF a parent can read.",
+          "goal_title": "Answer a parent's records request",
+          "group_title": "Connect, support, and govern people",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Organization admins, every tier."
+          },
+          "verification": {
+            "status": "unverified"
+          },
+          "signoff": {
+            "status": "not_requested"
+          },
+          "source": {},
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "PEOPLE-G005-A001-S001",
+              "activity_id": "PEOPLE-G005-A001",
+              "display_order": 1,
+              "title": "Open a learner's Access tab as an admin",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PEOPLE-G005-A001-S002",
+              "activity_id": "PEOPLE-G005-A001",
+              "display_order": 2,
+              "title": "Download records",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PEOPLE-G005-A001-S003",
+              "activity_id": "PEOPLE-G005-A001",
+              "display_order": 3,
+              "title": "Read the PDF and the files folder",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/People/LearnerRecords.tsx",
+              "symbol": null,
+              "responsibility": "The Records request card on a learner's Access tab."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/orgs/records_requests.py",
+              "symbol": null,
+              "responsibility": "Export, delete and the access view."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_records_requests.py",
+              "symbol": null,
+              "responsibility": "Export, delete, the kept records and the access log."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "PEOPLE-G005-A002",
+          "goal_id": "PEOPLE-G005",
+          "display_order": 2,
+          "title": "Delete a learner and their data",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Since 2026-11-18 (DEV-182). The dialog lists what goes and what the organization keeps (a supported learner's EPP records via freeze_exits, and the access log) and asks for the username. Plans staff own for the learner, their chats with staff and the messages they sent go with the account. Only an account that belongs to this organization alone (besides the platform organization) can be deleted; an account in another organization waits on a Project management decision and the dialog says so.",
+          "original_state": "`Live`",
+          "updated_at": "2026-11-18T00:00:00+00:00",
+          "description": "An admin deletes a learner and their data after seeing what is kept and why; the learner can no longer be found or signed in to.",
+          "goal_title": "Answer a parent's records request",
+          "group_title": "Connect, support, and govern people",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Organization admins, every tier."
+          },
+          "verification": {
+            "status": "unverified"
+          },
+          "signoff": {
+            "status": "not_requested"
+          },
+          "source": {},
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "PEOPLE-G005-A002-S001",
+              "activity_id": "PEOPLE-G005-A002",
+              "display_order": 1,
+              "title": "Open Delete learner and data",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PEOPLE-G005-A002-S002",
+              "activity_id": "PEOPLE-G005-A002",
+              "display_order": 2,
+              "title": "Read what is deleted and what is kept",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PEOPLE-G005-A002-S003",
+              "activity_id": "PEOPLE-G005-A002",
+              "display_order": 3,
+              "title": "Type the username and delete",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/People/LearnerRecords.tsx",
+              "symbol": null,
+              "responsibility": "The Records request card on a learner's Access tab."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/orgs/records_requests.py",
+              "symbol": null,
+              "responsibility": "Export, delete and the access view."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_records_requests.py",
+              "symbol": null,
+              "responsibility": "Export, delete, the kept records and the access log."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "PEOPLE-G005-A003",
+          "goal_id": "PEOPLE-G005",
+          "display_order": 3,
+          "title": "See who opened a learner's records",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Since 2026-11-18 (DEV-183) audit logs are on every tier (security/access/catalog.py). Staff reads of a learner's profile, plans, handed-in files and EPP are logged as records.view (services/orgs/records_access.py, one row per person and item per 10 minutes); downloads and deletes are logged too. The list is on the learner's Access tab.",
+          "original_state": "`Live`",
+          "updated_at": "2026-11-18T00:00:00+00:00",
+          "description": "An admin on any tier sees which staff opened a learner's records, and when.",
+          "goal_title": "Answer a parent's records request",
+          "group_title": "Connect, support, and govern people",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Organization admins, every tier."
+          },
+          "verification": {
+            "status": "unverified"
+          },
+          "signoff": {
+            "status": "not_requested"
+          },
+          "source": {},
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "PEOPLE-G005-A003-S001",
+              "activity_id": "PEOPLE-G005-A003",
+              "display_order": 1,
+              "title": "Staff open a learner's profile, a plan or a file",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PEOPLE-G005-A003-S002",
+              "activity_id": "PEOPLE-G005-A003",
+              "display_order": 2,
+              "title": "An admin opens the learner's Access tab",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PEOPLE-G005-A003-S003",
+              "activity_id": "PEOPLE-G005-A003",
+              "display_order": 3,
+              "title": "Read who opened what, and when",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-11-18T00:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/People/LearnerRecords.tsx",
+              "symbol": null,
+              "responsibility": "The Records request card on a learner's Access tab."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/orgs/records_requests.py",
+              "symbol": null,
+              "responsibility": "Export, delete and the access view."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_records_requests.py",
+              "symbol": null,
+              "responsibility": "Export, delete, the kept records and the access log."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/orgs/records_access.py",
+              "symbol": null,
+              "responsibility": "Logs staff reads and lists them."
+            }
+          ],
+          "relationships": []
+        }
+      ]
     }
   ]
 }

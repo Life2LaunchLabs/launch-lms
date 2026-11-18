@@ -3,13 +3,15 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.conversations import ChatReportReview
 from src.db.learner_support import LearnerSupportUpdate, SupportAnswer
 from src.db.organization_config import MessagingPolicy
-from src.services.orgs import school_records
+from src.services.orgs import records_requests, school_records
 from src.db.school import GroupStaffSet
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
@@ -146,6 +148,45 @@ async def person_activity(org_id: int, username: str, current_user: PublicUser =
 @router.get("/orgs/{org_id}/groups/{group_id}")
 async def group_detail(org_id: int, group_id: int, current_user: PublicUser = USER, db_session: Session = DB):
     return feed.group_detail(db_session, current_user, org_id, group_id)
+
+
+@router.get("/orgs/{org_id}/learners/{user_id}/records/export")
+async def export_learner_records(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """A zip with the learner's records in a file a parent can read, the EPP PDFs and their hand-ins (admins)."""
+    name, body = records_requests.export(db_session, current_user, org_id, user_id)
+
+    def chunks():
+        try:
+            while chunk := body.read(1024 * 1024):
+                yield chunk
+        finally:
+            body.close()
+
+    return StreamingResponse(chunks(), media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store",
+    })
+
+
+@router.get("/orgs/{org_id}/learners/{user_id}/records/access")
+async def learner_records_access(org_id: int, user_id: int, offset: int = 0, current_user: PublicUser = USER, db_session: Session = DB):
+    """Which staff opened the learner's records, and when (admins, any tier)."""
+    return records_requests.access(db_session, current_user, org_id, user_id, offset)
+
+
+@router.get("/orgs/{org_id}/learners/{user_id}/records/delete")
+async def learner_delete_preview(org_id: int, user_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    """What deleting the learner removes and what the organization keeps, and why."""
+    return records_requests.delete_preview(db_session, current_user, org_id, user_id)
+
+
+class LearnerDelete(BaseModel):
+    confirm: str = Field(max_length=200)
+
+
+@router.post("/orgs/{org_id}/learners/{user_id}/records/delete")
+async def delete_learner(org_id: int, user_id: int, payload: LearnerDelete, current_user: PublicUser = USER, db_session: Session = DB):
+    """Delete the learner and their data (an account that belongs only to this organization)."""
+    return records_requests.delete(db_session, current_user, org_id, user_id, payload.confirm)
 
 
 @router.get("/orgs/{org_id}/people/{username}")

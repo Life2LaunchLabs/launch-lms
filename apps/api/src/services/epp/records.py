@@ -131,7 +131,11 @@ def correct(db: Session, current_user: PublicUser, org_id: int, record_uuid: str
 
 
 def open_record(db: Session, current_user: PublicUser, org_id: int, record_uuid: str) -> dict:
-    return record_dto(db, get_record(db, current_user, org_id, record_uuid))
+    row = get_record(db, current_user, org_id, record_uuid)
+    from src.services.orgs import records_access
+
+    records_access.note(db, current_user.id, org_id, row.user_id, "epp", f"Reviewed record {row.school_year}")
+    return record_dto(db, row)
 
 
 def list_records(db: Session, current_user: PublicUser, org_id: int, user_id: int | None = None, include_superseded: bool = False) -> dict:

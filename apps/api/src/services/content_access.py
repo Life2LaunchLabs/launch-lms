@@ -163,8 +163,9 @@ def _goal_files(goals: list, db: Session, staff_goal_ids: set[int]) -> dict[int,
     return {goal_id: referenced_paths(values) for goal_id, values in found.items()}
 
 
-def _on_a_visible_plan(path: str, owner_id: int, viewer_id: int | None, staff_orgs: set[int], db: Session) -> bool:
-    """The file is on a plan the viewer can see: one they share, or one an organization they staff manages.
+def _on_a_visible_plan(path: str, owner_id: int, viewer_id: int | None, staff_orgs: set[int], db: Session):
+    """The plan the file is on that the viewer can see (one they share, or one an organization they staff
+    manages), or None. Staff-managed plans come first, so a staff read is logged against its organization.
 
     ``viewer_id`` is None for an API token, which sees only its organization's plans (``staff_orgs``).
     """
@@ -187,7 +188,9 @@ def _on_a_visible_plan(path: str, owner_id: int, viewer_id: int | None, staff_or
 
     visible = [goal for goal in goals if staff_of(goal) or (viewer_id is not None and access.capabilities(db, goal, viewer_id))]
     staff_goal_ids = {int(goal.id) for goal in visible if staff_of(goal)}
-    return any(path in files for files in _goal_files(visible, db, staff_goal_ids).values())
+    files = _goal_files(visible, db, staff_goal_ids)
+    holding = [goal for goal in visible if path in files.get(int(goal.id), set())]
+    return next((goal for goal in holding if int(goal.id) in staff_goal_ids), holding[0] if holding else None)
 
 
 def _owner_is_colleague(owner_id: int, staff_orgs: set[int], db: Session) -> bool:
@@ -224,7 +227,7 @@ def _user_file_access(
         raise _not_found()
     if isinstance(current_user, APITokenUser):
         token_orgs = {int(current_user.org_id)}
-        if _owner_is_colleague(owner.id, token_orgs, db) or _on_a_visible_plan(path, owner.id, None, token_orgs, db):
+        if _owner_is_colleague(owner.id, token_orgs, db) or _on_a_visible_plan(path, owner.id, None, token_orgs, db) is not None:
             return False
         raise _not_found()
     viewer_id = current_user.id
@@ -235,7 +238,14 @@ def _user_file_access(
     if is_user_superadmin(viewer_id, db):
         return False
     staff_orgs = _staff_org_ids(viewer_id, db)
-    if _owner_is_colleague(owner.id, staff_orgs, db) or _on_a_visible_plan(path, owner.id, viewer_id, staff_orgs, db):
+    if _owner_is_colleague(owner.id, staff_orgs, db):
+        return False
+    goal = _on_a_visible_plan(path, owner.id, viewer_id, staff_orgs, db)
+    if goal is not None:
+        if goal.org_id in staff_orgs and getattr(goal.ownership, "value", goal.ownership) == "external":
+            from src.services.orgs import records_access
+
+            records_access.note(db, viewer_id, goal.org_id, owner.id, "file", path.rsplit("/", 1)[-1])
         return False
     raise _not_found()
 

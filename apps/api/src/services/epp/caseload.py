@@ -115,6 +115,9 @@ def _reviewed_records(db: Session, org_id: int, year: str, user_ids: set[int]) -
 
 def record_pdf(db: Session, current_user: PublicUser, org_id: int, record_uuid: str) -> tuple[str, bytes]:
     row = records.get_record(db, current_user, org_id, record_uuid)
+    from src.services.orgs import records_access
+
+    records_access.note(db, current_user.id, org_id, row.user_id, "epp", f"Reviewed record {row.school_year} (PDF)")
     return file_name(db, row), pdf.render(row.data)
 
 
@@ -229,4 +232,8 @@ def export_selected(db: Session, current_user: PublicUser, org_id: int, user_ids
                 name, count = f"{stem}-{count}.pdf", count + 1
             used.add(name)
             archive.writestr(name, pdf.render(report.build(db, org_id, user_id)))
+    from src.services.orgs import records_access
+
+    for user_id in wanted:
+        records_access.note(db, current_user.id, org_id, user_id, "epp", "Downloaded in a group export")
     return f"EPP_{year}_{len(wanted)}_learners.zip", buffer.getvalue()
