@@ -58,7 +58,7 @@ export default function LearnerRecords({ orgslug, orgId, token, learner }: {
       </Button>
       <Button type="button" variant="outline" onClick={() => setDeleting(true)} disabled={!token}
         className="h-10 gap-2 rounded-full border-red-200 px-4 font-semibold text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950">
-        <Trash2 size={16} aria-hidden="true" />Delete learner and data
+        <Trash2 size={16} aria-hidden="true" />{inOrgWords('Delete learner and data')}
       </Button>
     </div>
     <p className="text-xs text-muted-foreground">The download is a zip: a PDF a parent can read with their profile, plans and answers, portfolio and badges, plus their Education Plan and Profile and the files they handed in. Notes staff wrote only for staff stay out.</p>
@@ -95,8 +95,9 @@ function AccessRow({ item }: { item: RecordsAccessItem }) {
     <div className="min-w-0 flex-1">
       <p className="text-sm"><span className="font-semibold">{item.by.name}</span> <span className="text-muted-foreground">{item.label.charAt(0).toLowerCase() + item.label.slice(1)}</span></p>
       {item.detail ? <p className="truncate text-xs text-muted-foreground">{item.detail}</p> : null}
+      <time dateTime={item.at} className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{when(item.at)}</time>
     </div>
-    <time dateTime={item.at} className="shrink-0 text-xs text-muted-foreground">{when(item.at)}</time>
+    <time dateTime={item.at} className="hidden shrink-0 text-xs text-muted-foreground sm:block">{when(item.at)}</time>
   </li>
 }
 
@@ -132,7 +133,7 @@ function DeleteLearner({ orgslug, orgId, token, learner, close }: {
       </DialogHeader>
       {isLoading ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         : error || !preview ? <p className="text-sm text-muted-foreground">{error?.message || 'This couldn’t load.'}</p>
-        : <div className="space-y-4 text-sm">
+        : <div className="space-y-4 pt-2 text-sm">
           {preview.can_delete ? <>
             <div>
               <h3 className="mb-1.5 font-bold">What&rsquo;s deleted</h3>
@@ -152,7 +153,7 @@ function DeleteLearner({ orgslug, orgId, token, learner, close }: {
             </label>
           </> : <p className="rounded-xl bg-muted/60 px-3 py-2">{preview.blocked_reason}</p>}
         </div>}
-      <DialogFooter className="gap-2 sm:gap-2">
+      <DialogFooter className="mt-2 gap-2 sm:gap-2">
         <Button type="button" variant="outline" onClick={close} disabled={busy} className="rounded-full">Cancel</Button>
         {preview?.can_delete ? <Button type="button" variant="destructive" onClick={() => void remove()} disabled={!matches || busy} className="gap-2 rounded-full">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} aria-hidden="true" />}Delete for good
