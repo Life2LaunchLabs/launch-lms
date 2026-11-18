@@ -15,9 +15,10 @@ _STYLE = """
 background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px 16px}
 main{max-width:420px;width:100%;text-align:center}h1{font-size:20px;line-height:1.3;margin:0 0 8px}
 p{margin:0 0 16px;color:var(--muted)}form{margin:0}.actions{display:flex;flex-direction:column;gap:12px;margin-top:20px}
-button{font:inherit;font-weight:600;min-height:44px;padding:10px 16px;border-radius:10px;cursor:pointer;width:100%;
-border:1px solid var(--border);background:transparent;color:var(--fg)}button.primary{background:var(--primary);
-color:var(--on-primary);border-color:var(--primary)}button:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+button,a.button{font:inherit;font-weight:600;min-height:44px;padding:10px 16px;border-radius:10px;cursor:pointer;width:100%;
+border:1px solid var(--border);background:transparent;color:var(--fg);display:flex;align-items:center;justify-content:center;
+text-decoration:none}button.primary,a.button.primary{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+button:focus-visible,a.button:focus-visible{outline:3px solid #2563eb;outline-offset:2px}.small{font-size:14px;margin-top:16px}
 #note,#opened{margin-top:16px}[hidden]{display:none!important}.spinner{width:28px;height:28px;margin:0 auto 16px;border-radius:50%;
 border:3px solid var(--border);border-top-color:var(--fg);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
@@ -153,3 +154,54 @@ def session_check(destination: str, session_url: str, frame_ticket: str, tab_tic
 
     origins = " ".join(dict.fromkeys((_origin_of(session_url), _origin_of(destination), frontend_url())))
     return _page("Opening Life2Launch", body, script, form_action=origins)
+
+
+def link_needed(link_url: str) -> HTMLResponse:
+    """Shown inside Canvas: the email already has a Life2Launch account elsewhere, so they sign in to it once."""
+    body = (
+        "<h1>Link your Life2Launch account</h1>"
+        "<p>There's already a Life2Launch account with your school email. Sign in to it once and it opens "
+        "from Canvas from then on.</p>"
+        "<div class=\"actions\">"
+        f"<a class=\"button primary\" href=\"{escape(link_url)}\" target=\"_blank\" rel=\"noopener\">Sign in to link</a>"
+        "</div>"
+        "<p class=\"small\">It opens in a new tab. When it's linked, come back here and open Life2Launch from Canvas again.</p>"
+    )
+    return _page("Link your Life2Launch account", body, status_code=409)
+
+
+def link_confirm(email: str, school: str, link_action: str, ticket: str) -> HTMLResponse:
+    body = (
+        "<h1>Link your school's Canvas</h1>"
+        f"<p>Open this Life2Launch account ({escape(email)}) from {escape(school)}'s Canvas from now on? "
+        f"You'll also join {escape(school)} on Life2Launch.</p>"
+        f"<form method=\"post\" action=\"{escape(link_action)}\">{_hidden({'t': ticket})}"
+        "<div class=\"actions\"><button class=\"primary\" type=\"submit\">Link my account</button></div></form>"
+    )
+    return _page("Link your school's Canvas", body)
+
+
+def link_sign_in(email: str, login_url: str) -> HTMLResponse:
+    body = (
+        "<h1>Sign in to link</h1>"
+        f"<p>Sign in with the Life2Launch account for {escape(email)}. Then you can link it to your school's Canvas.</p>"
+        f"<div class=\"actions\"><a class=\"button primary\" href=\"{escape(login_url)}\">Sign in</a></div>"
+    )
+    return _page("Sign in to link", body)
+
+
+def link_wrong_account(signed_in_as: str, email: str) -> HTMLResponse:
+    body = (
+        "<h1>That's a different account</h1>"
+        f"<p>You're signed in as {escape(signed_in_as)}, but your school's Canvas uses {escape(email)}. "
+        f"Sign out of Life2Launch, then open this link again and sign in as {escape(email)}.</p>"
+    )
+    return _page("That's a different account", body, status_code=403)
+
+
+def link_done(school: str) -> HTMLResponse:
+    body = (
+        "<h1>Linked</h1>"
+        f"<p>Your account now opens from {escape(school)}'s Canvas. Go back to Canvas and open Life2Launch again.</p>"
+    )
+    return _page("Linked", body)
