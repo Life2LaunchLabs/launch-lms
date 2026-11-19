@@ -201,8 +201,12 @@ def _staff_role_ids(org_id: int, db_session: Session) -> list[int]:
     return [role.id for role in roles if role.id is not None and is_staff_role(role)]
 
 
+# Invitations from a Canvas class list: one per student per course, made without anyone choosing to spend a seat.
+SEATLESS_INVITATION_SOURCE = "canvas"
+
+
 def count_usage(name: str, org_id: int, db_session: Session) -> int:
-    """Members plus pending, unexpired invitations; learners count only active members, plus reserved join-link spots."""
+    """Members plus pending, unexpired invitations (except Canvas class list ones); learners count only active members, plus reserved join-link spots."""
     now = datetime.utcnow()
     staff_ids = _staff_role_ids(org_id, db_session)
     staff = name == "staff_seats"
@@ -216,10 +220,12 @@ def count_usage(name: str, org_id: int, db_session: Session) -> int:
     if not staff:
         members_query = members_query.where(UserOrganization.status == "active")
     members = db_session.exec(members_query).one()
+    # A Canvas class list invitation holds no seat: the seat is checked when the student joins (DEV-193).
     invitations = db_session.exec(select(func.count()).where(
         OrganizationInvitation.org_id == org_id,
         OrganizationInvitation.status == "pending",
         OrganizationInvitation.expires_at > now,
+        OrganizationInvitation.source != SEATLESS_INVITATION_SOURCE,
         role_filter(OrganizationInvitation.role_id),
     )).one()
     total = members + invitations

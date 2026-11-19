@@ -14,6 +14,7 @@ from src.services.users.usergroups import add_users_to_usergroup
 from src.services.orgs import removals, staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.messages import resolve_action_by_dedupe
+from src.services.canvas.roster import settle_for_member
 
 
 class JoinOrg(BaseModel):
@@ -172,6 +173,8 @@ async def join_org(
                     int(usergroup_id),
                     str(user.id),
                 )
+            # Any Canvas class list invitations they had here join them to those course groups too (DEV-193).
+            settle_for_member(db_session, int(org.id), user)
 
             return "Great, You're part of the Organization"
 
@@ -227,6 +230,8 @@ async def join_org(
                     int(usergroup_id),
                     str(user.id),
                 )
+            # Any Canvas class list invitations they had here join them to those course groups too (DEV-193).
+            settle_for_member(db_session, int(org.id), user)
 
             return "Great, You're part of the Organization"
 

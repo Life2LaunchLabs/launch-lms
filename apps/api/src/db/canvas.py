@@ -54,7 +54,8 @@ class CanvasUserLink(SQLModel, table=True):
 
 class CanvasCourseGroup(SQLModel, table=True):
     """The organization's group for one Canvas course, keyed by Canvas's course id (OP-2). People join it when
-    they first launch from that course; the group goes if the course's group is deleted."""
+    they first launch from that course, and its class list arrives as invitations (DEV-193); the group goes if
+    the course's group is deleted."""
 
     __tablename__ = "canvascoursegroup"
     __table_args__ = (UniqueConstraint("connection_id", "canvas_course_id", name="uq_canvascoursegroup_connection_course"),)
@@ -67,5 +68,13 @@ class CanvasCourseGroup(SQLModel, table=True):
     usergroup_id: int = Field(
         sa_column=Column(Integer, ForeignKey("usergroup.id", ondelete="CASCADE"), nullable=False, unique=True)
     )
+    # Canvas's class list address for the course (LTI Names and Role Provisioning Services), from a launch.
+    memberships_url: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    # The last class list pull: when it finished, and a plain sentence when it couldn't.
+    roster_pulled_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    roster_error: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    # Names Canvas gave for the students still invited, by normalized email, so staff see who they are.
+    # Rebuilt on every pull; a student's entry goes once they join or leave the course.
+    invited_names: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     creation_date: str = ""
     update_date: str = ""

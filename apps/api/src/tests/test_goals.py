@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
+from src.db.canvas import CanvasConnection, CanvasCourseGroup
 from src.db.coach import CoachPlaybook, CoachPolicy, CoachProviderKey
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, ConversationReaction
 from src.db.coach_notes import CoachNote
@@ -80,6 +81,8 @@ def _session() -> Session:
         CoachDeparture.__table__,
         # Whether someone sees the school email switch (services/notifications/preferences.py).
         LearnerSupport.__table__,
+        # A Canvas course's group shows its class list (services/canvas/roster.py).
+        CanvasConnection.__table__, CanvasCourseGroup.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))

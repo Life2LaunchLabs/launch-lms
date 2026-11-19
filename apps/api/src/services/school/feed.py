@@ -26,6 +26,7 @@ from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin
 from src.security.superadmin import is_user_superadmin
+from src.services.canvas import roster
 from src.services.connect import chats, people
 from src.services.goals import access, helper_requests
 from src.services.goals.sharing_roles import _now
@@ -436,4 +437,6 @@ def group_detail(db: Session, current_user: PublicUser, org_id: int, group_id: i
             # teacher on the default permissions) get the read-only list instead of an empty editor (FEED-652).
             "can_manage": is_org_admin(viewer, org_id, db, "manage_learners"),
             "can_set_status": is_org_admin(viewer, org_id, db, "manage_learners"),
-            "in_chat": inside, "groups_enabled": group_chats.enabled(db, org_id)}
+            "in_chat": inside, "groups_enabled": group_chats.enabled(db, org_id),
+            # A Canvas course's group: its class list invitations and the last pull (DEV-193); None for other groups.
+            "canvas": roster.summary_for_group(db, org_id, group_id, viewer)}

@@ -2,8 +2,9 @@
 
 The group is named after the course and keyed by Canvas's course id, renamed when the course's title
 changes. People join it the first time they open Life2Launch from that course: students as members (they
-get the group's plans and chats like anyone added to a group), teachers as staff on the group. We never
-pull the class list (that needs Canvas's roster service).
+get the group's plans and chats like anyone added to a group), teachers as staff on the group. We don't
+pull the class list here: a teacher's launch (or staff pressing Update from Canvas) does, through
+services/canvas/roster.py, and the students arrive as invitations (DEV-193).
 """
 
 from __future__ import annotations
@@ -54,8 +55,29 @@ def course_group(db: Session, launch: Launch) -> UserGroup | None:
         group.name = name
         group.update_date = _now()
         db.add(group)
+    if launch.memberships_url:
+        link = link or db.exec(select(CanvasCourseGroup).where(CanvasCourseGroup.usergroup_id == group.id)).first()
+        if link is not None and link.memberships_url != launch.memberships_url:
+            link.memberships_url = launch.memberships_url
+            link.update_date = _now()
+            db.add(link)
     db.flush()
     return group
+
+
+def add_member(db: Session, group: UserGroup, user_id: int) -> bool:
+    """Put a learner in a group as staff adding them would: its plans and chat follow. False when already in it."""
+    from src.services.goals.assignments import sync_group_members
+    from src.services.school import group_chats
+
+    group_id = int(group.id)  # type: ignore[arg-type]
+    if db.exec(select(UserGroupUser).where(UserGroupUser.usergroup_id == group_id, UserGroupUser.user_id == user_id)).first():
+        return False
+    db.add(UserGroupUser(usergroup_id=group_id, user_id=user_id, org_id=group.org_id, creation_date=_now(), update_date=_now()))
+    db.flush()
+    sync_group_members(db, group, [user_id])
+    group_chats.sync(db, group)
+    return True
 
 
 def join_course_group(db: Session, launch: Launch, user: User, staff: bool) -> UserGroup | None:
@@ -79,12 +101,7 @@ def join_course_group(db: Session, launch: Launch, user: User, staff: bool) -> U
             _sync_goals(db, row, group_id, user_id)
             group_chats.sync(db, group)
             cohort.sync_group(db, group_id)
-    elif not db.exec(select(UserGroupUser).where(UserGroupUser.usergroup_id == group_id, UserGroupUser.user_id == user_id)).first():
-        from src.services.goals.assignments import sync_group_members
-
-        db.add(UserGroupUser(usergroup_id=group_id, user_id=user_id, org_id=group.org_id, creation_date=_now(), update_date=_now()))
-        db.flush()
-        sync_group_members(db, group, [user_id])
-        group_chats.sync(db, group)
+    else:
+        add_member(db, group, user_id)
     db.flush()
     return group

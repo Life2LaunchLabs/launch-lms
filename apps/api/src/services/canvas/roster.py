@@ -1,0 +1,472 @@
+"""A Canvas course's class list, pulled into its group as invitations (DEV-193).
+
+Canvas offers the class list through LTI Names and Role Provisioning Services when the school's developer key
+has the read-only membership scope; a launch from the course names the list's address. We ask Canvas for a
+short token (a client credentials grant signed with Life2Launch's LTI key) and read the course's active students.
+
+Organizations don't own learners, so a pull never makes accounts or memberships for people outside the school:
+- a student already in the school joins the course group, as when staff add someone to a group;
+- anyone else gets a pending invitation to the school and the course group, with no email. It fills the usual
+  ways: an existing account accepts it, the student signs up from it, or they open Life2Launch from Canvas;
+- a student who left the course has their pending invitation withdrawn (members stay: that's the school's call);
+- teachers on the list are left alone (they join as staff when they launch), and so is anyone the school removed.
+
+Class list invitations hold no learner seat (security/access SEATLESS_INVITATION_SOURCE), so a big class never
+blocks a pull; the seat is checked when each student joins. A pull runs when a teacher opens Life2Launch from the
+course (at most every PULL_INTERVAL_SECONDS) and when staff who manage learners press Update from Canvas.
+"""
+
+from __future__ import annotations
+
+import logging
+import secrets
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
+from uuid import uuid4
+
+import httpx
+import jwt
+from email_validator import EmailNotValidError, validate_email
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlmodel import Session, select
+
+from src.db.canvas import CanvasConnection, CanvasCourseGroup, CanvasUserLink
+from src.db.organization_invitations import OrganizationInvitation
+from src.db.organizations import Organization
+from src.db.user_organizations import UserOrganization
+from src.db.usergroups import UserGroup
+from src.db.users import User
+from src.security.access.access import SEATLESS_INVITATION_SOURCE
+from src.services.canvas import connections, keys
+
+logger = logging.getLogger(__name__)
+
+NRPS_SCOPE = "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly"
+MEMBERSHIP_MEDIA_TYPE = "application/vnd.ims.lti-nrps.v2.membershipcontainer+json"
+LEARNER_ROLE_ID = 4
+PULL_INTERVAL_SECONDS = 600  # after a teacher's launch
+BUTTON_INTERVAL_SECONDS = 30  # between presses of Update from Canvas
+INVITATION_DAYS = 180  # a school term and then some; every pull moves it on
+MAX_MEMBERS = 2000
+MAX_PAGES = 40
+TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+
+NO_SCOPE = ("Canvas hasn't given Life2Launch the class list yet. Ask your school's Canvas admin to open the "
+            "Life2Launch developer key, save it again so it picks up the class list permission, and turn it on.")
+NOT_OFFERED = ("Canvas hasn't shared this course's class list yet. Open Life2Launch from the course in Canvas as its "
+               "teacher once, then try again.")
+UNREACHABLE = "Life2Launch couldn't reach your school's Canvas. Try again in a few minutes."
+
+
+class RosterError(Exception):
+    """A pull that couldn't finish, with a plain sentence for staff."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
+@dataclass
+class PullResult:
+    invited: int = 0  # new invitations
+    still_invited: int = 0  # invitations already waiting (moved on)
+    joined: int = 0  # school members added to the group
+    already_in: int = 0  # school members already in the group
+    withdrawn: int = 0  # invitations of students no longer in the course
+    no_email: int = 0  # students Canvas shared no email for
+    removed: int = 0  # students the school removed, left alone
+
+
+def _now() -> str:
+    return str(datetime.now())
+
+
+def _same_host(url: str, connection: CanvasConnection) -> bool:
+    """Only the school's own Canvas gets a class list token from us."""
+    parts = urlsplit(url)
+    host = (parts.netloc or "").lower()
+    allowed = {connection.canvas_host.lower(), connections.platform_host(connection).lower()} - {""}
+    return parts.scheme == connections._scheme(host) and host in allowed
+
+
+def token_url(connection: CanvasConnection) -> str:
+    host = connections.platform_host(connection)
+    return f"{connections._scheme(host)}://{host}/login/oauth2/token"
+
+
+def _client_assertion(db: Session, connection: CanvasConnection, audience: str) -> str:
+    now = int(time.time())
+    claims = {"iss": connection.client_id, "sub": connection.client_id, "aud": audience,
+              "iat": now, "exp": now + 300, "jti": secrets.token_urlsafe(24)}
+    return jwt.encode(claims, keys.private_key_pem(db), algorithm="RS256", headers={"kid": keys.public_jwk(db)["kid"]})
+
+
+def access_token(db: Session, connection: CanvasConnection, client: httpx.Client) -> str:
+    url = token_url(connection)
+    try:
+        response = client.post(url, data={
+            "grant_type": "client_credentials",
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion": _client_assertion(db, connection, url),
+            "scope": NRPS_SCOPE,
+        }, headers={"Accept": "application/json"})
+    except httpx.HTTPError as error:
+        logger.warning("Canvas token request for connection %s failed: %s", connection.id, error)
+        raise RosterError(UNREACHABLE) from error
+    body = _json(response)
+    if response.status_code >= 400 or not body.get("access_token"):
+        logger.info("Canvas refused a class list token for connection %s: %s %s", connection.id, response.status_code, body.get("error"))
+        # Canvas answers invalid_scope (or a 400/401 naming the scope) when the key lacks the permission.
+        raise RosterError(NO_SCOPE if response.status_code in (400, 401, 403) else UNREACHABLE)
+    return str(body["access_token"])
+
+
+def _json(response: httpx.Response) -> dict:
+    try:
+        body = response.json()
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _next_link(response: httpx.Response) -> str | None:
+    link = response.links.get("next") if response.headers.get("link") else None
+    return link.get("url") if link else None
+
+
+def fetch_members(connection: CanvasConnection, url: str, token: str, client: httpx.Client) -> list[dict]:
+    members: list[dict] = []
+    for _ in range(MAX_PAGES):
+        if not _same_host(url, connection):
+            raise RosterError(NOT_OFFERED)
+        try:
+            response = client.get(url, headers={"Authorization": f"Bearer {token}", "Accept": MEMBERSHIP_MEDIA_TYPE})
+        except httpx.HTTPError as error:
+            logger.warning("Canvas class list for connection %s failed: %s", connection.id, error)
+            raise RosterError(UNREACHABLE) from error
+        if response.status_code in (401, 403):
+            raise RosterError(NO_SCOPE)
+        if response.status_code == 404:
+            raise RosterError(NOT_OFFERED)
+        if response.status_code >= 400:
+            raise RosterError(UNREACHABLE)
+        page = _json(response).get("members") or []
+        members.extend(member for member in page if isinstance(member, dict))
+        if len(members) > MAX_MEMBERS:
+            raise RosterError(f"This course has more than {MAX_MEMBERS} people, more than Life2Launch reads from one class list.")
+        url = _next_link(response) or ""
+        if not url:
+            return members
+    raise RosterError(UNREACHABLE)
+
+
+def _is_student(member: dict) -> bool:
+    from src.services.canvas.people import is_staff_launch
+
+    roles = [str(role) for role in member.get("roles") or []]
+    if (member.get("status") or "Active") != "Active" or is_staff_launch(roles):
+        return False
+    return any(role.endswith("membership#Learner") or role == "Learner" for role in roles)
+
+
+def _email(member: dict) -> str | None:
+    from src.services.orgs.users import normalize_email
+
+    raw = (member.get("email") or "").strip()
+    if not raw:
+        return None
+    try:
+        return normalize_email(validate_email(raw, check_deliverability=False).normalized)
+    except EmailNotValidError:
+        return None
+
+
+def _name(member: dict) -> str:
+    name = (member.get("name") or " ".join(filter(None, [member.get("given_name"), member.get("family_name")])) or "").strip()
+    return name[:200]
+
+
+def _resolve_inbox(db: Session, invitation: OrganizationInvitation, accepted: bool) -> None:
+    from src.services.messages import resolve_action_by_dedupe
+
+    resolve_action_by_dedupe(db, f"organization_invitation:{invitation.invitation_uuid}", accepted=accepted)
+
+
+def _pending(db: Session, org_id: int, group_id: int) -> list[OrganizationInvitation]:
+    return list(db.exec(select(OrganizationInvitation).where(
+        OrganizationInvitation.org_id == org_id,
+        OrganizationInvitation.usergroup_id == group_id,
+        OrganizationInvitation.source == SEATLESS_INVITATION_SOURCE,
+        OrganizationInvitation.status == "pending",
+    )).all())
+
+
+def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], actor_id: int | None) -> PullResult:
+    """Bring the course group in line with the class list. Commits."""
+    from src.services.canvas.courses import add_member
+    from src.services.messages import create_inbox_message
+    from src.services.orgs import removals
+
+    connection = db.get(CanvasConnection, link.connection_id)
+    group = db.get(UserGroup, link.usergroup_id)
+    if connection is None or group is None:
+        raise RosterError("This course's group is gone.")
+    org_id = int(connection.org_id)
+    org = db.get(Organization, org_id)
+    result = PullResult()
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=INVITATION_DAYS)
+    pending = {invitation.email_normalized: invitation for invitation in _pending(db, org_id, int(group.id))}  # type: ignore[arg-type]
+    on_list: set[str] = set()
+    names: dict[str, str] = {}
+
+    for member in members:
+        if not _is_student(member):
+            continue
+        email = _email(member)
+        user = None
+        canvas_user_id = str(member.get("user_id") or "")[:255]
+        if canvas_user_id:
+            linked = db.exec(select(CanvasUserLink.user_id).where(CanvasUserLink.connection_id == connection.id,
+                                                                   CanvasUserLink.canvas_user_id == canvas_user_id)).first()
+            user = db.get(User, linked) if linked else None
+        if user is None and email:
+            user = db.exec(select(User).where(func.lower(User.email) == email)).first()
+        if user is not None and db.exec(select(UserOrganization.id).where(
+            UserOrganization.org_id == org_id, UserOrganization.user_id == user.id,
+        )).first():
+            if email:
+                on_list.add(email)
+            if add_member(db, group, int(user.id)):  # type: ignore[arg-type]
+                result.joined += 1
+            else:
+                result.already_in += 1
+            continue
+        if not email:
+            result.no_email += 1
+            continue
+        if user is not None and removals.is_removed(db, org_id, user.id):
+            result.removed += 1
+            continue
+        on_list.add(email)
+        names[email] = _name(member)
+        invitation = pending.get(email)
+        if invitation is not None:
+            if invitation.expires_at < expires_at:
+                invitation.expires_at = expires_at
+                invitation.updated_at = now
+                db.add(invitation)
+            result.still_invited += 1
+            continue
+        invitation = OrganizationInvitation(
+            invitation_uuid=f"org_invitation_{uuid4()}",
+            org_id=org_id,
+            email=email,
+            email_normalized=email,
+            role_id=LEARNER_ROLE_ID,
+            usergroup_id=int(group.id),  # type: ignore[arg-type]
+            target_user_id=int(user.id) if user is not None else None,  # type: ignore[arg-type]
+            created_by_user_id=actor_id,
+            source=SEATLESS_INVITATION_SOURCE,
+            delivery_status="not_sent",
+            expires_at=expires_at,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(invitation)
+        db.flush()
+        pending[email] = invitation
+        school = org.name if org else "your school"
+        create_inbox_message(
+            db,
+            recipient_user_id=int(user.id) if user is not None else None,  # type: ignore[arg-type]
+            recipient_email=email,
+            sender_org_id=org_id,
+            sender_user_id=actor_id,
+            message_type="invitation",
+            subject=f"Invitation to join {school}",
+            body=f"{school} invited you to {group.name} on Life2Launch, from your Canvas course.",
+            action_kind="organization_invitation",
+            action_data={"invitation_uuid": invitation.invitation_uuid},
+            dedupe_key=f"organization_invitation:{invitation.invitation_uuid}",
+        )
+        result.invited += 1
+
+    for email, invitation in pending.items():
+        if email in on_list:
+            continue
+        invitation.status = "revoked"
+        invitation.revoked_at = now
+        invitation.updated_at = now
+        db.add(invitation)
+        _resolve_inbox(db, invitation, accepted=False)
+        result.withdrawn += 1
+
+    link.invited_names = {email: names.get(email, "") for email in pending if email in names}
+    link.roster_pulled_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    link.roster_error = None
+    link.update_date = _now()
+    db.add(link)
+    db.commit()
+    return result
+
+
+def _claim(link_id: int, seconds: int, kind: str) -> bool:
+    """Not more than one pull of this kind (``launch`` or ``button``) per course every ``seconds``; True when this
+    caller may pull. A pull applied twice changes nothing, so the two kinds don't wait for each other."""
+    from src.services.canvas.launch import _redis
+
+    try:
+        return bool(_redis().set(f"lti:roster:{kind}:{link_id}", "1", ex=seconds, nx=True))
+    except Exception as error:  # Redis down: the pull still runs; applying a class list twice changes nothing.
+        logger.info("Class list pull lock unavailable: %s", error)
+        return True
+
+
+def pull(db: Session, link: CanvasCourseGroup, actor_id: int | None, client: httpx.Client | None = None) -> PullResult:
+    """Read the course's class list from Canvas and apply it. Raises RosterError (and records it on the link)."""
+    connection = db.get(CanvasConnection, link.connection_id)
+    try:
+        if connection is None or not connection.enabled:
+            raise RosterError("Your school's Canvas connection is switched off.")
+        if not link.memberships_url:
+            raise RosterError(NOT_OFFERED)
+        if not _same_host(link.memberships_url, connection):
+            raise RosterError(NOT_OFFERED)
+        own_client = client is None
+        client = client or httpx.Client(timeout=TIMEOUT, follow_redirects=False)
+        try:
+            token = access_token(db, connection, client)
+            members = fetch_members(connection, link.memberships_url, token, client)
+        finally:
+            if own_client:
+                client.close()
+        result = apply_roster(db, link, members, actor_id)
+    except RosterError as error:
+        db.rollback()
+        link = db.get(CanvasCourseGroup, link.id) or link
+        link.roster_error = error.message
+        link.update_date = _now()
+        db.add(link)
+        db.commit()
+        raise
+    _audit(db, link, actor_id, result)
+    return result
+
+
+def _audit(db: Session, link: CanvasCourseGroup, actor_id: int | None, result: PullResult) -> None:
+    from src.services.audit_logs import record_audit_log
+
+    connection = db.get(CanvasConnection, link.connection_id)
+    try:
+        record_audit_log(db, action="canvas.class_list_pull", resource="usergroup", status_code=200,
+                         resource_id=str(link.usergroup_id), org_id=connection.org_id if connection else None,
+                         user_id=actor_id, request_metadata=asdict(result))
+    except Exception:  # an audit hiccup never undoes the pull
+        logger.exception("Couldn't record the class list pull")
+
+
+def pull_after_launch(link_id: int, teacher_id: int) -> None:
+    """Background task after a teacher's launch: pull unless one ran in the last PULL_INTERVAL_SECONDS."""
+    from src.core.events.database import engine
+
+    if not _claim(link_id, PULL_INTERVAL_SECONDS, "launch"):
+        return
+    with Session(engine) as db:
+        link = db.get(CanvasCourseGroup, link_id)
+        if link is None or not link.memberships_url:
+            return
+        try:
+            pull(db, link, teacher_id)
+        except RosterError as error:
+            logger.info("Class list pull for course group %s: %s", link_id, error.message)
+        except Exception:
+            logger.exception("Class list pull for course group %s failed", link_id)
+
+
+def pull_now(db: Session, user_id: int, org_id: int, group_id: int) -> dict:
+    """Update from Canvas: staff who can change the group's people pull its class list now."""
+    from src.security.org_auth import is_org_admin
+
+    link = _link_for(db, org_id, group_id)
+    if link is None:
+        raise HTTPException(status_code=404, detail="This group isn't a Canvas course.")
+    if not is_org_admin(user_id, org_id, db, "manage_learners"):
+        raise HTTPException(status_code=403, detail="You can't change this group's people.")
+    if not _claim(int(link.id), BUTTON_INTERVAL_SECONDS, "button"):  # type: ignore[arg-type]
+        raise HTTPException(status_code=429, detail="Canvas was just asked. Try again in a moment.")
+    try:
+        result = pull(db, link, user_id)
+    except RosterError as error:
+        raise HTTPException(status_code=409, detail=error.message) from error
+    return {**asdict(result), "canvas": summary(db, link, user_id)}
+
+
+def _link_for(db: Session, org_id: int, group_id: int) -> CanvasCourseGroup | None:
+    return db.exec(select(CanvasCourseGroup).join(CanvasConnection, CanvasConnection.id == CanvasCourseGroup.connection_id).where(
+        CanvasCourseGroup.usergroup_id == group_id, CanvasConnection.org_id == org_id)).first()
+
+
+def summary(db: Session, link: CanvasCourseGroup, viewer_id: int) -> dict:
+    """What a course group's page shows about its class list: who is still invited, the last pull, what staff can do."""
+    from src.security.org_auth import is_org_admin
+
+    connection = db.get(CanvasConnection, link.connection_id)
+    group_id = int(link.usergroup_id)
+    now = datetime.utcnow()
+    invitations = [invitation for invitation in _pending(db, int(connection.org_id), group_id) if invitation.expires_at > now] if connection else []
+    names = link.invited_names or {}
+    invitations.sort(key=lambda invitation: (names.get(invitation.email_normalized) or invitation.email).casefold())
+    return {
+        "invited": [{"invitation_uuid": invitation.invitation_uuid, "email": invitation.email,
+                     "name": names.get(invitation.email_normalized) or "", "invited_at": invitation.created_at.isoformat()}
+                    for invitation in invitations],
+        "pulled_at": link.roster_pulled_at,
+        "error": link.roster_error,
+        "offered": bool(link.memberships_url),
+        "can_pull": bool(connection and connection.enabled) and is_org_admin(viewer_id, int(connection.org_id), db, "manage_learners") if connection else False,
+    }
+
+
+def summary_for_group(db: Session, org_id: int, group_id: int, viewer_id: int) -> dict | None:
+    link = _link_for(db, org_id, group_id)
+    return summary(db, link, viewer_id) if link else None
+
+
+def settle_for_member(db: Session, org_id: int, user) -> int:
+    """Someone (a User or UserRead) joined the school (from Canvas, an invitation or a link): their class list invitations there
+    are accepted and they join those course groups. Commits; returns how many it settled."""
+    from src.services.canvas.courses import add_member
+    from src.services.orgs.users import normalize_email
+
+    if user is None or not getattr(user, "email", None) or not getattr(user, "id", None):
+        return 0
+    invitations = db.exec(select(OrganizationInvitation).where(
+        OrganizationInvitation.org_id == org_id,
+        OrganizationInvitation.email_normalized == normalize_email(str(user.email)),
+        OrganizationInvitation.source == SEATLESS_INVITATION_SOURCE,
+        OrganizationInvitation.status == "pending",
+    )).all()
+    now = datetime.utcnow()
+    settled = 0
+    for invitation in invitations:
+        group = db.get(UserGroup, invitation.usergroup_id) if invitation.usergroup_id else None
+        if group is not None and group.org_id == org_id:
+            add_member(db, group, int(user.id))  # type: ignore[arg-type]
+        invitation.status = "accepted"
+        invitation.target_user_id = user.id
+        invitation.accepted_at = now
+        invitation.updated_at = now
+        db.add(invitation)
+        _resolve_inbox(db, invitation, accepted=True)
+        link = db.exec(select(CanvasCourseGroup).where(CanvasCourseGroup.usergroup_id == invitation.usergroup_id)).first() if invitation.usergroup_id else None
+        if link is not None and invitation.email_normalized in (link.invited_names or {}):
+            link.invited_names = {k: v for k, v in link.invited_names.items() if k != invitation.email_normalized}
+            db.add(link)
+        settled += 1
+    if settled:
+        db.commit()
+    return settled
