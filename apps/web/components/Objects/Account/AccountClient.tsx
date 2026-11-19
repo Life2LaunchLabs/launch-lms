@@ -11,6 +11,7 @@ import AccountLanguage from '@components/Objects/Account/subpages/AccountLanguag
 import AccountAccessibility from '@components/Objects/Account/subpages/AccountAccessibility'
 import AccountData from '@components/Objects/Account/subpages/AccountData'
 import AccountEmailNotifications from '@components/Objects/Account/subpages/AccountEmailNotifications'
+import AccountEmailAddresses from '@components/Objects/Account/emails/AccountEmailAddresses'
 import { signOut } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 
@@ -40,7 +41,7 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
   return (
     <AccountPageShell>
       <div className="space-y-6">
-        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountSecurity /></section>
+        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountEmailAddresses /><AccountSecurity /></section>
         <section id="emails" className="scroll-mt-6"><AccountEmailNotifications /></section>
         <section id="language" className="scroll-mt-6"><AccountLanguage /></section>
         <section id="accessibility" className="scroll-mt-6"><AccountAccessibility /></section>

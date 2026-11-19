@@ -519,7 +519,6 @@ async def find_or_create_sso_user(
     """
     # Look for existing user by email
     from src.services.users.account_emails import find_user
-
     user = find_user(db_session, profile.email)
 
     if user:
