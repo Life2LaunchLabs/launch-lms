@@ -284,3 +284,39 @@ def test_a_class_list_invitation_starts_the_sign_up_form_with_canvas_names(clien
 
 def test_the_tool_configuration_asks_for_the_class_list(client):  # noqa: F811
     assert client.get("/api/v1/lti/canvas.json").json()["scopes"] == [roster.NRPS_SCOPE]
+
+
+def test_a_student_who_left_the_course_leaves_its_group_but_not_the_school(client, db, canvas, store):  # noqa: F811
+    # UT-44: Maya opened Life2Launch from the course, so she's in its group; then she transferred to another class.
+    _session(client, _launch(client)[0].text)
+    maya = _user(db, "maya@ridge.example.com")
+    jo = _school_learner(db, "jo@ridge.example.com", "Jo")  # staff put her in the group by hand; she isn't in Canvas
+    canvas.members = [_student("canvas-user-1", "maya@ridge.example.com", "Maya Lopez"), _student("canvas-ivy", "ivy@ridge.example.com", "Ivy Chen")]
+    _session(client, _launch(client, **TEACHER)[0].text)
+    group = _group(db)
+    from src.services.canvas.courses import add_member
+    add_member(db, group, jo.id)
+    db.commit()
+    assert _members(db, group) == {maya.id, jo.id}
+
+    # Canvas no longer lists her (or lists her as inactive): the next pull takes her off the group.
+    canvas.members = [_student("canvas-user-1", "maya@ridge.example.com", "Maya Lopez", status="Inactive"),
+                      _student("canvas-ivy", "ivy@ridge.example.com", "Ivy Chen")]
+    teacher = _user(db, "rivera@ridge.example.com")
+    link = db.exec(select(CanvasCourseGroup)).one()
+    result = roster.apply_roster(db, link, canvas.members, teacher.id)
+    db.expire_all()
+    assert result.left == 1
+    assert _members(db, group) == {jo.id}  # Jo, added by staff, stays
+    # Maya keeps her place in the school.
+    assert db.exec(select(UserOrganization).where(UserOrganization.user_id == maya.id, UserOrganization.org_id == 2)).first()
+
+    # Back in the course: the next pull puts her back in the group.
+    result = roster.apply_roster(db, link, [_student("canvas-user-1", "maya@ridge.example.com", "Maya Lopez")], teacher.id)
+    db.expire_all()
+    assert result.joined == 1 and maya.id in _members(db, group)
+
+    # A class list naming nobody active takes nobody off.
+    result = roster.apply_roster(db, link, [], teacher.id)
+    db.expire_all()
+    assert result.left == 0 and _members(db, group) == {maya.id, jo.id}
