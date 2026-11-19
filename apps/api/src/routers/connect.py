@@ -75,7 +75,7 @@ async def ask_to_connect(portfolio_uuid: str, payload: requests.ConnectRequestCr
 
 
 def _group_plan(org_id: int, assignment_uuid: str, db_session: Session = DB) -> None:
-    """Groups are a Full-plan feature: so are a group assignment's chats."""
+    """A group assignment's chats follow the groups feature (every tier, unless an org's grant turns it off)."""
     from src.routers.goal_admin import _require_assignment_plan
 
     _require_assignment_plan(org_id, assignment_uuid, db_session)

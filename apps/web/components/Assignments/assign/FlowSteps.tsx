@@ -38,11 +38,9 @@ export function RecipientTokens({ picks }: { picks: Recipient[] }) {
  * Who it's for: groups, the organization's learners, an email to invite, or a new group. Awarding a
  * badge (``award``) takes only learners and groups already here, and marks those who hold it.
  */
-export function WhoStep({ picks, setPicks, query, setQuery, groups, people, canGroups, newGroups = canGroups, taken, award = false }: {
+export function WhoStep({ picks, setPicks, query, setQuery, groups, people, canGroups, taken, award = false }: {
   picks: Recipient[]; setPicks: (picks: Recipient[]) => void; query: string; setQuery: (query: string) => void // eslint-disable-line no-unused-vars
   groups: GroupOption[]; people: DirectoryPerson[]; canGroups: boolean; taken: { groups: Set<number>; people: Set<number> }; award?: boolean
-  /** Whether typing a new name can create a group (Full tier); defaults to canGroups. */
-  newGroups?: boolean
 }) {
   const takenLabel = award ? 'Already has this badge' : 'Already has this plan'
   const q = query.trim().toLowerCase()
@@ -62,7 +60,7 @@ export function WhoStep({ picks, setPicks, query, setQuery, groups, people, canG
   const actions = []
   if (!award && q && isEmail(q) && !on.has(`email:${q}`)) actions.push({ key: `email:${q}`, action: true, tile: <RecipientTile pick={{ kind: 'email', email: q }} size="md" />, title: `Invite ${q}`,
     sub: 'They get an email to sign up. Their assignment waits for them.', onPick: () => add({ kind: 'email', email: q }) })
-  if (!award && q && !isEmail(q) && newGroups && !groups.some((group) => group.name.toLowerCase() === q) && !on.has(`newgroup:${q}`)) actions.push({ key: `newgroup:${q}`, action: true,
+  if (!award && q && !isEmail(q) && canGroups && !groups.some((group) => group.name.toLowerCase() === q) && !on.has(`newgroup:${q}`)) actions.push({ key: `newgroup:${q}`, action: true,
     tile: <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-ink"><Plus size={16} aria-hidden="true" /></span>, title: `Create group “${query.trim()}”`,
     sub: 'Empty for now. Add people to it any time.', onPick: () => add({ kind: 'newgroup', name: query.trim() }) })
   if (actions.length) options.push({ items: actions })

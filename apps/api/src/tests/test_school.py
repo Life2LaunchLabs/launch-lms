@@ -130,7 +130,7 @@ def test_a_students_page_shows_their_team_and_chat_with_staff_only_messages():
 
 
 def test_what_waits_on_staff_is_the_top_of_their_people_feed(monkeypatch):
-    # A free org that isn't the owner org, so groups (and their chats) are off.
+    # An org that isn't the owner org. Its group's chat sits in the feed too, with nothing waiting.
     monkeypatch.setattr("src.security.access.access.owner_org_id", lambda *_args: None)
     with _session() as db:
         _assign(db)
@@ -143,4 +143,4 @@ def test_what_waits_on_staff_is_the_top_of_their_people_feed(monkeypatch):
         assert [(row["student"]["id"], row["unread"]) for row in waiting] == [(row["person"]["id"], row["counts"]["messages"]) for row in top if row["total"]]
         assert top[0]["preview"].startswith("Lee Arner: @Tess Teacher")
         chats.mark_read(db, _user(TEACHER), opened["conversation_uuid"])
-        assert [row["total"] for row in feed.people_feed(db, _user(TEACHER), 1)["active"]] == [0]
+        assert [row["total"] for row in feed.people_feed(db, _user(TEACHER), 1)["active"]] == [0, 0]

@@ -18,26 +18,19 @@ router = APIRouter()
 GROUPS_NEED = "Group goal assignments need the Full tier"
 
 
-def _canvas_course_group(db: Session, org_id: int, usergroup_id: int | None) -> bool:
-    """Canvas course groups take group plans on every tier (UT-42): Canvas is on every tier."""
-    from src.services.canvas.courses import course_group_ids
-
-    return usergroup_id is not None and bool(course_group_ids(db, org_id, [int(usergroup_id)]))
-
-
-def _require_group_plans(org_id: int, db: Session, read: bool = False, usergroup_id: int | None = None) -> None:
+def _require_group_plans(org_id: int, db: Session, read: bool = False) -> None:
     access = org_access(org_id, db)
-    if not (access.can_read("groups") if read else access.has("groups")) and not _canvas_course_group(db, org_id, usergroup_id):
+    if not (access.can_read("groups") if read else access.has("groups")):
         raise HTTPException(status_code=403, detail=GROUPS_NEED)
 
 
 def _require_assignment_plan(org_id: int, assignment_uuid: str, db: Session, read: bool = False) -> None:
-    """Group assignments need Full, except to a Canvas course group. After a Full trial ends they stay readable, and staff can still settle learners' steps."""
+    """Group assignments need Full. After a Full trial ends they stay readable, and staff can still settle learners' steps."""
     access = org_access(org_id, db)
     if access.has("groups") or (read and access.lapsed("groups")):
         return
     group = db.exec(select(GoalAssignment.usergroup_id).where(GoalAssignment.org_id == org_id, GoalAssignment.assignment_uuid == assignment_uuid)).first()
-    if group and not _canvas_course_group(db, org_id, group):
+    if group:
         raise HTTPException(status_code=403, detail=GROUPS_NEED)
 
 
@@ -230,16 +223,8 @@ def api_goal_reviews(goal_uuid: str, org_id: int, db: Session = Depends(get_db_s
 
 @router.get("/cohorts/{usergroup_id}")
 def api_cohort(usergroup_id: int, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    _require_group_plans(org_id, db, read=True, usergroup_id=usergroup_id)
+    _require_group_plans(org_id, db, read=True)
     return staff_views.cohort(db, user, org_id, usergroup_id)
-
-
-@router.get("/course-groups")
-def api_course_groups(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """Canvas course groups, which take group plans on every tier (the assign flow's groups without Full)."""
-    from src.services.canvas.courses import assignable_course_groups
-
-    return assignable_course_groups(db, int(user.id), org_id)  # type: ignore[arg-type]
 
 
 @router.get("/managed-users/{user_id}")

@@ -352,7 +352,7 @@ The planned fix is S3-compatible storage on DigitalOcean Spaces: set `LAUNCHLMS_
 ## Business Domain Concepts
 
 ### Org access (tiers, partner programs, grants)
-Tiers: `free` (25 active learners, 2 staff seats) → `full` (200 / 12, groups, bulk invites) → `enterprise` (unlimited, SSO, audit logs, API tokens, advanced reports).
+Tiers: `free` (25 active learners, 2 staff seats) → `full` (200 / 12, bulk invites); groups are on every tier → `enterprise` (unlimited, SSO, audit logs, API tokens, advanced reports).
 Partner programs (applied for, approved by a superadmin): `badge_publisher`, `plan_publisher`, `resource_partner`. Payments is granted on request. No fees; upgrades are requests.
 
 The only definition is `apps/api/src/security/access/catalog.py`; every check goes through `security/access/access.py` (`org_access(...).has/limit`, `ensure_feature`, `require_feature` route dependency, `require_capacity`). The owner org (lowest id) has everything. AI, boards, playgrounds, podcasts, communities, SCORM, custom domains, custom roles and packs were removed (drop migration f9a3c6d8e2b4). The web reads `org.config.config.access` through `useFeatures()`.

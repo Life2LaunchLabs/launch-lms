@@ -5,7 +5,7 @@ The single definition of org access. `org_access()` reads it; nothing else
 compares tiers or reads an org's tier from its config.
 
 Tiers sell scale and structure: Free for one person helping a few learners,
-Full for an organization running programs with groups and several staff,
+Full for an organization running bigger programs with several staff,
 Enterprise for institutions at scale. Publishing to other people's Discover
 is never part of a tier: an org applies for a partner program and a
 superadmin approves it.
@@ -90,7 +90,7 @@ class Feature:
 FEATURES: dict[str, Feature] = {
     feature.key: feature
     for feature in (
-        Feature("groups", "Groups", tier="full"),
+        Feature("groups", "Groups", tier="free"),
         Feature("bulk_invites", "Bulk invites", tier="full"),
         Feature("advanced_reports", "Advanced reporting", tier="enterprise"),
         Feature("sso", "Single sign-on", tier="enterprise"),

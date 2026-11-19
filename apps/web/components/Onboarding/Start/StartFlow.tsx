@@ -273,7 +273,7 @@ export default function StartFlow() {
       </div>
       <Nav back={() => move(-1)} next={() => void setUp(false)} busy={busy} disabled={state.orgOn && !state.org.trim()} label={state.name || state.orgOn ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     if (step === 'tier') return <><Eyebrow>{tr('onboarding.start_flow.optional', 'Optional')}</Eyebrow><h1 className={H1}>{role?.solo && !state.orgOn ? tr('onboarding.start_flow.working_with_a_bigger_group', 'Working with a bigger group?') : tr('onboarding.start_flow.running_something_bigger', 'Running something bigger?')}</h1>
-      <p className={LEDE}>{tr('onboarding.start_flow.full_adds_groups_more_staff', 'Full adds groups, more staff and bulk invites. Try it free for 30 days, or keep going on Free. You can switch anytime.')}</p>
+      <p className={LEDE}>{tr('onboarding.start_flow.full_adds_groups_more_staff', 'Full adds more learners, more staff and bulk invites. Try it free for 30 days, or keep going on Free. You can switch anytime.')}</p>
       <div className="mt-7 grid grid-cols-2 gap-2.5">
         <Button variant="outline" size="lg" className="rounded-full" disabled={busy} onClick={() => void setUp(false)}>{busy && state.trial !== true ? <Loader2 className="animate-spin" /> : null}{tr('onboarding.start_flow.continue_with_free', 'Continue with Free')}</Button>
         <Button size="lg" className="rounded-full bg-violet-600 hover:bg-violet-700" disabled={busy} onClick={() => void setUp(true)}><Sparkles />{tr('onboarding.start_flow.try_full_free', 'Try Full free')}</Button>

@@ -34,21 +34,21 @@ export function TrialBanner({ className }: { className?: string }) {
     return (
       <UpgradeBanner id={ending ? 'trial-ending' : 'trial-running'} className={className}
         title={`Full trial: ${plural(trial.days_left, 'day')} left`}>
-        Groups, bulk invites, and room for {full.learners} learners and {full.staff_seats} staff. When it ends nothing is deleted, but groups turn read-only and you can&rsquo;t add learners past {free.learners}. Request Full to keep it.
+        Bulk invites and room for {full.learners} learners and {full.staff_seats} staff. When it ends nothing is deleted, but you can&rsquo;t add learners past {free.learners}. Request Full to keep it.
       </UpgradeBanner>
     )
   }
   if (trial && base === 'free') {
     return (
       <UpgradeBanner id="trial-ended" className={className} title="Your Full trial has ended">
-        Your groups and their plans are still here, read-only. Learners past {free.learners} keep their plans, but you can&rsquo;t add more until you&rsquo;re under {free.learners} or on Full.
+        Learners past {free.learners} keep their plans, but you can&rsquo;t add more until you&rsquo;re under {free.learners} or on Full.
       </UpgradeBanner>
     )
   }
   if (access.trial_available) {
     return (
       <UpgradeBanner id="trial-offer" className={className} title="Try Full free for 30 days">
-        Groups for classes and cohorts, bulk invites, and room for {full.learners} learners and {full.staff_seats} staff. Afterwards, request Full to keep it.
+        Bulk invites and room for {full.learners} learners and {full.staff_seats} staff. Afterwards, request Full to keep it.
       </UpgradeBanner>
     )
   }
