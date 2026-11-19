@@ -100,7 +100,9 @@ def _tell_admins_school_is_full(db: Session, launch: Launch, staff: bool) -> Non
 def _require_seat(db: Session, launch: Launch, role_id: int) -> None:
     staff = role_id != LEARNER_ROLE_ID
     try:
-        require_role_capacity(db.get(Role, role_id), launch.connection.org_id, db)
+        # Class lists may invite more people than the school has seats for; someone arriving from Canvas needs a
+        # seat free of them (they may be on one), as accepting a class list invitation does (DEV-193).
+        require_role_capacity(db.get(Role, role_id), launch.connection.org_id, db, class_lists=False)
     except HTTPException as error:
         if error.status_code != 403:
             raise

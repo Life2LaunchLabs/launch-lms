@@ -80,28 +80,30 @@ def add_member(db: Session, group: UserGroup, user_id: int) -> bool:
     return True
 
 
-def join_course_group(db: Session, launch: Launch, user: User, staff: bool) -> UserGroup | None:
-    """Put this person in the course's group: a student as a member, a teacher as staff. Flushed, not committed."""
+def add_staff(db: Session, group: UserGroup, user_id: int) -> bool:
+    """Put a teacher on a course group's staff: its learners' goals, chat and cohort follow. False when already on it."""
     from src.services.connect import cohort
     from src.services.school import group_chats
+    from src.services.school.staff import _sync_goals
 
+    group_id = int(group.id)  # type: ignore[arg-type]
+    if db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == group_id, UserGroupStaff.user_id == user_id)).first():
+        return False
+    row = UserGroupStaff(org_id=group.org_id, usergroup_id=group_id, user_id=user_id, role_key=TEACHER_GROUP_ROLE,
+                         assignment_uuids=[], creation_date=_now(), update_date=_now())
+    db.add(row)
+    db.flush()
+    _sync_goals(db, row, group_id, user_id)
+    group_chats.sync(db, group)
+    cohort.sync_group(db, group_id)
+    return True
+
+
+def join_course_group(db: Session, launch: Launch, user: User, staff: bool) -> UserGroup | None:
+    """Put this person in the course's group: a student as a member, a teacher as staff. Flushed, not committed."""
     group = course_group(db, launch)
     if group is None:
         return None
-    group_id, user_id = int(group.id), int(user.id)
-    if staff:
-        row = db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == group_id, UserGroupStaff.user_id == user_id)).first()
-        if row is None:
-            from src.services.school.staff import _sync_goals
-
-            row = UserGroupStaff(org_id=group.org_id, usergroup_id=group_id, user_id=user_id, role_key=TEACHER_GROUP_ROLE,
-                                 assignment_uuids=[], creation_date=_now(), update_date=_now())
-            db.add(row)
-            db.flush()
-            _sync_goals(db, row, group_id, user_id)
-            group_chats.sync(db, group)
-            cohort.sync_group(db, group_id)
-    else:
-        add_member(db, group, user_id)
+    (add_staff if staff else add_member)(db, group, int(user.id))  # type: ignore[arg-type]
     db.flush()
     return group

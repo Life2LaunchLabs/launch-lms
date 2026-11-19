@@ -37,7 +37,7 @@ def preview(db: Session, org_id: int, invitation: str | None = None, invite_code
         from src.services.orgs import staff_setup
 
         return {**_card(db, org, "invitation", status, found.role_id, found.usergroup_id, found.created_by_user_id, found.email),
-                **staff_setup.describe(db, found)}
+                **staff_setup.describe(db, found), **_canvas_names(db, found)}
     link = db.exec(select(OrganizationJoinLink).where(
         OrganizationJoinLink.org_id == org_id,
         OrganizationJoinLink.token_hash == hashlib.sha256(str(invite_code).encode()).hexdigest(),
@@ -51,6 +51,18 @@ def preview(db: Session, org_id: int, invitation: str | None = None, invite_code
     else:
         status = "expired" if link.expires_at <= datetime.utcnow() else "pending"
     return _card(db, org, "link", status, link.role_id, link.usergroup_id, link.created_by_user_id, None)
+
+
+def _canvas_names(db: Session, invitation: OrganizationInvitation) -> dict:
+    """A Canvas class list invitation carries the names Canvas shared, so the sign-up form starts filled (DEV-193)."""
+    from src.db.canvas import CanvasCourseGroup
+    from src.services.canvas.roster import invited_details, is_class_list
+
+    if not is_class_list(invitation) or invitation.status != "pending" or not invitation.usergroup_id:
+        return {}
+    link = db.exec(select(CanvasCourseGroup).where(CanvasCourseGroup.usergroup_id == invitation.usergroup_id)).first()
+    details = invited_details(link, invitation.email_normalized)
+    return {"first_name": details["given_name"] or None, "last_name": details["family_name"] or None}
 
 
 def _card(db: Session, org: Organization, kind: str, status: str, role_id: int, group_id: int | None, inviter_id: int | None, email: str | None) -> dict:

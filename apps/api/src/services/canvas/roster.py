@@ -5,15 +5,19 @@ has the read-only membership scope; a launch from the course names the list's ad
 short token (a client credentials grant signed with Life2Launch's LTI key) and read the course's active students.
 
 Organizations don't own learners, so a pull never makes accounts or memberships for people outside the school:
-- a student already in the school joins the course group, as when staff add someone to a group;
-- anyone else gets a pending invitation to the school and the course group, with no email. It fills the usual
-  ways: an existing account accepts it, the student signs up from it, or they open Life2Launch from Canvas;
-- a student who left the course has their pending invitation withdrawn (members stay: that's the school's call);
-- teachers on the list are left alone (they join as staff when they launch), and so is anyone the school removed.
+- a student already in the school joins the course group, as when staff add someone to a group, and a teacher
+  already on the school's staff joins its staff;
+- anyone else gets a pending invitation to the school and the course group (students as learners, teachers as
+  staff), with no email, carrying the names Canvas shared. It fills the usual ways: an existing account accepts
+  it, the person signs up from it, or they open Life2Launch from Canvas;
+- someone who left the course has their pending invitation withdrawn (members stay: that's the school's call);
+- anyone the school removed is left alone.
 
-Class list invitations hold no learner seat (security/access SEATLESS_INVITATION_SOURCE), so a big class never
-blocks a pull; the seat is checked when each student joins. A pull runs when a teacher opens Life2Launch from the
-course (at most every PULL_INTERVAL_SECONDS) and when staff who manage learners press Update from Canvas.
+Class list invitations hold seats like any invitation (security/access CLASS_LIST_INVITATION_SOURCE), so the
+school sees its classes against its limits. A pull still invites everyone when that goes over; those people can
+join once a seat is free (or the school moves to Full), and the group page says so. A pull runs when a teacher
+opens Life2Launch from the course (at most every PULL_INTERVAL_SECONDS) and when staff who manage learners press
+Update from Canvas.
 """
 
 from __future__ import annotations
@@ -39,7 +43,7 @@ from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.db.usergroups import UserGroup
 from src.db.users import User
-from src.security.access.access import SEATLESS_INVITATION_SOURCE
+from src.security.access.access import CLASS_LIST_INVITATION_SOURCE
 from src.services.canvas import connections, keys
 
 logger = logging.getLogger(__name__)
@@ -47,6 +51,7 @@ logger = logging.getLogger(__name__)
 NRPS_SCOPE = "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly"
 MEMBERSHIP_MEDIA_TYPE = "application/vnd.ims.lti-nrps.v2.membershipcontainer+json"
 LEARNER_ROLE_ID = 4
+STAFF_ROLE_ID = 2
 PULL_INTERVAL_SECONDS = 600  # after a teacher's launch
 BUTTON_INTERVAL_SECONDS = 30  # between presses of Update from Canvas
 INVITATION_DAYS = 180  # a school term and then some; every pull moves it on
@@ -71,13 +76,13 @@ class RosterError(Exception):
 
 @dataclass
 class PullResult:
-    invited: int = 0  # new invitations
+    invited: int = 0  # new invitations (students and teachers)
     still_invited: int = 0  # invitations already waiting (moved on)
-    joined: int = 0  # school members added to the group
+    joined: int = 0  # school members added to the group (or its staff)
     already_in: int = 0  # school members already in the group
     withdrawn: int = 0  # invitations of students no longer in the course
     no_email: int = 0  # students Canvas shared no email for
-    removed: int = 0  # students the school removed, left alone
+    removed: int = 0  # people the school removed, left alone
 
 
 def _now() -> str:
@@ -163,13 +168,19 @@ def fetch_members(connection: CanvasConnection, url: str, token: str, client: ht
     raise RosterError(UNREACHABLE)
 
 
-def _is_student(member: dict) -> bool:
+def _role_of(member: dict) -> int | None:
+    """STAFF_ROLE_ID for a course's teachers, LEARNER_ROLE_ID for its students, None for anyone else (observers,
+    people no longer active)."""
     from src.services.canvas.people import is_staff_launch
 
     roles = [str(role) for role in member.get("roles") or []]
-    if (member.get("status") or "Active") != "Active" or is_staff_launch(roles):
-        return False
-    return any(role.endswith("membership#Learner") or role == "Learner" for role in roles)
+    if (member.get("status") or "Active") != "Active":
+        return None
+    if is_staff_launch(roles):
+        return STAFF_ROLE_ID
+    if any(role.endswith("membership#Learner") or role == "Learner" for role in roles):
+        return LEARNER_ROLE_ID
+    return None
 
 
 def _email(member: dict) -> str | None:
@@ -184,9 +195,20 @@ def _email(member: dict) -> str | None:
         return None
 
 
-def _name(member: dict) -> str:
-    name = (member.get("name") or " ".join(filter(None, [member.get("given_name"), member.get("family_name")])) or "").strip()
-    return name[:200]
+def _details(member: dict) -> dict:
+    """The names Canvas shared, kept for the group page and for the sign-up form."""
+    given, family = (str(member.get("given_name") or "").strip()[:100], str(member.get("family_name") or "").strip()[:100])
+    name = (str(member.get("name") or "").strip() or " ".join(filter(None, [given, family])))[:200]
+    return {"name": name, "given_name": given, "family_name": family}
+
+
+def invited_details(link: CanvasCourseGroup | None, email: str) -> dict:
+    """What a class list knows about someone it invited (older pulls kept just a name)."""
+    value = (link.invited_names or {}).get(email) if link is not None else None
+    if isinstance(value, dict):
+        return {"name": str(value.get("name") or ""), "given_name": str(value.get("given_name") or ""),
+                "family_name": str(value.get("family_name") or "")}
+    return {"name": str(value or ""), "given_name": "", "family_name": ""}
 
 
 def _resolve_inbox(db: Session, invitation: OrganizationInvitation, accepted: bool) -> None:
@@ -199,14 +221,14 @@ def _pending(db: Session, org_id: int, group_id: int) -> list[OrganizationInvita
     return list(db.exec(select(OrganizationInvitation).where(
         OrganizationInvitation.org_id == org_id,
         OrganizationInvitation.usergroup_id == group_id,
-        OrganizationInvitation.source == SEATLESS_INVITATION_SOURCE,
+        OrganizationInvitation.source == CLASS_LIST_INVITATION_SOURCE,
         OrganizationInvitation.status == "pending",
     )).all())
 
 
 def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], actor_id: int | None) -> PullResult:
     """Bring the course group in line with the class list. Commits."""
-    from src.services.canvas.courses import add_member
+    from src.services.canvas.courses import add_member, add_staff
     from src.services.messages import create_inbox_message
     from src.services.orgs import removals
 
@@ -221,10 +243,11 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
     expires_at = now + timedelta(days=INVITATION_DAYS)
     pending = {invitation.email_normalized: invitation for invitation in _pending(db, org_id, int(group.id))}  # type: ignore[arg-type]
     on_list: set[str] = set()
-    names: dict[str, str] = {}
+    details: dict[str, dict] = {}
 
     for member in members:
-        if not _is_student(member):
+        role_id = _role_of(member)
+        if role_id is None:
             continue
         email = _email(member)
         user = None
@@ -235,12 +258,20 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
             user = db.get(User, linked) if linked else None
         if user is None and email:
             user = db.exec(select(User).where(func.lower(User.email) == email)).first()
-        if user is not None and db.exec(select(UserOrganization.id).where(
+        school_role = db.exec(select(UserOrganization.role_id).where(
             UserOrganization.org_id == org_id, UserOrganization.user_id == user.id,
-        )).first():
+        )).first() if user is not None else None
+        if school_role is not None:
             if email:
                 on_list.add(email)
-            if add_member(db, group, int(user.id)):  # type: ignore[arg-type]
+            # Teachers join the group's staff if they're on the school's; the school decides who its staff are.
+            if role_id == STAFF_ROLE_ID and school_role != LEARNER_ROLE_ID:
+                added = add_staff(db, group, int(user.id))  # type: ignore[arg-type,union-attr]
+            elif role_id == LEARNER_ROLE_ID:
+                added = add_member(db, group, int(user.id))  # type: ignore[arg-type,union-attr]
+            else:
+                continue
+            if added:
                 result.joined += 1
             else:
                 result.already_in += 1
@@ -252,11 +283,12 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
             result.removed += 1
             continue
         on_list.add(email)
-        names[email] = _name(member)
+        details[email] = _details(member)
         invitation = pending.get(email)
         if invitation is not None:
-            if invitation.expires_at < expires_at:
-                invitation.expires_at = expires_at
+            if invitation.expires_at < expires_at or invitation.role_id != role_id:
+                invitation.expires_at = max(invitation.expires_at, expires_at)
+                invitation.role_id = role_id  # a student made a TA, or the other way round
                 invitation.updated_at = now
                 db.add(invitation)
             result.still_invited += 1
@@ -266,11 +298,13 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
             org_id=org_id,
             email=email,
             email_normalized=email,
-            role_id=LEARNER_ROLE_ID,
+            role_id=role_id,
             usergroup_id=int(group.id),  # type: ignore[arg-type]
             target_user_id=int(user.id) if user is not None else None,  # type: ignore[arg-type]
-            created_by_user_id=actor_id,
-            source=SEATLESS_INVITATION_SOURCE,
+            # Canvas names a course's teachers, not the person pulling: a staff invitation must not lean on whether
+            # the puller may grant staff roles (invitation_security checks a creator's authority at acceptance).
+            created_by_user_id=actor_id if role_id == LEARNER_ROLE_ID else None,
+            source=CLASS_LIST_INVITATION_SOURCE,
             delivery_status="not_sent",
             expires_at=expires_at,
             created_at=now,
@@ -305,7 +339,7 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
         _resolve_inbox(db, invitation, accepted=False)
         result.withdrawn += 1
 
-    link.invited_names = {email: names.get(email, "") for email in pending if email in names}
+    link.invited_names = {email: details[email] for email in pending if email in details}
     link.roster_pulled_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     link.roster_error = None
     link.update_date = _now()
@@ -418,12 +452,15 @@ def summary(db: Session, link: CanvasCourseGroup, viewer_id: int) -> dict:
     group_id = int(link.usergroup_id)
     now = datetime.utcnow()
     invitations = [invitation for invitation in _pending(db, int(connection.org_id), group_id) if invitation.expires_at > now] if connection else []
-    names = link.invited_names or {}
-    invitations.sort(key=lambda invitation: (names.get(invitation.email_normalized) or invitation.email).casefold())
+    names = {invitation.email_normalized: invited_details(link, invitation.email_normalized)["name"] for invitation in invitations}
+    # Teachers first, then by name.
+    invitations.sort(key=lambda invitation: (invitation.role_id == LEARNER_ROLE_ID, (names[invitation.email_normalized] or invitation.email).casefold()))
     return {
         "invited": [{"invitation_uuid": invitation.invitation_uuid, "email": invitation.email,
-                     "name": names.get(invitation.email_normalized) or "", "invited_at": invitation.created_at.isoformat()}
+                     "name": names[invitation.email_normalized], "invited_at": invitation.created_at.isoformat(),
+                     "role": "learner" if invitation.role_id == LEARNER_ROLE_ID else "staff"}
                     for invitation in invitations],
+        "seats": _seats(db, int(connection.org_id)) if connection else {},
         "pulled_at": link.roster_pulled_at,
         "error": link.roster_error,
         "offered": bool(link.memberships_url),
@@ -431,31 +468,65 @@ def summary(db: Session, link: CanvasCourseGroup, viewer_id: int) -> dict:
     }
 
 
+def _seats(db: Session, org_id: int) -> dict:
+    """The school's learners and staff seats against its limits, class list invitations included, so a class that
+    goes over shows it. ``limit`` 0 is unlimited."""
+    from src.security.access.access import count_usage, org_access
+
+    access = org_access(org_id, db)
+    seats = {}
+    for name in ("learners", "staff_seats"):
+        limit, used = access.limit(name), count_usage(name, org_id, db)
+        seats[name] = {"limit": limit, "used": used, "over": max(0, used - limit) if limit else 0}
+    return seats
+
+
 def summary_for_group(db: Session, org_id: int, group_id: int, viewer_id: int) -> dict | None:
     link = _link_for(db, org_id, group_id)
     return summary(db, link, viewer_id) if link else None
 
 
-def settle_for_member(db: Session, org_id: int, user) -> int:
+def _join_invited_group(db: Session, org_id: int, invitation: OrganizationInvitation, user_id: int) -> None:
+    """A class list invitation's course group: teachers join its staff (if the school made them staff), students
+    its members."""
+    from src.services.canvas.courses import add_member, add_staff
+
+    group = db.get(UserGroup, invitation.usergroup_id) if invitation.usergroup_id else None
+    if group is None or group.org_id != org_id:
+        return
+    school_role = db.exec(select(UserOrganization.role_id).where(
+        UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first()
+    if invitation.role_id != LEARNER_ROLE_ID and school_role not in (None, LEARNER_ROLE_ID):
+        add_staff(db, group, user_id)
+    elif invitation.role_id == LEARNER_ROLE_ID:
+        add_member(db, group, user_id)
+
+
+def is_class_list(invitation: OrganizationInvitation | None) -> bool:
+    return invitation is not None and invitation.source == CLASS_LIST_INVITATION_SOURCE
+
+
+def settle_for_member(db: Session, org_id: int, user, accepted: OrganizationInvitation | None = None) -> int:
     """Someone (a User or UserRead) joined the school (from Canvas, an invitation or a link): their class list invitations there
-    are accepted and they join those course groups. Commits; returns how many it settled."""
-    from src.services.canvas.courses import add_member
+    are accepted and they join those course groups, a teacher as the group's staff. ``accepted`` is the invitation they
+    just accepted, when it's a class list one: the accept paths leave its group to this. Commits; returns how many it settled."""
     from src.services.orgs.users import normalize_email
 
     if user is None or not getattr(user, "email", None) or not getattr(user, "id", None):
         return 0
+    if is_class_list(accepted) and accepted.org_id == org_id:  # type: ignore[union-attr]
+        _join_invited_group(db, org_id, accepted, int(user.id))  # type: ignore[arg-type]
+        db.commit()
     invitations = db.exec(select(OrganizationInvitation).where(
         OrganizationInvitation.org_id == org_id,
         OrganizationInvitation.email_normalized == normalize_email(str(user.email)),
-        OrganizationInvitation.source == SEATLESS_INVITATION_SOURCE,
+        OrganizationInvitation.source == CLASS_LIST_INVITATION_SOURCE,
         OrganizationInvitation.status == "pending",
     )).all()
     now = datetime.utcnow()
     settled = 0
     for invitation in invitations:
-        group = db.get(UserGroup, invitation.usergroup_id) if invitation.usergroup_id else None
-        if group is not None and group.org_id == org_id:
-            add_member(db, group, int(user.id))  # type: ignore[arg-type]
+        _join_invited_group(db, org_id, invitation, int(user.id))
         invitation.status = "accepted"
         invitation.target_user_id = user.id
         invitation.accepted_at = now

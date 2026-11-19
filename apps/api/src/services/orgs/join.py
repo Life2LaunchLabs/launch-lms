@@ -14,7 +14,7 @@ from src.services.users.usergroups import add_users_to_usergroup
 from src.services.orgs import removals, staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.messages import resolve_action_by_dedupe
-from src.services.canvas.roster import settle_for_member
+from src.services.canvas.roster import is_class_list, settle_for_member
 
 
 class JoinOrg(BaseModel):
@@ -165,7 +165,7 @@ async def join_org(
 
             # Add user to UserGroup if invite code is linked to one
             usergroup_id = invitation.usergroup_id if invitation else inviteCode.get("usergroup_id")
-            if usergroup_id:
+            if usergroup_id and not is_class_list(invitation):
                 await add_users_to_usergroup(
                     request,
                     db_session,
@@ -173,8 +173,8 @@ async def join_org(
                     int(usergroup_id),
                     str(user.id),
                 )
-            # Any Canvas class list invitations they had here join them to those course groups too (DEV-193).
-            settle_for_member(db_session, int(org.id), user)
+            # Canvas class list invitations here (this one too) join them to those course groups (DEV-193).
+            settle_for_member(db_session, int(org.id), user, invitation)
 
             return "Great, You're part of the Organization"
 
@@ -222,7 +222,7 @@ async def join_org(
 
             # A join link made for a group puts its people in that group, as on invite-only orgs.
             usergroup_id = invitation.usergroup_id if invitation else inviteCode.get("usergroup_id") if inviteCode else None
-            if usergroup_id:
+            if usergroup_id and not is_class_list(invitation):
                 await add_users_to_usergroup(
                     request,
                     db_session,
@@ -230,8 +230,8 @@ async def join_org(
                     int(usergroup_id),
                     str(user.id),
                 )
-            # Any Canvas class list invitations they had here join them to those course groups too (DEV-193).
-            settle_for_member(db_session, int(org.id), user)
+            # Canvas class list invitations here (this one too) join them to those course groups (DEV-193).
+            settle_for_member(db_session, int(org.id), user, invitation)
 
             return "Great, You're part of the Organization"
 
