@@ -35,8 +35,8 @@ const count = (value: number, word: string) => (value ? `${value} ${word}` : `Un
 
 function tierCards({ free, full, trialDays }: TierFacts) {
   return [
-    { name: 'Free', blurb: inOrgWords('For one person helping a few learners.'), items: [count(free.learners, inOrgWords('active learners')), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', inOrgWords('A feed with every learner’s work'), 'Requirements and coverage reports', inOrgWords('Badges learners keep'), 'Records requests and an access log'], cta: 'Create your organization' },
-    { name: 'Full', blurb: 'For programs with groups and several staff.', items: [count(full.learners, inOrgWords('active learners')), count(full.staff_seats, 'staff'), 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'], cta: `Start free, try Full for ${trialDays} days`, featured: true },
+    { name: 'Free', blurb: inOrgWords('For one person helping a few learners.'), items: [count(free.learners, inOrgWords('active learners')), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', inOrgWords('A feed with every learner’s work'), 'Requirements and coverage reports', 'Groups, group plans and group chats', inOrgWords('Badges learners keep'), 'Records requests and an access log'], cta: 'Create your organization' },
+    { name: 'Full', blurb: 'For bigger programs with several staff.', items: [count(full.learners, inOrgWords('active learners')), count(full.staff_seats, 'staff'), 'Bulk invites by email list or CSV', 'Everything in Free'], cta: `Start free, try Full for ${trialDays} days`, featured: true },
     { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: [inOrgWords('Unlimited learners and staff'), 'Single sign-on', 'Advanced reporting', 'API access', 'Everything in Full'], cta: 'Start free, then ask us' },
   ]
 }
@@ -147,7 +147,7 @@ export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS
         <div className="mx-auto max-w-[1200px]">
           <div className="mx-auto max-w-[720px] text-center">
             <h2 className={cn(H2, 'sm:text-[50px]')}>Start free. Grow when you need to.</h2>
-            <p className={LEAD}>Free covers a family, a tutor or a small program. Try Full for {tiers.trialDays} days whenever you need groups and more room.</p>
+            <p className={LEAD}>Free covers a family, a tutor or a small program. Try Full for {tiers.trialDays} days whenever you need more room and staff.</p>
           </div>
           <div className="mt-14 grid gap-5 md:grid-cols-3">
             {tierCards(tiers).map((tier) => (
@@ -166,7 +166,7 @@ export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS
           </div>
           <dl className="mx-auto mt-12 grid max-w-[960px] gap-6 text-[15px] leading-7 text-gray-600 md:grid-cols-3">
             <div><dt className="font-bold text-gray-900">Upgrading is a request</dt><dd className="mt-1">There&rsquo;s no checkout. Ask for Full or Enterprise from your dashboard and we&rsquo;ll turn it on.</dd></div>
-            <div><dt className="font-bold text-gray-900">When the trial ends</dt><dd className="mt-1">{inOrgWords("You’re back on Free unless you’ve asked for Full. Nothing is deleted: groups turn read-only and learners keep their plans.")}</dd></div>
+            <div><dt className="font-bold text-gray-900">When the trial ends</dt><dd className="mt-1">{inOrgWords("You’re back on Free unless you’ve asked for Full. Nothing is deleted, and learners keep their plans.")}</dd></div>
             <div><dt className="font-bold text-gray-900">{inOrgWords("Learners own their accounts")}</dt><dd className="mt-1">Everyone 15 and older signs up with their own email or Google account, and keeps their work and badges.</dd></div>
           </dl>
         </div>

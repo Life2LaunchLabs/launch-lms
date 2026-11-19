@@ -11,7 +11,7 @@ import { inOrgWords } from '@/lib/people'
 
 const TIER_CHOICES = [
   { id: 'free', get description() { return inOrgWords('25 active learners, 2 staff seats') } },
-  { id: 'full', get description() { return inOrgWords('200 active learners, 12 staff, groups and bulk invites') } },
+  { id: 'full', get description() { return inOrgWords('200 active learners, 12 staff and bulk invites') } },
   { id: 'enterprise', description: 'Unlimited, with SSO, API tokens and advanced reports' },
 ]
 
