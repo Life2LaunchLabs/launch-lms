@@ -108,7 +108,7 @@ export interface FeedRow {
   groups?: Array<{ id: number; name: string }>
   status?: MemberStatus
   helping_on?: HelpingOn[]
-  group: { id: number; name: string; member_count: number; staff_count?: number } | null
+  group: { id: number; name: string; member_count: number; staff_count?: number; canvas?: boolean } | null
   /** Only on rows in the top section. */
   counts?: { messages: number; turn_ins: number; approvals: number }
   total?: number

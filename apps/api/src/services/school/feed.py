@@ -277,8 +277,10 @@ def _group_rows(db: Session, groups: list[UserGroup]) -> list[dict]:
         return []
     members = dict(db.exec(select(UserGroupUser.usergroup_id, func.count()).where(col(UserGroupUser.usergroup_id).in_(ids)).group_by(UserGroupUser.usergroup_id)).all())
     staff = dict(db.exec(select(UserGroupStaff.usergroup_id, func.count()).where(col(UserGroupStaff.usergroup_id).in_(ids)).group_by(UserGroupStaff.usergroup_id)).all())
+    canvas = roster.canvas_group_ids(db, ids)  # a Canvas course's group says so in the list (DEV-193)
     return [{"key": f"group:{group.id}", "kind": "group", "person": None, "role": None,
-             "group": {"id": group.id, "name": group.name, "member_count": int(members.get(group.id, 0)), "staff_count": int(staff.get(group.id, 0))}} for group in groups]
+             "group": {"id": group.id, "name": group.name, "member_count": int(members.get(group.id, 0)), "staff_count": int(staff.get(group.id, 0)),
+                       "canvas": group.id in canvas}} for group in groups]
 
 
 def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: str, skip: set[str], groups_on: bool, admin: bool,

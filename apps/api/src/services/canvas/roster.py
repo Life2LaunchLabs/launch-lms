@@ -415,6 +415,26 @@ def _seats(db: Session, org_id: int) -> dict:
     return seats
 
 
+def canvas_group_ids(db: Session, group_ids: list[int]) -> set[int]:
+    """Which of these groups are Canvas courses' groups."""
+    if not group_ids:
+        return set()
+    return set(db.exec(select(CanvasCourseGroup.usergroup_id).where(CanvasCourseGroup.usergroup_id.in_(group_ids))).all())  # type: ignore[attr-defined]
+
+
+def name_invitations(db: Session, org_id: int, rows: list[dict]) -> list[dict]:
+    """The organization's invitation list, with the names a Canvas class list shared on its class list invitations."""
+    uuids = [row["invitation_uuid"] for row in rows if row.get("source") == CLASS_LIST_INVITATION_SOURCE]
+    if not uuids:
+        return rows
+    invitations = db.exec(select(OrganizationInvitation).where(OrganizationInvitation.org_id == org_id,
+                                                               OrganizationInvitation.invitation_uuid.in_(uuids))).all()  # type: ignore[attr-defined]
+    links = {link.usergroup_id: link for link in db.exec(select(CanvasCourseGroup).where(
+        CanvasCourseGroup.usergroup_id.in_({item.usergroup_id for item in invitations if item.usergroup_id}))).all()}  # type: ignore[attr-defined]
+    names = {item.invitation_uuid: invited_details(links.get(item.usergroup_id), item.email_normalized)["name"] for item in invitations}
+    return [{**row, "name": names.get(row["invitation_uuid"]) or None} if row["invitation_uuid"] in names else row for row in rows]
+
+
 def summary_for_group(db: Session, org_id: int, group_id: int, viewer_id: int) -> dict | None:
     link = _link_for(db, org_id, group_id)
     return summary(db, link, viewer_id) if link else None
