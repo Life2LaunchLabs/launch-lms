@@ -24,3 +24,18 @@ export function errorDetailMessage(body: unknown, fallback: string = FALLBACK): 
   }
   return text(message) || fallback
 }
+
+/**
+ * The message for a refused request (DEV-189). The server's own reason wins.
+ * Without one, only answers that can pass on a retry (server trouble, rate
+ * limits, timeouts, no status at all) say "try again"; a refusal that would
+ * be refused again says so instead.
+ */
+export function refusalMessage(status: number, body: unknown, action: string = 'That didn’t save'): string {
+  const reason = errorDetailMessage(body, '')
+  if (reason) return reason
+  if (!status || status >= 500 || status === 408 || status === 429) return `${action}. Try again in a moment.`
+  if (status === 401) return `${action}: you’re signed out. Sign in again and retry.`
+  if (status === 403) return `${action}: your account isn’t allowed to make this change.`
+  return `${action}: the server refused it (error ${status}).`
+}

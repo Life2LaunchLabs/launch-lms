@@ -31,3 +31,17 @@ test('empty, odd or unreadable bodies use the fallback', () => {
   }
   assert.equal(errorDetailMessage(null), 'The request could not be completed.')
 })
+
+test('a refusal shows the server reason, and only retryable answers say try again (DEV-189)', async () => {
+  const { refusalMessage } = await import('./errorDetail.ts')
+  const sealed = { detail: { code: 'test_cohort_sealed', message: "Test personas and test orgs are sealed off from real people and orgs, so this can't be saved." } }
+  assert.equal(refusalMessage(403, sealed), sealed.detail.message)
+  assert.equal(refusalMessage(422, { detail: 'Enter your Canvas address.' }), 'Enter your Canvas address.')
+  assert.equal(refusalMessage(422, { detail: [{ msg: 'Field required' }] }), 'Field required')
+  assert.match(refusalMessage(403, {}), /isn’t allowed/)
+  assert.doesNotMatch(refusalMessage(403, {}), /Try again in a moment/)
+  assert.doesNotMatch(refusalMessage(409, {}), /Try again in a moment/)
+  assert.match(refusalMessage(502, {}), /Try again in a moment/)
+  assert.match(refusalMessage(429, null), /Try again in a moment/)
+  assert.match(refusalMessage(0, null, 'Canvas didn’t answer'), /^Canvas didn’t answer\. Try again/)
+})
