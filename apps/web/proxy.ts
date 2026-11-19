@@ -199,6 +199,7 @@ export default async function proxy(req: NextRequest) {
     resolvedCustomDomainOrgSlug: null,
     orgSubdomainAccess,
     cookieScope: getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain'),
+    canvasSession: hasSession && isCanvasSession(req),
   })
 
   const response = buildResponse(req, decision)

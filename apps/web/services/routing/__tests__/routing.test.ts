@@ -936,3 +936,25 @@ test('a signed-in visitor sent from an org address to the main site keeps their 
   const shared = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/plans?map=1', pathname: '/plans', hasSession: true, cookieScope: 'shared-domain' })
   assert.equal(shared.destination, 'https://launchlms.test/plans?map=1')
 })
+
+test('a student signed in from Canvas stays on the org address inside the Canvas page (FEED-653)', () => {
+  const base = {
+    search: '',
+    host: 'acme.launchlms.test',
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: { user_site_enabled: false },
+    cookieScope: 'host-only',
+    requestUrl: 'https://acme.launchlms.test/plans',
+    pathname: '/plans',
+  }
+  // The Canvas session's cookies are partitioned to this host, so no hop to the main site and no handoff.
+  const canvas = resolveRequestRouting({ ...base, hasSession: true, canvasSession: true })
+  assert.equal(canvas.action, 'rewrite')
+  assert.equal(canvas.destination, '/orgs/acme/plans')
+  const home = resolveRequestRouting({ ...base, requestUrl: 'https://acme.launchlms.test/', pathname: '/', hasSession: true, canvasSession: true })
+  assert.equal(home.destination, 'https://acme.launchlms.test/plans')
+  // The same student in a normal tab still moves to the main site.
+  const tab = resolveRequestRouting({ ...base, hasSession: true, canvasSession: false })
+  assert.equal(new URL(String(tab.destination)).pathname, '/api/auth/handoff/start')
+})

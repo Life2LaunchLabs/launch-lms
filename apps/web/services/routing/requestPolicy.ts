@@ -42,6 +42,8 @@ export interface ResolveRequestRoutingInput {
   orgSubdomainAccess?: { user_site_enabled: boolean } | null
   /** 'host-only' when sign-in cookies stay on the address that set them (unstable, production). */
   cookieScope?: string
+  /** A session signed in from a Canvas course: it lives on the org's own address, inside the Canvas page. */
+  canvasSession?: boolean
 }
 
 function getAdminMigrationPath(pathname: string): string {
@@ -228,6 +230,9 @@ export function resolveRequestRouting(
     // So does the step after signing in there: the session lives on this address (host-only cookies),
     // and on the main site it'd be signed out and sent back to the login page.
     pathname !== '/redirect_from_auth' &&
+    // A Canvas session stays on the org's address: its cookies are partitioned to that host inside the
+    // Canvas page, and a hop to the main site can't carry them over there (FEED-653).
+    !input.canvasSession &&
     !context.subdomainAllowed
   ) {
     const destination = buildMainDomainUrl(
