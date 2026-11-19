@@ -59,3 +59,35 @@ export async function getCanvasTabTicket(orgId: number, path: string, accessToke
   if (!response.ok) throw new Error(typeof body?.detail === 'string' ? body.detail : 'Couldn’t open a new tab. Try again.')
   return body
 }
+
+/** A Canvas course group's class list: students invited from it who haven't joined yet, and the last pull (DEV-193). */
+export interface CanvasClassList {
+  invited: Array<{ invitation_uuid: string; email: string; name: string; invited_at: string }>
+  /** When Life2Launch last read the class list from Canvas. */
+  pulled_at: string | null
+  /** Why the last pull couldn't finish, in a sentence for staff. */
+  error: string | null
+  /** Whether Canvas has offered this course's class list (a teacher opened Life2Launch from the course). */
+  offered: boolean
+  /** Whether the viewer can press Update from Canvas. */
+  can_pull: boolean
+}
+
+export interface CanvasClassListPull {
+  invited: number
+  still_invited: number
+  joined: number
+  already_in: number
+  withdrawn: number
+  no_email: number
+  removed: number
+  canvas: CanvasClassList
+}
+
+/** Update from Canvas: read the course's class list now (staff who manage learners). */
+export async function pullCanvasClassList(orgId: number, groupId: number, accessToken?: string): Promise<CanvasClassListPull> {
+  const response = await fetch(`${getAPIUrl()}lti/orgs/${orgId}/groups/${groupId}/class-list`, RequestBodyWithAuthHeader('POST', null, null, accessToken))
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(typeof body?.detail === 'string' ? body.detail : 'Canvas didn’t answer. Try again in a moment.')
+  return body
+}

@@ -119,7 +119,7 @@ export default function OrgEditCanvas() {
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900">1. Give your Canvas admin this address</h3>
             <p className="text-sm text-gray-600">
-              In Canvas, they open Admin › Developer Keys, add an LTI key, choose <strong>Enter URL</strong> and paste it. Then they switch the key on and add the app to your account by its client id.
+              In Canvas, they open Admin › Developer Keys, add an LTI key, choose <strong>Enter URL</strong> and paste it. Then they switch the key on and add the app to your account by its client id. The key lets Life2Launch read each course’s class list, so a course’s group shows the whole class. If your key was added before that, they open it and save it again once.
             </p>
             <CopyRow label="Configuration address" value={data.tool.config_url} />
             <details className="group max-w-2xl rounded-lg border border-gray-100 px-4 py-3">

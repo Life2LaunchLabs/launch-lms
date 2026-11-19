@@ -312,6 +312,8 @@ async def create_user_with_organization_invitation(
             int(invitation.usergroup_id),
             str(user.id),
         )
+    from src.services.canvas.roster import settle_for_member  # other class list invitations here (DEV-193)
+    settle_for_member(db_session, org_id, user)
 
     return user
 

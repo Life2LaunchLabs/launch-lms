@@ -1,6 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { Chat, ChatSummary } from '@services/connect/connect'
+import type { CanvasClassList } from '@services/canvas/canvas'
 import type { PersonSummary } from '@services/goals/types'
 import type { MemberStatus, StaffPermission } from '@services/organizations/membership'
 import { inOrgWords } from '@/lib/people'
@@ -161,6 +162,8 @@ export interface GroupDetail {
   can_set_status: boolean
   in_chat: boolean
   groups_enabled: boolean
+  /** A Canvas course's group: who on its class list is still invited (DEV-193). Null for other groups. */
+  canvas?: CanvasClassList | null
 }
 
 const helperBase = (path = '') => `${getAPIUrl()}goal-admin/helper-requests${path}`

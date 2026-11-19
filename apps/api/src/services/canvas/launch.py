@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 STATE_TTL_SECONDS = 600
 STATE_COOKIE = "launchlms_lti_state"
 LTI = "https://purl.imsglobal.org/spec/lti/claim/"
+# Where Canvas offers the course's class list (Names and Role Provisioning Services), when the key has the scope.
+NRPS_CLAIM = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
 RESOURCE_LINK_REQUEST = "LtiResourceLinkRequest"
 
 
@@ -117,6 +119,7 @@ class Launch:
     roles: list[str] = field(default_factory=list)
     course_id: str | None = None
     course_title: str | None = None
+    memberships_url: str | None = None
     claims: dict = field(default_factory=dict)
 
 
@@ -187,5 +190,12 @@ def verify_launch(db: Session, id_token: str, stored: dict) -> Launch:
         roles=[str(role) for role in claims.get(f"{LTI}roles") or []],
         course_id=str(context["id"]) if context.get("id") else None,
         course_title=(context.get("title") or context.get("label") or "").strip() or None,
+        memberships_url=_memberships_url(claims),
         claims=claims,
     )
+
+
+def _memberships_url(claims: dict) -> str | None:
+    service = claims.get(NRPS_CLAIM) or {}
+    url = service.get("context_memberships_url") if isinstance(service, dict) else None
+    return url.strip()[:2000] if isinstance(url, str) and url.strip() else None

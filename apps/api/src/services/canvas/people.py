@@ -190,6 +190,10 @@ def _finish(db: Session, launch: Launch, user: User, staff: bool) -> UserOrganiz
     # The Canvas course's group: staff of the school join it as staff, whatever Canvas calls them in this course.
     join_course_group(db, launch, user, staff or membership.role_id in (ADMIN_ROLE_ID, STAFF_ROLE_ID))
     db.commit()
+    # Their class list invitations, from this course or others at the school, are taken up now (DEV-193).
+    from src.services.canvas.roster import settle_for_member
+
+    settle_for_member(db, launch.connection.org_id, user)
     db.refresh(user)
     db.refresh(membership)
     return membership

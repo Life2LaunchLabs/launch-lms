@@ -11,18 +11,18 @@ import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
-from src.db.canvas import CanvasConnection
+from src.db.canvas import CanvasConnection, CanvasCourseGroup
 from src.db.organizations import Organization
 from src.db.users import PublicUser, User
 from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user, get_current_user
 from src.security.org_auth import require_org_owner_admin
-from src.services.canvas import connections, courses, keys, launch as lti, pages, people, session as canvas_session, settings
+from src.services.canvas import connections, courses, keys, launch as lti, pages, people, roster, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 from src.routers.users import _invalidate_session_cache
@@ -55,7 +55,7 @@ def canvas_tool_configuration(db: Session = Depends(get_db_session)):
         "oidc_initiation_url": urls["login"],
         "target_link_uri": urls["launch"],
         "public_jwk_url": urls["jwks"],
-        "scopes": [],
+        "scopes": [roster.NRPS_SCOPE],  # the course's class list, read-only (DEV-193)
         "extensions": [{
             "domain": domain,
             "tool_id": "life2launch",
@@ -138,6 +138,7 @@ async def lti_launch(
         "roles": checked.roles,
         "course_id": checked.course_id,
         "course_title": checked.course_title,
+        "memberships_url": checked.memberships_url,
     })
     cookie_state = request.cookies.get(lti.STATE_COOKIE, "")
     cookie_ok = bool(cookie_state) and secrets.compare_digest(cookie_state, state)
@@ -169,6 +170,7 @@ def _launch_from_ticket(db: Session, data: dict) -> lti.Launch:
         roles=data.get("roles") or [],
         course_id=data.get("course_id"),
         course_title=data.get("course_title"),
+        memberships_url=data.get("memberships_url"),
     )
 
 
@@ -182,6 +184,7 @@ def landing_path(membership_role_id: int, course_group_id: int | None = None) ->
 @router.post("/session")
 async def lti_session(
     request: Request,
+    background_tasks: BackgroundTasks,
     ticket: str = Form(default=""),
     mode: str = Form(default="frame"),
     retry: str = Form(default=""),
@@ -197,6 +200,11 @@ async def lti_session(
             _invalidate_session_cache(user.id)  # a new membership or role shows at once
             group = courses.course_group(db, launch) if launch.course_id else None
             return_path = landing_path(membership.role_id, int(group.id) if group else None)
+            if group is not None and people.is_staff_launch(launch.roles):
+                # A teacher opening the course brings its class list up to date, after the page is on its way.
+                link = db.exec(select(CanvasCourseGroup).where(CanvasCourseGroup.usergroup_id == group.id)).first()
+                if link is not None and link.memberships_url:
+                    background_tasks.add_task(roster.pull_after_launch, int(link.id), int(user.id))
         elif data.get("kind") == "session":
             user = db.exec(select(User).where(User.email == data.get("email"))).first()
             if not user:
@@ -364,3 +372,14 @@ def save_canvas_connection(
     if not db.get(Organization, org_id):
         raise HTTPException(status_code=404, detail="Organization not found")
     return settings.save_settings(db, org_id, current_user.id, body)
+
+
+@router.post("/orgs/{org_id}/groups/{group_id}/class-list")
+def pull_class_list(
+    org_id: int,
+    group_id: int,
+    current_user=Depends(get_authenticated_user),
+    db: Session = Depends(get_db_session),
+):
+    """Update from Canvas: read a course group's class list now (staff who manage learners)."""
+    return roster.pull_now(db, int(current_user.id), org_id, group_id)
