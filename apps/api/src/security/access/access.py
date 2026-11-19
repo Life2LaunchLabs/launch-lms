@@ -201,12 +201,15 @@ def _staff_role_ids(org_id: int, db_session: Session) -> list[int]:
     return [role.id for role in roles if role.id is not None and is_staff_role(role)]
 
 
-# Invitations from a Canvas class list: one per student per course, made without anyone choosing to spend a seat.
-SEATLESS_INVITATION_SOURCE = "canvas"
+# Invitations from a Canvas class list (DEV-193). They hold seats like any invitation, so the school sees its
+# classes against its limits, but a pull may go over: those students can join only when a seat is free.
+CLASS_LIST_INVITATION_SOURCE = "canvas"
 
 
-def count_usage(name: str, org_id: int, db_session: Session) -> int:
-    """Members plus pending, unexpired invitations (except Canvas class list ones); learners count only active members, plus reserved join-link spots."""
+def count_usage(name: str, org_id: int, db_session: Session, class_lists: bool = True) -> int:
+    """Members plus pending, unexpired invitations; learners count only active members, plus reserved join-link
+    spots. ``class_lists=False`` leaves out Canvas class list invitations: what a class list student joining needs
+    to fit under, since the class list may hold more seats than the school has."""
     now = datetime.utcnow()
     staff_ids = _staff_role_ids(org_id, db_session)
     staff = name == "staff_seats"
@@ -220,14 +223,15 @@ def count_usage(name: str, org_id: int, db_session: Session) -> int:
     if not staff:
         members_query = members_query.where(UserOrganization.status == "active")
     members = db_session.exec(members_query).one()
-    # A Canvas class list invitation holds no seat: the seat is checked when the student joins (DEV-193).
-    invitations = db_session.exec(select(func.count()).where(
+    invitations_query = select(func.count()).where(
         OrganizationInvitation.org_id == org_id,
         OrganizationInvitation.status == "pending",
         OrganizationInvitation.expires_at > now,
-        OrganizationInvitation.source != SEATLESS_INVITATION_SOURCE,
         role_filter(OrganizationInvitation.role_id),
-    )).one()
+    )
+    if not class_lists:
+        invitations_query = invitations_query.where(OrganizationInvitation.source != CLASS_LIST_INVITATION_SOURCE)
+    invitations = db_session.exec(invitations_query).one()
     total = members + invitations
     if not staff:
         links = db_session.exec(select(OrganizationJoinLink).where(
@@ -240,16 +244,16 @@ def count_usage(name: str, org_id: int, db_session: Session) -> int:
     return total
 
 
-def capacity_left(name: str, org_id: int, db_session: Session) -> int | None:
+def capacity_left(name: str, org_id: int, db_session: Session, class_lists: bool = True) -> int | None:
     """How many more fit, or None when unlimited."""
     limit = org_access(org_id, db_session).limit(name)
     if limit == 0:
         return None
-    return max(0, limit - count_usage(name, org_id, db_session))
+    return max(0, limit - count_usage(name, org_id, db_session, class_lists))
 
 
-def require_capacity(name: str, org_id: int, db_session: Session, adding: int = 1) -> None:
-    left = capacity_left(name, org_id, db_session)
+def require_capacity(name: str, org_id: int, db_session: Session, adding: int = 1, class_lists: bool = True) -> None:
+    left = capacity_left(name, org_id, db_session, class_lists)
     if left is not None and adding > left:
         limit = org_access(org_id, db_session).limit(name)
         raise HTTPException(
@@ -260,8 +264,8 @@ def require_capacity(name: str, org_id: int, db_session: Session, adding: int = 
         )
 
 
-def require_role_capacity(role: Role | None, org_id: int, db_session: Session, adding: int = 1) -> None:
-    require_capacity("staff_seats" if is_staff_role(role) else "learners", org_id, db_session, adding)
+def require_role_capacity(role: Role | None, org_id: int, db_session: Session, adding: int = 1, class_lists: bool = True) -> None:
+    require_capacity("staff_seats" if is_staff_role(role) else "learners", org_id, db_session, adding, class_lists)
 
 
 # ============================================================================

@@ -62,7 +62,10 @@ export async function getCanvasTabTicket(orgId: number, path: string, accessToke
 
 /** A Canvas course group's class list: students invited from it who haven't joined yet, and the last pull (DEV-193). */
 export interface CanvasClassList {
-  invited: Array<{ invitation_uuid: string; email: string; name: string; invited_at: string }>
+  /** Students (learner) and teachers (staff) on the class list who haven't joined yet. */
+  invited: Array<{ invitation_uuid: string; email: string; name: string; invited_at: string; role: 'learner' | 'staff' }>
+  /** The school's seats with class list invitations counted (limit 0 is unlimited; over is how many past it). */
+  seats: Partial<Record<'learners' | 'staff_seats', { limit: number; used: number; over: number }>>
   /** When Life2Launch last read the class list from Canvas. */
   pulled_at: string | null
   /** Why the last pull couldn't finish, in a sentence for staff. */

@@ -76,6 +76,9 @@ export interface InvitePreview {
   permissions?: Array<{ key: string; label: string }>
   assignments?: Array<{ assignment_uuid: string; plan: string; assigned_to: string; role: AssignmentRoleKey; role_label: string }>
   note?: string
+  /** Canvas class list invitations: the names Canvas shared, to start the sign-up form. */
+  first_name?: string | null
+  last_name?: string | null
 }
 
 /** Who sent an invitation or join link, to what and for whom; public, since the token is the secret. */

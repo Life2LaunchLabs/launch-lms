@@ -96,8 +96,8 @@ function OpenSignUpComponent({
       password: '',
       username: '',
       bio: '',
-      first_name: '',
-      last_name: '',
+      first_name: searchParams.get('first_name') || '', // and a Canvas class list invitation, the names (DEV-193)
+      last_name: searchParams.get('last_name') || '',
       preferred_name: '',
     },
     validate: (values) => validate(values, t),

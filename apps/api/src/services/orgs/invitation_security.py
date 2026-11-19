@@ -5,7 +5,7 @@ from src.db.organization_invitations import OrganizationInvitation
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroups import UserGroup
-from src.security.access.access import SEATLESS_INVITATION_SOURCE, count_usage, is_staff_role, org_access
+from src.security.access.access import CLASS_LIST_INVITATION_SOURCE, count_usage, is_staff_role, org_access
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.security.superadmin import is_user_superadmin
 
@@ -30,11 +30,12 @@ def validate_invitation_acceptance(invitation: OrganizationInvitation, db_sessio
             raise HTTPException(status_code=403, detail="The inviter is no longer authorized to grant this role")
 
     # A pending invitation already holds its seat, so only a count above the limit means it no longer fits.
-    # A Canvas class list invitation holds none, so it needs a free seat now.
+    # Canvas class lists may hold more seats than the school has, so they're left out of the count, and a class
+    # list invitation (left out with them) needs a seat free of everyone else (DEV-193).
     seat = "staff_seats" if is_staff_role(role) else "learners"
     limit = org_access(invitation.org_id, db_session).limit(seat)
-    needed = 1 if invitation.source == SEATLESS_INVITATION_SOURCE else 0
-    if limit and count_usage(seat, invitation.org_id, db_session) + needed > limit:
+    needed = 1 if invitation.source == CLASS_LIST_INVITATION_SOURCE else 0
+    if limit and count_usage(seat, invitation.org_id, db_session, class_lists=False) + needed > limit:
         raise HTTPException(status_code=403, detail="The organization no longer has enough seats")
 
 

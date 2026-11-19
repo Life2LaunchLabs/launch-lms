@@ -304,16 +304,10 @@ async def create_user_with_organization_invitation(
 
     await staff_setup.accepted(db_session, invitation, int(user.id), request)
 
-    if invitation.usergroup_id:
-        await add_users_to_usergroup(
-            request,
-            db_session,
-            InternalUser(id=0),
-            int(invitation.usergroup_id),
-            str(user.id),
-        )
-    from src.services.canvas.roster import settle_for_member  # other class list invitations here (DEV-193)
-    settle_for_member(db_session, org_id, user)
+    from src.services.canvas.roster import is_class_list, settle_for_member  # class list invitations (DEV-193)
+    if invitation.usergroup_id and not is_class_list(invitation):
+        await add_users_to_usergroup(request, db_session, InternalUser(id=0), int(invitation.usergroup_id), str(user.id))
+    settle_for_member(db_session, org_id, user, invitation)
 
     return user
 

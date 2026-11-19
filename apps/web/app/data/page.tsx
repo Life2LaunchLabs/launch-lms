@@ -20,7 +20,7 @@ const COLLECTED: [string, string][] = [
   ['Messages', 'Conversations in Connect, including notes staff keep about a learner (never shown to the learner).'],
   ['Uploads', 'Files and photos people add to steps, their portfolio and resources.'],
   ['Coach conversations', 'What a person asks Coach and its answers, and the memories Coach saves (see Coach and AI below).'],
-  ['From Canvas', 'Only when a school opens Life2Launch from its Canvas: the person’s name, email, Canvas user id and role in the course, the course’s id and title, and the school’s Canvas address. When a teacher opens it, the course’s class list too (each student’s name, email, Canvas user id and role), so the course’s group shows the whole class: students who haven’t joined yet get an invitation, and the name kept with it goes once they join or leave the course. Not grades or other courses.'],
+  ['From Canvas', 'Only when a school opens Life2Launch from its Canvas: the person’s name, email, Canvas user id and role in the course, the course’s id and title, and the school’s Canvas address. When a teacher opens it, the course’s class list too (each student’s and teacher’s name, email, Canvas user id and role), so the course’s group shows the whole class: people who haven’t joined yet get an invitation, and the names kept with it go once they join or leave the course. Not grades or other courses.'],
   ['Logs', 'Server logs of requests (address, time, IP address) and error reports, used to keep the service running and secure. Staff actions, and when staff open a learner’s records, are kept in the organization’s audit log.'],
 ]
 

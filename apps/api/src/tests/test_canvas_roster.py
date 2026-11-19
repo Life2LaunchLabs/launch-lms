@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.canvas import CanvasCourseGroup
+from src.db.school import UserGroupStaff
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
@@ -81,6 +82,10 @@ def _members(db, group):  # noqa: F811
     return set(db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == group.id)).all())
 
 
+def _staff(db, group):  # noqa: F811
+    return set(db.exec(select(UserGroupStaff.user_id).where(UserGroupStaff.usergroup_id == group.id)).all())
+
+
 def _invitations(db, status="pending"):  # noqa: F811
     db.expire_all()
     return db.exec(select(OrganizationInvitation).where(OrganizationInvitation.status == status)).all()
@@ -100,6 +105,7 @@ def test_a_teacher_launch_pulls_the_class_list_as_invitations(client, db, canvas
     jo = _school_learner(db, "jo@ridge.example.com", "Jo")  # in the school, not yet in the course group
     canvas.members = [
         _student("canvas-teacher", "rivera@ridge.example.com", "Ana Rivera", roles=(INSTRUCTOR,)),
+        _student("canvas-tom", "tom@ridge.example.com", "Tom Reyes", roles=(INSTRUCTOR,)),
         _student("canvas-user-1", "maya@ridge.example.com", "Maya Lopez"),
         _student("canvas-jo", "Jo@Ridge.example.com", "Jo Kim"),
         _student("canvas-leo", "leo@ridge.example.com", "Leo Park"),
@@ -120,19 +126,23 @@ def test_a_teacher_launch_pulls_the_class_list_as_invitations(client, db, canvas
     assert assertion["iss"] == assertion["sub"] == "10000000000042" and assertion["jti"]
     assert canvas.list_requests[0].headers["Authorization"] == "Bearer canvas-token"
 
-    # Jo was in the school: she joins the group. Leo isn't: he's invited, without an account or an email.
+    # Jo was in the school: she joins the group. Leo isn't: he's invited, without an account or an email. Tom, a
+    # teacher not yet here, is invited as staff, not leaning on whether the teacher who launched may grant that.
     assert _members(db, group) == {_user(db, "maya@ridge.example.com").id, jo.id}
-    [invitation] = _invitations(db)
-    assert (invitation.email, invitation.usergroup_id, invitation.source, invitation.role_id) == ("leo@ridge.example.com", group.id, "canvas", 4)
-    assert invitation.delivery_status == "not_sent" and not invitation.email_sent
-    assert invitation.created_by_user_id == _user(db, "rivera@ridge.example.com").id
+    assert _staff(db, group) == {_user(db, "rivera@ridge.example.com").id}
+    leo, tom = sorted(_invitations(db), key=lambda item: item.email)
+    assert (leo.email, leo.usergroup_id, leo.source, leo.role_id) == ("leo@ridge.example.com", group.id, "canvas", 4)
+    assert leo.delivery_status == "not_sent" and not leo.email_sent
+    assert leo.created_by_user_id == _user(db, "rivera@ridge.example.com").id
+    assert (tom.email, tom.role_id, tom.created_by_user_id) == ("tom@ridge.example.com", 2, None)
     assert _user(db, "leo@ridge.example.com") is None
-    # It holds no learner seat.
-    assert count_usage("learners", 2, db) == 2
+    # They hold seats like any invitation.
+    assert count_usage("learners", 2, db) == 3
 
-    # Staff see who is still invited, by the name Canvas gave.
+    # Staff see who is still invited (teachers first), by the name Canvas gave, against the school's seats.
     summary = roster.summary_for_group(db, 2, group.id, _user(db, "rivera@ridge.example.com").id)
-    assert [(item["name"], item["email"]) for item in summary["invited"]] == [("Leo Park", "leo@ridge.example.com")]
+    assert [(item["name"], item["role"]) for item in summary["invited"]] == [("Tom Reyes", "staff"), ("Leo Park", "learner")]
+    assert summary["seats"]["learners"]["used"] == 3 and summary["seats"]["learners"]["over"] == 0
     assert summary["offered"] and summary["error"] is None and summary["can_pull"] is False  # default staff can't manage learners
 
     # A second teacher launch soon after doesn't ask Canvas again.
@@ -173,12 +183,19 @@ def test_a_student_who_left_the_course_has_their_invitation_withdrawn(client, db
     assert set(db.exec(select(CanvasCourseGroup)).one().invited_names) == {"ivy@ridge.example.com"}
 
 
-def test_a_free_school_with_a_big_class_isnt_blocked_at_the_pull(client, db, canvas):  # noqa: F811
+def test_a_big_class_on_a_free_school_is_invited_in_full_and_shows_it_is_over(client, db, canvas):  # noqa: F811
     canvas.members = [_student(f"canvas-{n}", f"student{n}@ridge.example.com", f"Student {n}") for n in range(30)]
     canvas.page_size = 10  # three pages
     _session(client, _launch(client, **TEACHER)[0].text)
     assert len(_invitations(db)) == 30 and len(canvas.list_requests) == 3
-    assert count_usage("learners", 2, db) == 0
+    group = _group(db)
+    seats = roster.summary_for_group(db, 2, group.id, _user(db, "rivera@ridge.example.com").id)["seats"]["learners"]
+    assert (seats["limit"], seats["used"], seats["over"]) == (25, 30, 5)
+
+    # The class list doesn't keep its own students out: one opening Life2Launch from Canvas joins while there's room.
+    _session(client, _launch(client, sub="canvas-3", email="student3@ridge.example.com", name="Student 3")[0].text)
+    assert _user(db, "student3@ridge.example.com").id in _members(db, group)
+    assert len(_invitations(db)) == 29
 
 
 def test_a_class_list_invitation_needs_a_free_seat_to_accept(client, db, canvas, monkeypatch):  # noqa: F811
@@ -188,7 +205,7 @@ def test_a_class_list_invitation_needs_a_free_seat_to_accept(client, db, canvas,
     _session(client, _launch(client, **TEACHER)[0].text)
     [invitation] = _invitations(db)
     validate_invitation_acceptance(invitation, db)  # room
-    monkeypatch.setattr("src.services.orgs.invitation_security.count_usage", lambda *args: 25)
+    monkeypatch.setattr("src.services.orgs.invitation_security.count_usage", lambda *args, **kwargs: 25)
     with pytest.raises(HTTPException) as refused:
         validate_invitation_acceptance(invitation, db)
     assert refused.value.status_code == 403
@@ -241,6 +258,28 @@ def test_joining_the_school_another_way_settles_class_list_invitations(client, d
     ivy = _school_learner(db, "Ivy@ridge.example.com", "Ivy")  # e.g. accepted a school invitation or link
     assert roster.settle_for_member(db, 2, ivy) == 1
     assert ivy.id in _members(db, group) and not _invitations(db)
+
+
+def test_an_invited_teacher_joins_the_group_staff(client, db, canvas):  # noqa: F811
+    canvas.members = [_student("canvas-tom", "tom@ridge.example.com", "Tom Reyes", roles=(INSTRUCTOR,))]
+    _session(client, _launch(client, **TEACHER)[0].text)
+    group = _group(db)
+    [invitation] = _invitations(db)
+    assert invitation.role_id == 2
+    _session(client, _launch(client, sub="canvas-tom", email="tom@ridge.example.com", name="Tom Reyes", **{f"{LTI}roles": [INSTRUCTOR]})[0].text)
+    tom = _user(db, "tom@ridge.example.com")
+    assert tom.id in _staff(db, group) and tom.id not in _members(db, group)
+    assert not _invitations(db)
+
+
+def test_a_class_list_invitation_starts_the_sign_up_form_with_canvas_names(client, db, canvas):  # noqa: F811
+    from src.services.orgs.invite_landing import preview
+
+    canvas.members = [{**_student("canvas-leo", "leo@ridge.example.com", "Leo Park"), "given_name": "Leo", "family_name": "Park"}]
+    _session(client, _launch(client, **TEACHER)[0].text)
+    [invitation] = _invitations(db)
+    card = preview(db, 2, invitation=invitation.invitation_uuid)
+    assert (card["email"], card["first_name"], card["last_name"]) == ("leo@ridge.example.com", "Leo", "Park")
 
 
 def test_the_tool_configuration_asks_for_the_class_list(client):  # noqa: F811

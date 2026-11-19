@@ -25,7 +25,7 @@ export function useInvitePreview(orgId: number | undefined, invitation: string, 
   return token ? data : null
 }
 
-/** Puts the invited address in the signup form, which reads it from the URL. */
+/** Puts the invited address (and any names Canvas shared) in the signup form, which reads them from the URL. */
 export function usePrefillInvitedEmail(preview: InvitePreview | null) {
   const router = useRouter()
   const pathname = usePathname()
@@ -34,6 +34,8 @@ export function usePrefillInvitedEmail(preview: InvitePreview | null) {
     if (!preview?.email || preview.status !== 'pending' || searchParams.get('email')) return
     const params = new URLSearchParams(searchParams.toString())
     params.set('email', preview.email)
+    if (preview.first_name && !params.get('first_name')) params.set('first_name', preview.first_name)
+    if (preview.last_name && !params.get('last_name')) params.set('last_name', preview.last_name)
     router.replace(`${pathname}?${params.toString()}`)
   }, [preview, pathname, router, searchParams])
 }
