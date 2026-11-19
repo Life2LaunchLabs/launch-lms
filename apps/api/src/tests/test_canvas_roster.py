@@ -282,6 +282,18 @@ def test_a_class_list_invitation_starts_the_sign_up_form_with_canvas_names(clien
     assert (card["email"], card["first_name"], card["last_name"]) == ("leo@ridge.example.com", "Leo", "Park")
 
 
+def test_the_invitation_list_names_class_list_invitations_and_the_group_list_marks_canvas(client, db, canvas):  # noqa: F811
+    from src.services.school.feed import _group_rows
+
+    canvas.members = [{**_student("canvas-leo", "leo@ridge.example.com", "Leo Park"), "given_name": "Leo", "family_name": "Park"}]
+    _session(client, _launch(client, **TEACHER)[0].text)
+    [invitation] = _invitations(db)
+    rows = [{"invitation_uuid": invitation.invitation_uuid, "source": "canvas"}, {"invitation_uuid": "other", "source": "email"}]
+    assert roster.name_invitations(db, 2, rows) == [{**rows[0], "name": "Leo Park"}, rows[1]]
+    group = _group(db)
+    assert _group_rows(db, [group])[0]["group"]["canvas"] is True
+
+
 def test_the_tool_configuration_asks_for_the_class_list(client):  # noqa: F811
     assert client.get("/api/v1/lti/canvas.json").json()["scopes"] == [roster.NRPS_SCOPE]
 

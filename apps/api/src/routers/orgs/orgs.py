@@ -629,7 +629,9 @@ async def api_get_org_users_invites(
     """
     Get org users invites
     """
-    return await get_list_of_invited_users(request, org_id, db_session, current_user)
+    from src.services.canvas.roster import name_invitations
+
+    return name_invitations(db_session, org_id, await get_list_of_invited_users(request, org_id, db_session, current_user))
 
 
 @router.delete("/{org_id}/invites/users/{invitation_uuid}")

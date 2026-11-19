@@ -10,12 +10,19 @@ import { PERMISSION_NAMES, type StaffPermission } from '@services/organizations/
 import { swrFetcher } from '@services/utils/ts/requests'
 import StaffPermissionSwitches from './StaffPermissionSwitches'
 import { usePeopleContext } from './usePeople'
+import { CanvasTag } from './CanvasTag'
 
-/** Invitations nobody has accepted yet, for admins to resend, take back, or (staff) change what they'll be able to do. With `empty`, it sits in a card (no heading) and says so when there are none. */
-export default function PendingInvites({ empty }: { empty?: string } = {}) {
+// Canvas class list invitations follow the course: no email went out to resend, and taking one back would only
+// last until the next pull (DEV-193).
+const fromCanvas = (invite: any) => invite.source === 'canvas'
+
+/** Invitations nobody has accepted yet, for admins to resend, take back, or (staff) change what they'll be able to do. With `empty`, it sits in a card (no heading) and says so when there are none; with `groupId`, only that group's. */
+export default function PendingInvites({ empty, groupId }: { empty?: string; groupId?: number } = {}) {
   const { orgId, token, isOwnerAdmin } = usePeopleContext()
   const { data, mutate } = useSWR(orgId && token ? `${getAPIUrl()}orgs/${orgId}/invites/users` : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: false })
-  const pending = ((data || []) as any[]).filter((invite) => invite.pending)
+  const pending = ((data || []) as any[]).filter((invite) => invite.pending && (groupId === undefined || invite.usergroup?.id === groupId))
+    // A Canvas course's teachers first, then everyone by name.
+    .sort((a, b) => Number(fromCanvas(b) && b.role?.id !== 4) - Number(fromCanvas(a) && a.role?.id !== 4) || String(a.name || a.email).localeCompare(String(b.name || b.email)))
   const [busy, setBusy] = React.useState('')
   const [open, setOpen] = React.useState('')
   if (!pending.length) return empty && data ? <p className="text-sm text-muted-foreground">{empty}</p> : null
@@ -52,7 +59,7 @@ export default function PendingInvites({ empty }: { empty?: string } = {}) {
     }
   }
   const subtitle = (invite: any) => {
-    const parts = [invite.role?.name, invite.usergroup?.name]
+    const parts = [invite.name ? invite.email : '', invite.role?.name, groupId === undefined ? invite.usergroup?.name : '']
     if (Array.isArray(invite.permissions)) parts.push(invite.permissions.length ? invite.permissions.map((key: StaffPermission) => PERMISSION_NAMES[key] || key).join(', ') : 'No permissions yet')
     return parts.filter(Boolean).join(' · ') || 'Invited'
   }
@@ -63,13 +70,15 @@ export default function PendingInvites({ empty }: { empty?: string } = {}) {
       <div className="flex items-center gap-3">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><Mail size={16} /></span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold">{invite.email}</span>
+        <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold">{invite.name || invite.email}</span>{fromCanvas(invite) ? <CanvasTag /> : null}</span>
         <span className="block truncate text-sm text-muted-foreground">{invite.delivery_status === 'delivery_failed' ? <span className="text-rose-600">Email didn’t send · resend it</span> : subtitle(invite)}</span>
       </span>
       {isOwnerAdmin && Array.isArray(invite.permissions) ? <button type="button" onClick={() => setOpen(open === invite.invitation_uuid ? '' : invite.invitation_uuid)} aria-expanded={open === invite.invitation_uuid}
         aria-label={`What ${invite.email} can do`} title="What they can do" className={`rounded-lg p-1.5 hover:bg-muted hover:text-foreground ${open === invite.invitation_uuid ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}><ShieldCheck size={15} /></button> : null}
+      {fromCanvas(invite) ? null : <>
       <button type="button" onClick={() => void act(invite.invitation_uuid, true)} disabled={Boolean(busy)} aria-label={`Resend the invitation to ${invite.email}`} title="Resend" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><RotateCw size={15} /></button>
       <button type="button" onClick={() => void act(invite.invitation_uuid, false)} disabled={Boolean(busy)} aria-label={`Take back the invitation to ${invite.email}`} title="Take back" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X size={15} /></button>
+      </>}
       </div>
       {open === invite.invitation_uuid && token ? <div className="mt-3 space-y-2">
         <StaffPermissionSwitches orgId={orgId} token={token} value={invite.permissions} disabled={Boolean(busy)} onChange={(next) => void savePermissions(invite.invitation_uuid, next)} />

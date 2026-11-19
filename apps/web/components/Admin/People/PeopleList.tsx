@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Skeleton } from '@components/ui/skeleton'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { GroupMark } from '@components/Connect/ChatPane'
+import { CanvasTag } from './CanvasTag'
 import { chatTime } from '@components/Connect/ConnectView'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -200,7 +201,7 @@ function ActiveRow({ row, selection }: { row: FeedRow; orgslug: string; selectio
 
 function groupLine(row: FeedRow) {
   const count = row.group?.member_count || 0
-  return `Group · ${count} ${count === 1 ? 'person' : 'people'}`
+  return `${row.group?.canvas ? 'Canvas course' : 'Group'} · ${count} ${count === 1 ? 'person' : 'people'}`
 }
 
 function RestRows({ rows, orgslug, selection, label }: { rows: FeedRow[]; orgslug: string; selection: PeopleSelection; label?: string }) {
@@ -263,7 +264,7 @@ function GroupRow({ row, selection }: { row: FeedRow; orgslug: string; selection
       className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>
       <GroupMark />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold">{row.group?.name}</span>
+        <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold">{row.group?.name}</span>{row.group?.canvas ? <CanvasTag /> : null}</span>
         <span className="block truncate text-sm text-muted-foreground">{groupLine(row)}</span>
       </span>
     </RowLink>

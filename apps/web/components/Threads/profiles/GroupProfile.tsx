@@ -14,6 +14,7 @@ import { JoinLinkPanel } from '@components/Dashboard/Pages/Users/OrgUsersAdd/Inv
 import { GroupPeople } from '@components/Admin/People/GroupPeople'
 import GroupWork from '@components/Admin/People/GroupWork'
 import { RoleTag } from '@components/Admin/People/RoleTag'
+import PendingInvites from '@components/Admin/People/PendingInvites'
 import { useGroupDetail, useOrgGroups, usePeopleContext, useRefreshPeople } from '@components/Admin/People/usePeople'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
@@ -21,7 +22,7 @@ import { peopleKeys, type GroupDetail } from '@services/school/people'
 import { setGroupStatus, type MemberStatus } from '@services/organizations/membership'
 import type { GroupView } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
-import { CanvasClassList } from './CanvasClassList'
+import { CanvasCourseBar } from './CanvasCourseBar'
 import { inOrgWords } from '@/lib/people'
 
 const people = routePaths.org.admin.people
@@ -50,7 +51,7 @@ export default function GroupProfile({ orgslug, groupId, view, compact }: { orgs
   const learners = group.learner_count
   return <ProfileFrame orgslug={orgslug} compact={compact} title={group.name}
     art={<span className={cn('grid shrink-0 place-items-center rounded-2xl bg-muted text-foreground', compact ? 'h-12 w-12' : 'h-20 w-20')}><Users size={compact ? 22 : 34} /></span>}
-    sub={`${learners} ${inOrgWords(learners === 1 ? 'learner' : 'learners')}${group.alumni_count ? ` (${group.alumni_count} alumni)` : ''} · ${group.staff_count} staff`}
+    sub={`${group.canvas ? 'Canvas course · ' : ''}${learners} ${inOrgWords(learners === 1 ? 'learner' : 'learners')}${group.alumni_count ? ` (${group.alumni_count} alumni)` : ''} · ${group.staff_count} staff`}
     actions={compact ? null : <>
       <ThreadButton primary onClick={() => openThread({ kind: 'group', groupId })} label="Group thread" />
       {canManage ? <button type="button" onClick={() => setManaging(true)} aria-haspopup="dialog" aria-label="Manage group" title="Rename or delete"
@@ -59,8 +60,8 @@ export default function GroupProfile({ orgslug, groupId, view, compact }: { orgs
     tabs={tabs.map((key) => ({ key, label: labels[key], href: getUriWithOrg(orgslug, people.group(groupId, key === 'people' ? undefined : key)) }))}
     tab={current} onTab={compact ? (key) => setShown(key as GroupTab) : undefined}>
     {current === 'people' ? <>
-      {canManage ? <Card><GroupPeople groupId={groupId} onChanged={refresh} /></Card> : <PeopleCard orgslug={orgslug} group={group} />}
-      {group.canvas ? <CanvasClassList groupId={groupId} canvas={group.canvas} onChanged={refresh} /> : null}
+      {group.canvas ? <CanvasCourseBar groupId={groupId} canvas={group.canvas} onChanged={refresh} /> : null}
+      {canManage ? <Card><GroupPeople groupId={groupId} onChanged={refresh} /><PendingInvites key={group.canvas?.pulled_at || ''} groupId={groupId} /></Card> : <PeopleCard orgslug={orgslug} group={group} />}
       {canManage ? <GroupStatus groupId={groupId} onChanged={refresh} /> : null}
     </>
       : current === 'plans' ? <GroupWork orgslug={orgslug} groupId={groupId} bare />
