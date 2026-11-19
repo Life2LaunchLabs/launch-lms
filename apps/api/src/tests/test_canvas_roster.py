@@ -183,6 +183,41 @@ def test_a_student_who_left_the_course_has_their_invitation_withdrawn(client, db
     assert set(db.exec(select(CanvasCourseGroup)).one().invited_names) == {"ivy@ridge.example.com"}
 
 
+def test_a_student_who_left_the_course_leaves_its_group(client, db, canvas, store):  # noqa: F811
+    """UT-44 check 4: a student who had joined the course group drops off when Canvas no longer lists them."""
+    canvas.members = [_student("canvas-leo", "leo@ridge.example.com", "Leo Park"), _student("canvas-ivy", "ivy@ridge.example.com", "Ivy Chen")]
+    _session(client, _launch(client, sub="canvas-leo", email="leo@ridge.example.com", name="Leo Park")[0].text)
+    _session(client, _launch(client, sub="canvas-ivy", email="ivy@ridge.example.com", name="Ivy Chen")[0].text)
+    _session(client, _launch(client, **TEACHER)[0].text)
+    group = _group(db)
+    leo, ivy = _user(db, "leo@ridge.example.com"), _user(db, "ivy@ridge.example.com")
+    jo = _school_learner(db, "jo@ridge.example.com", "Jo")  # staff put Jo in the group by hand; Canvas doesn't know her
+    db.add(UserGroupUser(usergroup_id=group.id, user_id=jo.id, org_id=group.org_id, creation_date="", update_date=""))
+    db.commit()
+    assert _members(db, group) == {leo.id, ivy.id, jo.id}
+
+    # Leo moves to another class; Ivy's enrollment goes inactive. Both leave the group, not the school.
+    canvas.members = [_student("canvas-teacher", "rivera@ridge.example.com", "Ana Rivera", roles=(INSTRUCTOR,)),
+                      _student("canvas-ivy", "ivy@ridge.example.com", "Ivy Chen", status="Inactive")]
+    store.values.clear()
+    _session(client, _launch(client, **TEACHER)[0].text)
+    db.expire_all()
+    assert _members(db, group) == {jo.id}
+    assert _staff(db, group) == {_user(db, "rivera@ridge.example.com").id}  # the teacher stays on its staff
+    assert db.exec(select(UserOrganization).where(UserOrganization.user_id == leo.id, UserOrganization.org_id == 2)).first()
+
+    # Update from Canvas says so; Leo coming back to the course puts him back.
+    canvas.members = [_student("canvas-leo", "leo@ridge.example.com", "Leo Park")]
+    result = roster.apply_roster(db, db.exec(select(CanvasCourseGroup)).one(), canvas.members, None)
+    assert result.joined == 1 and result.left == 0 and leo.id in _members(db, group)
+    # An empty list is never read as the whole class leaving.
+    result = roster.apply_roster(db, db.exec(select(CanvasCourseGroup)).one(), [], None)
+    assert result.left == 0 and leo.id in _members(db, group)
+    teacher_only = [_student("canvas-teacher", "rivera@ridge.example.com", "Ana Rivera", roles=(INSTRUCTOR,))]
+    result = roster.apply_roster(db, db.exec(select(CanvasCourseGroup)).one(), teacher_only, None)
+    assert result.left == 1 and _members(db, group) == {jo.id}
+
+
 def test_a_big_class_on_a_free_school_is_invited_in_full_and_shows_it_is_over(client, db, canvas):  # noqa: F811
     canvas.members = [_student(f"canvas-{n}", f"student{n}@ridge.example.com", f"Student {n}") for n in range(30)]
     canvas.page_size = 10  # three pages

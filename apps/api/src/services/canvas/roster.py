@@ -10,7 +10,9 @@ Organizations don't own learners, so a pull never makes accounts or memberships 
 - anyone else gets a pending invitation to the school and the course group (students as learners, teachers as
   staff), with no email, carrying the names Canvas shared. It fills the usual ways: an existing account accepts
   it, the person signs up from it, or they open Life2Launch from Canvas;
-- someone who left the course has their pending invitation withdrawn (members stay: that's the school's call);
+- someone who left the course has their pending invitation withdrawn, and a student who had joined the course
+  group leaves it (the group, not the school: who belongs to the school stays the school's call). Only students
+  Canvas knows (linked to this Canvas) leave, so people staff put in the group by hand stay, and so do teachers;
 - anyone the school removed is left alone.
 
 Class list invitations hold seats like any invitation (security/access CLASS_LIST_INVITATION_SOURCE), so the
@@ -37,6 +39,7 @@ from src.db.canvas import CanvasConnection, CanvasCourseGroup, CanvasUserLink
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
+from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import User
 from src.security.access.access import CLASS_LIST_INVITATION_SOURCE
@@ -62,6 +65,7 @@ class PullResult:
     withdrawn: int = 0  # invitations of students no longer in the course
     no_email: int = 0  # students Canvas shared no email for
     removed: int = 0  # people the school removed, left alone
+    left: int = 0  # students who left the course, taken out of the group
 
 
 def _now() -> str:
@@ -143,6 +147,7 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
     expires_at = now + timedelta(days=INVITATION_DAYS)
     pending = {invitation.email_normalized: invitation for invitation in _pending(db, org_id, int(group.id))}  # type: ignore[arg-type]
     on_list: set[str] = set()
+    on_list_users: set[int] = set()  # accounts on the class list, as anyone active in the course
     details: dict[str, dict] = {}
 
     for member in members:
@@ -161,6 +166,8 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
         school_role = db.exec(select(UserOrganization.role_id).where(
             UserOrganization.org_id == org_id, UserOrganization.user_id == user.id,
         )).first() if user is not None else None
+        if user is not None:
+            on_list_users.add(int(user.id))  # type: ignore[arg-type]
         if school_role is not None:
             if email:
                 on_list.add(email)
@@ -239,6 +246,10 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
         _resolve_inbox(db, invitation, accepted=False)
         result.withdrawn += 1
 
+    # An empty class list is Canvas misspeaking (the teacher who launched is always on it), never everyone leaving.
+    if any(_role_of(member) is not None for member in members):
+        result.left = _drop_leavers(db, group, int(connection.id), on_list_users)  # type: ignore[arg-type]
+
     link.invited_names = {email: details[email] for email in pending if email in details}
     link.roster_pulled_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     link.roster_error = None
@@ -246,6 +257,28 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
     db.add(link)
     db.commit()
     return result
+
+
+def _drop_leavers(db: Session, group: UserGroup, connection_id: int, on_list_users: set[int]) -> int:
+    """Take students who are no longer active in the course out of its group, as staff removing them would. Only
+    members linked to this Canvas count: Canvas always names the people it knows, so a linked member missing from a
+    complete class list has left (or is no longer active). Returns how many left."""
+    from src.services.connect.cohort import sync_group
+    from src.services.school import group_chats
+
+    group_id = int(group.id)  # type: ignore[arg-type]
+    rows = db.exec(select(UserGroupUser).join(CanvasUserLink, CanvasUserLink.user_id == UserGroupUser.user_id).where(
+        UserGroupUser.usergroup_id == group_id, CanvasUserLink.connection_id == connection_id,
+    )).all()
+    leavers = {int(row.user_id): row for row in rows if int(row.user_id) not in on_list_users}
+    if not leavers:
+        return 0
+    for row in leavers.values():
+        db.delete(row)
+    db.flush()
+    group_chats.members_left(db, group, [str(user_id) for user_id in leavers])
+    sync_group(db, group_id)
+    return len(leavers)
 
 
 def _claim(link_id: int, seconds: int, kind: str) -> bool:

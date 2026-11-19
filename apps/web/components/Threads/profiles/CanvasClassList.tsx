@@ -56,6 +56,7 @@ export function CanvasClassList({ groupId, canvas, onChanged }: { groupId: numbe
         result.invited ? `${result.invited} invited` : '',
         result.joined ? `${result.joined} joined the group` : '',
         result.withdrawn ? `${plural(result.withdrawn, 'invitation', 'invitations')} withdrawn` : '',
+        result.left ? `${plural(result.left, 'student', 'students')} left the course` : '',
       ].filter(Boolean)
       toast.success(changes.length ? `Updated from Canvas: ${changes.join(', ')}` : 'Up to date with Canvas')
       await onChanged()

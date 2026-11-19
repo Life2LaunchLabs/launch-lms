@@ -89,6 +89,8 @@ export interface CanvasClassListPull {
   withdrawn: number
   no_email: number
   removed: number
+  /** Students who left the course, taken out of its group. */
+  left: number
   canvas: CanvasClassList
 }
 
