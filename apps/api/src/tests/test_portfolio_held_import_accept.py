@@ -8,6 +8,7 @@ import pytest
 from sqlmodel import select
 from starlette.requests import Request
 
+from src.db.user_emails import UserEmail
 from src.db.audit_logs import AuditLog
 from src.db.organization_config import OrganizationConfig
 from src.db.organization_invitations import OrganizationInvitation
@@ -34,7 +35,7 @@ def _world(db, member: bool):
     engine = db.get_bind()
     from src.db.organization_removals import OrganizationRemoval
 
-    for model in (OrganizationInvitation, HeldPortfolioImport, AuditLog, OrganizationConfig, UserGroup, InboxMessage, OrganizationRemoval):
+    for model in (UserEmail, OrganizationInvitation, HeldPortfolioImport, AuditLog, OrganizationConfig, UserGroup, InboxMessage, OrganizationRemoval):
         model.__table__.create(engine, checkfirst=True)
     user = _user()
     db.add_all([user, Role(id=4, name="User", role_uuid="role_global_user", rights={})])

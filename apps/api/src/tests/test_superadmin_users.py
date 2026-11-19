@@ -6,6 +6,7 @@ from src.db.messages import InboxMessage, InboxMessageTemplate
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
+from src.db.user_emails import UserEmail
 from src.db.users import PublicUser, User
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.superadmin.users import (
@@ -35,6 +36,7 @@ def db_session():
         "sqlite:///:memory:", connect_args={"check_same_thread": False}
     )
     User.__table__.create(engine)
+    UserEmail.__table__.create(engine)
     Organization.__table__.create(engine)
     UserOrganization.__table__.create(engine)
     Role.__table__.create(engine)

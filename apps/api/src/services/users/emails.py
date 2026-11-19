@@ -208,3 +208,23 @@ def send_email_verification_email(
             footer_note="This link expires in 1 hour. If you didn't create an account, you can safely ignore this email.",
         ),
     )
+
+
+def send_add_email_code(email: str, code: str, user):
+    """The code someone types to add this email to their account (DEV-197)."""
+    safe_name = html.escape(getattr(user, "first_name", "") or getattr(user, "username", "") or "there")
+    body_content = f"""
+        <h1 style="{STYLES['h1']}">Add this email to your account</h1>
+        <p style="{STYLES['p']}">Hi {safe_name}, type this code in Life2Launch to add this email to your account. You'll be able to sign in with it too.</p>
+        <div style="{STYLES['code']}">{html.escape(code)}</div>
+    """
+    return send_email(
+        to=email,
+        subject=f"{code} is your Life2Launch code",
+        body=_email_layout(
+            title="Add email",
+            body_content=body_content,
+            footer_note="The code expires in 15 minutes. If you didn't ask for it, you can ignore this email; nothing changes.",
+        ),
+    )
+

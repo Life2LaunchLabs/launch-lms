@@ -36,6 +36,7 @@ from src.services.orgs.staff_permissions import invitation_permissions
 from src.services.orgs.orgs import rbac_check
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.users.usergroups import create_usergroup
+from src.services.users import account_emails
 
 
 _email_adapter = TypeAdapter(EmailStr)
@@ -61,7 +62,7 @@ def _my_pending_invitation_statement(current_user: PublicUser):
     return select(OrganizationInvitation).where(
         or_(
             OrganizationInvitation.target_user_id == current_user.id,
-            OrganizationInvitation.email_normalized == normalize_email(str(current_user.email)),
+            account_emails.matches(OrganizationInvitation.email_normalized, current_user),
         ),
         OrganizationInvitation.status == "pending",
         OrganizationInvitation.expires_at > datetime.utcnow(),
@@ -205,7 +206,7 @@ def _recipient_results(org_id: int, emails: list[str], db_session: Session) -> l
             results.append(InviteRecipientResult(email=validated_email, status="duplicate", detail="Duplicate in this batch"))
             continue
         seen.add(normalized)
-        target_user = db_session.exec(select(User).where(func.lower(User.email) == normalized)).first()
+        target_user = account_emails.find_user(db_session, normalized)
         if target_user and db_session.exec(select(UserOrganization).where(
             UserOrganization.org_id == org_id, UserOrganization.user_id == target_user.id,
         )).first():
@@ -931,9 +932,7 @@ async def invite_batch_users(
             continue
         seen.add(normalized)
 
-        target_user = db_session.exec(
-            select(User).where(func.lower(User.email) == normalized)
-        ).first()
+        target_user = account_emails.find_user(db_session, normalized)
         if target_user and db_session.exec(
             select(UserOrganization).where(
                 UserOrganization.org_id == org.id,

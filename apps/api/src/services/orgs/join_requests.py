@@ -15,7 +15,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, select
 
 from src.db.organization_invitations import InviteUsersRequest
 from src.db.organization_join_requests import JoinRequestCreate, OrganizationJoinRequest
@@ -29,6 +29,7 @@ from src.services.email.utils import send_email
 from src.services.oauth.config import frontend_url
 from src.services.school import chats as school_chats, plan_requests
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
+from src.services.users import account_emails
 
 logger = logging.getLogger(__name__)
 REQUESTED, APPROVED, DECLINED = "requested", "approved", "declined"
@@ -135,7 +136,7 @@ async def decide(request: Request, db: Session, current_user: PublicUser, reques
     if row.status != REQUESTED:
         raise HTTPException(status_code=409, detail="This request was already answered")
     org = _org_or_404(db, row.org_id)
-    account = db.get(User, row.user_id) if row.user_id else db.exec(select(User).where(func.lower(User.email) == row.email_normalized)).first()
+    account = db.get(User, row.user_id) if row.user_id else account_emails.find_user(db, row.email_normalized)
     invited = False
     if approve and account and not _member(db, org.id, account.id):  # type: ignore[arg-type]
         require_capacity("learners", int(org.id), db)  # type: ignore[arg-type]

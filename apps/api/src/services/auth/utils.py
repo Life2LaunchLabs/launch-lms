@@ -3,9 +3,9 @@ from datetime import date, datetime, timezone
 
 import httpx
 from fastapi import Depends, HTTPException, Request
-from sqlmodel import Session, select
+from sqlmodel import Session
 from src.core.events.database import get_db_session
-from src.db.users import User, UserCreate, UserRead
+from src.db.users import UserCreate, UserRead
 from src.security.auth import get_current_user
 from src.services.auth import age_check
 from src.services.security.account_lockout import update_login_info
@@ -50,9 +50,9 @@ async def signWithGoogle(
             detail="No email address available from Google or request"
         )
 
-    user = db_session.exec(
-        select(User).where(User.email == user_email)
-    ).first()
+    from src.services.users.account_emails import find_user
+
+    user = find_user(db_session, user_email)
 
     if not user:
         # Extract user data with safe defaults

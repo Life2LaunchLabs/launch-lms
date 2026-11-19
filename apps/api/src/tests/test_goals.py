@@ -47,6 +47,7 @@ from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateL
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
+from src.db.user_emails import UserEmail
 from src.db.users import PublicUser, User
 from src.services.goals import assignments, entries, goals, issue, schedule, structure, templates
 from src.services.goals.completion import on_badge_awarded
@@ -60,7 +61,7 @@ ADMIN, LEARNER, OTHER = 1, 2, 3
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
-        Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__,
+        Organization.__table__, User.__table__, UserEmail.__table__, Role.__table__, UserOrganization.__table__, UserGroup.__table__, UserGroupUser.__table__,
         LearningActivity.__table__, LearningPage.__table__, LearningPageProgress.__table__, LearningRun.__table__, LearningResponseAttempt.__table__,
         BadgeAward.__table__, OrgSigningKey.__table__, MediaAsset.__table__,
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,

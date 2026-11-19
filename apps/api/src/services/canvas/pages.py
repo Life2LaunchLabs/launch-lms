@@ -170,21 +170,54 @@ def link_needed(link_url: str) -> HTMLResponse:
     return _page("Link your Life2Launch account", body, status_code=409)
 
 
-def link_confirm(email: str, school: str, link_action: str, ticket: str) -> HTMLResponse:
+def choose_account(email: str, school: str, session_url: str, mode: str, new_ticket: str, again_ticket: str,
+                   link_url: str) -> HTMLResponse:
+    """First time from Canvas, and no account has the Canvas email: new, or sign in to the account they have (DEV-199).
+    Signing in opens our own site in a new tab (it works in a Canvas frame whatever the browser does with cookies);
+    coming back, Continue opens the account it linked."""
+    script = (
+        "(function(){document.getElementById('signin').addEventListener('click',function(){"
+        "document.getElementById('back').hidden=false})})();"
+    )
+    body = (
+        "<h1>Welcome to Life2Launch</h1>"
+        f"<p>{escape(school)} uses Life2Launch in Canvas. Is this your first time on Life2Launch?</p>"
+        "<div class=\"actions\">"
+        f"<form id=\"new\" method=\"post\" action=\"{escape(session_url)}\">{_hidden({'ticket': new_ticket, 'mode': mode})}"
+        "<button class=\"primary\" type=\"submit\">I'm new to Life2Launch</button></form>"
+        f"<a id=\"signin\" class=\"button\" href=\"{escape(link_url)}\" target=\"_blank\" rel=\"noopener\">"
+        "Already on Life2Launch? Sign in</a>"
+        "</div>"
+        f"<p class=\"small\">New accounts use {escape(email)}. Already have one, maybe with a personal email? "
+        "Sign in to it and your school email is added to it, so you keep one account.</p>"
+        "<div id=\"back\" hidden><p>Signing in opened in a new tab. When it says your account is linked, come back here.</p>"
+        f"<form method=\"post\" action=\"{escape(session_url)}\">{_hidden({'ticket': again_ticket, 'mode': mode})}"
+        "<button type=\"submit\">Continue to Life2Launch</button></form></div>"
+    )
+    from src.services.oauth.config import frontend_url
+
+    origins = " ".join(dict.fromkeys((_origin_of(session_url), frontend_url())))
+    return _page("Welcome to Life2Launch", body, script, form_action=origins)
+
+
+def link_confirm(email: str, school: str, link_action: str, ticket: str, canvas_email: str | None = None) -> HTMLResponse:
+    added = (f" Your school email ({escape(canvas_email)}) is added to this account, so you can sign in with either."
+             if canvas_email and canvas_email.strip().lower() != email.strip().lower() else "")
     body = (
         "<h1>Link your school's Canvas</h1>"
         f"<p>Open this Life2Launch account ({escape(email)}) from {escape(school)}'s Canvas from now on? "
-        f"You'll also join {escape(school)} on Life2Launch.</p>"
+        f"You'll also join {escape(school)} on Life2Launch.{added}</p>"
         f"<form method=\"post\" action=\"{escape(link_action)}\">{_hidden({'t': ticket})}"
         "<div class=\"actions\"><button class=\"primary\" type=\"submit\">Link my account</button></div></form>"
     )
     return _page("Link your school's Canvas", body)
 
 
-def link_sign_in(email: str, login_url: str) -> HTMLResponse:
+def link_sign_in(email: str | None, login_url: str) -> HTMLResponse:
+    who = f"the Life2Launch account for {escape(email)}" if email else "your Life2Launch account"
     body = (
         "<h1>Sign in to link</h1>"
-        f"<p>Sign in with the Life2Launch account for {escape(email)}. Then you can link it to your school's Canvas.</p>"
+        f"<p>Sign in with {who}. Then you can link it to your school's Canvas.</p>"
         f"<div class=\"actions\"><a class=\"button primary\" href=\"{escape(login_url)}\">Sign in</a></div>"
     )
     return _page("Sign in to link", body)
@@ -199,9 +232,12 @@ def link_wrong_account(signed_in_as: str, email: str) -> HTMLResponse:
     return _page("That's a different account", body, status_code=403)
 
 
-def link_done(school: str) -> HTMLResponse:
+def link_done(school: str, open_url: str | None = None) -> HTMLResponse:
     body = (
         "<h1>Linked</h1>"
-        f"<p>Your account now opens from {escape(school)}'s Canvas. Go back to Canvas and open Life2Launch again.</p>"
+        f"<p>Your account now opens from {escape(school)}'s Canvas. Go back to Canvas and continue there, "
+        "or keep going here.</p>"
+        + (f"<div class=\"actions\"><a class=\"button primary\" href=\"{escape(open_url)}\">Open Life2Launch</a></div>"
+           if open_url else "")
     )
     return _page("Linked", body)

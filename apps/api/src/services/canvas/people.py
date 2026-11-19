@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.canvas import CanvasUserLink
+from src.services.users.account_emails import find_user
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
@@ -55,6 +56,13 @@ class NeedsAccountLink(LaunchError):
             "There's already a Life2Launch account with your email. Sign in to it once to link it to your school's Canvas.",
             409,
         )
+
+
+class ChooseAccount(LaunchError):
+    """No account has this Canvas email yet: the person says they're new, or signs in to the account they have (DEV-199)."""
+
+    def __init__(self):
+        super().__init__("New to Life2Launch, or already on it?", 409)
 
 
 class SchoolFull(LaunchError):
@@ -153,8 +161,9 @@ def _create_user(db: Session, launch: Launch) -> User:
     return user
 
 
-def resolve_person(db: Session, launch: Launch) -> tuple[User, UserOrganization, bool]:
-    """The account this launch signs in, its membership, and whether the account is new."""
+def resolve_person(db: Session, launch: Launch, new_ok: bool = False) -> tuple[User, UserOrganization, bool]:
+    """The account this launch signs in, its membership, and whether the account is new. Without ``new_ok`` (the
+    person said they're new), an email no account has asks first, so someone already on Life2Launch can sign in."""
     org_id = launch.connection.org_id
     staff = is_staff_launch(launch.roles)
     created = False
@@ -164,10 +173,12 @@ def resolve_person(db: Session, launch: Launch) -> tuple[User, UserOrganization,
     )).first()
     user = db.get(User, link.user_id) if link else None
     if user is None:
-        user = db.exec(select(User).where(User.email == launch.email)).first()
+        user = find_user(db, launch.email)  # main or spare email (DEV-197)
         if user is not None:
             if _membership(db, int(user.id), org_id) is None:
                 raise NeedsAccountLink()
+        elif not new_ok:
+            raise ChooseAccount()
         else:
             # Check the seat before making an account, so a full school doesn't collect empty accounts.
             _require_seat(db, launch, STAFF_ROLE_ID if staff else LEARNER_ROLE_ID)
@@ -205,11 +216,23 @@ def emails_match(a: str | None, b: str | None) -> bool:
     return bool(a and b and a.strip().lower() == b.strip().lower())
 
 
+def can_link(db: Session, user, canvas_email: str | None) -> bool:
+    """Whether this signed-in account may take this Canvas identity: the Canvas email is one of its emails, or no
+    account has it yet (it's then added to this one, DEV-199)."""
+    from src.services.users import account_emails
+
+    owner = account_emails.find_user(db, canvas_email)
+    return owner is None or owner.id == user.id
+
+
 def link_signed_in_person(db: Session, launch: Launch, user: User) -> UserOrganization:
-    """Sign in once to link: the person proved they own the account with Canvas's email, so this Canvas
-    identity now opens it, and they join the school with their Canvas role."""
-    if not emails_match(user.email, launch.email):
+    """Sign in once to link: this Canvas identity now opens the account, the Canvas email joins its emails if it
+    wasn't one (Canvas vouches for it), and they join the school with their Canvas role."""
+    from src.services.users import account_emails
+
+    if not can_link(db, user, launch.email):
         raise LaunchError("Sign in with the account that uses your school email to link it.", 403)
+    account_emails.add_verified(db, user, launch.email, source="canvas")
     existing = db.exec(select(CanvasUserLink).where(
         CanvasUserLink.connection_id == launch.connection.id,
         CanvasUserLink.canvas_user_id == launch.canvas_user_id,

@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, func, or_, select
 from src.db.audit_logs import AuditLog
+from src.services.users.account_emails import find_user
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
@@ -307,7 +308,7 @@ def create_global_user(db_session: Session, payload: GlobalUserCreate) -> dict:
 
     if db_session.exec(select(User).where(User.username == payload.username)).first():
         raise HTTPException(status_code=409, detail="Username already exists")
-    if db_session.exec(select(User).where(User.email == payload.email)).first():
+    if find_user(db_session, payload.email):
         raise HTTPException(status_code=409, detail="Email already exists")
 
     org: Organization | None = None
@@ -383,9 +384,7 @@ def update_global_user(
         user.username = payload.username
 
     if payload.email is not None and payload.email != user.email:
-        existing = db_session.exec(
-            select(User).where(User.email == payload.email)
-        ).first()
+        existing = find_user(db_session, payload.email)
         if existing and existing.id != user.id:
             raise HTTPException(status_code=409, detail="Email already exists")
         user.email = payload.email

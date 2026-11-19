@@ -2,13 +2,14 @@ from sqlmodel import Session, create_engine, select
 
 from src.db.messages import InboxMessage, InboxMessageTemplate
 from src.db.organizations import Organization
+from src.db.user_emails import UserEmail
 from src.db.users import PublicUser, User
 from src.services import messages
 
 
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    for model in (Organization, User, InboxMessageTemplate, InboxMessage):
+    for model in (Organization, User, UserEmail, InboxMessageTemplate, InboxMessage):
         model.__table__.create(engine)
     return Session(engine)
 

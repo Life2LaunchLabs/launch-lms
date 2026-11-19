@@ -45,6 +45,7 @@ from src.services.users.email_verification import (
     verify_email_token,
 )
 from src.services.orgs.owner import require_owner_org
+from src.services.users.account_emails import find_user
 
 
 def get_token_expiry_ms() -> int | None:
@@ -128,7 +129,7 @@ async def check_welcome_signup_email(
     body: WelcomeSignupEmailCheckRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    existing = db_session.exec(select(User).where(User.email == body.email)).first()
+    existing = find_user(db_session, body.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
     return {"available": True}
@@ -143,7 +144,7 @@ async def complete_welcome_signup(
 ):
     owner_org = require_owner_org(db_session)
 
-    existing = db_session.exec(select(User).where(User.email == body.email)).first()
+    existing = find_user(db_session, body.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
 
@@ -280,8 +281,7 @@ async def login(
         )
 
     # Step 2: Get user to check lockout status
-    statement = select(User).where(User.email == username)
-    user_record = db_session.exec(statement).first()
+    user_record = find_user(db_session, username)
 
     if user_record:
         # Step 3: Check if account is locked
@@ -496,8 +496,7 @@ async def api_change_email(
         raise HTTPException(status_code=404, detail="User not found")
     if user.email_verified:
         raise HTTPException(status_code=409, detail="Verified emails cannot be changed here")
-    duplicate = db_session.exec(select(User).where(User.email == email, User.id != user.id)).first()
-    if duplicate:
+    if find_user(db_session, email) not in (None, user):
         raise HTTPException(status_code=409, detail="Email already exists")
 
     invalidate_verification_tokens(user.user_uuid, "none")

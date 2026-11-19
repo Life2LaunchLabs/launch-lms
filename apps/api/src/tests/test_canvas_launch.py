@@ -124,9 +124,12 @@ def _launch(client, **claims):
     return client.post("/api/v1/lti/launch", data={"id_token": _token(nonce, **claims), "state": state}), state
 
 
-def _session(client, launch_html: str):
+def _session(client, launch_html: str, new: bool = True):
     ticket = _form_value(launch_html, "ticket")
-    return client.post("/api/v1/lti/session", data={"ticket": ticket, "mode": "frame"})
+    response = client.post("/api/v1/lti/session", data={"ticket": ticket, "mode": "frame"})
+    if new and "I'm new to Life2Launch" in response.text:  # first time, no account with this email: say so (DEV-199)
+        response = client.post("/api/v1/lti/session", data={"ticket": _form_value(response.text, "ticket"), "mode": "frame"})
+    return response
 
 
 def _set_cookies(response) -> dict:

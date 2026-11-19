@@ -10,7 +10,7 @@ import html
 import logging
 from urllib.parse import quote, urlencode
 
-from sqlmodel import Session, func, select
+from sqlmodel import Session
 
 from src.db.goal_sharing import PlanInvitation, PlanInvitationKind, PlanRole
 from src.db.goals import Goal
@@ -19,6 +19,7 @@ from src.db.users import User
 from src.services.email.utils import send_email
 from src.services.oauth.config import frontend_url
 from src.services.orgs.owner import owner_org
+from src.services.users import account_emails
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +79,7 @@ def invitation_text(db: Session, goal: Goal, invitation: PlanInvitation, role: P
 
 
 def _greeting(db: Session, invitation: PlanInvitation) -> str:
-    target = db.get(User, invitation.target_user_id) if invitation.target_user_id else db.exec(
-        select(User).where(func.lower(User.email) == str(invitation.email).strip().lower())).first()
+    target = db.get(User, invitation.target_user_id) if invitation.target_user_id else account_emails.find_user(db, invitation.email)
     name = _first_name(target)
     return f"Hi {name}," if name else "Hi there,"
 
@@ -89,7 +89,7 @@ def send_plan_invitation(db: Session, goal: Goal, invitation: PlanInvitation, ro
     org = db.get(Organization, goal.org_id) if goal.org_id else owner_org(db)
     path = invitation_path(org, invitation)
     link = f"{frontend_url()}{path}"
-    has_account = bool(db.exec(select(User.id).where(func.lower(User.email) == str(invitation.email).strip().lower())).first())
+    has_account = account_emails.find_user(db, invitation.email) is not None
     if not has_account:
         link = f"{frontend_url()}/signup?{urlencode({'email': invitation.email, 'next': path})}"  # no account yet: signup, then the invitation
     text = html.escape(invitation_text(db, goal, invitation))
