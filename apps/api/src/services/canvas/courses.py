@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 
-from src.db.canvas import CanvasCourseGroup
+from src.db.canvas import CanvasConnection, CanvasCourseGroup
 from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -30,6 +30,33 @@ def _now() -> str:
 
 def _name(launch: Launch) -> str:
     return (launch.course_title or "").strip()[:200] or "Canvas course"
+
+
+def course_group_ids(db: Session, org_id: int, group_ids: list[int] | None = None) -> set[int]:
+    """Which of the organization's groups are Canvas course groups. They take group plans on every tier,
+    since Canvas is on every tier and a teacher follows their class through the plans they give it (UT-42)."""
+    statement = select(CanvasCourseGroup.usergroup_id).join(CanvasConnection, CanvasConnection.id == CanvasCourseGroup.connection_id).where(
+        CanvasConnection.org_id == org_id)
+    if group_ids is not None:
+        if not group_ids:
+            return set()
+        statement = statement.where(CanvasCourseGroup.usergroup_id.in_(group_ids))  # type: ignore[attr-defined]
+    return {int(group_id) for group_id in db.exec(statement).all()}
+
+
+def assignable_course_groups(db: Session, user_id: int, org_id: int) -> list[dict]:
+    """The Canvas course groups staff can hand a plan to, for the assign flow on a tier without groups."""
+    from sqlalchemy import func
+
+    from src.security.org_auth import require_org_admin
+
+    require_org_admin(user_id, org_id, db, "run_assignments")
+    ids = course_group_ids(db, org_id)
+    if not ids:
+        return []
+    counts = dict(db.exec(select(UserGroupUser.usergroup_id, func.count()).where(UserGroupUser.usergroup_id.in_(ids)).group_by(UserGroupUser.usergroup_id)).all())  # type: ignore[attr-defined, arg-type]
+    groups = db.exec(select(UserGroup).where(UserGroup.id.in_(ids)).order_by(UserGroup.name)).all()  # type: ignore[union-attr]
+    return [{"id": group.id, "name": group.name, "member_count": counts.get(group.id, 0), "canvas_course": True} for group in groups]
 
 
 def course_group(db: Session, launch: Launch) -> UserGroup | None:

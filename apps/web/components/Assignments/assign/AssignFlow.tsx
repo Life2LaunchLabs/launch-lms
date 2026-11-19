@@ -43,7 +43,8 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
   const token: string | undefined = session?.data?.tokens?.access_token
   const me = session?.data?.user
   const orgId = Number(org?.id)
-  const canGroups = useFeatures().has('groups')
+  // Group plans need Full, except Canvas course groups, which take them on every tier.
+  const fullGroups = useFeatures().has('groups')
   const router = useRouter()
 
   const [open, setOpen] = React.useState(false)
@@ -58,7 +59,9 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
   const [saving, setSaving] = React.useState(false)
   const [made, setMade] = React.useState<Made[] | null>(null)
 
-  const data = useAssignData({ orgId, token, open, templateUuid, query, staffQuery, groups: canGroups })
+  const data = useAssignData({ orgId, token, open, templateUuid, query, staffQuery, groups: fullGroups ? 'all' : 'courses' })
+  const groups = data.groups
+  const canGroups = groups.length > 0 || fullGroups
   const template = data.template
   const document = template ? template.live_document || template.document : null
   const plan: AssignmentPlan | null = template ? { template_uuid: template.template_uuid, title: template.title, thumbnail_image: template.thumbnail_image, icon: template.icon, color: template.color, version: template.published_version } : null
@@ -66,10 +69,10 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
   // Who it starts with: the people and groups the flow was opened for, once their names are known.
   React.useEffect(() => {
     if (!open || picks.length || (!initialGroupIds.length && !initialUserIds.length)) return
-    const groups = data.groups.filter((group) => initialGroupIds.includes(group.id)).map((group): Recipient => ({ kind: 'group', id: group.id, name: group.name, count: group.member_count }))
+    const starting = groups.filter((group) => initialGroupIds.includes(group.id)).map((group): Recipient => ({ kind: 'group', id: group.id, name: group.name, count: group.member_count }))
     const people = data.people.filter((item) => initialUserIds.includes(item.user.id)).map((item): Recipient => ({ kind: 'member', id: item.user.id, name: item.user.name, username: item.user.username, avatar_image: item.user.avatar_image, user_uuid: item.user.user_uuid }))
-    if (groups.length || people.length) setPicks([...groups, ...people])
-  }, [open, data.groups, data.people, initialGroupIds, initialUserIds, picks.length])
+    if (starting.length || people.length) setPicks([...starting, ...people])
+  }, [open, groups, data.people, initialGroupIds, initialUserIds, picks.length])
   React.useEffect(() => {
     if (!document || schedule) return
     setSchedule(defaultSchedule(document))
@@ -129,8 +132,8 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
   const eyebrow = template ? `Assign ${template.title} · ${step + 1} of ${FLOW_STEPS.length}` : ''
 
   const left = !template || !document || !schedule ? null : step === 0 ? <>
-    <StepHead eyebrow={eyebrow} title="Who is it for?" lede={`Add people${canGroups ? ' and groups' : ''}. Type an email to invite someone new${canGroups ? ', or a new name to create a group' : ''}. Each one gets its own assignment.`} />
-    <WhoStep picks={picks} setPicks={setPicks} query={query} setQuery={setQuery} groups={data.groups} people={data.people} canGroups={canGroups} taken={taken} />
+    <StepHead eyebrow={eyebrow} title="Who is it for?" lede={`Add people${canGroups ? ' and groups' : ''}. Type an email to invite someone new${fullGroups ? ', or a new name to create a group' : ''}. Each one gets its own assignment.`} />
+    <WhoStep picks={picks} setPicks={setPicks} query={query} setQuery={setQuery} groups={groups} people={data.people} canGroups={canGroups} newGroups={fullGroups} taken={taken} />
   </> : step === 1 ? <>
     <StepHead eyebrow={eyebrow} title="Schedule" lede={schedule.mode === 'sched' ? 'Set when each stage starts. Steps follow their stage unless you give them dates.' : inOrgWords('Learners go through the steps in order, at their own pace.')} />
     <ScheduleStep schedule={schedule} setSchedule={setSchedule} onStart={(start) => setSchedule(moveStart(schedule, start))} />

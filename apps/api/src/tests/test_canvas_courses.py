@@ -58,3 +58,39 @@ def test_a_launch_from_outside_a_course_makes_no_group(client, db):  # noqa: F81
     page = _session(client, _launch(client, **{f"{LTI}context": None})[0].text)
     assert page.status_code == 200 and _destination(page.text).endswith("/plans")
     assert db.exec(select(UserGroup)).first() is None
+
+
+def test_a_course_group_takes_group_plans_on_every_tier(client, db):  # noqa: F811
+    """UT-42: on Free a teacher gives their course group a plan, so Insights can show the class's progress."""
+    import pytest
+    from fastapi import HTTPException
+
+    from src.db.goals import GoalAssignment
+    from src.routers.goal_admin import _require_assignment_plan, _require_group_plans
+    from src.security.access.access import org_access
+    from src.services.canvas.courses import assignable_course_groups, course_group_ids
+
+    _session(client, _launch(client)[0].text)
+    _session(client, _launch(client, sub="canvas-teacher", email="rivera@ridge.example.com", name="Ana Rivera", **{f"{LTI}roles": [INSTRUCTOR]})[0].text)
+    course = db.exec(select(UserGroup)).one()
+    other = UserGroup(org_id=2, name="Homeroom", description="", usergroup_uuid="usergroup_homeroom", creation_date="", update_date="")
+    db.add(other)
+    db.commit()
+    assert not org_access(2, db).has("groups")
+    assert course_group_ids(db, 2) == {course.id} and course_group_ids(db, 2, [other.id]) == set() and course_group_ids(db, 1) == set()
+
+    teacher = _user(db, "rivera@ridge.example.com")
+    assert assignable_course_groups(db, teacher.id, 2) == [{"id": course.id, "name": "Careers 101", "member_count": 1, "canvas_course": True}]
+    with pytest.raises(HTTPException):
+        assignable_course_groups(db, _user(db, "maya@ridge.example.com").id, 2)
+
+    _require_group_plans(2, db, read=True, usergroup_id=course.id)
+    with pytest.raises(HTTPException):
+        _require_group_plans(2, db, read=True, usergroup_id=other.id)
+
+    for uuid, group in (("goal_assignment_course", course), ("goal_assignment_homeroom", other)):
+        db.add(GoalAssignment(assignment_uuid=uuid, org_id=2, template_id=None, version_id=None, usergroup_id=group.id, creation_date="", update_date=""))
+    db.commit()
+    _require_assignment_plan(2, "goal_assignment_course", db)
+    with pytest.raises(HTTPException):
+        _require_assignment_plan(2, "goal_assignment_homeroom", db)
