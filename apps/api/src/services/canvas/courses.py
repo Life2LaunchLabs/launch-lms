@@ -80,6 +80,22 @@ def add_member(db: Session, group: UserGroup, user_id: int) -> bool:
     return True
 
 
+def remove_member(db: Session, group: UserGroup, user_id: int) -> bool:
+    """Take a learner off a group as staff removing them would (they stay in the school). False when not in it."""
+    from src.services.connect import cohort
+    from src.services.school import group_chats
+
+    group_id = int(group.id)  # type: ignore[arg-type]
+    row = db.exec(select(UserGroupUser).where(UserGroupUser.usergroup_id == group_id, UserGroupUser.user_id == user_id)).first()
+    if row is None:
+        return False
+    db.delete(row)
+    db.flush()
+    group_chats.members_left(db, group, [str(user_id)])
+    cohort.sync_group(db, group_id)
+    return True
+
+
 def add_staff(db: Session, group: UserGroup, user_id: int) -> bool:
     """Put a teacher on a course group's staff: its learners' goals, chat and cohort follow. False when already on it."""
     from src.services.connect import cohort
