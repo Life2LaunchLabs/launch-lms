@@ -350,6 +350,15 @@ def test_a_groups_header_lists_its_staff_first_for_admins_and_its_own_people():
         assert feed.group_detail(db, _user(ADMIN), 1, 1)["can_manage"]
         with pytest.raises(HTTPException):
             feed.group_detail(db, _user(LEARNER), 1, 1)
+        # Staff on the default permissions (no manage_learners) see the list but can't change it (FEED-652).
+        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == TEACHER)).one()
+        membership.role_id, membership.permissions = 2, None
+        db.commit()
+        group = feed.group_detail(db, _user(TEACHER), 1, 1)
+        assert not group["can_manage"] and [item["user"]["username"] for item in group["people"]] == ["teach", "lee", "sam"]
+        membership.permissions = ["manage_learners"]
+        db.commit()
+        assert feed.group_detail(db, _user(TEACHER), 1, 1)["can_manage"]
 
 
 def test_a_new_groups_chat_opens_with_who_created_it_and_it_lands_on_top(monkeypatch):

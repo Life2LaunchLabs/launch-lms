@@ -28,7 +28,7 @@ type GroupTab = 'people' | 'plans' | 'join'
 
 /** A group's profile under Threads: People (staff first), Plans (one assignment's learners at a time) and its Join link. */
 export default function GroupProfile({ orgslug, groupId, view, compact }: { orgslug: string; groupId: number; view?: GroupView; compact?: boolean }) {
-  const { org, token, isAdmin } = usePeopleContext()
+  const { org, token } = usePeopleContext()
   const { data: group, error, mutate } = useGroupDetail(groupId)
   const features = useFeatures()
   const openThread = useOpenThread(orgslug)
@@ -36,7 +36,8 @@ export default function GroupProfile({ orgslug, groupId, view, compact }: { orgs
   const [managing, setManaging] = React.useState(false)
   const [shown, setShown] = React.useState<GroupTab>(view === 'plans' || view === 'join' ? view : 'people')
   React.useEffect(() => setShown(view === 'plans' || view === 'join' ? view : 'people'), [view])
-  const canManage = Boolean(group?.can_manage || isAdmin)
+  // The server says who may change its people (admins, and staff allowed to manage learners); other staff see the list.
+  const canManage = Boolean(group?.can_manage)
   const tabs: GroupTab[] = canManage ? ['people', 'plans', 'join'] : ['people', 'plans']
   const current = tabs.includes(shown) ? shown : 'people'
   const labels: Record<GroupTab, string> = { people: `People${group ? ` · ${group.people.length}` : ''}`, plans: 'Plans', join: 'Join link' }

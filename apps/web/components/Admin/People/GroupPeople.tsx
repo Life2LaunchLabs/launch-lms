@@ -94,7 +94,20 @@ export function GroupPeople({ groupId, onChanged }: { groupId: number; onChanged
   const staff = useGroupStaff(orgId, groupId, token)
   const { data: group } = useGroupDetail(groupId)
   const [busy, setBusy] = React.useState<number | null>(null)
-  if (staff.error) return <section><Heading count={0} /><p className="mt-2 text-sm text-muted-foreground">Only admins can change a group&rsquo;s people.</p></section>
+  // Not allowed to change them: still show who's in it, read-only (FEED-652).
+  if (staff.error) return <section className="space-y-3">
+    <Heading count={group?.people.length || 0} />
+    {group?.people.length ? <ul aria-label="People in this group, staff first" className="divide-y divide-border">
+      {group.people.map((item) => <li key={`${item.as}-${item.user.id}`} className="flex items-center gap-3 py-3">
+        <PersonAvatar user={item.user as any} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{item.user.name}</span>{item.as === 'staff' ? <RoleTag role="staff" /> : memberTag(item)}</p>
+          <p className="truncate text-xs text-muted-foreground">@{item.user.username}{item.status === 'alumni' ? ' · Alumni' : ''}</p>
+        </div>
+      </li>)}
+    </ul> : null}
+    <p className="text-xs text-muted-foreground">Only admins can change a group&rsquo;s people.</p>
+  </section>
   if (!staff.data || !group) return <section><Heading count={0} /><div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div></section>
 
   const members = group.people.filter((item) => item.as === 'member')
