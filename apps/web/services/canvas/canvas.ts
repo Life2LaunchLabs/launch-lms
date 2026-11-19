@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader } from '@services/utils/ts/requests'
+import { refusalMessage } from '@/lib/errorDetail'
 
 /** What the school's Canvas admin needs to add Life2Launch (API: src/services/canvas/settings.py). */
 export interface CanvasToolDetails {
@@ -37,10 +38,8 @@ export interface CanvasSettingsUpdate {
 
 async function result(response: Response): Promise<CanvasSettings> {
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    const detail = typeof body?.detail === 'string' ? body.detail : 'That didn’t save. Try again in a moment.'
-    throw new Error(detail)
-  }
+  // The server's reason when it gives one; "try again" only when a retry can help (DEV-189).
+  if (!response.ok) throw new Error(refusalMessage(response.status, body))
   return body
 }
 
@@ -49,14 +48,20 @@ export async function getCanvasSettings(orgId: number, accessToken?: string): Pr
 }
 
 export async function saveCanvasSettings(orgId: number, body: CanvasSettingsUpdate, accessToken?: string): Promise<CanvasSettings> {
-  return result(await fetch(`${getAPIUrl()}lti/orgs/${orgId}/connection`, RequestBodyWithAuthHeader('PUT', body, null, accessToken)))
+  let response: Response
+  try {
+    response = await fetch(`${getAPIUrl()}lti/orgs/${orgId}/connection`, RequestBodyWithAuthHeader('PUT', body, null, accessToken))
+  } catch {
+    throw new Error(refusalMessage(0, null)) // no answer at all: a retry can help
+  }
+  return result(response)
 }
 
 /** A 60-second one-use ticket that signs this person in, first-party, in a tab of our own (DEV-174). */
 export async function getCanvasTabTicket(orgId: number, path: string, accessToken?: string): Promise<{ ticket: string }> {
   const response = await fetch(`${getAPIUrl()}lti/tab-ticket`, RequestBodyWithAuthHeader('POST', { org_id: orgId, path }, null, accessToken))
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(typeof body?.detail === 'string' ? body.detail : 'Couldn’t open a new tab. Try again.')
+  if (!response.ok) throw new Error(refusalMessage(response.status, body, 'Couldn’t open a new tab'))
   return body
 }
 
@@ -91,6 +96,6 @@ export interface CanvasClassListPull {
 export async function pullCanvasClassList(orgId: number, groupId: number, accessToken?: string): Promise<CanvasClassListPull> {
   const response = await fetch(`${getAPIUrl()}lti/orgs/${orgId}/groups/${groupId}/class-list`, RequestBodyWithAuthHeader('POST', null, null, accessToken))
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(typeof body?.detail === 'string' ? body.detail : 'Canvas didn’t answer. Try again in a moment.')
+  if (!response.ok) throw new Error(refusalMessage(response.status, body, 'Couldn’t update from Canvas'))
   return body
 }
