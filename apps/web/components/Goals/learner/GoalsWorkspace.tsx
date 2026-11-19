@@ -30,6 +30,7 @@ import { phaseOfGoal, phaseTimes } from './phases'
 import { GoalPathSkeleton } from './GoalStepRow'
 import useGoalColors from './useGoalColors'
 import useStartGoal, { launchPath } from './useStartGoal'
+import PersonalEmailPrompt from '@components/Objects/Account/emails/PersonalEmailPrompt'
 
 import { tr } from '@/lib/tr'
 const EMPTY: GoalSummary[] = []
@@ -234,6 +235,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
         <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug}>
+        {selectedUuid ? null : <PersonalEmailPrompt />}
         {strip}
         {goal && goal.ownership === 'personal' && goal.status === 'active' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
         {/* Clips the swipe between views at the page edges, not the content edges, so full-width bands still reach them. */}

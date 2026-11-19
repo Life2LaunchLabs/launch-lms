@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, select
 from starlette.concurrency import run_in_threadpool
 
 from src.db.organization_invitations import InviteUsersRequest, OrganizationInvitation
@@ -25,6 +25,7 @@ from src.security.rbac.constants import USER_ROLE_ID
 from src.services import portfolio_import_bulk as bulk
 from src.services.email.utils import EmailDeliveryError, get_base_url_from_request, send_email
 from src.services.portfolio_import_sources import cis_export, read_cis_workbook
+from src.services.users import account_emails
 
 logger = logging.getLogger(__name__)
 HOLD_DAYS = 60
@@ -83,7 +84,7 @@ async def run_forever(engine, every: int = 900) -> None:
 
 
 def _member(db: Session, org_id: int, email: str) -> User | None:
-    user = db.exec(select(User).where(func.lower(User.email) == email)).first()
+    user = account_emails.find_user(db, email)
     if user and db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user.id)).first():
         return user
     return None
@@ -277,10 +278,9 @@ async def after_accept(db: Session, invitation: OrganizationInvitation, user_id:
 
 def _mine(db: Session, current_user: PublicUser):
     """Held CIS work the learner can bring in now: theirs by account or email, and not waiting on an invitation."""
-    email = " ".join(str(current_user.email or "").split()).lower()
     rows = db.exec(select(HeldPortfolioImport).where(
         HeldPortfolioImport.status == "held",
-        (HeldPortfolioImport.target_user_id == current_user.id) | (HeldPortfolioImport.email_normalized == email),
+        (HeldPortfolioImport.target_user_id == current_user.id) | account_emails.matches(HeldPortfolioImport.email_normalized, current_user),
     )).all()
     invitations = {row.id: row for row in db.exec(select(OrganizationInvitation).where(col(OrganizationInvitation.id).in_([held.invitation_id for held in rows if held.invitation_id]))).all()} if rows else {}
     member_of = set(db.exec(select(UserOrganization.org_id).where(UserOrganization.user_id == current_user.id)).all())

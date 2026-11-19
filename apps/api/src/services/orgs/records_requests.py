@@ -38,6 +38,7 @@ from src.services.orgs import records_access, removals
 from src.services.orgs.owner import owner_org
 from src.services.school import roles
 from src.services.utils.storage import read_file_content
+from src.services.users import account_emails
 
 logger = logging.getLogger(__name__)
 
@@ -400,7 +401,7 @@ def _remove_org_rows(db: Session, org_id: int, user: User) -> None:
     from src.db.plan_joining import PlanJoinRequest
 
     user_id = int(user.id)  # type: ignore[arg-type]
-    email = (user.email or "").strip().lower()
+    emails = account_emails.emails_of(db, user_id)
     chats = db.exec(select(Conversation.id).where(Conversation.org_id == org_id, Conversation.direct_key == f"school:{org_id}:{user_id}")).all()
     if chats:
         db.exec(sql_delete(ConversationMessage).where(col(ConversationMessage.conversation_id).in_(chats)))  # type: ignore[call-overload]
@@ -412,10 +413,10 @@ def _remove_org_rows(db: Session, org_id: int, user: User) -> None:
     db.exec(sql_delete(GoalAssignment).where(GoalAssignment.org_id == org_id, GoalAssignment.user_id == user_id))  # type: ignore[call-overload]
     db.exec(sql_delete(EppCourse).where(EppCourse.org_id == org_id, EppCourse.user_id == user_id))  # type: ignore[call-overload]
     db.exec(sql_delete(OrganizationInvitation).where(OrganizationInvitation.org_id == org_id, or_(  # type: ignore[call-overload]
-        OrganizationInvitation.target_user_id == user_id, *([OrganizationInvitation.email_normalized == email] if email else []))))
+        OrganizationInvitation.target_user_id == user_id, col(OrganizationInvitation.email_normalized).in_(emails))))
     org_goals = select(Goal.id).where(Goal.org_id == org_id)
     db.exec(sql_delete(PlanInvitation).where(col(PlanInvitation.goal_id).in_(org_goals), or_(  # type: ignore[call-overload]
-        PlanInvitation.target_user_id == user_id, *([PlanInvitation.email_normalized == email] if email else []))))
+        PlanInvitation.target_user_id == user_id, col(PlanInvitation.email_normalized).in_(emails))))
     db.exec(sql_delete(OrganizationJoinRequest).where(OrganizationJoinRequest.org_id == org_id, OrganizationJoinRequest.user_id == user_id))  # type: ignore[call-overload]
     db.exec(sql_delete(PlanJoinRequest).where(PlanJoinRequest.org_id == org_id, PlanJoinRequest.user_id == user_id))  # type: ignore[call-overload]
     connections = select(CanvasConnection.id).where(CanvasConnection.org_id == org_id)

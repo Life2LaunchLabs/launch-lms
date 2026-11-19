@@ -13,7 +13,6 @@ import {
   FileWarning,
   Info,
   ImageIcon,
-  AlertTriangle,
   UserRound,
 } from 'lucide-react'
 import { settingsCard, SettingsHeader } from '@components/Objects/Account/AccountPageShell'
@@ -86,25 +85,11 @@ const UserEditForm = ({
         <div className="flex flex-col gap-8 lg:flex-row">
           {/* Portfolio Information Section */}
           <div className="flex-1 min-w-0 space-y-4">
+            {/* Emails are managed in "Your emails" below: several per account, one main (DEV-198). */}
             <div>
-              <Label htmlFor="email">{t('user.settings.general.email')}</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={values.email}
-                onChange={handleChange}
-                placeholder={t('user.settings.general.email_placeholder')}
-              />
-              {touched.email && errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-              )}
-              {values.email !== values.email && (
-                <div className="flex items-center space-x-2 mt-2 text-amber-600 bg-amber-50 p-2 rounded-md">
-                  <AlertTriangle size={16} />
-                  <span className="text-sm">{t('user.settings.general.logout_warning')}</span>
-                </div>
-              )}
+              <p className="text-sm font-medium">{t('user.settings.general.email')}</p>
+              <p className="mt-1 break-all text-sm">{values.email}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{t('user.settings.general.emails_below', { defaultValue: 'Add or change emails in Your emails.' })}</p>
             </div>
 
             <div>

@@ -13,6 +13,7 @@ from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroups import UserGroup
+from src.db.user_emails import UserEmail
 from src.db.users import AnonymousUser, PublicUser, User, UserCreate, UserRead
 from src.security.access.access import count_usage
 from src.db.organization_removals import OrganizationRemoval
@@ -35,7 +36,7 @@ NOW = datetime.utcnow().replace(microsecond=0)
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    for model in (Organization, User, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage, OrganizationRemoval):
+    for model in (Organization, User, UserEmail, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage, OrganizationRemoval):
         model.__table__.create(engine)
     with Session(engine) as db_session:
         yield db_session
@@ -367,7 +368,7 @@ async def test_existing_user_joining_from_a_group_join_link_lands_in_the_group(s
     redeemed: list[str] = []
     monkeypatch.setattr(join_service, "get_org_join_mechanism", mechanism)
     monkeypatch.setattr(join_service, "get_invite_code", join_link)
-    monkeypatch.setattr(join_service, "redeem_join_link", lambda _session, link_uuid, _email: redeemed.append(link_uuid))
+    monkeypatch.setattr(join_service, "redeem_join_link", lambda _session, link_uuid, _email, _also=(): redeemed.append(link_uuid))
     monkeypatch.setattr(join_service, "add_users_to_usergroup", add_to_group)
     monkeypatch.setattr("src.routers.users._invalidate_session_cache", lambda *_args: None)
 

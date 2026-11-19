@@ -518,8 +518,8 @@ async def find_or_create_sso_user(
         HTTPException: If user doesn't exist and auto-provisioning is disabled
     """
     # Look for existing user by email
-    user_statement = select(User).where(User.email == profile.email)
-    user = db_session.exec(user_statement).first()
+    from src.services.users.account_emails import find_user
+    user = find_user(db_session, profile.email)
 
     if user:
         # Check if user is already in the organization

@@ -11,10 +11,10 @@ from fastapi import HTTPException, Request
 from pydantic import EmailStr
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationRead
+from src.services.users.account_emails import find_user
 from src.db.users import (
     AnonymousUser,
     PublicUser,
-    User,
     UserRead,
 )
 from src.security.security import security_hash_password
@@ -89,8 +89,7 @@ async def send_reset_password_code(
         )
 
     # Get user - SECURITY: Don't reveal if user exists or not
-    statement = select(User).where(User.email == email)
-    user = db_session.exec(statement).first()
+    user = find_user(db_session, email)  # main or spare email (DEV-197)
 
     # SECURITY FIX: Always return success message to prevent user enumeration
     # Log the attempt for security monitoring
@@ -150,7 +149,7 @@ async def send_reset_password_code(
         generated_reset_code=generated_reset_code,
         user=user_read,
         organization=org_read,
-        email=user_read.email,
+        email=email,  # the address they typed: it's on their account, and they may have lost the main one
         base_url=base_url,
     )
 
@@ -206,8 +205,7 @@ async def change_password_with_reset_code(
         )
 
     # Get user - SECURITY: Use generic error message
-    statement = select(User).where(User.email == email)
-    user = db_session.exec(statement).first()
+    user = find_user(db_session, email)  # main or spare email (DEV-197)
 
     # SECURITY FIX: Generic error message to prevent enumeration
     if not user:
@@ -308,8 +306,7 @@ async def send_reset_password_code_platform(
     - Returns generic message to prevent user enumeration
     - Logs attempts for security audit
     """
-    statement = select(User).where(User.email == email)
-    user = db_session.exec(statement).first()
+    user = find_user(db_session, email)  # main or spare email (DEV-197)
 
     if not user:
         logging.info(f"Password reset requested for non-existent email: {email[:3]}***")
@@ -343,7 +340,7 @@ async def send_reset_password_code_platform(
     isEmailSent = send_password_reset_email_platform(
         generated_reset_code=generated_reset_code,
         user=user_read,
-        email=user_read.email,
+        email=email,  # the address they typed: it's on their account, and they may have lost the main one
         base_url=base_url,
     )
 
@@ -386,8 +383,7 @@ async def change_password_with_reset_code_platform(
             },
         )
 
-    statement = select(User).where(User.email == email)
-    user = db_session.exec(statement).first()
+    user = find_user(db_session, email)  # main or spare email (DEV-197)
 
     if not user:
         logging.warning(f"Password change attempted for non-existent email: {email[:3]}***")

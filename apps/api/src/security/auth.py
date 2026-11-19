@@ -7,7 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import PyJWTError
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.security import ALGORITHM, SECRET_KEY
@@ -175,7 +175,10 @@ def _user_by_email(db_session: Session, email: str) -> User | None:
     (unstable, 2026-11-10: about 18 minutes at a time). Ending the transaction here keeps a request
     from holding a connection while it waits for its turn to run the route.
     """
-    found = db_session.exec(select(User).where(User.email == email)).first()
+    from src.services.users.account_emails import find_user
+
+    # A session made before someone changed their main email names the old one, now a spare (DEV-197).
+    found = find_user(db_session, email)
     user = User(**found.model_dump()) if found else None
     db_session.commit()
     return user

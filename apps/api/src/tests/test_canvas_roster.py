@@ -332,3 +332,24 @@ def test_a_student_who_left_the_course_leaves_its_group_but_not_the_school(clien
     result = roster.apply_roster(db, link, [], teacher.id)
     db.expire_all()
     assert result.left == 0 and _members(db, group) == {maya.id, jo.id}
+
+
+def test_a_class_list_invitation_to_a_second_email_reaches_the_account(client, db, canvas):  # noqa: F811
+    from src.db.users import PublicUser
+    from src.services.orgs.users import get_my_organization_invitations
+    from src.services.users import account_emails
+
+    canvas.members = [_student("canvas-ivy", "ivy@ridge.example.com", "Ivy Chen")]
+    ivy = User(email="ivy.chen@example.com", username="ivy", first_name="Ivy", last_name="Chen", password="x", user_uuid="user_ivy")
+    db.add(ivy)
+    db.commit()
+    assert account_emails.add_verified(db, ivy, "Ivy@ridge.example.com", source="code")
+    db.commit()
+    _session(client, _launch(client, **TEACHER)[0].text)
+    [invitation] = _invitations(db)
+    assert invitation.email_normalized == "ivy@ridge.example.com"
+    assert [item["invitation_uuid"] for item in get_my_organization_invitations(PublicUser.model_validate(ivy), db)] == [invitation.invitation_uuid]
+    db.add(UserOrganization(user_id=ivy.id, org_id=2, role_id=4, creation_date="", update_date=""))
+    db.commit()
+    assert roster.settle_for_member(db, 2, ivy) == 1
+    assert ivy.id in _members(db, _group(db)) and not _invitations(db)

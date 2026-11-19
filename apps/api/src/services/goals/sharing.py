@@ -45,6 +45,7 @@ from src.services.goals.sharing_roles import (
     user_summary,
 )
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
+from src.services.users import account_emails
 
 
 # Invitations ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ def _recipient(db: Session, raw: str) -> tuple[str, User | None]:
         return user.email, user
     if "@" not in value:
         raise HTTPException(status_code=422, detail="A valid email is required")
-    return value, db.exec(select(User).where(User.email == value)).first() or db.exec(select(User).where(User.email == value.lower())).first()
+    return value, account_emails.find_user(db, value)
 
 
 def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, payload: PlanInvitationCreate, requested_by: int | None = None) -> dict:
@@ -147,8 +148,7 @@ def revoke_invitation(db: Session, current_user: PublicUser, goal_uuid: str, inv
 
 
 def _mine(current_user: PublicUser):
-    normalized = str(current_user.email).strip().lower()
-    return (PlanInvitation.target_user_id == current_user.id) | (PlanInvitation.email_normalized == normalized)
+    return (PlanInvitation.target_user_id == current_user.id) | account_emails.matches(PlanInvitation.email_normalized, current_user)
 
 
 def list_my_invitations(db: Session, current_user: PublicUser) -> list[dict]:
@@ -217,7 +217,7 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
 
 def _request_dict(db: Session, item: PlanCollaboratorRequest) -> dict:
     # Someone already here shows by handle, so asking for them doesn't hand out their email.
-    member = db.exec(select(User).where(User.email == item.email)).first()
+    member = account_emails.find_user(db, item.email)
     return {
         "request_uuid": item.request_uuid, "email": f"@{member.username}" if member else item.email, "role_key": item.role_key, "message": item.message,
         "status": _value(item.status), "requested_by": user_summary(db, item.requested_by_user_id),

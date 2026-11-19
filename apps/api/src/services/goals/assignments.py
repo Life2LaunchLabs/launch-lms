@@ -53,6 +53,7 @@ from src.services.goals.assignment_staff import _apply_staff, _collaborators, _d
 from src.services.goals.assignment_summary import assignment_dict
 from src.services.goals.document import iter_steps
 from src.services.goals.issue import _step_due, issue_goal, stage_schedule
+from src.services.users import account_emails
 
 def _now() -> str:
     return datetime.now().isoformat()
@@ -63,7 +64,7 @@ def _iso(value: date | None) -> str | None:
 
 
 def _email_user(db: Session, email: str | None) -> User | None:
-    return db.exec(select(User).where(User.email == email.strip().lower())).first() if email else None
+    return account_emails.find_user(db, email)
 
 
 def _learners(db: Session, assignment: GoalAssignment) -> list[int]:

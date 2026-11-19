@@ -15,6 +15,7 @@ from src.services.orgs import removals, staff_setup
 from src.services.orgs.invitation_security import validate_invitation_acceptance
 from src.services.messages import resolve_action_by_dedupe
 from src.services.canvas.roster import is_class_list, settle_for_member
+from src.services.users import account_emails
 
 
 class JoinOrg(BaseModel):
@@ -88,7 +89,7 @@ async def join_org(
             select(OrganizationInvitation).where(
                 OrganizationInvitation.org_id == org.id,
                 OrganizationInvitation.invitation_uuid == args.invitation_token,
-                OrganizationInvitation.email_normalized == str(user.email).strip().casefold(),
+                account_emails.matches(OrganizationInvitation.email_normalized, user),
                 OrganizationInvitation.status == "pending",
                 OrganizationInvitation.expires_at > datetime.utcnow(),
             )
@@ -107,7 +108,7 @@ async def join_org(
             invitation = db_session.exec(
                 select(OrganizationInvitation).where(
                     OrganizationInvitation.org_id == org.id,
-                    OrganizationInvitation.email_normalized == str(user.email).strip().casefold(),
+                    account_emails.matches(OrganizationInvitation.email_normalized, user),
                     OrganizationInvitation.invite_code_uuid == inviteCode.get("invite_code_uuid"),
                     OrganizationInvitation.status == "pending",
                     OrganizationInvitation.expires_at > datetime.utcnow(),
@@ -153,7 +154,7 @@ async def join_org(
                     accepted=True,
                 )
             elif inviteCode:
-                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
+                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email), account_emails.emails_of(db_session, user.id))
             db_session.add(user_organization)
             db_session.commit()
 
@@ -210,7 +211,7 @@ async def join_org(
                     accepted=True,
                 )
             elif inviteCode:
-                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
+                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email), account_emails.emails_of(db_session, user.id))
             db_session.add(user_organization)
             db_session.commit()
 

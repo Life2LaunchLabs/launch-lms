@@ -5,10 +5,10 @@ from __future__ import annotations
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.users import User
+from src.services.users.account_emails import find_user
 from src.security.auth import (
     JWT_REFRESH_COOKIE_NAME,
     create_access_token,
@@ -37,7 +37,7 @@ def issue_handoff(request: Request, body: HandoffRequest, response: Response,
     refresh = request.cookies.get(JWT_REFRESH_COOKIE_NAME)
     payload = decode_refresh_token(refresh) if refresh else None
     email = payload.get("sub") if payload else None
-    if not email or not db_session.exec(select(User).where(User.email == email)).first():
+    if not email or not find_user(db_session, email):
         raise HTTPException(status_code=401, detail="Authentication required")
     test = None
     if test_sessions.is_test_session(payload):
@@ -62,7 +62,7 @@ def redeem_handoff(body: RedemptionRequest, response: Response,
     except (redis.RedisError, RuntimeError) as error:
         raise HTTPException(status_code=503, detail="Session handoff unavailable") from error
     email = ticket.get("email") if ticket else None
-    if not email or not db_session.exec(select(User).where(User.email == email)).first():
+    if not email or not find_user(db_session, email):
         raise HTTPException(status_code=401, detail="Invalid or expired handoff")
     response.headers["Cache-Control"] = "no-store"
     if ticket and ticket.get("test"):

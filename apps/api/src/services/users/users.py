@@ -45,6 +45,7 @@ from src.services.users.emails import (
     send_account_creation_email,
 )
 from src.services.users.usergroups import add_users_to_usergroup
+from src.services.users.account_emails import find_user
 from src.services.user_tests import invitees as test_invitees
 
 logger = logging.getLogger(__name__)
@@ -128,10 +129,7 @@ async def create_user(
         )
 
     # Email
-    statement = select(User).where(User.email == user.email)
-    result = db_session.exec(statement)
-
-    if result.first():
+    if find_user(db_session, user.email):  # main or spare email on any account (DEV-197)
         raise HTTPException(
             status_code=400,
             detail="Email already exists",
@@ -372,10 +370,7 @@ async def create_user_without_org(
         )
 
     # Email
-    statement = select(User).where(User.email == user.email)
-    result = db_session.exec(statement)
-
-    if result.first():
+    if find_user(db_session, user.email):  # main or spare email on any account (DEV-197)
         raise HTTPException(
             status_code=400,
             detail="Email already exists",
@@ -460,8 +455,7 @@ async def update_user(
             )
 
     # Email
-    statement = select(User).where(User.email == user_object.email)
-    email_user = db_session.exec(statement).first()
+    email_user = find_user(db_session, user_object.email)
 
     if email_user:
         isSameUser = email_user.id == current_user.id
@@ -474,6 +468,11 @@ async def update_user(
     # Update user; strip protected fields to prevent privilege escalation
     _PROTECTED_FIELDS = {"is_superadmin", "id", "user_uuid"}
     user_data = user_object.model_dump(exclude_unset=True)
+    if email_user is not None and email_user.id == user.id and str(user_object.email).strip().lower() != str(user.email).strip().lower():
+        from src.services.users import account_emails  # one of their spares: swap it in as main (DEV-197)
+
+        account_emails.make_main(db_session, user, str(user_object.email))
+        user_data.pop("email", None)
     for key, value in user_data.items():
         if key not in _PROTECTED_FIELDS:
             setattr(user, key, value)
@@ -870,9 +869,7 @@ async def security_get_user(request: Request, db_session: Session, email: str) -
     and prevent email enumeration vulnerabilities.
     """
     # Check if user exists
-    statement = select(User).where(User.email == email)
-    user = db_session.exec(statement).first()
-
+    user = find_user(db_session, email)  # sign in with the main email or any spare (DEV-197)
     if not user:
         return None
 

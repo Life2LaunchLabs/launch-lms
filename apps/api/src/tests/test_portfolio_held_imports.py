@@ -17,6 +17,7 @@ from src.db.portfolio_held_imports import HeldPortfolioImport
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroups import UserGroup
+from src.db.user_emails import UserEmail
 from src.db.users import PublicUser, User
 from src.services import portfolio_held_imports as held
 from src.services.orgs import invites as org_invites, users as org_users
@@ -30,7 +31,7 @@ REQUEST = Request({"type": "http", "scheme": "https", "server": ("studio.example
 @pytest.fixture
 def db():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    for model in (Organization, User, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage, HeldPortfolioImport):
+    for model in (Organization, User, UserEmail, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage, HeldPortfolioImport):
         model.__table__.create(engine)
     with Session(engine) as session:
         session.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com"))

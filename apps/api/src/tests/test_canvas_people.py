@@ -97,3 +97,63 @@ def test_a_full_school_tells_its_admins_once_a_day(client, db, monkeypatch):  # 
     item = RENDER["seat_limit_reached"](events[0], db.get(Organization, 2))
     assert "Maya Lopez" in item.line and "Careers 101" in item.line and "learner limit" in item.line
     assert item.link.endswith("/orgs/ridge/admin/org/settings/plan")
+
+
+def _choice(client):  # noqa: F811
+    """The first launch of someone whose Canvas email has no account: new, or sign in (DEV-199)."""
+    page = _session(client, _launch(client)[0].text, new=False)
+    assert "I'm new to Life2Launch" in page.text and "Already on Life2Launch? Sign in" in page.text
+    link = unescape(search(r'href="([^"]+/api/v1/lti/link\?t=[^"]+)"', page.text).group(1)).split("/api/v1", 1)[1]
+    tickets = [unescape(value) for value in __import__("re").findall(r'name="ticket" value="([^"]*)"', page.text)]
+    return page, "/api/v1" + link, tickets
+
+
+def test_someone_already_on_life2launch_signs_in_from_canvas_and_keeps_one_account(client, db):  # noqa: F811
+    from src.services.users import account_emails
+
+    jo = _outside_account(db, 62, "jo.personal@example.com")
+    page, path, (new_ticket, again_ticket) = _choice(client)
+    assert not db.exec(select(User).where(User.email == "maya@ridge.example.com")).first()  # nothing made yet
+
+    _signed_in_as(client, None)
+    assert "Sign in with your Life2Launch account" in client.get(path).text  # names no account
+    _signed_in_as(client, jo)
+    confirm = client.get(path)
+    assert "Link my account" in confirm.text and "maya@ridge.example.com" in confirm.text and "sign in with either" in confirm.text
+    done = client.post("/api/v1/lti/link", data={"t": unescape(search(r'name="t" value="([^"]+)"', confirm.text).group(1))})
+    assert done.status_code == 200 and "Open Life2Launch" in done.text and "/orgs/" not in done.text
+    assert account_emails.emails_of(db, 62) == {"jo.personal@example.com", "maya@ridge.example.com"}
+    assert db.exec(select(UserOrganization).where(UserOrganization.user_id == 62, UserOrganization.org_id == 2)).first()
+
+    # Back in the Canvas frame, Continue opens Jo's account.
+    client.app.dependency_overrides.pop(get_current_user)
+    opened = client.post("/api/v1/lti/session", data={"ticket": again_ticket, "mode": "frame"})
+    assert opened.status_code == 200 and "Welcome to Life2Launch" not in opened.text
+    assert db.exec(select(User).where(User.email == "maya@ridge.example.com")).first() is None
+    # And the Canvas email signs in to the same account from now on.
+    assert account_emails.find_user(db, "Maya@ridge.example.com").id == 62
+
+
+def test_continue_before_linking_asks_again_and_new_makes_the_account(client, db):  # noqa: F811
+    _page, _path, (new_ticket, again_ticket) = _choice(client)
+    again = client.post("/api/v1/lti/session", data={"ticket": again_ticket, "mode": "frame"})
+    assert "I'm new to Life2Launch" in again.text
+    made = client.post("/api/v1/lti/session", data={"ticket": new_ticket, "mode": "frame"})
+    assert made.status_code == 200
+    assert db.exec(select(User).where(User.email == "maya@ridge.example.com")).first()
+
+
+def test_a_new_tab_launch_keeps_its_mode_through_the_choice(client, db):  # noqa: F811
+    from src.tests.test_canvas_launch import _form_value
+
+    ticket = _form_value(_launch(client)[0].text, "ticket")
+    page = client.post("/api/v1/lti/session", data={"ticket": ticket, "mode": "tab"})
+    assert 'name="mode" value="tab"' in page.text and 'name="mode" value="frame"' not in page.text
+
+
+def test_an_account_whose_canvas_email_is_someone_elses_cant_link(client, db):  # noqa: F811
+    _page, path, _tickets = _choice(client)
+    _outside_account(db, 63, "maya@ridge.example.com")  # someone took the school email meanwhile
+    jo = _outside_account(db, 64, "jo.personal@example.com")
+    _signed_in_as(client, jo)
+    assert "different account" in client.get(path).text

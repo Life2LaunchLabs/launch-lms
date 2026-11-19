@@ -227,8 +227,9 @@ def _serialize_join_link(link: OrganizationJoinLink, token: str | None = None) -
     }
 
 
-def redeem_join_link(db_session: Session, link_uuid: str, email: str) -> OrganizationJoinLink:
-    """Recheck and consume a managed link as part of membership creation."""
+def redeem_join_link(db_session: Session, link_uuid: str, email: str, also: frozenset[str] | set[str] = frozenset()) -> OrganizationJoinLink:
+    """Recheck and consume a managed link as part of membership creation. ``also``: the account's other verified emails,
+    any of which can meet the link's approved domain."""
     link = db_session.exec(select(OrganizationJoinLink).where(
         OrganizationJoinLink.link_uuid == link_uuid,
         OrganizationJoinLink.status == "active",
@@ -237,7 +238,9 @@ def redeem_join_link(db_session: Session, link_uuid: str, email: str) -> Organiz
     )).first()
     if not link:
         raise HTTPException(status_code=400, detail="Invite link is no longer active")
-    if link.approved_email_domain and not email.strip().casefold().endswith(f"@{link.approved_email_domain}"):
+    if link.approved_email_domain and not any(
+        address.strip().casefold().endswith(f"@{link.approved_email_domain}") for address in (email, *also)
+    ):
         raise HTTPException(status_code=403, detail="Use an email address from the approved domain")
     link.redemption_count += 1
     if link.redemption_count >= link.max_redemptions:

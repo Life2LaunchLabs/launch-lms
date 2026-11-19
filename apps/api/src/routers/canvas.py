@@ -196,7 +196,7 @@ async def lti_session(
     try:
         if data.get("kind") == "launch":
             launch = _launch_from_ticket(db, data)
-            user, membership, _created = people.resolve_person(db, launch)
+            user, membership, _created = people.resolve_person(db, launch, new_ok=bool(data.get("new")))
             _invalidate_session_cache(user.id)  # a new membership or role shows at once
             group = courses.course_group(db, launch) if launch.course_id else None
             return_path = landing_path(membership.role_id, int(group.id) if group else None)
@@ -206,12 +206,25 @@ async def lti_session(
                 if link is not None and link.memberships_url:
                     background_tasks.add_task(roster.pull_after_launch, int(link.id), int(user.id))
         elif data.get("kind") == "session":
-            user = db.exec(select(User).where(User.email == data.get("email"))).first()
+            from src.services.users.account_emails import find_user
+
+            user = find_user(db, data.get("email"))
             if not user:
                 raise LaunchError("This link has expired. Open Life2Launch from Canvas again.", 401)
             return_path = canvas_session.safe_return_path(data.get("return", "/"))
         else:
             raise LaunchError("This link has expired. Open Life2Launch from Canvas again.", 401)
+    except people.ChooseAccount:
+        org = db.get(Organization, data.get("org_id"))
+        if not org:
+            return pages.error_page("This school isn't on Life2Launch any more.", 404)
+        base, ttl = canvas_session.org_base_url(db, org), canvas_session.LINK_TICKET_TTL_SECONDS
+        link_ticket = canvas_session.issue_ticket({**data, "kind": "link"}, ttl=ttl)
+        return pages.choose_account(
+            data.get("email") or "", org.name, f"{base}/api/v1/lti/session", "tab" if mode == "tab" else "frame",
+            canvas_session.issue_ticket({**data, "new": True}, ttl=ttl), canvas_session.issue_ticket(dict(data), ttl=ttl),
+            f"{base}/api/v1/lti/link?{urlencode({'t': link_ticket})}",
+        )
     except people.NeedsAccountLink:
         org = db.get(Organization, data.get("org_id"))
         if not org:
@@ -294,12 +307,15 @@ async def lti_link_page(
     org = db.get(Organization, data.get("org_id")) if data else None
     if not data or not org:
         return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
+    from src.services.users.account_emails import find_user
+
     if not isinstance(current_user, PublicUser):
         here = f"/api/v1/lti/link?{urlencode({'t': t})}"
-        return pages.link_sign_in(data["email"], f"/login?{urlencode({'next': here})}")
-    if not people.emails_match(current_user.email, data["email"]):
+        # Name the account only when the Canvas email has one; otherwise any account of theirs can take it (DEV-199).
+        return pages.link_sign_in(data["email"] if find_user(db, data["email"]) else None, f"/login?{urlencode({'next': here})}")
+    if not people.can_link(db, current_user, data["email"]):
         return pages.link_wrong_account(current_user.email, data["email"])
-    return pages.link_confirm(data["email"], org.name, "/api/v1/lti/link", t)
+    return pages.link_confirm(current_user.email, org.name, "/api/v1/lti/link", t, canvas_email=data["email"])
 
 
 @router.post("/link")
@@ -314,17 +330,21 @@ async def lti_link(
     if not isinstance(current_user, PublicUser):
         return pages.error_page("Sign in first, then open the link again.", 401)
     user = db.get(User, current_user.id)
-    if not user or not people.emails_match(user.email, data["email"]):
+    if not user or not people.can_link(db, user, data["email"]):
         return pages.link_wrong_account(current_user.email, data["email"])
     if not canvas_session.redeem_ticket(t):  # used once, after the checks
         return pages.error_page("This link has expired or was already used. Open Life2Launch from Canvas again.", 401)
     try:
-        people.link_signed_in_person(db, _launch_from_ticket(db, data), user)
+        launch = _launch_from_ticket(db, data)
+        membership = people.link_signed_in_person(db, launch, user)
     except LaunchError as error:
         return pages.error_page(error.message, error.status_code)
     _invalidate_session_cache(user.id)
     org = db.get(Organization, data.get("org_id"))
-    return pages.link_done(org.name if org else "your school")
+    if not org:
+        return pages.link_done("your school")
+    group = courses.course_group(db, launch) if launch.course_id else None
+    return pages.link_done(org.name, f"{canvas_session.org_base_url(db, org)}{landing_path(membership.role_id, int(group.id) if group else None)}")
 
 
 def _set_first_party_cookies(response, request: Request, access: str, refresh: str) -> None:

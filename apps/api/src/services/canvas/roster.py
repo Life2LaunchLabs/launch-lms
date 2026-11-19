@@ -31,7 +31,6 @@ from uuid import uuid4
 import httpx
 from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException
-from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from src.db.canvas import CanvasConnection, CanvasCourseGroup, CanvasUserLink
@@ -45,6 +44,7 @@ from src.security.access.access import CLASS_LIST_INVITATION_SOURCE
 from src.services.canvas.nrps import (  # noqa: F401  (callers and tests read these from roster)
     MAX_MEMBERS, NO_SCOPE, NOT_OFFERED, NRPS_SCOPE, TIMEOUT, UNREACHABLE, RosterError, _same_host, access_token, fetch_members, token_url,
 )
+from src.services.users import account_emails
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ def apply_roster(db: Session, link: CanvasCourseGroup, members: list[dict], acto
                                                                    CanvasUserLink.canvas_user_id == canvas_user_id)).first()
             user = db.get(User, linked) if linked else None
         if user is None and email:
-            user = db.exec(select(User).where(func.lower(User.email) == email)).first()
+            user = account_emails.find_user(db, email)
         school_role = db.exec(select(UserOrganization.role_id).where(
             UserOrganization.org_id == org_id, UserOrganization.user_id == user.id,
         )).first() if user is not None else None
@@ -275,7 +275,7 @@ def _drop_leavers(db: Session, connection: CanvasConnection, group: UserGroup, l
         if ids & listed_ids:
             continue
         user = db.get(User, user_id)
-        if user is not None and (user.email or "").strip().lower() in on_list:
+        if user is not None and account_emails.emails_of(db, user_id) & on_list:
             continue
         if remove_member(db, group, user_id):
             left += 1
@@ -464,8 +464,6 @@ def settle_for_member(db: Session, org_id: int, user, accepted: OrganizationInvi
     """Someone (a User or UserRead) joined the school (from Canvas, an invitation or a link): their class list invitations there
     are accepted and they join those course groups, a teacher as the group's staff. ``accepted`` is the invitation they
     just accepted, when it's a class list one: the accept paths leave its group to this. Commits; returns how many it settled."""
-    from src.services.orgs.users import normalize_email
-
     if user is None or not getattr(user, "email", None) or not getattr(user, "id", None):
         return 0
     if is_class_list(accepted) and accepted.org_id == org_id:  # type: ignore[union-attr]
@@ -473,7 +471,7 @@ def settle_for_member(db: Session, org_id: int, user, accepted: OrganizationInvi
         db.commit()
     invitations = db.exec(select(OrganizationInvitation).where(
         OrganizationInvitation.org_id == org_id,
-        OrganizationInvitation.email_normalized == normalize_email(str(user.email)),
+        account_emails.matches(OrganizationInvitation.email_normalized, user),
         OrganizationInvitation.source == CLASS_LIST_INVITATION_SOURCE,
         OrganizationInvitation.status == "pending",
     )).all()

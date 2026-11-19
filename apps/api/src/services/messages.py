@@ -173,21 +173,23 @@ def create_welcome_message_safely(db_session: Session, user_id: int) -> None:
 
 
 def _my_messages_statement(current_user: PublicUser):
-    normalized_email = str(current_user.email).strip().casefold()
+    from src.services.users import account_emails
+
     return select(InboxMessage).where(or_(
         InboxMessage.recipient_user_id == current_user.id,
         (
             InboxMessage.recipient_user_id.is_(None)
-            & (InboxMessage.recipient_email_normalized == normalized_email)
+            & account_emails.matches(InboxMessage.recipient_email_normalized, current_user)
         ),
     ))
 
 
 def _claim_email_messages(current_user: PublicUser, db_session: Session) -> None:
-    normalized_email = str(current_user.email).strip().casefold()
+    from src.services.users import account_emails
+
     messages = db_session.exec(select(InboxMessage).where(
         InboxMessage.recipient_user_id.is_(None),
-        InboxMessage.recipient_email_normalized == normalized_email,
+        account_emails.matches(InboxMessage.recipient_email_normalized, current_user),
     )).all()
     for message in messages:
         message.recipient_user_id = current_user.id
