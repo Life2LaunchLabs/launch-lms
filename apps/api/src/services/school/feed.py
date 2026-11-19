@@ -432,5 +432,8 @@ def group_detail(db: Session, current_user: PublicUser, org_id: int, group_id: i
     alumni = sum(1 for item in members if item["role"] == "learner" and item["status"] == "alumni")
     return {"id": group.id, "name": group.name, "description": group.description, "people": [*staff, *members],
             "learner_count": learners, "alumni_count": alumni, "staff_count": len(staff) + len(members) - learners,
-            "can_manage": admin, "can_set_status": is_org_admin(viewer, org_id, db, "manage_learners"),
+            # Changing who is in it is the staff list's job, which needs manage_learners: staff without it (a Canvas
+            # teacher on the default permissions) get the read-only list instead of an empty editor (FEED-652).
+            "can_manage": is_org_admin(viewer, org_id, db, "manage_learners"),
+            "can_set_status": is_org_admin(viewer, org_id, db, "manage_learners"),
             "in_chat": inside, "groups_enabled": group_chats.enabled(db, org_id)}
