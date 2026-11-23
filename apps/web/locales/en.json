@@ -5425,6 +5425,7 @@
       "start_it": "Start it",
       "no_goals_were_left_open": "No goals were left open in {{lower}}.",
       "done_of_total_steps": "{{done}} of {{total}} steps",
+      "count_waiting_on_review": "{{count}} waiting on review",
       "plan_it_with_coach": "Plan it with Coach",
       "plan_it_with_coach_hint": "Plan it out with Coach, say it in your own words, or pick one from Discover and earn a badge for it."
     },

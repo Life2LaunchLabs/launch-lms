@@ -203,8 +203,9 @@ export interface GoalSummary {
   source: GoalSource
   status: GoalStatus
   target_date: string | null
-  progress: { done: number; total: number }
-  /** The first step not done yet, in goal order. */
+  /** waiting_review: steps handed in and waiting on review (not done, and not on the learner either). */
+  progress: { done: number; total: number; waiting_review?: number }
+  /** The first step still on the learner, in goal order: not done and not handed in. */
   next_step?: string | null
   is_subject: boolean
   badge?: BadgeSummary | null

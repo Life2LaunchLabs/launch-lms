@@ -5429,6 +5429,7 @@
       "start_it": "Empezarlo",
       "no_goals_were_left_open": "No quedaron metas abiertas en {{lower}}.",
       "done_of_total_steps": "{{done}} de {{total}} pasos",
+      "count_waiting_on_review": "{{count}} esperando revisión",
       "plan_it_with_coach": "Planear con Coach",
       "plan_it_with_coach_hint": "Planéala con Coach, dila con tus propias palabras, o elige una de Descubrir y gana una insignia por ella."
     },

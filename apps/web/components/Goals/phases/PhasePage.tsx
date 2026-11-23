@@ -357,7 +357,7 @@ function GoalRow({ goal, color, href }: { goal: GoalSummary; color: string; href
       <b className="line-clamp-2 text-[17px] font-extrabold leading-snug">{goal.title}</b>
       {!finished && goal.next_step ? <span className="line-clamp-2 text-sm font-semibold text-foreground/80">{tr('goals.phase_page.next_next_step', 'Next: {{next_step}}', { next_step: goal.next_step })}</span> : null}
       <span role="progressbar" aria-label={`${goal.title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-[var(--plan-face)]" style={{ width: `${percent}%` }} /></span>
-      <small className="text-xs font-semibold text-muted-foreground">{finished ? tr('goals.routine_action.done', 'Done') : total ? tr('goals.phase_page.done_of_total_steps', '{{done}} of {{total}} steps', { done, total }) : tr('goals.goal_path.no_steps_yet', 'No steps yet')}{goal.target_date ? ` · ${due(goal.target_date)}` : ''}</small>
+      <small className="text-xs font-semibold text-muted-foreground">{finished ? tr('goals.routine_action.done', 'Done') : total ? tr('goals.phase_page.done_of_total_steps', '{{done}} of {{total}} steps', { done, total }) : tr('goals.goal_path.no_steps_yet', 'No steps yet')}{!finished && goal.progress.waiting_review ? ` · ${tr('goals.phase_page.count_waiting_on_review', '{{count}} waiting on review', { count: goal.progress.waiting_review })}` : ''}{goal.target_date ? ` · ${due(goal.target_date)}` : ''}</small>
     </span>
     <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
   </Link>
