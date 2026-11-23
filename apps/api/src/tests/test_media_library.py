@@ -144,6 +144,56 @@ async def test_user_can_upload_and_list_pdf_document(monkeypatch):
         assert [item.asset_uuid for item in assets] == [asset.asset_uuid]
 
 
+DOCX_BYTES = b"PK\x03\x04" + b"\x00" * 26 + b"word/document.xml"
+DOC_BYTES = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 24
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filename", "content", "content_type"),
+    [
+        ("resume.docx", DOCX_BYTES, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ("resume.doc", DOC_BYTES, "application/msword"),
+        ("reflection.txt", "Ce que j\u2019ai appris".encode(), "text/plain"),
+    ],
+)
+async def test_a_document_can_be_word_or_plain_text(monkeypatch, filename, content, content_type):
+    """DEV-202: a resume step asks for "PDF or Word", so a document takes Word files and plain text too."""
+    async def fake_upload(**kwargs):
+        assert kwargs["allowed_types"] == ["document", "word", "text"]
+        return f"stored-{filename}"
+
+    monkeypatch.setattr(media_service, "upload_file", fake_upload)
+    with _session() as db:
+        user = _user(1, "maya")
+        db.add(user)
+        db.commit()
+        upload = UploadFile(filename=filename, file=BytesIO(content), headers=Headers({"content-type": content_type}))
+        asset = await media_service.upload_media_asset(MediaOwnerType.user, user.id, MediaType.document, upload, _public(user), db)
+        assert asset.media_type == MediaType.document
+        assert asset.filename == f"stored-{filename}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("media_type", "filename", "content"),
+    [
+        (MediaType.image, "resume.docx", DOCX_BYTES),
+        (MediaType.document, "photo.txt", PNG_BYTES),
+        (MediaType.document, "fake.doc", b"just some text, not a Word file"),
+    ],
+)
+async def test_a_file_that_is_not_what_it_claims_is_refused(media_type, filename, content):
+    with _session() as db:
+        user = _user(1, "maya")
+        db.add(user)
+        db.commit()
+        upload = UploadFile(filename=filename, file=BytesIO(content))
+        with pytest.raises(HTTPException) as refused:
+            await media_service.upload_media_asset(MediaOwnerType.user, user.id, media_type, upload, _public(user), db)
+        assert refused.value.status_code == 415
+
+
 def test_user_cannot_list_another_users_media():
     with _session() as db:
         owner = _user(1, "owner")
