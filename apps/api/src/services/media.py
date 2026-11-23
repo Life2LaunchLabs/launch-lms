@@ -376,6 +376,10 @@ async def create_link_media_asset(
     return asset
 
 
+# A document is a PDF, a Word file or plain text: a resume step asks for "PDF or Word" (DEV-202).
+UPLOAD_FILE_TYPES: dict[MediaType, list[str]] = {MediaType.document: ["document", "word", "text"]}
+
+
 async def upload_media_asset(
     owner_type: MediaOwnerType,
     owner_id: int,
@@ -389,13 +393,14 @@ async def upload_media_asset(
 ) -> MediaAsset:
     _authorize_mutation(owner_type, owner_id, current_user, db_session)
     owner_uuid = _get_owner_uuid(owner_type, owner_id, current_user, db_session)
-    mime_type, content = validate_upload(media_file, [media_type.value])
+    allowed_types = UPLOAD_FILE_TYPES.get(media_type, [media_type.value])
+    mime_type, content = validate_upload(media_file, allowed_types)
     filename = await upload_file(
         file=media_file,
         directory="media",
         type_of_dir=_upload_owner_type(owner_type),  # type: ignore[arg-type]
         uuid=owner_uuid,
-        allowed_types=[media_type.value],
+        allowed_types=allowed_types,
         filename_prefix="media",
     )
     url = _media_url(owner_type, owner_uuid, filename)
