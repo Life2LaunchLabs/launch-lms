@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { CalendarDays, Flag, Layers, Mail, MessageSquareText, Plus, Footprints, Users, X } from 'lucide-react'
+import { CalendarDays, Flag, Layers, Mail, MessageSquareText, NotebookPen, Plus, Footprints, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import PickerField, { type PickerGroup } from '@components/Assignments/PickerField'
 import { PersonTile, PlanTile } from '@components/Assignments/Pair'
@@ -118,12 +118,22 @@ export function StaffStep({ staff, setStaff, query, setQuery, options }: {
 }
 
 /** The message everyone assigned gets, and how each kind of person gets it. */
-export function MessageStep({ welcome, setWelcome, picks, orgName }: { welcome: string; setWelcome: (value: string) => void; picks: Recipient[]; orgName: string }) { // eslint-disable-line no-unused-vars
+/**
+ * The message learners get with the plan. It starts empty: the plan's instructions are written for staff
+ * (how and when to assign it), so they're shown beside the message for the person assigning, never sent.
+ */
+export function MessageStep({ welcome, setWelcome, picks, orgName, staffNotes }: { welcome: string; setWelcome: (value: string) => void; picks: Recipient[]; orgName: string; staffNotes?: string }) { // eslint-disable-line no-unused-vars
   const inOrg = picks.some((pick) => pick.kind !== 'email')
   const invited = picks.some((pick) => pick.kind === 'email')
+  const notes = staffNotes?.trim()
   return <div className="mt-[22px] flex flex-col gap-3">
     <Field label="Message"><textarea value={welcome} onChange={(event) => setWelcome(event.target.value)} rows={5} aria-label="Message"
-      className="min-h-[76px] resize-y rounded-[10px] border-[1.5px] border-border bg-card px-3 py-2.5 text-[15px] leading-[1.45] focus:border-brand focus:outline-none" /></Field>
+      placeholder="Optional. Say hello, and why this plan matters to them."
+      className="min-h-[76px] resize-y rounded-[10px] border-[1.5px] border-border bg-card px-3 py-2.5 text-[15px] leading-[1.45] placeholder:text-muted-foreground focus:border-brand focus:outline-none" /></Field>
+    {notes ? <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-[13.5px] leading-relaxed dark:bg-amber-500/15">
+      <b className="mb-0.5 flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300"><NotebookPen size={14} aria-hidden="true" />Staff instructions · not sent</b>
+      <p className="line-clamp-6 whitespace-pre-line">{notes}</p>
+    </div> : null}
     <ul className="flex flex-col gap-2.5 text-[13.5px] leading-[1.45] text-muted-foreground">
       {inOrg ? <li className="flex gap-2.5"><MessageSquareText size={17} className="mt-px shrink-0 text-foreground" aria-hidden="true" /><span><b className="text-foreground">People in {orgName}</b> get it in their messages, and the plan shows up in their Plans.</span></li> : null}
       {invited ? <li className="flex gap-2.5"><Mail size={17} className="mt-px shrink-0 text-foreground" aria-hidden="true" /><span><b className="text-foreground">New people</b> get an email with a link to sign up.</span></li> : null}

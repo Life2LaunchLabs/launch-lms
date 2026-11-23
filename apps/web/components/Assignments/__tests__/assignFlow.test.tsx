@@ -116,6 +116,16 @@ describe('the steps', () => {
     expect(html).not.toContain('People in Riverside')
   })
 
+  test('Message keeps the plan’s staff instructions out of what learners get (DEV-203)', () => {
+    const notes = 'Assign once per school year. Review each student’s reflection.'
+    const html = renderToStaticMarkup(<MessageStep welcome="" setWelcome={() => undefined} picks={[{ kind: 'group', id: 4, name: 'Seniors', count: 20 }]} orgName="Riverside" staffNotes={notes} />)
+    const box = html.match(/<textarea[^>]*>([^<]*)<\/textarea>/)
+    expect(box?.[1]).toBe('')
+    expect(html).toContain('Staff instructions · not sent')
+    expect(html).toContain('Assign once per school year.')
+    expect(renderToStaticMarkup(<MessageStep welcome="" setWelcome={() => undefined} picks={[]} orgName="Riverside" staffNotes="  " />)).not.toContain('Staff instructions')
+  })
+
   test('Review lists the dates, staff and message', () => {
     const schedule = { ...defaultSchedule(document, '2035-10-29'), mode: 'sched' as const }
     const html = renderToStaticMarkup(<ReviewStep template={{ template_uuid: 't1', title: 'College & Career Launch', published_version: 3 } as any} document={document}
