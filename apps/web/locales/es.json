@@ -3995,6 +3995,7 @@
     "next": "Siguiente",
     "place_placeholder": "Eugene, Bend, condado de Coos…",
     "place_search": "Busca pueblos, ciudades y condados",
+    "place_typed_detail": "¿No está en la lista? No pasa nada",
     "joined_flow": {
       "skip_intro": "Saltar introducción",
       "next": "Siguiente",

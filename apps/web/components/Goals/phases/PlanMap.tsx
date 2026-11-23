@@ -175,12 +175,13 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     p.months = Math.max(1, Math.min(1200, months)); p.undated = false
     return { ...pd, doc: normalize(d) }
   })
-  const keepPending = async () => {
+  const keepPending = async (edit?: (p: Phase) => void) => {
     if (!pending) return
     const kept = structuredClone(pending.doc)
     for (const id of pending.ids || [pending.id]) {
       const p = byId(kept, id)
       if (!p) continue
+      edit?.(p)
       // Named for what it is when no name was typed. Its budget starts empty: the phase page offers estimates.
       if (!pending.ids) { if (p.activities?.length) p.kind = kindFor(p.activities); p.title = pending.name.trim() || (p.activities?.length || p.living || p.place_label ? suggestTitle(p) : tr('lit.graph.new_phase', 'New phase')) }
     }
@@ -387,7 +388,7 @@ export default function PlanMap({ doc: raw, orgslug, token, photos, change, focu
     const rail = (node: React.ReactNode, mark?: 'dot') => depth ? node : <RailRow key={`c-${p.id}`} top={first ? null : lit(wh)} bottom={last ? null : wh === 'done'} mark={mark} when={wh}>{node}</RailRow>
     if (p.pass) return rail(<SkipPane key={`c-${p.id}`} skip={p} next={kids(base, p.id)} moving={!!moving} />)
     if (pending?.id === p.id) return rail(<PendingCard key={`c-${p.id}`} p={p} env={env} token={token} onEdit={editPending} onLength={lengthPending} name={pending.name} steps={pending.ids?.map((id) => byId(base, id)?.title || '')} onName={(name) => setPending({ ...pending, name })}
-      onKeep={() => void keepPending()} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />, 'dot')
+      onKeep={(edit) => void keepPending(edit)} onCancel={() => setPending(null)} onLift={liftPending} onLiftMove={ghostMove} onLiftEnd={ghostEnd} />, 'dot')
     const lp = moving ? byId(without, p.id) : undefined
     // Even the phase right after the one moving can take it as an option: worked out as if it were gone.
     const key = lp && splitOf(lp)

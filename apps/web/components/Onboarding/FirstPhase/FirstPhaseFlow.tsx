@@ -13,7 +13,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import PhaseCover, { usePlacePhotos } from '@components/Goals/phases/PhaseCover'
 import useLifePlan from '@components/Goals/phases/useLifePlan'
 import { ActivityPicker, LivingPicker, MonthPicker, chip } from '@components/Goals/phases/PhasePickers'
-import { activityText, eyebrowFor, kindFor, purposeOptions, suggestTitle } from '@components/Goals/phases/setup'
+import { activityText, eyebrowFor, kindFor, purposeOptions, suggestTitle, typedPlace } from '@components/Goals/phases/setup'
 import { routeWaiting } from '@components/Goals/phases/MapParts'
 import { monthText, normalize, phaseId } from '@components/Goals/phases/graph'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -208,13 +208,18 @@ function PlaceSearch({ token, value, onPick }: { token?: string; value: PlaceOpt
     const timer = setTimeout(() => { lifeApi.places(q, token).then((r) => { if (live) setRows(r.places.slice(0, 8)) }).catch(() => undefined) }, 150)
     return () => { live = false; clearTimeout(timer) }
   }, [q, token])
+  const own = typedPlace(q, rows)
   return <div className="grid gap-2">
     <label className="flex h-14 items-center gap-2 rounded-2xl bg-muted px-4"><Search size={20} className="text-muted-foreground" aria-hidden="true" />
       <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('onboarding.place_placeholder')} aria-label={t('onboarding.place_search')} className="h-full w-full bg-transparent text-lg font-bold outline-none" />
       <MicButton value="" onChange={(said) => setQ(said.replace(/[.!?]+$/, ''))} label="Say your town" /></label>
-    <ul className="grid gap-1.5">{rows.map((r) => <li key={r.key}><button type="button" onClick={() => onPick(r)} aria-pressed={value?.key === r.key}
-      className={cn('flex w-full items-baseline justify-between gap-3 rounded-2xl bg-card px-4 py-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]', value?.key === r.key && 'shadow-[0_0_0_2px_var(--org-primary-color)]')}>
-      <span>{r.label}</span><small className="text-xs font-semibold text-muted-foreground">{r.detail}</small></button></li>)}</ul>
+    <ul className="grid gap-1.5">{rows.map((r) => <li key={r.key}><button type="button" onClick={() => onPick(r)} aria-pressed={Boolean(value?.key) && value?.key === r.key}
+      className={cn('flex w-full items-baseline justify-between gap-3 rounded-2xl bg-card px-4 py-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]', Boolean(value?.key) && value?.key === r.key && 'shadow-[0_0_0_2px_var(--org-primary-color)]')}>
+      <span>{r.label}</span><small className="text-xs font-semibold text-muted-foreground">{r.detail}</small></button></li>)}
+      {/* A town that isn't listed is fine as typed (FEED-386). */}
+      {own ? <li><button type="button" onClick={() => onPick(own)} aria-pressed={Boolean(value && !value.key && value.label === own.label)}
+        className="flex w-full items-baseline justify-between gap-3 rounded-2xl bg-card px-4 py-3 text-left font-bold shadow-[0_0_0_2px_hsl(var(--border))] hover:shadow-[0_0_0_2px_var(--org-primary-color)]">
+        <span>{t('phases.use_typed', { text: own.label })}</span><small className="text-xs font-semibold text-muted-foreground">{t('onboarding.place_typed_detail')}</small></button></li> : null}</ul>
   </div>
 }
 

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { PlacePicker } from '@components/LifePlan/PhaseForm'
 import type { Activity, Phase } from '@services/life/life'
 import { ActivityPicker, LivingPicker } from './PhasePickers'
-import { activityText, livingLabel } from './setup'
+import { activityText, draftOnKeep, livingLabel } from './setup'
 import { mi } from './graph'
 import { LengthPicker, lengthText } from './PhaseTime'
 import { useHoldDrag, type Env } from './MapParts'
@@ -30,7 +30,7 @@ function Detail({ icon: Icon, set, onClick, children }: { icon: typeof Plus; set
  */
 export function PendingCard({ p, env, token, name, steps, onName, onEdit, onLength, onKeep, onCancel, onLift, onLiftMove, onLiftEnd }: {
   p: Phase; env: Env; token?: string; name: string; steps?: string[]; onName: (v: string) => void; onEdit: (fn: (p: Phase) => void) => void; onLength: (months: number) => void
-  onKeep: () => void; onCancel: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void
+  onKeep: (edit?: (p: Phase) => void) => void; onCancel: () => void; onLift: (x: number, y: number) => void; onLiftMove: (x: number, y: number) => void; onLiftEnd: () => void
 }) {
   const { holding, ...drag } = useHoldDrag(!env.moving, onLift, onLiftMove, onLiftEnd)
   const [open, setOpen] = React.useState<Open>(null)
@@ -39,7 +39,14 @@ export function PendingCard({ p, env, token, name, steps, onName, onEdit, onLeng
   // Done keeps a half-made pick in the activity picker, as picking it would (FEED-117).
   const actDraft = React.useRef<Activity | null>(null)
   const addActivity = (a: Activity) => { actDraft.current = null; onEdit((q) => { q.activities = [...(q.activities || []), a] }); setOpen(null) }
-  return <form data-card={p.id} onSubmit={(e) => { e.preventDefault(); if (!open) onKeep() }} {...drag}
+  // The check keeps the phase even with a picker open (FEED-586): the picker closes, keeping a half-made activity.
+  const keep = () => {
+    const a = draftOnKeep(open, actDraft.current)
+    actDraft.current = null
+    setOpen(null)
+    onKeep(a ? (q) => { q.activities = [...(q.activities || []), a] } : undefined)
+  }
+  return <form data-card={p.id} onSubmit={(e) => { e.preventDefault(); keep() }} {...drag}
     className={cn('flex min-h-[180px] select-none flex-col gap-3 rounded-[22px] border-[3px] border-dashed border-foreground/60 bg-card p-4 transition-[transform,opacity] [-webkit-touch-callout:none]', holding && 'scale-[.97]', env.held.has(p.id) && 'opacity-35')}>
     <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{steps ? `${steps.length === 1 ? '1 phase' : `${steps.length} phases`}` : tr('goals.pending_card.new_phase', 'New phase')}</span>
     {steps ? <span className="grid gap-1">
@@ -53,7 +60,8 @@ export function PendingCard({ p, env, token, name, steps, onName, onEdit, onLeng
       <Detail icon={MapPin} set={!!p.place_label} onClick={() => toggle('place')}>{p.place_label ? p.place_label.split(',')[0] : tr('goals.pending_card.add_location', 'Add location')}</Detail>
       <Detail icon={Home} set={!!p.living} onClick={() => toggle('living')}>{livingLabel(p.living) || tr('goals.pending_card.add_living_situation', 'Add living situation')}</Detail>
     </div>
-    {open ? <div data-no-drag className="grid gap-2 rounded-2xl bg-muted/50 p-3">
+    {/* Enter in a picker's search box picks nothing and keeps nothing. */}
+    {open ? <div data-no-drag onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') e.preventDefault() }} className="grid gap-2 rounded-2xl bg-muted/50 p-3">
       {open === 'date' ? <LengthPicker start={mi(p.starts!)} months={p.months || 12} picked={!p.undated} onPick={onLength} /> : null}
       {open === 'doing' ? <>
         {acts.length ? <ul className="grid gap-1.5">{acts.map((a, i) => <li key={i} className="flex items-center gap-2 rounded-xl bg-card px-3 py-2 text-sm font-bold"><span className="flex-1">{activityText(a)}</span>
