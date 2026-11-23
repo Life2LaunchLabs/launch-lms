@@ -16,7 +16,7 @@ from src.db.conversations import Conversation, ConversationMember, ConversationM
 from src.db.portfolio import Portfolio, PortfolioModerationStatus, PortfolioVisibility, ProjectItem, TimelineEntry
 from src.db.portfolio_people import PortfolioPerson
 from src.db.users import PublicUser, User
-from src.services.users.names import shown_name
+from src.services.users.names import first_name_of, shown_name
 from src.services.connect import chats, people
 
 DIRECT = "direct"
@@ -80,7 +80,7 @@ def _name(db: Session, portfolio: Portfolio) -> str:
 
 
 def _title(db: Session, portfolio: Portfolio) -> str:
-    return f"{_name(db, portfolio).split(' ')[0]}’s portfolio"
+    return f"{first_name_of(_name(db, portfolio))}’s portfolio"
 
 
 def topics(db: Session, conversation: Conversation, viewer_id: int | None = None) -> list[dict]:

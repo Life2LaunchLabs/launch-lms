@@ -73,7 +73,6 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
   React.useEffect(() => {
     if (!document || schedule) return
     setSchedule(defaultSchedule(document))
-    setWelcome(document.template.instructions || '')
   }, [document, schedule])
   React.useEffect(() => {
     if (!open || staff.length || !me?.id) return
@@ -139,7 +138,7 @@ export default function AssignFlow({ trigger, initialTemplateUuid = '', initialU
     <StaffStep staff={staff} setStaff={setStaff} query={staffQuery} setQuery={setStaffQuery} options={data.staff} />
   </> : step === 3 ? <>
     <StepHead eyebrow={eyebrow} title="Message" lede="Sent to everyone you assigned, with the plan attached." />
-    <MessageStep welcome={welcome} setWelcome={setWelcome} picks={picks} orgName={orgName} />
+    <MessageStep welcome={welcome} setWelcome={setWelcome} picks={picks} orgName={orgName} staffNotes={document?.template.instructions} />
   </> : <>
     <StepHead eyebrow={eyebrow} title="Review" lede={`${picks.length > 1 ? `Creates ${picks.length} assignments.` : 'Creates one assignment.'} Nothing is sent until you assign.`} />
     <ReviewStep template={template} document={document} picks={picks} schedule={schedule} staff={staff} welcome={welcome} goTo={setStep} />

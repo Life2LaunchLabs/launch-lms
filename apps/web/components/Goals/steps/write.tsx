@@ -14,6 +14,53 @@ import { tr } from '@/lib/tr'
 const textOf = (step: Step<'write'>) => String(step.submission?.text || '')
 const words = (text: string) => text.trim() ? text.trim().split(/\s+/).length : 0
 
+type Save = (text: string) => Promise<boolean> // eslint-disable-line no-unused-vars
+
+/**
+ * The answer still to be saved. A save goes out once per text (blur, Mark done and leaving can all ask; a second ask
+ * waits on the save already going), and a save that fails can go out again.
+ */
+export function pendingWrite() {
+  let text = ''
+  let saved = ''
+  let sent: { text: string; done: Promise<boolean> } | null = null
+  let save: Save = () => Promise.resolve(false)
+  return {
+    sync(nextText: string, nextSaved: string, nextSave: Save) { text = nextText; saved = nextSaved; save = nextSave },
+    dirty: () => text !== saved && text !== sent?.text,
+    flush(): Promise<boolean> {
+      if (text === saved) return Promise.resolve(true)
+      if (text === sent?.text) return sent.done
+      const going: { text: string; done: Promise<boolean> } = { text, done: Promise.resolve(true) }
+      going.done = save(text).then((ok) => { if (!ok && sent === going) sent = null; return ok })
+      sent = going
+      return going.done
+    },
+  }
+}
+
+/**
+ * Leaving the step saves what was typed: going back, closing the panel or moving to another page unmounts the card
+ * before any blur, and a pasted reflection was lost (DEV-206). Hiding the tab saves it too; a reload or closing the
+ * tab with words still unsaved asks first.
+ */
+function useSaveOnLeave(text: string, saved: string, save: Save) {
+  const [draft] = React.useState(pendingWrite)
+  React.useLayoutEffect(() => { draft.sync(text, saved, save) })
+  React.useEffect(() => {
+    const hide = () => { if (document.visibilityState === 'hidden') void draft.flush() }
+    const warn = (event: BeforeUnloadEvent) => { if (draft.dirty()) { void draft.flush(); event.preventDefault(); event.returnValue = '' } }
+    document.addEventListener('visibilitychange', hide)
+    window.addEventListener('beforeunload', warn)
+    return () => {
+      document.removeEventListener('visibilitychange', hide)
+      window.removeEventListener('beforeunload', warn)
+      void draft.flush()
+    }
+  }, [draft])
+  return draft
+}
+
 function WriteRow({ step }: { step: Step<'write'> }) {
   const text = textOf(step).trim()
   return text ? <p className="mt-1 line-clamp-2 text-sm text-foreground/75">{text}</p> : null
@@ -27,7 +74,8 @@ function WriteCard({ step, actions, canWork, staff }: StepCardProps<'write'>) {
   const limit = step.config.max_words
   const count = words(text)
   const dirty = text !== saved
-  const save = () => actions.saveSubmission({ submission: { text } })
+  const draft = useSaveOnLeave(open ? text : saved, saved, (value) => actions.saveSubmission({ submission: { text: value } }))
+  const save = () => draft.flush()
   return <div className="flex flex-col gap-3">
     {step.config.prompt ? <p className="text-sm font-bold">{step.config.prompt}</p> : null}
     <StepIntro step={step} />

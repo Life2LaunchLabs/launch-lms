@@ -14,6 +14,7 @@ import type { StepTypeKey, TemplateDocument } from '@services/goals/types'
 import { RecipientTile } from './FlowSteps'
 import { Frame, PreviewCaption } from './flowUi'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 const NOT_STARTED = { done: 0, review: 0, behind: 0, open: 1, locked: 2 }
 
@@ -131,8 +132,8 @@ export function MessagePreview({ plan, picks, welcome, orgName, from, steps, sch
       <div className="absolute bottom-0 right-0 flex w-[44%] min-w-[190px] flex-col overflow-hidden rounded-[26px] border-[5px] border-foreground bg-background shadow-2xl">
         <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2"><span className="grid h-[26px] w-[26px] place-items-center rounded-lg bg-[#0B8077] text-[10px] font-extrabold text-white">{orgName.slice(0, 2).toUpperCase()}</span><span className="flex flex-col text-[11px]"><b>{orgName}</b><span className="text-muted-foreground">Messages</span></span></div>
         <div className="flex flex-col gap-2 p-2.5 text-[11px]">
-          <div className="text-center text-[10px] text-muted-foreground">{from.split(' ')[0]} assigned you {plan.title}</div>
-          {welcome ? <div className="rounded-2xl rounded-bl-md bg-muted px-3 py-2"><small className="block font-bold">{from.split(' ')[0]}</small><span className="whitespace-pre-wrap">{welcome}</span></div> : null}
+          <div className="text-center text-[10px] text-muted-foreground">{firstNameOf(from)} assigned you {plan.title}</div>
+          {welcome ? <div className="rounded-2xl rounded-bl-md bg-muted px-3 py-2"><small className="block font-bold">{firstNameOf(from)}</small><span className="whitespace-pre-wrap">{welcome}</span></div> : null}
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-2"><PlanTile plan={plan} size="sm" /><span className="min-w-0"><b className="block truncate">{plan.title}</b><span className="text-muted-foreground">{plural(steps, 'step')}{scheduled ? ` · starts ${shortDate(start)}` : ' · at your pace'}</span></span></div>
         </div>
         <div className="m-2 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground">Message</div>

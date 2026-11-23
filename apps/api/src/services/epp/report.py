@@ -28,7 +28,7 @@ from src.db.users import PublicUser, User
 from src.services.connect import people
 from src.services.epp import content, courses
 from src.services.portfolio_identity import legal_name, shown_name
-from src.services.users.names import shown_first_name
+from src.services.users.names import first_name_of, shown_first_name
 from src.services.school import roles, support
 
 SCHEMA_VERSION = 1
@@ -244,7 +244,7 @@ def build(db: Session, org_id: int, learner_id: int, today: datetime | None = No
     # A school record carries the legal name (the learner's preferred name is shown beside it).
     name = legal_name(learner) or shown_name(learner)
     # Sentences to or about the learner ("Chosen by Sam", "Help Sam choose") use the name they go by (DEV-136).
-    first = shown_first_name(learner) or name.split(" ")[0]
+    first = shown_first_name(learner) or first_name_of(name)
     goes_by = (learner.preferred_name or "").strip()
     work = _work(db, learner_id, org_id)
     labels = _labels()

@@ -8,6 +8,7 @@ import { gradeLearningResponse } from '@services/learning/learning'
 import type { ActivityReview, StaffPerson } from '@services/goals/admin'
 import { cn } from '@/lib/utils'
 import { inOrgWords } from '@/lib/people'
+import { calendarDaysAgo } from '@/lib/days'
 
 /** Signing off steps: the capability staff review with. */
 export const REVIEW_CAPABILITY = 'complete_restricted_objectives'
@@ -68,7 +69,8 @@ export function timeAgo(value?: string | null) {
   if (minutes < 60) return minutes <= 1 ? 'just now' : `${minutes} min ago`
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `${hours}h ago`
-  const days = Math.round(hours / 24)
+  // Past a day, count the viewer's calendar days, so last night is "yesterday" whatever the hour (DEV-205).
+  const days = Math.max(1, calendarDaysAgo(new Date(then).toISOString()))
   if (days < 14) return days === 1 ? 'yesterday' : `${days} days ago`
   return new Date(then).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }

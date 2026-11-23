@@ -27,6 +27,7 @@ import EppReportLink from '@components/Epp/EppReportLink'
 import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import { workingOn } from './workingOn'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 const admin = routePaths.org.admin
 
@@ -34,7 +35,7 @@ function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—'
 }
 
-const firstName = (name?: string) => name?.split(' ')[0] || 'them'
+const firstName = (name?: string) => firstNameOf(name) || 'them'
 
 /**
  * Someone's profile under Threads. A learner has Overview (what they're working on, badges, about),

@@ -22,6 +22,7 @@ import { homeColumns } from './layout'
 import { RequirementsWidget } from './OrgWidgets'
 import { Continue, NeedsYou, YourAssignments } from './Sections'
 import { WeekWidget } from './StaffWidgets'
+import { greetingName } from '@/lib/names'
 
 function greeting(now = new Date()) {
   const hour = now.getHours()
@@ -77,7 +78,7 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
     setBrief(rows.find((row) => row.assignment_uuid === focus?.assignment_uuid) || rows[0] || null)
   }
 
-  const firstName = (user?.preferred_name || '').trim().split(' ')[0] || user?.first_name || user?.username || ''
+  const firstName = greetingName(user) || user?.username || ''
   const shown = (id: HomeSectionId) => Boolean(data?.sections.includes(id) && !data.hidden.includes(id))
   const waiting = data?.needs?.total || 0
   // An admin's first days, before a plan is out, are about setting up.

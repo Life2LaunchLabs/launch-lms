@@ -13,6 +13,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { peopleKeys } from '@services/school/people'
 import { recordsApi, recordsKeys, type RecordsAccessItem } from '@services/school/records'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 function when(value: string) {
   const date = new Date(value)
@@ -32,7 +33,7 @@ export default function LearnerRecords({ orgslug, orgId, token, learner }: {
   const [downloading, setDownloading] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
   const [pages, setPages] = React.useState(1)
-  const first = learner.name?.split(' ')[0] || inOrgWords('this learner')
+  const first = firstNameOf(learner.name) || inOrgWords('this learner')
 
   const download = async () => {
     if (!token || downloading) return

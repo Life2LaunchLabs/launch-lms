@@ -9,15 +9,11 @@ import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { insightsApi, type CardSpec, type DateRange, type DrillPerson, type Scope } from '@services/insights/insights'
 import { inOrgWords } from '@/lib/people'
+import { daysAgoLabel } from '@/lib/days'
 
 export type DrillTarget = { title: string; spec: CardSpec; drill: string }
 
 const nameOf = (person: DrillPerson) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username
-
-function daysAgo(iso: string): string {
-  const days = Math.max(0, Math.round((Date.now() - new Date(`${iso.slice(0, 10)}T00:00:00Z`).getTime()) / 86400000))
-  return days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
-}
 
 /** Where one learner stands on a rate: finished only when all of theirs counted, else how far along (DEV-209). */
 export function standing(person: Pick<DrillPerson, 'count' | 'hits' | 'counted'>): string {
@@ -69,7 +65,7 @@ export default function DrillSheet({ target, onClose, orgId, orgslug, token, sco
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-[13.5px] text-foreground">{nameOf(person)}</b>
                     <span className="block truncate text-[12px] text-muted-foreground">
-                      {[person.groups.join(', '), rate ? standing(person) : null, `last ${daysAgo(person.last)}`].filter(Boolean).join(' · ')}
+                      {[person.groups.join(', '), rate ? standing(person) : null, `last ${daysAgoLabel(person.last)}`].filter(Boolean).join(' · ')}
                     </span>
                   </div>
                   <Link href={getUriWithOrg(orgslug, routePaths.org.admin.threads.person(person.id))} aria-label={`Open the thread with ${nameOf(person)}`}

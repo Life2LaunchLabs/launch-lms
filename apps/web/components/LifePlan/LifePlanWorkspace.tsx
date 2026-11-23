@@ -32,8 +32,9 @@ import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
 
 import { tr } from '@/lib/tr'
+import { firstNameOf } from '@/lib/names'
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
-const sharedName = (person?: { username: string; name?: string } | null) => person ? (person.name?.split(' ')[0] || `@${person.username}`) : undefined
+const sharedName = (person?: { username: string; name?: string } | null) => person ? (firstNameOf(person.name) || `@${person.username}`) : undefined
 
 /** A phase's budget, and what the money adds up to over time, opened from the phase in Plans.
  *  With `of` (a user uuid) it shows that person's plan, when they shared their plans with you, and nothing saves. */

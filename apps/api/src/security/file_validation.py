@@ -96,6 +96,22 @@ def validate_zip_content(content: bytes) -> bool:
     return content[:4] == b'PK\x03\x04' or content[:4] == b'PK\x05\x06'
 
 
+def validate_word_content(content: bytes) -> bool:
+    """A Word file: .docx is a ZIP (OOXML), the older .doc an OLE compound file."""
+    return validate_zip_content(content) or content[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
+
+
+def validate_text_content(content: bytes) -> bool:
+    """Plain text: readable UTF-8 with no NUL bytes, so a binary renamed .txt is refused."""
+    if not content or b'\x00' in content:
+        return False
+    try:
+        content.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
 # File type configurations (no size limits)
 FILE_TYPES = {
     'image': {
@@ -130,7 +146,22 @@ FILE_TYPES = {
         ],
         'max_size': None,  # No limit
         'validator': validate_zip_content  # OOXML formats are ZIP-based
-    }
+    },
+    'word': {
+        'extensions': ['.doc', '.docx'],
+        'mime_types': [
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
+        'max_size': None,  # No limit
+        'validator': validate_word_content
+    },
+    'text': {
+        'extensions': ['.txt'],
+        'mime_types': ['text/plain'],
+        'max_size': None,  # No limit
+        'validator': validate_text_content
+    },
 }
 
 
