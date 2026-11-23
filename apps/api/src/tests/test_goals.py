@@ -321,6 +321,24 @@ def test_the_goal_list_says_which_step_comes_next():
         assert row()["next_step"] == "Email them"
 
 
+def test_a_handed_in_step_is_not_next_and_not_done_on_the_goal_list():
+    """DEV-208: once handed in, a step waits on review: the card moves on to the next step without counting it done."""
+    with _session() as db:
+        template = _published(db, {"type": "write", "title": "Essay", "review_required": True}, {"type": "task", "title": "Interview"})
+        goal = _issue(db, template)
+        row = lambda: next(item for item in goals.list_my_goals(db, _user(LEARNER)) if item["goal_uuid"] == goal.goal_uuid)  # noqa: E731
+        essay = _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Essay")
+        goals.save_submission(db, _user(LEARNER), goal.goal_uuid, essay["step_uuid"], StepSubmission(submission={"text": "Draft"}))
+        _status(db, LEARNER, goal, essay, StepStatus.COMPLETED)
+        assert row()["next_step"] == "Interview" and row()["progress"] == {"done": 0, "total": 2, "waiting_review": 1}
+        # Sent back, it's the learner's next step again; approved, it's done.
+        _status(db, ADMIN, goal, essay, StepStatus.CHANGES_REQUESTED, "Add an example")
+        assert row()["next_step"] == "Essay" and row()["progress"] == {"done": 0, "total": 2, "waiting_review": 0}
+        _status(db, LEARNER, goal, essay, StepStatus.SUBMITTED)
+        _status(db, ADMIN, goal, essay, StepStatus.COMPLETED)
+        assert row()["next_step"] == "Interview" and row()["progress"] == {"done": 1, "total": 2, "waiting_review": 0}
+
+
 def test_reviewed_steps_go_to_staff_who_can_send_them_back():
     with _session() as db:
         template = _published(db, {"type": "write", "title": "Essay", "review_required": True}, {"type": "task", "title": "Interview", "completed_by": "staff"})

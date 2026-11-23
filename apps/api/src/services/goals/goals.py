@@ -175,8 +175,20 @@ def _done_total(db: Session, goal_ids: list[int]) -> dict[int, tuple[int, int]]:
     return {goal_id: (int(done.get(goal_id, 0)), int(totals.get(goal_id, 0))) for goal_id in goal_ids}
 
 
+def _waiting_review(db: Session, goal_ids: list[int]) -> dict[int, int]:
+    """Steps handed in and waiting on review, per goal: not done yet, and not on the learner either."""
+    if not goal_ids:
+        return {}
+    return {int(goal_id): int(count) for goal_id, count in db.exec(select(GoalStep.goal_id, func.count()).join(StepProgress, StepProgress.step_id == GoalStep.id).where(  # type: ignore[call-overload]
+        GoalStep.goal_id.in_(goal_ids), StepProgress.status == StepStatus.SUBMITTED.value,  # type: ignore[union-attr]
+    ).group_by(GoalStep.goal_id)).all()}
+
+
 def _next_steps(db: Session, goal_ids: list[int]) -> dict[int, str]:
-    """Each goal's first unfinished step title, in goal order (what a goal row says comes next)."""
+    """Each goal's first step still on the learner, in goal order (what a goal row says comes next).
+
+    Done steps and steps handed in and waiting on review are past the learner, so neither is next (DEV-208).
+    """
     if not goal_ids:
         return {}
     steps = db.exec(select(GoalStep).where(GoalStep.goal_id.in_(goal_ids))).all()  # type: ignore[union-attr]
@@ -184,7 +196,7 @@ def _next_steps(db: Session, goal_ids: list[int]) -> dict[int, str]:
         return {}
     stages = db.exec(select(GoalStage).where(GoalStage.goal_id.in_(goal_ids))).all()  # type: ignore[union-attr]
     done = set(db.exec(select(StepProgress.step_id).where(
-        StepProgress.step_id.in_([step.id for step in steps]), StepProgress.status.in_(list(DONE_STEP_STATUSES)),  # type: ignore[union-attr, attr-defined]
+        StepProgress.step_id.in_([step.id for step in steps]), StepProgress.status.in_([*DONE_STEP_STATUSES, StepStatus.SUBMITTED.value]),  # type: ignore[union-attr, attr-defined]
     )).all())
     result: dict[int, str] = {}
     for goal_id in goal_ids:
@@ -253,6 +265,7 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
     counts = _done_total(db, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
     notes = note_counts(db, current_user.id, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
     upcoming = _next_steps(db, [int(goal.id) for goal in goals if goal.status != GoalStatus.FINISHED])  # type: ignore[arg-type]
+    handed_in = _waiting_review(db, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
     result = []
     for goal in goals:
         done, total = counts[int(goal.id)]  # type: ignore[arg-type]
@@ -260,7 +273,8 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
         result.append({
             "target_kind": "individual", "goal_uuid": goal.goal_uuid, "title": goal.title, "ownership": _value(goal.ownership),
             "source": _value(goal.source), "status": _value(goal.status), "priority": goal.priority, "target_date": goal.target_date, "icon": (goal.details or {}).get("icon"),
-            "progress": {"done": done, "total": total}, "progress_percent": _percent(done, total), "next_step": upcoming.get(int(goal.id)),  # type: ignore[arg-type]
+            "progress": {"done": done, "total": total, "waiting_review": handed_in.get(int(goal.id), 0)},  # type: ignore[arg-type]
+            "progress_percent": _percent(done, total), "next_step": upcoming.get(int(goal.id)),  # type: ignore[arg-type]
             "badge": goal_badge(db, goal), "organization": _org_ref(db, goal.org_id),
             "subject": {"id": subject["id"], "name": subject["name"]} if subject else None,
             "is_subject": goal.subject_user_id == current_user.id, "update_date": goal.update_date, "coach_notes": notes.get(int(goal.id), 0),  # type: ignore[arg-type]

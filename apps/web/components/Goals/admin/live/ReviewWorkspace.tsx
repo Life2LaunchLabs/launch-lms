@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { ActivityAggregateGradeForm } from '@components/Goals/admin/live/ActivityGrading'
 import { decideLearningRun } from '@services/learning/learning'
 import ReviewEvidence from './ReviewEvidence'
+import { reviewTally } from '@services/goals/reviewTally'
 import { EmptyState, gradeActivityReview, PageLoader, PersonAvatar, pendingScores, personName, StatusPill, timeAgo } from './ui'
 import { inOrgWords } from '@/lib/people'
 import { firstNameOf } from '@/lib/names'
@@ -123,7 +124,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
     {header}
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <nav aria-label={inOrgWords('Learners')} className="shrink-0 border-b border-gray-100 bg-white p-2 lg:w-56 lg:border-b-0 lg:border-r">
-        <p className="px-2.5 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{done} of {items.length} done</p>
+        <p className="px-2.5 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{reviewTally(decided, items.length)}</p>
         <div className="flex gap-1 overflow-x-auto lg:flex-col">{items.map((entry) => {
           const mark = decided[entry.step_uuid]
           return <button key={entry.step_uuid} type="button" onClick={() => setCurrent(entry.step_uuid)} className={cn('flex min-h-9 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px]', entry.step_uuid === item.step_uuid ? 'bg-gray-100 font-bold' : 'font-medium hover:bg-gray-50')}>
@@ -160,7 +161,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
           </div>
         </div>
         <div className="flex gap-2 border-t border-gray-100 p-4">
-          {allDone ? <Link href={back.href} className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">All done · back to {back.label === 'Assignments' ? 'assignments' : 'the assignment'}</Link> : <>
+          {allDone ? <Link href={back.href} className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">All reviewed · back to {back.label === 'Assignments' ? 'assignments' : 'the assignment'}</Link> : <>
             {!confirmOnly ? <button type="button" onClick={() => void decide('flag')} disabled={Boolean(saving) || Boolean(state)} className="h-10 flex-1 rounded-full border border-gray-200 bg-white text-sm font-semibold disabled:opacity-40">Send back</button> : null}
             <button type="button" onClick={() => void decide('confirm')} disabled={Boolean(saving) || Boolean(state)} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-black text-sm font-semibold text-white disabled:opacity-40">{saving === 'decide' ? <Loader2 size={14} className="animate-spin" /> : null}{confirmOnly ? 'Confirm' : 'Approve'} &amp; next</button>
           </>}
