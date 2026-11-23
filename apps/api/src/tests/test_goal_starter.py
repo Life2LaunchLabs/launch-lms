@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from src.db.goals import Goal, GoalSource, GoalStep, GoalTemplate, GoalTemplateVersion, StepProgress
 from src.db.learning import LearningActivity, LearningPage
 from src.db.portfolio import Portfolio, PortfolioVisibility, ProfileTrait, ProjectItem, TimelineEntry
+from src.db.portfolio_records import PortfolioResult
 from src.services.goals import starter, templates
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _session as _goal_session, _user
 
@@ -17,7 +18,7 @@ KEYS = ["welcome", "timeline", "project", "traits", "badges", "launch"]
 
 def _session() -> Session:
     db = _goal_session()
-    for model in (ProfileTrait, ProjectItem, TimelineEntry):
+    for model in (ProfileTrait, ProjectItem, TimelineEntry, PortfolioResult):
         model.__table__.create(db.get_bind(), checkfirst=True)
     return db
 
