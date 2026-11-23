@@ -409,22 +409,26 @@ def drill(ctx: Ctx, spec: CardSpec, key: str, inherit=None) -> dict:
         facts.append(fact)
     counted: dict[int, dict] = {}
     for fact in facts:
-        entry = counted.setdefault(fact.user_id, {"facts": 0, "hit": False, "last": fact.at})
+        entry = counted.setdefault(fact.user_id, {"facts": 0, "hits": 0, "last": fact.at})
         entry["facts"] += 1
-        entry["hit"] = entry["hit"] or fact.num > 0
+        entry["hits"] += fact.num > 0
         entry["last"] = max(entry["last"], fact.at)
     users = {int(user.id): user for user in ctx.db.exec(select(User).where(col(User.id).in_(list(counted)))).all()} if counted else {}  # type: ignore[arg-type]
     groups = ctx.groups_of()
     group_names = dict(ctx.db.exec(select(UserGroup.usergroup_uuid, UserGroup.name).where(UserGroup.org_id == ctx.org_id)).all())
     people = []
-    for user_id, entry in sorted(counted.items(), key=lambda item: (not item[1]["hit"], -item[1]["facts"], item[0])):
+    # On a rate, a learner counts only when every one of their facts did (all 16 requirements met, not one of
+    # them: DEV-209); `hits` of `count` says how far along the rest are.
+    rate = loaded.measure.kind == "rate"
+    for user_id, entry in sorted(counted.items(), key=lambda item: (item[1]["hits"] < item[1]["facts"], -item[1]["hits"], -item[1]["facts"], item[0])):
         user = users.get(user_id)
         if not user:
             continue
         people.append({
             "id": user_id, "user_uuid": user.user_uuid, "username": user.username, "first_name": user.first_name, "last_name": user.last_name,
             "avatar_image": user.avatar_image, "groups": [group_names[uuid] for uuid in groups.get(user_id, []) if uuid in group_names],
-            "count": entry["facts"], "counted": entry["hit"] if loaded.measure.kind == "rate" else True, "last": entry["last"].isoformat(),
+            "count": entry["facts"], "hits": entry["hits"] if rate else entry["facts"], "counted": entry["hits"] == entry["facts"] if rate else True,
+            "last": entry["last"].isoformat(),
         })
     return {"total": len(people), "people": people[:DRILL_LIMIT], "truncated": len(people) > DRILL_LIMIT}
 

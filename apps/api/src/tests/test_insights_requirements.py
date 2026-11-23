@@ -135,3 +135,11 @@ def test_the_framework_starter_runs(db):
     cards = library.template("framework.progress")["cards"]  # type: ignore[index]
     results = engine.run_cards(engine.context(db, _user(ADMIN), 1, "framework", FW, today=TODAY), cards, "90d")
     assert all("error" not in result for result in results.values())
+
+
+def test_progress_drill_calls_a_learner_finished_only_when_every_requirement_is_met(db):
+    """Learner 13 met 1 of 3; the list said "Finished" for anyone with one met (DEV-209, FEED-336)."""
+    ctx = engine.context(db, _user(ADMIN), 1, "framework", FW, today=TODAY)
+    people = {person["id"]: person for person in engine.drill(ctx, CardSpec(measure="requirement_progress"), "all")["people"]}
+    assert [(people[user]["hits"], people[user]["count"], people[user]["counted"]) for user in (10, 11, 13)] == [(3, 3, True), (2, 3, False), (1, 3, False)]
+    assert next(iter(people)) == 10

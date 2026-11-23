@@ -99,6 +99,17 @@ def test_records_still_open_after_the_account_is_deleted():
         assert opened["learner_name"] and opened["report"]["courses"]["grid"]
 
 
+def test_pdf_check_marks_use_an_embedded_font():
+    """A viewer without ZapfDingbats drew the Complete tick as a box or black bar (DEV-209, FEED-496)."""
+    from reportlab.platypus import Paragraph, SimpleDocTemplate
+    from src.services.epp import pdf
+    out = io.BytesIO()
+    SimpleDocTemplate(out).build([Paragraph(pdf._safe(pdf.STATUS_TEXT["complete"]), pdf._styles()["body"])])
+    fonts = [font.get_object() for font in PdfReader(io.BytesIO(out.getvalue())).pages[0]["/Resources"]["/Font"].values()]
+    check = [font for font in fonts if "ZapfDingbats" in font["/BaseFont"]]
+    assert check and all("/FontFile" in font["/FontDescriptor"].get_object() for font in check)
+
+
 def test_the_record_and_pdf_carry_the_legal_name_and_say_who_they_go_by():
     from src.db.users import User as UserRow
     from src.services.epp import caseload, pdf

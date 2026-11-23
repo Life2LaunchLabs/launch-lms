@@ -15,6 +15,12 @@ export type DrillTarget = { title: string; spec: CardSpec; drill: string }
 
 const nameOf = (person: DrillPerson) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username
 
+/** Where one learner stands on a rate: finished only when all of theirs counted, else how far along (DEV-209). */
+export function standing(person: Pick<DrillPerson, 'count' | 'hits' | 'counted'>): string {
+  if (person.counted) return 'Finished'
+  return person.count > 1 && person.hits !== undefined ? `${person.hits} of ${person.count}` : 'Not finished'
+}
+
 function csv(people: DrillPerson[]): string {
   const cell = (value: string) => `"${value.replace(/"/g, '""')}"`
   return ['Name,Username,Groups,Counted,Last', ...people.map((person) =>
@@ -45,7 +51,7 @@ export default function DrillSheet({ target, onClose, orgId, orgslug, token, sco
           <div className="min-w-0 flex-1">
             <Dialog.Title className="text-[17px] font-bold leading-snug tracking-tight text-foreground">{target?.title}</Dialog.Title>
             <Dialog.Description className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {data ? inOrgWords(`${data.total.toLocaleString()} learner${data.total === 1 ? '' : 's'}${rate ? ', finished first' : ''}. Only learners you can see are listed.`) : inOrgWords('The learners behind this number.')}
+              {data ? inOrgWords(`${data.total.toLocaleString()} learner${data.total === 1 ? '' : 's'}${rate ? ', furthest along first' : ''}. Only learners you can see are listed.`) : inOrgWords('The learners behind this number.')}
             </Dialog.Description>
           </div>
           <Dialog.Close className="rounded-full p-1.5 text-muted-foreground hover:bg-muted" aria-label="Close"><X size={18} /></Dialog.Close>
@@ -59,7 +65,7 @@ export default function DrillSheet({ target, onClose, orgId, orgslug, token, sco
                   <div className="min-w-0 flex-1">
                     <b className="block truncate text-[13.5px] text-foreground">{nameOf(person)}</b>
                     <span className="block truncate text-[12px] text-muted-foreground">
-                      {[person.groups.join(', '), rate ? (person.counted ? 'Finished' : 'Not finished') : null, `last ${daysAgoLabel(person.last)}`].filter(Boolean).join(' · ')}
+                      {[person.groups.join(', '), rate ? standing(person) : null, `last ${daysAgoLabel(person.last)}`].filter(Boolean).join(' · ')}
                     </span>
                   </div>
                   <Link href={getUriWithOrg(orgslug, routePaths.org.admin.threads.person(person.id))} aria-label={`Open the thread with ${nameOf(person)}`}
