@@ -12,6 +12,7 @@ import type { Contact } from '../portfolioTypes'
 import type { Setter } from './inplace'
 
 import { tr } from '@/lib/tr'
+import { firstNameOf } from '@/lib/names'
 // What someone in My people may see. Anyone can be in My people, but only someone with an account can be let in:
 // first say which account is theirs, then two switches with no time limit. Plans include the budget.
 
@@ -58,7 +59,7 @@ export function PersonAccess({ contact, token, onChange }: { contact: Contact; t
   if (!token) return null
   if (!account) return <div className="rounded-2xl bg-muted p-4"><HandleField label={tr('portfolio.people_access.do_they_have_an_account', 'Do they have an account here?')} action={tr('lit.people_access.link', 'Link')} busy={busy} onSubmit={(handle) => run(() => peopleAccess.link(contact.contact_uuid, handle, token), tr('lit.people_access.could_not_find_them', 'Could not find them'))} /><small className="mt-1.5 block text-xs text-muted-foreground">{tr('portfolio.people_access.link_it_to_let_them', 'Link it to let them see your portfolio or plans.')}</small></div>
 
-  const first = contact.name.split(' ')[0] || contact.name
+  const first = firstNameOf(contact.name) || contact.name
   const set = (next: { portfolio: boolean; plans: boolean }) => run(() => peopleAccess.set(contact.contact_uuid, next, token), tr('lit.people_access.could_not_change_that', 'Could not change that'))
   return <section aria-label={tr('portfolio.people_access.what_first_can_see_2', 'What {{first}} can see', { first })} className="grid gap-2">
     <h3 className="text-sm font-extrabold">{tr('portfolio.people_access.what_first_can_see', 'What {{first}} can see', { first })}{' '}<span className="font-semibold text-muted-foreground">· @{account.username}</span></h3>

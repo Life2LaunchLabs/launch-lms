@@ -8,6 +8,7 @@ import type { AssignmentDetail, AssignmentThread } from '@services/assignments/a
 import { needLines } from '@services/assignments/page'
 import { needTotal } from '@services/assignments/status'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 const ICONS = { questions: CircleHelp, review: ClipboardCheck, behind: Clock } as const
 
@@ -56,7 +57,7 @@ export default function Sidebar({ detail, thread, needsHref, otherHref, onMessag
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2"><b className="min-w-0 flex-1 truncate text-sm">{detail.target.name}</b><em className="text-xs font-semibold not-italic text-good">{time(last?.creation_date)}</em></span>
           <span className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
-            <span className="flex min-w-0 flex-1 items-center gap-1 truncate">{last ? <>{last.staff_only ? <Lock size={12} className="shrink-0" aria-label="Staff only" /> : null}<span className="truncate">{last.mine ? 'You' : (last.sender?.name || '').split(' ')[0]}: {last.preview || last.body}</span></> : 'Everyone on the assignment'}</span>
+            <span className="flex min-w-0 flex-1 items-center gap-1 truncate">{last ? <>{last.staff_only ? <Lock size={12} className="shrink-0" aria-label="Staff only" /> : null}<span className="truncate">{last.mine ? 'You' : firstNameOf(last.sender?.name)}: {last.preview || last.body}</span></> : 'Everyone on the assignment'}</span>
             {thread?.unread ? <i className="grid h-5 min-w-5 place-items-center rounded-full bg-good px-1.5 text-[11px] font-bold not-italic text-white">{thread.unread}</i> : null}
           </span>
         </span>

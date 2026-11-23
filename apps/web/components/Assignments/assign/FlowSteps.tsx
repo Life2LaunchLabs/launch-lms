@@ -15,6 +15,7 @@ import type { TemplateDocument } from '@services/goals/types'
 import { Field, Segmented } from './flowUi'
 import type { GroupOption } from './useAssignData'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 const longDate = (value?: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : ''
 
@@ -102,7 +103,7 @@ export function StaffStep({ staff, setStaff, query, setQuery, options }: {
   const setRole = (id: number, role: AssignmentRole) => setStaff(staff.map((item) => item.id === id ? { ...item, role } : item))
   const problem = staffProblem(staff)
   return <div className="mt-[22px] flex flex-col gap-3">
-    <PickerField picks={staff} tokenKey={(item) => String(item.id)} tokenLabel={(item) => `${item.name.split(' ')[0]}${item.you ? ' (you)' : ''}`}
+    <PickerField picks={staff} tokenKey={(item) => String(item.id)} tokenLabel={(item) => `${firstNameOf(item.name)}${item.you ? ' (you)' : ''}`}
       tokenTile={(item) => <PersonTile person={{ id: item.id, username: item.username, first_name: item.name, avatar_image: item.avatar_image, user_uuid: item.user_uuid }} size="sm" />}
       tokenExtra={(item) => <select value={item.role} aria-label={`Role for ${item.name}`} onChange={(event) => setRole(item.id, event.target.value as AssignmentRole)}
         className={cn('ml-0.5 rounded-full border-0 px-1.5 py-[3px] text-xs font-bold', item.role === 'lead' ? 'bg-foreground text-background' : 'bg-muted text-foreground')}>

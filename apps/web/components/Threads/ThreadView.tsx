@@ -19,6 +19,7 @@ import { ContextBar, FilterChips, type StepOption } from './ContextBar'
 import EppReportLink from '@components/Epp/EppReportLink'
 import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import { AskedCard, JoinRequestCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
+import { firstNameOf } from '@/lib/names'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
@@ -44,7 +45,7 @@ export interface ThreadViewProps {
 }
 
 const names = (people: PersonSummary[], me?: number) => {
-  const list = people.map((person) => person.id === me ? 'you' : person.name.split(' ')[0])
+  const list = people.map((person) => person.id === me ? 'you' : firstNameOf(person.name))
   return list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`
 }
 
@@ -131,7 +132,7 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   const header = <Header art={art} title={thread.person.name} sub={sub} actions={<>{epp}{insights}{actions}</>} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
   if (thread.kind === 'staff' || !thread.chat_uuid) return <Shell>{header}<div className="border-b border-border" />
     {thread.chat_uuid ? <ChatWorkspace key={thread.chat_uuid} source={{ chatUuid: thread.chat_uuid }} orgslug={orgslug} token={token} hideTopics empty="Nothing here yet. Say hello." />
-      : <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">You can’t message {thread.person.name.split(' ')[0]} directly.</p>}
+      : <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">You can’t message {firstNameOf(thread.person.name)} directly.</p>}
   </Shell>
 
   const steps: StepOption[] = thread.steps.map((item) => ({ id: item.step_uuid, title: item.title, updates: item.updates, done: ['done', 'approved', 'excused'].includes(item.state) }))
@@ -147,13 +148,13 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
     <ContextBar plans={thread.plans} focus={focus} onFocus={context.setFocus} steps={steps} step={step} onStep={context.setStep} />
     <FilterChips counts={thread.counts} value={filter} onChange={context.setFilter} />
     {thread.counts && !Object.values(thread.counts).some(Boolean) && filter === 'all' ? <div className="border-b border-border" /> : null}
-    <ChatWorkspace key={thread.chat_uuid} source={{ orgId, userId: target.userId }} orgslug={orgslug} token={token} hideTopics filter={shown} onFilter={pick} title={thread.person.name.split(' ')[0]}
+    <ChatWorkspace key={thread.chat_uuid} source={{ orgId, userId: target.userId }} orgslug={orgslug} token={token} hideTopics filter={shown} onFilter={pick} title={firstNameOf(thread.person.name)}
       audience={filter === 'staff_only' ? 'staff' : undefined}
       only={filter === 'questions' ? onlyQuestions : filter === 'review' || filter === 'requests' || filter === 'past_due' ? hideAll : undefined}
       timeline={timeline} timelineFiltered
       stepHref={(goalUuid, stepUuid) => `${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid))}?step=${encodeURIComponent(stepUuid)}`}
       reviewHref={reviewOf}
-      empty={filter === 'all' ? `Nothing here yet. Say hello to ${thread.person.name.split(' ')[0]}.` : 'Nothing left here. Nice.'}
+      empty={filter === 'all' ? `Nothing here yet. Say hello to ${firstNameOf(thread.person.name)}.` : 'Nothing left here. Nice.'}
       onOpenPlan={(goalUuid) => onOpen?.({ kind: 'person', userId: target.userId, plan: goalUuid })} />
   </Shell>
 }
@@ -212,7 +213,7 @@ function StaffRoomView({ orgId, orgslug, token, actions }: ThreadViewProps) {
 function logLine(entry: OrgLogEntry) {
   if (entry.kind === 'org_created') return { icon: Building2, text: <>{entry.org.name} was created</> }
   if (entry.kind === 'staff_joined') return { icon: UserPlus, text: <><b>{entry.person?.name || 'Someone'}</b> joined as {entry.role}</> }
-  if (entry.kind === 'learners_joined') return { icon: Users, text: <><b>{entry.count} learner{entry.count === 1 ? '' : 's'}</b> joined{entry.people.length ? `: ${entry.people.map((person) => person.name.split(' ')[0]).join(', ')}${entry.count > entry.people.length ? ' and others' : ''}` : ''}</> }
+  if (entry.kind === 'learners_joined') return { icon: Users, text: <><b>{entry.count} learner{entry.count === 1 ? '' : 's'}</b> joined{entry.people.length ? `: ${entry.people.map((person) => firstNameOf(person.name)).join(', ')}${entry.count > entry.people.length ? ' and others' : ''}` : ''}</> }
   if (entry.kind === 'join_asked') return { icon: DoorOpen, text: <><b>{entry.who.name}</b> asked to join</> }
   if (entry.kind === 'join_answered') return { icon: entry.approved ? Check : X, text: <><b>{entry.by?.name || 'Someone'}</b> {entry.approved ? 'approved' : 'declined'} <b>{entry.who.name}</b></> }
   if (entry.kind === 'plan_asked') return { icon: Route, text: entry.incoming ? <><b>{entry.org.name}</b> asked to run <b>{entry.plan}</b></> : <>You asked <b>{entry.org.name}</b> to run <b>{entry.plan}</b></> }

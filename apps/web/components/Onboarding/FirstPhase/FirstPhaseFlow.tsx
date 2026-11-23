@@ -23,6 +23,7 @@ import { uploadMediaAsset } from '@services/media/library'
 import { tr } from '@/lib/tr'
 import { useTranslation } from 'react-i18next'
 import { MicButton, ReadToMeToggle, SpokenQuestion } from '@components/Accessibility/ReadAloud'
+import { greetingName } from '@/lib/names'
 
 type Draft = { place: PlaceOption | null; living: string | null; activities: Activity[]; purpose: string; starts: string; title: string; titleTouched: boolean; cover: string | null }
 
@@ -58,7 +59,7 @@ export default function FirstPhaseFlow() {
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
   const userId = session?.data?.user?.id
-  const firstName = (session?.data?.user?.preferred_name || '').trim().split(' ')[0] || session?.data?.user?.first_name
+  const firstName = greetingName(session?.data?.user)
   const { doc, isLoading, change } = useLifePlan(token)
   const photos = usePlacePhotos(token)
   const [step, setStep] = React.useState(0)

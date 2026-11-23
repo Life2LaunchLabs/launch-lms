@@ -1,5 +1,6 @@
 import type { AssignmentPerson, Needs, StatusCategory, StatusCounts } from './assignments'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 /** The five places a learner can be on a step, in time order, so "now" falls between behind and open. */
 export const CATEGORIES: Array<{ key: StatusCategory; label: string }> = [
@@ -43,7 +44,7 @@ export function personLabel(person?: Pick<AssignmentPerson, 'username' | 'first_
   return [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username
 }
 
-export const firstName = (person?: Pick<AssignmentPerson, 'username' | 'first_name' | 'last_name'> | null) => personLabel(person).split(' ')[0]
+export const firstName = (person?: Pick<AssignmentPerson, 'username' | 'first_name' | 'last_name'> | null) => firstNameOf(personLabel(person))
 
 const day = (value: string) => new Date(`${value.slice(0, 10)}T12:00:00`)
 /** "Oct 23". */

@@ -34,6 +34,7 @@ import { H1, LEDE, TOUR } from './tour'
 import { PALETTE, ROLES, ROLE_IDS, groupSuggestions, type StartRole } from './roles'
 
 import { tr } from '@/lib/tr'
+import { firstNameOf } from '@/lib/names'
 type Step = 't0' | 't1' | 't2' | 't3' | 'role' | 'reqs' | 'plans' | 'account' | 'you' | 'tier' | 'learners' | 'staff' | 'groups' | 'done'
 
 export interface StartState {
@@ -116,7 +117,7 @@ export default function StartFlow() {
   const go = (step: Step) => { setError(''); patch({ step }) }
   const move = (direction: number) => go(steps[Math.max(0, Math.min(steps.length - 1, steps.indexOf(state.step) + direction))])
   const role = state.role ? ROLES[state.role] : null
-  const spaceName = state.space?.name || (state.orgOn ? state.org.trim() || tr('lit.start_flow.your_organization', 'Your organization') : state.name.trim() ? `${state.name.trim().split(' ')[0]}’s space` : tr('lit.start_flow.your_space', 'Your space'))
+  const spaceName = state.space?.name || (state.orgOn ? state.org.trim() || tr('lit.start_flow.your_organization', 'Your organization') : state.name.trim() ? `${firstNameOf(state.name)}’s space` : tr('lit.start_flow.your_space', 'Your space'))
 
   const { data: frameworks = [] } = useSWR(startKeys.frameworks(), async () => { try { return await startApi.frameworks() } catch { return [] } }, { revalidateOnFocus: false })
   const framework = frameworks.find((item) => item.framework_uuid === state.framework) || null
@@ -295,7 +296,7 @@ export default function StartFlow() {
         <AddList placeholder={tr('onboarding.start_flow.name_a_group', 'Name a group')} items={state.groups} onChange={(groups) => patch({ groups })} chips={suggestions} />
         <Nav back={() => move(-1)} next={() => void finishStep('groups')} busy={busy} label={state.groups.length ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.start_flow.skip_for_now', 'Skip for now')} /></>
     }
-    return <><Eyebrow>{tr('onboarding.start_flow.all_set', 'All set')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.you_re_all_set', 'You’re all set')}{state.name.trim() ? `, ${state.name.trim().split(' ')[0]}` : ''}</h1>
+    return <><Eyebrow>{tr('onboarding.start_flow.all_set', 'All set')}</Eyebrow><h1 className={H1}>{tr('onboarding.start_flow.you_re_all_set', 'You’re all set')}{state.name.trim() ? `, ${firstNameOf(state.name)}` : ''}</h1>
       <p className={LEDE}>{tr('onboarding.start_flow.spacename_is_ready_your_home', '{{spaceName}} is ready. Your Home page has what to do next.', { spaceName })}</p>
       <Nav back={() => move(-1)} next={open} label={tr('onboarding.start_flow.let_s_go', 'Let’s go')} /></>
   }

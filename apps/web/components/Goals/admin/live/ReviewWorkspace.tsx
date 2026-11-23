@@ -16,6 +16,7 @@ import { decideLearningRun } from '@services/learning/learning'
 import ReviewEvidence from './ReviewEvidence'
 import { EmptyState, gradeActivityReview, PageLoader, PersonAvatar, pendingScores, personName, StatusPill, timeAgo } from './ui'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 type Decision = 'confirm' | 'flag'
 
@@ -145,7 +146,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
           {guidance.length ? <Block title="What to look for"><ul className="space-y-1.5">{guidance.map((line, lineIndex) => <li key={lineIndex}><button type="button" onClick={() => setChecks({ ...checks, [lineIndex]: !checks[lineIndex] })} className="flex w-full items-start gap-2.5 text-left text-sm text-gray-800">{checks[lineIndex] ? <SquareCheckBig size={16} className="mt-0.5 shrink-0 text-green-700" /> : <Square size={16} className="mt-0.5 shrink-0 text-gray-400" />}<span>{line}</span></button></li>)}</ul></Block> : null}
           {data.step.requirements.length ? <div className="flex flex-wrap gap-1.5">{data.step.requirements.map((node) => <span key={node.node_uuid} title={node.framework_name} className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-700">{[node.code, node.title].filter(Boolean).join(' ')}</span>)}</div> : null}
           {item.feedback_history.length ? <Block title="Earlier feedback"><div className="space-y-1.5">{item.feedback_history.map((entry, entryIndex) => <p key={entryIndex} className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">{entry.message}</p>)}</div></Block> : null}
-          <label className="block text-xs font-bold text-gray-700">Note to {personName(item.user).split(' ')[0]} · posts to their feed{confirmOnly ? <span className="font-normal text-gray-500"> (optional)</span> : null}
+          <label className="block text-xs font-bold text-gray-700">Note to {firstNameOf(personName(item.user))} · posts to their feed{confirmOnly ? <span className="font-normal text-gray-500"> (optional)</span> : null}
             <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={3} className="mt-1.5 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal outline-none focus:border-gray-400" placeholder={confirmOnly ? 'Optional' : 'Needed if you send it back'} />
           </label>
           <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">

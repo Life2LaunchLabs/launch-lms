@@ -35,10 +35,11 @@ class Document:
 def _epp(ctx: Ctx) -> dict:
     from src.services.epp import report
     from src.services.school import support
+    from src.services.users.names import first_name_of
 
     learner = int(ctx.scope.id)  # type: ignore[arg-type]
     if not support.is_supported(ctx.db, ctx.org_id, ctx.pop.viewer_id, learner):
-        first = (ctx.scope.label or "this learner").split(" ")[0]
+        first = first_name_of(ctx.scope.label) or "this learner"
         return {"error": "locked", "errors": [{"field": "measure", "message": f"Your school doesn't support {first}'s Education Plan and Profile yet. Ask to support them from their profile."}]}
     built = report.build(ctx.db, ctx.org_id, learner)
     marks = {item["key"]: item["status"] for item in built["components"]}
