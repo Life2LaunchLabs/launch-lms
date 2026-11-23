@@ -103,13 +103,47 @@ def _project_detail(db: Session, project: ProjectItem) -> list[str]:
     return lines[:20]
 
 
+# The portfolio's "Skills and values" result keeps its chips in data.skills and data.values: skills are what
+# steps and builders call strengths (DEV-210).
+SKILLS_TEMPLATE = "skills-values"
+CHIP_GROUPS = {"strength": "skills", "value": "values"}
+PRIVATE = PortfolioVisibility.PRIVATE.value
+
+
+def _chip_text(chip_id: str, custom: list) -> str:
+    from src.services.goals.starter import option_text
+
+    for option in custom or []:
+        if isinstance(option, dict) and option.get("id") == chip_id and option.get("text"):
+            return str(option["text"])
+    return option_text(chip_id) or chip_id.replace("-", " ").capitalize()
+
+
+def _chips(db: Session, portfolio_id: int, kind: str | None) -> list[Item]:
+    """The skills and values the learner tapped in "Skills and values", as traits: strengths and values."""
+    rows = db.exec(select(PortfolioResult).where(PortfolioResult.portfolio_id == portfolio_id, PortfolioResult.visibility != PRIVATE)).all()
+    found: list[Item] = []
+    for row in rows:
+        data = row.data or {}
+        if data.get("template") != SKILLS_TEMPLATE:
+            continue
+        for trait_type, group in CHIP_GROUPS.items():
+            if kind and kind != trait_type:
+                continue
+            for chip in data.get(group) or []:
+                if isinstance(chip, str) and chip:
+                    found.append(Item(f"chip:{trait_type}:{chip}", _chip_text(chip, (data.get("custom") or {}).get(group)), "Skill" if trait_type == "strength" else "Value"))
+    return found
+
+
 def items(db: Session, user_id: int, part: str, kind: str | None = None) -> list[Item]:
-    """The learner's portfolio items that count toward a part, newest first."""
+    """The learner's portfolio items that count toward a part, newest first. What they hide from visitors doesn't count (DEV-210)."""
+    portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
     if part == "badges":
+        hidden = set(((portfolio.theme_settings if portfolio else None) or {}).get("hidden_award_uuids") or [])
         awards = db.exec(select(BadgeAward).where(BadgeAward.user_id == user_id, BadgeAward.status == "active").order_by(BadgeAward.id.desc())).all()  # type: ignore[union-attr]
         return [Item(f"badge:{award.award_uuid}", str((award.achievement or {}).get("name") or "Badge"), date=str(award.earned_on or ""),
-                     summary=str((award.achievement or {}).get("description") or "")[:600]) for award in awards]
-    portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
+                     summary=str((award.achievement or {}).get("description") or "")[:600]) for award in awards if award.award_uuid not in hidden]
     if not portfolio:
         return []
     pid = portfolio.id
@@ -118,36 +152,38 @@ def items(db: Session, user_id: int, part: str, kind: str | None = None) -> list
     if part == "launch":
         return [Item("launch", "Your portfolio is live", date=(portfolio.published_at or "")[:10])] if _value(portfolio.visibility) == PortfolioVisibility.PUBLIC.value else []
     if part == "projects":
-        rows = db.exec(select(ProjectItem).where(ProjectItem.portfolio_id == pid, ProjectItem.status != PortfolioContentStatus.ARCHIVED.value).order_by(ProjectItem.update_date.desc())).all()  # type: ignore[arg-type]
+        rows = db.exec(select(ProjectItem).where(ProjectItem.portfolio_id == pid, ProjectItem.status != PortfolioContentStatus.ARCHIVED.value, ProjectItem.visibility != PRIVATE).order_by(ProjectItem.update_date.desc())).all()  # type: ignore[arg-type]
         return [Item(f"project:{row.project_uuid}", row.title, row.subtitle or row.role_label, row.summary[:600], _span(row.start_date, row.end_date, row.is_ongoing),
                      _asset_url(db, row.cover_asset_id), _project_detail(db, row)) for row in rows]
     if part == "timeline":
-        statement = select(TimelineEntry).where(TimelineEntry.portfolio_id == pid, TimelineEntry.status != PortfolioContentStatus.ARCHIVED.value)
+        statement = select(TimelineEntry).where(TimelineEntry.portfolio_id == pid, TimelineEntry.status != PortfolioContentStatus.ARCHIVED.value, TimelineEntry.visibility != PRIVATE)
         if kind:
             statement = statement.where(TimelineEntry.entry_type == kind)
         rows = db.exec(statement.order_by(TimelineEntry.start_date.desc())).all()  # type: ignore[arg-type, union-attr]
         return [Item(f"timeline:{row.timeline_uuid}", row.title, row.organization, row.summary[:600], _span(row.start_date, row.end_date, row.is_current),
                      _asset_url(db, row.cover_asset_id)) for row in rows]
     if part == "results":
-        statement = select(PortfolioResult).where(PortfolioResult.portfolio_id == pid)
+        statement = select(PortfolioResult).where(PortfolioResult.portfolio_id == pid, PortfolioResult.visibility != PRIVATE)
         if kind:
             statement = statement.where(PortfolioResult.kind == kind)
         rows = db.exec(statement.order_by(PortfolioResult.sort_order, PortfolioResult.id)).all()  # type: ignore[arg-type]
         return [Item(f"result:{row.result_uuid}", row.name, row.kind.capitalize(), row.summary[:600], (row.taken_on or "")[:10]) for row in rows]
     if part == "traits":
-        statement = select(ProfileTrait).where(ProfileTrait.portfolio_id == pid)
+        statement = select(ProfileTrait).where(ProfileTrait.portfolio_id == pid, ProfileTrait.visibility != PRIVATE)
         if kind:
             statement = statement.where(ProfileTrait.trait_type == kind)
         rows = db.exec(statement.order_by(ProfileTrait.sort_order, ProfileTrait.id)).all()  # type: ignore[arg-type]
-        return [Item(f"trait:{row.trait_uuid}", row.label, _value(row.trait_type).capitalize(), row.description[:600]) for row in rows]
+        traits = [Item(f"trait:{row.trait_uuid}", row.label, _value(row.trait_type).capitalize(), row.description[:600]) for row in rows]
+        named = {item.title.strip().lower() for item in traits}
+        return traits + [chip for chip in _chips(db, int(pid or 0), kind) if chip.title.strip().lower() not in named]
     if part == "credentials":
-        statement = select(Credential).where(Credential.portfolio_id == pid)
+        statement = select(Credential).where(Credential.portfolio_id == pid, Credential.visibility != PRIVATE)
         if kind:
             statement = statement.where(Credential.kind == kind)
         rows = db.exec(statement.order_by(Credential.sort_order, Credential.id)).all()  # type: ignore[arg-type]
         return [Item(f"credential:{row.credential_uuid}", row.name, row.issuer, row.score, (row.issued_on or row.expected_on or "")[:10], _asset_url(db, row.photo_asset_id)) for row in rows]
     if part == "recommendations":
-        rows = db.exec(select(PortfolioQuote).where(PortfolioQuote.portfolio_id == pid, PortfolioQuote.status != QuoteStatus.REQUESTED.value).order_by(PortfolioQuote.id)).all()  # type: ignore[arg-type]
+        rows = db.exec(select(PortfolioQuote).where(PortfolioQuote.portfolio_id == pid, PortfolioQuote.status != QuoteStatus.REQUESTED.value, PortfolioQuote.visibility != PRIVATE).order_by(PortfolioQuote.id)).all()  # type: ignore[arg-type]
         contacts = {row.id: row for row in db.exec(select(PortfolioContact).where(PortfolioContact.portfolio_id == pid)).all()}
         return [Item(f"quote:{row.quote_uuid}", contacts[row.contact_id].name if row.contact_id in contacts else "Recommendation",
                      contacts[row.contact_id].role_label if row.contact_id in contacts else "", row.body[:1200], (row.confirmed_at or "")[:10]) for row in rows]

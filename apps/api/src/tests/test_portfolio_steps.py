@@ -85,23 +85,6 @@ def test_a_step_can_count_a_kind_of_result_like_a_strengths_test():
         assert step["status"] == "completed" and [item["title"] for item in step["reference"]["items"]] == ["CliftonStrengths"]
 
 
-def test_show_your_strengths_finishes_from_skills_and_values_added_as_results():
-    """The EPP's "Show your strengths" step (check: traits) stayed undone for a learner who added skills and
-    values in the portfolio's Results dialog, so the report showed 0% (DEV-209, FEED-332)."""
-    with _session() as db:
-        portfolio = _portfolio(db)
-        strengths = {"type": "portfolio", "title": "Show your strengths", "config": {"check": "traits"}}
-        goal = _issue(db, _published(db, strengths, {"type": "task", "title": "Tidy up"}))
-        db.add(PortfolioResult(result_uuid="res_s", portfolio_id=portfolio.id, kind="skills", name="Skills", summary="Spanish, Figma"))
-        db.commit()
-        on_portfolio_changed(db, LEARNER)
-        assert _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Show your strengths")["status"] != "completed"
-        db.add(PortfolioResult(result_uuid="res_v", portfolio_id=portfolio.id, kind="values", name="Values", summary="Caring, Honesty"))
-        db.commit()
-        on_portfolio_changed(db, LEARNER)
-        assert _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Show your strengths")["status"] == "completed"
-
-
 def test_a_filter_has_to_fit_the_part():
     with _session() as db, pytest.raises(HTTPException, match="doesn't narrow"):
         _published(db, {"type": "portfolio", "title": "Bad", "config": {"part": "projects", "filter": "strengths"}})
@@ -130,3 +113,43 @@ def test_staff_reviewing_the_step_see_the_counted_items_and_the_name_the_learner
         assert item["portfolio"]["needed"] == 3 and item["portfolio"]["have"] == 3
         assert sorted(entry["key"] for entry in item["portfolio"]["items"]) == ["project:prj_a", "project:prj_b", "project:prj_c"]
         assert all("hidden" not in entry for entry in item["portfolio"]["items"])
+
+
+def test_skills_and_values_tapped_in_the_portfolio_finish_show_your_strengths():
+    """DEV-210: the portfolio's "Skills and values" result is where learners pick strengths and values."""
+    with _session() as db:
+        portfolio = _portfolio(db)
+        legacy = {"type": "portfolio", "title": "Show your skills and values", "config": {"check": "traits"}}
+        counting = {"type": "portfolio", "title": "Pick three skills", "config": {"part": "traits", "filter": "strength", "count": 3}}
+        goal = _issue(db, _published(db, legacy, counting, {"type": "task", "title": "Tidy up"}))
+        view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
+        assert _step(view, "Show your skills and values")["status"] != "completed"
+        db.add(PortfolioResult(result_uuid="res_sv", portfolio_id=portfolio.id, kind="skills", name="Skills and values",
+                               data={"template": "skills-values", "skills": ["coding", "listening", "welding"], "values": ["honesty"],
+                                     "custom": {"skills": [{"id": "welding", "text": "Welding"}]}}))
+        db.commit()
+        on_portfolio_changed(db, LEARNER)
+        view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
+        assert _step(view, "Show your skills and values")["status"] == "completed"
+        skills = _step(view, "Pick three skills")
+        assert skills["status"] == "completed"
+        assert [item["title"] for item in skills["reference"]["items"]] == ["Coding", "Listening", "Welding"]
+
+
+def test_items_kept_private_in_the_portfolio_never_count():
+    """DEV-210: a project hidden from visitors, or a badge hidden on the portfolio, isn't counted or shown to staff."""
+    from sqlmodel import select
+    from src.db.portfolio import PortfolioVisibility
+
+    with _session() as db:
+        portfolio = _portfolio(db)
+        _projects(db, portfolio, "bridge", "comic", "mural")
+        for project in db.exec(select(ProjectItem).where(ProjectItem.title != "bridge")).all():
+            project.visibility = PortfolioVisibility.PRIVATE
+            db.add(project)
+        db.commit()
+        pick = {"type": "portfolio", "title": "Pick two pieces", "config": {"part": "projects", "count": 2}}
+        goal = _issue(db, _published(db, pick, {"type": "task", "title": "Tidy up"}))
+        step = _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Pick two pieces")
+        assert step["status"] != "completed" and step["reference"]["have"] == 1
+        assert [item["title"] for item in step["reference"]["items"]] == ["bridge"]

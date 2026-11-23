@@ -1,5 +1,5 @@
 import type { HubChatStarter } from '@services/hub/advisor'
-import type { Activity, Household, Phase } from '@services/life/life'
+import type { Activity, Household, Phase, PlaceOption } from '@services/life/life'
 import { tr } from '@/lib/tr'
 
 /*
@@ -88,6 +88,27 @@ export function pendingActivity({ kind, level, career, typed }: ActivityDraft): 
     return text ? { kind, career_title: text } : null
   }
   return null
+}
+
+/**
+ * A place as the learner typed it, when it isn't one on our list (a very small town): offered next to the
+ * search results so nobody is stuck. It has no key, so costs fall back to the state and the US. Nothing
+ * when the box is empty or the text already names a listed place ("bend" and "Bend, OR").
+ */
+export function typedPlace(typed: string, rows: PlaceOption[]): PlaceOption | null {
+  const text = typed.trim().replace(/\s+/g, ' ').slice(0, 120)
+  if (!text) return null
+  const low = text.toLowerCase()
+  if (rows.some((r) => r.label.toLowerCase() === low || r.label.split(',')[0].trim().toLowerCase() === low)) return null
+  return { key: '', label: text, detail: '', level: 'typed' }
+}
+
+/**
+ * What a check pressed on a new phase keeps from a picker that's still open: the half-made activity
+ * (as Done would keep it, FEED-117), and nothing from the others, whose picks are already saved.
+ */
+export function draftOnKeep(open: string | null, draft: Activity | null): Activity | null {
+  return open === 'doing' ? draft : null
 }
 
 /**

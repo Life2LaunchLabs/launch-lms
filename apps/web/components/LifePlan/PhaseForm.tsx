@@ -8,6 +8,7 @@ import { Label } from '@components/ui/label'
 import { lifeApi, type PlaceOption } from '@services/life/life'
 
 import { tr } from '@/lib/tr'
+import { typedPlace } from '@components/Goals/phases/setup'
 export const PHASE_KINDS = (): [string, string][] => ([
   ['school', tr('lit.phase_form.in_school', 'In school')],
   ['study', tr('lit.phase_form.college_or_training', 'College or training')],
@@ -31,11 +32,13 @@ export function PlacePicker({ token, value, label, onPick }: { token?: string; v
     const t = setTimeout(() => { lifeApi.places(q, token).then((r) => { if (live) setRows(r.places) }).catch(() => {}) }, 150)
     return () => { live = false; clearTimeout(t) }
   }, [q, open, token])
+  // A town that isn't listed is fine as typed (FEED-386).
+  const own = typedPlace(q, rows)
   if (!open) {
     return (
       <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center gap-2 rounded-xl border border-input bg-background px-3 py-2 text-left text-sm">
         <MapPin className="size-4 text-muted-foreground" />
-        <span className={value ? 'font-semibold' : 'text-muted-foreground'}>{value ? label : tr('budget.phase_form.pick_a_town_county_or', 'Pick a town, county or state')}</span>
+        <span className={value || label ? 'font-semibold' : 'text-muted-foreground'}>{value || label ? label : tr('budget.phase_form.pick_a_town_county_or', 'Pick a town, county or state')}</span>
       </button>
     )
   }
@@ -53,7 +56,9 @@ export function PlacePicker({ token, value, label, onPick }: { token?: string; v
             </button>
           </li>
         ))}
-        {!rows.length && <li className="px-3 py-2 text-sm text-muted-foreground">{tr('budget.phase_form.no_matches', 'No matches')}</li>}
+        {own ? <li><button type="button" role="option" aria-selected={false} onClick={() => { onPick(own); setOpen(false); setQ('') }} className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted">
+          <span className="font-semibold">{tr('phases.use_typed', 'Use “{{text}}”', { text: own.label })}</span></button></li> : null}
+        {!rows.length && !own && <li className="px-3 py-2 text-sm text-muted-foreground">{tr('budget.phase_form.no_matches', 'No matches')}</li>}
       </ul>
     </div>
   )
@@ -82,7 +87,7 @@ export function PhaseForm({ token, initial, submitLabel, onSubmit, onCancel }: {
       </div>
       <div className="space-y-1.5">
         <Label>{tr('budget.phase_form.where', 'Where')}</Label>
-        <PlacePicker token={token} value={d.place} label={d.placeLabel} onPick={(p) => setD({ ...d, place: p?.key ?? null, placeLabel: p?.label ?? '' })} />
+        <PlacePicker token={token} value={d.place} label={d.placeLabel} onPick={(p) => setD({ ...d, place: p?.key || null, placeLabel: p?.label ?? '' })} />
         <p className="text-xs text-muted-foreground">{tr('budget.phase_form.estimates_are_for_this_place', 'Estimates are for this place when we have them.')}</p>
       </div>
       <div className="space-y-1.5">

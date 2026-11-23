@@ -24,7 +24,7 @@ export const PORTFOLIO_PARTS: Record<PortfolioPart, { one: string; many: string;
   get projects() { return { one: tr('goals.portfolio.project', 'project'), many: tr('goals.portfolio.projects', 'projects'), hint: tr('goals.portfolio.projects_hint', 'Projects') } },
   get timeline() { return { one: tr('goals.portfolio.timeline_entry', 'timeline entry'), many: tr('goals.portfolio.timeline_entries', 'timeline entries'), hint: tr('goals.portfolio.timeline_hint', 'Timeline entries, like jobs or teams') } },
   get results() { return { one: tr('goals.portfolio.result', 'result'), many: tr('goals.portfolio.results', 'results'), hint: tr('goals.portfolio.results_hint', 'Results in What I’m like, like a strengths test') } },
-  get traits() { return { one: tr('goals.portfolio.trait', 'strength or value'), many: tr('goals.portfolio.traits', 'strengths and values'), hint: tr('goals.portfolio.traits_hint', 'Strengths and values they pick') } },
+  get traits() { return { one: tr('goals.portfolio.trait', 'skill or value'), many: tr('goals.portfolio.traits', 'skills and values'), hint: tr('goals.portfolio.traits_hint', 'Skills and values they tap in What I’m like') } },
   get credentials() { return { one: tr('goals.portfolio.credential', 'credential'), many: tr('goals.portfolio.credentials', 'credentials'), hint: tr('goals.portfolio.credentials_hint', 'Certificates, cards and test scores') } },
   get recommendations() { return { one: tr('goals.portfolio.recommendation', 'recommendation'), many: tr('goals.portfolio.recommendations', 'recommendations'), hint: tr('goals.portfolio.recommendations_hint', 'Recommendations from people who know them') } },
   get badges() { return { one: tr('goals.portfolio.badge', 'badge'), many: tr('goals.portfolio.badges', 'badges'), hint: tr('goals.portfolio.badges_hint', 'Badges they hold') } },
@@ -53,6 +53,11 @@ export function portfolioAsk(config: PortfolioConfig): string {
   const count = config.part ? config.count || 1 : 1
   const kind = config.filter ? `${humanize(config.filter).toLowerCase()} ` : ''
   return tr('goals.portfolio.ask_count', 'At least {{count}} {{kind}}{{what}}', { count, kind, what: count === 1 ? words.one : words.many })
+}
+
+/** "2 of 3", or "4 counting, 3 needed" once there are more than enough: never a count that hides items (DEV-210). */
+export function portfolioTally(have: number, needed: number): string {
+  return have > needed ? tr('goals.portfolio.have_over_needed', '{{have}} counting, {{needed}} needed', { have, needed }) : tr('goals.portfolio.have_of_needed', '{{have}} of {{needed}}', { have, needed })
 }
 
 export function ItemThumb({ item }: { item: PortfolioStepItem }) {
@@ -97,11 +102,12 @@ function PortfolioCard(props: StepCardProps<'portfolio'>) {
   const hidden = ref.items.filter((item) => item.hidden).map((item) => item.key)
   const toggle = (item: PortfolioStepItem) => actions.hidePortfolioItems?.(item.hidden ? hidden.filter((key) => key !== item.key) : [...hidden, item.key])
   const percent = Math.min(100, Math.round((have / needed) * 100))
+  const tally = portfolioTally(have, needed)
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
     <Feedback step={step} />
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-3 text-sm"><b>{ask}</b><span className="shrink-0 text-xs font-bold text-muted-foreground">{tr('goals.portfolio.have_of_needed', '{{have}} of {{needed}}', { have: Math.min(have, needed), needed })}</span></div>
+      <div className="flex items-baseline justify-between gap-3 text-sm"><b>{ask}</b><span className="shrink-0 text-xs font-bold text-muted-foreground">{tally}</span></div>
       <div role="progressbar" aria-label={ask} aria-valuemin={0} aria-valuemax={needed} aria-valuenow={Math.min(have, needed)} className="h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-[var(--plan-face)] transition-all" style={{ width: `${percent}%` }} />
       </div>
@@ -128,7 +134,7 @@ function PortfolioCard(props: StepCardProps<'portfolio'>) {
           </li>
         })}
       </ul>
-      {learner ? <p className="text-xs text-muted-foreground">{tr('goals.portfolio.hide_note', 'Hidden items don’t count here, and staff don’t see them on this step.')}</p> : null}
+      {learner ? <p className="text-xs text-muted-foreground">{tr('goals.portfolio.hide_note', 'Hidden items don’t count here, and staff don’t see them on this step. Items you keep private in your portfolio never count.')}</p> : null}
     </div> : <CardNote icon={BriefcaseBusiness}>{learner ? tr('goals.portfolio.nothing_yet_learner', 'Nothing yet. Add to your portfolio and it shows up here.') : tr('goals.portfolio.nothing_yet_staff', 'Nothing in their portfolio counts yet.')}</CardNote>}
     {learner && !done && !step.locked ? <Button asChild variant="surface" className="self-start"><Link href={getUriWithOrg(orgslug, routePaths.org.portfolio())}>{tr('goals.linked.open_my_portfolio', 'Open my portfolio')}</Link></Button> : null}
     {staff ? <FinishControls {...props} finishesItself /> : null}
@@ -178,7 +184,7 @@ export const portfolio: StepDefinition<'portfolio'> = {
   get hint() { return tr('goals.portfolio.hint', 'Have enough of a part of their portfolio, like 3 projects or a strengths test.') },
   get example() { return tr('lit.linked.add_two_projects_to_your', 'Add two projects to your portfolio') },
   icon: BriefcaseBusiness,
-  statusLine: (step: Step<'portfolio'>) => step.reference?.items ? tr('goals.portfolio.have_of_needed', '{{have}} of {{needed}}', { have: Math.min(step.reference.have || 0, step.reference.needed || 1), needed: step.reference.needed || 1 }) : portfolioAsk(step.config),
+  statusLine: (step: Step<'portfolio'>) => step.reference?.items ? portfolioTally(step.reference.have || 0, step.reference.needed || 1) : portfolioAsk(step.config),
   CardBody: PortfolioCard,
   ConfigPanel: PortfolioConfigPanel,
   defaultConfig: () => ({ part: 'projects', count: 1 }),

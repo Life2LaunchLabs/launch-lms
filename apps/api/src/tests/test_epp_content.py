@@ -63,7 +63,7 @@ def test_install_makes_drafts_and_a_learner_shows_met_planned_and_gap(db):
     goals.save_submission(db, _user(LEARNER), goal_uuid, written["step_uuid"], StepSubmission(submission={"text": "It said I like helping people."}))
     _status(db, LEARNER, goal, written, StepStatus.COMPLETED)
     # A district dropped the strengths step from this learner's copy.
-    dropped = db.exec(select(GoalStep).where(GoalStep.step_uuid == _step(view, "Show your strengths")["step_uuid"])).one()
+    dropped = db.exec(select(GoalStep).where(GoalStep.step_uuid == _step(view, "Show your skills and values")["step_uuid"])).one()
     db.delete(dropped)
     db.commit()
 
