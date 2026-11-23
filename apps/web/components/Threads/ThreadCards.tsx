@@ -16,6 +16,7 @@ import { shortDate } from '@services/assignments/status'
 import type { PersonSummary } from '@services/goals/types'
 import type { AskedItem, PastDueItem, ReviewItem, ThreadRequest } from '@services/school/threads'
 import { inOrgWords } from '@/lib/people'
+import { firstNameOf } from '@/lib/names'
 
 const button = 'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold disabled:opacity-60'
 const primary = cn(button, 'bg-[var(--org-primary-color)] text-white hover:opacity-90')
@@ -70,7 +71,7 @@ export function PastDueCard({ line, learner, orgId, token, onPerson }: {
       setBusy(false)
     }
   }
-  const first = learner?.name.split(' ')[0]
+  const first = firstNameOf(learner?.name)
   return <Notice icon={Clock} tone="bad">
     <span><b>{line.title}</b> is past due{line.due_date ? ` · was due ${shortDate(line.due_date)}` : ''}{people.length ? ` for ${people.length === 1 ? people[0].name : `${people.length} learners`}` : ''}</span>
     <span className="flex flex-wrap items-center gap-2">
@@ -112,7 +113,7 @@ export function RequestCard({ request, orgId, token, onDone }: { request: Thread
   }
   const helper = request.helper?.name || request.email
   return <Notice icon={Hand} tone="warn">
-    <span><b>{request.learner?.name.split(' ')[0] || 'They'}</b> asked to add {helper}{request.role ? ` as ${request.role.name.toLowerCase()}` : ''} on {request.goal.title}</span>
+    <span><b>{firstNameOf(request.learner?.name) || 'They'}</b> asked to add {helper}{request.role ? ` as ${request.role.name.toLowerCase()}` : ''} on {request.goal.title}</span>
     <span className="text-xs text-muted-foreground">Helpers see {request.goal.title} only, and can message staff about it.</span>
     <span className="flex gap-2">
       <button type="button" disabled={busy} onClick={() => decide(true)} className={primary}><Check size={14} aria-hidden="true" />Approve</button>

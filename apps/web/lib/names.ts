@@ -13,3 +13,23 @@ export function legalName(user: Named): string {
 export function shownName(user: Named): string {
   return (user?.preferred_name || '').trim() || legalName(user) || user?.username || ''
 }
+
+// Words people put before a family name ("Ms. Rivera", "Coach Diaz"). A greeting keeps them with the name (DEV-204).
+const TITLES = new Set(['mr', 'mrs', 'ms', 'mx', 'miss', 'dr', 'prof', 'coach', 'rev', 'fr', 'sr', 'sra', 'srta', 'sir', 'madam'])
+
+/** The short form of a name for greetings and "Sam's portfolio": its first word, unless the name starts with a
+ * title, which is kept with the rest ("Ms. Rivera", not "Ms."). A bare title borrows the last name. */
+export function firstNameOf(name?: string | null, lastName?: string | null): string {
+  const words = (name || '').trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return ''
+  if (TITLES.has(words[0].replace(/\.$/, '').toLowerCase())) {
+    return words.length > 1 ? words.join(' ') : [words[0], (lastName || '').trim()].filter(Boolean).join(' ')
+  }
+  return words[0]
+}
+
+/** The name to greet someone by: the name they go by, else their legal first name (see firstNameOf). */
+export function greetingName(user: Named): string {
+  const preferred = (user?.preferred_name || '').trim()
+  return preferred ? firstNameOf(preferred) : firstNameOf(user?.first_name, user?.last_name)
+}

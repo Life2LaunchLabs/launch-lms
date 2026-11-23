@@ -14,6 +14,7 @@ import { connectApi, connectKeys, type PortfolioChats } from '@services/connect/
 import { ItemSection } from './inplace'
 
 import { tr } from '@/lib/tr'
+import { firstNameOf } from '@/lib/names'
 // Comments on a portfolio are conversations in Connect: the direct chat between its owner and each
 // person they let see it, filtered to the portfolio or to one experience or project in it.
 
@@ -66,7 +67,7 @@ export function ItemConversations({ portfolioUuid, item, orgslug, token }: { por
         className="flex w-full items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-left transition hover:bg-muted/60 disabled:opacity-60">
         <PersonAvatar user={person as any} />
         <span className="min-w-0 flex-1"><b className="block truncate text-sm font-extrabold">{person.name}</b>
-          <small className="block text-xs font-semibold text-muted-foreground">{count ? tr('portfolio.portfolio_talk.count_value_about_this', '{{count}} {{value}} about this', { count, value: count === 1 ? tr('portfolio.portfolio_talk.v_message', 'message') : tr('portfolio.portfolio_talk.v_messages', 'messages') }) : tr('portfolio.portfolio_talk.ask_value_what_they_think', 'Ask {{value}} what they think', { value: person.name.split(' ')[0] })}</small></span>
+          <small className="block text-xs font-semibold text-muted-foreground">{count ? tr('portfolio.portfolio_talk.count_value_about_this', '{{count}} {{value}} about this', { count, value: count === 1 ? tr('portfolio.portfolio_talk.v_message', 'message') : tr('portfolio.portfolio_talk.v_messages', 'messages') }) : tr('portfolio.portfolio_talk.ask_value_what_they_think', 'Ask {{value}} what they think', { value: firstNameOf(person.name) })}</small></span>
         {opening === person.user_uuid ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </button>
     </li>)}</ul>

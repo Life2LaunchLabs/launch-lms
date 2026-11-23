@@ -20,6 +20,7 @@ from src.services.email.utils import send_email
 from src.services.oauth.config import frontend_url
 from src.services.orgs.owner import owner_org
 from src.services.users import account_emails
+from src.services.users.names import shown_first_name
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def goes_by(user: User | None) -> str:
 def _first_name(user: User | None) -> str:
     if not user:
         return ""
-    return ((user.preferred_name or "").strip() or (user.first_name or "").strip()).split(" ")[0]
+    return shown_first_name(user)
 
 
 def _value(item) -> str:

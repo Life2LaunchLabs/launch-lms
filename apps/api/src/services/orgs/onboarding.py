@@ -24,6 +24,7 @@ from src.db.users import PublicUser, User
 from src.services import requirement_library, requirements as requirement_service
 from src.services.orgs import people_words
 from src.services.goals import discover, template_marketplace
+from src.services.users.names import first_name_of, shown_first_name
 
 ROLES = ("parent", "mentor", "teacher", "program", "training", "district")
 SOLO_ROLES = {"parent", "mentor"}
@@ -137,7 +138,7 @@ def _add_config(db: Session, org_id: int) -> None:
 def _space_name(user: User, payload: SetUpRequest) -> str:
     if payload.org_name.strip():
         return payload.org_name.strip()
-    first = (payload.name.strip() or user.first_name or "").split(" ")[0]
+    first = first_name_of(payload.name) if payload.name.strip() else shown_first_name(user)
     if first:
         return f"{first}’s space"
     return f"{user.email.split('@')[0]}’s space"

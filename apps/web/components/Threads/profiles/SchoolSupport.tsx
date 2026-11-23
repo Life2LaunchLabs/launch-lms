@@ -10,6 +10,7 @@ import { routePaths } from '@services/routing/paths'
 import { usePeopleContext } from '@components/Admin/People/usePeople'
 import { DIPLOMA_TRACK_LABELS, supportApi, supportKey, supportedLearnerKey, type DiplomaTrack, type SupportUpdate } from '@services/school/support'
 import { Card } from './ProfileFrame'
+import { firstNameOf } from '@/lib/names'
 
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' }) : ''
 
@@ -25,7 +26,7 @@ export default function SchoolSupport({ userId, name, username }: { userId: numb
   const active = state?.status === 'active'
   const { data: opened, mutate: reopen } = useSWR(ready && active ? supportedLearnerKey(orgId, userId) : null, () => supportApi.open(orgId, userId, token), { revalidateOnFocus: false })
   const [busy, setBusy] = React.useState('')
-  const first = name.split(' ')[0] || 'them'
+  const first = firstNameOf(name) || 'them'
 
   const run = async (key: string, action: () => Promise<unknown>, done?: string) => {
     setBusy(key)
