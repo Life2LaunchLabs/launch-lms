@@ -3,6 +3,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import InsightCard, { DeltaChip, spanClass } from '@components/Insights/InsightCard'
 import { moveCard } from '@components/Insights/DashboardEditing'
+import { standing } from '@components/Insights/DrillSheet'
 import type { CardResult } from '@services/insights/insights'
 
 const base: CardResult = {
@@ -27,6 +28,19 @@ describe('insight cards', () => {
     expect(html).toContain('width:50%')
     expect(html).toContain('width:20%')
     expect(html).toContain('See who')
+  })
+
+  test('long row names stay in their column instead of running under the values (DEV-209)', () => {
+    const name = 'EPP.ACCOMPLISHMENTS Personal accomplishments'
+    const result = { ...base, rows: [row('cat', name, 0, { link: null })] }
+    const html = renderToStaticMarkup(<InsightCard card={{ key: 'cats', span: 6, spec: { measure: 'requirement_progress', by: 'category' } }} outcome={result} drill={noop} linkFor={() => null} />)
+    expect(html).toContain(`class="line-clamp-2 break-words leading-snug" title="${name}"`)
+  })
+
+  test('a learner is Finished only when all of theirs counted; otherwise the list says how far (DEV-209)', () => {
+    expect(standing({ count: 16, hits: 1, counted: false })).toBe('1 of 16')
+    expect(standing({ count: 16, hits: 16, counted: true })).toBe('Finished')
+    expect(standing({ count: 1, hits: 0, counted: false })).toBe('Not finished')
   })
 
   test('a split shows one stacked bar and a labeled count for each part', () => {

@@ -85,6 +85,23 @@ def test_a_step_can_count_a_kind_of_result_like_a_strengths_test():
         assert step["status"] == "completed" and [item["title"] for item in step["reference"]["items"]] == ["CliftonStrengths"]
 
 
+def test_show_your_strengths_finishes_from_skills_and_values_added_as_results():
+    """The EPP's "Show your strengths" step (check: traits) stayed undone for a learner who added skills and
+    values in the portfolio's Results dialog, so the report showed 0% (DEV-209, FEED-332)."""
+    with _session() as db:
+        portfolio = _portfolio(db)
+        strengths = {"type": "portfolio", "title": "Show your strengths", "config": {"check": "traits"}}
+        goal = _issue(db, _published(db, strengths, {"type": "task", "title": "Tidy up"}))
+        db.add(PortfolioResult(result_uuid="res_s", portfolio_id=portfolio.id, kind="skills", name="Skills", summary="Spanish, Figma"))
+        db.commit()
+        on_portfolio_changed(db, LEARNER)
+        assert _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Show your strengths")["status"] != "completed"
+        db.add(PortfolioResult(result_uuid="res_v", portfolio_id=portfolio.id, kind="values", name="Values", summary="Caring, Honesty"))
+        db.commit()
+        on_portfolio_changed(db, LEARNER)
+        assert _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Show your strengths")["status"] == "completed"
+
+
 def test_a_filter_has_to_fit_the_part():
     with _session() as db, pytest.raises(HTTPException, match="doesn't narrow"):
         _published(db, {"type": "portfolio", "title": "Bad", "config": {"part": "projects", "filter": "strengths"}})

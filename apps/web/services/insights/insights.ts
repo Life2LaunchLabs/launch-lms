@@ -109,6 +109,8 @@ export interface DrillPerson {
   avatar_image: string | null
   groups: string[]
   count: number
+  /** On a rate, how many of their `count` facts counted (requirements met, plans finished). */
+  hits?: number
   counted: boolean
   last: string
 }

@@ -105,10 +105,12 @@ export function NumberBody({ result }: { result: CardResult }) {
   </div>
 }
 
+/** A row's name, kept inside its column: up to two lines, then cut with the full name on hover (an inline span
+ * can't clip, so long category names ran under the values: DEV-209). */
 function RowLabel({ row, href }: { row: ResultRow; href: string | null }) {
-  if (!href) return <span className="truncate">{row.label}</span>
-  return <Link href={href} className="group/link inline-flex min-w-0 items-center gap-1 hover:underline" title={`Open ${row.label}`}>
-    <span className="truncate">{row.label}</span><ArrowRight size={12} className="shrink-0 opacity-0 group-hover/link:opacity-70" aria-hidden="true" />
+  if (!href) return <span className="line-clamp-2 break-words leading-snug" title={row.label}>{row.label}</span>
+  return <Link href={href} className="group/link flex min-w-0 max-w-full items-center gap-1 hover:underline" title={`Open ${row.label}`}>
+    <span className="line-clamp-2 min-w-0 break-words leading-snug">{row.label}</span><ArrowRight size={12} className="shrink-0 opacity-0 group-hover/link:opacity-70" aria-hidden="true" />
   </Link>
 }
 

@@ -2,7 +2,9 @@
 report (`components/Epp/EppReport.tsx`), drawn from the report JSON with ReportLab. Keep the two in step.
 
 Text uses the Bitstream Vera fonts that ship with ReportLab. A character Vera lacks falls back to its
-unaccented letter, so a name never prints as an empty box.
+unaccented letter, so a name never prints as an empty box. Check marks come from the ZapfDingbats outline
+that also ships with ReportLab, embedded in the file: left unembedded, viewers without that font draw a
+box or a black bar instead (DEV-209).
 """
 
 from __future__ import annotations
@@ -27,7 +29,8 @@ INK, MUTED, BLUE, LINE, TINT, ATTENTION = (colors.HexColor(value) for value in (
 STATUS_TEXT = {"complete": "✓ Complete", "reviewed": "✓ Reviewed", "needs_attention": "! Needs attention"}
 KIND_LABEL = {"credential": "Credential", "result": "Result", "project": "Project", "experience": "Experience", "quote": "Quote"}
 _FONTS: TTFont | None = None
-CHECK = "\x00"  # Vera has no check mark; Paragraphs draw ZapfDingbats' instead.
+CHECK = "\x00"  # Vera has no check mark; Paragraphs draw the embedded ZapfDingbats one instead.
+CHECK_FONT = "EppCheck"
 
 
 def _font() -> TTFont:
@@ -37,6 +40,11 @@ def _font() -> TTFont:
         for name, file in (("Vera", "Vera.ttf"), ("Vera-Bold", "VeraBd.ttf"), ("Vera-Italic", "VeraIt.ttf"), ("Vera-BoldItalic", "VeraBI.ttf")):
             pdfmetrics.registerFont(TTFont(name, os.path.join(folder, file)))
         pdfmetrics.registerFontFamily("Vera", normal="Vera", bold="Vera-Bold", italic="Vera-Italic", boldItalic="Vera-BoldItalic")
+        face = pdfmetrics.EmbeddedType1Face(os.path.join(folder, "zd______.afm"), os.path.join(folder, "zd______.pfb"))
+        face.name = f"{CHECK_FONT}-ZapfDingbats"  # a name that isn't one of the 14 standard fonts, so ReportLab embeds it
+        pdfmetrics.registerTypeFace(face)
+        pdfmetrics.registerFont(pdfmetrics.Font(CHECK_FONT, face.name, "ZapfDingbatsEncoding"))
+        pdfmetrics.registerFontFamily(CHECK_FONT, normal=CHECK_FONT, bold=CHECK_FONT, italic=CHECK_FONT, boldItalic=CHECK_FONT)
         _FONTS = pdfmetrics.getFont("Vera")  # type: ignore[assignment]
     return _FONTS  # type: ignore[return-value]
 
@@ -55,7 +63,7 @@ def _drawable(value) -> str:
 
 def _safe(value) -> str:
     """Text Vera can draw, escaped for a Paragraph."""
-    return escape(_drawable(value)).replace(CHECK, '<font name="ZapfDingbats">4</font>')
+    return escape(_drawable(value)).replace(CHECK, f'<font name="{CHECK_FONT}">\u2714</font>')
 
 
 def _styles() -> dict[str, ParagraphStyle]:

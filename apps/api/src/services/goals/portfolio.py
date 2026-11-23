@@ -7,6 +7,10 @@ from sqlmodel import Session, select
 from src.db.badges import BadgeAward
 from src.db.goals import Goal, GoalSource
 from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioVisibility, ProfileTrait, ProjectItem, TimelineEntry
+from src.db.portfolio_records import PortfolioResult
+
+# Portfolio result kinds that stand for a trait in the "traits" check.
+RESULT_TRAITS = {"strengths": "strength", "skills": "strength", "values": "value"}
 
 
 def done_checks(db: Session, user_id: int) -> set[str]:
@@ -26,6 +30,10 @@ def done_checks(db: Session, user_id: int) -> set[str]:
     if db.exec(select(ProjectItem.id).where(ProjectItem.portfolio_id == portfolio.id, ProjectItem.status != PortfolioContentStatus.ARCHIVED)).first():
         done.add("project")
     traits = {getattr(item, "value", item) for item in db.exec(select(ProfileTrait.trait_type).where(ProfileTrait.portfolio_id == portfolio.id)).all()}
+    # Strengths and values added as portfolio results (the Results dialog's Strengths, Skills or Values) count
+    # too: a learner who added skills and values there was left with "Show your strengths" undone (DEV-209).
+    results = db.exec(select(PortfolioResult.kind, PortfolioResult.name, PortfolioResult.summary).where(PortfolioResult.portfolio_id == portfolio.id)).all()
+    traits |= {RESULT_TRAITS[kind] for kind, name, summary in results if kind in RESULT_TRAITS and (name or summary or "").strip()}
     if {"strength", "value"} <= traits:
         done.add("traits")
     if portfolio.visibility == PortfolioVisibility.PUBLIC:
