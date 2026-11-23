@@ -7,18 +7,22 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, func, select
 
 from src.db.conversations import ConversationMember, ConversationMessage
-from src.db.goals import Goal, GoalStep, StepProgress, StepStatus
-from src.db.goal_sharing import PlanCollaborator
+from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, Goal, GoalAssignment, GoalStatus, GoalStep, StepProgress, StepStatus
+from src.db.goal_sharing import PlanCollaborator, PlanRole
 from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin
 from src.services.connect import chats, people, visibility
+from src.services.goals.assignment_staff import assignment_role
+from src.services.goals.assignment_summary import collaborators_of
 from src.services.goals.sharing_roles import org_summary
 from src.services.school import chats as school_chats
+from src.services.school import roles as school_roles
 
 ROLE_NAMES = {"viewer": "Viewer", "commenter": "Commenter", "editor": "Editor"}
+PLAN_ROLE_NAMES = {"lead": "Lead", "review": "Review", "comment": "Comment"}
 
 
 def _can_see(db: Session, current_user: PublicUser, org_id: int, student_id: int) -> bool:
@@ -32,14 +36,50 @@ def _require(db: Session, current_user: PublicUser, org_id: int, student_id: int
     return student
 
 
+def _plan_team(db: Session, org_id: int, student_id: int) -> list[tuple[int, Goal, str, str]]:
+    """(staff id, goal, role key, role name) for the staff on the student's open plans with this organization.
+
+    An assigned plan's staff come from its assignment (Lead, Review, Comment): the person who assigns it
+    owns the learner's goal rather than joining it, so a Lead who assigned it isn't a collaborator on it.
+    Staff added to a plan another way show with their plan role.
+    """
+    goals = db.exec(select(Goal).where(Goal.org_id == org_id, Goal.subject_user_id == student_id,
+                                       col(Goal.status).in_([GoalStatus.PENDING.value, GoalStatus.ACTIVE.value])).order_by(col(Goal.id))).all()
+    if not goals:
+        return []
+    staff = school_roles.staff_ids(db, org_id)
+    rows: list[tuple[int, Goal, str, str]] = []
+    for goal in goals:
+        seen: set[int] = set()
+        assignment = db.get(GoalAssignment, goal.assignment_id) if goal.assignment_id else None
+        if assignment and assignment.status in CURRENT_ASSIGNMENT_STATUSES:
+            for item in collaborators_of(assignment):
+                user_id, role = int(item["user_id"]), assignment_role(item.get("role_key")) or "review"
+                if user_id in staff and user_id != student_id and user_id not in seen:
+                    seen.add(user_id)
+                    rows.append((user_id, goal, role, PLAN_ROLE_NAMES.get(role, role)))
+        members = db.exec(select(PlanCollaborator, PlanRole).join(PlanRole, col(PlanRole.id) == col(PlanCollaborator.role_id))
+                          .where(PlanCollaborator.goal_id == goal.id, PlanCollaborator.active == True)).all()  # noqa: E712
+        for member, plan_role in members:
+            if member.user_id in staff and member.user_id != student_id and member.user_id not in seen:
+                seen.add(member.user_id)
+                rows.append((member.user_id, goal, plan_role.key, plan_role.name))
+    return rows
+
+
 def team_of(db: Session, org_id: int, student_id: int) -> list[dict]:
-    """Each staff member once, with their role per group."""
+    """Each staff member once, with their role per group and on each of the student's open plans (DEV-207)."""
     groups = {group.id: group.name for group in db.exec(select(UserGroup).where(col(UserGroup.id).in_(school_chats.student_groups(db, org_id, student_id)))).all()}
     people_by_id: dict[int, dict] = {}
+
+    def entry(user_id: int) -> dict:
+        return people_by_id.setdefault(user_id, {"user": people.person(db, user_id), "groups": [], "plans": []})
+
     for row in school_chats.team(db, org_id, student_id):
-        entry = people_by_id.setdefault(row.user_id, {"user": people.person(db, row.user_id), "groups": []})
-        entry["groups"].append({"group_id": row.usergroup_id, "name": groups.get(row.usergroup_id, ""), "role_key": row.role_key, "role": ROLE_NAMES.get(row.role_key, row.role_key)})
-    return list(people_by_id.values())
+        entry(row.user_id)["groups"].append({"group_id": row.usergroup_id, "name": groups.get(row.usergroup_id, ""), "role_key": row.role_key, "role": ROLE_NAMES.get(row.role_key, row.role_key)})
+    for user_id, goal, role_key, role in _plan_team(db, org_id, student_id):
+        entry(user_id)["plans"].append({"goal_uuid": goal.goal_uuid, "title": goal.title, "role_key": role_key, "role": role})
+    return [item for item in people_by_id.values() if item["user"]]
 
 
 def student_chat(db: Session, current_user: PublicUser, org_id: int, student_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None,

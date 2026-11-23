@@ -116,7 +116,7 @@ def test_a_students_page_shows_their_team_and_chat_with_staff_only_messages():
         _assign(db)
         _staff(db, role_key="commenter")
         seen = views.student(db, _user(ADMIN), 1, LEARNER)
-        assert [(item["user"]["username"], item["groups"][0]["role"]) for item in seen["team"]] == [("teach", "Commenter")]
+        assert [(item["user"]["username"], [g["role"] for g in item["groups"]]) for item in seen["team"]] == [("teach", ["Commenter"]), ("teacher", [])]
         # Admins with a role on the student's plans are in their chat; other admins only read it.
         assert views.student_chat(db, _user(ADMIN), 1, LEARNER)["can_post"] is True
         chat = views.student_chat(db, _user(TEACHER), 1, LEARNER)
@@ -144,3 +144,22 @@ def test_what_waits_on_staff_is_the_top_of_their_people_feed(monkeypatch):
         assert top[0]["preview"].startswith("Lee Arner: @Tess Teacher")
         chats.mark_read(db, _user(TEACHER), opened["conversation_uuid"])
         assert [row["total"] for row in feed.people_feed(db, _user(TEACHER), 1)["active"]] == [0, 0]
+
+
+def test_a_students_team_includes_the_staff_on_their_plans():
+    """DEV-207: the Lead who assigned a plan (and its other staff) is on the learner's team, with no group staff."""
+    with _session() as db:
+        template = _published(db, {"key": "visit", "type": "task", "title": "Visit a campus"})
+        from src.db.goal_templates import AssignmentCollaborator, GoalAssignmentRequest
+
+        assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(
+            user_id=LEARNER, collaborators=[AssignmentCollaborator(user_id=ADMIN, role_key="lead"), AssignmentCollaborator(user_id=TEACHER, role_key="comment")]))
+        team = views.student(db, _user(ADMIN), 1, LEARNER)["team"]
+        assert [(item["user"]["username"], item["groups"], [(p["title"], p["role"]) for p in item["plans"]]) for item in team] == [
+            ("teacher", [], [("College ready", "Lead")]), ("teach", [], [("College ready", "Comment")])]
+        # Finished or archived plans don't keep people on the team.
+        goal = db.exec(select(Goal).where(Goal.subject_user_id == LEARNER)).one()
+        goal.status = "archived"
+        db.add(goal)
+        db.commit()
+        assert views.student(db, _user(ADMIN), 1, LEARNER)["team"] == []

@@ -21,7 +21,12 @@ export interface GroupStaff {
   candidates: PersonSummary[]
 }
 
-export interface TeamMember { user: PersonSummary; groups: Array<{ group_id: number; name: string; role_key: StaffRole; role: string }> }
+export interface TeamMember {
+  user: PersonSummary
+  groups: Array<{ group_id: number; name: string; role_key: StaffRole; role: string }>
+  /** Their role on each of the learner's open plans (Lead, Review, Comment on an assigned plan). */
+  plans: Array<{ goal_uuid: string; title: string; role_key: string; role: string }>
+}
 export interface StudentView { student: PersonSummary; team: TeamMember[] }
 
 export interface WaitingStudent { student: PersonSummary; unread: number; mentions: number; reviews: number; last_message: ChatMessage | null }
