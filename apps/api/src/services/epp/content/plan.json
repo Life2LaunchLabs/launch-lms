@@ -15,8 +15,8 @@
    "steps": [
     {
      "type": "portfolio",
-     "title": "Show your strengths",
-     "description": "Add the traits and strengths that fit you best to your portfolio.",
+     "title": "Show your skills and values",
+     "description": "In your portfolio, open What I’m like and tap the skills and values that fit you best in Skills and values.",
      "config": {
       "check": "traits"
      },
