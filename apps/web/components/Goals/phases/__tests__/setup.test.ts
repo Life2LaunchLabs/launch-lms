@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import type { Activity } from '@services/life/life'
-import { eyebrowFor, pendingActivity, purposeOptions, suggestTitle } from '../setup'
+import type { Activity, PlaceOption } from '@services/life/life'
+import { draftOnKeep, eyebrowFor, pendingActivity, purposeOptions, suggestTitle, typedPlace } from '../setup'
 
 const cashier: Activity = { kind: 'working', career: '41-2011.00', career_title: 'Cashiers' }
 
@@ -40,5 +40,31 @@ describe('what Done keeps from the activity picker', () => {
     expect(pendingActivity({ kind: null, level: null, career: null, typed: '' })).toBe(null)
     expect(pendingActivity({ kind: 'learning', level: null, career: null, typed: 'x' })).toBe(null)
     expect(pendingActivity({ kind: 'working', level: null, career: null, typed: ' ' })).toBe(null)
+  })
+})
+
+describe('typedPlace (FEED-386)', () => {
+  const bend: PlaceOption = { key: 'city:OR:bend', label: 'Bend, OR', detail: 'Deschutes County', level: 'city' }
+  test('a town that is not listed can be used as typed, with no key', () => {
+    expect(typedPlace('  Shaniko ', [])).toEqual({ key: '', label: 'Shaniko', detail: '', level: 'typed' })
+  })
+  test('it is offered beside results that only partly match', () => {
+    expect(typedPlace('Ben', [bend])?.label).toBe('Ben')
+  })
+  test('nothing extra when the text names a listed place or is empty', () => {
+    expect(typedPlace('bend', [bend])).toEqual(null)
+    expect(typedPlace('Bend, OR', [bend])).toEqual(null)
+    expect(typedPlace('   ', [])).toEqual(null)
+  })
+  test('it keeps within the label length the plan allows', () => {
+    expect(typedPlace('x'.repeat(200), [])?.label.length).toBe(120)
+  })
+})
+
+describe('draftOnKeep (FEED-586)', () => {
+  test('the check keeps a half-made activity, and nothing from other pickers', () => {
+    expect(draftOnKeep('doing', cashier)).toEqual(cashier)
+    expect(draftOnKeep('date', cashier)).toEqual(null)
+    expect(draftOnKeep(null, null)).toEqual(null)
   })
 })
