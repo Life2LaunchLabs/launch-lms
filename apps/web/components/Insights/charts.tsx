@@ -118,7 +118,7 @@ function RowLabel({ row, href }: { row: ResultRow; href: string | null }) {
 export function BarsBody({ result, drill, linkFor }: { result: CardResult; drill: Drill; linkFor: LinkFor }) {
   const max = Math.max(...result.rows.map((row) => row.v || 0), pct(result) ? 1 : 0) || 1
   return <ul className="space-y-1.5">
-    {result.rows.map((row) => <li key={row.key} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-2.5 text-[13px]">
+    {result.rows.map((row) => <li key={row.key} className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-2.5 text-[13px]">
       <span className="min-w-0 font-semibold text-foreground"><RowLabel row={row} href={linkFor(row)} /></span>
       <button type="button" onClick={() => drill(row.drill, row.label)} disabled={!row.drill} aria-label={`${row.label}: ${row.text}${row.drill ? '. See who' : ''}`}
         className="group/bar h-5 rounded-[4px] text-left disabled:cursor-default">
@@ -171,7 +171,7 @@ export function StackedBody({ result, drill, linkFor }: { result: CardResult; dr
   return <div className="space-y-3">
     <Legend items={result.columns.map((column, index) => ({ key: column.key, label: column.label, color: colors[index] }))} />
     <ul className="space-y-1.5">
-      {result.rows.map((row) => <li key={row.key} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-2.5 text-[13px]">
+      {result.rows.map((row) => <li key={row.key} className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-2.5 text-[13px]">
         <span className="min-w-0 font-semibold text-foreground"><RowLabel row={row} href={linkFor(row)} /></span>
         <Stack drill={drill} label={row.label} parts={(row.cells || []).map((cell, index) => ({ key: result.columns[index].key, label: result.columns[index].label, v: cell.v || 0, color: colors[index], drill: cell.drill }))} />
         <span className="min-w-[2.5rem] text-right tabular-nums text-foreground">{row.text}</span>
