@@ -18,7 +18,6 @@ from sqlmodel import Session, select
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.security.org_auth import require_org_admin
-from src.services.connect.people import learner_name
 from src.services.portfolio_identity import shown_name
 
 KEY = "accessibility"
@@ -96,5 +95,5 @@ def save_for_learner(db: Session, current_user: PublicUser, org_id: int, user_id
     if learner.id == current_user.id:
         return _save(db, learner, settings, None)
     helper = _user(db, current_user.id)
-    name = learner_name(db, helper.id, org_id) or shown_name(helper)
+    name = shown_name(helper)
     return _save(db, learner, settings, {"user_id": helper.id, "name": name, "at": datetime.now().isoformat()})

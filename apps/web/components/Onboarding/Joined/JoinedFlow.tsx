@@ -15,9 +15,8 @@ import '@/styles/admin-dark.css'
 import { H1, LEDE, TOUR } from '@components/Onboarding/Start/tour'
 import { getUriWithOrg } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
-import { updateProfile } from '@services/settings/portfolio'
 import { getUser } from '@services/users/users'
-import { learnerNameApi } from '@services/goals/adminHome'
+import { updateMyIdentity } from '@services/portfolio/records'
 
 import { tr } from '@/lib/tr'
 const INPUT = 'h-11 w-full rounded-xl border border-border bg-white px-3 text-[15px] outline-none transition placeholder:text-muted-foreground/70 focus:border-foreground/40'
@@ -37,9 +36,8 @@ export default function JoinedFlow() {
   const steps = React.useMemo(() => ['profile', ...(searchParams.get('tour') ? [0, 1, 2, 3] : [])] as Array<number | 'profile'>, [searchParams])
   const [index, setIndex] = React.useState(0)
   const [user, setUser] = React.useState<any>(null)
-  const [name, setName] = React.useState({ first_name: '', last_name: '' })
-  // What learners call them here (staff only).
-  const [learnerName, setLearnerName] = React.useState<{ staff: boolean; saved: string; value: string }>({ staff: false, saved: '', value: '' })
+  // Legal name, and the name they go by: learners see it too (PO-3; it replaced "What learners call you").
+  const [name, setName] = React.useState({ first_name: '', last_name: '', preferred_name: '' })
   const [picking, setPicking] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -48,9 +46,8 @@ export default function JoinedFlow() {
 
   React.useEffect(() => {
     if (!userId || !token) return
-    if (org?.id) learnerNameApi.get(Number(org.id), token).then((found) => setLearnerName({ staff: found.staff, saved: found.learner_name || '', value: found.learner_name || '' })).catch(() => undefined)
-    getUser(userId, token).then((found) => { setUser(found); setName({ first_name: found?.first_name || '', last_name: found?.last_name || '' }) }).catch(() => setUser({}))
-  }, [userId, token, org?.id])
+    getUser(userId, token).then((found) => { setUser(found); setName({ first_name: found?.first_name || '', last_name: found?.last_name || '', preferred_name: found?.preferred_name || '' }) }).catch(() => setUser({}))
+  }, [userId, token])
 
   const saveAvatar = async (asset: MediaAsset) => {
     await applyMediaAssetToUserAvatar(asset.asset_uuid, token)
@@ -62,15 +59,10 @@ export default function JoinedFlow() {
     if (!name.first_name.trim()) return setError(tr('lit.joined_flow.add_your_first_name_so', 'Add your first name so people know who you are.'))
     setBusy(true)
     try {
-      if (user?.username && (name.first_name !== user.first_name || name.last_name !== user.last_name)) {
-        const saved = await updateProfile({ username: user.username, email: user.email, first_name: name.first_name.trim(), last_name: name.last_name.trim() }, user.id, token)
-        if (!saved.success) throw new Error(typeof saved.data?.detail === 'string' ? saved.data.detail : tr('lit.joined_flow.we_couldn_t_save_your', 'We couldn’t save your name'))
+      if (user?.username && (name.first_name !== user.first_name || name.last_name !== user.last_name || name.preferred_name !== (user.preferred_name || ''))) {
+        await updateMyIdentity({ first_name: name.first_name.trim(), last_name: name.last_name.trim(), preferred_name: name.preferred_name.trim() }, token)
         await session.update?.(true)
         setUser({ ...user, ...name })
-      }
-      if (learnerName.staff && learnerName.value.trim() !== learnerName.saved) {
-        const saved = await learnerNameApi.save(Number(org.id), learnerName.value, token)
-        setLearnerName({ ...learnerName, saved: saved.learner_name || '', value: saved.learner_name || '' })
       }
       setBusy(false)
       if (index < steps.length - 1) setIndex(index + 1)
@@ -81,7 +73,7 @@ export default function JoinedFlow() {
     }
   }
 
-  const shown = (learnerName.staff && learnerName.value.trim()) || [name.first_name, name.last_name].filter(Boolean).join(' ') || tr('lit.chat_cards.you', 'You')
+  const shown = name.preferred_name.trim() || [name.first_name, name.last_name].filter(Boolean).join(' ') || tr('lit.chat_cards.you', 'You')
   return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-foreground">
     <AdminSurface />
     <header className="flex min-h-[68px] items-center gap-4 px-6 py-3.5">
@@ -108,9 +100,9 @@ export default function JoinedFlow() {
                 <label className="block"><span className="mb-1.5 block text-[13px] font-semibold">{tr('onboarding.joined_flow.last_name', 'Last name')}</span><input className={INPUT} value={name.last_name} onChange={(event) => setName({ ...name, last_name: event.target.value })} autoComplete="family-name" /></label>
               </div>
               <p className="mt-1.5 text-[12px] text-muted-foreground">{tr('onboarding.joined_flow.legal_name_help', 'Your legal name, as on official records. It’s used on records and reports.')}</p>
-              {learnerName.staff ? <label className="mt-3 block"><span className="mb-1.5 block text-[13px] font-semibold">{tr('onboarding.joined_flow.what_learners_call_you', 'What learners call you')}{' '}<span className="font-normal text-muted-foreground">{tr('coach.hub_report_dialog.optional', '(optional)')}</span></span>
-                <input className={INPUT} value={learnerName.value} maxLength={60} placeholder={[name.first_name, name.last_name].filter(Boolean).join(' ') || tr('onboarding.joined_flow.e_g_ms_rivera', 'e.g. Ms. Rivera')} onChange={(event) => setLearnerName({ ...learnerName, value: event.target.value })} />
-                <span className="mt-1 block text-[12px] text-muted-foreground">{tr('onboarding.joined_flow.learners_see_this_instead_of', 'Learners see this instead of your name. Staff still see your name.')}</span></label> : null}
+              <label className="mt-3 block"><span className="mb-1.5 block text-[13px] font-semibold">{tr('portfolio.inline_profile.name_you_go_by', 'Name you go by')}{' '}<span className="font-normal text-muted-foreground">{tr('coach.hub_report_dialog.optional', '(optional)')}</span></span>
+                <input className={INPUT} value={name.preferred_name} maxLength={80} placeholder={[name.first_name, name.last_name].filter(Boolean).join(' ') || tr('onboarding.joined_flow.e_g_ms_rivera', 'e.g. Ms. Rivera')} onChange={(event) => setName({ ...name, preferred_name: event.target.value })} autoComplete="nickname" />
+                <span className="mt-1 block text-[12px] text-muted-foreground">{tr('onboarding.joined_flow.go_by_help', 'Learners and staff see this instead of your legal name.')}</span></label>
               {error ? <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-700 ring-1 ring-red-100">{error}</p> : null}
               <Nav next={() => void finish()} label={steps.length > 1 ? tr('onboarding.joined_flow.continue', 'Continue') : tr('onboarding.joined_flow.go_to_home', 'Go to Home')} busy={busy || !user} />
             </>}

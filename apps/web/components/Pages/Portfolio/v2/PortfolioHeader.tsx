@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { BriefcaseBusiness, Globe, Instagram, Linkedin, MapPin, Pencil, X as XLogo, Youtube } from 'lucide-react'
+import { BriefcaseBusiness, Camera, Globe, Instagram, Linkedin, MapPin, Pencil, X as XLogo, Youtube } from 'lucide-react'
 import type { LookId } from '@services/portfolio/records'
 import { EditButton, SPOT_RING, SpotTip, initials } from './parts'
 
@@ -17,7 +17,7 @@ export type HeaderProps = {
   hasName: boolean
   avatarUrl: string
   headline?: string
-  /** What they're doing now ("Barista at Bean There") and where they are. */
+  /** What they're doing now ("Barista at Bean There") and where they are, from their phase (PO-3: no location field). */
   now: string
   place: string
   socials: Array<{ type: string; url: string }>
@@ -30,7 +30,13 @@ export type HeaderProps = {
   spots: Partial<Record<string, string>>
   editing: boolean
   centered: boolean
-  onProfile: () => void
+  /** PO-3: the owner edits in place. The photo opens the picker; the name and intro turn into fields with a tick and a cross. */
+  onPhoto: () => void
+  onEdit: (field: 'name' | 'intro') => void // eslint-disable-line no-unused-vars
+  /** The field being edited, and its editor. */
+  editingField?: 'name' | 'intro' | null
+  nameEditor?: ReactNode
+  introEditor?: ReactNode
 }
 
 const SOCIAL_ICONS: Record<string, typeof Globe> = { website: Globe, instagram: Instagram, linkedin: Linkedin, youtube: Youtube, x: XLogo }
@@ -45,27 +51,32 @@ function Socials({ socials, className = '' }: { socials: HeaderProps['socials'];
   })}</div>
 }
 
-/** The photo, and for the owner the button that edits who they are. Each look gives it its own size and shape. */
+/** The photo, and for the owner the button that opens the image picker straight away. Each look gives it its own size and shape. */
 function Photo({ p, className }: { p: HeaderProps; className: string }) {
   const face = <span data-pf-avatar className={`grid shrink-0 place-items-center overflow-hidden bg-[linear-gradient(140deg,#FFC56B,#EC4F9A_60%,#8B5CF6)] font-extrabold text-white ${className}`}>
     {p.avatarUrl ? <img src={p.avatarUrl} alt="" className="h-full w-full object-cover" /> : initials(p.name)}
   </span>
   if (!p.editing) return face
-  return <button type="button" onClick={p.onProfile} aria-label={tr('portfolio.portfolio_header.edit_your_profile', 'Edit your profile')} className={`group/photo relative inline-block shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-foreground ${p.spots.avatar ? `border-2 ${SPOT_RING}` : ''}`}>
+  return <button type="button" onClick={p.onPhoto} aria-label={tr('portfolio.portfolio_header.change_your_photo', 'Change your photo')} title={tr('portfolio.portfolio_header.change_your_photo', 'Change your photo')} className={`group/photo relative inline-block shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-foreground ${p.spots.avatar ? `border-2 ${SPOT_RING}` : ''}`}>
     {face}
-    <span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover/photo:opacity-100 group-focus-visible/photo:opacity-100"><Pencil className="h-3.5 w-3.5" /></span>
+    <span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-background bg-foreground text-background opacity-0 transition group-hover/photo:opacity-100 group-focus-visible/photo:opacity-100 [@media(hover:none)]:opacity-100"><Camera className="h-3.5 w-3.5" /></span>
   </button>
 }
 
 function Name({ p, className, children }: { p: HeaderProps; className: string; children?: ReactNode }) {
-  return <><h1 data-pf-name className={className}>{p.editing && !p.hasName ? <button type="button" onClick={p.onProfile} className="italic text-muted-foreground hover:text-foreground">{tr('portfolio.portfolio_header.add_your_name', 'Add your name')}</button> : children || p.name}</h1>
-    {/* The same hover pencil the sections have: it opens your name, intro, photo and the rest. */}
-    {p.editing ? <EditButton label={tr('portfolio.portfolio_header.your_details', 'your details')} onClick={p.onProfile} className="self-center group-hover/hdr:opacity-100" /> : null}</>
+  if (p.editing && p.editingField === 'name') return <>{p.nameEditor}</>
+  return <><h1 data-pf-name className={className}>{p.editing && !p.hasName ? <button type="button" onClick={() => p.onEdit('name')} className="italic text-muted-foreground hover:text-foreground">{tr('portfolio.portfolio_header.add_your_name', 'Add your name')}</button> : children || p.name}</h1>
+    {/* The same hover pencil the sections have: it turns the name into fields. */}
+    {p.editing ? <EditButton label={tr('portfolio.portfolio_header.your_name', 'your name')} onClick={() => p.onEdit('name')} className="self-center group-hover/hdr:opacity-100" /> : null}</>
 }
 
 function Intro({ p, className = '' }: { p: HeaderProps; className?: string }) {
-  if (p.headline) return <p data-pf-intro className={`line-clamp-2 max-w-[60ch] ${className}`}>{p.headline}</p>
-  return p.editing ? <button type="button" onClick={p.onProfile} className={`text-left italic text-muted-foreground hover:text-foreground ${className}`}>{tr('portfolio.portfolio_header.add_a_one_line_intro', 'Add a one-line intro (optional)')}</button> : null
+  if (p.editing && p.editingField === 'intro') return <>{p.introEditor}</>
+  if (!p.editing) return p.headline ? <p data-pf-intro className={`line-clamp-2 max-w-[60ch] ${className}`}>{p.headline}</p> : null
+  if (!p.headline) return <button type="button" onClick={() => p.onEdit('intro')} className={`text-left italic text-muted-foreground hover:text-foreground ${className}`}>{tr('portfolio.portfolio_header.add_a_one_line_intro', 'Add a one-line intro (optional)')}</button>
+  // The pencil next to the intro turns it into a field.
+  return <p data-pf-intro className={`max-w-[60ch] ${className}`}><span>{p.headline}</span>
+    <button type="button" onClick={() => p.onEdit('intro')} aria-label={tr('portfolio.portfolio_header.edit_your_intro', 'Edit your intro')} title={tr('portfolio.portfolio_header.edit_your_intro', 'Edit your intro')} className="ml-1.5 inline-grid h-7 w-7 place-items-center rounded-full align-middle text-muted-foreground transition hover:bg-raised hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button></p>
 }
 
 const NameSpot = ({ p, className = 'relative order-last' }: { p: HeaderProps; className?: string }) => p.spots.name ? <SpotTip label={p.spots.name} className={className} /> : null

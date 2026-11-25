@@ -4019,7 +4019,9 @@
       "shown_reviewed_it": "{{shown}} · Lo revisó",
       "add_a_profile_photo": "Agregar una foto de perfil",
       "upload_an_image_or_choose": "Sube una imagen o elige una de tu biblioteca.",
-      "back": "Volver"
+      "back": "Volver",
+      "legal_name_help": "Tu nombre legal, como en los registros oficiales. Se usa en registros e informes.",
+      "go_by_help": "Los estudiantes y el personal ven este nombre en lugar de tu nombre legal."
     },
     "site_preview": {
       "life2launch_app": "life2launch.app/",
@@ -4855,7 +4857,10 @@
       "your_details": "tus datos",
       "add_a_one_line_intro": "Agrega una presentación en una línea (opcional)",
       "portfolio": "Portafolio",
-      "based_in": "Vive en"
+      "based_in": "Vive en",
+      "change_your_photo": "Cambiar tu foto",
+      "your_name": "tu nombre",
+      "edit_your_intro": "Editar tu presentación"
     },
     "about_section": {
       "bio_updated": "Biografía actualizada",
@@ -4955,6 +4960,19 @@
       "add_something_you_made": "Agrega algo que hiciste",
       "pick_your_look": "Elige tu estilo",
       "add_your_school": "Agrega tu escuela"
+    },
+    "inline_profile": {
+      "name_you_go_by": "Nombre que usas",
+      "name_saved": "Nombre guardado",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "could_not_save_your_name": "No se pudo guardar tu nombre",
+      "which_name": "Qué nombre",
+      "legal_name": "Nombre legal",
+      "like_mya_rivera": "Como “Mya Rivera”",
+      "legal_help": "Como en los registros oficiales. Las listas y los informes lo usan.",
+      "preferred_help": "Se muestra en tu portafolio y en la app en lugar de tu nombre legal. Si eres parte del personal, es lo que ven los estudiantes también. Déjalo vacío para usar tu nombre legal.",
+      "could_not_save_your_intro": "No se pudo guardar tu presentación"
     }
   },
   "goals": {
@@ -7995,5 +8013,48 @@
     "award_sharing": {
       "certificate": "Certificado"
     }
+  },
+  "account_settings": {
+    "personal_details_bar": "Tu nombre, tu foto y tu presentación se editan en tu portafolio.",
+    "go_to_portfolio": "Ir a tu portafolio",
+    "main": "Principal",
+    "verified": "Verificado",
+    "emails": "Correos",
+    "emails_description": "Inicia sesión con cualquiera de estos. Las notificaciones y tu currículum usan tu correo principal. Agrega un correo personal para conservar tu cuenta cuando dejes la escuela o el trabajo.",
+    "main_email_use": "Correo principal: inicio de sesión, notificaciones y tu currículum",
+    "try_again": "No funcionó. Inténtalo de nuevo.",
+    "no_phone": "Aún no hay número de teléfono",
+    "phone_use": "Tu número de teléfono. Tu currículum lo muestra junto a tu correo principal.",
+    "change_phone": "Cambiar",
+    "add_phone": "Agregar un número de teléfono",
+    "phone": "Número de teléfono",
+    "cancel": "Cancelar",
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "clear_phone": "Déjalo vacío y guarda para quitarlo.",
+    "sign_in_methods": "Formas de iniciar sesión",
+    "sign_in_description": "Las formas en que puedes iniciar sesión en tu cuenta.",
+    "email": "Correo",
+    "one_verified": "1 correo verificado",
+    "n_verified": "{{count}} correos verificados",
+    "manage": "Administrar",
+    "password": "Contraseña",
+    "password_set": "Establecida",
+    "no_password": "Aún no tienes contraseña. Usa ¿Olvidaste tu contraseña? en la página de inicio de sesión para crear una.",
+    "change_password": "Cambiar contraseña",
+    "google_connected_as": "Conectado como {{email}}",
+    "google_connected": "Conectado",
+    "google_not_connected": "No conectado",
+    "disconnect": "Desconectar",
+    "connect": "Conectar",
+    "username_changed": "Tu nombre de usuario ahora es @{{username}}.",
+    "account": "Cuenta",
+    "account_description": "Tu nombre de usuario aparece en el enlace a tu perfil.",
+    "username": "Nombre de usuario",
+    "change_username": "Cambiar nombre de usuario",
+    "username_warning": "Los enlaces antiguos a tu perfil dejarán de funcionar, y otra persona podría tomar @{{username}} cuando lo dejes.",
+    "new_username": "Nuevo nombre de usuario",
+    "username_rules": "De 3 a 30 letras, números, puntos, guiones o guiones bajos.",
+    "type_again": "Escribe el nuevo nombre de usuario otra vez para confirmar"
   }
 }

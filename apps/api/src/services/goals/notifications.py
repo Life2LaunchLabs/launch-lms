@@ -51,9 +51,7 @@ def on_step_status(db: Session, goal: Goal, step: GoalStep, progress: StepProgre
         for reviewer in reviewers(db, goal):
             notify(db, "step_submitted", reviewer, org_id=goal.org_id, data=data, actor_user_id=actor_user_id)
     elif previous == StepStatus.SUBMITTED.value and current in (StepStatus.COMPLETED.value, StepStatus.CHANGES_REQUESTED.value):
-        from src.services.connect.people import learner_name
-
-        reviewer = learner_name(db, actor_user_id, goal.org_id) or _name(db, actor_user_id)
+        reviewer = _name(db, actor_user_id)  # the name they go by, which learners see too (PO-3)
         kind = "step_approved" if current == StepStatus.COMPLETED.value else "step_sent_back"
         notify(db, kind, goal.subject_user_id, org_id=goal.org_id, actor_user_id=actor_user_id,
                data={**_base(goal, step), "reviewer_name": reviewer, "note": (note or "")[:500]})

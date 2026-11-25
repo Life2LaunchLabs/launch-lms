@@ -128,10 +128,3 @@ export const adminHomeApi = {
   plansSummary: (orgId: number, token?: string) => request<PlansSummary>(plansSummaryKey(orgId), token),
 }
 
-/** A staff member's own name for learners in this org: what learners see on their messages and reviews. */
-export interface LearnerName { staff: boolean; learner_name: string | null }
-export const learnerNameKey = (orgId: number) => goalAdminUrl('/me/learner-name', orgId)
-export const learnerNameApi = {
-  get: (orgId: number, token?: string) => request<LearnerName>(learnerNameKey(orgId), token),
-  save: (orgId: number, learnerName: string, token?: string) => request<LearnerName>(learnerNameKey(orgId), token, 'PUT', { learner_name: learnerName }),
-}

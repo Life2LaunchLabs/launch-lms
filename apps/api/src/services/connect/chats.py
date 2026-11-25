@@ -18,7 +18,6 @@ from src.db.conversations import (
 )
 from src.db.users import PublicUser, User
 from src.services.connect import people, visibility
-from src.services.school import roles as school_roles
 from src.services.goals.sharing_roles import _stamp, org_summary
 
 PAGE = 60
@@ -27,7 +26,6 @@ LISTED = ("active", "request")
 UNAVAILABLE = "This chat isn't available"
 # Where a page of messages keeps its reactions, fetched in one query, in the cache it shares with refs.
 REACTIONS = "__reactions__"
-LEARNER_VIEW = "__learner_view__"
 
 
 def _direct_key(a: int, b: int) -> str:
@@ -143,22 +141,9 @@ def _last(db: Session, conversation: Conversation, viewer_id: int | None = None)
     )).first()
 
 
-def _learner_org(db: Session, conversation: Conversation | None, viewer_id: int | None) -> int | None:
-    """The organization whose staff names this viewer reads as a learner, or None when they're its staff (or it has none)."""
-    if not conversation or not conversation.org_id or not viewer_id:
-        return None
-    return None if school_roles.is_staff(db, int(conversation.org_id), int(viewer_id)) else int(conversation.org_id)
-
-
 def _sender(db: Session, message: ConversationMessage, viewer_id: int, cache: dict | None) -> dict | None:
-    """Who sent a message, named the way this viewer knows them."""
-    sender = people.person(db, message.sender_user_id)
-    if not sender or message.sender_user_id == viewer_id:
-        return sender
-    views = (cache if cache is not None else {}).setdefault(LEARNER_VIEW, {})
-    if message.conversation_id not in views:
-        views[message.conversation_id] = _learner_org(db, db.get(Conversation, message.conversation_id), viewer_id)
-    return people.as_learners_see(db, sender, views[message.conversation_id])
+    """Who sent a message, by the name they go by (staff too: there's no separate name for learners since PO-3)."""
+    return people.person(db, message.sender_user_id)
 
 
 def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cache: dict | None = None) -> dict:
@@ -177,8 +162,7 @@ def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cac
 
 def _chat_dict(db: Session, conversation: Conversation, member: ConversationMember) -> dict:
     others = [item for item in _members(db, conversation) if item.user_id != member.user_id]
-    learner_org = _learner_org(db, conversation, member.user_id)
-    other_people = [summary for summary in (people.as_learners_see(db, people.person(db, item.user_id), learner_org) for item in others) if summary]
+    other_people = [summary for summary in (people.person(db, item.user_id) for item in others) if summary]
     # Someone who declined a request still looks like they haven't answered yet.
     waiting = conversation.kind == "direct" and any(item.status in ("request", "declined") for item in others)
     unavailable = conversation.kind == "direct" and (member.status == "blocked" or any(people.blocked(db, member.user_id, item.user_id) for item in others))
