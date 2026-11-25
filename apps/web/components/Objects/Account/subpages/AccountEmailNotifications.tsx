@@ -27,7 +27,7 @@ export default function AccountEmailNotifications() {
   }
 
   return <section className={`${settingsCard} p-5 sm:p-6`}>
-    <SettingsHeader icon={EnvelopeSimple} title="Emails" description={`What we email you about at ${session?.data?.user?.email || 'your address'}. Every email has a link to stop that kind too.`} />
+    <SettingsHeader icon={EnvelopeSimple} title="Email notifications" description={`What we email you about at ${session?.data?.user?.email || 'your address'}. Every email has a link to stop that kind too.`} />
     <div className="mt-3 max-w-2xl divide-y divide-border">
       {data.streams.map((stream) => {
         const id = `email-stream-${stream.key}`
