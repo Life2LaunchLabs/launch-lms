@@ -60,6 +60,11 @@ class UserRead(UserBase):
     is_superadmin: bool = False
 
 
+# Keys of ``User.details`` that are the person's own: accessibility and email settings, the account's phone number
+# and its Google sign-in state (PF-3). Other people never see them.
+PRIVATE_DETAILS = ("accessibility", "email_notifications", "phone", "google_sign_in")
+
+
 class UserReadPublic(UserBase):
     """User model for public-facing endpoints — excludes sensitive fields."""
     id: int
@@ -72,7 +77,7 @@ class UserReadPublic(UserBase):
     @classmethod
     def _private_details(cls, value: dict | None) -> dict | None:
         """Accessibility and email settings are the person's own; other people never see them."""
-        return {key: item for key, item in value.items() if key not in ("accessibility", "email_notifications")} if isinstance(value, dict) else value
+        return {key: item for key, item in value.items() if key not in PRIVATE_DETAILS} if isinstance(value, dict) else value
 
 
 class PublicUser(UserRead):

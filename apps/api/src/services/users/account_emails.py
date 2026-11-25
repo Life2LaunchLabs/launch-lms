@@ -24,7 +24,7 @@ from sqlmodel import Session, select
 
 from src.db.user_emails import UserEmail
 from src.db.users import User
-from src.services.users import personal_email_prompt
+from src.services.users import account_settings, personal_email_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,8 @@ def listing(db: Session, user: User) -> dict:
         "spares": [{"email": item.email, "source": item.source, "verified_at": item.verified_at} for item in spares],
         "max_spares": MAX_SPARES,
         "ask_for_personal": personal_email_prompt.should_prompt(db, user),
+        # The account's one phone number sits under its emails in Settings; the résumé prints it (PF-3).
+        "phone": account_settings.phone_of(user),
     }
 
 

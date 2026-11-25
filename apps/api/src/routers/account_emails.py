@@ -1,13 +1,13 @@
 """Your account's emails (DEV-197): list them, add one with a code, make one your main email, remove a spare."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser, User, UserRead
 from src.security.auth import JWT_ACCESS_TOKEN_EXPIRES, create_access_token, create_refresh_token, get_authenticated_user
-from src.services.users import account_emails
+from src.services.users import account_emails, account_settings
 
 router = APIRouter()
 
@@ -85,3 +85,63 @@ def api_dismiss_personal_prompt(db: Session = Depends(get_db_session), current_u
     user = _me(db, current_user)
     personal_email_prompt.dismiss(db, user)
     return account_emails.listing(db, user)
+
+
+# Settings › Account (PF-3, DEV-213): the phone, the username and the ways to sign in ---------------------------------
+
+class PhoneBody(BaseModel):
+    phone: str = Field(default="", max_length=40)
+
+
+class UsernameBody(BaseModel):
+    username: str = Field(max_length=60)
+
+
+class GoogleBody(BaseModel):
+    access_token: str = Field(min_length=1, max_length=4096)
+
+
+@router.put("/users/me/phone", tags=["users"])
+def api_set_my_phone(body: PhoneBody, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """The account's one phone number, which the résumé prints. Empty takes it off."""
+    result = account_settings.set_phone(db, _me(db, current_user), body.phone)
+    _changed(current_user.id)
+    return result
+
+
+@router.put("/users/me/username", tags=["users"])
+def api_change_my_username(body: UsernameBody, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """A new username: old links to the profile stop working and the old one is free for anyone."""
+    result = account_settings.change_username(db, _me(db, current_user), body.username)
+    _changed(current_user.id)
+    return result
+
+
+@router.get("/users/me/sign-in-methods", tags=["users"])
+def api_my_sign_in_methods(db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """Email (how many verified), password and Google."""
+    return account_settings.sign_in_methods(db, _me(db, current_user))
+
+
+@router.post("/users/me/sign-in-methods/google", tags=["users"])
+async def api_connect_google(body: GoogleBody, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """Connect the Google account the person just signed in to (its access token proves it)."""
+    from src.services.auth import google_oauth
+    from src.services.auth.utils import get_google_user_info
+
+    if not google_oauth.enabled():
+        raise HTTPException(status_code=404, detail="Google sign-in is off")
+    info = await get_google_user_info(body.access_token)
+    if info.get("email_verified") is False:
+        raise HTTPException(status_code=400, detail="Google hasn't verified that account's email.")
+    result = account_settings.connect_google(db, _me(db, current_user), str(info.get("email") or ""))
+    _changed(current_user.id)
+    return result
+
+
+@router.delete("/users/me/sign-in-methods/google", tags=["users"])
+def api_disconnect_google(db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_authenticated_user)) -> dict:
+    """Turn Google sign-in off for the account."""
+    result = account_settings.disconnect_google(db, _me(db, current_user))
+    _changed(current_user.id)
+    return result

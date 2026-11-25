@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from src.db.media import MediaAsset
 from src.db.portfolio import Portfolio
-from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSeen, ResumeContactUpdate
+from src.db.portfolio_records import HighlightsUpdate, LayoutUpdate, ProgressSeen
 from src.db.users import PublicUser
 from src.services import portfolio as portfolio_service
 
@@ -31,8 +31,6 @@ LAYOUT_CHOICES = {
 # No mode until they pick one either: the page then follows the visitor's device.
 DEFAULT_LAYOUT = {"header": "left", "sections": "grid", "look": None, "mode": None, "banner": "look"}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
-EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-PHONE = re.compile(r"^[0-9+()./\- x]{7,40}$")
 
 # The front page's sections. About and experience can't be taken out.
 SECTIONS = {"highlights", "feature", "about", "experience", "projects", "credentials", "results", "headed", "people"}
@@ -205,18 +203,9 @@ def resume_unlocked(portfolio: Portfolio, has_resume_versions: bool) -> bool:
     return 2 in seen_quests(portfolio) or has_resume_versions
 
 
-def resume_contact(portfolio: Portfolio) -> dict:
-    stored = (portfolio.theme_settings or {}).get("resume_contact") or {}
-    return {"email": str(stored.get("email") or ""), "phone": str(stored.get("phone") or "")}
+def resume_contact(user) -> dict:
+    """How an employer reaches the learner, printed on their résumé only: the account's main email and its one phone
+    number, both set in Settings (PF-3). Never on the portfolio, never to visitors."""
+    from src.services.users.account_settings import phone_of
 
-
-def update_resume_contact(payload: ResumeContactUpdate, current_user: PublicUser, db_session: Session) -> dict:
-    """The email and phone printed on the learner's résumé. Either can be left empty."""
-    email, phone = payload.email.strip(), payload.phone.strip()
-    if email and not EMAIL.match(email):
-        raise HTTPException(status_code=422, detail="That email doesn't look right")
-    if phone and (not PHONE.match(phone) or sum(char.isdigit() for char in phone) < 7):
-        raise HTTPException(status_code=422, detail="That phone number doesn't look right")
-    portfolio = portfolio_service.get_or_create_portfolio(current_user, db_session)
-    _store(portfolio, db_session, resume_contact={"email": email, "phone": phone})
-    return resume_contact(portfolio)
+    return {"email": str(getattr(user, "email", "") or ""), "phone": phone_of(user)}

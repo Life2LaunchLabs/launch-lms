@@ -13,9 +13,6 @@ export type Quest = { n: 1 | 2 | 3; title: string; why: string; items: QuestItem
 /** working: items left on quest n. unlocked: quest n is finished and its unlock moment hasn't been seen. mastered: all done. */
 export type Stage = { kind: 'working' | 'unlocked'; quest: Quest } | { kind: 'mastered' }
 
-/** The quest item for the résumé's email or phone, done in the profile dialog. */
-export const RESUME_CONTACT_ITEM = 'Add an email or phone for your résumé'
-
 const TITLES = { get 1() { return tr('lit.progress.unlock_sharing', 'Unlock sharing') }, get 2() { return tr('lit.progress.unlock_your_r_sum', 'Unlock your résumé') }, get 3() { return tr('lit.progress.portfolio_mastery', 'Portfolio mastery') } } as const
 const WHY = { get 1() { return tr('lit.progress.finish_these_to_share_your', 'Finish these to share your portfolio.') }, get 2() { return tr('lit.progress.finish_these_to_turn_your', 'Finish these to turn your portfolio into a résumé.') }, get 3() { return tr('lit.progress.round_it_out_to_earn', 'Round it out to earn the mastery badge by your name.') } } as const
 
@@ -45,8 +42,6 @@ export function quests(shell: Shell): Quest[] {
     quest(2, [
       count('xp3', tr('lit.progress.add_3_experiences', 'Add 3 experiences'), timeline.length, 3, 'experience'),
       { key: 'school', label: tr('portfolio.progress.add_your_school', 'Add your school'), done: timeline.some((entry) => entry.entry_type === 'education'), spot: 'experience' },
-      // A résumé needs a way to reach you, not a social link; the email and phone stay off the portfolio.
-      { key: 'contact', label: RESUME_CONTACT_ITEM, done: Boolean(shell.resume_contact?.email?.trim() || shell.resume_contact?.phone?.trim()), spot: 'name' },
       count('skills', tr('lit.progress.name_3_skills', 'Name 3 skills'), skills.size, 3, 'results'),
     ]),
     quest(3, [

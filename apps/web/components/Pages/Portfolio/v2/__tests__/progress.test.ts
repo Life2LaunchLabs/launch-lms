@@ -39,11 +39,9 @@ describe('portfolio quests', () => {
     expect(third.items.find((item) => item.key === 'stories')?.done).toBe(false)
   })
 
-  test('the résumé asks for a way to reach you, not a social link', () => {
+  test('the résumé asks for no contact: it prints the main email and phone from Settings', () => {
     const second = (over: Record<string, any>) => quests(shell(over))[1].items
-    expect(second({}).some((item) => item.key === 'links')).toBe(false)
-    expect(second({ portfolio: { avatar_image: '', short_bio: '', socials: [{ url: 'https://x.com/maya' }] } }).find((item) => item.key === 'contact')?.done).toBe(false)
-    expect(second({ resume_contact: { email: '', phone: '541-555-0123' } }).find((item) => item.key === 'contact')?.done).toBe(true)
+    expect(second({}).some((item) => item.key === 'links' || item.key === 'contact')).toBe(false)
   })
 
   test('mastery asks for what you are like', () => {

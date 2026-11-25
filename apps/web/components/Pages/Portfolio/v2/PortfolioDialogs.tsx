@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { getMyPortfolio, updateMyPortfolio } from '@services/portfolio/portfolio'
-import { updateMyHighlights, updateMyIdentity, updateResumeContact } from '@services/portfolio/records'
-import { RESUME_CONTACT_ITEM } from './progress'
+import { updateMyHighlights, updateMyIdentity } from '@services/portfolio/records'
 import { SOCIAL_OPTIONS, normalizeSocialInput, shellSocials, socialHandle } from '../PortfolioHeaderParts'
 import type { OpenChange } from './parts'
 import type { Highlight, SetShell, Shell } from '../portfolioTypes'
@@ -40,8 +39,6 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
     if (!text('first_name')) return toast.error(tr('portfolio.portfolio_dialogs.add_your_first_name', 'Add your first name'))
     setBusy(true)
     try {
-      const contact = { email: text('resume_email'), phone: text('resume_phone') }
-      if (contact.email !== (shell.resume_contact?.email || '') || contact.phone !== (shell.resume_contact?.phone || '')) await updateResumeContact(contact, token)
       await updateMyIdentity({ first_name: text('first_name'), last_name: text('last_name'), preferred_name: text('preferred_name') }, token)
       if (learnerName?.staff && text('learner_name') !== (learnerName.learner_name || '')) await setLearnerName(await learnerNameApi.save(orgId, text('learner_name'), token), { revalidate: false })
       // The identity save bumps the revision, so read it back before saving the rest.
@@ -66,15 +63,6 @@ export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avat
         {learnerName?.staff && <div className="grid gap-1.5"><Label htmlFor="pf-learner-name">{tr('portfolio.portfolio_dialogs.what_learners_call_you', 'What learners call you')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-learner-name" name="learner_name" defaultValue={learnerName.learner_name || ''} maxLength={60} placeholder={identity?.preferred_name || identity?.legal_name || ''} /><p className="text-xs text-muted-foreground">{tr('portfolio.portfolio_dialogs.learners_see_this_on_your', 'Learners at {{org}} see this on your messages and reviews, like “Ms. Rivera”. Staff still see the name you go by.', { org: org?.name || tr('portfolio.portfolio_dialogs.this_organization', 'this organization') })}</p></div>}
         <div className="grid gap-1.5"><Label htmlFor="pf-headline">{tr('portfolio.portfolio_dialogs.one_line_intro', 'One-line intro')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-headline" name="headline" defaultValue={shell.portfolio.headline || ''} maxLength={140} placeholder={tr('portfolio.portfolio_dialogs.artist_and_future_ux_designer', 'Artist and future UX designer')} /></div>
         <div className="grid gap-1.5"><Label htmlFor="pf-location">{tr('portfolio.portfolio_dialogs.where_you_are', 'Where you are')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-location" name="location_label" defaultValue={shell.portfolio.location_label || ''} maxLength={80} placeholder={tr('portfolio.portfolio_dialogs.eugene_or', 'Eugene, OR')} /></div>
-        {/* Printed on the résumé so an employer can reach them; the portfolio never shows these. */}
-        <fieldset className="grid gap-3 rounded-2xl border border-border p-3.5">
-          <legend className="px-1 text-sm font-bold">{tr('portfolio.portfolio_dialogs.for_your_r_sum', 'For your résumé')}</legend>
-          <p className="-mt-1 text-xs text-muted-foreground">{tr('portfolio.portfolio_dialogs.only_printed_on_your_r', 'Only printed on your résumé, so employers can reach you. Your portfolio never shows them.')}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5"><Label htmlFor="pf-resume-email">{tr('portfolio.resume_builder.email', 'Email')}</Label><Input id="pf-resume-email" name="resume_email" type="email" defaultValue={shell.resume_contact?.email || ''} maxLength={200} placeholder={shell.portfolio.email || tr('portfolio.resume_builder.you_example_com', 'you@example.com')} autoComplete="email" autoFocus={mark === RESUME_CONTACT_ITEM} /></div>
-            <div className="grid gap-1.5"><Label htmlFor="pf-resume-phone">{tr('portfolio.resume_builder.phone', 'Phone')}</Label><Input id="pf-resume-phone" name="resume_phone" type="tel" defaultValue={shell.resume_contact?.phone || ''} maxLength={40} placeholder="541-555-0123" autoComplete="tel" /></div>
-          </div>
-        </fieldset>
       </form>
       <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Marked mark={mark}><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></Marked></DialogFooter>
     </DialogContent>

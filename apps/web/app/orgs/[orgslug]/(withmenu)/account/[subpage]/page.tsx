@@ -11,7 +11,7 @@ type MetadataProps = {
 
 const LEGACY_ACCOUNT_SUBPAGES = ['security', 'purchases', 'general']
 const PROFILE_SUBPAGES = ['profile', 'badges']
-const ACCOUNT_TABS = new Set<AccountPageTab>(['memory', 'preferences', 'accessibility', 'data'])
+const ACCOUNT_TABS = new Set<AccountPageTab>(['memory', 'preferences', 'accessibility', 'data', 'contact'])
 
 const getSubpageTitle = (subpage: string): string => {
   const titles: Record<string, string> = {
@@ -19,6 +19,7 @@ const getSubpageTitle = (subpage: string): string => {
     'preferences': 'Appearance',
     'accessibility': 'Accessibility',
     'data': 'Your data',
+    'contact': 'Emails and phone',
   }
   return titles[subpage] || 'Settings'
 }

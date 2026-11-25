@@ -7,7 +7,8 @@ import { OrgLogo } from '@components/Objects/OrgLogo'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { usePathname } from 'next/navigation'
-import { ChatCircleDots, GearSix, SidebarSimple } from '@phosphor-icons/react'
+import { ChatCircleDots, GearSix, SidebarSimple, SignOut } from '@phosphor-icons/react'
+import { signOut } from '@components/Contexts/AuthContext'
 import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -216,6 +217,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
             <div className={cn('mt-auto flex flex-col pt-6', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
               <FeedbackSidebarButton onClick={openFeedback} isExpanded={isDesktopNavExpanded} />
               <SettingsSidebarLink orgslug={orgslug} isExpanded={isDesktopNavExpanded} active={Boolean(pathname?.includes('/account'))} />
+              <SignOutSidebarButton isExpanded={isDesktopNavExpanded} />
             </div>
           </div>
         </div>
@@ -316,7 +318,7 @@ type SidebarItemProps = {
   isExpanded?: boolean
 }
 
-/** Settings sits under Feedback and looks like it: account, appearance and sign out are one page now. */
+/** Settings sits under Feedback and looks like it: the account, appearance and the rest are one page. */
 function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string; isExpanded: boolean; active: boolean }) {
   const { t } = useTranslation()
   const link = (
@@ -342,6 +344,38 @@ function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string;
       <Tooltip>
         <TooltipTrigger asChild>{link}</TooltipTrigger>
         <TooltipContent side="right" className="text-xs">{t('nav.settings')}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+/** Sign out, at the very bottom of the navigation bar (PF-3; it used to close the Settings page). On a phone it's in
+ * the portfolio's settings menu. */
+function SignOutSidebarButton({ isExpanded }: { isExpanded: boolean }) {
+  const { t } = useTranslation()
+  const button = (
+    <button
+      type="button"
+      onClick={() => signOut({ callbackUrl: '/' })}
+      aria-label={t('settings.sign_out')}
+      data-testid="nav-sign-out"
+      className={cn(
+        'relative flex h-11 items-center rounded-2xl text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400',
+        isExpanded ? 'w-full justify-start gap-1 pl-0.5 pr-3' : 'w-11 justify-center'
+      )}
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center"><SignOut size={22} weight="bold" /></span>
+      <span className={cn('truncate text-sm font-medium', isExpanded ? 'inline' : 'hidden')}>{t('settings.sign_out')}</span>
+    </button>
+  )
+
+  if (isExpanded) return button
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">{t('settings.sign_out')}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

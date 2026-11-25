@@ -1,10 +1,9 @@
 'use client'
 
 import React from 'react'
-import { SignOut } from '@phosphor-icons/react'
-import AccountPageShell, { settingsCard } from '@components/Objects/Account/AccountPageShell'
-import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
-import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
+import AccountPageShell from '@components/Objects/Account/AccountPageShell'
+import AccountUsername from '@components/Objects/Account/subpages/AccountUsername'
+import AccountSignInMethods from '@components/Objects/Account/subpages/AccountSignInMethods'
 import AccountMemory from '@components/Objects/Account/subpages/AccountMemory'
 import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
 import AccountLanguage from '@components/Objects/Account/subpages/AccountLanguage'
@@ -12,14 +11,11 @@ import AccountAccessibility from '@components/Objects/Account/subpages/AccountAc
 import AccountData from '@components/Objects/Account/subpages/AccountData'
 import AccountEmailNotifications from '@components/Objects/Account/subpages/AccountEmailNotifications'
 import AccountEmailAddresses from '@components/Objects/Account/emails/AccountEmailAddresses'
-import { signOut } from '@components/Contexts/AuthContext'
-import { useTranslation } from 'react-i18next'
 
 /** Where each old account tab now sits on the one Settings page. */
-const SECTIONS: Record<string, string> = { preferences: 'appearance', language: 'language', accessibility: 'accessibility', memory: 'memory', data: 'data', emails: 'emails' }
+const SECTIONS: Record<string, string> = { preferences: 'appearance', language: 'language', accessibility: 'accessibility', memory: 'memory', data: 'data', emails: 'emails', contact: 'account-emails' }
 
 const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
-  const { t } = useTranslation()
   // Old links to a tab land on its section.
   React.useEffect(() => {
     const section = SECTIONS[subpage]
@@ -41,17 +37,14 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
   return (
     <AccountPageShell>
       <div className="space-y-6">
-        <section id="account" className="scroll-mt-6 space-y-6"><AccountGeneral /><AccountEmailAddresses /><AccountSecurity /></section>
+        {/* The account (PF-3): username, emails and phone, ways to sign in. Personal details live in the portfolio. */}
+        <section id="account" className="scroll-mt-6 space-y-6"><AccountUsername /><AccountEmailAddresses /><AccountSignInMethods /></section>
         <section id="emails" className="scroll-mt-6"><AccountEmailNotifications /></section>
         <section id="language" className="scroll-mt-6"><AccountLanguage /></section>
         <section id="accessibility" className="scroll-mt-6"><AccountAccessibility /></section>
         <section id="appearance" className="scroll-mt-6"><AccountPreferences /></section>
         <section id="memory" className="scroll-mt-6"><AccountMemory /></section>
         <section id="data" className="scroll-mt-6"><AccountData /></section>
-        <button type="button" onClick={() => signOut({ callbackUrl: '/' })}
-          className={`${settingsCard} flex w-full items-center justify-center gap-2 px-5 py-4 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10`}>
-          <SignOut size={18} weight="fill" />{t('settings.sign_out')}
-        </button>
       </div>
     </AccountPageShell>
   )

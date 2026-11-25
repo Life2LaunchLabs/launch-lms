@@ -443,6 +443,7 @@ async def get_organization_users(
                 continue
 
             user_read = UserRead.model_validate(user)
+            user_read.details = {k: v for k, v in (user_read.details or {}).items() if k not in ("phone", "google_sign_in")}  # theirs (PF-3)
             role_read = RoleRead.model_validate(role)
             usergroups = user_usergroups_map.get(user.id, [])
 

@@ -434,7 +434,7 @@ def records_for_shell(portfolio: Portfolio, db_session: Session, public_only: bo
         # The life plan's phases, never its budget. Only the learner sees them for now.
         "headed": life_plans.headed(db_session, portfolio.user_id),
         "contacts": [contact_dto(item, db_session) for item in _rows(PortfolioContact, portfolio, db_session, (PortfolioContact.sort_order, PortfolioContact.id))],
-        "resume_contact": resume_contact(portfolio),
+        "resume_contact": resume_contact(user),
         "connect_requests": taking_requests(portfolio),
         "resume_versions": [resume_version_dto(item) for item in _rows(ResumeVersion, portfolio, db_session, (ResumeVersion.sort_order, ResumeVersion.id))],
         "documents": [document_dto(item, db_session) for item in _rows(PortfolioDocument, portfolio, db_session, (PortfolioDocument.id,))],

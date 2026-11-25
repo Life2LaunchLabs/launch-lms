@@ -54,6 +54,7 @@ export interface SignInOptions {
   orgId?: number
   orgSlug?: string
   birthDate?: string | null
+  linkGoogle?: boolean // connect Google to the signed-in account from Settings instead of signing in (PF-3)
 }
 
 export interface SignInResult {
@@ -684,7 +685,7 @@ export function useSession(): UseSessionReturn {
 }
 
 // Validate OAuth state parameter (call this on callback page)
-export function validateOAuthState(state: string): { valid: boolean; callbackUrl: string } {
+export function validateOAuthState(state: string): { valid: boolean; callbackUrl: string; link?: boolean } {
   const defaultResult = { valid: false, callbackUrl: '/redirect_from_auth' }
 
   try {
@@ -714,7 +715,7 @@ export function validateOAuthState(state: string): { valid: boolean; callbackUrl
 
     return {
       valid: true,
-      callbackUrl: stateData.callbackUrl || '/redirect_from_auth',
+      callbackUrl: stateData.callbackUrl || '/redirect_from_auth', link: Boolean(stateData.link),
     }
   } catch (error) {
     console.error('OAuth state validation error:', error)
@@ -748,8 +749,8 @@ export async function signIn(
     const callbackUrl = options?.callbackUrl || '/'
     const stateData: Record<string, any> = {
       callbackUrl,
-      csrf: csrfToken,
-      timestamp: Date.now(),
+      csrf: csrfToken, timestamp: Date.now(),
+      ...(options?.linkGoogle ? { link: true } : {}),
     }
 
     if (oauthCallbackRequiresBounce()) {
