@@ -25,13 +25,14 @@ border:3px solid var(--border);border-top-color:var(--fg);animation:spin .8s lin
 """
 
 
-def _page(title: str, body: str, script: str = "", status_code: int = 200, form_action: str | None = None) -> HTMLResponse:
+def _page(title: str, body: str, script: str = "", status_code: int = 200, form_action: str | None = None,
+          style: str = "", main_class: str = "") -> HTMLResponse:
     nonce = secrets.token_urlsafe(16)
     html = (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         f"<meta name=\"referrer\" content=\"strict-origin\"><title>{escape(title)}</title>"
-        f"<style nonce=\"{nonce}\">{_STYLE}</style></head><body><main>{body}</main>"
+        f"<style nonce=\"{nonce}\">{_STYLE}{style}</style></head><body><main{f' class="{main_class}"' if main_class else ''}>{body}</main>"
         + (f"<script nonce=\"{nonce}\">{script}</script>" if script else "")
         + "</body></html>"
     )
@@ -241,3 +242,104 @@ def link_done(school: str, open_url: str | None = None) -> HTMLResponse:
            if open_url else "")
     )
     return _page("Linked", body)
+
+
+# ---------------------------------------------------------------------------
+# Adding a plan to a Canvas module or assignment (deep linking, PF-4)
+# ---------------------------------------------------------------------------
+
+_PICKER_STYLE = """
+body{display:block;padding:0}main.picker{max-width:640px;margin:0 auto;text-align:left;padding:24px 16px 104px}
+.picker h1{font-size:22px;margin-bottom:4px}.picker header p{margin-bottom:16px}
+.search{display:block;width:100%;font:inherit;min-height:44px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+background:transparent;color:var(--fg);margin-bottom:12px}.search:focus-visible{outline:3px solid #2563eb;outline-offset:1px}
+ul.plans{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.plan{position:relative}.plan input{position:absolute;opacity:0;width:1px;height:1px}
+.plan label{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:12px;cursor:pointer;min-height:64px}
+.plan label:hover{border-color:var(--muted)}.plan input:checked+label{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+.plan input:focus-visible+label{outline:3px solid #2563eb;outline-offset:2px}
+.swatch{flex:none;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+.plan .text{min-width:0;flex:1}.plan strong{display:block;line-height:1.35;overflow-wrap:anywhere}
+.plan .desc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:14px;margin:2px 0 0}
+.plan .meta{display:block;color:var(--muted);font-size:13px;margin:4px 0 0}
+.check{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--border);margin-top:9px}
+.plan input:checked+label .check{border-color:var(--primary);background:var(--primary);box-shadow:inset 0 0 0 4px var(--bg)}
+.none{text-align:center;padding:24px 0;color:var(--muted)}
+footer.bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--border);padding:12px 16px}
+footer.bar .inner{max-width:608px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:flex-end}
+footer.bar .chosen{flex:1;min-width:0;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+footer.bar button{width:auto;min-width:96px}button:disabled{opacity:.5;cursor:not-allowed}
+@media (max-width:480px){footer.bar .chosen{display:none}footer.bar button{flex:1}}
+.empty{text-align:center;padding:48px 0}fieldset.bare{border:0;margin:0;padding:0}
+"""
+
+
+def _faces_css() -> str:
+    from src.services.canvas.deep_linking import PLAN_FACES
+
+    return "".join(f".f-{key}{{background:{face};color:{ink}}}" for key, (face, ink) in PLAN_FACES.items())
+
+
+def _steps(count: int) -> str:
+    return f"{count} step" if count == 1 else f"{count} steps"
+
+
+def plan_picker(plans: list[dict], ticket: str, action: str, school: str, graded: bool = False) -> HTMLResponse:
+    """Inside Canvas's add-content frame: the school's plans, one to pick. Posts the pick (or a cancel) to `action`."""
+    where = "this assignment" if graded else "this module"
+    if not plans:
+        body = (
+            "<header><h1>No plans to add yet</h1>"
+            f"<p>{escape(school)} has no published plans in Life2Launch. Make or add a plan in Life2Launch, "
+            "publish it, then come back and add it here.</p></header>"
+            f"<form method=\"post\" action=\"{escape(action)}\">{_hidden({'ticket': ticket})}"
+            "<div class=\"actions\"><button type=\"submit\" name=\"cancel\" value=\"1\">Close</button></div></form>"
+        )
+        return _page("Add a Life2Launch plan", f"<div class=\"empty\">{body}</div>", style=_PICKER_STYLE + _faces_css(), main_class="picker")
+    items = []
+    for index, plan in enumerate(plans):
+        initial = escape((plan["title"][:1] or "?").upper())
+        desc = f"<span class=\"desc\">{escape(plan['description'])}</span>" if plan.get("description") else ""
+        search_text = escape(f"{plan['title']} {plan.get('description') or ''}".lower())
+        items.append(
+            f"<li class=\"plan\" data-search=\"{search_text}\">"
+            f"<input type=\"radio\" name=\"plan\" id=\"p{index}\" value=\"{escape(plan['uuid'])}\" "
+            f"data-title=\"{escape(plan['title'])}\">"
+            f"<label for=\"p{index}\"><span class=\"swatch f-{escape(plan['color'])}\" "
+            f"aria-hidden=\"true\">{initial}</span>"
+            f"<span class=\"text\"><strong>{escape(plan['title'])}</strong>{desc}"
+            f"<span class=\"meta\">{_steps(int(plan['steps']))}</span></span><span class=\"check\" aria-hidden=\"true\"></span></label></li>"
+        )
+    search = ("<input id=\"q\" class=\"search\" type=\"search\" placeholder=\"Search plans\" autocomplete=\"off\" "
+              "aria-label=\"Search plans\">") if len(plans) > 5 else ""
+    body = (
+        "<header><h1>Add a Life2Launch plan</h1>"
+        f"<p>Pick a plan for {where}. Students who open it go straight into the plan, signed in.</p></header>"
+        f"<form id=\"pick\" method=\"post\" action=\"{escape(action)}\">{_hidden({'ticket': ticket})}{search}"
+        f"<fieldset class=\"bare\"><legend hidden>Plans</legend><ul class=\"plans\">{''.join(items)}</ul></fieldset>"
+        "<p id=\"none\" class=\"none\" hidden>No plans match. Try another word.</p>"
+        "<footer class=\"bar\"><div class=\"inner\"><span id=\"chosen\" class=\"chosen\" aria-live=\"polite\">Pick a plan</span>"
+        "<button type=\"submit\" name=\"cancel\" value=\"1\" formnovalidate>Cancel</button>"
+        "<button id=\"add\" class=\"primary\" type=\"submit\" disabled>Add plan</button></div></footer></form>"
+    )
+    script = (
+        "(function(){var form=document.getElementById('pick'),add=document.getElementById('add'),chosen=document.getElementById('chosen');"
+        "form.addEventListener('change',function(e){if(e.target.name!=='plan')return;add.disabled=false;"
+        "chosen.textContent=e.target.getAttribute('data-title')});"
+        "var q=document.getElementById('q');if(!q)return;var none=document.getElementById('none');"
+        "q.addEventListener('input',function(){var v=q.value.trim().toLowerCase(),shown=0;"
+        "document.querySelectorAll('li.plan').forEach(function(li){var hit=!v||li.getAttribute('data-search').indexOf(v)>=0;"
+        "li.hidden=!hit;if(hit)shown++});none.hidden=shown>0})})();"
+    )
+    return _page("Add a Life2Launch plan", body, script, style=_PICKER_STYLE + _faces_css(), main_class="picker")
+
+
+def deep_link_return(return_url: str, response_jwt: str, added: str | None) -> HTMLResponse:
+    """Hand the teacher's pick back to Canvas: a form posted to Canvas's return address with the signed response."""
+    title = f"Adding {added}…" if added else "Closing…"
+    body = (
+        f"<div class=\"spinner\" aria-hidden=\"true\"></div><h1>{escape(title)}</h1>"
+        f"<form id=\"go\" method=\"post\" action=\"{escape(return_url)}\">{_hidden({'JWT': response_jwt})}"
+        "<noscript><button class=\"primary\" type=\"submit\">Continue</button></noscript></form>"
+    )
+    return _page(title, body, "document.getElementById('go').submit();", form_action=_origin_of(return_url))

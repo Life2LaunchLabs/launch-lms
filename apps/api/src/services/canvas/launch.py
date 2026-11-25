@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import secrets
 import time
 from dataclasses import dataclass, field
@@ -34,6 +35,13 @@ LTI = "https://purl.imsglobal.org/spec/lti/claim/"
 # Where Canvas offers the course's class list (Names and Role Provisioning Services), when the key has the scope.
 NRPS_CLAIM = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
 RESOURCE_LINK_REQUEST = "LtiResourceLinkRequest"
+# A teacher adding Life2Launch to a module or assignment: we answer with the plan they pick (PF-4, DEV-226).
+DEEP_LINKING_REQUEST = "LtiDeepLinkingRequest"
+DEEP_LINKING_SETTINGS_CLAIM = "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings"
+# Where Canvas takes the plan's grade (LTI Assignment and Grade Services), on a launch from a graded item.
+AGS_CLAIM = "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"
+# Canvas names the placement a launch came from (assignment_selection, link_selection, ...).
+CANVAS_PLACEMENT_CLAIM = "https://www.instructure.com/placement"
 
 
 class LaunchError(HTTPException):
@@ -120,7 +128,20 @@ class Launch:
     course_id: str | None = None
     course_title: str | None = None
     memberships_url: str | None = None
+    message_type: str = RESOURCE_LINK_REQUEST
+    deployment_id: str | None = None
+    # The module item or assignment the launch came from, and its custom parameters (`plan` names a plan, PF-4).
+    resource_link_id: str | None = None
+    custom: dict = field(default_factory=dict)
+    # Deep linking only: where to send the teacher's pick, and Canvas's opaque data to send back with it.
+    deep_link_return_url: str | None = None
+    deep_link_data: str | None = None
+    placement: str | None = None
     claims: dict = field(default_factory=dict)
+
+    @property
+    def plan_uuid(self) -> str | None:
+        return plan_uuid_from(self.custom)
 
 
 def consume_state(state: str) -> dict:
@@ -170,8 +191,16 @@ def verify_launch(db: Session, id_token: str, stored: dict) -> Launch:
     deployment = claims.get(f"{LTI}deployment_id")
     if not deployment or deployment not in (connection.deployment_ids or []):
         raise LaunchError("This Canvas deployment isn't connected to Life2Launch. Ask your school's Life2Launch admin to add its deployment id.", 403)
-    if claims.get(f"{LTI}message_type") != RESOURCE_LINK_REQUEST or claims.get(f"{LTI}version") != "1.3.0":
+    message_type = claims.get(f"{LTI}message_type")
+    if message_type not in (RESOURCE_LINK_REQUEST, DEEP_LINKING_REQUEST) or claims.get(f"{LTI}version") != "1.3.0":
         raise LaunchError("Life2Launch opens from a course link in Canvas. Ask your teacher where to find it.")
+    settings = claims.get(DEEP_LINKING_SETTINGS_CLAIM) if message_type == DEEP_LINKING_REQUEST else None
+    if message_type == DEEP_LINKING_REQUEST:
+        if not isinstance(settings, dict) or not isinstance(settings.get("deep_link_return_url"), str) or not settings["deep_link_return_url"].strip():
+            raise LaunchError("Canvas didn't say where to add the plan. Close this and try adding Life2Launch again.")
+        accepts = settings.get("accept_types") or ["ltiResourceLink"]
+        if "ltiResourceLink" not in accepts:
+            raise LaunchError("Life2Launch adds plans as links. Add it from a module or an assignment in Canvas.")
     email = (claims.get("email") or "").strip().lower()
     if not email:
         raise LaunchError("Canvas didn't share your email with Life2Launch. Ask your school's Canvas admin to set the tool's privacy level to public.")
@@ -191,8 +220,37 @@ def verify_launch(db: Session, id_token: str, stored: dict) -> Launch:
         course_id=str(context["id"]) if context.get("id") else None,
         course_title=(context.get("title") or context.get("label") or "").strip() or None,
         memberships_url=_memberships_url(claims),
+        message_type=str(message_type),
+        deployment_id=str(deployment),
+        resource_link_id=_resource_link_id(claims),
+        custom=_custom(claims),
+        deep_link_return_url=settings["deep_link_return_url"].strip()[:2000] if settings else None,
+        deep_link_data=str(settings["data"])[:4000] if settings and settings.get("data") is not None else None,
+        placement=str(claims.get(CANVAS_PLACEMENT_CLAIM))[:64] if claims.get(CANVAS_PLACEMENT_CLAIM) else None,
         claims=claims,
     )
+
+
+PLAN_UUID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
+
+
+def plan_uuid_from(custom: dict | None) -> str | None:
+    """The plan a module item opens (its `plan` custom parameter), when it looks like one of ours."""
+    value = (custom or {}).get("plan")
+    return value if isinstance(value, str) and PLAN_UUID_PATTERN.fullmatch(value) else None
+
+
+def _custom(claims: dict) -> dict:
+    custom = claims.get(f"{LTI}custom")
+    if not isinstance(custom, dict):
+        return {}
+    return {str(k)[:64]: str(v)[:512] for k, v in list(custom.items())[:20] if isinstance(v, (str, int, float))}
+
+
+def _resource_link_id(claims: dict) -> str | None:
+    link = claims.get(f"{LTI}resource_link") or {}
+    value = link.get("id") if isinstance(link, dict) else None
+    return str(value)[:255] if value else None
 
 
 def _memberships_url(claims: dict) -> str | None:
