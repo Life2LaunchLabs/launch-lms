@@ -33,3 +33,15 @@ export function greetingName(user: Named): string {
   const preferred = (user?.preferred_name || '').trim()
   return preferred ? firstNameOf(preferred) : firstNameOf(user?.first_name, user?.last_name)
 }
+
+type Listed = { name?: string | null; legal_name?: string | null } | null | undefined
+
+/** Staff rosters (Threads, profiles) lead with the legal name; the API adds it only when someone goes by another (PO-3). */
+export function rosterName(person: Listed): string {
+  return person?.legal_name || person?.name || ''
+}
+
+/** The name someone goes by, when it isn't their legal name: shown under the legal name on staff rosters. */
+export function goesBy(person: Listed): string {
+  return person?.legal_name && person?.name ? person.name : ''
+}

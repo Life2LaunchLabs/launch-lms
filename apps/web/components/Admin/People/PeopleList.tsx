@@ -24,6 +24,7 @@ import { RoleTag } from './RoleTag'
 import type { PeopleSelection } from './PeopleView'
 import { usePeopleContext, usePeopleFeed, useRefreshPeople } from './usePeople'
 import { inOrgWords } from '@/lib/people'
+import { goesBy, rosterName } from '@/lib/names'
 
 const threads = routePaths.org.admin.threads
 
@@ -178,7 +179,7 @@ function KindFilter({ value, onChange, groups }: { value: ThreadKind; onChange: 
 function ActiveRow({ row, selection }: { row: FeedRow; orgslug: string; selection: PeopleSelection }) {
   const active = isOpen(row, selection)
   const fresh = (row.total || 0) > 0
-  const name = row.kind === 'group' ? row.group?.name || 'Group' : row.person?.name || 'Someone'
+  const name = row.kind === 'group' ? row.group?.name || 'Group' : rosterName(row.person) || 'Someone'
   return <li>
     <RowLink row={row} active={active}
       className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>
@@ -191,7 +192,7 @@ function ActiveRow({ row, selection }: { row: FeedRow; orgslug: string; selectio
           {row.at ? <span className={cn('ml-auto shrink-0 text-xs', fresh ? 'font-bold text-foreground' : 'text-muted-foreground')}>{chatTime(row.at)}</span> : null}
         </span>
         <span className="flex items-center gap-2">
-          <span className={cn('truncate text-sm', fresh ? 'text-foreground' : 'text-muted-foreground')}>{row.preview || (row.kind === 'group' ? groupLine(row) : `@${row.person?.username}`)}</span>
+          <span className={cn('truncate text-sm', fresh ? 'text-foreground' : 'text-muted-foreground')}>{row.preview || (row.kind === 'group' ? groupLine(row) : goesBy(row.person) ? `Goes by ${goesBy(row.person)}` : `@${row.person?.username}`)}</span>
           {fresh ? <span aria-label={`${row.total} new`} className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] px-1.5 text-[11px] font-black text-white">{row.total}</span> : null}
         </span>
       </span>
@@ -244,13 +245,13 @@ function PersonRow({ row, selection }: { row: FeedRow; orgslug: string; selectio
   const role = row.role || 'learner'
   const detail = role === 'helper'
     ? `Helping ${(row.helping_on || []).map((item) => item.learner?.name).filter(Boolean).join(', ') || 'on a plan'}`
-    : [row.status === 'alumni' ? 'Alumni' : '', row.role_name && row.role_name !== ROLE_LABELS[role] ? row.role_name : '', ...(row.groups || []).map((group) => group.name)].filter(Boolean).join(' · ') || `@${row.person?.username}`
+    : [goesBy(row.person) ? `Goes by ${goesBy(row.person)}` : '', row.status === 'alumni' ? 'Alumni' : '', row.role_name && row.role_name !== ROLE_LABELS[role] ? row.role_name : '', ...(row.groups || []).map((group) => group.name)].filter(Boolean).join(' · ') || `@${row.person?.username}`
   return <li>
     <RowLink row={row} active={active}
       className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>
       <PersonAvatar user={row.person as any} size="md" />
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2"><span className="truncate text-[15px] font-semibold">{row.person?.name}</span>{role !== 'learner' ? <RoleTag role={role} /> : null}</span>
+        <span className="flex items-baseline gap-2"><span className="truncate text-[15px] font-semibold">{rosterName(row.person)}</span>{role !== 'learner' ? <RoleTag role={role} /> : null}</span>
         <span className="block truncate text-sm text-muted-foreground">{detail}</span>
       </span>
     </RowLink>

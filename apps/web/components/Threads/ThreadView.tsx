@@ -19,7 +19,7 @@ import { ContextBar, FilterChips, type StepOption } from './ContextBar'
 import EppReportLink from '@components/Epp/EppReportLink'
 import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import { AskedCard, JoinRequestCard, PastDueCard, PlanRequestCard, RequestCard, ReviewCard, turnInHref } from './ThreadCards'
-import { firstNameOf } from '@/lib/names'
+import { firstNameOf, goesBy, rosterName } from '@/lib/names'
 
 /** Whose thread: a person (a learner, or someone on staff), a group, all staff, or the organization itself. */
 export type ThreadTarget =
@@ -124,12 +124,12 @@ function PersonThreadView({ target, orgId, orgslug, token, actions, onOpen, onPr
   if (!thread) return <Loading actions={actions} />
   const art = <PersonAvatar user={thread.person as any} size="md" />
   const others = thread.with.filter((person) => person.id !== thread.person.id)
-  const sub = thread.kind === 'staff' ? ROLE_LABELS[thread.role] : others.length ? `With ${names(others, me)}` : ROLE_LABELS[thread.role]
+  const sub = [goesBy(thread.person) ? `Goes by ${goesBy(thread.person)}` : '', thread.kind === 'staff' ? ROLE_LABELS[thread.role] : others.length ? `With ${names(others, me)}` : ROLE_LABELS[thread.role]].filter(Boolean).join(' · ')
   const insights = thread.kind === 'learner' && thread.person.user_uuid ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insightsScope('learner', thread.person.user_uuid))}
     aria-label={`${thread.person.name}'s Insights`} title="Insights" className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><BarChart3 size={16} /></Link> : null
   // A supported learner's EPP report, one step from their thread (FEED-212).
   const epp = thread.kind === 'learner' && schoolRecords ? <EppReportLink icon orgId={orgId} orgslug={orgslug} userId={thread.person.id} username={thread.person.username} name={thread.person.name} token={token} /> : null
-  const header = <Header art={art} title={thread.person.name} sub={sub} actions={<>{epp}{insights}{actions}</>} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
+  const header = <Header art={art} title={rosterName(thread.person)} sub={sub} actions={<>{epp}{insights}{actions}</>} onProfile={onProfile ? () => onProfile({ username: thread.person.username }) : undefined} />
   if (thread.kind === 'staff' || !thread.chat_uuid) return <Shell>{header}<div className="border-b border-border" />
     {thread.chat_uuid ? <ChatWorkspace key={thread.chat_uuid} source={{ chatUuid: thread.chat_uuid }} orgslug={orgslug} token={token} hideTopics empty="Nothing here yet. Say hello." />
       : <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">You can’t message {firstNameOf(thread.person.name)} directly.</p>}

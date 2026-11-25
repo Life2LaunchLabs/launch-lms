@@ -106,7 +106,7 @@ def profile(db: Session, current_user: PublicUser, org_id: int, username: str) -
     owner_admin = is_org_owner_admin(current_user.id, org_id, db)
     membership = db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first()
     org_role = db.get(Role, membership.role_id) if membership else None
-    summary = people.person(db, user_id) or {}
+    summary = people.roster_person(db, user_id) or {}
     plans = _plans(db, current_user.id, admin, org_id, user_id) if role == "learner" else []
     helping = directory._helping_on(db, org_id, [user_id]).get(user_id, []) if role == "helper" else []
     if role == "learner":
