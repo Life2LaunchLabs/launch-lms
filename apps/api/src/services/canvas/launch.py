@@ -137,6 +137,8 @@ class Launch:
     deep_link_return_url: str | None = None
     deep_link_data: str | None = None
     placement: str | None = None
+    # A graded item's gradebook column (AGS line item), for sending the plan's result back (PF-5).
+    lineitem_url: str | None = None
     claims: dict = field(default_factory=dict)
 
     @property
@@ -227,6 +229,7 @@ def verify_launch(db: Session, id_token: str, stored: dict) -> Launch:
         deep_link_return_url=settings["deep_link_return_url"].strip()[:2000] if settings else None,
         deep_link_data=str(settings["data"])[:4000] if settings and settings.get("data") is not None else None,
         placement=str(claims.get(CANVAS_PLACEMENT_CLAIM))[:64] if claims.get(CANVAS_PLACEMENT_CLAIM) else None,
+        lineitem_url=_lineitem_url(claims),
         claims=claims,
     )
 
@@ -245,6 +248,12 @@ def _custom(claims: dict) -> dict:
     if not isinstance(custom, dict):
         return {}
     return {str(k)[:64]: str(v)[:512] for k, v in list(custom.items())[:20] if isinstance(v, (str, int, float))}
+
+
+def _lineitem_url(claims: dict) -> str | None:
+    from src.services.canvas.grades import lineitem_from
+
+    return lineitem_from(claims)
 
 
 def _resource_link_id(claims: dict) -> str | None:

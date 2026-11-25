@@ -62,14 +62,14 @@ def _client_assertion(db: Session, connection: CanvasConnection, audience: str) 
     return jwt.encode(claims, keys.private_key_pem(db), algorithm="RS256", headers={"kid": keys.public_jwk(db)["kid"]})
 
 
-def access_token(db: Session, connection: CanvasConnection, client: httpx.Client) -> str:
+def access_token(db: Session, connection: CanvasConnection, client: httpx.Client, scope: str = NRPS_SCOPE) -> str:
     url = token_url(connection)
     try:
         response = client.post(url, data={
             "grant_type": "client_credentials",
             "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
             "client_assertion": _client_assertion(db, connection, url),
-            "scope": NRPS_SCOPE,
+            "scope": scope,
         }, headers={"Accept": "application/json"})
     except httpx.HTTPError as error:
         logger.warning("Canvas token request for connection %s failed: %s", connection.id, error)

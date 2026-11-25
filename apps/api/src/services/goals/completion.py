@@ -8,6 +8,7 @@ activity log, credits or withdraws requirements, and checks whether the goal
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
@@ -30,6 +31,8 @@ from src.db.goals import (
 from src.db.learning import LearningRun, LearningRunStatus
 from src.services.goals import access
 from src.services.goals.types import StepState, step_type
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -211,8 +214,20 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
     db.add(goal)
     access.log(db, goal, None, "goal.finished", {})
     db.commit()
+    _send_to_canvas(db, goal)
     if award:
         on_badge_awarded(db, int(award.user_id), int(award.template_id))  # type: ignore[arg-type]
+
+
+def _send_to_canvas(db: Session, goal: Goal) -> None:
+    """A plan added to Canvas as an assignment: its result goes to the gradebook (queued; never blocks finishing)."""
+    try:
+        from src.services.canvas.grades import on_goal_finished
+
+        on_goal_finished(db, goal)
+    except Exception:
+        logger.exception("Couldn't queue the Canvas grade for goal %s", goal.id)
+        db.rollback()
 
 
 # Automatic completion -----------------------------------------------------------

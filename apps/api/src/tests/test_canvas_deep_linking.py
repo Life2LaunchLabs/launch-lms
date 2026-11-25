@@ -170,3 +170,131 @@ def test_a_removed_plan_shows_a_plain_message(client, db):
     missing = _plan_launch(client, "template_gone", [LEARNER])
     assert missing.status_code == 404
     assert "in Life2Launch any more" in unescape(missing.text)
+
+
+# Grade passback (PF-5) -----------------------------------------------------------------------------------------
+
+AGS = "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"
+LINEITEM = "https://ridge.instructure.com/api/lti/courses/course-9/line_items/31"
+
+
+def test_a_plan_added_as_an_assignment_asks_canvas_for_a_gradebook_column(client, db):
+    careers = _plan(db, _admin(db), "Career explorer")
+    claims = {**_deep_link_claims(), "https://www.instructure.com/placement": "assignment_selection"}
+    picker, _ = _launch(client, **claims)
+    assert "this assignment" in picker.text
+    done = client.post("/api/v1/lti/deep-link", data={"ticket": _form_value(picker.text, "ticket"), "plan": careers})
+    [item] = jwt.decode(_form_value(done.text, "JWT"), _public_key(db), algorithms=["RS256"], audience=ISSUER)[f"{DL}content_items"]
+    assert item["lineItem"] == {"scoreMaximum": 100.0, "label": "Career explorer", "resourceId": careers}
+    # Added to a module, it's a plain link with no column.
+    picker, _ = _launch(client, **_deep_link_claims())
+    done = client.post("/api/v1/lti/deep-link", data={"ticket": _form_value(picker.text, "ticket"), "plan": careers})
+    [item] = jwt.decode(_form_value(done.text, "JWT"), _public_key(db), algorithms=["RS256"], audience=ISSUER)[f"{DL}content_items"]
+    assert "lineItem" not in item
+    scopes = client.get("/api/v1/lti/canvas.json").json()["scopes"]
+    assert "https://purl.imsglobal.org/spec/lti-ags/scope/score" in scopes
+
+
+def _assignment_launch(client, plan: str, sub: str, email: str, roles=None):
+    launch, _ = _launch(client, **{f"{LTI}custom": {"plan": plan}, f"{LTI}roles": roles or [LEARNER], "sub": sub, "email": email,
+                                   f"{LTI}resource_link": {"id": "assignment-link"},
+                                   AGS: {"scope": ["https://purl.imsglobal.org/spec/lti-ags/scope/score"], "lineitem": LINEITEM}})
+    return _session(client, launch.text)
+
+
+def _finish(db, goal_uuid: str) -> None:
+    from src.db.goals import StepStatus, StepStatusChange
+    from src.services.goals import goals as goal_service
+
+    goal = db.exec(select(Goal).where(Goal.goal_uuid == goal_uuid)).one()
+    user = db.get(User, goal.subject_user_id)
+    viewer = PublicUser.model_validate(user.model_dump())
+    for stage in goal_service.get_goal(db, viewer, goal_uuid)["stages"]:
+        for step in stage["steps"]:
+            goal_service.change_status(db, viewer, goal_uuid, step["step_uuid"], StepStatusChange(status=StepStatus.COMPLETED))
+
+
+class FakeCanvas:
+    def __init__(self, score_status=200):
+        self.score_status, self.scores, self.token_scopes = score_status, [], []
+
+    def __call__(self, request):
+        import httpx
+        from urllib.parse import parse_qs
+
+        if request.url.path == "/login/oauth2/token":
+            self.token_scopes.append(parse_qs(request.content.decode())["scope"][0])
+            return httpx.Response(200, json={"access_token": "canvas-token", "expires_in": 3600})
+        self.scores.append((str(request.url), request.headers.get("content-type"), __import__("json").loads(request.content)))
+        return httpx.Response(self.score_status, json={})
+
+
+def _client_for(fake):
+    import httpx
+
+    return httpx.Client(transport=httpx.MockTransport(fake))
+
+
+def test_a_finished_plan_reaches_the_gradebook_and_unfinished_students_get_nothing(client, db):
+    from src.db.canvas import CanvasPlanLink, CanvasScore
+    from src.services.canvas import grades
+
+    careers = _plan(db, _admin(db), "Career explorer")
+    maya = _assignment_launch(client, careers, "canvas-maya", "maya@ridge.example.com")
+    _assignment_launch(client, careers, "canvas-leo", "leo@ridge.example.com")
+    [link] = db.exec(select(CanvasPlanLink)).all()
+    assert link.lineitem_url == LINEITEM and link.canvas_course_id == "course-9"
+    _finish(db, _destination(maya).rsplit("/", 1)[1])
+    [row] = db.exec(select(CanvasScore)).all()  # Leo hasn't finished: nothing for him
+    assert row.canvas_user_id == "canvas-maya" and row.status == "pending"
+
+    fake = FakeCanvas()
+    assert grades.send_due(db, _client_for(fake)) == {"sent": 1, "pending": 0, "failed": 0}
+    [(url, ctype, body)] = fake.scores
+    assert url == LINEITEM + "/scores" and ctype == "application/vnd.ims.lis.v1.score+json"
+    assert body["userId"] == "canvas-maya" and body["scoreGiven"] == body["scoreMaximum"] == 100.0
+    assert body["activityProgress"] == "Completed" and body["gradingProgress"] == "FullyGraded"
+    assert fake.token_scopes == ["https://purl.imsglobal.org/spec/lti-ags/scope/score"]
+    db.refresh(row)
+    assert row.status == "sent"
+    assert grades.send_due(db, _client_for(fake))["sent"] == 0  # sent once
+
+
+def test_a_canvas_outage_is_retried_and_a_refusal_stops(client, db):
+    from src.db.canvas import CanvasScore
+    from src.services.canvas import grades
+
+    careers = _plan(db, _admin(db), "Career explorer")
+    _finish(db, _destination(_assignment_launch(client, careers, "canvas-maya", "maya@ridge.example.com")).rsplit("/", 1)[1])
+    assert grades.send_due(db, _client_for(FakeCanvas(503)))["pending"] == 1
+    row = db.exec(select(CanvasScore)).one()
+    assert row.attempts == 1 and row.next_attempt_at > grades._stamp() and "503" in row.last_error
+    assert grades.send_due(db, _client_for(FakeCanvas()))["sent"] == 0  # not due yet
+    row.next_attempt_at = grades._stamp()
+    db.add(row)
+    db.commit()
+    assert grades.send_due(db, _client_for(FakeCanvas(404)))["failed"] == 1
+
+
+def test_students_who_finished_before_the_column_appeared_are_sent_too(client, db):
+    from src.db.canvas import CanvasScore
+
+    careers = _plan(db, _admin(db), "Career explorer")
+    # Maya opens it from a module item (no column) and finishes.
+    goal_uuid = _destination(_plan_launch(client, careers, [LEARNER], sub="canvas-maya", email="maya@ridge.example.com")).rsplit("/", 1)[1]
+    _finish(db, goal_uuid)
+    assert not db.exec(select(CanvasScore)).all()
+    # The teacher then opens the assignment version, whose launch names the column.
+    _assignment_launch(client, careers, "canvas-teacher", "teach@ridge.example.com", roles=[INSTRUCTOR])
+    [row] = db.exec(select(CanvasScore)).all()
+    assert row.canvas_user_id == "canvas-maya"
+
+
+def test_a_column_on_another_site_is_ignored(client, db):
+    from src.db.canvas import CanvasPlanLink
+
+    careers = _plan(db, _admin(db), "Career explorer")
+    launch, _ = _launch(client, **{f"{LTI}custom": {"plan": careers}, f"{LTI}resource_link": {"id": "x"},
+                                   AGS: {"lineitem": "https://evil.example.com/line_items/1"}})
+    _session(client, launch.text)
+    assert db.exec(select(CanvasPlanLink)).one().lineitem_url is None

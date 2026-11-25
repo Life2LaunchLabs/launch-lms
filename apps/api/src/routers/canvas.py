@@ -22,7 +22,7 @@ from src.db.organizations import Organization
 from src.db.users import PublicUser, User
 from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user, get_current_user
 from src.security.org_auth import require_org_owner_admin
-from src.services.canvas import connections, courses, deep_linking, keys, launch as lti, pages, people, plans, roster, session as canvas_session, settings
+from src.services.canvas import connections, courses, deep_linking, grades, keys, launch as lti, pages, people, plans, roster, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 from src.routers.users import _invalidate_session_cache
@@ -57,7 +57,8 @@ def canvas_tool_configuration(db: Session = Depends(get_db_session)):
         "oidc_initiation_url": urls["login"],
         "target_link_uri": urls["launch"],
         "public_jwk_url": urls["jwks"],
-        "scopes": [roster.NRPS_SCOPE],  # the course's class list, read-only (DEV-193)
+        # The course's class list, read-only (DEV-193); a plan assignment's gradebook column and its scores (PF-5).
+        "scopes": [roster.NRPS_SCOPE, grades.LINEITEM_SCOPE, grades.SCORE_SCOPE],
         "extensions": [{
             "domain": domain,
             "tool_id": "life2launch",
@@ -153,6 +154,7 @@ async def lti_launch(
         "memberships_url": checked.memberships_url,
         "plan": checked.plan_uuid,
         "resource_link_id": checked.resource_link_id,
+        "lineitem_url": checked.lineitem_url,
     })
     cookie_state = request.cookies.get(lti.STATE_COOKIE, "")
     cookie_ok = bool(cookie_state) and secrets.compare_digest(cookie_state, state)
@@ -207,7 +209,8 @@ async def lti_deep_link(
             return pages.error_page("That plan isn't available to add. Go back and pick another.", 404)
     if not canvas_session.redeem_ticket(ticket):  # used once, after the checks
         return pages.error_page("This picker has expired. Close it and add Life2Launch again.", 401)
-    items = [deep_linking.content_item(chosen)] if chosen else []
+    graded = data.get("placement") == "assignment_selection"
+    items = [deep_linking.content_item(chosen, graded=graded)] if chosen else []
     token = deep_linking.response_jwt(db, connection, str(data.get("deployment_id") or ""), data.get("data"), items)
     return pages.deep_link_return(str(data["return_url"]), token, chosen["title"] if chosen else None)
 
@@ -234,6 +237,7 @@ def _launch_from_ticket(db: Session, data: dict) -> lti.Launch:
         course_title=data.get("course_title"),
         memberships_url=data.get("memberships_url"),
         resource_link_id=data.get("resource_link_id"),
+        lineitem_url=data.get("lineitem_url"),
         custom={"plan": data["plan"]} if data.get("plan") else {},
     )
 
@@ -245,7 +249,7 @@ def _is_staff_role(membership_role_id: int) -> bool:
 def launch_landing(db: Session, launch: lti.Launch, user, membership_role_id: int, course_group_id: int | None) -> str:
     """Where a launch opens: the plan its link names (PF-4), or the person's usual landing."""
     if launch.plan_uuid:
-        return plans.landing(db, int(launch.connection.org_id), launch.plan_uuid, int(user.id), _is_staff_role(membership_role_id))
+        return plans.landing(db, launch, int(user.id), _is_staff_role(membership_role_id))
     return landing_path(membership_role_id, course_group_id)
 
 

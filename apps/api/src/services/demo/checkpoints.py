@@ -125,7 +125,7 @@ ANCHORS = {
 # these sets on purpose (test_demo_classification); unknown tables stay empty.
 FORBIDDEN = frozenset(
     """
-apitoken ssoconnection canvasconnection canvascoursegroup canvasuserlink useremail auditlog recommendationevent
+apitoken ssoconnection canvasconnection canvascoursegroup canvasuserlink canvasplanlink canvasscore useremail auditlog recommendationevent
 paymentsconfig paymentsenrollment paymentsoffer paymentsofferresource paymentsgroup
 paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinlink heldportfolioimport
 resourcecomment resourcecommentreport
