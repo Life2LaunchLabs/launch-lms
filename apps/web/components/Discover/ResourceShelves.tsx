@@ -107,7 +107,7 @@ export function channelShelves(resources: Resource[] | undefined, channels: Reso
 }
 
 /** A shelf's outline while it loads: holds the room a row of resource tiles takes so nothing below jumps. */
-export function ShelfSkeleton({ label, tileWidth = 256, tileHeight = 220 }: { label: string; tileWidth?: number; tileHeight?: number }) {
+export function ShelfSkeleton({ label, tileWidth = 256, tileHeight = 240 }: { label: string; tileWidth?: number; tileHeight?: number }) {
   return <div className="flex flex-col gap-3.5" aria-busy="true" aria-label={label}>
     <div className="h-7 w-44 animate-pulse rounded-lg bg-muted" />
     <div className="flex gap-[18px] overflow-hidden">{Array.from({ length: 5 }, (_, index) => <div key={index} className="shrink-0 animate-pulse rounded-2xl bg-muted" style={{ width: tileWidth, height: tileHeight }} />)}</div>

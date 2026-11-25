@@ -99,8 +99,8 @@ export function careersLoading(canLoad: boolean, deck: unknown, error: unknown) 
 
 export function CareersSkeleton() {
   return <div className="flex flex-col gap-9" aria-busy="true" aria-label={tr('careers.discover_careers.loading_careers', 'Loading careers')}>
-    <div className="h-[152px] animate-pulse rounded-[22px] bg-muted" />
-    <ShelfSkeleton label={tr('careers.discover_careers.careers_for_you_2', 'Careers for you')} tileWidth={150} tileHeight={200} />
+    <div className="h-[260px] animate-pulse rounded-[22px] bg-muted sm:h-[192px]" />
+    <ShelfSkeleton label={tr('careers.discover_careers.careers_for_you_2', 'Careers for you')} tileWidth={150} tileHeight={240} />
   </div>
 }
 

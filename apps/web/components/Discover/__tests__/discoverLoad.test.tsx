@@ -41,6 +41,6 @@ test('the placeholders are busy regions that take up room', () => {
   expect(shelf).toContain('width:256px')
   const careers = renderToStaticMarkup(<CareersSkeleton />)
   expect(careers).toContain('aria-busy="true"')
-  expect(careers).toContain('h-[152px]')
+  expect(careers).toContain('sm:h-[192px]')
   expect(careers).toContain('width:150px')
 })
