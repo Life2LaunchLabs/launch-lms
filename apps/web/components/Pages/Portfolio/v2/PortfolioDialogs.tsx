@@ -1,7 +1,7 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
-import { Camera, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { Button } from '@components/ui/button'
@@ -9,65 +9,15 @@ import { Marked } from './inplace'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
-import { getMyPortfolio, updateMyPortfolio } from '@services/portfolio/portfolio'
-import { updateMyHighlights, updateMyIdentity } from '@services/portfolio/records'
+import { updateMyPortfolio } from '@services/portfolio/portfolio'
+import { updateMyHighlights } from '@services/portfolio/records'
 import { SOCIAL_OPTIONS, normalizeSocialInput, shellSocials, socialHandle } from '../PortfolioHeaderParts'
 import type { OpenChange } from './parts'
 import type { Highlight, SetShell, Shell } from '../portfolioTypes'
 
 import { tr } from '@/lib/tr'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useOrg } from '@components/Contexts/OrgContext'
-import useSWR from 'swr'
-import { learnerNameApi, learnerNameKey, type LearnerName } from '@services/goals/adminHome'
-// The editors the new front page opens itself: who you are, the highlights band and your links.
-
-/** Your name (legal, for rosters and reports), the name you go by, a one-line intro and where you are. */
-export function ProfileDialog({ open, onOpenChange, shell, setShell, token, avatar, onAvatarClick, mark }: { mark?: string; open: boolean; onOpenChange: OpenChange; shell: Shell; setShell: SetShell; token?: string; avatar: React.ReactNode; onAvatarClick: () => void }) {
-  const [busy, setBusy] = useState(false)
-  const session = useLHSession() as any
-  const identity = shell.identity
-  // Staff also pick the name learners in this organization see on their messages and reviews.
-  const org = useOrg() as any
-  const orgId = Number(org?.id)
-  const { data: learnerName, mutate: setLearnerName } = useSWR<LearnerName>(open && orgId && token ? learnerNameKey(orgId) : null, () => learnerNameApi.get(orgId, token))
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!token) return
-    const form = new FormData(event.currentTarget)
-    const text = (name: string) => String(form.get(name) || '').trim()
-    if (!text('first_name')) return toast.error(tr('portfolio.portfolio_dialogs.add_your_first_name', 'Add your first name'))
-    setBusy(true)
-    try {
-      await updateMyIdentity({ first_name: text('first_name'), last_name: text('last_name'), preferred_name: text('preferred_name') }, token)
-      if (learnerName?.staff && text('learner_name') !== (learnerName.learner_name || '')) await setLearnerName(await learnerNameApi.save(orgId, text('learner_name'), token), { revalidate: false })
-      // The identity save bumps the revision, so read it back before saving the rest.
-      const current = await getMyPortfolio(token)
-      setShell(await updateMyPortfolio({ revision: current.portfolio.revision, headline: text('headline'), location_label: text('location_label') }, token))
-      // The menu and every other screen read the name from the session, so refresh it now.
-      await session?.update?.(true)
-      onOpenChange(false)
-      toast.success(tr('portfolio.portfolio_dialogs.profile_updated', 'Profile updated'))
-    } catch (error: any) { toast.error(error?.message || tr('portfolio.portfolio_dialogs.could_not_update_your_profile', 'Could not update your profile')) } finally { setBusy(false) }
-  }
-  return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
-      <DialogHeader><DialogTitle>{tr('portfolio.portfolio_dialogs.your_profile', 'Your profile')}</DialogTitle><DialogDescription>{tr('portfolio.portfolio_dialogs.this_is_you_everywhere_in', 'This is you everywhere in the app. Your teachers’ rosters and reports use your legal name.')}</DialogDescription></DialogHeader>
-      <form id="portfolio-profile" onSubmit={save} className="grid gap-4">
-        <button type="button" onClick={onAvatarClick} className="group relative w-fit rounded-full" aria-label={tr('portfolio.portfolio_dialogs.change_your_photo', 'Change your photo')}>{avatar}<span className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-foreground text-background"><Camera className="h-4 w-4" /></span></button>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5"><Label htmlFor="pf-first">{tr('portfolio.portfolio_dialogs.first_name', 'First name')}</Label><Input id="pf-first" name="first_name" defaultValue={identity?.first_name || ''} maxLength={80} required autoComplete="given-name" /></div>
-          <div className="grid gap-1.5"><Label htmlFor="pf-last">{tr('portfolio.portfolio_dialogs.last_name', 'Last name')}</Label><Input id="pf-last" name="last_name" defaultValue={identity?.last_name || ''} maxLength={80} autoComplete="family-name" /></div>
-        </div>
-        <div className="grid gap-1.5"><Label htmlFor="pf-preferred">{tr('portfolio.portfolio_dialogs.name_you_go_by', 'Name you go by')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-preferred" name="preferred_name" defaultValue={identity?.preferred_name || ''} maxLength={80} placeholder={identity?.legal_name || ''} autoComplete="nickname" /><p className="text-xs text-muted-foreground">{tr('portfolio.portfolio_dialogs.the_whole_name_you_want', 'The whole name you want people to see, like “Mya Rivera”. It’s shown on your portfolio and around the app instead of your legal name.')}</p></div>
-        {learnerName?.staff && <div className="grid gap-1.5"><Label htmlFor="pf-learner-name">{tr('portfolio.portfolio_dialogs.what_learners_call_you', 'What learners call you')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-learner-name" name="learner_name" defaultValue={learnerName.learner_name || ''} maxLength={60} placeholder={identity?.preferred_name || identity?.legal_name || ''} /><p className="text-xs text-muted-foreground">{tr('portfolio.portfolio_dialogs.learners_see_this_on_your', 'Learners at {{org}} see this on your messages and reviews, like “Ms. Rivera”. Staff still see the name you go by.', { org: org?.name || tr('portfolio.portfolio_dialogs.this_organization', 'this organization') })}</p></div>}
-        <div className="grid gap-1.5"><Label htmlFor="pf-headline">{tr('portfolio.portfolio_dialogs.one_line_intro', 'One-line intro')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-headline" name="headline" defaultValue={shell.portfolio.headline || ''} maxLength={140} placeholder={tr('portfolio.portfolio_dialogs.artist_and_future_ux_designer', 'Artist and future UX designer')} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="pf-location">{tr('portfolio.portfolio_dialogs.where_you_are', 'Where you are')}{' '}<span className="font-normal text-muted-foreground">{tr('portfolio.ask_quote.optional', '(optional)')}</span></Label><Input id="pf-location" name="location_label" defaultValue={shell.portfolio.location_label || ''} maxLength={80} placeholder={tr('portfolio.portfolio_dialogs.eugene_or', 'Eugene, OR')} /></div>
-      </form>
-      <DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tr('portfolio.connect_request.cancel', 'Cancel')}</Button><Marked mark={mark}><Button type="submit" form="portfolio-profile" variant="brand" disabled={busy}>{busy ? tr('portfolio.portfolio_header_parts.saving', 'Saving…') : tr('portfolio.resume_builder.save', 'Save')}</Button></Marked></DialogFooter>
-    </DialogContent>
-  </Dialog>
-}
+// The editors the new front page opens itself: the highlights band and your links. Who you are is edited in place
+// on the header (InlineProfile.tsx, PO-3).
 
 const EXAMPLES: Highlight[] = [{ value: '300+', get label() { return tr('portfolio.portfolio_dialogs.hours_worked', 'hours worked') } }, { value: '3.8', get label() { return tr('portfolio.portfolio_dialogs.gpa', 'GPA') } }, { value: '1st', get label() { return tr('portfolio.portfolio_dialogs.place_regional_art_show', 'place, regional art show') } }]
 

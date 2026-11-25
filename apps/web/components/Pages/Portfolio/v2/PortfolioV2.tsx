@@ -23,7 +23,8 @@ import { normalizeMediaUrl } from '@services/media/media'
 import { PortfolioShareButton } from '../PortfolioShareDialog'
 import { PortfolioVisitorBar } from '../PortfolioVisitorBar'
 import { VerificationMenu } from '../PortfolioHeaderParts'
-import { HighlightsDialog, LinksDialog, ProfileDialog } from './PortfolioDialogs'
+import { HighlightsDialog, LinksDialog } from './PortfolioDialogs'
+import { IntroEditor, NameEditor } from './InlineProfile'
 import { TILE_SECTIONS, hasSection } from './PortfolioTiles'
 import { SectionStack } from './stack/SectionStack'
 import { FeatureDialog, FeatureSection, featureChoices, resolveFeatures } from './stack/FeatureSection'
@@ -34,7 +35,7 @@ import { SKILLS_VALUES } from './resultTemplates'
 import { LookDialog } from './LookDialog'
 import { WelcomeDialog } from './WelcomeDialog'
 import { BANNERS, accentVars, applyLook, modeOf, storedAccent, storedLook } from '@components/Looks/looks'
-import { EmptyAdd, QuestMark, SectionTools, SpotTip, Tile, initials } from './parts'
+import { EmptyAdd, QuestMark, SectionTools, SpotTip, Tile } from './parts'
 import { PortfolioHeader, cornerClass } from './PortfolioHeader'
 import { shellSocials } from '../PortfolioHeaderParts'
 import { MasteryBadge, QuestBanner, QuestButton } from './QuestBar'
@@ -44,12 +45,6 @@ import type { PortfolioLayout, PortfolioResult, Shell } from '../portfolioTypes'
 import { tr } from '@/lib/tr'
 // The new portfolio front page (V5 prototype): a stacked header, the highlights band, then the sections as
 // tiles in a grid or a list. Quests, the résumé builder and the editors come in later phases.
-
-function Avatar({ url, name, size = 'h-[92px] w-[92px] text-[32px]' }: { url?: string; name: string; size?: string }) {
-  return <span className={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-[linear-gradient(140deg,#FFC56B,#EC4F9A_60%,#8B5CF6)] font-extrabold text-white ${size}`}>
-    {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : initials(name)}
-  </span>
-}
 
 /** The owner's corner: Settings, which holds the look. A quest step for the look marks both the button and the item. */
 function SettingsMenu({ orgslug, onLook, onUnpublish, connect, onConnect, className, spot }: { orgslug: string; onLook: () => void; onUnpublish?: () => void; connect: boolean; onConnect: Dispatch<boolean>; className: string; spot?: string }) {
@@ -87,7 +82,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const [shell, setShell] = useState(initialShell)
-  const [profileOpen, setProfileOpen] = useState(false)
+  // PO-3: the name and intro are edited in place on the header.
+  const [editingField, setEditingField] = useState<'name' | 'intro' | null>(null)
   const [highlightsOpen, setHighlightsOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [linksOpen, setLinksOpen] = useState(false)
@@ -143,7 +139,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     if (path) return page(path)
     setMark(item.label)
     const go: Record<string, () => void> = {
-      name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
+      name: () => { setEditingField('name'); document.querySelector('[data-pf-header]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       proven: () => page(routePaths.org.discover()), look: () => setLookOpen(true),
       like: () => document.querySelector('[aria-label="What I’m like"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
@@ -207,6 +203,8 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     const user = await applyMediaAssetToUserAvatar(asset.asset_uuid, token)
     setShell((current) => ({ ...current, portfolio: { ...current.portfolio, avatar_image: user.avatar_image || asset.url } }))
     setAvatarOpen(false)
+    // The menu and every other screen read the photo from the session.
+    await session?.update?.(true)
     toast.success(tr('portfolio.portfolio_v2.photo_updated', 'Photo updated'))
   }
 
@@ -294,8 +292,17 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     credentials: tr('lit.portfolio_v2.cards_certificates_and_badges', 'Cards, certificates and badges'), results: tr('lit.portfolio_v2.quiz_and_test_results_that', 'Quiz and test results that say what you’re like'), headed: tr('lit.portfolio_v2.where_you_are_now_and', 'Where you are now, and what’s next'),
     people: tr('lit.portfolio_v2.quotes_from_people_who_know', 'Quotes from people who know your work'),
   }
-  const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.portfolio.location_label || ''}
-    socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onProfile={() => setProfileOpen(true)}
+  const header = <PortfolioHeader look={lookId} name={name} hasName={hasName} avatarUrl={avatarUrl} headline={shell.portfolio.headline} now={nowLabel} place={shell.headed?.now?.place || ''}
+    socials={shellSocials(shell)} spots={spots} editing={editing} centered={centered} onPhoto={() => setAvatarOpen(true)}
+    onEdit={(field) => { setMark(undefined); setEditingField(field) }} editingField={editingField}
+    nameEditor={editingField === 'name' ? <NameEditor identity={shell.identity} token={token} onCancel={() => setEditingField(null)} onSaved={async () => {
+      // The identity save bumps the revision, so read the portfolio back; the menu and other screens read the session.
+      if (token) setShell(await getMyPortfolio(token))
+      await session?.update?.(true)
+      setEditingField(null)
+      toast.success(tr('portfolio.inline_profile.name_saved', 'Name saved'))
+    }} /> : null}
+    introEditor={editingField === 'intro' ? <IntroEditor shell={shell} setShell={setShell} token={token} onDone={() => setEditingField(null)} /> : null}
     banner={{ image: bannerImage, css: bannerCss, fallback: look || accent ? 'bg-[linear-gradient(120deg,var(--look-a),var(--look-b)_60%,var(--look-c))]' : 'bg-[linear-gradient(120deg,color-mix(in_srgb,var(--org-primary-color)_90%,#000),color-mix(in_srgb,var(--org-primary-color)_55%,#EC4F9A)_55%,#F5A524)]' }}
     marks={<>{shell.mastered ? <MasteryBadge /> : null}{editing ? <span data-pf-chip className="inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground">{published ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{published ? tr('portfolio.portfolio_v2.public', 'Public') : tr('portfolio.portfolio_v2.private', 'Private')}</span> : null}</>}
     corner={editing && !side ? cornerFor : undefined}
@@ -333,7 +340,6 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
       </div>
     </div>
     {editing ? <>
-      <ProfileDialog mark={mark} open={profileOpen} onOpenChange={(open) => { setProfileOpen(open); if (!open) setMark(undefined) }} shell={shell} setShell={setShell} token={token} avatar={<Avatar url={avatarUrl} name={name} size="h-20 w-20 text-[28px] border-0" />} onAvatarClick={() => setAvatarOpen(true)} />
       <ResultDialog key={resultEditor?.result?.result_uuid || `new-${resultEditor?.template || resultEditor?.kind || ''}`} open={Boolean(resultEditor)} onOpenChange={(open) => { if (!open) setResultEditor(null) }} result={resultEditor?.result} kind={resultEditor?.kind} template={resultEditor?.template} token={token} onSaved={async () => { setResultEditor(null); if (token) setShell(await getMyPortfolio(token)) }} />
       <LookDialog open={lookOpen} onOpenChange={setLookOpen} layout={layout} onSuggested={custom ? () => void changeLayout({ stack: null, heights: Object.fromEntries(Object.entries(layout.heights || {}).filter(([key]) => key.split(':')[0] !== lookId)) }) : undefined} mode={mode} dark={dark} onChange={(next) => void changeLayout(next)} spot={spots.settings} userId={Number(shell.portfolio.user_id)} token={token} />
       <WelcomeDialog open={welcomeOpen} onOpenChange={setWelcomeOpen} onStart={() => { setWelcomeOpen(false); setQuestOpen(true); setQuestList(true) }} />

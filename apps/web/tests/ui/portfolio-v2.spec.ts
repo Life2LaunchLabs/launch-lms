@@ -48,11 +48,19 @@ test('portfolio.v2: the owner tries on looks, and opens the profile', async ({ p
   await expect(page.locator('[data-portfolio-v2]')).not.toHaveClass(/\bdark\b/)
   await expect(page.locator('[data-portfolio-v2]')).toHaveAttribute('data-accent', '')
 
-  await page.getByRole('button', { name: 'Edit your profile' }).click()
-  await expect(page.getByRole('dialog', { name: 'Your profile' })).toBeVisible()
-  await expect(page.getByLabel(/Name you go by/)).toBeVisible()
+  // PO-3: the photo opens the image picker straight away, and the name and intro are edited in place.
+  await page.getByRole('button', { name: 'Change your photo' }).click()
+  await expect(page.getByRole('dialog', { name: 'Your photo' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.locator('[data-pf-header]').hover()
+  await page.getByRole('button', { name: 'Edit your name' }).click()
+  await expect(page.getByRole('radio', { name: 'Legal name' })).toBeVisible()
+  await page.getByRole('radio', { name: 'Name you go by' }).click()
+  await expect(page.getByRole('textbox', { name: 'Name you go by' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.locator('[data-pf-name-editor]')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Your profile' })).toHaveCount(0)
 })
 
 test('portfolio.v2: the owner moves and takes out sections in place, any time', async ({ page }) => {
@@ -92,7 +100,7 @@ test('portfolio.v2: the owner moves and takes out sections in place, any time', 
 test('portfolio.v2: the visitor preview and phone width', async ({ page }) => {
   await page.goto('/portfolio/preview')
   await expect(page.getByText('Visitor preview')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Edit your profile' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Change your photo' })).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/portfolio')
   await expect(page.locator('[data-portfolio-v2]')).toBeVisible()

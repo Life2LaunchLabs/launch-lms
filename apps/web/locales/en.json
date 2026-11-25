@@ -4021,7 +4021,9 @@
       "shown_reviewed_it": "{{shown}} · Reviewed it",
       "add_a_profile_photo": "Add a profile photo",
       "upload_an_image_or_choose": "Upload an image or choose one from your library.",
-      "back": "Back"
+      "back": "Back",
+      "legal_name_help": "Your legal name, as on official records. It’s used on records and reports.",
+      "go_by_help": "Learners and staff see this instead of your legal name."
     },
     "site_preview": {
       "life2launch_app": "life2launch.app/",
@@ -4851,7 +4853,10 @@
       "your_details": "your details",
       "add_a_one_line_intro": "Add a one-line intro (optional)",
       "portfolio": "Portfolio",
-      "based_in": "Based in"
+      "based_in": "Based in",
+      "change_your_photo": "Change your photo",
+      "your_name": "your name",
+      "edit_your_intro": "Edit your intro"
     },
     "about_section": {
       "bio_updated": "Bio updated",
@@ -4951,6 +4956,19 @@
       "add_something_you_made": "Add something you made",
       "pick_your_look": "Pick your look",
       "add_your_school": "Add your school"
+    },
+    "inline_profile": {
+      "name_you_go_by": "Name you go by",
+      "name_saved": "Name saved",
+      "cancel": "Cancel",
+      "save": "Save",
+      "could_not_save_your_name": "Could not save your name",
+      "which_name": "Which name",
+      "legal_name": "Legal name",
+      "like_mya_rivera": "Like “Mya Rivera”",
+      "legal_help": "As on official records. Rosters and reports use it.",
+      "preferred_help": "Shown on your portfolio and around the app instead of your legal name. If you’re staff, it’s what learners see too. Leave it empty to use your legal name.",
+      "could_not_save_your_intro": "Could not save your intro"
     }
   },
   "goals": {
@@ -7991,5 +8009,48 @@
     "award_sharing": {
       "certificate": "Certificate"
     }
+  },
+  "account_settings": {
+    "personal_details_bar": "Your name, photo and intro are edited in your portfolio.",
+    "go_to_portfolio": "Go to your portfolio",
+    "main": "Main",
+    "verified": "Verified",
+    "emails": "Emails",
+    "emails_description": "Sign in with any of these. Notifications and your résumé use your main email. Add a personal email so you keep your account after you leave school or work.",
+    "main_email_use": "Main email: sign-in, notifications and your résumé",
+    "try_again": "That didn’t work. Try again.",
+    "no_phone": "No phone number yet",
+    "phone_use": "Your phone number. Your résumé shows it with your main email.",
+    "change_phone": "Change",
+    "add_phone": "Add a phone number",
+    "phone": "Phone number",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "save": "Save",
+    "clear_phone": "Leave it empty and save to take it off.",
+    "sign_in_methods": "Sign-in methods",
+    "sign_in_description": "The ways you can sign in to your account.",
+    "email": "Email",
+    "one_verified": "1 verified email",
+    "n_verified": "{{count}} verified emails",
+    "manage": "Manage",
+    "password": "Password",
+    "password_set": "Set",
+    "no_password": "No password yet. Use Forgot password on the sign-in page to set one.",
+    "change_password": "Change password",
+    "google_connected_as": "Connected as {{email}}",
+    "google_connected": "Connected",
+    "google_not_connected": "Not connected",
+    "disconnect": "Disconnect",
+    "connect": "Connect",
+    "username_changed": "Your username is now @{{username}}.",
+    "account": "Account",
+    "account_description": "Your username is in the link to your profile.",
+    "username": "Username",
+    "change_username": "Change username",
+    "username_warning": "Old links to your profile stop working, and someone else could take @{{username}} after you let it go.",
+    "new_username": "New username",
+    "username_rules": "3 to 30 letters, numbers, dots, dashes or underscores.",
+    "type_again": "Type the new username again to confirm"
   }
 }

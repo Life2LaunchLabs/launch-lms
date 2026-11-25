@@ -80,10 +80,10 @@ def test_reviews_email_the_person_with_the_note_and_the_name_they_know(sent):
         _assigned(db, RESUME)
         _run(db, 2)
         sent.clear()
-        from src.db.user_organizations import UserOrganization
-        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == ADMIN)).one()
-        membership.learner_name = "Ms. Rivera"
-        db.add(membership)
+        from src.db.users import User
+        teacher = db.get(User, ADMIN)  # the name they go by is what learners see (PO-3)
+        teacher.preferred_name = "Ms. Rivera"
+        db.add(teacher)
         db.commit()
 
         step = _submit_resume(db, LEARNER)
