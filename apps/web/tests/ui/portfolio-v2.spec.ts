@@ -224,12 +224,14 @@ test('portfolio.v2: a section’s title opens its page, and its pencil renames i
   await expect(page).toHaveURL(/\/portfolio\/timeline/)
 })
 
-test('portfolio.v2: the header has a hover pencil for your details', async ({ page }) => {
+test('portfolio.v2: the header has a hover pencil that edits your name in place', async ({ page }) => {
   await page.goto('/portfolio')
   await page.locator('[data-pf-name]').hover()
-  await page.getByRole('button', { name: 'Edit your details' }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Edit your name' }).click()
+  await expect(page.locator('[data-pf-name-editor]')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.keyboard.press('Escape')
+  await expect(page.locator('[data-pf-name-editor]')).toHaveCount(0)
 })
 
 test('portfolio.v2: what I’m like has its own page, and adding a result starts with taking the test', async ({ page }) => {
