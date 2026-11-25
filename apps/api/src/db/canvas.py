@@ -78,3 +78,51 @@ class CanvasCourseGroup(SQLModel, table=True):
     invited_names: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     creation_date: str = ""
     update_date: str = ""
+
+
+class CanvasPlanLink(SQLModel, table=True):
+    """A Canvas module item or assignment that opens one plan (PF-4), keyed by Canvas's resource link id. When
+    the item is an assignment, Canvas's gradebook column for it (its AGS line item, PF-5) is kept here too."""
+
+    __tablename__ = "canvasplanlink"
+    __table_args__ = (UniqueConstraint("connection_id", "resource_link_id", name="uq_canvasplanlink_connection_link"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    connection_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("canvasconnection.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    resource_link_id: str = Field(sa_column=Column(String, nullable=False))
+    canvas_course_id: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    template_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    # The gradebook column's address (from the launch's AGS claim); None for a plain module item.
+    lineitem_url: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class CanvasScore(SQLModel, table=True):
+    """A finished plan's result waiting to reach (or sent to) a Canvas gradebook column (PF-5). The worker in
+    services/canvas/grades.py sends it and retries, so a Canvas outage doesn't lose it."""
+
+    __tablename__ = "canvasscore"
+    __table_args__ = (UniqueConstraint("plan_link_id", "user_id", name="uq_canvasscore_link_user"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    plan_link_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("canvasplanlink.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    canvas_user_id: str = Field(sa_column=Column(String, nullable=False))
+    score_given: float = 0
+    score_maximum: float = 100
+    finished_at: str = ""
+    # pending (to send), sent, or failed (Canvas refused it for good; last_error says why).
+    status: str = Field(default="pending", sa_column=Column(String, nullable=False, index=True, server_default="pending"))
+    attempts: int = 0
+    next_attempt_at: str = Field(default="", sa_column=Column(String, nullable=False, server_default="", index=True))
+    last_error: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    sent_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    creation_date: str = ""
+    update_date: str = ""

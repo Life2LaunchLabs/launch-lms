@@ -295,7 +295,7 @@ def test_the_invitation_list_names_class_list_invitations_and_the_group_list_mar
 
 
 def test_the_tool_configuration_asks_for_the_class_list(client):  # noqa: F811
-    assert client.get("/api/v1/lti/canvas.json").json()["scopes"] == [roster.NRPS_SCOPE]
+    assert roster.NRPS_SCOPE in client.get("/api/v1/lti/canvas.json").json()["scopes"]
 
 
 def test_a_student_who_left_the_course_leaves_its_group_but_not_the_school(client, db, canvas, store):  # noqa: F811

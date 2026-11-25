@@ -388,10 +388,10 @@ def delete_preview(db: Session, current_user: PublicUser, org_id: int, user_id: 
 def _remove_org_rows(db: Session, org_id: int, user: User) -> None:
     """This organization's records of the learner, which leaving it alone keeps: the plans it gave them (step answers,
     hand-in links, reviews and staff notes), its chat with them and the messages they sent in its chats, their live
-    EPP course plan, invitations and join requests, and its Canvas link to them. Doesn't commit."""
+    EPP course plan, invitations and join requests, and its Canvas link to them (with grades waiting for Canvas). Doesn't commit."""
     from sqlalchemy import delete as sql_delete, or_
 
-    from src.db.canvas import CanvasConnection, CanvasUserLink
+    from src.db.canvas import CanvasConnection, CanvasPlanLink, CanvasScore, CanvasUserLink
     from src.db.conversations import Conversation, ConversationMember, ConversationMessage
     from src.db.epp_courses import EppCourse
     from src.db.goal_sharing import PlanInvitation
@@ -421,6 +421,8 @@ def _remove_org_rows(db: Session, org_id: int, user: User) -> None:
     db.exec(sql_delete(PlanJoinRequest).where(PlanJoinRequest.org_id == org_id, PlanJoinRequest.user_id == user_id))  # type: ignore[call-overload]
     connections = select(CanvasConnection.id).where(CanvasConnection.org_id == org_id)
     db.exec(sql_delete(CanvasUserLink).where(CanvasUserLink.user_id == user_id, col(CanvasUserLink.connection_id).in_(connections)))  # type: ignore[call-overload]
+    links = select(CanvasPlanLink.id).where(col(CanvasPlanLink.connection_id).in_(connections))
+    db.exec(sql_delete(CanvasScore).where(CanvasScore.user_id == user_id, col(CanvasScore.plan_link_id).in_(links)))  # type: ignore[call-overload]
     db.flush()
 
 

@@ -87,8 +87,9 @@ def return_url_allowed(url: str, connection: CanvasConnection) -> bool:
     return parts.scheme == connections._scheme(host) and host in allowed
 
 
-def content_item(plan: dict) -> dict:
-    """One link to the plan; Canvas sends the `plan` custom parameter back on every launch from it."""
+def content_item(plan: dict, graded: bool = False) -> dict:
+    """One link to the plan; Canvas sends the `plan` custom parameter back on every launch from it. Added as an
+    assignment, it asks Canvas for a gradebook column too (PF-5)."""
     item = {
         "type": "ltiResourceLink",
         "title": plan["title"][:255],
@@ -97,6 +98,10 @@ def content_item(plan: dict) -> dict:
     }
     if plan.get("description"):
         item["text"] = plan["description"][:1000]
+    if graded:
+        from src.services.canvas.grades import line_item
+
+        item["lineItem"] = line_item(plan)
     return item
 
 

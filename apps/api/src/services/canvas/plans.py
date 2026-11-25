@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.goals import Goal, GoalSource, GoalStatus, GoalTemplate
-from src.services.canvas.launch import LaunchError
+from src.services.canvas.launch import Launch, LaunchError
 
 GONE = "This plan isn't in Life2Launch any more. Ask your teacher to check the link in Canvas."
 # A plan the student is doing, or finished: opening the link again shows that one.
@@ -46,9 +46,15 @@ def _student_goal(db: Session, template: GoalTemplate, org_id: int, user_id: int
     return goal
 
 
-def landing(db: Session, org_id: int, template_uuid: str, user_id: int, staff: bool) -> str:
-    """Where a launch from a plan's link opens: the plan's staff view, or the student's goal from it."""
-    template = school_template(db, org_id, template_uuid)
+def landing(db: Session, launch: Launch, user_id: int, staff: bool) -> str:
+    """Where a launch from a plan's link opens: the plan's staff view, or the student's goal from it. The link (and
+    its gradebook column, for an assignment) is remembered for sending results back (PF-5)."""
+    from src.services.canvas import grades
+
+    org_id = int(launch.connection.org_id)
+    template = school_template(db, org_id, str(launch.plan_uuid))
+    grades.remember_link(db, launch.connection, launch.resource_link_id, launch.course_id, int(template.id),  # type: ignore[arg-type]
+                         launch.lineitem_url)
     if staff:
         return f"/admin/plans/{template.template_uuid}"
     return f"/plans/{_student_goal(db, template, org_id, user_id).goal_uuid}"
