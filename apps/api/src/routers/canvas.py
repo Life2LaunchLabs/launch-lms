@@ -22,7 +22,7 @@ from src.db.organizations import Organization
 from src.db.users import PublicUser, User
 from src.security.auth import create_access_token, create_refresh_token, get_authenticated_user, get_current_user
 from src.security.org_auth import require_org_owner_admin
-from src.services.canvas import connections, courses, keys, launch as lti, pages, people, roster, session as canvas_session, settings
+from src.services.canvas import connections, courses, deep_linking, keys, launch as lti, pages, people, plans, roster, session as canvas_session, settings
 from src.services.canvas.launch import LaunchError
 from src.services.oauth.config import frontend_url
 from src.routers.users import _invalidate_session_cache
@@ -30,6 +30,8 @@ from src.routers.users import _invalidate_session_cache
 router = APIRouter()
 
 TOOL_TITLE = "Life2Launch"
+# Where a teacher picks a plan in Canvas: a module's "add item" and an assignment's external tool submission.
+DEEP_LINKING_PLACEMENTS = ("link_selection", "assignment_selection")
 
 
 @router.get("/framing")
@@ -70,7 +72,15 @@ def canvas_tool_configuration(db: Session = Depends(get_db_session)):
                     "text": TOOL_TITLE,
                     "default": "enabled",
                     "windowTarget": "_self",
-                }],
+                }, *[{
+                    # Adding a plan to a module or an assignment: the plan picker (deep linking, PF-4).
+                    "placement": placement,
+                    "message_type": lti.DEEP_LINKING_REQUEST,
+                    "target_link_uri": urls["launch"],
+                    "text": f"{TOOL_TITLE} plan",
+                    "selection_width": 800,
+                    "selection_height": 640,
+                } for placement in DEEP_LINKING_PLACEMENTS]],
             },
         }],
         "custom_fields": {},
@@ -126,6 +136,8 @@ async def lti_launch(
         return pages.error_page(error.message, error.status_code)
     connection = checked.connection
     org = db.get(Organization, connection.org_id)
+    if checked.message_type == lti.DEEP_LINKING_REQUEST:
+        return _plan_picker(db, checked, org)
     ticket = canvas_session.issue_ticket({
         "kind": "launch",
         "connection_id": connection.id,
@@ -139,6 +151,8 @@ async def lti_launch(
         "course_id": checked.course_id,
         "course_title": checked.course_title,
         "memberships_url": checked.memberships_url,
+        "plan": checked.plan_uuid,
+        "resource_link_id": checked.resource_link_id,
     })
     cookie_state = request.cookies.get(lti.STATE_COOKIE, "")
     cookie_ok = bool(cookie_state) and secrets.compare_digest(cookie_state, state)
@@ -148,6 +162,54 @@ async def lti_launch(
     )
     canvas_session.clear_state_cookie(response)
     return response
+
+
+def _plan_picker(db: Session, checked: lti.Launch, org: Organization | None):
+    """A teacher adding Life2Launch to a module or assignment: the school's plans, to pick one (PF-4)."""
+    connection = checked.connection
+    if not org:
+        return pages.error_page("This school isn't on Life2Launch any more.", 404)
+    if not people.is_staff_launch(checked.roles):
+        return pages.error_page("Only your course's teachers can add Life2Launch plans.", 403)
+    if not deep_linking.return_url_allowed(checked.deep_link_return_url or "", connection):
+        return pages.error_page("Canvas asked Life2Launch to send the plan somewhere that isn't your school's Canvas.", 400)
+    ticket = canvas_session.issue_ticket({
+        "kind": "deep_link",
+        "connection_id": connection.id,
+        "org_id": connection.org_id,
+        "deployment_id": checked.deployment_id,
+        "return_url": checked.deep_link_return_url,
+        "data": checked.deep_link_data,
+        "placement": checked.placement,
+    }, ttl=deep_linking.PICKER_TICKET_TTL_SECONDS)
+    return pages.plan_picker(deep_linking.school_plans(db, connection.org_id), ticket, "/api/v1/lti/deep-link", org.name,
+                             graded=checked.placement == "assignment_selection")
+
+
+@router.post("/deep-link")
+async def lti_deep_link(
+    ticket: str = Form(default=""),
+    plan: str = Form(default=""),
+    cancel: str = Form(default=""),
+    db: Session = Depends(get_db_session),
+):
+    """The teacher's pick (or cancel) from the plan picker, signed and handed back to Canvas."""
+    data = canvas_session.peek_ticket(ticket)
+    if not data or data.get("kind") != "deep_link":
+        return pages.error_page("This picker has expired. Close it and add Life2Launch again.", 401)
+    connection = db.get(CanvasConnection, data.get("connection_id"))
+    if not connection or not connection.enabled:
+        return pages.error_page("Your school's Canvas connection is switched off. Ask your school's Life2Launch admin.", 403)
+    chosen = None
+    if cancel != "1":
+        chosen = deep_linking.find_plan(db, int(connection.org_id), plan) if plan else None
+        if chosen is None:
+            return pages.error_page("That plan isn't available to add. Go back and pick another.", 404)
+    if not canvas_session.redeem_ticket(ticket):  # used once, after the checks
+        return pages.error_page("This picker has expired. Close it and add Life2Launch again.", 401)
+    items = [deep_linking.content_item(chosen)] if chosen else []
+    token = deep_linking.response_jwt(db, connection, str(data.get("deployment_id") or ""), data.get("data"), items)
+    return pages.deep_link_return(str(data["return_url"]), token, chosen["title"] if chosen else None)
 
 
 def _platform_origin(connection: CanvasConnection) -> str:
@@ -171,7 +233,20 @@ def _launch_from_ticket(db: Session, data: dict) -> lti.Launch:
         course_id=data.get("course_id"),
         course_title=data.get("course_title"),
         memberships_url=data.get("memberships_url"),
+        resource_link_id=data.get("resource_link_id"),
+        custom={"plan": data["plan"]} if data.get("plan") else {},
     )
+
+
+def _is_staff_role(membership_role_id: int) -> bool:
+    return membership_role_id in (people.ADMIN_ROLE_ID, people.STAFF_ROLE_ID)
+
+
+def launch_landing(db: Session, launch: lti.Launch, user, membership_role_id: int, course_group_id: int | None) -> str:
+    """Where a launch opens: the plan its link names (PF-4), or the person's usual landing."""
+    if launch.plan_uuid:
+        return plans.landing(db, int(launch.connection.org_id), launch.plan_uuid, int(user.id), _is_staff_role(membership_role_id))
+    return landing_path(membership_role_id, course_group_id)
 
 
 def landing_path(membership_role_id: int, course_group_id: int | None = None) -> str:
@@ -199,7 +274,7 @@ async def lti_session(
             user, membership, _created = people.resolve_person(db, launch, new_ok=bool(data.get("new")))
             _invalidate_session_cache(user.id)  # a new membership or role shows at once
             group = courses.course_group(db, launch) if launch.course_id else None
-            return_path = landing_path(membership.role_id, int(group.id) if group else None)
+            return_path = launch_landing(db, launch, user, membership.role_id, int(group.id) if group else None)
             if group is not None and people.is_staff_launch(launch.roles):
                 # A teacher opening the course brings its class list up to date, after the page is on its way.
                 link = db.exec(select(CanvasCourseGroup).where(CanvasCourseGroup.usergroup_id == group.id)).first()
@@ -344,7 +419,11 @@ async def lti_link(
     if not org:
         return pages.link_done("your school")
     group = courses.course_group(db, launch) if launch.course_id else None
-    return pages.link_done(org.name, f"{canvas_session.org_base_url(db, org)}{landing_path(membership.role_id, int(group.id) if group else None)}")
+    try:
+        path = launch_landing(db, launch, user, membership.role_id, int(group.id) if group else None)
+    except LaunchError:
+        path = landing_path(membership.role_id, int(group.id) if group else None)
+    return pages.link_done(org.name, f"{canvas_session.org_base_url(db, org)}{path}")
 
 
 def _set_first_party_cookies(response, request: Request, access: str, refresh: str) -> None:
