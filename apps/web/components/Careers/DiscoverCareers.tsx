@@ -7,7 +7,7 @@ import { ChevronRight, Play, Sparkles, Star } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Shelf, SectionTitle } from '@components/Discover/PlanArt'
-import { useResourceHref } from '@components/Discover/ResourceShelves'
+import { ShelfSkeleton, useResourceHref } from '@components/Discover/ResourceShelves'
 import { getUriWithOrg } from '@services/config/config'
 import { careersApi, exploreKey } from '@services/life/careers'
 import { CAREER_TYPES, CareerTile, CareerIcon } from './CareerTile'
@@ -25,12 +25,15 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
   const session = useLHSession() as any
   const token: string | undefined = session?.data?.tokens?.access_token
   const href = useResourceHref()
-  const { data: deck } = useSWR(token && org?.id ? [...deckKey(org.id), token] : null, () => careersApi.deck(org.id, token!, BATCH))
-  const { data: explore } = useSWR(token && org?.id ? [...exploreKey(org.id), token] : null, () => careersApi.explore(org.id, token!))
+  const { data: deck, error: deckError } = useSWR(token && org?.id ? [...deckKey(org.id), token] : null, () => careersApi.deck(org.id, token!, BATCH))
+  const { data: explore, error: exploreError } = useSWR(token && org?.id ? [...exploreKey(org.id), token] : null, () => careersApi.explore(org.id, token!))
   const [progress, setProgress] = React.useState<{ at: number; of: number } | null>(null)
   React.useEffect(() => setProgress(batchProgress(org?.id)), [org?.id])
   const [unlockOpen, setUnlockOpen] = React.useState(false)
   const [tail, place] = useTailTo(unlockOpen)
+  // While the deck (and the Explore home check above it) loads, hold the billboard's and shelf's room so the resource shelves below don't get pushed down (FEED-697).
+  const canLoad = Boolean(token && org?.id)
+  if (careersLoading(canLoad, deck, deckError) || careersLoading(canLoad, explore, exploreError)) return <CareersSkeleton />
   if (!deck?.cards.length) return null
   const swipe = getUriWithOrg(orgslug, '/discover/careers')
   const exploreHref = getUriWithOrg(orgslug, '/discover/explore')
@@ -87,6 +90,18 @@ export default function DiscoverCareers({ orgslug }: { orgslug: string }) {
       </Shelf>
     </section>
   </>
+}
+
+/** True while a signed-in learner's career deck is still on its way (not when it failed or there's no one to load it for). */
+export function careersLoading(canLoad: boolean, deck: unknown, error: unknown) {
+  return canLoad && deck === undefined && !error
+}
+
+export function CareersSkeleton() {
+  return <div className="flex flex-col gap-9" aria-busy="true" aria-label={tr('careers.discover_careers.loading_careers', 'Loading careers')}>
+    <div className="h-[152px] animate-pulse rounded-[22px] bg-muted" />
+    <ShelfSkeleton label={tr('careers.discover_careers.careers_for_you_2', 'Careers for you')} tileWidth={150} tileHeight={200} />
+  </div>
 }
 
 /** Where the dropped list's tail points: the middle of the accuracy button, measured inside the billboard's wrapper. */

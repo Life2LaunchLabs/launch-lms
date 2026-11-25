@@ -26,10 +26,12 @@ export default function HubLaunchCards({
   const org = useOrg() as any
   const session = useLHSession() as any
   const orgId: number | undefined = org?.id
-  const { data } = useSWR<HubLaunchCard[]>(token ? `${getAPIUrl()}${hubLaunchCardsPath(orgId)}` : null, (url: string) => swrFetcher(url, token))
+  const { data, error } = useSWR<HubLaunchCard[]>(token ? `${getAPIUrl()}${hubLaunchCardsPath(orgId)}` : null, (url: string) => swrFetcher(url, token))
   const loaded = usableLaunchCards(data)
   // Staff and admins of this org get their own starters; the fallback follows the same rule.
   const cards = loaded.length > 0 ? loaded : fallbackLaunchCards(isStaffInOrg(session?.data?.roles, orgId) ? 'staff' : 'learner')
+  // Hold the cards' room until the platform's starters arrive, so the fallback ones don't show and then swap out (FEED-697).
+  const loading = Boolean(token) && data === undefined && !error
 
   return (
     <section aria-label={tr('coach.hub_launch_cards.ways_to_get_started', 'Ways to get started')} className="pb-1">
@@ -38,7 +40,7 @@ export default function HubLaunchCards({
         <h2 className="text-sm font-medium text-foreground">{tr('coach.hub_launch_cards.where_do_you_want_to', 'Where do you want to start?')}</h2>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2">
-        {cards.map(({ label, hint, first_message: firstMessage }, index) => {
+        {loading ? Array.from({ length: 4 }, (_, index) => <li key={index} aria-hidden="true" className="h-[76px] animate-pulse rounded-2xl bg-muted" />) : cards.map(({ label, hint, first_message: firstMessage }, index) => {
           const Icon = ICONS[index % ICONS.length]
           return (
           <li key={`${index}:${label}`}>

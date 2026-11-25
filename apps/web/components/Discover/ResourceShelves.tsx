@@ -87,25 +87,43 @@ export function ResourceTile({ resource, fill = false }: { resource: Resource; o
   </div>
 }
 
-/** Resources by channel: one row for each channel the learner can see, in the order the organization keeps them. */
-export default function ResourceShelves({ orgslug }: { orgslug: string }) {
-  const org = useOrg() as any
-  const session = useLHSession() as any
-  const token = session?.data?.tokens?.access_token
-  const { data: resources } = useSWR(org?.id ? ['discover-resources', org.id, token || 'public'] : null, () => getResources(org.id, { limit: 50, resource_types: SHELF_TYPES }, token))
-  const { data: channels } = useSWR(org?.id ? ['discover-channels', org.id, token || 'public'] : null, () => getResourceChannels(org.id, token))
-  if (!resources?.length) return null
-  const order = new Map((channels?.channels || []).map((channel, index) => [channel.channel_uuid, index]))
+/**
+ * The shelves to draw: one row for each channel the learner can see, in the order the organization keeps them.
+ * Null until both lists are in, so rows never show unordered first and then re-sort or drop out (FEED-697).
+ */
+export function channelShelves(resources: Resource[] | undefined, channels: ResourceChannel[] | undefined) {
+  if (!resources || !channels) return null
+  const order = new Map(channels.map((channel, index) => [channel.channel_uuid, index]))
   const rows = new Map<string, { channel: ResourceChannel; items: Resource[] }>()
   for (const resource of resources) {
     for (const channel of resource.channels || []) {
-      if (channels && !order.has(channel.channel_uuid)) continue
+      if (!order.has(channel.channel_uuid)) continue
       const row = rows.get(channel.channel_uuid) || { channel, items: [] }
       row.items.push(resource)
       rows.set(channel.channel_uuid, row)
     }
   }
-  const shelves = [...rows.values()].sort((a, b) => (order.get(a.channel.channel_uuid) ?? 999) - (order.get(b.channel.channel_uuid) ?? 999))
+  return [...rows.values()].sort((a, b) => order.get(a.channel.channel_uuid)! - order.get(b.channel.channel_uuid)!)
+}
+
+/** A shelf's outline while it loads: holds the room a row of resource tiles takes so nothing below jumps. */
+export function ShelfSkeleton({ label, tileWidth = 256, tileHeight = 220 }: { label: string; tileWidth?: number; tileHeight?: number }) {
+  return <div className="flex flex-col gap-3.5" aria-busy="true" aria-label={label}>
+    <div className="h-7 w-44 animate-pulse rounded-lg bg-muted" />
+    <div className="flex gap-[18px] overflow-hidden">{Array.from({ length: 5 }, (_, index) => <div key={index} className="shrink-0 animate-pulse rounded-2xl bg-muted" style={{ width: tileWidth, height: tileHeight }} />)}</div>
+  </div>
+}
+
+/** Resources by channel: one row for each channel the learner can see, in the order the organization keeps them. */
+export default function ResourceShelves({ orgslug }: { orgslug: string }) {
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const token = session?.data?.tokens?.access_token
+  const { data: resources, error: resourcesError } = useSWR(org?.id ? ['discover-resources', org.id, token || 'public'] : null, () => getResources(org.id, { limit: 50, resource_types: SHELF_TYPES }, token))
+  const { data: channels, error: channelsError } = useSWR(org?.id ? ['discover-channels', org.id, token || 'public'] : null, () => getResourceChannels(org.id, token))
+  if (!org?.id || resourcesError || channelsError) return null
+  const shelves = channelShelves(resources, channels?.channels)
+  if (!shelves) return <ShelfSkeleton label={tr('discover.resource_shelves.loading_resources', 'Loading resources')} />
   return <>
     {shelves.map(({ channel, items }) => {
       const featured = [...items].sort((a, b) => Number(b.is_featured) - Number(a.is_featured))
