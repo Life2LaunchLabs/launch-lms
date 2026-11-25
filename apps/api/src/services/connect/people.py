@@ -12,6 +12,7 @@ from src.db.portfolio import Portfolio
 from src.db.portfolio_people import PortfolioPerson
 from src.db.users import PublicUser, User
 from src.services.goals.sharing_roles import user_summary
+from src.services.users.names import legal_name
 
 # user.details key holding Connect settings.
 SETTINGS_KEY = "connect"
@@ -25,6 +26,14 @@ def person(db: Session, user_id: int | None) -> dict | None:
     if summary:
         summary.pop("email", None)
     return summary
+
+
+def roster_person(db: Session, user_id: int | None) -> dict | None:
+    """Who someone is, for staff rosters: also their legal name when they go by another one (PO-3). Staff views only."""
+    summary = person(db, user_id)
+    user = db.get(User, user_id) if summary else None
+    legal = legal_name(user) if user else ""
+    return {**summary, "legal_name": legal} if summary and legal and legal != summary.get("name") else summary
 
 
 def discoverable(user: User | None) -> bool:

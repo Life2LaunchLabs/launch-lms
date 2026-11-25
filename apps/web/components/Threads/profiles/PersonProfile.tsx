@@ -27,7 +27,7 @@ import EppReportLink from '@components/Epp/EppReportLink'
 import { useSchoolRecords } from '@components/Hooks/useSchoolRecords'
 import { workingOn } from './workingOn'
 import { inOrgWords } from '@/lib/people'
-import { firstNameOf } from '@/lib/names'
+import { firstNameOf, goesBy, rosterName } from '@/lib/names'
 
 const admin = routePaths.org.admin
 
@@ -64,11 +64,11 @@ export default function PersonProfile({ orgslug, username, tab = 'overview', com
   const thread = (plan?: string) => openThread({ kind: 'person', userId: user.id, plan })
   const roleName = profile.role_name && profile.role !== 'helper' && profile.role_name !== ROLE_LABELS[profile.role] ? profile.role_name : ''
 
-  return <ProfileFrame orgslug={orgslug} compact={compact} title={user.name}
+  return <ProfileFrame orgslug={orgslug} compact={compact} title={rosterName(user)}
     art={<PersonAvatar user={user as any} size={compact ? 'lg' : 'xl'} />}
     sub={<span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <RoleTag role={profile.role} />
-      <span>{[`@${user.username}`, roleName, user.email || ''].filter(Boolean).join(' · ')}</span>
+      <span>{[goesBy(user) ? `Goes by ${goesBy(user)}` : '', `@${user.username}`, roleName, user.email || ''].filter(Boolean).join(' · ')}</span>
     </span>}
     chips={profile.groups.length ? profile.groups.map((group) => <Link key={`${group.as}-${group.id}`} href={getUriWithOrg(orgslug, admin.people.group(group.id))}
       className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-2.5 text-xs font-semibold hover:bg-muted"><Users size={12} />{group.name}{group.as === 'staff' ? <span className="font-normal text-muted-foreground">· staff</span> : null}</Link>) : null}

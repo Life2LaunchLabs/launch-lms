@@ -151,7 +151,7 @@ def plan_steps(db: Session, goal: Goal, conversation: Conversation | None, viewe
 def _staff_thread(db: Session, current_user: PublicUser, org_id: int, user: User, role: str) -> dict:
     conversation = chats.ensure_direct(db, int(current_user.id), int(user.id))  # type: ignore[arg-type]
     db.commit()
-    return {"kind": "staff", "person": people.person(db, user.id), "role": role, "chat_uuid": conversation.conversation_uuid if conversation else None,
+    return {"kind": "staff", "person": people.roster_person(db, user.id), "role": role, "chat_uuid": conversation.conversation_uuid if conversation else None,
             "with": [], "plans": [], "focus": None, "steps": [], "counts": _empty_counts(), "review": [], "questions": [], "requests": [], "plan_requests": [], "past_due": []}
 
 
@@ -216,7 +216,7 @@ def person_thread(db: Session, current_user: PublicUser, org_id: int, user_id: i
     asked = [] if focus else asked  # a request isn't about a plan they have yet
     counts = {"review": len(scoped(review)), "questions": len(scoped(questions)), "requests": len(scoped(requests)) + len(asked), "past_due": len(scoped(past_due)),
               "staff_only": _staff_only(db, conversation, focus)}
-    return {"kind": "learner", "person": people.person(db, user_id), "role": role, "chat_uuid": conversation.conversation_uuid, "with": _people(db, staff, viewer),
+    return {"kind": "learner", "person": people.roster_person(db, user_id), "role": role, "chat_uuid": conversation.conversation_uuid, "with": _people(db, staff, viewer),
             "plans": plans, "focus": focus.goal_uuid if focus else None, "steps": plan_steps(db, focus, conversation, viewer) if focus else [], "counts": counts,
             "review": scoped(review), "questions": scoped(questions), "requests": scoped(requests), "plan_requests": asked, "past_due": scoped(past_due)}
 

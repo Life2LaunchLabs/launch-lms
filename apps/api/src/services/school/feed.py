@@ -244,12 +244,12 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
         if entry["kind"] == "person":
             if entry["_id"] == viewer:
                 continue
-            person = entry.get("_person") or people.person(db, entry["_id"])
+            person = people.roster_person(db, entry["_id"]) or entry.get("_person")
             if not person:
                 continue
             role_id = members.get(entry["_id"])
             entry.update(person=person, role=directory._label(role_id, staff_roles) if role_id is not None else plan_requests.APPLICANT if entry["_id"] in applicants else "helper")
-            name_fields = (person.get("name"), person.get("username"))
+            name_fields = (person.get("name"), person.get("username"), person.get("legal_name"))
         else:
             entry.update(person=None, role=None)
             name_fields = ((entry["group"] or {}).get("name"), None)
@@ -421,7 +421,7 @@ def group_detail(db: Session, current_user: PublicUser, org_id: int, group_id: i
     staff_roles = roles.staff_role_ids(db, org_id)
 
     def entry(user_id: int, as_: str) -> dict | None:
-        person = people.person(db, user_id)
+        person = people.roster_person(db, user_id)
         role_id = org_roles.get(user_id)
         return {"user": person, "as": as_, "role": directory._label(role_id, staff_roles) if role_id is not None else "learner",
                 "status": statuses.get(user_id, "active")} if person else None

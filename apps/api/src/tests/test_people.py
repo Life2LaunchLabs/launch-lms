@@ -382,3 +382,23 @@ def test_a_new_groups_chat_opens_with_who_created_it_and_it_lands_on_top(monkeyp
         theirs = next(row for row in feed.people_feed(db, _user(TEACHER), 1)["active"] if row["key"] == f"group:{created.id}")
         assert theirs["counts"]["messages"] == 1 and theirs["preview"] == "Tea Cher created this group"
         assert chats.get_chat(db, _user(TEACHER), theirs["chat_uuid"])["messages"][0]["card"]["verb"] == "created this group"
+
+
+def test_staff_rosters_keep_the_legal_name_beside_the_name_someone_goes_by():
+    """PO-3 check 3 (FEED-702): Threads, its list and profiles lead with the legal name for staff; others never get it."""
+    with _session() as db:
+        lee = db.get(User, LEARNER)
+        lee.preferred_name = "Kay Brooks"
+        db.add(lee)
+        db.commit()
+        legal = f"{lee.first_name} {lee.last_name}".strip()
+        listed = {item["user"]["username"]: item["user"] for item in directory.directory(db, _user(TEACHER), 1)["people"]}
+        assert listed["lee"]["name"] == "Kay Brooks" and listed["lee"]["legal_name"] == legal
+        assert "legal_name" not in listed["sam"]  # no go-by name, nothing extra
+        assert [item["user"]["username"] for item in directory.directory(db, _user(TEACHER), 1, "kay")["people"]] == ["lee"]
+        assert profile.profile(db, _user(ADMIN), 1, "lee")["user"]["legal_name"] == legal
+        rows = feed.people_feed(db, _user(ADMIN), 1)
+        person = next(row["person"] for row in [*rows["active"], *rows["rest"]] if (row.get("person") or {}).get("username") == "lee")
+        assert person["legal_name"] == legal
+        # Everywhere else (chats, plan sharing) shows only the name she goes by.
+        assert "legal_name" not in people.person(db, LEARNER)

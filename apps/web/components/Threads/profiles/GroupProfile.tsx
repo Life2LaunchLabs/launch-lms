@@ -24,6 +24,7 @@ import type { GroupView } from '@services/routing/paths'
 import { Card, ProfileFrame, ThreadButton, useOpenThread } from './ProfileFrame'
 import { CanvasCourseBar } from './CanvasCourseBar'
 import { inOrgWords } from '@/lib/people'
+import { goesBy, rosterName } from '@/lib/names'
 
 const people = routePaths.org.admin.people
 type GroupTab = 'people' | 'plans' | 'join'
@@ -79,7 +80,7 @@ function PeopleCard({ orgslug, group }: { orgslug: string; group: GroupDetail })
     {group.people.length ? <ul className="divide-y divide-border">{group.people.map((item) => <li key={`${item.as}-${item.user.id}`}>
       <Link href={getUriWithOrg(orgslug, people.user(item.user.username))} className="flex items-center gap-3 py-2.5 hover:opacity-80">
         <PersonAvatar user={item.user as any} size="md" />
-        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{item.user.name}</span><span className="block truncate text-xs text-muted-foreground">@{item.user.username}{item.status === 'alumni' ? ' · Alumni' : ''}</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{rosterName(item.user)}</span><span className="block truncate text-xs text-muted-foreground">{goesBy(item.user) ? `Goes by ${goesBy(item.user)} · ` : ''}@{item.user.username}{item.status === 'alumni' ? ' · Alumni' : ''}</span></span>
         {item.as === 'staff' ? <RoleTag role="staff" /> : null}
       </Link>
     </li>)}</ul> : <p className="text-sm text-muted-foreground">Nobody in this group yet.</p>}

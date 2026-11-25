@@ -28,7 +28,7 @@ MAX_HELPERS = 20
 
 def _like(query, needle: str):
     pattern = f"%{needle}%"
-    return query.where(or_(col(User.first_name).ilike(pattern), col(User.last_name).ilike(pattern), col(User.username).ilike(pattern), col(User.email).ilike(pattern)))
+    return query.where(or_(col(User.first_name).ilike(pattern), col(User.last_name).ilike(pattern), col(User.preferred_name).ilike(pattern), col(User.username).ilike(pattern), col(User.email).ilike(pattern)))
 
 
 def _groups_by_user(db: Session, org_id: int, user_ids: list[int]) -> dict[int, list[dict]]:
@@ -90,7 +90,7 @@ def person_rows(db: Session, org_id: int, rows: list[tuple[User, int]]) -> list[
     statuses = dict(db.exec(select(UserOrganization.user_id, UserOrganization.status).where(
         UserOrganization.org_id == org_id, col(UserOrganization.user_id).in_([int(user.id) for user, _ in rows]),  # type: ignore[arg-type]
     )).all()) if rows else {}
-    return [{"user": people.person(db, user.id), "role": _label(int(role_id), staff_roles), "role_name": role_names.get(int(role_id), ""),
+    return [{"user": people.roster_person(db, user.id), "role": _label(int(role_id), staff_roles), "role_name": role_names.get(int(role_id), ""),
              "groups": groups.get(int(user.id), []), "status": statuses.get(int(user.id)) or "active"} for user, role_id in rows]  # type: ignore[arg-type]
 
 
