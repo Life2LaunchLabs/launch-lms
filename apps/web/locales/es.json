@@ -5727,7 +5727,8 @@
       "careers": "Carreras",
       "more_resources": "Más recursos",
       "saved": "Guardado",
-      "open_value_in_a_new": "Abrir {{value}} en una pestaña nueva"
+      "open_value_in_a_new": "Abrir {{value}} en una pestaña nueva",
+      "loading_resources": "Cargando recursos"
     },
     "resource_cover": {
       "video": "Video",
@@ -6109,7 +6110,8 @@
       "careers_for_you_2": "Carreras para ti",
       "closest_to_your_interests_first_2": "Primero las más cercanas a tus intereses.",
       "take_the_interest_quiz_to_2": "Haz el test de intereses para ver primero las más parecidas.",
-      "pay_is_where_your_plan_2": "el sueldo es donde va tu plan."
+      "pay_is_where_your_plan_2": "el sueldo es donde va tu plan.",
+      "loading_careers": "Cargando carreras"
     },
     "home_base_sheet": {
       "where_s_home_base": "¿Dónde está tu base?",

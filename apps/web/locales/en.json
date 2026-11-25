@@ -5723,7 +5723,8 @@
       "careers": "Careers",
       "more_resources": "More resources",
       "saved": "Saved",
-      "open_value_in_a_new": "Open {{value}} in a new tab"
+      "open_value_in_a_new": "Open {{value}} in a new tab",
+      "loading_resources": "Loading resources"
     },
     "resource_cover": {
       "video": "Video",
@@ -6105,7 +6106,8 @@
       "careers_for_you_2": "Careers for you",
       "closest_to_your_interests_first_2": "Closest to your interests first.",
       "take_the_interest_quiz_to_2": "Take the interest quiz to see your closest matches first.",
-      "pay_is_where_your_plan_2": "pay is where your plan goes."
+      "pay_is_where_your_plan_2": "pay is where your plan goes.",
+      "loading_careers": "Loading careers"
     },
     "home_base_sheet": {
       "where_s_home_base": "Where’s home base?",
