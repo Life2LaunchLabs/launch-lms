@@ -51,6 +51,7 @@ async def signWithGoogle(
         )
 
     from src.services.users.account_emails import find_user
+    from src.services.users.account_emails import normalize as account_emails_normalize
 
     user = find_user(db_session, user_email)
 
@@ -103,6 +104,11 @@ async def signWithGoogle(
 
             return user
 
+    # An account that disconnected Google in Settings doesn't sign in with it (PF-3).
+    from src.services.users import account_settings
+
+    account_settings.check_google_sign_in(user)
+
     # For existing users, ensure email is verified (Google already verified it)
     needs_update = False
     if not user.email_verified:
@@ -119,6 +125,8 @@ async def signWithGoogle(
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
+
+    account_settings.note_google_sign_in(db_session, user, account_emails_normalize(user_email))
 
     # Update last login info
     client_ip = get_client_ip(request)

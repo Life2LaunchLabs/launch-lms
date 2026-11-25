@@ -16,7 +16,6 @@ from src.db.portfolio_records import (
     PortfolioQuote,
     QuoteWrite,
     ResultWrite,
-    ResumeContactUpdate,
     ResumeVersionWrite,
 )
 from src.db.roles import Role
@@ -263,17 +262,16 @@ def test_visitors_get_the_resume_once_it_is_unlocked():
 
 
 def test_resume_contact_is_the_owners_alone():
+    # The résumé prints the account's main email and its phone, both set in Settings (PF-3).
+    from src.services.users import account_settings
+
     with _session() as db:
         actor = _learner(db, published=True)
-        assert service.get_owner_shell(actor, db)["resume_contact"] == {"email": "", "phone": ""}
-        saved = portfolio_display.update_resume_contact(ResumeContactUpdate(email=" maya@example.com ", phone="(541) 555-0123"), actor, db)
-        assert saved == {"email": "maya@example.com", "phone": "(541) 555-0123"}
-        assert service.get_owner_shell(actor, db)["resume_contact"] == saved
+        user = db.get(User, actor.id)
+        account_settings.set_phone(db, user, "(541) 555-0123")
+        assert service.get_owner_shell(actor, db)["resume_contact"] == {"email": user.email, "phone": "(541) 555-0123"}
         public = service.get_public_shell(1, "maya", db)
-        assert "resume_contact" not in public and "maya@example.com" not in str(public)
-        for bad in (ResumeContactUpdate(email="maya"), ResumeContactUpdate(phone="12"), ResumeContactUpdate(phone="call me")):
-            with pytest.raises(HTTPException):
-                portfolio_display.update_resume_contact(bad, actor, db)
+        assert "resume_contact" not in public and "555-0123" not in str(public)
 
 
 def test_results_from_a_plan_update_their_own_row_and_keep_the_learners_choices():

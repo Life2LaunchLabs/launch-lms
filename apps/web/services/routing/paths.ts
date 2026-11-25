@@ -96,6 +96,8 @@ export const routePaths = {
       messages: () => '/account/messages',
       organizations: () => '/account/organizations',
       memory: () => '/account/memory',
+      /** Emails and phone: what the résumé prints (PF-3). */
+      contact: () => '/account/contact',
       preferences: () => '/account/preferences',
       badges: () => '/account/badges',
     },

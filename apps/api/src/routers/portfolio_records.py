@@ -18,7 +18,6 @@ from src.db.portfolio_records import (
     QuoteWrite,
     ResultWrite,
     ConnectRequestsUpdate,
-    ResumeContactUpdate,
     ResumeVersionWrite,
 )
 from src.db.users import PublicUser
@@ -50,11 +49,6 @@ async def api_update_highlights(payload: HighlightsUpdate, current_user: PublicU
 @router.put("/me/layout")
 async def api_update_layout(payload: LayoutUpdate, current_user: PublicUser = User, db_session: Session = Db):
     return portfolio_display.update_layout(payload, current_user, db_session)
-
-
-@router.put("/me/resume-contact")
-async def api_update_resume_contact(payload: ResumeContactUpdate, current_user: PublicUser = User, db_session: Session = Db):
-    return portfolio_display.update_resume_contact(payload, current_user, db_session)
 
 
 @router.put("/me/connect-requests")

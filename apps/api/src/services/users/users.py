@@ -473,6 +473,12 @@ async def update_user(
 
         account_emails.make_main(db_session, user, str(user_object.email))
         user_data.pop("email", None)
+    if isinstance(user_data.get("details"), dict):
+        # The phone and Google sign-in state are set in Settings, never through a profile save (PF-3).
+        from src.services.users.account_settings import GOOGLE_KEY, PHONE_KEY
+
+        kept = {key: value for key, value in (user.details or {}).items() if key in (PHONE_KEY, GOOGLE_KEY)}
+        user_data["details"] = {**{k: v for k, v in user_data["details"].items() if k not in (PHONE_KEY, GOOGLE_KEY)}, **kept}
     for key, value in user_data.items():
         if key not in _PROTECTED_FIELDS:
             setattr(user, key, value)

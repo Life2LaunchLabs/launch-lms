@@ -8,6 +8,7 @@ import { useAuth, validateOAuthState } from '@components/Contexts/AuthContext'
 import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config'
 import { ageRefusalCode, markRefused, takeOAuthBirthDate } from '@services/auth/ageCheck'
 import { errorDetailMessage } from '@/lib/errorDetail'
+import { accountSettingsApi } from '@services/users/accountEmails'
 
 /** Why Google couldn't create the account, when it was the age check (DEV-38). */
 function ageRefusalMessage(body: unknown): string | null {
@@ -87,6 +88,27 @@ export default function GoogleCallbackPage() {
       }
 
       const callbackUrl = stateValidation.callbackUrl
+
+      // Connecting Google from Settings (PF-3): the person is already signed in, so the Google account joins theirs.
+      if (stateValidation.link) {
+        try {
+          const domain = getLAUNCHLMS_DOMAIN_VAL()
+          const tokenResponse = await fetch('/api/auth/google/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, redirect_uri: `${window.location.protocol}//${domain}/auth/callback/google` }),
+          })
+          const tokenData = await tokenResponse.json().catch(() => ({}))
+          if (!tokenResponse.ok || !tokenData.access_token) throw new Error(tokenData.error || 'Google didn’t let us connect that account. Try again.')
+          await accountSettingsApi.connectGoogle(tokenData.access_token)
+          setStatus('success')
+          router.push(callbackUrl)
+        } catch (err: any) {
+          setError(err?.message || 'We couldn’t connect Google. Try again from Settings.')
+          setStatus('error')
+        }
+        return
+      }
 
       // Get org_id from cookie if set
       let orgId: number | undefined

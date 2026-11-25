@@ -143,7 +143,7 @@ export function PortfolioV2({ initialShell, orgslug, username, owner = false, pr
     if (path) return page(path)
     setMark(item.label)
     const go: Record<string, () => void> = {
-      name: () => setProfileOpen(true), contact: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
+      name: () => setProfileOpen(true), photo: () => setAvatarOpen(true), links: () => setLinksOpen(true), skills: () => setResultEditor({ template: SKILLS_VALUES }),
       bio: () => document.querySelector('[aria-label="About me"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       proven: () => page(routePaths.org.discover()), look: () => setLookOpen(true),
       like: () => document.querySelector('[aria-label="What I’m like"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),

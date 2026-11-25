@@ -6,8 +6,24 @@ import UserAvatar from '@components/Objects/UserAvatar'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
 import { shownName } from '@/lib/names'
+import Link from 'next/link'
+import { ArrowRight, IdentificationCard } from '@phosphor-icons/react'
+import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { tr } from '@/lib/tr'
 
-export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences' | 'accessibility' | 'data'
+/** The bar Settings opens with (PF-3): your name, photo and intro are edited in your portfolio, not here. */
+export function PersonalDetailsBar() {
+  useTranslation()
+  return <div data-testid="settings-personal-details" className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border-2 border-border bg-muted/50 px-4 py-3">
+    <IdentificationCard size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+    <p className="min-w-0 flex-1 text-sm text-foreground">{tr('account_settings.personal_details_bar', 'Your name, photo and intro are edited in your portfolio.')}</p>
+    <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())} className="inline-flex items-center gap-1 text-sm font-bold text-foreground underline-offset-4 hover:underline">
+      {tr('account_settings.go_to_portfolio', 'Go to your portfolio')}<ArrowRight size={14} weight="bold" aria-hidden="true" />
+    </Link>
+  </div>
+}
+
+export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences' | 'accessibility' | 'data' | 'contact'
 
 /** Settings: one page for your account, how the app looks, and what Coach remembers. */
 export default function AccountPageShell({ children }: { children: React.ReactNode }) {
@@ -24,6 +40,7 @@ export default function AccountPageShell({ children }: { children: React.ReactNo
             <p className="truncate text-sm text-muted-foreground">{shownName(user)}{user?.username ? ` · @${user.username}` : ''}</p>
           </div>
         </header>
+        <PersonalDetailsBar />
         <div className="py-8">{children}</div>
       </GeneralWrapperStyled>
     </main>
