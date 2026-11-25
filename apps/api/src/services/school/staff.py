@@ -72,10 +72,19 @@ def _title(db: Session, assignment: GoalAssignment) -> str:
     return ((version.document or {}).get("template") or {}).get("title") if version else "Goal"  # type: ignore[return-value]
 
 
+def _reviewers(assignment: GoalAssignment) -> set[int]:
+    """The assignment's Lead and Review staff: a group staff role never lowers their role on its goals (DEV-208)."""
+    from src.services.goals.assignment_staff import assignment_role
+
+    return {int(item["user_id"]) for item in collaborators_of(assignment) if assignment_role(item.get("role_key")) != "comment"}
+
+
 def _sync_goals(db: Session, row: UserGroupStaff | None, group_id: int, user_id: int) -> None:
     """Make someone a collaborator on the group goals they cover, and take them off the rest."""
     for assignment in _assignments(db, group_id):
         explicit = {int(item["user_id"]) for item in collaborators_of(assignment)}
+        if user_id in _reviewers(assignment):
+            continue
         for goal in db.exec(select(Goal).where(Goal.assignment_id == assignment.id)).all():
             if user_id in {goal.owner_user_id, goal.subject_user_id}:
                 continue
@@ -141,8 +150,9 @@ def apply_to_goal(db: Session, assignment: GoalAssignment, goal: Goal) -> None:
     """A goal just issued from a group's assignment gets the group's staff who cover it."""
     if not assignment.usergroup_id:
         return
+    kept = _reviewers(assignment) | {goal.owner_user_id, goal.subject_user_id}
     for row in db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == assignment.usergroup_id)).all():
-        if covers(row, assignment) and row.user_id not in {goal.owner_user_id, goal.subject_user_id}:
+        if covers(row, assignment) and row.user_id not in kept:
             role = _role(db, goal, row.role_key)
             if role:
                 access.add_member(db, goal, row.user_id, role)

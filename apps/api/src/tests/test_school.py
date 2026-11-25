@@ -163,3 +163,26 @@ def test_a_students_team_includes_the_staff_on_their_plans():
         db.add(goal)
         db.commit()
         assert views.student(db, _user(ADMIN), 1, LEARNER)["team"] == []
+
+
+def test_a_group_staff_role_never_lowers_a_plan_reviewer():
+    """DEV-208: a plan's Review (or Lead) staff who are also Commenter staff on the group keep reviewing its learners' work."""
+    with _session() as db:
+        from src.db.goal_templates import AssignmentCollaborator, GoalAssignmentRequest
+
+        _staff(db, role_key="commenter")
+        template = _published(db, {"key": "visit", "type": "task", "title": "Visit a campus"})
+        made = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(
+            usergroup_id=1, collaborators=[AssignmentCollaborator(user_id=ADMIN, role_key="lead"), AssignmentCollaborator(user_id=TEACHER, role_key="review")]))
+        goal = _goal(db, LEARNER, made["assignment_uuid"])
+        assert "review_submissions" in access.capabilities(db, goal, TEACHER)
+        # Changing their group role, or taking them off the group, leaves the plan role alone.
+        _staff(db, role_key="viewer")
+        assert "review_submissions" in access.capabilities(db, goal, TEACHER)
+        staff.remove_staff(db, _user(ADMIN), 1, 1, TEACHER)
+        assert "review_submissions" in access.capabilities(db, goal, TEACHER)
+        # Group staff who aren't on the plan's staff still get the group role.
+        _staff(db, role_key="commenter")
+        later = _assign(db, "Write an essay")["assignment_uuid"]
+        granted = access.capabilities(db, _goal(db, LEARNER, later), TEACHER)
+        assert "comment" in granted and "review_submissions" not in granted
